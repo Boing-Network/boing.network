@@ -267,7 +267,10 @@ import InitialAnimation from '../components/InitialAnimation.astro';
     display: flex; align-items: center; justify-content: center;
     pointer-events: none; z-index: 2;
     perspective: 1400px;
+    transition: opacity 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
+  :global(html.intro-active) .hero-robot-wrap { opacity: 0; }
+  :global(html.intro-complete) .hero-robot-wrap { opacity: 1; }
   @media (min-width: 900px) {
     .hero-robot-wrap { position: absolute; right: 0; bottom: 0; top: 0; left: 45%; }
   }
@@ -302,7 +305,12 @@ import InitialAnimation from '../components/InitialAnimation.astro';
     0%, 100% { filter: drop-shadow(0 0 40px rgba(0, 229, 204, 0.2)); opacity: 1; }
     50% { filter: drop-shadow(0 0 56px rgba(0, 229, 204, 0.35)); opacity: 0.98; }
   }
-  .hero-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+  .hero-bg {
+    position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    transition: opacity 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  :global(html.intro-active) .hero-bg { opacity: 0; }
+  :global(html.intro-complete) .hero-bg { opacity: 1; }
   .hero-orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; animation: float 20s ease-in-out infinite; }
   .hero-orb-1 { width: 400px; height: 400px; background: radial-gradient(circle, var(--accent-teal) 0%, transparent 70%); top: -20%; left: 10%; animation-delay: 0s; }
   .hero-orb-2 { width: 300px; height: 300px; background: radial-gradient(circle, var(--accent-cyan) 0%, transparent 70%); bottom: -10%; right: 15%; animation-delay: -7s; }
@@ -347,7 +355,43 @@ import InitialAnimation from '../components/InitialAnimation.astro';
   @keyframes shoot6 { 0% { transform: translate(0, 0); opacity: 0; } 8% { opacity: 0.45; } 92% { opacity: 0.45; } 100% { transform: translate(-90vw, 27vw); opacity: 0; } } /* 163° tan≈0.3 */
   @keyframes shoot7 { 0% { transform: translate(0, 0); opacity: 0; } 12% { opacity: 0.4; } 88% { opacity: 0.4; } 100% { transform: translate(100vw, 70vw); opacity: 0; } } /* 35° */
   @keyframes shoot8 { 0% { transform: translate(0, 0); opacity: 0; } 7% { opacity: 0.35; } 93% { opacity: 0.35; } 100% { transform: translate(-60vw, -60vw); opacity: 0; } } /* 225° */
-  .hero-content { position: relative; z-index: 3; max-width: 800px; margin: 0 auto; }
+  .hero-content {
+    position: relative;
+    z-index: 3;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  :global(html.intro-active) .hero-content {
+    pointer-events: none;
+  }
+  :global(html.intro-active) .hero-content .hero-logo-img,
+  :global(html.intro-active) .hero-content .hero-title,
+  :global(html.intro-active) .hero-content .tagline,
+  :global(html.intro-active) .hero-content .hero-highlights,
+  :global(html.intro-active) .hero-content .cta {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  :global(html.intro-complete) .hero-content .hero-logo-img,
+  :global(html.intro-complete) .hero-content .hero-title,
+  :global(html.intro-complete) .hero-content .tagline,
+  :global(html.intro-complete) .hero-content .hero-highlights,
+  :global(html.intro-complete) .hero-content .cta {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .hero-content .hero-logo-img,
+  .hero-content .hero-title,
+  .hero-content .tagline,
+  .hero-content .hero-highlights,
+  .hero-content .cta {
+    transition: opacity 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  :global(html.intro-complete) .hero-content .hero-logo-img { transition-delay: 0.08s; }
+  :global(html.intro-complete) .hero-content .hero-title { transition-delay: 0.16s; }
+  :global(html.intro-complete) .hero-content .tagline { transition-delay: 0.24s; }
+  :global(html.intro-complete) .hero-content .hero-highlights { transition-delay: 0.32s; }
+  :global(html.intro-complete) .hero-content .cta { transition-delay: 0.4s; }
   .hero-logo-img { display: block; max-width: min(120px, 28vw); height: auto; margin: 0 auto 0.5rem; object-fit: contain; filter: drop-shadow(0 0 16px var(--glow-cyan)); }
   .hero-title { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 700; margin: 0 0 0.5rem; background: linear-gradient(to right, var(--accent-teal), var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 20px var(--glow-cyan)); }
   .tagline { font-size: 1.25rem; margin: 0 0 0.5rem; background: linear-gradient(to right, var(--accent-teal), var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 12px var(--glow-cyan)); }
