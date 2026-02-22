@@ -1,109 +1,84 @@
 ---
 /**
- * Full-viewport initial animation for the homepage.
- * Aquatic + cosmic elements orbit the Boing mascot; theme-aligned (Cosmic Foundation).
- * Respects prefers-reduced-motion. Dismisses on click/scroll or after delay.
+ * Cinematic 3D initial animation for the homepage.
+ * Narrative: dark → parallax depth → mascot reveal → ambient life. No orbits.
+ * Aquatic–space theme; Boing mascot as hero. Respects prefers-reduced-motion.
  */
 interface Props {
-  /** Duration in ms before auto-dismiss (0 = no auto). */
   autoDismissMs?: number;
 }
 
-const { autoDismissMs = 4800 } = Astro.props;
+const { autoDismissMs = 5200 } = Astro.props;
 ---
 
 <div class="intro-overlay" id="intro-overlay" aria-hidden="true" data-auto-dismiss={autoDismissMs}>
   <div class="intro-backdrop"></div>
   <div class="intro-vignette" aria-hidden="true"></div>
 
-  <!-- Deep 3D layer: nebula clouds + waterline (aquatic–space blend) -->
-  <div class="intro-deep-layer" aria-hidden="true">
+  <!-- Parallax depth layers (drift at different speeds for 3D cinema) -->
+  <div class="intro-parallax" aria-hidden="true">
+    <div class="parallax-layer layer-far" style="--drift-x: 2%; --drift-y: -1%; --duration: 28s;"></div>
+    <div class="parallax-layer layer-mid-far" style="--drift-x: -1.5%; --drift-y: 1%; --duration: 22s;"></div>
+    <div class="parallax-layer layer-mid" style="--drift-x: 1%; --drift-y: 0.5%; --duration: 18s;"></div>
+    <div class="parallax-layer layer-near" style="--drift-x: -0.8%; --drift-y: -0.5%; --duration: 14s;"></div>
+  </div>
+
+  <!-- Atmospheric nebula + waterline (aquatic–space) -->
+  <div class="intro-atmosphere" aria-hidden="true">
     <div class="intro-nebula intro-nebula-1"></div>
     <div class="intro-nebula intro-nebula-2"></div>
     <div class="intro-nebula intro-nebula-3"></div>
-    <div class="intro-waterline" aria-hidden="true"></div>
-    <div class="intro-aurora" aria-hidden="true"></div>
+    <div class="intro-waterline"></div>
+    <div class="intro-aurora"></div>
   </div>
 
+  <!-- Sweeping light rays (cinematic) -->
+  <div class="intro-light-rays" aria-hidden="true">
+    <div class="light-ray ray-1"></div>
+    <div class="light-ray ray-2"></div>
+    <div class="light-ray ray-3"></div>
+  </div>
+
+  <!-- Mascot stage: pulse ring + mascot -->
   <div class="intro-scene" id="intro-scene">
-    <div class="intro-orbit-container">
-      <!-- Inner orbit: 3D bubbles + stars (closer in Z) -->
-      <div class="orbit orbit-inner" style="--orbit-duration: 18s; --orbit-radius: clamp(140px, 28vw, 220px); --orbit-z: 60px; --orbit-tilt: 8deg;">
-        <span class="orbit-item bubble" aria-hidden="true"></span>
-        <span class="orbit-item star" aria-hidden="true"></span>
-        <span class="orbit-item bubble" aria-hidden="true"></span>
-        <span class="orbit-item star" aria-hidden="true"></span>
-        <span class="orbit-item bubble" aria-hidden="true"></span>
-        <span class="orbit-item star" aria-hidden="true"></span>
-      </div>
-
-      <!-- Mid orbit: jellyfish + orbs (mid depth, tilted) -->
-      <div class="orbit orbit-mid" style="--orbit-duration: 28s; --orbit-radius: clamp(200px, 40vw, 320px); --orbit-z: 0px; --orbit-tilt: -6deg;">
-        <span class="orbit-item jellyfish" aria-hidden="true"></span>
-        <span class="orbit-item orb-cyan" aria-hidden="true"></span>
-        <span class="orbit-item jellyfish" aria-hidden="true"></span>
-        <span class="orbit-item orb-violet" aria-hidden="true"></span>
-        <span class="orbit-item jellyfish" aria-hidden="true"></span>
-        <span class="orbit-item orb-cyan" aria-hidden="true"></span>
-        <span class="orbit-item coral" aria-hidden="true"></span>
-        <span class="orbit-item orb-violet" aria-hidden="true"></span>
-      </div>
-
-      <!-- Outer orbit: ring + planets (further in Z) -->
-      <div class="orbit orbit-outer" style="--orbit-duration: 42s; --orbit-radius: clamp(280px, 55vw, 440px); --orbit-z: -80px; --orbit-tilt: 10deg;">
-        <span class="orbit-item ring" aria-hidden="true"></span>
-        <span class="orbit-item planet" aria-hidden="true"></span>
-        <span class="orbit-item planet-small" aria-hidden="true"></span>
-        <span class="orbit-item star-bright" aria-hidden="true"></span>
-        <span class="orbit-item planet" aria-hidden="true"></span>
-        <span class="orbit-item star-bright" aria-hidden="true"></span>
-        <span class="orbit-item planet-small" aria-hidden="true"></span>
-      </div>
-
-      <!-- Far orbit: asteroids + moon + extra stars -->
-      <div class="orbit orbit-far" style="--orbit-duration: 55s; --orbit-radius: clamp(340px, 62vw, 520px); --orbit-z: -160px; --orbit-tilt: -4deg;">
-        <span class="orbit-item asteroid" aria-hidden="true"></span>
-        <span class="orbit-item moon" aria-hidden="true"></span>
-        <span class="orbit-item star-tiny" aria-hidden="true"></span>
-        <span class="orbit-item asteroid" aria-hidden="true"></span>
-        <span class="orbit-item star-tiny" aria-hidden="true"></span>
-        <span class="orbit-item moon-small" aria-hidden="true"></span>
-        <span class="orbit-item star-tiny" aria-hidden="true"></span>
-        <span class="orbit-item asteroid" aria-hidden="true"></span>
-      </div>
-
-      <!-- Floating drift bubbles (3D, not on orbit) -->
-      <div class="intro-drift-bubbles" aria-hidden="true">
-        <span class="drift-bubble drift-bubble-1"></span>
-        <span class="drift-bubble drift-bubble-2"></span>
-        <span class="drift-bubble drift-bubble-3"></span>
-        <span class="drift-bubble drift-bubble-4"></span>
-        <span class="drift-bubble drift-bubble-5"></span>
-      </div>
-
-      <!-- Shooting star (crosses view occasionally) -->
-      <div class="intro-shooting-star" aria-hidden="true">
-        <span class="shooting-star-line"></span>
-      </div>
-
-      <!-- 3D decorative rings (tilted, pulse) -->
-      <div class="intro-ring-pulse" aria-hidden="true"></div>
-      <div class="intro-ring-outer" aria-hidden="true"></div>
-    </div>
-
-    <div class="intro-mascot-wrap">
-      <div class="intro-mascot-3d">
-        <img
-          src="/assets/mascot-excited.png"
-          alt=""
-          class="intro-mascot-img"
-          width="320"
-          height="320"
-        />
+    <div class="intro-mascot-stage">
+      <div class="intro-pulse-ring" aria-hidden="true"></div>
+      <div class="intro-mascot-wrap">
+        <div class="intro-mascot-3d">
+          <img src="/assets/mascot-excited.png" alt="" class="intro-mascot-img" width="320" height="320" />
+        </div>
       </div>
     </div>
   </div>
 
+  <!-- Ambient: rising bubbles (aquatic) -->
+  <div class="intro-bubbles" aria-hidden="true">
+    <span class="rise-bubble b1"></span>
+    <span class="rise-bubble b2"></span>
+    <span class="rise-bubble b3"></span>
+    <span class="rise-bubble b4"></span>
+    <span class="rise-bubble b5"></span>
+    <span class="rise-bubble b6"></span>
+    <span class="rise-bubble b7"></span>
+  </div>
+
+  <!-- Floating particles (organic paths, 3D feel) -->
+  <div class="intro-particles" aria-hidden="true">
+    <span class="particle p1"></span>
+    <span class="particle p2"></span>
+    <span class="particle p3"></span>
+    <span class="particle p4"></span>
+    <span class="particle p5"></span>
+    <span class="particle p6"></span>
+  </div>
+
+  <!-- Shooting star (one pass) -->
+  <div class="intro-shooting-star" aria-hidden="true">
+    <span class="shooting-star-line"></span>
+  </div>
+
+  <!-- Optional brand whisper -->
+  <p class="intro-brand" aria-hidden="true">Boing Network</p>
   <p class="intro-hint">Scroll or tap to continue</p>
 </div>
 
@@ -115,7 +90,7 @@ const { autoDismissMs = 4800 } = Astro.props;
     document.documentElement.classList.add('intro-active');
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const autoDismissMs = parseInt(overlay.dataset.autoDismiss || '4800', 10);
+    const autoDismissMs = parseInt(overlay.dataset.autoDismiss || '5200', 10);
     const OUTRO_SCENE_MS = 1200;
 
     function dismiss() {
@@ -163,32 +138,23 @@ const { autoDismissMs = 4800 } = Astro.props;
     pointer-events: auto;
     opacity: 1;
     visibility: visible;
-    transition:
-      opacity 1s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-      visibility 1s step-end;
+    transition: opacity 1s cubic-bezier(0.25, 0.46, 0.45, 0.94), visibility 1s step-end;
   }
 
   .intro-overlay.intro-done {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition:
-      opacity 1s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-      visibility 1s step-end 1s;
+    transition: opacity 1s cubic-bezier(0.25, 0.46, 0.45, 0.94), visibility 1s step-end 1s;
   }
 
   .intro-backdrop {
     position: absolute;
     inset: 0;
-    background: radial-gradient(
-      ellipse 120% 120% at 50% 50%,
-      rgba(2, 4, 8, 0.97) 0%,
-      var(--boing-black, #020408) 50%,
-      var(--boing-void, #050810) 100%
-    );
+    background: radial-gradient(ellipse 100% 100% at 50% 45%, #020408 0%, #050810 35%, #0a0f1a 70%, #0c1428 100%);
     z-index: 0;
     opacity: 0;
-    animation: intro-backdrop-in 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: intro-backdrop-in 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   @keyframes intro-backdrop-in {
@@ -198,26 +164,20 @@ const { autoDismissMs = 4800 } = Astro.props;
   .intro-exiting .intro-backdrop {
     animation: none;
     transition: opacity 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  }
-  .intro-exiting .intro-backdrop {
-    opacity: 0.4;
+    opacity: 0.3;
   }
 
   .intro-vignette {
     position: absolute;
     inset: 0;
-    z-index: 0.5;
+    z-index: 1;
     pointer-events: none;
-    background: radial-gradient(
-      ellipse 80% 80% at 50% 50%,
-      transparent 40%,
-      rgba(0, 0, 0, 0.35) 100%
-    );
+    background: radial-gradient(ellipse 75% 75% at 50% 50%, transparent 35%, rgba(0,0,0,0.5) 100%);
     opacity: 0;
-    animation: intro-vignette-in 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards;
+    animation: vignette-in 2s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
   }
 
-  @keyframes intro-vignette-in {
+  @keyframes vignette-in {
     to { opacity: 1; }
   }
 
@@ -226,77 +186,141 @@ const { autoDismissMs = 4800 } = Astro.props;
     transition: opacity 0.5s ease;
   }
 
-  /* Deep 3D layer: nebula clouds + waterline + aurora */
-  .intro-deep-layer {
+  /* Parallax depth layers */
+  .intro-parallax {
+    position: absolute;
+    inset: -10%;
+    z-index: 0.5;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .parallax-layer {
     position: absolute;
     inset: 0;
-    z-index: 0.3;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0;
+    animation: parallax-fade-in 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards, parallax-drift var(--duration, 20s) ease-in-out infinite;
+  }
+
+  .parallax-layer.layer-far {
+    width: 100%;
+    height: 100%;
+    max-width: 90vmax;
+    max-height: 90vmax;
+    margin: auto;
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.2) 0%, transparent 55%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    animation-delay: 0.2s, 0.5s;
+  }
+
+  .parallax-layer.layer-mid-far {
+    width: 85%;
+    height: 85%;
+    max-width: 75vmax;
+    max-height: 75vmax;
+    margin: auto;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 60%);
+    animation-delay: 0.4s, 0.8s;
+  }
+
+  .parallax-layer.layer-mid {
+    width: 70%;
+    height: 70%;
+    margin: auto;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(192, 38, 211, 0.12) 0%, transparent 65%);
+    animation-delay: 0.6s, 1s;
+  }
+
+  .parallax-layer.layer-near {
+    width: 55%;
+    height: 55%;
+    margin: auto;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.1) 0%, transparent 70%);
+    animation-delay: 0.8s, 1.2s;
+  }
+
+  @keyframes parallax-fade-in {
+    to { opacity: 1; }
+  }
+
+  @keyframes parallax-drift {
+    0%, 100% { transform: translate(-50%, -50%) translate(0, 0); }
+    25% { transform: translate(-50%, -50%) translate(calc(var(--drift-x) * 1), calc(var(--drift-y) * 1)); }
+    50% { transform: translate(-50%, -50%) translate(calc(var(--drift-x) * -0.5), calc(var(--drift-y) * -0.5)); }
+    75% { transform: translate(-50%, -50%) translate(calc(var(--drift-x) * 0.7), calc(var(--drift-y) * 0.7)); }
+  }
+
+  .intro-exiting .parallax-layer {
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+
+  /* Atmosphere: nebula + waterline + aurora */
+  .intro-atmosphere {
+    position: absolute;
+    inset: 0;
+    z-index: 0.6;
     pointer-events: none;
-    perspective: 1200px;
-    transform-style: preserve-3d;
-    overflow: hidden;
   }
 
   .intro-nebula {
     position: absolute;
     border-radius: 50%;
-    filter: blur(80px);
-    transform-style: preserve-3d;
+    filter: blur(70px);
     opacity: 0;
-    animation: nebula-fade-in 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: nebula-in 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
+
   .intro-nebula-1 {
-    width:  min(90vw, 700px);
-    height: min(90vw, 700px);
+    width: min(80vw, 600px);
+    height: min(80vw, 600px);
     background: radial-gradient(circle, var(--network-primary) 0%, transparent 65%);
-    top: -15%; left: -10%;
-    transform: translateZ(-400px);
-    animation-delay: 0.2s;
-    opacity: 0;
-  }
-  .intro-nebula-2 {
-    width:  min(70vw, 500px);
-    height: min(70vw, 500px);
-    background: radial-gradient(circle, var(--network-cyan) 0%, transparent 65%);
-    bottom: -20%; right: -15%;
-    transform: translateZ(-350px);
+    top: -10%; left: -15%;
     animation-delay: 0.5s;
-    opacity: 0;
   }
-  .intro-nebula-3 {
-    width:  min(50vw, 380px);
-    height: min(50vw, 380px);
-    background: radial-gradient(circle, var(--network-nebula) 0%, transparent 70%);
-    top: 40%; left: 60%;
-    transform: translateZ(-300px);
+
+  .intro-nebula-2 {
+    width: min(60vw, 450px);
+    height: min(60vw, 450px);
+    background: radial-gradient(circle, var(--network-cyan) 0%, transparent 65%);
+    bottom: -15%; right: -10%;
     animation-delay: 0.8s;
-    opacity: 0;
   }
-  @keyframes nebula-fade-in {
-    to { opacity: 0.2; }
+
+  .intro-nebula-3 {
+    width: min(45vw, 320px);
+    height: min(45vw, 320px);
+    background: radial-gradient(circle, var(--network-nebula) 0%, transparent 70%);
+    top: 35%; left: 55%;
+    animation-delay: 1s;
   }
-  .intro-exiting .intro-nebula {
-    transition: opacity 0.6s ease;
-    opacity: 0 !important;
+
+  @keyframes nebula-in {
+    to { opacity: 0.22; }
   }
 
   .intro-waterline {
     position: absolute;
     left: 0;
     right: 0;
-    top: 38%;
-    height: 4px;
-    background: linear-gradient(90deg, transparent 0%, rgba(6, 182, 212, 0.15) 20%, rgba(124, 58, 237, 0.2) 50%, rgba(6, 182, 212, 0.15) 80%, transparent 100%);
-    transform: translateZ(-250px) scaleY(1);
+    top: 40%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent 0%, rgba(6, 182, 212, 0.2) 30%, rgba(124, 58, 237, 0.25) 50%, rgba(6, 182, 212, 0.2) 70%, transparent 100%);
     opacity: 0;
-    animation: waterline-in 1.5s cubic-bezier(0.22, 1, 0.36, 1) 1s forwards;
+    animation: waterline-in 1.5s cubic-bezier(0.22, 1, 0.36, 1) 1.2s forwards;
   }
+
   @keyframes waterline-in {
-    to { opacity: 0.6; }
-  }
-  .intro-exiting .intro-waterline {
-    opacity: 0;
-    transition: opacity 0.4s ease;
+    to { opacity: 0.7; }
   }
 
   .intro-aurora {
@@ -304,401 +328,130 @@ const { autoDismissMs = 4800 } = Astro.props;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 45%;
-    background: linear-gradient(180deg, transparent 0%, rgba(6, 182, 212, 0.06) 40%, rgba(124, 58, 237, 0.08) 100%);
-    transform: translateZ(-380px);
+    height: 50%;
+    background: linear-gradient(180deg, transparent 0%, rgba(6, 182, 212, 0.05) 30%, rgba(124, 58, 237, 0.07) 100%);
     opacity: 0;
-    animation: nebula-fade-in 2s cubic-bezier(0.22, 1, 0.36, 1) 1.2s forwards;
+    animation: nebula-in 2s cubic-bezier(0.22, 1, 0.36, 1) 1.4s forwards;
   }
+
+  .intro-exiting .intro-nebula,
+  .intro-exiting .intro-waterline,
   .intro-exiting .intro-aurora {
     opacity: 0;
     transition: opacity 0.5s ease;
   }
 
+  /* Light rays (sweeping, cinematic) */
+  .intro-light-rays {
+    position: absolute;
+    inset: 0;
+    z-index: 0.8;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .light-ray {
+    position: absolute;
+    width: 2px;
+    height: 150%;
+    top: -25%;
+    left: 50%;
+    margin-left: -1px;
+    background: linear-gradient(180deg, transparent 0%, rgba(124, 58, 237, 0.08) 25%, rgba(6, 182, 212, 0.1) 50%, transparent 100%);
+    transform-origin: center center;
+    opacity: 0;
+    animation: ray-sweep 24s linear infinite;
+  }
+
+  .light-ray.ray-1 { --r: 0deg; animation-delay: 0s; }
+  .light-ray.ray-2 { --r: 120deg; animation-delay: -8s; }
+  .light-ray.ray-3 { --r: 240deg; animation-delay: -16s; }
+
+  @keyframes ray-sweep {
+    0% { opacity: 0; transform: rotate(var(--r, 0deg)); }
+    4% { opacity: 0.45; }
+    8% { opacity: 0; }
+    100% { opacity: 0; transform: rotate(calc(var(--r, 0deg) + 360deg)); }
+  }
+
+  .intro-exiting .light-ray {
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  /* Scene: mascot + pulse ring */
   .intro-scene {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1;
-    perspective: 1400px;
+    z-index: 2;
+    perspective: 1200px;
     transform-style: preserve-3d;
     opacity: 1;
     transform: scale(1) translateZ(0);
-    transition:
-      opacity 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-      transform 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition: opacity 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
 
   .intro-exiting .intro-scene {
     opacity: 0;
-    transform: scale(0.96) translateZ(-120px);
+    transform: scale(0.97) translateZ(-80px);
   }
 
-  .intro-orbit-container {
-    position: absolute;
-    inset: 0;
+  .intro-mascot-stage {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    transform-style: preserve-3d;
-    perspective: 1400px;
-  }
-
-  .orbit {
-    position: absolute;
-    width: calc(2 * var(--orbit-radius, 200px));
-    height: calc(2 * var(--orbit-radius, 200px));
-    transform-style: preserve-3d;
-    transform: translateZ(var(--orbit-z, 0)) rotateX(var(--orbit-tilt, 0));
-    animation: orbit-spin var(--orbit-duration) linear infinite;
-    opacity: 0;
-  }
-
-  .orbit-inner {
-    --orbit-radius: clamp(140px, 28vw, 220px);
-    --orbit-z: 60px;
-    --orbit-tilt: 8deg;
-    animation: orbit-spin 18s linear infinite, orbit-fade-in 1s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
-  }
-  .orbit-mid {
-    --orbit-radius: clamp(200px, 40vw, 320px);
-    --orbit-z: 0px;
-    --orbit-tilt: -6deg;
-    animation: orbit-spin 28s linear infinite reverse, orbit-fade-in 1s cubic-bezier(0.22, 1, 0.36, 1) 0.7s forwards;
-  }
-  .orbit-outer {
-    --orbit-radius: clamp(280px, 55vw, 440px);
-    --orbit-z: -80px;
-    --orbit-tilt: 10deg;
-    animation: orbit-spin 42s linear infinite, orbit-fade-in 1.1s cubic-bezier(0.22, 1, 0.36, 1) 0.9s forwards;
-  }
-  .orbit-far {
-    --orbit-radius: clamp(340px, 62vw, 520px);
-    --orbit-z: -160px;
-    --orbit-tilt: -4deg;
-    animation: orbit-spin 55s linear infinite reverse, orbit-fade-in 1.3s cubic-bezier(0.22, 1, 0.36, 1) 1.1s forwards;
-  }
-
-  @keyframes orbit-spin {
-    from { transform: translateZ(var(--orbit-z, 0)) rotateX(var(--orbit-tilt, 0)) rotate(0deg); }
-    to   { transform: translateZ(var(--orbit-z, 0)) rotateX(var(--orbit-tilt, 0)) rotate(360deg); }
-  }
-
-  @keyframes orbit-fade-in {
-    to { opacity: 1; }
-  }
-
-  .intro-exiting .orbit {
-    opacity: 0;
-    transition: opacity 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  }
-
-  .orbit-item {
-    position: absolute;
-    display: block;
-    top: 50%;
-    left: 50%;
-    transform-origin: center center;
+    width: clamp(220px, 48vw, 340px);
+    height: clamp(220px, 48vw, 340px);
     transform-style: preserve-3d;
   }
 
-  /* Place items around the circle: 0deg = right, 90deg = bottom */
-  .orbit-inner .orbit-item:nth-child(1) { transform: translate(-50%, -50%) rotate(0deg)   translateX(var(--orbit-radius)) rotate(-0deg);   }
-  .orbit-inner .orbit-item:nth-child(2) { transform: translate(-50%, -50%) rotate(60deg)  translateX(var(--orbit-radius)) rotate(-60deg);  }
-  .orbit-inner .orbit-item:nth-child(3) { transform: translate(-50%, -50%) rotate(120deg) translateX(var(--orbit-radius)) rotate(-120deg); }
-  .orbit-inner .orbit-item:nth-child(4) { transform: translate(-50%, -50%) rotate(180deg) translateX(var(--orbit-radius)) rotate(-180deg); }
-  .orbit-inner .orbit-item:nth-child(5) { transform: translate(-50%, -50%) rotate(240deg) translateX(var(--orbit-radius)) rotate(-240deg); }
-  .orbit-inner .orbit-item:nth-child(6) { transform: translate(-50%, -50%) rotate(300deg) translateX(var(--orbit-radius)) rotate(-300deg); }
-
-  .orbit-mid .orbit-item:nth-child(1) { transform: translate(-50%, -50%) rotate(0deg)    translateX(var(--orbit-radius)) rotate(-0deg);    }
-  .orbit-mid .orbit-item:nth-child(2) { transform: translate(-50%, -50%) rotate(45deg)   translateX(var(--orbit-radius)) rotate(-45deg);   }
-  .orbit-mid .orbit-item:nth-child(3) { transform: translate(-50%, -50%) rotate(90deg)   translateX(var(--orbit-radius)) rotate(-90deg);   }
-  .orbit-mid .orbit-item:nth-child(4) { transform: translate(-50%, -50%) rotate(135deg)  translateX(var(--orbit-radius)) rotate(-135deg);  }
-  .orbit-mid .orbit-item:nth-child(5) { transform: translate(-50%, -50%) rotate(180deg)  translateX(var(--orbit-radius)) rotate(-180deg);  }
-  .orbit-mid .orbit-item:nth-child(6) { transform: translate(-50%, -50%) rotate(225deg)  translateX(var(--orbit-radius)) rotate(-225deg);  }
-  .orbit-mid .orbit-item:nth-child(7) { transform: translate(-50%, -50%) rotate(270deg)  translateX(var(--orbit-radius)) rotate(-270deg);  }
-  .orbit-mid .orbit-item:nth-child(8) { transform: translate(-50%, -50%) rotate(315deg)  translateX(var(--orbit-radius)) rotate(-315deg);  }
-
-  .orbit-outer .orbit-item:nth-child(1) { transform: translate(-50%, -50%) rotate(0deg)   translateX(var(--orbit-radius)) rotate(-0deg);   }
-  .orbit-outer .orbit-item:nth-child(2) { transform: translate(-50%, -50%) rotate(51deg)  translateX(var(--orbit-radius)) rotate(-51deg);  }
-  .orbit-outer .orbit-item:nth-child(3) { transform: translate(-50%, -50%) rotate(102deg) translateX(var(--orbit-radius)) rotate(-102deg); }
-  .orbit-outer .orbit-item:nth-child(4) { transform: translate(-50%, -50%) rotate(153deg) translateX(var(--orbit-radius)) rotate(-153deg); }
-  .orbit-outer .orbit-item:nth-child(5) { transform: translate(-50%, -50%) rotate(204deg) translateX(var(--orbit-radius)) rotate(-204deg); }
-  .orbit-outer .orbit-item:nth-child(6) { transform: translate(-50%, -50%) rotate(255deg) translateX(var(--orbit-radius)) rotate(-255deg); }
-  .orbit-outer .orbit-item:nth-child(7) { transform: translate(-50%, -50%) rotate(306deg) translateX(var(--orbit-radius)) rotate(-306deg); }
-
-  .orbit-far .orbit-item:nth-child(1) { transform: translate(-50%, -50%) rotate(0deg)    translateX(var(--orbit-radius)) rotate(-0deg);    }
-  .orbit-far .orbit-item:nth-child(2) { transform: translate(-50%, -50%) rotate(45deg)  translateX(var(--orbit-radius)) rotate(-45deg);   }
-  .orbit-far .orbit-item:nth-child(3) { transform: translate(-50%, -50%) rotate(90deg)   translateX(var(--orbit-radius)) rotate(-90deg);   }
-  .orbit-far .orbit-item:nth-child(4) { transform: translate(-50%, -50%) rotate(135deg) translateX(var(--orbit-radius)) rotate(-135deg); }
-  .orbit-far .orbit-item:nth-child(5) { transform: translate(-50%, -50%) rotate(180deg) translateX(var(--orbit-radius)) rotate(-180deg); }
-  .orbit-far .orbit-item:nth-child(6) { transform: translate(-50%, -50%) rotate(225deg) translateX(var(--orbit-radius)) rotate(-225deg); }
-  .orbit-far .orbit-item:nth-child(7) { transform: translate(-50%, -50%) rotate(270deg) translateX(var(--orbit-radius)) rotate(-270deg); }
-  .orbit-far .orbit-item:nth-child(8) { transform: translate(-50%, -50%) rotate(315deg) translateX(var(--orbit-radius)) rotate(-315deg); }
-
-  /* Far orbit: asteroid (3D irregular) */
-  .orbit-item.asteroid {
-    width: 12px;
-    height: 12px;
-    border-radius: 35% 45% 55% 40%;
-    background: radial-gradient(circle at 30% 28%, #94a3b8, #475569 60%, #334155 100%);
-    box-shadow: inset -2px -2px 3px rgba(0,0,0,0.4), 0 0 8px rgba(148, 163, 184, 0.2);
-    opacity: 0.7;
-  }
-  .orbit-item.moon {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 32% 25%, #e2e8f0, #94a3b8 50%, #64748b 100%);
-    box-shadow: 0 0 16px rgba(248, 250, 252, 0.25), inset -2px -2px 4px rgba(0,0,0,0.2);
-    opacity: 0.8;
-  }
-  .orbit-item.moon-small {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #cbd5e1, #64748b 70%);
-    box-shadow: inset -1px -1px 2px rgba(0,0,0,0.25);
-    opacity: 0.65;
-  }
-  .orbit-item.star-tiny {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 40% 40%, #fff, rgba(255,255,255,0.5));
-    box-shadow: 0 0 6px rgba(255,255,255,0.8);
-    opacity: 0.9;
-  }
-
-  /* Drift bubbles (floating in 3D, not on orbit) */
-  .intro-drift-bubbles {
+  /* Single expanding pulse ring (sonar / energy from mascot) */
+  .intro-pulse-ring {
     position: absolute;
-    inset: 0;
-    pointer-events: none;
-    transform-style: preserve-3d;
-    perspective: 1200px;
-  }
-  .drift-bubble {
-    position: absolute;
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
-    background: radial-gradient(circle at 28% 28%, rgba(255,255,255,0.6), var(--network-cyan) 60%, transparent 100%);
-    box-shadow: 0 0 10px var(--network-cyan-glow);
+    border: 2px solid rgba(124, 58, 237, 0.35);
     opacity: 0;
-    animation: drift-bubble-float 14s ease-in-out infinite;
-  }
-  .drift-bubble-1 { width: 8px; height: 8px;  left: 18%; top: 25%; animation-delay: 0s;   animation-duration: 12s; }
-  .drift-bubble-2 { width: 6px; height: 6px;  right: 22%; top: 40%; animation-delay: -3s;  animation-duration: 16s; }
-  .drift-bubble-3 { width: 10px; height: 10px; left: 45%; bottom: 30%; animation-delay: -6s;  animation-duration: 13s; }
-  .drift-bubble-4 { width: 5px; height: 5px;  left: 28%; bottom: 22%; animation-delay: -2s;  animation-duration: 18s; }
-  .drift-bubble-5 { width: 7px; height: 7px;  right: 35%; bottom: 35%; animation-delay: -8s;  animation-duration: 15s; }
-  @keyframes drift-bubble-float {
-    0%   { opacity: 0; transform: translate(0, 0); }
-    8%   { opacity: 0.55; }
-    92%  { opacity: 0.4; }
-    100% { opacity: 0; transform: translate(12vw, -18vh); }
-  }
-  .intro-exiting .drift-bubble {
-    opacity: 0;
-    transition: opacity 0.4s ease;
+    transform: scale(0.6);
+    animation: pulse-ring-expand 3s cubic-bezier(0.22, 1, 0.36, 1) 1.5s infinite;
   }
 
-  /* Shooting star (single pass) */
-  .intro-shooting-star {
-    position: absolute;
-    top: -10%;
-    left: -20%;
-    width: 0;
-    height: 0;
-    pointer-events: none;
-    opacity: 0;
-    animation: shooting-star-pass 12s ease-in 3s forwards;
-  }
-  .intro-shooting-star .shooting-star-line {
-    position: absolute;
-    width: 120px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--network-cyan-light), var(--network-primary));
-    border-radius: 2px;
-    box-shadow: 0 0 12px var(--network-cyan-glow);
-    transform-origin: left center;
-    transform: rotate(-25deg);
-  }
-  @keyframes shooting-star-pass {
-    0%   { opacity: 0; transform: translate(0, 0); }
-    8%   { opacity: 0.9; }
-    15%  { opacity: 0; transform: translate(140vw, 50vh); }
-    100% { opacity: 0; transform: translate(140vw, 50vh); }
-  }
-  .intro-exiting .intro-shooting-star {
-    opacity: 0;
-  }
-
-  /* Second ring (outer, more subtle) */
-  .intro-ring-outer {
-    position: absolute;
-    width: clamp(260px, 50vw, 380px);
-    height: clamp(260px, 50vw, 380px);
-    border-radius: 50%;
-    border: 1px solid rgba(6, 182, 212, 0.15);
-    transform: rotateX(18deg) rotateZ(15deg);
-    transform-style: preserve-3d;
-    pointer-events: none;
-    opacity: 0;
-    animation: orbit-fade-in 1.2s cubic-bezier(0.22, 1, 0.36, 1) 1.2s forwards, ring-outer-pulse 4s ease-in-out 2.2s infinite;
-  }
-  @keyframes ring-outer-pulse {
-    0%, 100% { opacity: 0.2; transform: rotateX(18deg) rotateZ(15deg) scale(1); }
-    50%      { opacity: 0.45; transform: rotateX(18deg) rotateZ(15deg) scale(1.02); }
-  }
-  .intro-exiting .intro-ring-outer {
-    opacity: 0;
-    transition: opacity 0.5s ease;
-  }
-
-  /* Aquatic: 3D bubble (sphere highlight) */
-  .orbit-item.bubble {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 28% 28%, rgba(255,255,255,0.9), rgba(255,255,255,0.3) 40%, var(--network-cyan) 70%, var(--network-cyan) 100%);
-    box-shadow:
-      0 0 14px var(--network-cyan-glow),
-      inset -2px -2px 4px rgba(0,0,0,0.2),
-      inset 2px 2px 4px rgba(255,255,255,0.3);
-    opacity: 0.9;
-    transform-style: preserve-3d;
-  }
-
-  /* Cosmic: star (bright point) */
-  .orbit-item.star,
-  .orbit-item.star-bright {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, #fff, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.4));
-    box-shadow: 0 0 10px rgba(255,255,255,0.9), 0 0 20px rgba(255,255,255,0.4);
-    opacity: 0.95;
-  }
-  .orbit-item.star-bright {
-    width: 10px;
-    height: 10px;
-    box-shadow: 0 0 14px var(--network-cyan-light), 0 0 8px #fff, inset 0 0 6px rgba(255,255,255,0.5);
-  }
-
-  /* Jellyfish blob (3D soft sphere) */
-  .orbit-item.jellyfish {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, var(--network-cyan-light), var(--network-cyan) 45%, var(--network-primary) 100%);
-    filter: blur(1px);
-    opacity: 0.65;
-    box-shadow: 0 0 24px var(--network-cyan-glow), inset 2px 2px 6px rgba(255,255,255,0.15);
-  }
-
-  /* 3D orbs (sphere gradient + inner shadow) */
-  .orbit-item.orb-cyan {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 32% 28%, var(--network-cyan-light), var(--network-cyan) 50%, #0a7a8a 100%);
-    box-shadow: 0 0 18px var(--network-cyan-glow), inset -3px -3px 6px rgba(0,0,0,0.25), inset 2px 2px 4px rgba(255,255,255,0.2);
-    opacity: 0.85;
-  }
-  .orbit-item.orb-violet {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 32% 28%, var(--network-primary-light), var(--network-primary) 50%, #5b21b6 100%);
-    box-shadow: 0 0 18px var(--network-primary-glow), inset -3px -3px 6px rgba(0,0,0,0.25), inset 2px 2px 4px rgba(255,255,255,0.15);
-    opacity: 0.85;
-  }
-
-  /* Coral (tiny 3D-ish branch) */
-  .orbit-item.coral {
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-    background: linear-gradient(145deg, var(--network-nebula) 0%, var(--network-primary) 50%, #5b21b6 100%);
-    box-shadow: inset 1px 1px 2px rgba(255,255,255,0.1);
-    opacity: 0.55;
-  }
-
-  /* Ring (tilted 3D trace) */
-  .orbit-item.ring {
-    width: 22px;
-    height: 22px;
-    border: 2px solid rgba(124, 58, 237, 0.5);
-    border-radius: 50%;
-    background: transparent;
-    opacity: 0.75;
-    box-shadow: 0 0 12px rgba(124, 58, 237, 0.2);
-  }
-
-  /* 3D planets (sphere gradient) */
-  .orbit-item.planet {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 25%, var(--network-primary-light), var(--network-primary) 45%, #4c1d95 100%);
-    box-shadow: 0 0 12px var(--network-primary-glow), inset -2px -2px 4px rgba(0,0,0,0.3), inset 1px 1px 3px rgba(255,255,255,0.15);
-    opacity: 0.9;
-  }
-  .orbit-item.planet-small {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, var(--network-cyan-light), var(--network-cyan) 60%, #0e7490 100%);
-    box-shadow: 0 0 10px var(--network-cyan-glow), inset -1px -1px 3px rgba(0,0,0,0.2);
-    opacity: 0.85;
-  }
-
-  .intro-ring-pulse {
-    position: absolute;
-    width: clamp(180px, 35vw, 280px);
-    height: clamp(180px, 35vw, 280px);
-    border-radius: 50%;
-    border: 1px solid rgba(124, 58, 237, 0.25);
-    transform: rotateX(12deg);
-    transform-style: preserve-3d;
-    pointer-events: none;
-    opacity: 0;
-    animation: orbit-fade-in 1s cubic-bezier(0.22, 1, 0.36, 1) 1s forwards, ring-pulse 3.5s ease-in-out 2s infinite;
-  }
-
-  @keyframes ring-pulse {
-    0%, 100% { opacity: 0.35; transform: rotateX(12deg) scale(1); }
-    50%      { opacity: 0.75; transform: rotateX(12deg) scale(1.03); }
+  @keyframes pulse-ring-expand {
+    0% { opacity: 0.8; transform: scale(0.6); border-color: rgba(124, 58, 237, 0.4); }
+    100% { opacity: 0; transform: scale(1.5); border-color: rgba(6, 182, 212, 0.1); }
   }
 
   .intro-mascot-wrap {
     position: relative;
-    z-index: 2;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: clamp(200px, 45vw, 320px);
-    height: clamp(200px, 45vw, 320px);
     transform-style: preserve-3d;
     opacity: 0;
-    animation: mascot-appear 1.6s cubic-bezier(0.16, 1, 0.3, 1) 0.9s forwards;
-    filter: drop-shadow(0 0 40px var(--network-primary-glow)) drop-shadow(0 0 60px var(--network-cyan-glow));
-    transition: opacity 1s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    animation: mascot-reveal 1.8s cubic-bezier(0.16, 1, 0.3, 1) 0.7s forwards;
+    filter: drop-shadow(0 0 50px var(--network-primary-glow)) drop-shadow(0 0 80px var(--network-cyan-glow));
+    transition: opacity 1s ease, transform 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   }
 
   .intro-exiting .intro-mascot-wrap {
     opacity: 0;
-    transform: scale(0.92) translateZ(-60px);
+    transform: scale(0.94) translateZ(-40px);
   }
 
   .intro-mascot-3d {
     width: 100%;
     height: 100%;
     transform-style: preserve-3d;
-    transform: rotateX(-4deg) rotateY(2deg);
-    animation: mascot-3d-float 8s ease-in-out infinite;
+    transform: rotateX(-5deg) rotateY(3deg);
+    animation: mascot-float 7s ease-in-out infinite;
   }
 
   .intro-mascot-img {
@@ -706,36 +459,176 @@ const { autoDismissMs = 4800 } = Astro.props;
     height: 100%;
     object-fit: contain;
     object-position: center;
-    animation: mascot-glow 4.5s ease-in-out infinite;
+    animation: mascot-glow 4s ease-in-out infinite;
   }
 
-  @keyframes mascot-appear {
-    0%   { opacity: 0; transform: scale(0.88) translateZ(-80px); }
+  @keyframes mascot-reveal {
+    0% { opacity: 0; transform: scale(0.7) translateZ(-100px); filter: drop-shadow(0 0 20px rgba(124, 58, 237, 0.3)) blur(4px); }
+    70% { filter: drop-shadow(0 0 50px var(--network-primary-glow)) drop-shadow(0 0 80px var(--network-cyan-glow)) blur(0); }
     100% { opacity: 1; transform: scale(1) translateZ(0); }
   }
 
-  @keyframes mascot-3d-float {
-    0%, 100% { transform: rotateX(-4deg) rotateY(2deg) translateY(0); }
-    50%      { transform: rotateX(-5deg) rotateY(3deg) translateY(-10px); }
+  @keyframes mascot-float {
+    0%, 100% { transform: rotateX(-5deg) rotateY(3deg) translateY(0); }
+    50% { transform: rotateX(-6deg) rotateY(4deg) translateY(-12px); }
   }
 
   @keyframes mascot-glow {
-    0%, 100% { filter: drop-shadow(0 0 30px var(--network-primary-glow)); }
-    50%      { filter: drop-shadow(0 0 50px var(--network-cyan-glow)); }
+    0%, 100% { filter: drop-shadow(0 0 35px var(--network-primary-glow)); }
+    50% { filter: drop-shadow(0 0 55px var(--network-cyan-glow)); }
   }
 
-  .intro-hint {
+  /* Rising bubbles (aquatic, vertical drift) */
+  .intro-bubbles {
     position: absolute;
-    bottom: clamp(1.5rem, 5vh, 3rem);
+    inset: 0;
+    z-index: 0.9;
+    pointer-events: none;
+  }
+
+  .rise-bubble {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5), var(--network-cyan) 60%, transparent 100%);
+    box-shadow: 0 0 10px var(--network-cyan-glow);
+    opacity: 0;
+    animation: rise linear infinite;
+  }
+
+  .rise-bubble.b1 { width: 8px; height: 8px;  left: 12%; bottom: -5%; animation-duration: 8s;  animation-delay: 0s; }
+  .rise-bubble.b2 { width: 6px; height: 6px;  left: 28%; bottom: -8%; animation-duration: 10s; animation-delay: -2s; }
+  .rise-bubble.b3 { width: 10px; height: 10px; left: 52%; bottom: -12%; animation-duration: 9s;  animation-delay: -4s; }
+  .rise-bubble.b4 { width: 5px; height: 5px;  right: 22%; bottom: -6%; animation-duration: 11s; animation-delay: -1s; }
+  .rise-bubble.b5 { width: 7px; height: 7px;  right: 35%; bottom: -10%; animation-duration: 9.5s; animation-delay: -3s; }
+  .rise-bubble.b6 { width: 6px; height: 6px;  left: 68%; bottom: -7%; animation-duration: 10.5s; animation-delay: -5s; }
+  .rise-bubble.b7 { width: 9px; height: 9px;  right: 12%; bottom: -9%; animation-duration: 8.5s;  animation-delay: -2.5s; }
+
+  @keyframes rise {
+    0% { opacity: 0; transform: translateY(0) scale(0.8); }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.4; }
+    100% { opacity: 0; transform: translateY(-110vh) scale(1); }
+  }
+
+  .intro-exiting .rise-bubble {
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  /* Floating particles (organic paths) */
+  .intro-particles {
+    position: absolute;
+    inset: 0;
+    z-index: 0.85;
+    pointer-events: none;
+  }
+
+  .particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.9), var(--network-cyan));
+    box-shadow: 0 0 8px var(--network-cyan-glow);
+    opacity: 0;
+    animation: particle-float 12s ease-in-out infinite;
+  }
+
+  .particle.p1 { left: 15%; top: 20%; animation-delay: 0s;   animation-duration: 14s; }
+  .particle.p2 { left: 75%; top: 30%; animation-delay: -3s;  animation-duration: 16s; }
+  .particle.p3 { left: 45%; top: 70%; animation-delay: -5s;  animation-duration: 13s; }
+  .particle.p4 { left: 25%; top: 55%; animation-delay: -2s;  animation-duration: 15s; }
+  .particle.p5 { left: 65%; top: 15%; animation-delay: -7s;  animation-duration: 17s; }
+  .particle.p6 { left: 55%; top: 80%; animation-delay: -4s;  animation-duration: 12s; }
+
+  @keyframes particle-float {
+    0%, 100% { opacity: 0; transform: translate(0, 0); }
+    8% { opacity: 0.7; }
+    25% { opacity: 0.6; transform: translate(8vw, -12vh); }
+    50% { opacity: 0.5; transform: translate(-5vw, -25vh); }
+    75% { opacity: 0.4; transform: translate(6vw, -40vh); }
+    92% { opacity: 0.2; }
+    100% { opacity: 0; transform: translate(4vw, -55vh); }
+  }
+
+  .intro-exiting .particle {
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  /* Shooting star */
+  .intro-shooting-star {
+    position: absolute;
+    top: -5%;
+    left: -15%;
+    width: 0;
+    height: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    animation: shooting-star-pass 14s ease-in 2.5s forwards;
+  }
+
+  .intro-shooting-star .shooting-star-line {
+    position: absolute;
+    width: 140px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--network-cyan-light), var(--network-primary));
+    border-radius: 2px;
+    box-shadow: 0 0 14px var(--network-cyan-glow);
+    transform-origin: left center;
+    transform: rotate(-22deg);
+  }
+
+  @keyframes shooting-star-pass {
+    0% { opacity: 0; transform: translate(0, 0); }
+    6% { opacity: 0.95; }
+    12% { opacity: 0; transform: translate(150vw, 45vh); }
+    100% { opacity: 0; transform: translate(150vw, 45vh); }
+  }
+
+  .intro-exiting .intro-shooting-star {
+    opacity: 0;
+  }
+
+  /* Brand whisper */
+  .intro-brand {
+    position: absolute;
+    bottom: clamp(3rem, 12vh, 5rem);
     left: 50%;
     transform: translateX(-50%);
     z-index: 3;
     margin: 0;
-    font-size: clamp(0.75rem, 2vw, 0.9rem);
-    color: var(--text-secondary);
-    letter-spacing: 0.08em;
+    font-family: var(--font-display, 'Orbitron', sans-serif);
+    font-size: clamp(0.7rem, 1.8vw, 0.9rem);
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    color: rgba(248, 250, 252, 0.5);
     opacity: 0;
-    animation: hint-fade 0.8s cubic-bezier(0.22, 1, 0.36, 1) 2.4s forwards;
+    animation: brand-in 1.2s cubic-bezier(0.22, 1, 0.36, 1) 2.8s forwards;
+  }
+
+  @keyframes brand-in {
+    to { opacity: 0.6; }
+  }
+
+  .intro-exiting .intro-brand {
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+
+  .intro-hint {
+    position: absolute;
+    bottom: clamp(1.25rem, 4vh, 2.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    margin: 0;
+    font-size: clamp(0.7rem, 1.8vw, 0.85rem);
+    color: var(--text-secondary);
+    letter-spacing: 0.1em;
+    opacity: 0;
+    animation: hint-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 3.2s forwards;
     transition: opacity 0.5s ease;
   }
 
@@ -743,8 +636,8 @@ const { autoDismissMs = 4800 } = Astro.props;
     opacity: 0;
   }
 
-  @keyframes hint-fade {
-    to { opacity: 0.7; }
+  @keyframes hint-in {
+    to { opacity: 0.75; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -752,43 +645,26 @@ const { autoDismissMs = 4800 } = Astro.props;
       animation: intro-backdrop-in 0.6s ease forwards;
     }
     .intro-vignette {
-      animation: intro-vignette-in 0.5s ease 0.2s forwards;
+      animation: vignette-in 0.5s ease 0.2s forwards;
     }
-    .intro-deep-layer .intro-nebula,
+    .parallax-layer {
+      animation: parallax-fade-in 0.6s ease forwards;
+    }
+    .intro-nebula,
     .intro-waterline,
     .intro-aurora {
+      animation: nebula-in 0.5s ease forwards;
+    }
+    .light-ray {
       animation: none;
       opacity: 0.15;
     }
-    .intro-scene {
-      perspective: none;
-    }
-    .orbit {
+    .intro-pulse-ring {
       animation: none;
-      transform: none;
-      opacity: 0.85;
-    }
-    .orbit-inner,
-    .orbit-mid,
-    .orbit-outer,
-    .orbit-far {
-      animation: none;
-      opacity: 0.85;
-    }
-    .intro-drift-bubbles .drift-bubble {
-      animation: none;
-      opacity: 0;
-    }
-    .intro-shooting-star {
-      animation: none;
-      opacity: 0;
-    }
-    .intro-ring-outer {
-      animation: none;
-      opacity: 0.25;
+      opacity: 0.3;
     }
     .intro-mascot-wrap {
-      animation: mascot-appear 0.7s ease 0.3s forwards;
+      animation: mascot-reveal 0.8s ease 0.3s forwards;
     }
     .intro-mascot-3d {
       animation: none;
@@ -797,19 +673,29 @@ const { autoDismissMs = 4800 } = Astro.props;
     .intro-mascot-img {
       animation: none;
     }
-    .intro-ring-pulse {
+    .rise-bubble {
       animation: none;
-      opacity: 0.5;
-      transform: none;
+      opacity: 0;
+    }
+    .particle {
+      animation: none;
+      opacity: 0;
+    }
+    .intro-shooting-star {
+      animation: none;
+      opacity: 0;
+    }
+    .intro-brand {
+      animation: brand-in 0.5s ease 0.5s forwards;
+    }
+    .intro-hint {
+      animation: hint-in 0.5s ease 0.4s forwards;
     }
     .intro-exiting .intro-scene {
       transition-duration: 0.5s;
     }
     .intro-exiting .intro-mascot-wrap {
       transition-duration: 0.5s;
-    }
-    .intro-hint {
-      animation: hint-fade 0.5s ease 0.5s forwards;
     }
   }
 </style>
