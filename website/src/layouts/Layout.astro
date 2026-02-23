@@ -70,7 +70,7 @@ const ogImage = `${siteUrl}/og.png`;
         <span class="gradient-text">Boing Network</span>
       </a>
       <nav>
-        {(path === '/' || path === '') && (
+        {(path === '/' || path === '') ? (
           <>
             <a href="#hero" class="nav-section">Home</a>
             <a href="#pillars" class="nav-section">Pillars</a>
@@ -78,13 +78,16 @@ const ogImage = `${siteUrl}/og.png`;
             <a href="#roadmap" class="nav-section">Roadmap</a>
             <a href="#build" class="nav-section">Build</a>
           </>
+        ) : (
+          <>
+            <a href="/docs/getting-started">Docs</a>
+            <a href="/developers/quickstart">Developers</a>
+            <a href="/network/testnet" class="nav-cta">Join Testnet</a>
+            <a href="/network/faucet">Faucet</a>
+            <a href="/about">About</a>
+            <a href="/community">Community</a>
+          </>
         )}
-        <a href="/docs/getting-started">Docs</a>
-        <a href="/developers/quickstart">Developers</a>
-        <a href="/network/testnet" class="nav-cta">Join Testnet</a>
-        <a href="/network/faucet">Faucet</a>
-        <a href="/about">About</a>
-        <a href="/community">Community</a>
       </nav>
     </header>
     <main>
