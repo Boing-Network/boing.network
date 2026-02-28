@@ -130,12 +130,12 @@ When the testnet is live, the canonical list will be kept at:
 
 - **Website:** [boing.network/network/testnet](https://boing.network/network/testnet) and [Bootnodes](/network/bootnodes) (driven by `website/src/config/testnet.ts` or env `PUBLIC_BOOTNODES`)
 - **This repo:** Below (update before testnet launch)
-- **Infrastructure setup:** [scripts/INFRASTRUCTURE-SETUP.md](../scripts/INFRASTRUCTURE-SETUP.md)
+- **Infrastructure setup:** [docs/INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)
 
 | Bootnode | Multiaddr | Notes |
 |----------|-----------|-------|
-| Primary | `/ip4/<PRIMARY_IP>/tcp/4001` | Faucet + RPC via testnet-rpc.boing.network (Cloudflare tunnel) |
-| Secondary | `/ip4/<SECONDARY_IP>/tcp/4001` | Run via `scripts/start-bootnode-2` |
+| Primary | `/ip4/73.84.106.121/tcp/4001` | Faucet + RPC via testnet-rpc.boing.network (Cloudflare tunnel) |
+| Secondary | `/ip4/73.84.106.121/tcp/4001` | Run via `scripts/start-bootnode-2` |
 
 **Launch checklist (to open testnet):**
 

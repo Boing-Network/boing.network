@@ -2,6 +2,54 @@
 
 This guide walks you through setting up the full testnet infrastructure: **Bootnode 1**, **Bootnode 2**, **Faucet RPC**, and **Cloudflare Tunnel** for the public URL.
 
+---
+
+## Quick Run Instructions
+
+### Computer 1 (Primary — bootnode + faucet + public RPC)
+
+**Order:** Start node first, then tunnel.
+
+**Terminal 1 — Node:**
+```bat
+scripts\start-bootnode-1.bat
+```
+(Linux/macOS: `./scripts/start-bootnode-1.sh`)
+
+**Terminal 2 — Cloudflare tunnel:**
+```bat
+scripts\start-cloudflare-tunnel.bat
+```
+(Linux/macOS: `.cloudflared/cloudflared tunnel --config ~/.cloudflared/config.yml run boing-testnet-rpc`)
+
+**Public RPC:** https://testnet-rpc.boing.network/
+
+Get your public IP: `curl -s ifconfig.me` — share with Computer 2.
+
+---
+
+### Computer 2 (Secondary — Bootnode 2)
+
+1. **Build:** `cargo build --release`
+2. **Edit** `scripts\start-bootnode-2.bat` — replace `REPLACE_WITH_PRIMARY_IP` with Computer 1's public IP.
+3. **Run:** `scripts\start-bootnode-2.bat` (or `BOOTNODE_1_IP=<ip> ./scripts/start-bootnode-2.sh`)
+4. **Get Computer 2's public IP:** `curl -s ifconfig.me` — add to `PUBLIC_BOOTNODES`.
+
+---
+
+### Deploy website
+
+Set in **GitHub → Settings → Secrets and variables → Actions → Variables**:
+
+| Variable | Value |
+|----------|-------|
+| `PUBLIC_TESTNET_RPC_URL` | `https://testnet-rpc.boing.network/` |
+| `PUBLIC_BOOTNODES` | `/ip4/PRIMARY_IP/tcp/4001,/ip4/SECONDARY_IP/tcp/4001` |
+
+Then push to `main`; the deploy workflow will use them.
+
+---
+
 ## Architecture
 
 | Machine | Role | Ports | Notes |

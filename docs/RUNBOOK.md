@@ -252,7 +252,7 @@ The **faucet** is an RPC method (`boing_faucetRequest`) on a node started with `
 
 ### 8.3 Cloudflare Tunnel (testnet-rpc.boing.network)
 
-If you use Cloudflare Tunnel to expose the RPC at `https://testnet-rpc.boing.network/`:
+For full setup steps, see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md). If you use Cloudflare Tunnel to expose the RPC at `https://testnet-rpc.boing.network/`:
 
 - **"Failed to initialize DNS local resolver"** — This cloudflared log message is usually harmless. The tunnel has already registered; traffic forwarding works. It occurs when cloudflared cannot reach `region1.v2.argotunnel.com` for optional region/metrics. You can ignore it. If it bothers you, try a different DNS (e.g. 1.1.1.1) or firewall rules that allow outbound DNS.
 

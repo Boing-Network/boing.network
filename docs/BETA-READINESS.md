@@ -60,7 +60,7 @@ Rate limiting and error codes match the spec.
 | [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) | Security posture and incident contacts |
 | [TESTNET.md](TESTNET.md) | Single vs multi-node, bootnodes, faucet, VibeMiner |
 | [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) | One-click mining/validator integration for VibeMiner |
-| [WEBSITE-SPEC.md](../website/WEBSITE-SPEC.md) | Public site and developer docs mapping |
+| [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md) | Website spec, site structure, Cloudflare setup and deployment |
 
 ---
 

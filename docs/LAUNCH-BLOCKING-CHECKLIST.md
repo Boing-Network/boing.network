@@ -29,7 +29,7 @@ Complete these in sequence. Each depends on the previous.
 | 1.2 | Open TCP **4001** (P2P) and optionally **8545** (RPC) on each host | Ops | ☐ |
 | 1.3 | Record multiaddrs, e.g. `/ip4/1.2.3.4/tcp/4001` | — | ☐ |
 
-**Scripts:** Use [scripts/INFRASTRUCTURE-SETUP.md](../scripts/INFRASTRUCTURE-SETUP.md). Primary: `scripts/start-bootnode-1.bat` (or `.sh`). Secondary: `scripts/start-bootnode-2.bat` (set `BOOTNODE_1_IP`).
+**Scripts:** Use [docs/INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md). Primary: `scripts/start-bootnode-1.bat` (or `.sh`). Secondary: `scripts/start-bootnode-2.bat` (set `BOOTNODE_1_IP`).
 
 **Commands** (from [RUNBOOK.md](RUNBOOK.md) §8.1):
 
@@ -111,9 +111,9 @@ After steps 1–3:
 
 | Config | Location | Current value |
 |--------|----------|---------------|
-| `TESTNET_RPC_URL` | `website/src/config/testnet.ts` | `http://127.0.0.1:8545` |
-| `BOOTNODES` | `website/src/config/testnet.ts` | `[]` (empty) |
-| `isTestnetLive` | Derived | `false` (no bootnodes + localhost RPC) |
+| `TESTNET_RPC_URL` | `website/src/config/testnet.ts` | `https://testnet-rpc.boing.network/` |
+| `BOOTNODES` | `website/src/config/testnet.ts` | `/ip4/73.84.106.121/tcp/4001` (primary + secondary) |
+| `isTestnetLive` | Derived | `true` when bootnodes + non-local RPC are set |
 
 Override at build: `PUBLIC_TESTNET_RPC_URL`, `PUBLIC_BOOTNODES` (see `website/.env.example`).
 

@@ -147,7 +147,7 @@ Complete these **before** running bootnodes on primary + secondary:
 3. **QA / Transparency:** deployer guide, malice definition, optional QaReject doc link
 4. **Optional:** boing_qaMetrics stub (returns zeros until metrics exist)
 
-After these are complete, proceed with [scripts/INFRASTRUCTURE-SETUP.md](../scripts/INFRASTRUCTURE-SETUP.md) for the dual-node testnet.
+After these are complete, proceed with [docs/INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) for the dual-node testnet.
 
 ---
 

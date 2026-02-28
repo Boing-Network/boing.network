@@ -32,8 +32,7 @@ npm run build
 wrangler pages deploy dist --project-name=boing-network
 ```
 
-## Cloudflare Resources
+## Documentation
 
-- **WEBSITE-SPEC.md** — Site structure and content mapping
-- **CLOUDFLARE-SETUP.md** — Step-by-step D1, R2, KV setup
+- **[docs/WEBSITE-AND-DEPLOYMENT.md](../docs/WEBSITE-AND-DEPLOYMENT.md)** — Site structure, content mapping, Cloudflare setup (D1, R2, KV), and deployment
 - **schema.sql** — D1 schema for block explorer / network stats
