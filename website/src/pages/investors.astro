@@ -105,6 +105,69 @@ import Layout from '../layouts/Layout.astro';
       </ul>
     </section>
 
+    <section class="investor-section pitch-deck-section" id="pitch-deck">
+      <h2>Pitch Deck</h2>
+      <p class="deck-intro">Browse our investor deck below or <button type="button" class="btn-download-pdf" id="download-pdf">Save as PDF</button>.</p>
+      <div class="pitch-deck">
+        <div class="deck-slides" id="deck-slides">
+          <div class="deck-slide active" data-slide="0">
+            <h3>Boing Network</h3>
+            <p class="slide-tagline">Authentic. Decentralized. Optimal. Quality-Assured.</p>
+            <p class="slide-sub">Executive Summary for Investors</p>
+          </div>
+          <div class="deck-slide" data-slide="1">
+            <h3>The Problem</h3>
+            <ul>
+              <li>Scam proliferation — users bear risk</li>
+              <li>Network congestion from low-value deployments</li>
+              <li>Fragmented liquidity across chains</li>
+              <li>Opaque governance</li>
+              <li>Unsustainable incentives</li>
+            </ul>
+          </div>
+          <div class="deck-slide" data-slide="2">
+            <h3>Our Solution</h3>
+            <p>Protocol-enforced quality assurance — only quality deployments reach the chain.</p>
+            <ul>
+              <li>QA at infrastructure layer</li>
+              <li>Native account abstraction</li>
+              <li>Adaptive gas model</li>
+              <li>Cross-chain DeFi coordination</li>
+              <li>Sustainable tokenomics</li>
+            </ul>
+          </div>
+          <div class="deck-slide" data-slide="3">
+            <h3>Why Boing</h3>
+            <p>Protocol QA · 100% Transparency · Rust + BFT · Ecosystem Ready</p>
+            <p>No other L1 enforces deployment standards at the protocol layer.</p>
+          </div>
+          <div class="deck-slide" data-slide="4">
+            <h3>Tokenomics</h3>
+            <p><strong>55%</strong> Staking · <strong>30%</strong> Treasury · <strong>15%</strong> Community & Grants</p>
+            <p>Uncapped supply, floor-triggered waves. No reward cliffs.</p>
+          </div>
+          <div class="deck-slide" data-slide="5">
+            <h3>Use of Funds</h3>
+            <ul>
+              <li>Mainnet launch — audits, infrastructure</li>
+              <li>Ecosystem growth — grants, hackathons</li>
+              <li>Validator bootstrap</li>
+              <li>Community & education</li>
+            </ul>
+          </div>
+          <div class="deck-slide" data-slide="6">
+            <h3>Get in Touch</h3>
+            <p><a href="https://github.com/chiku524/boing.network" target="_blank" rel="noopener">GitHub</a> · <a href="https://boing.network">Website</a> · <a href="/community">Community</a></p>
+          </div>
+        </div>
+        <div class="deck-nav">
+          <button type="button" class="deck-btn deck-prev" id="deck-prev" aria-label="Previous slide">← Prev</button>
+          <span class="deck-dots" id="deck-dots" role="tablist"></span>
+          <button type="button" class="deck-btn deck-next" id="deck-next" aria-label="Next slide">Next →</button>
+        </div>
+      </div>
+    </section>
+
     <section class="investor-section investor-cta">
       <h2>Get in Touch</h2>
       <p>Interested in grants, accelerator programs, or partnerships?</p>
@@ -270,6 +333,142 @@ import Layout from '../layouts/Layout.astro';
     text-decoration: underline;
   }
 
+  /* Pitch deck */
+  .pitch-deck-section {
+    background: rgba(18, 24, 41, 0.5);
+    border: 1px solid rgba(124, 58, 237, 0.25);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2.5rem;
+  }
+  .deck-intro {
+    margin-bottom: 1.5rem !important;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+  }
+  .btn-download-pdf {
+    background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+    color: var(--bg-primary);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-download-pdf:hover {
+    filter: brightness(1.1);
+  }
+  .pitch-deck {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .deck-slides {
+    position: relative;
+    min-height: 280px;
+    border-radius: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+  }
+  .deck-slide {
+    position: absolute;
+    inset: 0;
+    padding: 2rem;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .deck-slide.active {
+    display: flex;
+    opacity: 1;
+    position: relative;
+  }
+  .deck-slide h3 {
+    font-size: 1.5rem !important;
+    margin-bottom: 1rem !important;
+    color: var(--accent-teal) !important;
+  }
+  .deck-slide ul {
+    margin: 0.5rem 0 0 1rem !important;
+    padding: 0 !important;
+  }
+  .deck-slide li {
+    margin-bottom: 0.35rem !important;
+  }
+  .slide-tagline {
+    font-size: 1.2rem !important;
+    color: var(--text-primary) !important;
+    margin-bottom: 0.5rem !important;
+  }
+  .slide-sub {
+    color: var(--text-tertiary) !important;
+    font-size: 0.95rem !important;
+  }
+  .deck-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+  .deck-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .deck-btn:hover {
+    border-color: var(--accent-teal);
+    color: var(--accent-teal);
+  }
+  .deck-dots {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .deck-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border-color);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .deck-dot.active {
+    background: var(--accent-teal);
+  }
+  .deck-dot:hover {
+    background: var(--text-tertiary);
+  }
+
+  /* Pitch deck responsive */
+  @media (max-width: 640px) {
+    .pitch-deck-section {
+      padding: 1.5rem 1rem;
+    }
+    .deck-slide {
+      padding: 1.5rem 1rem;
+    }
+    .deck-slide h3 {
+      font-size: 1.25rem !important;
+    }
+    .deck-nav {
+      flex-direction: column;
+    }
+  }
+
   /* Responsive */
   @media (max-width: 640px) {
     .investor-page {
@@ -327,5 +526,65 @@ import Layout from '../layouts/Layout.astro';
     .investor-section h2 {
       color: #4f46e5 !important;
     }
+    .pitch-deck-section {
+      break-inside: avoid;
+    }
+    .deck-nav {
+      display: none;
+    }
+    .deck-slides {
+      min-height: auto;
+    }
+    .deck-slide {
+      position: relative !important;
+      display: block !important;
+      opacity: 1 !important;
+      break-inside: avoid;
+      margin-bottom: 1.5rem;
+      padding: 1rem !important;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .deck-slide:last-child {
+      border-bottom: none;
+    }
   }
 </style>
+
+<script>
+  (function () {
+    const slides = document.querySelectorAll('.deck-slide');
+    const prevBtn = document.getElementById('deck-prev');
+    const nextBtn = document.getElementById('deck-next');
+    const dotsEl = document.getElementById('deck-dots');
+    const downloadBtn = document.getElementById('download-pdf');
+    if (slides.length === 0) return;
+
+    let current = 0;
+    const total = slides.length;
+
+    function goTo(i) {
+      current = (i + total) % total;
+      slides.forEach((s, j) => s.classList.toggle('active', j === current));
+      dotsEl?.querySelectorAll('.deck-dot').forEach((d, j) => d.classList.toggle('active', j === current));
+    }
+
+    prevBtn?.addEventListener('click', () => goTo(current - 1));
+    nextBtn?.addEventListener('click', () => goTo(current + 1));
+
+    slides.forEach((_, i) => {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'deck-dot' + (i === 0 ? ' active' : '');
+      dot.setAttribute('aria-label', `Slide ${i + 1}`);
+      dot.addEventListener('click', () => goTo(i));
+      dotsEl?.appendChild(dot);
+    });
+
+    downloadBtn?.addEventListener('click', () => window.print());
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') goTo(current - 1);
+      if (e.key === 'ArrowRight') goTo(current + 1);
+    });
+  })();
+</script>
