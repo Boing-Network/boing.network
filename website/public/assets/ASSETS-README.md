@@ -28,3 +28,7 @@ Place the following assets in this directory (`/public/assets/`) so they resolve
 ## Already in repo
 
 - **hex-grid.svg** — Hexagonal grid for app pages (`.page-app`). No action needed.
+
+## SEO / Metadata
+
+- **og.png** — Open Graph image (1200×630 recommended) for social sharing. Located at `/public/og.png`. Update to match current branding when the logo changes.
