@@ -122,6 +122,13 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <style>
+  /* Non-sticky header on investors page — scrolls with content */
+  :global(body.route-investors .site-header) {
+    position: relative;
+  }
+  :global(body.route-investors main) {
+    padding-top: 0;
+  }
   .investor-page {
     max-width: 800px;
     margin: 0 auto;
