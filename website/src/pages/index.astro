@@ -250,6 +250,9 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
 
   /* Hero + animation */
   .hero { position: relative; text-align: center; padding: 5rem 2rem; overflow: hidden; display: grid; grid-template-columns: 1fr; grid-template-rows: auto auto; align-items: center; justify-items: center; min-height: 85vh; gap: 1rem; }
+  @media (max-width: 480px) {
+    .hero { padding: 3rem 1rem; min-height: 80vh; }
+  }
   .hero-content { order: 1; }
   .hero-robot-wrap { order: 2; }
   @media (min-width: 900px) {

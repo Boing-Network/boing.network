@@ -269,4 +269,63 @@ import Layout from '../layouts/Layout.astro';
   .investor-footer a:hover {
     text-decoration: underline;
   }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .investor-page {
+      padding: 1.5rem 1rem;
+    }
+    .investor-page h1 {
+      font-size: 1.75rem;
+    }
+    .differentiators-grid {
+      grid-template-columns: 1fr;
+    }
+    .tokenomics-breakdown {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
+
+  /* Print & PDF */
+  @media print {
+    .investor-page {
+      max-width: 100%;
+      padding: 0 1rem;
+    }
+    .investor-header {
+      break-after: avoid;
+    }
+    .investor-section {
+      break-inside: avoid;
+      margin-bottom: 1.5rem;
+    }
+    .differentiators-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 0.75rem;
+    }
+    .diff-card {
+      break-inside: avoid;
+      background: #f9fafb !important;
+      border: 1px solid #e5e7eb !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .investor-cta {
+      break-inside: avoid;
+      background: #f3f4f6 !important;
+      border: 1px solid #e5e7eb !important;
+    }
+    .investor-footer {
+      break-inside: avoid;
+    }
+    .investor-section p,
+    .investor-section li {
+      color: #374151 !important;
+    }
+    .investor-section h2 {
+      color: #4f46e5 !important;
+    }
+  }
 </style>

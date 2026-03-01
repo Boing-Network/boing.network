@@ -486,3 +486,159 @@ textarea::placeholder {
   .animate-pulse-fade { animation: none; }
   .fade-in-up { opacity: 1; transform: none; }
 }
+
+/* ============================================================
+   PRINT & PDF — site-wide
+   ============================================================ */
+@media print {
+  html {
+    scroll-snap-type: none !important;
+  }
+  /* Hide decorative elements */
+  .boing-canvas-bg,
+  .mascot-wrap,
+  .boing-canvas-bg canvas,
+  .boing-canvas-bg-fallback {
+    display: none !important;
+  }
+  /* Simplify layout for print */
+  body {
+    background: #fff !important;
+    color: #111 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .site-header {
+    position: relative !important;
+    background: #f5f5f5 !important;
+    border-bottom: 1px solid #ddd !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+  main {
+    padding-top: 0 !important;
+  }
+  /* Cards: solid background for print */
+  .card,
+  .stat-card,
+  .chart-card,
+  .app-card,
+  .diff-card {
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+  a {
+    color: #2563eb !important;
+  }
+}
+
+/* ============================================================
+   RESPONSIVE — site-wide breakpoints
+   ============================================================ */
+@media (max-width: 768px) {
+  .site-header {
+    padding: 0.75rem 1rem !important;
+  }
+  .site-header nav {
+    gap: 0.5rem;
+  }
+}
+@media (max-width: 480px) {
+  .site-header nav a {
+    font-size: 0.9rem;
+  }
+}
+
+/* Shared .page class (about, community, faucet, etc.) — responsive */
+@media (max-width: 640px) {
+  .page {
+    padding: 1.5rem 1rem !important;
+  }
+}
+@media (max-width: 375px) {
+  .page {
+    padding: 1rem 0.75rem !important;
+  }
+}
+
+/* Sections (homepage, testnet, etc.) — responsive padding */
+@media (max-width: 480px) {
+  .section {
+    padding: 2rem 1rem !important;
+  }
+}
+@media print {
+  .page {
+    padding: 0 1rem !important;
+  }
+}
+
+/* ============================================================
+   GLOBAL RESPONSIVE — all viewports
+   ============================================================ */
+html {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  min-width: 0;
+  overflow-x: hidden;
+}
+main {
+  min-width: 0;
+}
+img {
+  max-width: 100%;
+  height: auto;
+}
+pre, .code-block, code {
+  max-width: 100%;
+}
+pre, .code-block {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+/* Responsive tables */
+table, .compare-table, .doc-table {
+  width: 100%;
+  table-layout: auto;
+}
+@media (max-width: 640px) {
+  table, .compare-table, .doc-table {
+    font-size: 0.85rem;
+  }
+  table th, table td, .compare-table th, .compare-table td, .doc-table th, .doc-table td {
+    padding: 0.4rem 0.5rem;
+  }
+}
+/* Wide content scroll on small viewports */
+@media (max-width: 768px) {
+  .page, .docs-content, .docs-page {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+@media (max-width: 375px) {
+  .site-header nav a {
+    font-size: 0.85rem;
+  }
+  .footer-links {
+    gap: 0.75rem 1rem;
+  }
+}
+
+/* Long URLs and code — prevent overflow on small viewports */
+@media (max-width: 640px) {
+  .doc-section a,
+  .page a,
+  code {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  .doc-section pre,
+  .code-block {
+    max-width: 100%;
+  }
+}

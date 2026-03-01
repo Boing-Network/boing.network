@@ -270,7 +270,29 @@ const ogImage = `${siteUrl}/og.png`;
   .footer-links {
     display: flex;
     justify-content: center;
-    gap: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
     margin-top: 0.5rem;
+  }
+
+  @media print {
+    .site-header {
+      position: relative !important;
+      background: #f5f5f5 !important;
+      border-bottom: 1px solid #ddd !important;
+    }
+    main {
+      padding-top: 0 !important;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .site-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .site-header nav {
+      width: 100%;
+    }
   }
 </style>
