@@ -146,11 +146,11 @@ The portal’s **Developers** page and dashboard should state this clearly and l
 
 ## 9. Checklist
 
-- [ ] Add `portal_registrations` and `portal_dapps` to schema; apply migration.
-- [ ] Implement `/testnet` (landing), `/testnet/register`, `/testnet/developers`, `/testnet/users`, `/testnet/operators` (static or with API).
-- [ ] Implement `POST /api/portal/register` and `GET /api/portal/me` (and optional `POST /api/portal/dapps`, `GET /api/quests/status`).
-- [ ] From `/network/testnet`, add prominent “Testnet Portal → Register & dashboards” link; from quests, redirect or link to `/testnet/users`.
-- [ ] Document portal in INCENTIVIZED-TESTNET.md and COMMUNITY-QUESTS.md (quests live under Users in the portal).
+- [x] Add `portal_registrations` and `portal_dapps` to schema; apply migration.
+- [x] Implement `/testnet` (landing), `/testnet/register`, `/testnet/developers`, `/testnet/users`, `/testnet/operators` (static or with API).
+- [x] Implement `POST /api/portal/register` and `GET /api/portal/me` (and optional `POST /api/portal/dapps`; user quest progress via portal/me).
+- [x] From `/network/testnet`, add prominent “Testnet Portal → Register & dashboards” link; from quests, redirect or link to `/testnet/users`.
+- [x] Document portal in INCENTIVIZED-TESTNET.md and COMMUNITY-QUESTS.md (quests live under Users in the portal).
 
 ---
 

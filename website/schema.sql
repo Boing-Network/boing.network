@@ -51,6 +51,14 @@ CREATE INDEX IF NOT EXISTS idx_quest_completions_account ON quest_completions(ac
 CREATE INDEX IF NOT EXISTS idx_quest_completions_quest ON quest_completions(quest_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_quest_completions_unique ON quest_completions(quest_id, account_id_hex);
 
+-- Seed quests (ids must match website/src/config/quests.ts)
+INSERT OR IGNORE INTO quests (id, name, description, verification_type, reward_tier, active, created_at) VALUES
+  ('faucet', 'First drip', 'Request testnet BOING from the faucet.', 'on_chain', 'base', 1, datetime('now')),
+  ('first_tx', 'First transaction', 'Send any transaction on testnet.', 'on_chain', 'base', 1, datetime('now')),
+  ('validator_connect', 'Join the network', 'Run a node connected to testnet bootnodes.', 'manual', 'validator', 1, datetime('now')),
+  ('feedback', 'Share feedback', 'Answer a few short questions about UX, docs, or bugs.', 'manual', 'bonus', 1, datetime('now')),
+  ('social', 'Join community', 'Join Discord and post in #testnet-intros.', 'manual', 'bonus', 1, datetime('now'));
+
 -- Testnet portal: registration and developer dApps. See docs/TESTNET-PORTAL.md.
 CREATE TABLE IF NOT EXISTS portal_registrations (
   account_id_hex TEXT PRIMARY KEY,
