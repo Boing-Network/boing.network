@@ -1,0 +1,181 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout
+  title="Developers — Testnet Portal"
+  description="Boing Network testnet: developer community, dApp registration, and success-based dApp incentive pool."
+>
+  <article class="portal-page">
+    <nav class="portal-nav">
+      <a href="/testnet">Portal</a>
+      <a href="/testnet/register">Register</a>
+      <a href="/testnet/developers" class="active">Developers</a>
+      <a href="/testnet/users">Users</a>
+      <a href="/testnet/operators">Operators</a>
+    </nav>
+
+    <h1>Developers</h1>
+    <p class="lead">
+      Build dApps on testnet, register for incentive tracking, and qualify for grants. At mainnet, a <strong>dedicated portion of the ecosystem pool</strong> rewards successful dApps (success-based, with a value cap per dApp).
+    </p>
+
+    <section class="section dashboard-section">
+      <h2>Your dashboard</h2>
+      <p class="muted">Register with your testnet account to see your registered dApps here. On mainnet, use <code>boing_registerDappMetrics</code> and the chain indexer for live metrics.</p>
+      <div class="dashboard-load">
+        <label for="me-account">Account ID to load dashboard</label>
+        <input id="me-account" type="text" placeholder="0x..." maxlength="66" />
+        <button type="button" id="me-load-btn">Load dashboard</button>
+      </div>
+      <div id="dashboard-placeholder" class="dashboard-placeholder">
+        <p>Registered dApps and metrics will appear here once you register and add contracts.</p>
+        <p><a href="/testnet/register?role=developer">Register as developer</a> · <a href="/developers/quickstart">Quickstart</a></p>
+      </div>
+      <div id="dashboard-loaded" class="dashboard-loaded" style="display: none;"></div>
+      <div id="dapp-register" class="subsection">
+        <h3>Register a dApp (testnet)</h3>
+        <p>Add a contract address to track it for testnet incentives. Enter your account ID (owner) if you're not logged in. At mainnet, use the RPC method <code>boing_registerDappMetrics</code>.</p>
+        <form id="dapp-form" class="compact-form">
+          <input id="dapp-owner" type="text" placeholder="Your account ID (0x..., optional if session exists)" title="32-byte hex account ID" />
+          <input id="dapp-contract" type="text" placeholder="Contract address (0x...)" required />
+          <input id="dapp-name" type="text" placeholder="dApp name (optional)" />
+          <button type="submit">Add dApp</button>
+        </form>
+        <p id="dapp-message" class="form-message"></p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>dApp incentive pool</h2>
+      <p>
+        A portion of the <strong>Community & Grants</strong> allocation is reserved for <strong>successful dApps</strong>: rewards are based on usage (e.g. fees generated), with a <strong>per-dApp value cap</strong> per epoch. Testnet participation qualifies you for grants and for inclusion in this ecosystem at mainnet. See
+        <a href="https://github.com/chiku524/boing.network/blob/main/docs/BOING-BLOCKCHAIN-DESIGN-PLAN.md" target="_blank" rel="noopener">BOING-BLOCKCHAIN-DESIGN-PLAN.md</a>
+        and
+        <a href="https://github.com/chiku524/boing.network/blob/main/docs/DEVELOPMENT-AND-ENHANCEMENTS.md" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS.md</a>.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Resources</h2>
+      <ul>
+        <li><a href="/developers/quickstart">Quickstart</a> — CLI, SDK, local dev</li>
+        <li><a href="/network/testnet">Join Testnet</a> — Bootnodes, faucet</li>
+        <li><a href="/network/faucet">Faucet</a> — Get testnet BOING</li>
+        <li><a href="https://github.com/chiku524/boing.network/blob/main/docs/RPC-API-SPEC.md" target="_blank" rel="noopener">RPC API</a> — <code>boing_registerDappMetrics</code></li>
+      </ul>
+    </section>
+  </article>
+</Layout>
+
+<script>
+  (function () {
+    const meInput = document.getElementById('me-account');
+    const loadBtn = document.getElementById('me-load-btn');
+    const placeholder = document.getElementById('dashboard-placeholder');
+    const loaded = document.getElementById('dashboard-loaded');
+    if (meInput && loadBtn && placeholder && loaded) {
+      try { if (localStorage.getItem('boing_portal_account')) meInput.value = localStorage.getItem('boing_portal_account'); } catch (_) {}
+      loadBtn.addEventListener('click', async () => {
+        let hex = (meInput.value || '').trim();
+        if (!hex.startsWith('0x')) hex = '0x' + hex;
+        if (hex.length !== 66) {
+          placeholder.style.display = 'none';
+          loaded.innerHTML = '<p class="err">Enter a valid 32-byte hex account ID.</p>';
+          loaded.style.display = 'block';
+          return;
+        }
+        loadBtn.textContent = 'Loading…';
+        try {
+          const res = await fetch('/api/portal/me?account_id_hex=' + encodeURIComponent(hex));
+          const data = await res.json().catch(() => ({}));
+          placeholder.style.display = 'none';
+          loaded.style.display = 'block';
+          if (!data.ok) { loaded.innerHTML = '<p class="err">' + (data.message || 'Failed to load.') + '</p>'; return; }
+          if (!data.registered) { loaded.innerHTML = '<p>Not registered. <a href="/testnet/register?role=developer">Register as developer</a>.</p>'; return; }
+          if (data.role !== 'developer') { loaded.innerHTML = '<p>This account is registered as <strong>' + data.role + '</strong>. Use the correct dashboard.</p>'; return; }
+          const dapps = data.dapps || [];
+          let html = '<p><strong>Registered as developer.</strong>' + (data.github_username ? ' GitHub: ' + data.github_username : '') + '</p>';
+          if (dapps.length === 0) html += '<p>No dApps registered yet. Add one below.</p>';
+          else {
+            html += '<p><strong>Your dApps (' + dapps.length + '):</strong></p><ul class="dapp-list">';
+            dapps.forEach(function (d) { html += '<li><code>' + (d.contract_hex || '').slice(0, 18) + '…</code>' + (d.name ? ' — ' + d.name : '') + '</li>'; });
+            html += '</ul>';
+          }
+          loaded.innerHTML = html;
+        } catch (e) {
+          loaded.innerHTML = '<p class="err">Network error. Is the API deployed?</p>';
+          loaded.style.display = 'block';
+        }
+        loadBtn.textContent = 'Load dashboard';
+      });
+    }
+
+    const form = document.getElementById('dapp-form');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const contract = (document.getElementById('dapp-contract') as HTMLInputElement)?.value?.trim();
+      const name = (document.getElementById('dapp-name') as HTMLInputElement)?.value?.trim();
+      let ownerHex = (document.getElementById('dapp-owner') as HTMLInputElement)?.value?.trim() || '';
+      if (!ownerHex.startsWith('0x')) ownerHex = ownerHex ? '0x' + ownerHex : '';
+      const msgEl = document.getElementById('dapp-message') as HTMLParagraphElement;
+      if (!contract || contract.length < 20) {
+        if (msgEl) msgEl.textContent = 'Enter a valid contract address (0x...).';
+        return;
+      }
+      if (ownerHex && ownerHex.length !== 66) {
+        if (msgEl) msgEl.textContent = 'Account ID must be 32 bytes (64 hex + 0x).';
+        return;
+      }
+      try {
+        const res = await fetch('/api/portal/dapps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contract_hex: contract.startsWith('0x') ? contract : '0x' + contract,
+            owner_account_hex: ownerHex || undefined,
+            name: name || undefined,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (msgEl) msgEl.textContent = res.ok && data.ok ? 'dApp registered.' : (data.message || 'API not available; try again later.');
+        if (res.ok && data.ok && loaded && meInput) {
+          const ownerInput = form.querySelector('#dapp-owner');
+          const ov = ownerInput?.value?.trim();
+          const h = ov ? (ov.startsWith('0x') ? ov : '0x' + ov) : (meInput.value || '').trim();
+          if (h.length === 66) { meInput.value = h; document.getElementById('me-load-btn')?.click(); }
+        }
+      } catch {
+        if (msgEl) msgEl.textContent = 'Network error. API may not be deployed yet.';
+      }
+    });
+  })();
+</script>
+
+<style>
+  .portal-page { max-width: 720px; margin: 0 auto; padding: 2rem; }
+  .portal-nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+  .portal-nav a { color: var(--text-secondary); font-weight: 500; }
+  .portal-nav a:hover, .portal-nav a.active { color: var(--accent-teal); }
+  .lead { color: var(--text-secondary); margin-bottom: 1.5rem; }
+  .section { margin-top: 2rem; }
+  .section h2 { font-size: 1.2rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+  .section h3 { font-size: 1rem; color: var(--text-primary); margin-top: 1rem; margin-bottom: 0.25rem; }
+  .muted { color: var(--text-tertiary); font-size: 0.9rem; margin-bottom: 1rem; }
+  .dashboard-placeholder { background: rgba(30,41,59,0.35); border: 1px dashed rgba(34,211,238,0.3); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+  .dashboard-placeholder p { margin: 0 0 0.5rem; color: var(--text-secondary); }
+  .compact-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.5rem; }
+  .compact-form input { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); font-family: var(--font-mono); font-size: 0.9rem; }
+  .compact-form button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--accent-teal); color: var(--bg-primary); font-weight: 600; cursor: pointer; }
+  .form-message { margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); }
+  .dashboard-load { margin-bottom: 1rem; }
+  .dashboard-load label { display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
+  .dashboard-load input { margin-right: 0.5rem; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); font-family: var(--font-mono); width: 320px; max-width: 100%; }
+  .dashboard-load button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--accent-teal); color: var(--bg-primary); font-weight: 600; cursor: pointer; }
+  .dashboard-loaded { margin-bottom: 1rem; }
+  .dashboard-loaded .err { color: var(--error-color, #f87171); }
+  .dashboard-loaded .dapp-list { margin: 0.5rem 0 0 1.2rem; color: var(--text-secondary); }
+  .section ul { color: var(--text-secondary); margin: 0.5rem 0 0 1.2rem; }
+  .section code { background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
+</style>

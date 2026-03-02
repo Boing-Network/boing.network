@@ -35,11 +35,18 @@ boing.network/
 │   └── /rpc-reference   → Full RPC docs + examples
 ├── /network/            → Network status & explorer
 │   ├── /status          → Uptime, validators, block height (D1 / API)
-│   ├── /testnet         → Join testnet hub (links to bootnodes, single-vs-multi, faucet)
+│   ├── /testnet         → Join testnet hub (bootnodes, single-vs-multi, faucet, link to portal)
 │   ├── /single-vs-multi → Dedicated page: single node vs multi-node
 │   ├── /bootnodes       → Dedicated page: what bootnodes are, how to use, official list
 │   ├── /faucet          → Dedicated page: request testnet BOING (RPC form)
+│   ├── /quests          → Redirects to /testnet/users (quests live in portal)
 │   └── /explorer        → Block/tx/account lookup (when available)
+├── /testnet/            → **Testnet Portal**: register (dev / user / node operator), dashboards, metrics
+│   ├── /                → Portal landing (role cards, dashboard links)
+│   ├── /register        → Registration form
+│   ├── /developers      → Developers community + dashboard (dApps, incentive pool)
+│   ├── /users           → Users community + dashboard (quests, faucet, feedback)
+│   └── /operators       → Node operators community + dashboard (leaderboard)
 ├── /community           → GitHub, Discord, governance, grants
 └── /resources           → Tokenomics, roadmap, whitepapers, FAQs
 ```

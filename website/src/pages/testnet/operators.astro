@@ -1,0 +1,79 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet';
+---
+
+<Layout
+  title="Node Operators — Testnet Portal"
+  description="Boing Network testnet: run a validator, join the leaderboard, and earn testnet rewards."
+>
+  <article class="portal-page">
+    <nav class="portal-nav">
+      <a href="/testnet">Portal</a>
+      <a href="/testnet/register">Register</a>
+      <a href="/testnet/developers">Developers</a>
+      <a href="/testnet/users">Users</a>
+      <a href="/testnet/operators" class="active">Operators</a>
+    </nav>
+
+    <h1>Node operators</h1>
+    <p class="lead">
+      Run a validator, connect to the testnet with bootnodes or VibeMiner, and compete on the leaderboard. Earn testnet BOING for blocks produced and qualify for mainnet recognition (e.g. allocation or NFT for top N).
+    </p>
+
+    <section class="section dashboard-section">
+      <h2>Leaderboard</h2>
+      <p class="muted">Blocks proposed and uptime will appear here once the testnet indexer is live. <a href="/testnet/register?role=node_operator">Register as node operator</a> to be counted.</p>
+      <div class="dashboard-placeholder">
+        <p>Leaderboard and per-operator metrics coming when indexer/RPC data is available.</p>
+        <p>See <a href="/network/testnet">Join Testnet</a> for bootnodes and <a href="https://github.com/chiku524/boing.network/blob/main/docs/VIBEMINER-INTEGRATION.md" target="_blank" rel="noopener">VibeMiner</a> for one-click setup.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Your node</h2>
+      <p>Run <code>boing-node</code> with P2P and bootnodes to join the public testnet. Stake testnet BOING (from the faucet) to participate in consensus.</p>
+      {isTestnetLive ? (
+        <>
+          <p><strong>RPC:</strong> <code>{TESTNET_RPC_URL}</code></p>
+          {BOOTNODES.length > 0 && (
+            <>
+              <p><strong>Bootnodes:</strong></p>
+              <pre class="code-block"><code>{BOOTNODES.join("\n")}</code></pre>
+            </>
+          )}
+        </>
+      ) : (
+        <p>Testnet endpoints will appear here when live. Until then, use <a href="/network/single-vs-multi">local multi-node</a> or run with placeholder bootnodes.</p>
+      )}
+    </section>
+
+    <section class="section">
+      <h2>Resources</h2>
+      <ul>
+        <li><a href="/network/testnet">Join Testnet</a> — Quick start, bootnodes</li>
+        <li><a href="/network/bootnodes">Bootnodes</a> — What they are and how to use</li>
+        <li><a href="/network/faucet">Faucet</a> — Get testnet BOING</li>
+        <li><a href="https://github.com/chiku524/boing.network/blob/main/docs/VIBEMINER-INTEGRATION.md" target="_blank" rel="noopener">VibeMiner</a> — One-click mining/validator UI</li>
+        <li><a href="https://github.com/chiku524/boing.network/blob/main/docs/RUNBOOK.md" target="_blank" rel="noopener">RUNBOOK.md</a> — Node operations</li>
+      </ul>
+    </section>
+  </article>
+</Layout>
+
+<style>
+  .portal-page { max-width: 720px; margin: 0 auto; padding: 2rem; }
+  .portal-nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+  .portal-nav a { color: var(--text-secondary); font-weight: 500; }
+  .portal-nav a:hover, .portal-nav a.active { color: var(--accent-teal); }
+  .lead { color: var(--text-secondary); margin-bottom: 1.5rem; }
+  .section { margin-top: 2rem; }
+  .section h2 { font-size: 1.2rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+  .muted { color: var(--text-tertiary); font-size: 0.9rem; margin-bottom: 1rem; }
+  .dashboard-placeholder { background: rgba(30,41,59,0.35); border: 1px dashed rgba(34,211,238,0.3); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+  .dashboard-placeholder p { margin: 0 0 0.5rem; color: var(--text-secondary); }
+  .section code { background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
+  .code-block { background: rgba(0,0,0,0.3); border: 1px solid rgba(34,211,238,0.2); border-radius: 8px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; }
+  .code-block code { background: none; padding: 0; }
+  .section ul { color: var(--text-secondary); margin: 0.5rem 0 0 1.2rem; }
+</style>

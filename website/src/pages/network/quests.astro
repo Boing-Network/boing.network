@@ -1,0 +1,31 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout
+  title="Community Quests"
+  description="Community quests have moved to the Testnet Portal — Users dashboard."
+>
+  <article class="page redirect-page">
+    <h1>Community Quests</h1>
+    <p class="lead">Quests are now part of the <strong>Testnet Portal</strong>. You can register as a user, complete quests, and track your progress in one place.</p>
+    <p><a href="/testnet/users" class="btn btn-primary">Go to Users dashboard (Quests) →</a></p>
+    <p><a href="/testnet">Testnet Portal home</a></p>
+  </article>
+</Layout>
+
+<script>
+  (function () {
+    if (typeof window !== 'undefined') {
+      window.location.replace('/testnet/users');
+    }
+  })();
+</script>
+
+<style>
+  .page { max-width: 560px; margin: 0 auto; padding: 2rem; }
+  .redirect-page h1 { color: var(--text-primary); }
+  .lead { color: var(--text-secondary); margin-bottom: 1.5rem; }
+  .btn { display: inline-block; padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: 600; text-decoration: none; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)); color: var(--bg-primary); }
+</style>

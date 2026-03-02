@@ -39,6 +39,7 @@ Document caps and eligibility in a single "Incentivized Testnet Rules" page.
 ### Pre-Launch Checklist
 
 - [ ] Incentive program documented with criteria and caps
+- [ ] **Testnet Portal** live: registration (developer / user / node operator), dashboards; see [TESTNET-PORTAL.md](TESTNET-PORTAL.md). Community quests live under **Users** at `/testnet/users`; see [COMMUNITY-QUESTS.md](COMMUNITY-QUESTS.md).
 - [ ] Bug bounty scope (if any) defined; contact for submissions
 - [ ] Feedback channel live (Discord, GitHub Discussions)
 - [ ] Announcement draft with start/end dates and links
@@ -81,7 +82,7 @@ Document caps and eligibility in a single "Incentivized Testnet Rules" page.
 
 ### Where to Promote
 
-- Twitter/X, Discord, Telegram, blog, website, VibeMiner/partners
+- Twitter/X, Discord, Telegram, blog, website, VibeMiner/partners. Link to the **Testnet Portal** (`/testnet`) for registration and role-specific dashboards.
 
 ---
 

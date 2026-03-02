@@ -1,0 +1,202 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { QUESTS, EXTERNAL_QUEST_FORM_URL } from '../../config/quests';
+---
+
+<Layout
+  title="Users — Testnet Portal"
+  description="Boing Network testnet: user community, quests, faucet, and feedback. Qualify for user rewards."
+>
+  <article class="portal-page">
+    <nav class="portal-nav">
+      <a href="/testnet">Portal</a>
+      <a href="/testnet/register">Register</a>
+      <a href="/testnet/developers">Developers</a>
+      <a href="/testnet/users" class="active">Users</a>
+      <a href="/testnet/operators">Operators</a>
+    </nav>
+
+    <h1>Users</h1>
+    <p class="lead">
+      Use the faucet, complete quests, and share feedback. Track your progress and qualify for user rewards from the Community & Grants pool. Full rules: <a href="https://github.com/chiku524/boing.network/blob/main/docs/INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">INCENTIVIZED-TESTNET.md</a>.
+    </p>
+
+    <section class="section dashboard-section">
+      <h2>Your dashboard</h2>
+      <p class="muted">Quest progress and faucet usage appear here once you register and complete tasks. <a href="/testnet/register?role=user">Register as user</a> if you haven’t.</p>
+      <div class="dashboard-load">
+        <label for="me-account">Account ID to load progress</label>
+        <input id="me-account" type="text" placeholder="0x..." maxlength="66" />
+        <button type="button" id="me-load-btn">Load progress</button>
+      </div>
+      <div id="quest-progress-placeholder" class="dashboard-placeholder">
+        <p>Quest completions will appear here when the API is connected.</p>
+      </div>
+      <div id="dashboard-loaded" class="dashboard-loaded" style="display: none;"></div>
+    </section>
+
+    <section class="section">
+      <h2>Community quests</h2>
+      <p>Complete these to qualify for rewards. Rewards and caps are in the <a href="https://github.com/chiku524/boing.network/blob/main/docs/INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">Incentivized testnet</a> rules.</p>
+      <ul class="quest-list">
+        {QUESTS.map((q) => (
+          <li class="quest-card">
+            <h3>{q.name}</h3>
+            <p class="quest-desc">{q.description}</p>
+            <p class="quest-how"><strong>How:</strong> {q.howToComplete}</p>
+            <p class="quest-meta">
+              <span class="badge">{q.verificationType === 'on_chain' ? 'Auto' : 'Manual'}</span>
+              <span class="badge tier">{q.rewardTier}</span>
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="section submit-section">
+      <h2>Submit a quest completion</h2>
+      {EXTERNAL_QUEST_FORM_URL ? (
+        <p><a href={EXTERNAL_QUEST_FORM_URL} class="btn btn-primary" target="_blank" rel="noopener">Open submission form →</a></p>
+      ) : (
+        <>
+          <p>Enter your account ID and which quest you completed. For manual quests, add proof (tx hash, Discord handle, or feedback link).</p>
+          <form id="quest-submit-form" class="quest-form">
+            <label for="account-id">Account ID (32-byte hex)</label>
+            <input id="account-id" name="account_id" type="text" placeholder="0x..." maxlength="66" required />
+            <label for="quest-id">Quest</label>
+            <select id="quest-id" name="quest_id" required>
+              <option value="">— Select —</option>
+              {QUESTS.map((q) => (
+                <option value={q.id}>{q.name}</option>
+              ))}
+            </select>
+            <label for="proof-value">Proof (optional for auto; required for manual)</label>
+            <input id="proof-value" name="proof_value" type="text" placeholder="tx hash, Discord, or link" />
+            <button type="submit" id="submit-btn">Submit</button>
+            <p id="form-message" class="form-message" aria-live="polite"></p>
+          </form>
+          <p class="form-note">If the API isn’t deployed yet, submit in <a href="https://discord.gg/boing" target="_blank" rel="noopener">Discord #testnet</a>.</p>
+        </>
+      )}
+    </section>
+
+    <section class="section">
+      <h2>Quick links</h2>
+      <p><a href="/network/faucet">Faucet</a> · <a href="/network/testnet">Join Testnet</a> · <a href="https://github.com/chiku524/boing.network/blob/main/docs/COMMUNITY-QUESTS.md" target="_blank" rel="noopener">COMMUNITY-QUESTS.md</a></p>
+    </section>
+  </article>
+</Layout>
+
+<script>
+  (function () {
+    const meInput = document.getElementById('me-account');
+    const loadBtn = document.getElementById('me-load-btn');
+    const placeholder = document.getElementById('quest-progress-placeholder');
+    const loaded = document.getElementById('dashboard-loaded');
+    if (meInput && loadBtn && placeholder && loaded) {
+      try { if (localStorage.getItem('boing_portal_account')) meInput.value = localStorage.getItem('boing_portal_account'); } catch (_) {}
+      loadBtn.addEventListener('click', async () => {
+        let hex = (meInput.value || '').trim();
+        if (!hex.startsWith('0x')) hex = '0x' + hex;
+        if (hex.length !== 66) {
+          placeholder.style.display = 'none';
+          loaded.innerHTML = '<p class="err">Enter a valid 32-byte hex account ID.</p>';
+          loaded.style.display = 'block';
+          return;
+        }
+        loadBtn.textContent = 'Loading…';
+        try {
+          const res = await fetch('/api/portal/me?account_id_hex=' + encodeURIComponent(hex));
+          const data = await res.json().catch(() => ({}));
+          placeholder.style.display = 'none';
+          loaded.style.display = 'block';
+          if (!data.ok) { loaded.innerHTML = '<p class="err">' + (data.message || 'Failed to load.') + '</p>'; return; }
+          if (!data.registered) { loaded.innerHTML = '<p>Not registered. <a href="/testnet/register?role=user">Register as user</a>.</p>'; return; }
+          if (data.role !== 'user') { loaded.innerHTML = '<p>This account is registered as <strong>' + data.role + '</strong>. Use the correct dashboard.</p>'; return; }
+          const completions = data.quest_completions || [];
+          let html = '<p><strong>Registered as user.</strong></p>';
+          if (completions.length === 0) html += '<p>No quest completions yet. Submit one below.</p>';
+          else {
+            html += '<p><strong>Quest completions (' + completions.length + '):</strong></p><ul class="quest-list-loaded">';
+            completions.forEach(function (c) { html += '<li>' + (c.quest_id || '') + (c.verified_at ? ' ✓ verified' : ' (pending)') + '</li>'; });
+            html += '</ul>';
+          }
+          loaded.innerHTML = html;
+        } catch (e) {
+          loaded.innerHTML = '<p class="err">Network error. Is the API deployed?</p>';
+          loaded.style.display = 'block';
+        }
+        loadBtn.textContent = 'Load progress';
+      });
+    }
+
+    const form = document.getElementById('quest-submit-form');
+    if (!form) return;
+    const accountInput = form.querySelector('#account-id') as HTMLInputElement;
+    const questSelect = form.querySelector('#quest-id') as HTMLSelectElement;
+    const proofInput = form.querySelector('#proof-value') as HTMLInputElement;
+    const submitBtn = form.querySelector('#submit-btn') as HTMLButtonElement;
+    const messageEl = form.querySelector('#form-message') as HTMLParagraphElement;
+    function setMessage(text: string, isError = false) {
+      if (messageEl) { messageEl.textContent = text; messageEl.style.color = isError ? 'var(--error-color, #f87171)' : 'var(--text-secondary)'; }
+    }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      let accountHex = (accountInput?.value || '').trim();
+      if (!accountHex.startsWith('0x')) accountHex = '0x' + accountHex;
+      if (accountHex.length !== 66) { setMessage('Account ID must be 32 bytes (64 hex + 0x).', true); return; }
+      if (submitBtn) submitBtn.disabled = true;
+      setMessage('Submitting…');
+      try {
+        const res = await fetch('/api/quests/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quest_id: questSelect?.value,
+            account_id_hex: accountHex,
+            proof_type: proofInput?.value?.trim() ? 'form' : undefined,
+            proof_value: proofInput?.value?.trim() || undefined,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) { setMessage('Submitted.'); form.reset(); try { localStorage.setItem('boing_portal_account', accountHex); } catch (_) {} if (document.getElementById('me-load-btn') && document.getElementById('me-account')?.value) document.getElementById('me-load-btn').click(); }
+        else if (res.status === 404 || res.status === 502) setMessage('API not available. Submit in Discord.', true);
+        else setMessage(data.message || 'Failed.', true);
+      } catch { setMessage('Network error. Try Discord.', true); }
+      finally { if (submitBtn) submitBtn.disabled = false; }
+    });
+  })();
+</script>
+
+<style>
+  .portal-page { max-width: 720px; margin: 0 auto; padding: 2rem; }
+  .portal-nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+  .portal-nav a { color: var(--text-secondary); font-weight: 500; }
+  .portal-nav a:hover, .portal-nav a.active { color: var(--accent-teal); }
+  .lead { color: var(--text-secondary); margin-bottom: 1.5rem; }
+  .section { margin-top: 2rem; }
+  .section h2 { font-size: 1.2rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+  .section h3 { font-size: 1rem; color: var(--text-primary); margin: 0 0 0.25rem; }
+  .muted { color: var(--text-tertiary); font-size: 0.9rem; margin-bottom: 1rem; }
+  .dashboard-placeholder { background: rgba(30,41,59,0.35); border: 1px dashed rgba(34,211,238,0.3); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+  .quest-list { list-style: none; padding: 0; margin: 1rem 0; }
+  .quest-card { background: rgba(30,41,59,0.35); border: 1px solid rgba(34,211,238,0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.75rem; }
+  .quest-desc { color: var(--text-secondary); margin: 0 0 0.25rem; font-size: 0.95rem; }
+  .quest-how { font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 0.5rem; }
+  .quest-meta { margin: 0.5rem 0 0; }
+  .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-right: 0.5rem; background: rgba(34,211,238,0.2); color: var(--accent-teal); }
+  .badge.tier { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
+  .quest-form label { display: block; margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+  .quest-form input, .quest-form select { width: 100%; max-width: 400px; padding: 10px 14px; margin-top: 0.25rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); font-family: var(--font-mono); }
+  .quest-form button { margin-top: 1rem; padding: 0.5rem 1rem; border: none; border-radius: 6px; background: var(--accent-teal); color: var(--bg-primary); font-weight: 600; cursor: pointer; }
+  .form-message { margin-top: 0.5rem; min-height: 1.5em; font-size: 0.9rem; }
+  .form-note { margin-top: 0.75rem; font-size: 0.9rem; color: var(--text-tertiary); }
+  .dashboard-load { margin-bottom: 1rem; }
+  .dashboard-load label { display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
+  .dashboard-load input { margin-right: 0.5rem; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); font-family: var(--font-mono); width: 320px; max-width: 100%; }
+  .dashboard-load button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--accent-teal); color: var(--bg-primary); font-weight: 600; cursor: pointer; }
+  .dashboard-loaded .err { color: var(--error-color, #f87171); }
+  .dashboard-loaded .quest-list-loaded { margin: 0.5rem 0 0 1.2rem; color: var(--text-secondary); }
+  .btn { display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)); color: var(--bg-primary); }
+</style>
