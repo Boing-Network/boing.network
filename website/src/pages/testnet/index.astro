@@ -81,10 +81,9 @@ import Layout from '../../layouts/Layout.astro';
   .lead { color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem; }
   .role-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
   .role-card {
-    display: block;
-    position: relative;
+    display: flex;
+    flex-direction: column;
     padding: 1.5rem;
-    padding-bottom: 2.5rem;
     background: rgba(30,41,59,0.35);
     border: 1px solid rgba(34,211,238,0.2);
     border-radius: 1rem;
@@ -94,11 +93,10 @@ import Layout from '../../layouts/Layout.astro';
   }
   .role-card:hover { border-color: rgba(34,211,238,0.5); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(6,182,212,0.2); }
   .role-card h2 { font-size: 1.2rem; margin: 0 0 0.5rem; color: var(--text-primary); }
-  .role-card p { font-size: 0.95rem; color: var(--text-secondary); margin: 0 0 0.75rem; line-height: 1.45; }
+  .role-card p { font-size: 0.95rem; color: var(--text-secondary); margin: 0 0 0.75rem; line-height: 1.45; flex: 1; }
   .card-arrow {
-    position: absolute;
-    bottom: 1rem;
-    right: 1.25rem;
+    margin-top: auto;
+    padding-top: 1rem;
     font-size: 0.85rem;
     color: var(--accent-teal);
     font-weight: 500;
