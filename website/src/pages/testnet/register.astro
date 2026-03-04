@@ -7,12 +7,7 @@ import Layout from '../../layouts/Layout.astro';
   description="Choose your role: developer, user, or node operator. Register for the Boing Network testnet."
 >
   <article class="portal-page choose-role-page">
-    <nav class="portal-nav">
-      <a href="/testnet">Portal</a>
-      <a href="/testnet/developers">Developers</a>
-      <a href="/testnet/users">Users</a>
-      <a href="/testnet/operators">Operators</a>
-    </nav>
+    <p class="back-link"><a href="/testnet">← Portal</a> · <a href="/">Boing Network</a></p>
 
     <h1>Register for the testnet</h1>
     <p class="lead">
@@ -38,16 +33,15 @@ import Layout from '../../layouts/Layout.astro';
     </div>
 
     <section class="section">
-      <p><a href="/testnet">← Back to portal</a></p>
+      <p><a href="/testnet">← Portal</a> · <a href="/">Back to Boing Network</a></p>
     </section>
   </article>
 </Layout>
 
 <style>
   .portal-page { max-width: 640px; margin: 0 auto; padding: 2rem; }
-  .portal-nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
-  .portal-nav a { color: var(--text-secondary); font-weight: 500; }
-  .portal-nav a:hover { color: var(--accent-teal); }
+  .back-link { margin-bottom: 1rem; }
+  .back-link a { color: var(--accent-teal); }
   .lead { color: var(--text-secondary); margin-bottom: 2rem; }
   .role-chooser { display: flex; flex-direction: column; gap: 1rem; }
   .role-option {

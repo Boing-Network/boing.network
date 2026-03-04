@@ -7,12 +7,7 @@ import Layout from '../../layouts/Layout.astro';
   description="Sign in to the Boing Network testnet portal with your account ID. Access your developer, user, or operator dashboard."
 >
   <article class="portal-page sign-in-page">
-    <nav class="portal-nav">
-      <a href="/testnet">Portal</a>
-      <a href="/testnet/developers">Developers</a>
-      <a href="/testnet/users">Users</a>
-      <a href="/testnet/operators">Operators</a>
-    </nav>
+    <p class="back-link"><a href="/testnet">← Portal</a></p>
 
     <div class="sign-in-hero">
       <h1>Sign in</h1>
@@ -29,7 +24,8 @@ import Layout from '../../layouts/Layout.astro';
     </form>
 
     <section class="section">
-      <p class="muted">Not registered yet? <a href="/testnet/register">Choose your role and register</a> (developer, user, or node operator).</p>
+      <p class="muted">Not registered? <a href="/testnet/register">Choose your role and register</a> — you’ll be directed to your hub after registration.</p>
+      <p><a href="/">← Back to Boing Network</a></p>
     </section>
   </article>
 </Layout>
@@ -106,9 +102,8 @@ import Layout from '../../layouts/Layout.astro';
 
 <style>
   .portal-page { max-width: 480px; margin: 0 auto; padding: 2rem; }
-  .portal-nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
-  .portal-nav a { color: var(--text-secondary); font-weight: 500; }
-  .portal-nav a:hover { color: var(--accent-teal); }
+  .back-link { margin-bottom: 1.5rem; }
+  .back-link a { color: var(--accent-teal); }
   .sign-in-hero { margin-bottom: 2rem; }
   .sign-in-hero h1 { color: var(--text-primary); margin-bottom: 0.5rem; }
   .lead { color: var(--text-secondary); margin-bottom: 0.5rem; }

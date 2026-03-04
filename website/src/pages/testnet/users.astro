@@ -7,21 +7,22 @@ import { QUESTS, EXTERNAL_QUEST_FORM_URL } from '../../config/quests';
   title="Users — Testnet Portal"
   description="Boing Network testnet: user community, quests, faucet, and feedback. Qualify for user rewards."
 >
-  <article class="portal-page role-hub users-hub">
-    <nav class="portal-nav">
+  <article class="portal-page role-hub users-hub hub-page hub-community" data-hub="user">
+    <script is:inline src="/portal-session.js"></script>
+    <nav class="hub-nav">
       <a href="/testnet">Portal</a>
-      <a href="/testnet/developers">Developers</a>
-      <a href="/testnet/users" class="active">Users</a>
-      <a href="/testnet/operators">Operators</a>
-      <span id="portal-auth" class="portal-auth"></span>
+      <span class="hub-name">Community Hub</span>
+      <a href="#dashboard">Dashboard</a>
+      <a href="#quests">Quests</a>
+      <span id="portal-auth" class="hub-auth"></span>
     </nav>
 
     <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
 
     <div class="hub-hero">
-      <h1>Users</h1>
+      <h1>Community Hub</h1>
       <p class="lead">
-        Use the faucet, complete quests, and share feedback. Track your progress and qualify for user rewards from the Community & Grants pool. Full rules: <a href="https://github.com/chiku524/boing.network/blob/main/docs/INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">INCENTIVIZED-TESTNET.md</a>.
+        Use the faucet, complete quests, and share feedback. This hub is for <strong>community users</strong> only. Track your progress and qualify for user rewards from the Community & Grants pool. Full rules: <a href="https://github.com/chiku524/boing.network/blob/main/docs/INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">INCENTIVIZED-TESTNET.md</a>.
       </p>
       <div class="hub-ctas" id="hub-ctas">
         <a href="/testnet/register/user" class="btn btn-primary">Register as user</a>
@@ -55,7 +56,7 @@ import { QUESTS, EXTERNAL_QUEST_FORM_URL } from '../../config/quests';
       <div id="dashboard-loaded" class="dashboard-loaded" style="display: none;"></div>
     </section>
 
-    <section class="section">
+    <section class="section" id="quests">
       <h2>Community quests</h2>
       <p>Complete these to qualify for rewards. Rewards and caps are in the <a href="https://github.com/chiku524/boing.network/blob/main/docs/INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">Incentivized testnet</a> rules.</p>
       <ul class="quest-list">
@@ -129,9 +130,9 @@ import { QUESTS, EXTERNAL_QUEST_FORM_URL } from '../../config/quests';
       }
       var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
       var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '';
-      var signOut = '<button type="button" id="portal-signout" class="auth-signout">Sign out</button>';
+      var signOut = '<button type="button" id="portal-signout" class="auth-signout">Logout</button>';
       if (session.role !== expectedRole) {
-        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">My hub</a> · ' + signOut;
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">Go to my hub</a> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
         if (wrongBanner) {
           wrongBanner.style.display = 'block';
           wrongBanner.innerHTML = 'You’re signed in as <strong>' + session.role + '</strong>. <a href="' + path + '">Go to your dashboard</a> or sign out below.';
@@ -139,15 +140,15 @@ import { QUESTS, EXTERNAL_QUEST_FORM_URL } from '../../config/quests';
         if (hubCtas) hubCtas.style.display = 'flex';
         if (dashboardLoad) dashboardLoad.style.display = 'block';
       } else {
-        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · ' + signOut;
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
         if (wrongBanner) wrongBanner.style.display = 'none';
         if (hubCtas) hubCtas.style.display = 'none';
         if (dashboardLoad) dashboardLoad.style.display = 'none';
       }
       var so = document.getElementById('portal-signout');
       if (so) so.addEventListener('click', function () {
-        if (window.BoingPortalSession) window.BoingPortalSession.clearSession();
-        window.location.href = '/testnet';
+        if (window.BoingPortalSession && window.BoingPortalSession.logout) window.BoingPortalSession.logout();
+        else { try { localStorage.removeItem('boing_portal_session'); } catch(_){} window.location.href = '/'; }
       });
     }
 
@@ -247,12 +248,15 @@ import { QUESTS, EXTERNAL_QUEST_FORM_URL } from '../../config/quests';
 
 <style>
   .portal-page { max-width: 720px; margin: 0 auto; padding: 2rem; }
-  .portal-nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
-  .portal-nav a { color: var(--text-secondary); font-weight: 500; }
-  .portal-nav a:hover, .portal-nav a.active { color: var(--accent-teal); }
-  .portal-auth { margin-left: auto; font-size: 0.9rem; color: var(--text-secondary); }
-  .portal-auth .account-short { font-family: var(--font-mono); color: var(--accent-teal); }
-  .portal-auth a { color: var(--accent-teal); }
+  .hub-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+  .hub-nav a { color: var(--text-secondary); font-weight: 500; }
+  .hub-nav a:hover { color: var(--accent-teal); }
+  .hub-name { color: var(--accent-teal); font-weight: 600; }
+  .hub-auth { margin-left: auto; font-size: 0.9rem; color: var(--text-secondary); }
+  .hub-auth .account-short { font-family: var(--font-mono); color: var(--accent-teal); }
+  .hub-auth a { color: var(--accent-teal); }
+  .portal-nav { display: none; }
+  .portal-auth { display: none; }
   .auth-signout { background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: inherit; padding: 0; }
   .auth-signout:hover { color: var(--accent-teal); }
   .wrong-role-banner { background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-secondary); }

@@ -4,22 +4,14 @@ import Layout from '../../layouts/Layout.astro';
 
 <Layout
   title="Testnet Portal"
-  description="Boing Network testnet portal: sign in or register as developer, user, or node operator. Access your dashboard and qualify for rewards."
+  description="Boing Network testnet: sign in or register. Access your developer, community, or operator hub."
 >
-  <article class="portal-page">
+  <article class="portal-page portal-entry">
     <script is:inline src="/portal-session.js"></script>
-    <nav class="portal-nav">
-      <a href="/testnet" class="active">Portal</a>
-      <a href="/testnet/developers">Developers</a>
-      <a href="/testnet/users">Users</a>
-      <a href="/testnet/operators">Operators</a>
-      <span id="portal-auth" class="portal-auth"></span>
-    </nav>
-
     <div class="portal-hero">
       <h1>Testnet Portal</h1>
       <p class="lead">
-        Sign in with your testnet account to open your role’s dashboard. New? Register as a <strong>developer</strong>, <strong>user</strong>, or <strong>node operator</strong> — each role has its own app and rewards from the <strong>Community & Grants</strong> pool.
+        Sign in to open your hub, or register as a <strong>developer</strong>, <strong>community user</strong>, or <strong>node operator</strong>. Each hub is separate — you’ll be directed there after sign-in or registration.
       </p>
       <div class="hero-ctas">
         <a href="/testnet/sign-in" class="btn btn-primary">Sign in</a>
@@ -27,68 +19,65 @@ import Layout from '../../layouts/Layout.astro';
       </div>
     </div>
 
-    <section class="section">
-      <h2>Choose your role</h2>
-      <p class="muted">After signing in, you’re taken to your role’s dashboard. Not registered yet? Pick a role to register.</p>
-    </section>
-
-    <div class="role-cards">
-      <a href="/testnet/developers" class="role-card">
-        <h2>Developer</h2>
-        <p>Build dApps on testnet. Register contracts for incentive tracking, qualify for grants, and share in the dedicated <strong>dApp incentive pool</strong> at mainnet (success-based, value cap per dApp).</p>
-        <span class="card-arrow">Go to Developers hub →</span>
-      </a>
-      <a href="/testnet/users" class="role-card">
-        <h2>User</h2>
-        <p>Use the faucet, complete quests, and share feedback. Track your quest progress and qualify for user rewards from the Community & Grants pool.</p>
-        <span class="card-arrow">Go to Users hub →</span>
-      </a>
-      <a href="/testnet/operators" class="role-card">
-        <h2>Node operator / Miner</h2>
-        <p>Run a validator or miner, join the network with bootnodes or VibeMiner. Compete on the leaderboard and earn testnet BOING plus mainnet recognition for top operators.</p>
-        <span class="card-arrow">Go to Operators hub →</span>
-      </a>
-    </div>
-
-    <section class="section">
-      <h2>Not sure yet?</h2>
-      <p>You can <a href="/testnet/register">choose your role and register</a> in one step, or <a href="/testnet/sign-in">sign in</a> if you already have an account.</p>
+    <section class="section" id="register-options">
+      <h2>Register for a hub</h2>
+      <p class="muted">Choose one role. After registration you’re taken to that hub’s dashboard.</p>
+      <div class="role-cards">
+        <a href="/testnet/register/developer" class="role-card">
+          <h3>Developer Hub</h3>
+          <p>Build dApps, register contracts, qualify for grants and the dApp incentive pool.</p>
+          <span class="card-arrow">Register as developer →</span>
+        </a>
+        <a href="/testnet/register/user" class="role-card">
+          <h3>Community Hub</h3>
+          <p>Use the faucet, complete quests, share feedback. Earn user rewards.</p>
+          <span class="card-arrow">Register as user →</span>
+        </a>
+        <a href="/testnet/register/operator" class="role-card">
+          <h3>Operator Hub</h3>
+          <p>Run a node or miner, join the leaderboard, earn testnet BOING.</p>
+          <span class="card-arrow">Register as operator →</span>
+        </a>
+      </div>
     </section>
 
     <section class="section">
-      <h2>Resources</h2>
-      <p>
-        <a href="/network/testnet">Join Testnet</a> (bootnodes, quick start) ·
-        <a href="/network/faucet">Faucet</a> ·
-        <a href="https://github.com/chiku524/boing.network/blob/main/docs/TESTNET-PORTAL.md" target="_blank" rel="noopener">TESTNET-PORTAL.md</a> ·
-        <a href="https://github.com/chiku524/boing.network/blob/main/docs/INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">Incentivized testnet</a>
-      </p>
+      <p><a href="/">← Back to Boing Network</a></p>
     </section>
   </article>
 </Layout>
 
+<script>
+  (function () {
+    var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
+    if (!session) return;
+    var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '/testnet';
+    if (path && path !== '/testnet') {
+      window.location.href = path;
+      return;
+    }
+  })();
+</script>
+
 <style>
-  .portal-page { max-width: 820px; margin: 0 auto; padding: 2rem; }
-  .portal-nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 1rem;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
-  }
-  .portal-nav a {
-    color: var(--text-secondary);
-    font-weight: 500;
-  }
-  .portal-nav a:hover, .portal-nav a.active { color: var(--accent-teal); }
+  .portal-page { max-width: 640px; margin: 0 auto; padding: 2rem; }
+  .portal-entry .portal-hero { margin-bottom: 2rem; }
   .portal-hero h1 { color: var(--text-primary); margin-bottom: 0.5rem; }
-  .lead { color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem; }
-  .role-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+  .lead { color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 1rem; }
+  .hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
+  .hero-ctas .btn { padding: 0.6rem 1.2rem; font-size: 1rem; text-decoration: none; font-weight: 600; border-radius: 6px; display: inline-block; }
+  .hero-ctas .btn-primary { background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)); color: var(--bg-primary); }
+  .hero-ctas .btn-secondary { background: rgba(34,211,238,0.15); color: var(--accent-teal); border: 1px solid rgba(34,211,238,0.3); }
+  .hero-ctas .btn-secondary:hover { background: rgba(34,211,238,0.25); }
+  .section { margin-top: 2rem; }
+  .section h2 { font-size: 1.2rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+  .section p { color: var(--text-secondary); }
+  .muted { color: var(--text-tertiary); font-size: 0.95rem; margin-bottom: 1rem; }
+  .role-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
   .role-card {
     display: flex;
     flex-direction: column;
-    padding: 1.5rem;
+    padding: 1.25rem;
     background: rgba(30,41,59,0.35);
     border: 1px solid rgba(34,211,238,0.2);
     border-radius: 1rem;
@@ -97,44 +86,7 @@ import Layout from '../../layouts/Layout.astro';
     transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
   }
   .role-card:hover { border-color: rgba(34,211,238,0.5); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(6,182,212,0.2); }
-  .role-card h2 { font-size: 1.2rem; margin: 0 0 0.5rem; color: var(--text-primary); }
-  .role-card p { font-size: 0.95rem; color: var(--text-secondary); margin: 0 0 0.75rem; line-height: 1.45; flex: 1; }
-  .card-arrow {
-    margin-top: auto;
-    padding-top: 1rem;
-    font-size: 0.85rem;
-    color: var(--accent-teal);
-    font-weight: 500;
-  }
-  .section { margin-top: 2rem; }
-  .section h2 { font-size: 1.2rem; color: var(--text-primary); margin-bottom: 0.5rem; }
-  .section p { color: var(--text-secondary); }
-  .muted { color: var(--text-tertiary); font-size: 0.95rem; margin-bottom: 1rem; }
-  .portal-auth { margin-left: auto; font-size: 0.9rem; color: var(--text-secondary); }
-  .portal-auth .account-short { font-family: var(--font-mono); color: var(--accent-teal); }
-  .portal-auth a { color: var(--accent-teal); }
-  .auth-signout { background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: inherit; padding: 0; }
-  .auth-signout:hover { color: var(--accent-teal); }
-  .hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
-  .hero-ctas .btn { padding: 0.6rem 1.2rem; font-size: 1rem; text-decoration: none; font-weight: 600; border-radius: 6px; display: inline-block; }
-  .hero-ctas .btn-primary { background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)); color: var(--bg-primary); }
-  .hero-ctas .btn-secondary { background: rgba(34,211,238,0.15); color: var(--accent-teal); border: 1px solid rgba(34,211,238,0.3); }
-  .hero-ctas .btn-secondary:hover { background: rgba(34,211,238,0.25); }
+  .role-card h3 { font-size: 1.1rem; margin: 0 0 0.5rem; color: var(--text-primary); }
+  .role-card p { font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 0.75rem; line-height: 1.4; flex: 1; }
+  .card-arrow { margin-top: auto; padding-top: 0.75rem; font-size: 0.85rem; color: var(--accent-teal); font-weight: 500; }
 </style>
-
-<script>
-  (function () {
-    var authEl = document.getElementById('portal-auth');
-    if (!authEl) return;
-    var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
-    if (!session) return;
-    var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
-    var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '/testnet';
-    authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">Go to my dashboard</a> · <button type="button" id="portal-signout" class="auth-signout">Sign out</button>';
-    var so = document.getElementById('portal-signout');
-    if (so) so.addEventListener('click', function () {
-      if (window.BoingPortalSession) window.BoingPortalSession.clearSession();
-      window.location.href = '/testnet';
-    });
-  })();
-</script>

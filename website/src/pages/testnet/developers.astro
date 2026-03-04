@@ -6,21 +6,22 @@ import Layout from '../../layouts/Layout.astro';
   title="Developers — Testnet Portal"
   description="Boing Network testnet: developer community, dApp registration, and success-based dApp incentive pool."
 >
-  <article class="portal-page role-hub developers-hub">
-    <nav class="portal-nav">
+  <article class="portal-page role-hub developers-hub hub-page hub-developer" data-hub="developer">
+    <script is:inline src="/portal-session.js"></script>
+    <nav class="hub-nav">
       <a href="/testnet">Portal</a>
-      <a href="/testnet/developers" class="active">Developers</a>
-      <a href="/testnet/users">Users</a>
-      <a href="/testnet/operators">Operators</a>
-      <span id="portal-auth" class="portal-auth"></span>
+      <span class="hub-name">Developer Hub</span>
+      <a href="#dashboard">Dashboard</a>
+      <a href="#resources">Resources</a>
+      <span id="portal-auth" class="hub-auth"></span>
     </nav>
 
     <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
 
     <div class="hub-hero">
-      <h1>Developers</h1>
+      <h1>Developer Hub</h1>
       <p class="lead">
-        Build dApps on testnet, register for incentive tracking, and qualify for grants. At mainnet, a <strong>dedicated portion of the ecosystem pool</strong> rewards successful dApps (success-based, with a value cap per dApp).
+        Build dApps on testnet, register for incentive tracking, and qualify for grants. This hub is for <strong>developers</strong> only. At mainnet, a dedicated portion of the ecosystem pool rewards successful dApps (success-based, value cap per dApp).
       </p>
       <div class="hub-ctas" id="hub-ctas">
         <a href="/testnet/register/developer" class="btn btn-primary">Register as developer</a>
@@ -75,7 +76,7 @@ import Layout from '../../layouts/Layout.astro';
       </p>
     </section>
 
-    <section class="section">
+    <section class="section" id="resources">
       <h2>Resources</h2>
       <ul>
         <li><a href="/developers/quickstart">Quickstart</a> — CLI, SDK, local dev</li>
@@ -111,7 +112,7 @@ import Layout from '../../layouts/Layout.astro';
       var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '';
       var signOut = '<button type="button" id="portal-signout" class="auth-signout">Sign out</button>';
       if (session.role !== expectedRole) {
-        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">My hub</a> · ' + signOut;
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">Go to my hub</a> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
         if (wrongBanner) {
           wrongBanner.style.display = 'block';
           wrongBanner.innerHTML = 'You’re signed in as <strong>' + session.role + '</strong>. <a href="' + path + '">Go to your dashboard</a> or sign out below.';
@@ -119,17 +120,17 @@ import Layout from '../../layouts/Layout.astro';
         if (hubCtas) hubCtas.style.display = 'flex';
         if (dashboardLoad) dashboardLoad.style.display = 'block';
       } else {
-        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · ' + signOut;
-        if (wrongBanner) wrongBanner.style.display = 'none';
-        if (hubCtas) hubCtas.style.display = 'none';
-        if (dashboardLoad) dashboardLoad.style.display = 'none';
-      }
-      var so = document.getElementById('portal-signout');
-      if (so) so.addEventListener('click', function () {
-        if (window.BoingPortalSession) window.BoingPortalSession.clearSession();
-        window.location.href = '/testnet';
-      });
+      authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+      if (wrongBanner) wrongBanner.style.display = 'none';
+      if (hubCtas) hubCtas.style.display = 'none';
+      if (dashboardLoad) dashboardLoad.style.display = 'none';
     }
+    var so = document.getElementById('portal-signout');
+    if (so) so.addEventListener('click', function () {
+      if (window.BoingPortalSession && window.BoingPortalSession.logout) window.BoingPortalSession.logout();
+      else { try { localStorage.removeItem('boing_portal_session'); } catch(_){} window.location.href = '/'; }
+    });
+  }
 
     function loadDashboard(hex) {
       if (!loadBtn || !placeholder || !loaded) return;
@@ -221,17 +222,19 @@ import Layout from '../../layouts/Layout.astro';
 
 <style>
   .portal-page { max-width: 720px; margin: 0 auto; padding: 2rem; }
-  .portal-nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
-  .portal-nav a { color: var(--text-secondary); font-weight: 500; }
-  .portal-nav a:hover, .portal-nav a.active { color: var(--accent-teal); }
-  .portal-auth { margin-left: auto; font-size: 0.9rem; color: var(--text-secondary); }
-  .portal-auth .account-short { font-family: var(--font-mono); color: var(--accent-teal); }
-  .portal-auth a { color: var(--accent-teal); }
+  .hub-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+  .hub-nav a { color: var(--text-secondary); font-weight: 500; }
+  .hub-nav a:hover { color: var(--accent-teal); }
+  .hub-name { color: var(--accent-teal); font-weight: 600; }
+  .hub-auth { margin-left: auto; font-size: 0.9rem; color: var(--text-secondary); }
+  .hub-auth .account-short { font-family: var(--font-mono); color: var(--accent-teal); }
+  .hub-auth a { color: var(--accent-teal); }
   .auth-signout { background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: inherit; padding: 0; }
   .auth-signout:hover { color: var(--accent-teal); }
   .wrong-role-banner { background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-secondary); }
   .wrong-role-banner a { color: var(--accent-teal); font-weight: 600; }
   .hub-hero { margin-bottom: 2rem; }
+  .portal-nav { display: none; }
   .hub-hero .lead { margin-bottom: 1.25rem; }
   .hub-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; }
   .btn { display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; text-decoration: none; }

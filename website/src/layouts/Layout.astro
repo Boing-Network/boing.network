@@ -17,6 +17,7 @@ const { title = 'Boing Network', description = 'Boing Network — Authentic. Dec
 const siteUrl = 'https://boing.network';
 const fullTitle = title === 'Boing Network' ? 'Boing Network | Authentic. Decentralized. Optimal. Quality-Assured.' : `${title} | Boing Network`;
 const path = (Astro.url.pathname || '/').replace(/\/$/, '') || '';
+const isTestnetApp = path.startsWith('testnet');
 const canonicalUrl = canonical ? `${siteUrl}${canonical.startsWith('/') ? canonical : '/' + canonical}` : `${siteUrl}${path || '/'}`;
 const ogImage = `${siteUrl}/og.png`;
 ---
@@ -64,7 +65,7 @@ const ogImage = `${siteUrl}/og.png`;
       "slogan": "Authentic. Decentralized. Optimal. Quality-Assured."
     })} />
   </head>
-  <body class:list={[pageClass, `route-${(path || '/').replace(/^\//, '').replace(/\//g, '-') || 'index'}`]}>
+  <body class:list={[pageClass, `route-${(path || '/').replace(/^\//, '').replace(/\//g, '-') || 'index'}`, isTestnetApp && 'testnet-app']}>
     <BoingCanvasBackground path={path} />
     <BoingMascot />
     <header class="site-header">
@@ -73,7 +74,12 @@ const ogImage = `${siteUrl}/og.png`;
         <span class="gradient-text">Boing Network</span>
       </a>
       <nav>
-        {(path === '/' || path === '') ? (
+        {isTestnetApp ? (
+          <>
+            <a href="/testnet">Testnet Portal</a>
+            <a href="/" class="testnet-logout" id="testnet-logout">Logout — Back to website</a>
+          </>
+        ) : (path === '/' || path === '') ? (
           <>
             <a href="#hero" class="nav-section">Home</a>
             <a href="#pillars" class="nav-section">Pillars</a>
@@ -97,7 +103,15 @@ const ogImage = `${siteUrl}/og.png`;
     <main>
       <slot />
     </main>
-    {(path !== '/' && path !== '') && (
+    {isTestnetApp ? (
+      <footer class="site-footer testnet-footer">
+        <p>Boing Testnet — Register and sign in to access your hub.</p>
+        <div class="footer-links">
+          <a href="/">Back to Boing Network</a>
+          <a href="/testnet">Portal</a>
+        </div>
+      </footer>
+    ) : (path !== '/' && path !== '') ? (
       <footer class="site-footer">
         <p>Boing Network — Authentic. Decentralized. Optimal. Quality-Assured.</p>
         <div class="footer-links">
@@ -109,8 +123,17 @@ const ogImage = `${siteUrl}/og.png`;
           <a href="/docs">Documentation</a>
         </div>
       </footer>
-    )}
+    ) : null}
   </body>
+  {isTestnetApp && (
+    <script is:inline>
+      document.querySelector('.testnet-logout')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        try { localStorage.removeItem('boing_portal_session'); } catch(_){}
+        window.location.href = '/';
+      });
+    </script>
+  )}
 </html>
 
 <style is:global>
@@ -225,6 +248,15 @@ const ogImage = `${siteUrl}/og.png`;
   }
   .site-header nav a.nav-testnet:hover {
     color: #fbbf24;
+  }
+
+  /* Testnet app: logout link */
+  .site-header nav a.testnet-logout {
+    margin-left: auto;
+    color: var(--text-tertiary);
+  }
+  .site-header nav a.testnet-logout:hover {
+    color: var(--accent-teal);
   }
 
   /* Cosmic Foundation: primary CTA = violet → cyan gradient */

@@ -25,6 +25,12 @@
       localStorage.removeItem(key);
     } catch (e) {}
   }
+  /** Redirect to main Boing Network website and clear session (logout). */
+  function logout() {
+    clearSession();
+    var main = typeof BOING_MAIN_SITE_URL !== 'undefined' ? BOING_MAIN_SITE_URL : '/';
+    window.location.href = main;
+  }
   function shortAccount(hex) {
     if (!hex || hex.length < 14) return hex || '';
     return hex.slice(0, 8) + '…' + hex.slice(-6);
@@ -33,6 +39,7 @@
     getSession: getSession,
     setSession: setSession,
     clearSession: clearSession,
+    logout: logout,
     shortAccount: shortAccount,
     roleAppPath: function (role) {
       if (role === 'developer') return '/testnet/developers';
