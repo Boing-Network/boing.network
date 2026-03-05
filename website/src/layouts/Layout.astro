@@ -76,31 +76,37 @@ const ogImage = `${siteUrl}/og.png`;
         <span class="gradient-text">Boing Network</span>
       </a>
       <nav class="site-nav" aria-label="Main">
-        <span class="nav-main" data-testnet-hide>
-          {(path === '/' || path === '') ? (
-            <>
-              <a href="#hero" class="nav-section">Overview</a>
-              <a href="#pillars" class="nav-section">Pillars</a>
-              <a href="#tokenomics" class="nav-section">Tokenomics</a>
-              <a href="#roadmap" class="nav-section">Roadmap</a>
-              <a href="#build" class="nav-section">Build</a>
-              <a href="/testnet" class="nav-testnet">Dashboard</a>
-              <a href="/resources" class="nav-section">Resources</a>
-            </>
-          ) : (
-            <>
-              <a href="/" class="nav-link">Overview</a>
-              <a href="/testnet" class="nav-testnet">Dashboard</a>
-              <a href="/resources" class="nav-link">Resources</a>
-              <a href="/about" class="nav-link nav-link--secondary">About</a>
-              <a href="/community" class="nav-link nav-link--secondary">Community</a>
-            </>
-          )}
-        </span>
-        <span class="nav-testnet-only" data-testnet-show>
-          <a href="/testnet">Testnet Portal</a>
-          <a href="/" class="testnet-logout" id="testnet-logout">Logout — Back to website</a>
-        </span>
+        {path === '/' || path === '' ? (
+          <>
+            <a href="#hero" class="nav-section">Overview</a>
+            <a href="#pillars" class="nav-section">Pillars</a>
+            <a href="#tokenomics" class="nav-section">Tokenomics</a>
+            <a href="#roadmap" class="nav-section">Roadmap</a>
+            <a href="#build" class="nav-section">Build</a>
+            <a href="/testnet" class="nav-testnet">Dashboard</a>
+            <a href="/resources" class="nav-section">Resources</a>
+          </>
+        ) : isTestnetApp ? (
+          <>
+            <a href="/testnet" class="nav-testnet">Dashboard</a>
+            <a href="/testnet/developers">Developers</a>
+            <a href="/testnet/users">Users</a>
+            <a href="/testnet/operators">Operators</a>
+            <a href="/testnet/register">Register</a>
+            <a href="/resources">Resources</a>
+            <a href="/about">About</a>
+            <a href="/community">Community</a>
+            <a href="/" class="testnet-logout">Back to website</a>
+          </>
+        ) : (
+          <>
+            <a href="/" class="nav-link">Overview</a>
+            <a href="/testnet" class="nav-testnet">Dashboard</a>
+            <a href="/resources" class="nav-link">Resources</a>
+            <a href="/about" class="nav-link nav-link--secondary">About</a>
+            <a href="/community" class="nav-link nav-link--secondary">Community</a>
+          </>
+        )}
       </nav>
     </header>
     <main id="main-content" tabindex="-1">
@@ -130,7 +136,7 @@ const ogImage = `${siteUrl}/og.png`;
         var p = window.location.pathname.replace(/\/$/, '') || '/';
         var isTestnet = p === '/testnet' || p.indexOf('/testnet/') === 0;
         if (isTestnet) document.body.classList.add('testnet-app');
-        document.getElementById('testnet-logout')?.addEventListener('click', function(e) {
+        document.querySelector('.site-header a.testnet-logout')?.addEventListener('click', function(e) {
           e.preventDefault();
           try { localStorage.removeItem('boing_portal_session'); } catch(_){}
           window.location.href = '/';
@@ -295,17 +301,15 @@ const ogImage = `${siteUrl}/og.png`;
     color: var(--accent-teal);
   }
 
-  /* Testnet app shell: show only testnet nav/footer when body has .testnet-app */
-  body.testnet-app [data-testnet-hide] { display: none !important; }
+  /* Testnet app: show testnet footer; main nav already includes testnet links from Layout */
   body.testnet-app [data-testnet-show] { display: revert !important; }
-  body.testnet-app .site-nav .nav-testnet-only { display: inline-flex !important; }
+  body.testnet-app [data-testnet-hide] { display: none !important; }
   body.testnet-app .testnet-footer { display: block !important; }
+  body.testnet-app .site-footer-main { display: none !important; }
   body:not(.testnet-app) [data-testnet-show] { display: none !important; }
-  body:not(.testnet-app) .site-nav [data-testnet-hide] { display: inline-flex !important; }
   body:not(.testnet-app) .site-footer-main { display: block !important; }
-  .site-nav .nav-main { display: inline-flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-  .site-nav .nav-testnet-only { display: inline-flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
   body.page-home .site-footer-main { display: none !important; }
+  .site-nav { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 
   /* Testnet app: logout link */
   .site-header nav a.testnet-logout {

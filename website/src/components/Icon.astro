@@ -4,7 +4,7 @@
  * Usage: <Icon name="document" /> or <Icon name="pdf" size={24} class="my-icon" />
  */
 interface Props {
-  name: 'document' | 'pdf' | 'network' | 'faucet' | 'rocket' | 'shield' | 'book' | 'link' | 'portal' | 'node' | 'quest';
+  name: 'document' | 'pdf' | 'network' | 'faucet' | 'rocket' | 'shield' | 'book' | 'link' | 'portal' | 'node' | 'quest' | 'code';
   size?: number;
   class?: string;
 }
@@ -44,6 +44,9 @@ const sizePx = `${size}px`;
   )}
   {name === 'quest' && (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+  )}
+  {name === 'code' && (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
   )}
 </span>
 

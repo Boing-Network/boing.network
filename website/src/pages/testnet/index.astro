@@ -26,19 +26,19 @@ import Icon from '../../components/Icon.astro';
       <p class="muted">Choose one role. After registration you're taken to that hub's dashboard.</p>
       <div class="role-cards">
         <a href="/testnet/register/developer" class="role-card role-card--developer">
-          <span class="role-card-icon" aria-hidden="true">{ }</span>
+          <span class="role-card-icon" aria-hidden="true"><Icon name="code" size={28} /></span>
           <h3>Developer Hub</h3>
           <p>Build dApps, register contracts, qualify for grants and the dApp incentive pool.</p>
           <span class="card-arrow">Register as developer →</span>
         </a>
         <a href="/testnet/register/user" class="role-card role-card--user">
-          <span class="role-card-icon" aria-hidden="true">★</span>
+          <span class="role-card-icon" aria-hidden="true"><Icon name="quest" size={28} /></span>
           <h3>Community Hub</h3>
           <p>Use the faucet, complete quests, share feedback. Earn user rewards.</p>
           <span class="card-arrow">Register as user →</span>
         </a>
         <a href="/testnet/register/operator" class="role-card role-card--operator">
-          <span class="role-card-icon" aria-hidden="true">◇</span>
+          <span class="role-card-icon" aria-hidden="true"><Icon name="node" size={28} /></span>
           <h3>Operator Hub</h3>
           <p>Run a node or miner, join the leaderboard, earn testnet BOING.</p>
           <span class="card-arrow">Register as operator →</span>
@@ -138,10 +138,17 @@ import Icon from '../../components/Icon.astro';
     outline-offset: 2px;
   }
   .role-card-icon {
-    font-size: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
     margin-bottom: 0.75rem;
     opacity: 0.9;
-    font-family: var(--font-mono);
+  }
+  .role-card-icon :global(.icon) {
+    width: 28px;
+    height: 28px;
   }
   .role-card--developer .role-card-icon { color: #22d3ee; }
   .role-card--user .role-card-icon { color: #fbbf24; }
