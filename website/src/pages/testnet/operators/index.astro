@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import HubNav from '../../../components/HubNav.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import '../../../styles/hub-common.css';
 ---
 
@@ -11,6 +12,7 @@ import '../../../styles/hub-common.css';
   <article class="portal-page role-hub operators-hub hub-page hub-operator" data-hub="node_operator">
     <script is:inline src="/portal-session.js"></script>
     <HubNav hub="operator" current="index" />
+    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Operator Hub' }]} />
 
     <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
 
@@ -32,7 +34,7 @@ import '../../../styles/hub-common.css';
       <ol class="steps-list steps-list--numbered">
         <li><strong>Register</strong> — Add your account ID and optional node multiaddr on the <a href="/testnet/register/operator">operator registration</a> page.</li>
         <li><strong>Get testnet BOING</strong> — Use the <a href="/network/faucet">faucet</a> for staking and gas.</li>
-        <li><strong>Run your node</strong> — Build <code>boing-node</code>, use <code>--p2p_listen</code> and <code>--bootnodes</code>, or use <a href="https://github.com/chiku524/boing.network/blob/main/docs/VIBEMINER-INTEGRATION.md" target="_blank" rel="noopener">VibeMiner</a> for one-click setup.</li>
+        <li><strong>Run your node</strong> — Build <code>boing-node</code>, use <code>--p2p_listen</code> and <code>--bootnodes</code>, or use <a href="/pdfs/VIBEMINER-INTEGRATION.pdf" target="_blank" rel="noopener">VibeMiner (PDF)</a> for one-click setup.</li>
         <li><strong>Compete</strong> — Blocks proposed and uptime will show on the <a href="/testnet/operators/leaderboard">Leaderboard</a> once the indexer is live.</li>
       </ol>
     </section>

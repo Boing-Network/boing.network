@@ -1,6 +1,8 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import HubNav from '../../../components/HubNav.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import Icon from '../../../components/Icon.astro';
 import '../../../styles/hub-common.css';
 ---
 
@@ -11,6 +13,7 @@ import '../../../styles/hub-common.css';
   <article class="portal-page role-hub operators-hub hub-page hub-operator" data-hub="node_operator">
     <script is:inline src="/portal-session.js"></script>
     <HubNav hub="operator" current="resources" />
+    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Operator Hub', href: '/testnet/operators' }, { label: 'Resources' }]} />
 
     <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
 
@@ -19,23 +22,28 @@ import '../../../styles/hub-common.css';
       <p class="muted">Links to run and operate a node on testnet.</p>
       <ul class="resources-list">
         <li>
+          <span class="resource-icon"><Icon name="network" size={22} /></span>
           <a href="/network/testnet">Join Testnet</a>
           <p class="desc">Quick start, bootnodes</p>
         </li>
         <li>
+          <span class="resource-icon"><Icon name="node" size={22} /></span>
           <a href="/network/bootnodes">Bootnodes</a>
           <p class="desc">What they are and how to use</p>
         </li>
         <li>
+          <span class="resource-icon"><Icon name="faucet" size={22} /></span>
           <a href="/network/faucet">Faucet</a>
           <p class="desc">Get testnet BOING</p>
         </li>
         <li>
-          <a href="https://github.com/chiku524/boing.network/blob/main/docs/VIBEMINER-INTEGRATION.md" target="_blank" rel="noopener">VibeMiner</a>
+          <span class="resource-icon"><Icon name="rocket" size={22} /></span>
+          <a href="/pdfs/VIBEMINER-INTEGRATION.pdf" target="_blank" rel="noopener">VibeMiner (PDF)</a>
           <p class="desc">One-click mining/validator UI</p>
         </li>
         <li>
-          <a href="https://github.com/chiku524/boing.network/blob/main/docs/RUNBOOK.md" target="_blank" rel="noopener">RUNBOOK.md</a>
+          <span class="resource-icon"><Icon name="document" size={22} /></span>
+          <a href="/pdfs/RUNBOOK.pdf" target="_blank" rel="noopener">RUNBOOK (PDF)</a>
           <p class="desc">Node operations</p>
         </li>
       </ul>

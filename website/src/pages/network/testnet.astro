@@ -1,5 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import Icon from '../../components/Icon.astro';
+import CopyButton from '../../components/CopyButton.astro';
 import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet';
 ---
 
@@ -8,7 +10,7 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
   description="Boing Network testnet: run a node, get testnet BOING from the faucet, and join as a validator."
 >
   <article class="page testnet-page">
-    <h1>Join the Testnet</h1>
+    <h1 class="page-title"><Icon name="network" size={32} class="title-icon" /> Join the Testnet</h1>
     <p class="lead">
       Run a node, get testnet BOING from the faucet, and participate as a validator or developer. Everything you need is below — or jump to dedicated pages for <strong>Bootnodes</strong>, <strong>Single vs multi-node</strong>, and the <strong>Faucet</strong>.
     </p>
@@ -16,26 +18,31 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
     <!-- Dedicated section cards: link to full pages -->
     <div class="dedicated-cards">
       <a href="/testnet" class="dedicated-card featured">
+        <span class="card-icon"><Icon name="portal" size={28} /></span>
         <h2>Testnet Portal</h2>
         <p>Choose your path: developer, user, or node operator. Each role has its own hub with registration, dashboard, and resources.</p>
         <span class="card-arrow">Open portal →</span>
       </a>
       <a href="/network/single-vs-multi" class="dedicated-card">
+        <span class="card-icon"><Icon name="node" size={28} /></span>
         <h2>Single node vs multi-node</h2>
         <p>When to run alone vs joining the public testnet. Commands and comparison.</p>
         <span class="card-arrow">Read more →</span>
       </a>
       <a href="/network/bootnodes" class="dedicated-card">
+        <span class="card-icon"><Icon name="network" size={28} /></span>
         <h2>Bootnodes</h2>
         <p>What bootnodes are, how to use them, and where to get the official list.</p>
         <span class="card-arrow">Read more →</span>
       </a>
       <a href="/network/faucet" class="dedicated-card featured">
+        <span class="card-icon"><Icon name="faucet" size={28} /></span>
         <h2>Faucet</h2>
         <p>Get testnet BOING for gas and staking. One request per account per 60 seconds.</p>
         <span class="card-arrow">Get testnet BOING →</span>
       </a>
       <a href="/testnet/users" class="dedicated-card">
+        <span class="card-icon"><Icon name="quest" size={28} /></span>
         <h2>Community Quests (Users)</h2>
         <p>Complete quests in the Testnet Portal to qualify for user rewards. Faucet, first tx, feedback, and more.</p>
         <span class="card-arrow">Quests in portal →</span>
@@ -43,7 +50,7 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
     </div>
 
     <section class="section" id="quick-start">
-      <h2>Quick start</h2>
+      <h2><Icon name="rocket" size={22} class="section-icon" /> Quick start</h2>
       <ol>
         <li>Build: <code>cargo build --release</code></li>
         <li>Run a single node (validator): <code>./target/release/boing-node --validator --rpc-port 8545</code></li>
@@ -65,7 +72,11 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
       <h2>Public testnet endpoints</h2>
       {isTestnetLive ? (
         <>
-          <p><strong>RPC URL (faucet and submissions):</strong> <code>{TESTNET_RPC_URL}</code></p>
+          <p><strong>RPC URL (faucet and submissions):</strong></p>
+          <div class="copy-wrapper rpc-copy" data-copy-value={TESTNET_RPC_URL}>
+            <code class="rpc-url-display">{TESTNET_RPC_URL}</code>
+            <CopyButton label="Copy URL" copiedLabel="Copied!" />
+          </div>
           {BOOTNODES.length > 0 && (
             <>
               <p><strong>Bootnodes:</strong> use with <code>--bootnodes</code> (comma-separated)</p>
@@ -92,20 +103,20 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
 
     <section class="section">
       <h2>One-click mining (VibeMiner)</h2>
-      <p>Prefer a desktop UI? <strong>VibeMiner</strong> offers one-click mining/validating for Boing. See <a href="https://github.com/chiku524/boing.network/blob/main/docs/VIBEMINER-INTEGRATION.md" target="_blank" rel="noopener">VIBEMINER-INTEGRATION.md</a>.</p>
+      <p>Prefer a desktop UI? <strong>VibeMiner</strong> offers one-click mining/validating for Boing. See <a href="/pdfs/VIBEMINER-INTEGRATION.pdf" target="_blank" rel="noopener">VIBEMINER-INTEGRATION (PDF)</a>.</p>
     </section>
 
     <section class="section incentivized-callout" id="incentivized-callout">
       <h2>Incentivized testnet</h2>
-      <p>When we run an incentivized testnet (validators, developers, and users can earn rewards), register in the <a href="/testnet">Testnet Portal</a> and use the same setup: join with bootnodes, use the faucet, and stake. Users complete <a href="/testnet/users">quests</a> in the portal. For launch readiness and rules, see <a href="https://github.com/chiku524/boing.network/blob/main/docs/INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">INCENTIVIZED-TESTNET.md</a>. Check announcements for the current phase.</p>
+      <p>When we run an incentivized testnet (validators, developers, and users can earn rewards), register in the <a href="/testnet">Testnet Portal</a> and use the same setup: join with bootnodes, use the faucet, and stake. Users complete <a href="/testnet/users">quests</a> in the portal. For launch readiness and rules, see <a href="/pdfs/INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">INCENTIVIZED-TESTNET (PDF)</a>. Check announcements for the current phase.</p>
     </section>
 
     <section class="section">
       <h2>Docs</h2>
-      <ul>
+      <ul class="docs-quick-links">
         <li><a href="/docs/getting-started">Getting started</a></li>
-        <li><a href="https://github.com/chiku524/boing.network/blob/main/docs/TESTNET.md" target="_blank" rel="noopener">TESTNET.md</a> — Full testnet guide</li>
-        <li><a href="https://github.com/chiku524/boing.network/blob/main/docs/RUNBOOK.md" target="_blank" rel="noopener">RUNBOOK.md</a> — Node setup and RPC</li>
+        <li><a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a> — Full testnet guide</li>
+        <li><a href="/pdfs/RUNBOOK.pdf" target="_blank" rel="noopener">RUNBOOK (PDF)</a> — Node setup and RPC</li>
       </ul>
     </section>
   </article>
@@ -113,6 +124,14 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
 
 <style>
   .page { max-width: 720px; margin: 0 auto; padding: 2rem; }
+  .page-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+  .title-icon { color: var(--accent-teal); flex-shrink: 0; }
   .testnet-page h1 { color: var(--text-primary); }
   .lead { color: var(--text-secondary); font-size: 1.1rem; }
   .dedicated-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 2rem 0; }
@@ -130,6 +149,7 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
   }
   .dedicated-card:hover { border-color: rgba(34,211,238,0.5); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(6,182,212,0.2); }
   .dedicated-card.featured { border-color: rgba(34,211,238,0.4); background: rgba(6,182,212,0.06); }
+  .card-icon { display: block; margin-bottom: 0.75rem; color: var(--accent-teal); }
   .dedicated-card h2 { font-size: 1.1rem; margin: 0 0 0.5rem; color: var(--text-primary); }
   .dedicated-card p { font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 0.75rem; line-height: 1.4; }
   .card-arrow {
@@ -140,14 +160,38 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
     color: var(--accent-teal);
     font-weight: 500;
   }
+  .section-icon { vertical-align: middle; margin-right: 0.35rem; color: var(--accent-teal); }
   .section { margin-top: 2rem; }
-  .section h2 { font-size: 1.25rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+  .section h2 {
+    display: flex;
+    align-items: center;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
   .section p, .section li { color: var(--text-secondary); }
   .section code { background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
   .section ol, .section ul { margin: 0.5rem 0 0 1.2rem; }
+  .docs-quick-links { list-style: none; padding-left: 0; }
+  .docs-quick-links li { margin-bottom: 0.5rem; }
+  .docs-quick-links a { color: var(--accent-teal); font-weight: 500; }
   .cta-link { display: inline-block; margin-top: 0.5rem; color: var(--accent-teal); font-weight: 600; }
   .incentivized-callout { background: rgba(34,211,238,0.06); border: 1px solid rgba(34,211,238,0.25); border-radius: 0.75rem; padding: 1.25rem; }
   .incentivized-callout a { color: var(--accent-teal); font-weight: 600; }
   .code-block { background: rgba(0,0,0,0.3); border: 1px solid rgba(34,211,238,0.2); border-radius: 8px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; }
   .code-block code { background: none; padding: 0; }
+  @media (prefers-reduced-motion: reduce) { .dedicated-card:hover { transform: none; } }
+  .rpc-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.25rem;
+  }
+  .rpc-copy .rpc-url-display {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.5rem;
+    background: rgba(0,0,0,0.25);
+    border-radius: 6px;
+  }
 </style>

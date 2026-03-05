@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import HubNav from '../../../components/HubNav.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { QUESTS, EXTERNAL_QUEST_FORM_URL } from '../../../config/quests';
 import '../../../styles/hub-common.css';
 ---
@@ -12,12 +13,13 @@ import '../../../styles/hub-common.css';
   <article class="portal-page role-hub users-hub hub-page hub-community" data-hub="user">
     <script is:inline src="/portal-session.js"></script>
     <HubNav hub="user" current="quests" />
+    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Community Hub', href: '/testnet/users' }, { label: 'Quests' }]} />
 
     <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
 
     <section class="section fade-in-up">
       <h1>Community quests</h1>
-      <p class="muted">Complete these to qualify for rewards. Rewards and caps are in the <a href="https://github.com/chiku524/boing.network/blob/main/docs/INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">Incentivized testnet</a> rules.</p>
+      <p class="muted">Complete these to qualify for rewards. Rewards and caps are in the <a href="/pdfs/INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Incentivized testnet (PDF)</a> rules.</p>
       <ul class="quest-list">
         {QUESTS.map((q, i) => (
           <li class="quest-card fade-in-up" style={`animation-delay: ${i * 0.08}s`}>
@@ -62,7 +64,7 @@ import '../../../styles/hub-common.css';
 
     <section class="section fade-in-up delay-2">
       <h2>Quick links</h2>
-      <p><a href="/network/faucet">Faucet</a> · <a href="/network/testnet">Join Testnet</a> · <a href="/testnet/users/dashboard">Your progress</a> · <a href="https://github.com/chiku524/boing.network/blob/main/docs/TESTNET-PORTAL.md#10-community-quests" target="_blank" rel="noopener">TESTNET-PORTAL.md §10 (Community Quests)</a></p>
+      <p><a href="/network/faucet">Faucet</a> · <a href="/network/testnet">Join Testnet</a> · <a href="/testnet/users/dashboard">Your progress</a> · <a href="/pdfs/TESTNET-PORTAL.pdf" target="_blank" rel="noopener">TESTNET-PORTAL (PDF) §10 Community Quests</a></p>
     </section>
   </article>
 </Layout>

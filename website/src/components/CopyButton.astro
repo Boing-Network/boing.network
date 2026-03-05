@@ -1,0 +1,85 @@
+---
+/**
+ * Copy-to-clipboard button. Place inside a .copy-wrapper that contains an input/textarea/code.
+ * Or use data-copy-value on the wrapper to copy a specific string.
+ */
+interface Props {
+  label?: string;
+  copiedLabel?: string;
+  class?: string;
+}
+const { label = 'Copy', copiedLabel = 'Copied!', class: className = '' } = Astro.props;
+---
+<button type="button" class:list={['copy-btn', className]} data-copy-done={copiedLabel} aria-label={label}>
+  <span class="copy-btn-text">{label}</span>
+</button>
+
+<style>
+  .copy-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 4.5em;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--accent-teal);
+    background: rgba(34, 211, 238, 0.12);
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .copy-btn:hover {
+    background: rgba(34, 211, 238, 0.2);
+    border-color: rgba(34, 211, 238, 0.5);
+  }
+  .copy-btn:focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+  }
+</style>
+
+<script>
+  (function () {
+    function init() {
+      document.querySelectorAll('.copy-btn').forEach(function (btn) {
+        if ((btn as any).__copyInit) return;
+        (btn as any).__copyInit = true;
+        btn.addEventListener('click', function () {
+          const el = this as HTMLButtonElement;
+          const wrapper = el.closest('.copy-wrapper');
+          let text = '';
+          if (wrapper) {
+            const val = (wrapper as HTMLElement).dataset.copyValue;
+            if (val !== undefined) text = val;
+            else {
+              const src = wrapper.querySelector('input, textarea, [data-copy-source]');
+              if (src) {
+                text = 'value' in src ? (src as HTMLInputElement).value : ((src as HTMLElement).dataset.copySource || src.textContent || '');
+              }
+            }
+          }
+          text = String(text).trim();
+          if (!text) return;
+          navigator.clipboard.writeText(text).then(function () {
+            const span = el.querySelector('.copy-btn-text');
+            const done = el.getAttribute('data-copy-done') || 'Copied!';
+            if (span) {
+              const orig = span.textContent;
+              span.textContent = done;
+              el.classList.add('copied');
+              setTimeout(function () {
+                span.textContent = orig || 'Copy';
+                el.classList.remove('copied');
+              }, 2000);
+            }
+          });
+        });
+      });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+  })();
+</script>

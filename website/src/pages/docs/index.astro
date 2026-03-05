@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import Icon from '../../components/Icon.astro';
 const jsonRpcExample = '{"jsonrpc":"2.0","id":1,"method":"boing_chainHeight","params":[]}';
 const curlExample = `curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \\
   -d '${jsonRpcExample}'`;
@@ -38,9 +39,9 @@ const paramsObjectWrong = '{}';
         <h2>Overview</h2>
         <p>Boing Network is an authentic L1 blockchain built from first principles. It is independent of other chains and designed for sustainable value, uncapped supply with floor-triggered rebalancing, and 100% transparent governance and tokenomics.</p>
         <h3>The six pillars</h3>
-        <p>In order: <strong>Security</strong> (safety over speed) → <strong>Scalability</strong> (throughput, efficiency) → <strong>Decentralization</strong> (permissionless at every layer) → <strong>Authenticity</strong> (unique architecture) → <strong>Transparency</strong> (100% openness; trust through verification) → <strong>True quality assurance</strong> (protocol-enforced QA: only assets that meet rules and security bar; automation + community pool for edge cases; leniency for meme culture; no malice). See the repository <strong>BOING-NETWORK-ESSENTIALS.md</strong> and <strong>QUALITY-ASSURANCE-NETWORK.md</strong> for full detail.</p>
+        <p>In order: <strong>Security</strong> (safety over speed) → <strong>Scalability</strong> (throughput, efficiency) → <strong>Decentralization</strong> (permissionless at every layer) → <strong>Authenticity</strong> (unique architecture) → <strong>Transparency</strong> (100% openness; trust through verification) → <strong>True quality assurance</strong> (protocol-enforced QA: only assets that meet rules and security bar; automation + community pool for edge cases; leniency for meme culture; no malice). See <a href="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" target="_blank" rel="noopener">BOING-NETWORK-ESSENTIALS (PDF)</a> and <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a> for full detail.</p>
         <h3>Recent enhancements &amp; optimizations</h3>
-        <p>Network-wide improvements include: re-insert of failed txs into mempool, RPC methods <code>boing_qaCheck</code> and QA error codes, <code>boing_getBalance</code> / <code>boing_getAccount</code>, six-pillars and essentials documentation, Protocol QA phase in the roadmap. QA pillar enhancements (pre-flight checks, structured errors, public metrics, versioned rule sets, appeal path) are documented in QUALITY-ASSURANCE-NETWORK.md. For the full list of implemented and planned enhancements, see <strong>DEVELOPMENT-AND-ENHANCEMENTS.md</strong> in the repository.</p>
+        <p>Network-wide improvements include: re-insert of failed txs into mempool, RPC methods <code>boing_qaCheck</code> and QA error codes, <code>boing_getBalance</code> / <code>boing_getAccount</code>, six-pillars and essentials documentation, Protocol QA phase in the roadmap. QA pillar enhancements (pre-flight checks, structured errors, public metrics, versioned rule sets, appeal path) are documented in <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a>. For the full list of implemented and planned enhancements, see <a href="/pdfs/DEVELOPMENT-AND-ENHANCEMENTS.pdf" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS (PDF)</a>.</p>
         <h3>What this documentation covers</h3>
         <p><strong>Getting Started</strong> — Prerequisites, build, run a node (full or validator), first transaction. <strong>Network Overview</strong> — Block time, consensus, key facts. <strong>Tokenomics</strong> — Supply model, fees, staking, waves. <strong>Architecture & Features</strong> — Native AA, adaptive gas, cross-chain, slashing, governance. <strong>RPC API</strong> — All JSON-RPC methods, params, and error codes. <strong>Operations</strong> — CLI, monitoring, troubleshooting, incident response. <strong>Roadmap</strong> — Phased build status. <strong>Testnet</strong> — How to join testnet when available. <strong>Security</strong> — Protocol, network, and operational security. <strong>Governance & Transparency</strong> — How decisions and parameters are visible and verifiable. <strong>Resources</strong> — Links to repo, landing page, and other pages.</p>
       </section>
@@ -285,25 +286,65 @@ cargo build --release</code></pre>
       <section id="resources" class="doc-section">
         <h2>Resources</h2>
         <h3>Site pages</h3>
-        <ul>
+        <ul class="docs-site-links">
           <li><a href="/">Landing page</a> — Tokenomics charts, roadmap, ecosystem, innovations.</li>
           <li><a href="/developers/quickstart">Developer quickstart</a> — CLI, SDK, local dev.</li>
           <li><a href="/network/status">Network status</a> — Block height, validators (when available).</li>
           <li><a href="/about">About</a> — Design philosophy and pillars.</li>
           <li><a href="/community">Community</a> — GitHub, governance, grants.</li>
         </ul>
-        <h3>Repository (boing.network)</h3>
-        <p>Source code and full specs: <a href="https://github.com/chiku524/boing.network" target="_blank" rel="noopener">github.com/chiku524/boing.network</a>. Key documents include:</p>
-        <ul>
-          <li><strong>BOING-NETWORK-ESSENTIALS.md</strong> — Six pillars, design philosophy, priorities, tech stack, key docs — start here.</li>
-          <li><strong>QUALITY-ASSURANCE-NETWORK.md</strong> — Sixth pillar: protocol QA rules, automation, community pool, meme leniency, no malice, additional enhancements.</li>
-          <li><strong>DEVELOPMENT-AND-ENHANCEMENTS.md</strong> — SDK, automation, dApp incentives; network-wide enhancements (implemented and planned).</li>
-          <li><strong>BOING-BLOCKCHAIN-DESIGN-PLAN.md</strong> — Design philosophy, tokenomics, decentralization, innovations.</li>
-          <li><strong>RUNBOOK.md</strong> — Operations: node setup, RPC, CLI, monitoring, incident response, troubleshooting.</li>
-          <li><strong>docs/RPC-API-SPEC.md</strong> — Full JSON-RPC method and error specification (including boing_qaCheck, boing_getBalance, boing_getAccount).</li>
-          <li><strong>SECURITY-STANDARDS.md</strong> — Protocol, network, and operational security; audit and bug bounty.</li>
-          <li><strong>BUILD-ROADMAP.md</strong> — Build and release roadmap.</li>
-        </ul>
+        <h3>Repository docs (PDF)</h3>
+        <p class="doc-section-desc">Source: <a href="https://github.com/chiku524/boing.network" target="_blank" rel="noopener">github.com/chiku524/boing.network</a>. Download any document as PDF:</p>
+        <div class="resource-cards">
+          <a href="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="book" size={28} /></span>
+            <h4 class="resource-card-title">BOING-NETWORK-ESSENTIALS</h4>
+            <p class="resource-card-desc">Six pillars, design philosophy, priorities, tech stack — start here.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
+          <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="shield" size={28} /></span>
+            <h4 class="resource-card-title">QUALITY-ASSURANCE-NETWORK</h4>
+            <p class="resource-card-desc">Protocol QA rules, automation, community pool, meme leniency.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
+          <a href="/pdfs/DEVELOPMENT-AND-ENHANCEMENTS.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="rocket" size={28} /></span>
+            <h4 class="resource-card-title">DEVELOPMENT-AND-ENHANCEMENTS</h4>
+            <p class="resource-card-desc">SDK, automation, dApp incentives; network-wide enhancements.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
+          <a href="/pdfs/BOING-BLOCKCHAIN-DESIGN-PLAN.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="document" size={28} /></span>
+            <h4 class="resource-card-title">BOING-BLOCKCHAIN-DESIGN-PLAN</h4>
+            <p class="resource-card-desc">Design philosophy, tokenomics, decentralization, innovations.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
+          <a href="/pdfs/RUNBOOK.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="node" size={28} /></span>
+            <h4 class="resource-card-title">RUNBOOK</h4>
+            <p class="resource-card-desc">Node setup, RPC, CLI, monitoring, incident response.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
+          <a href="/pdfs/RPC-API-SPEC.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="link" size={28} /></span>
+            <h4 class="resource-card-title">RPC-API-SPEC</h4>
+            <p class="resource-card-desc">Full JSON-RPC methods, boing_qaCheck, boing_getBalance, errors.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
+          <a href="/pdfs/SECURITY-STANDARDS.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="shield" size={28} /></span>
+            <h4 class="resource-card-title">SECURITY-STANDARDS</h4>
+            <p class="resource-card-desc">Protocol, network, operational security; audit and bug bounty.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
+          <a href="/pdfs/BUILD-ROADMAP.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="rocket" size={28} /></span>
+            <h4 class="resource-card-title">BUILD-ROADMAP</h4>
+            <p class="resource-card-desc">Build and release roadmap.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
+        </div>
       </section>
     </div>
   </article>
@@ -332,6 +373,30 @@ cargo build --release</code></pre>
     });
     window.addEventListener('hashchange', () => showSection(getSectionFromHash()));
     showSection(getSectionFromHash());
+
+    // Copy button for code blocks
+    document.querySelectorAll('.docs-content .doc-section pre').forEach((pre) => {
+      if (pre.closest('.code-block-wrapper')) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'code-block-wrapper';
+      pre.parentNode.insertBefore(wrapper, pre);
+      wrapper.appendChild(pre);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'code-copy-btn';
+      btn.textContent = 'Copy';
+      btn.setAttribute('aria-label', 'Copy code');
+      wrapper.appendChild(btn);
+      btn.addEventListener('click', function () {
+        const text = (pre.textContent || '').trim();
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+          btn.textContent = 'Copied!';
+          btn.classList.add('copied');
+          setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+        });
+      });
+    });
   })();
 </script>
 
@@ -440,6 +505,34 @@ cargo build --release</code></pre>
     background: none;
     padding: 0;
   }
+  .code-block-wrapper {
+    position: relative;
+    margin: 0.75rem 0;
+  }
+  .code-block-wrapper pre {
+    margin: 0;
+    padding-right: 4rem;
+  }
+  .code-copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--accent-teal);
+    background: rgba(34, 211, 238, 0.15);
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  .code-copy-btn:hover {
+    background: rgba(34, 211, 238, 0.25);
+    border-color: rgba(34, 211, 238, 0.5);
+  }
+  .code-copy-btn.copied { color: var(--accent-teal); }
+  .code-copy-btn:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
   .rpc-methods dt {
     margin-top: 1rem;
     color: var(--accent-neon);
@@ -474,6 +567,36 @@ cargo build --release</code></pre>
   .doc-table code {
     font-size: 0.85em;
   }
+  .docs-site-links { margin: 0.5rem 0 1rem; padding-left: 1.5rem; }
+  .doc-section-desc { margin-bottom: 1rem; }
+  .resource-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .resource-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem;
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 0.75rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .resource-card:hover {
+    border-color: rgba(34, 211, 238, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(6, 182, 212, 0.15);
+  }
+  .resource-card:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
+  .resource-card-icon { margin-bottom: 0.75rem; color: var(--accent-teal); }
+  .resource-card-title { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0 0 0.5rem; line-height: 1.3; }
+  .resource-card-desc { font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 1rem; line-height: 1.5; flex: 1; }
+  .resource-card-cta { font-size: 0.8rem; font-weight: 600; color: var(--accent-teal); }
+  @media (prefers-reduced-motion: reduce) { .resource-card:hover { transform: none; } }
   @media (max-width: 768px) {
     .docs-page {
       grid-template-columns: 1fr;

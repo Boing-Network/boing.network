@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import Icon from '../../components/Icon.astro';
 ---
 
 <Layout
@@ -9,7 +10,7 @@ import Layout from '../../layouts/Layout.astro';
   <article class="portal-page portal-entry">
     <script is:inline src="/portal-session.js"></script>
     <div class="portal-hero fade-in-up">
-      <h1 class="portal-hero-title">Testnet Portal</h1>
+      <h1 class="portal-hero-title"><Icon name="portal" size={36} class="title-icon" /> Testnet Portal</h1>
       <p class="lead portal-hero-lead fade-in-up delay-1">
         Sign in to open your hub, or register as a <strong>developer</strong>, <strong>community user</strong>, or <strong>node operator</strong>. Each hub is separate — you'll be directed there after sign-in or registration.
       </p>
@@ -65,7 +66,14 @@ import Layout from '../../layouts/Layout.astro';
 <style>
   .portal-page { max-width: 720px; margin: 0 auto; padding: 2rem; }
   .portal-entry .portal-hero { margin-bottom: 2.5rem; }
-  .portal-hero-title { color: var(--text-primary); margin-bottom: 0.5rem; }
+  .portal-hero-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+  .portal-hero-title .title-icon { color: var(--accent-teal); flex-shrink: 0; }
   .portal-hero .lead { color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 1rem; }
   .portal-hero-lead { display: block; }
   .hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }

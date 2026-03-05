@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import Icon from '../../components/Icon.astro';
 import { BOOTNODES, isTestnetLive } from '../../config/testnet';
 ---
 
@@ -8,7 +9,7 @@ import { BOOTNODES, isTestnetLive } from '../../config/testnet';
   description="What bootnodes are and how to use them to join the Boing Network testnet."
 >
   <article class="page">
-    <h1>Bootnodes</h1>
+    <h1 class="page-title"><Icon name="network" size={32} class="title-icon" /> Bootnodes</h1>
     <p class="lead">
       Bootnodes are well-known peer addresses that your node <strong>dials on startup</strong> to join the testnet. Without them, your node would only discover peers on the same LAN (via mDNS).
     </p>
@@ -39,12 +40,12 @@ import { BOOTNODES, isTestnetLive } from '../../config/testnet';
       <h2>Official testnet bootnodes</h2>
       {isTestnetLive && BOOTNODES.length > 0 ? (
         <>
-          <p>Use these multiaddrs with <code>--bootnodes</code> (comma-separated). Also in <a href="https://github.com/chiku524/boing.network/blob/main/docs/TESTNET.md" target="_blank" rel="noopener">TESTNET.md</a>.</p>
+          <p>Use these multiaddrs with <code>--bootnodes</code> (comma-separated). Also in <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a>.</p>
           <pre class="code-block"><code>{BOOTNODES.join('\n')}</code></pre>
         </>
       ) : (
         <>
-          <p>When the testnet launches, the canonical list will appear in this section and in <a href="https://github.com/chiku524/boing.network/blob/main/docs/TESTNET.md" target="_blank" rel="noopener">TESTNET.md</a>.</p>
+          <p>When the testnet launches, the canonical list will appear in this section and in <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a>.</p>
           <p><em>Placeholder: bootnode addresses will be added at testnet launch.</em></p>
         </>
       )}
@@ -59,13 +60,14 @@ import { BOOTNODES, isTestnetLive } from '../../config/testnet';
 
 <style>
   .page { max-width: 720px; margin: 0 auto; padding: 2rem; }
+  .page-title { display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); }
+  .title-icon { color: var(--accent-teal); flex-shrink: 0; }
   .page h1 { color: var(--text-primary); }
   .lead { color: var(--text-secondary); font-size: 1.1rem; }
   .section { margin-top: 2rem; }
   .section h2 { font-size: 1.25rem; color: var(--text-primary); margin-bottom: 0.5rem; }
   .section p { color: var(--text-secondary); }
   .section code { background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
-  .code-block { background: rgba(0,0,0,0.3); border: 1px solid rgba(34,211,238,0.2); border-radius: 8px; padding: 1rem; overflow-x: auto; }
   .code-block { background: rgba(0,0,0,0.3); border: 1px solid rgba(34,211,238,0.2); border-radius: 8px; padding: 1rem; overflow-x: auto; }
   .code-block code { background: none; padding: 0; font-size: 0.9rem; }
   .nav-links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }

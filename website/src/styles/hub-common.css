@@ -366,6 +366,12 @@
   color: var(--accent-teal);
   font-weight: 500;
 }
+.resource-icon {
+  display: inline-flex;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+  color: var(--accent-teal);
+}
 .resources-list .desc {
   font-size: 0.9rem;
   color: var(--text-secondary);

@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "build:pdfs": "node scripts/generate-pdfs.js"
   },
   "dependencies": {
     "astro": "^4.16.0"
   },
   "devDependencies": {
+    "md-to-pdf": "^5.2.5",
     "wrangler": "^3.78.0"
   }
 }

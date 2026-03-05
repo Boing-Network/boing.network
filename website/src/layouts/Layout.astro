@@ -67,6 +67,7 @@ const ogImage = `${siteUrl}/og.png`;
     })} />
   </head>
   <body class:list={[pageClass, `route-${(path || '/').replace(/^\//, '').replace(/\//g, '-') || 'index'}`, isTestnetApp && 'testnet-app']}>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <BoingCanvasBackground path={path} />
     <BoingMascot />
     <header class="site-header">
@@ -102,7 +103,7 @@ const ogImage = `${siteUrl}/og.png`;
         </span>
       </nav>
     </header>
-    <main>
+    <main id="main-content" tabindex="-1">
       <slot />
     </main>
     <footer class="site-footer testnet-footer" data-testnet-show>
@@ -157,6 +158,40 @@ const ogImage = `${siteUrl}/og.png`;
   }
 
   main { flex: 1; position: relative; z-index: 1; padding-top: 4.5rem; }
+
+  /* Skip link: visible on focus for keyboard users */
+  .skip-link {
+    position: absolute;
+    top: -100px;
+    left: 1rem;
+    z-index: 100;
+    padding: 0.75rem 1rem;
+    background: var(--bg-primary);
+    color: var(--accent-teal);
+    font-weight: 600;
+    border: 2px solid var(--accent-teal);
+    border-radius: 6px;
+    text-decoration: none;
+    transition: top 0.2s ease;
+  }
+  .skip-link:focus {
+    top: 1rem;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.4);
+  }
+
+  /* Consistent focus-visible for interactive elements */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+  }
+  .site-header nav a:focus-visible {
+    outline-offset: 4px;
+  }
 
   /* Homepage: hide live BG until Genesis Block intro completes (intro script sets opacity) */
   html.page-home .boing-canvas-bg {

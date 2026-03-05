@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import HubNav from '../../../components/HubNav.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import '../../../styles/hub-common.css';
 ---
 
@@ -11,6 +12,7 @@ import '../../../styles/hub-common.css';
   <article class="portal-page role-hub developers-hub hub-page hub-developer" data-hub="developer">
     <script is:inline src="/portal-session.js"></script>
     <HubNav hub="developer" current="index" />
+    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Developer Hub' }]} />
 
     <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
 
@@ -40,9 +42,9 @@ import '../../../styles/hub-common.css';
       <h2>dApp incentive pool</h2>
       <p>
         A portion of the <strong>Community & Grants</strong> allocation is reserved for <strong>successful dApps</strong>: rewards are based on usage (e.g. fees generated), with a <strong>per-dApp value cap</strong> per epoch. Testnet participation qualifies you for grants and for inclusion in this ecosystem at mainnet. See
-        <a href="https://github.com/chiku524/boing.network/blob/main/docs/BOING-BLOCKCHAIN-DESIGN-PLAN.md" target="_blank" rel="noopener">BOING-BLOCKCHAIN-DESIGN-PLAN.md</a>
+        <a href="/pdfs/BOING-BLOCKCHAIN-DESIGN-PLAN.pdf" target="_blank" rel="noopener">BOING-BLOCKCHAIN-DESIGN-PLAN (PDF)</a>
         and
-        <a href="https://github.com/chiku524/boing.network/blob/main/docs/DEVELOPMENT-AND-ENHANCEMENTS.md" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS.md</a>.
+        <a href="/pdfs/DEVELOPMENT-AND-ENHANCEMENTS.pdf" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS (PDF)</a>.
       </p>
       <p><a href="/testnet/developers/dashboard" class="btn btn-secondary">Open dashboard</a> · <a href="/testnet/developers/resources" class="btn btn-secondary">Resources</a></p>
     </section>

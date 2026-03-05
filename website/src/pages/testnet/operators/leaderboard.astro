@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import HubNav from '../../../components/HubNav.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../../config/testnet';
 import '../../../styles/hub-common.css';
 ---
@@ -12,6 +13,7 @@ import '../../../styles/hub-common.css';
   <article class="portal-page role-hub operators-hub hub-page hub-operator" data-hub="node_operator">
     <script is:inline src="/portal-session.js"></script>
     <HubNav hub="operator" current="leaderboard" />
+    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Operator Hub', href: '/testnet/operators' }, { label: 'Leaderboard' }]} />
 
     <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
 
@@ -50,7 +52,7 @@ import '../../../styles/hub-common.css';
         </tbody>
       </table>
       <p class="leaderboard-placeholder-note">
-        Leaderboard and per-operator metrics coming when indexer/RPC data is available. See <a href="/network/testnet">Join Testnet</a> for bootnodes and <a href="https://github.com/chiku524/boing.network/blob/main/docs/VIBEMINER-INTEGRATION.md" target="_blank" rel="noopener">VibeMiner</a> for one-click setup.
+        Leaderboard and per-operator metrics coming when indexer/RPC data is available. See <a href="/network/testnet">Join Testnet</a> for bootnodes and <a href="/pdfs/VIBEMINER-INTEGRATION.pdf" target="_blank" rel="noopener">VibeMiner (PDF)</a> for one-click setup.
       </p>
     </section>
 

@@ -1,5 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import Icon from '../../components/Icon.astro';
+import CopyButton from '../../components/CopyButton.astro';
 import { TESTNET_RPC_URL } from '../../config/testnet';
 ---
 
@@ -8,19 +10,24 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
   description="Request testnet BOING for the Boing Network testnet."
 >
   <article class="page faucet-page">
-    <h1>Testnet Faucet</h1>
+    <h1 class="page-title"><Icon name="faucet" size={32} class="title-icon" /> Testnet Faucet</h1>
     <p class="lead">
       Get testnet BOING to pay for gas and stake. Enter your account ID (32-byte hex) and the faucet will send <strong>1,000</strong> testnet BOING to your account. Rate limit: 1 request per 60 seconds per account.
     </p>
 
     <section class="faucet-form">
-      <label for="rpc-url">Testnet RPC URL</label>
-      <input
-        id="rpc-url"
-        type="text"
-        placeholder="https://testnet-rpc.boing.network or http://127.0.0.1:8545"
-        value={TESTNET_RPC_URL}
-      />
+      <div class="copy-wrapper input-group">
+        <label for="rpc-url">Testnet RPC URL</label>
+        <div class="input-with-copy">
+          <input
+            id="rpc-url"
+            type="text"
+            placeholder="https://testnet-rpc.boing.network or http://127.0.0.1:8545"
+            value={TESTNET_RPC_URL}
+          />
+          <CopyButton label="Copy" copiedLabel="Copied!" />
+        </div>
+      </div>
       <label for="account-id">Your account ID (32-byte hex, with or without 0x)</label>
       <input
         id="account-id"
@@ -29,7 +36,7 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
         maxlength="66"
       />
       <button id="request-btn" type="button">Request 1,000 testnet BOING</button>
-      <p id="message" class="message" aria-live="polite"></p>
+      <p id="message" class="message" aria-live="polite" data-state=""></p>
     </section>
 
     <section class="section">
@@ -43,7 +50,7 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
 
     <section class="section">
       <h2>Docs</h2>
-      <p><a href="/network/testnet">Join Testnet</a> · <a href="https://github.com/chiku524/boing.network/blob/main/docs/TESTNET.md" target="_blank" rel="noopener">TESTNET.md</a></p>
+      <p><a href="/network/testnet">Join Testnet</a> · <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a></p>
     </section>
   </article>
 </Layout>
@@ -57,7 +64,8 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
 
     function setMessage(text: string, isError = false) {
       messageEl.textContent = text;
-      messageEl.style.color = isError ? 'var(--error-color)' : 'var(--text-secondary)';
+      messageEl.setAttribute('data-state', isError ? 'error' : 'success');
+      messageEl.style.color = '';
     }
 
     btn?.addEventListener('click', async () => {
@@ -113,9 +121,19 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
 
 <style>
   .page { max-width: 720px; margin: 0 auto; padding: 2rem; }
+  .page-title { display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); }
+  .title-icon { color: var(--accent-teal); flex-shrink: 0; }
   .faucet-page h1 { color: var(--text-primary); }
   .lead { color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 1.5rem; }
   .faucet-form label { display: block; margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+  .faucet-form .input-with-copy {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    flex-wrap: wrap;
+  }
+  .faucet-form .input-with-copy input { flex: 1; min-width: 200px; }
   .faucet-form input {
     width: 100%;
     max-width: 480px;
@@ -150,6 +168,8 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
   .faucet-form button:hover:not(:disabled) { opacity: 0.9; }
   .faucet-form button:disabled { opacity: 0.6; cursor: not-allowed; }
   .message { margin-top: 1rem; min-height: 1.5em; font-size: 0.95rem; }
+  .message[data-state="success"] { color: var(--accent-teal); font-weight: 500; }
+  .message[data-state="error"] { color: var(--error-color, #f87171); }
   .section { margin-top: 2rem; }
   .section h2 { font-size: 1.2rem; color: var(--text-primary); }
   .section p, .section li { color: var(--text-secondary); }

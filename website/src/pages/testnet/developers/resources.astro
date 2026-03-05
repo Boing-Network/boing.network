@@ -1,6 +1,8 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import HubNav from '../../../components/HubNav.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import Icon from '../../../components/Icon.astro';
 import '../../../styles/hub-common.css';
 ---
 
@@ -11,6 +13,7 @@ import '../../../styles/hub-common.css';
   <article class="portal-page role-hub developers-hub hub-page hub-developer" data-hub="developer">
     <script is:inline src="/portal-session.js"></script>
     <HubNav hub="developer" current="resources" />
+    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Developer Hub', href: '/testnet/developers' }, { label: 'Resources' }]} />
 
     <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
 
@@ -19,19 +22,23 @@ import '../../../styles/hub-common.css';
       <p class="muted">Links and docs to build and deploy on testnet.</p>
       <ul class="resources-list">
         <li>
+          <span class="resource-icon"><Icon name="rocket" size={22} /></span>
           <a href="/developers/quickstart">Quickstart</a>
           <p class="desc">CLI, SDK, local dev</p>
         </li>
         <li>
+          <span class="resource-icon"><Icon name="network" size={22} /></span>
           <a href="/network/testnet">Join Testnet</a>
           <p class="desc">Bootnodes, faucet</p>
         </li>
         <li>
+          <span class="resource-icon"><Icon name="faucet" size={22} /></span>
           <a href="/network/faucet">Faucet</a>
           <p class="desc">Get testnet BOING</p>
         </li>
         <li>
-          <a href="https://github.com/chiku524/boing.network/blob/main/docs/RPC-API-SPEC.md" target="_blank" rel="noopener">RPC API</a>
+          <span class="resource-icon"><Icon name="link" size={22} /></span>
+          <a href="/pdfs/RPC-API-SPEC.pdf" target="_blank" rel="noopener">RPC API (PDF)</a>
           <p class="desc"><code>boing_registerDappMetrics</code></p>
         </li>
       </ul>
@@ -41,9 +48,9 @@ import '../../../styles/hub-common.css';
       <h2>dApp incentive pool</h2>
       <p>
         A portion of the <strong>Community & Grants</strong> allocation is reserved for <strong>successful dApps</strong>: rewards are based on usage (e.g. fees generated), with a <strong>per-dApp value cap</strong> per epoch. See
-        <a href="https://github.com/chiku524/boing.network/blob/main/docs/BOING-BLOCKCHAIN-DESIGN-PLAN.md" target="_blank" rel="noopener">BOING-BLOCKCHAIN-DESIGN-PLAN.md</a>
+        <a href="/pdfs/BOING-BLOCKCHAIN-DESIGN-PLAN.pdf" target="_blank" rel="noopener">BOING-BLOCKCHAIN-DESIGN-PLAN (PDF)</a>
         and
-        <a href="https://github.com/chiku524/boing.network/blob/main/docs/DEVELOPMENT-AND-ENHANCEMENTS.md" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS.md</a>.
+        <a href="/pdfs/DEVELOPMENT-AND-ENHANCEMENTS.pdf" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS (PDF)</a>.
       </p>
     </section>
   </article>

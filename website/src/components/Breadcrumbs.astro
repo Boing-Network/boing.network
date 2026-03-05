@@ -1,0 +1,61 @@
+---
+/**
+ * Breadcrumb navigation for testnet hub and other hierarchical pages.
+ * items: { label: string, href?: string }[] — last item typically current page (no href).
+ */
+interface Props {
+  items: { label: string; href?: string }[];
+  class?: string;
+}
+const { items, class: className = '' } = Astro.props;
+---
+<nav aria-label="Breadcrumb" class:list={['breadcrumbs', className]}>
+  <ol class="breadcrumbs-list">
+    {items.map((item, i) => (
+      <li class="breadcrumbs-item">
+        {i > 0 && <span class="breadcrumbs-sep" aria-hidden="true">/</span>}
+        {item.href ? (
+          <a href={item.href} class="breadcrumbs-link">{item.label}</a>
+        ) : (
+          <span class="breadcrumbs-current" aria-current="page">{item.label}</span>
+        )}
+      </li>
+    ))}
+  </ol>
+</nav>
+
+<style>
+  .breadcrumbs {
+    margin-bottom: 1rem;
+  }
+  .breadcrumbs-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.875rem;
+  }
+  .breadcrumbs-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .breadcrumbs-sep {
+    color: var(--text-tertiary);
+    pointer-events: none;
+  }
+  .breadcrumbs-link {
+    color: var(--accent-teal);
+    text-decoration: none;
+  }
+  .breadcrumbs-link:hover {
+    text-decoration: underline;
+  }
+  .breadcrumbs-current {
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+</style>
