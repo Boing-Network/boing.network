@@ -10,13 +10,14 @@
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
+const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DOCS_TO_PDF = [
-  'INCENTIVIZED-TESTNET.md',
-  'VIBEMINER-INTEGRATION.md',
   'TESTNET.md',
+  'VIBEMINER-INTEGRATION.md',
   'RUNBOOK.md',
   'BOING-NETWORK-ESSENTIALS.md',
   'QUALITY-ASSURANCE-NETWORK.md',
@@ -25,7 +26,6 @@ const DOCS_TO_PDF = [
   'RPC-API-SPEC.md',
   'SECURITY-STANDARDS.md',
   'BUILD-ROADMAP.md',
-  'TESTNET-PORTAL.md',
 ];
 
 const scriptDir = __dirname;
@@ -41,8 +41,7 @@ async function main() {
   }
   fs.mkdirSync(outDir, { recursive: true });
 
-  // Dynamic import so we stay ESM; md-to-pdf is CJS
-  const mdToPdf = (await import('md-to-pdf')).default;
+  const mdToPdf = require('md-to-pdf').mdToPdf || require('md-to-pdf').default;
 
   for (const name of DOCS_TO_PDF) {
     const src = path.join(docsDir, name);

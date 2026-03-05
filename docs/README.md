@@ -16,9 +16,7 @@ Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the si
 | Doc | Description |
 |-----|-------------|
 | [READINESS.md](READINESS.md) | Beta checklist, six-pillar readiness, launch-blocking path |
-| [INCENTIVIZED-TESTNET.md](INCENTIVIZED-TESTNET.md) | Incentive design, promotion, mainnet migration (includes Reddit post draft in Appendix A) |
-| [TESTNET.md](TESTNET.md) | Join testnet: bootnodes, faucet, single vs multi-node |
-| [TESTNET-PORTAL.md](TESTNET-PORTAL.md) | Testnet portal: registration, dashboards, community quests (§10) |
+| [TESTNET.md](TESTNET.md) | Join testnet (bootnodes, faucet, single vs multi-node); **Testnet Portal** (registration, dashboards, community quests); **Incentivized testnet** (readiness, promotion, mainnet migration, Reddit draft in Appendix A) |
 | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Bootnodes, Cloudflare tunnel |
 | [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) | One-click mining via VibeMiner |
 

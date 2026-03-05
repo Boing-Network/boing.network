@@ -2,7 +2,7 @@
 
 > **Purpose:** Single checklist for beta, six-pillar readiness, and launch-blocking items.  
 > **References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [RUNBOOK.md](RUNBOOK.md), [TESTNET.md](TESTNET.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md).  
-> **Incentivized testnet:** See [INCENTIVIZED-TESTNET.md](INCENTIVIZED-TESTNET.md) for incentive design, promotion, and mainnet migration.
+> **Incentivized testnet:** See [TESTNET.md](TESTNET.md) Part 3 for incentive design, promotion, and mainnet migration.
 
 ---
 
@@ -121,7 +121,7 @@ cargo test
 ## 5. Next Steps
 
 - **Beta:** Iterate on RUNBOOK and docs from common questions.
-- **Incentivized testnet:** Use [INCENTIVIZED-TESTNET.md](INCENTIVIZED-TESTNET.md) for full launch checklist, incentive design, and promotion.
+- **Incentivized testnet:** Use [TESTNET.md](TESTNET.md) Part 3 for full launch checklist, incentive design, and promotion.
 
 ---
 

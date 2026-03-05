@@ -32,8 +32,10 @@ boing-network/
 │   ├── boing-consensus/    # PoS + HotStuff BFT
 │   ├── boing-state/        # Verkle tree, state store
 │   ├── boing-execution/    # VM, parallel scheduler
+│   ├── boing-tokenomics/   # Block emission, fee split, dApp incentives
 │   ├── boing-governance/   # Phased governance (time locks)
 │   ├── boing-automation/   # Scheduler, triggers, executor incentives
+│   ├── boing-qa/           # Protocol QA (Allow/Reject/Unsure)
 │   ├── boing-cli/          # boing init, dev, deploy
 │   ├── boing-p2p/          # libp2p networking
 │   └── boing-node/         # Node binary
@@ -331,7 +333,7 @@ boing-network/
 ### 7.1 Public Testnet
 
 - [ ] Public testnet launch
-- [ ] Testnet incentive program (sustainability-first): use [INCENTIVIZED-TESTNET.md](docs/INCENTIVIZED-TESTNET.md) for readiness checklist, incentive design (validators, developers, users), and 2–4 week duration.
+- [ ] Testnet incentive program (sustainability-first): use [TESTNET.md](docs/TESTNET.md) Part 3 for readiness checklist, incentive design (validators, developers, users), and 2–4 week duration.
 - [ ] Validator onboarding
 - [ ] boing.finance integration (testnet)
 - [ ] Community engagement: grant programs, hackathons, educational content
@@ -355,50 +357,6 @@ boing-network/
 | **Technical** | Verkle stateless clients, light-client bridges, intent architecture |
 | **Ecosystem** | Open standards, bridge protocols, reusable specs |
 | **Sustainability** | Emission curve, fee-dominant revenue, no reward cliffs |
-
----
-
-## Task Checklist (Copy for Tracking)
-
-```
-Phase 1: Foundation
-[x] Ed25519 tx signing/verification
-[x] HotStuff propose → vote → commit
-[x] Consensus unit tests
-[x] Primitives + scheduler tests
-[ ] State root (Merkle of accounts)
-[ ] VM: gas stub, nonce check
-[ ] Scheduler: parallel batch execution
-
-Phase 2: Networking
-[ ] libp2p swarm + gossip
-[ ] Block/transaction propagation
-[ ] Sync protocol
-[ ] Node: mempool, block production
-[ ] Multi-node testnet
-
-Phase 3: Verkle & VM
-[ ] Verkle tree implementation
-[ ] Custom VM bytecode + interpreter
-[ ] Full parallel execution
-
-Phase 4: PoS & Hardening
-[ ] PoS validator set
-[ ] Native AA, adaptive gas, phased governance
-[ ] Security audit
-
-Phase 5: UX & Human-Centered
-[ ] Gasless, simulation, human-readable signing
-[ ] Social recovery
-[ ] MEV mitigation
-[ ] Unified SDK
-
-Phase 6: Technical Innovations
-[ ] Light client bridges
-[ ] Intent architecture
-[ ] Open standards
-[ ] Compliance rails
-```
 
 ---
 

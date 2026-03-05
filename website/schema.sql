@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS network_stats (
   updated_at TEXT
 );
 
--- Community quests (incentivized testnet). See docs/TESTNET-PORTAL.md §10.
+-- Community quests (incentivized testnet). See docs/TESTNET.md Part 2 §2.7 (Community Quests).
 CREATE TABLE IF NOT EXISTS quests (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -59,7 +59,7 @@ INSERT OR IGNORE INTO quests (id, name, description, verification_type, reward_t
   ('feedback', 'Share feedback', 'Answer a few short questions about UX, docs, or bugs.', 'manual', 'bonus', 1, datetime('now')),
   ('social', 'Join community', 'Join Discord and post in #testnet-intros.', 'manual', 'bonus', 1, datetime('now'));
 
--- Testnet portal: registration and developer dApps. See docs/TESTNET-PORTAL.md.
+-- Testnet portal: registration and developer dApps. See docs/TESTNET.md Part 2.
 CREATE TABLE IF NOT EXISTS portal_registrations (
   account_id_hex TEXT PRIMARY KEY,
   role TEXT NOT NULL,

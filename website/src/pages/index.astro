@@ -40,13 +40,15 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
       <span class="stage-badge" aria-hidden="true">Testnet</span>
       <img src="/assets/icon-only-transparent.png" alt="Boing Network" class="hero-logo-img" width="120" height="120" />
       <h1 class="hero-title gradient-text-hero animate-pulse-glow">Boing Network</h1>
-      <p class="tagline gradient-text-hero">Authentic. Decentralized. Optimal. Quality-Assured.</p>
+      <p class="tagline gradient-text-hero">Secure. Scalable. Decentralized. Authentic. Transparent. Quality-Assured.</p>
       <p class="hero-stage">We're in <strong>Testnet</strong> — join now, run a node, and help shape the network.</p>
       <div class="hero-highlights">
         <span class="hero-highlight"><span class="hl-icon">🔐</span> Security</span>
         <span class="hero-highlight"><span class="hl-icon">⚡</span> Scalability</span>
         <span class="hero-highlight"><span class="hl-icon">🌐</span> Decentralization</span>
         <span class="hero-highlight"><span class="hl-icon">✓</span> Authenticity</span>
+        <span class="hero-highlight"><span class="hl-icon">📋</span> Transparency</span>
+        <span class="hero-highlight"><span class="hl-icon">🛡</span> Quality Assurance</span>
       </div>
       <div class="cta">
         <a href="/testnet" class="btn btn-testnet">Open Dashboard</a>
@@ -65,8 +67,13 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
       <div class="pillar-card section-reveal delay-3"><img src="/assets/pillar-scalability.png" alt="Scalability" class="pillar-img" width="200" height="280" /><h3>Scalability</h3><p>High throughput without compromising the other pillars.</p></div>
       <div class="pillar-card section-reveal delay-4"><img src="/assets/pillar-decentralization.png" alt="Decentralization" class="pillar-img" width="200" height="280" /><h3>Decentralization</h3><p>Anyone can participate. No one can shut the door.</p></div>
       <div class="pillar-card section-reveal delay-5"><img src="/assets/pillar-authenticity.png" alt="Authenticity" class="pillar-img" width="200" height="280" /><h3>Authenticity</h3><p>One chain, one identity — authentic and independent.</p></div>
-      <div class="pillar-card section-reveal delay-6"><img src="/assets/pillar-transparency.png" alt="Transparency" class="pillar-img" width="200" height="280" /><h3>Transparency</h3><p>100% open — in design, governance, and operations. Trust through verification.</p></div>
-      <div class="pillar-card section-reveal delay-7"><img src="/assets/pillar-quality.png" alt="Quality Assurance" class="pillar-img" width="200" height="280" /><h3>True Quality Assurance</h3><p>Only assets that meet protocol-defined rules and security bar are allowed on-chain. Automation resolves known cases; leniency for meme culture; no maliciousness. Community QA pool only for genuinely unknown cases.</p></div>
+      <div class="pillar-card section-reveal delay-6"><img src="/assets/pillar-transparency.png" alt="Transparency" class="pillar-img" width="200" height="280" /><h3>Transparency</h3><p>100% open — design, governance, operations. Trust through verification.</p></div>
+      <div class="pillar-card section-reveal delay-7"><img src="/assets/pillar-quality.png" alt="Quality Assurance" class="pillar-img" width="200" height="280" /><h3>True Quality Assurance</h3><p>Only quality assets on-chain. Automated checks; community pool for edge cases. No scams, no single gatekeeper.</p></div>
+    </div>
+    <div class="pillars-unique section-reveal delay-8">
+      <h3 class="pillars-unique-title">The Boing difference</h3>
+      <p class="pillars-unique-lead">Boing Network is the first L1 where <strong>quality assurance is enforced at the protocol layer</strong>. No other major chain blocks low-quality or malicious deployments before they reach the ledger — we do. Automated rules and a decentralized community pool ensure only assets that meet our bar are accepted, reducing scams, congestion, and compliance risk in one move.</p>
+      <p class="pillars-unique-adoption">That same protocol-level QA makes Boing a natural fit for <strong>government and institutional adoption</strong>: verifiable rules, transparent outcomes, and a clear answer to “who decides what goes on-chain.” We’re building the infrastructure for a chain that regulators and enterprises can trust.</p>
     </div>
   </section>
 
@@ -468,12 +475,17 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
   .section-footer a { color: var(--accent-neon); }
 
   /* Pillars */
-  .pillars-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin-top: 1rem; }
-  .pillar-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; padding: 1rem; text-align: center; transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease; backdrop-filter: blur(12px); }
+  .pillars-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem; margin-top: 1rem; }
+  .pillar-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; padding: 0.875rem 1rem; text-align: center; transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease; backdrop-filter: blur(12px); display: flex; flex-direction: column; align-items: center; }
   .pillar-card:hover { border-color: var(--border-hover); box-shadow: 0 4px 30px var(--glow-cyan); transform: translateY(-2px); }
-  .pillar-img { width: 100%; height: auto; max-height: 220px; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto 0.75rem; }
-  .pillar-card h3 { font-size: 1rem; margin: 0 0 0.35rem; color: var(--text-primary); }
-  .pillar-card p { font-size: 0.8rem; color: var(--text-secondary); margin: 0; line-height: 1.4; }
+  .pillar-img { width: 100%; height: auto; max-height: 160px; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto 0.5rem; }
+  .pillar-card h3 { font-size: 0.95rem; margin: 0 0 0.25rem; color: var(--text-primary); }
+  .pillar-card p { font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.35; }
+  .pillars-unique { margin-top: 2.5rem; padding: 1.75rem 1.5rem; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; max-width: 800px; margin-left: auto; margin-right: auto; backdrop-filter: blur(12px); }
+  .pillars-unique-title { font-size: 1.1rem; margin: 0 0 0.75rem; color: var(--accent-teal); text-align: center; }
+  .pillars-unique-lead { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin: 0 0 1rem; }
+  .pillars-unique-adoption { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+  .pillars-unique strong { color: var(--text-primary); }
 
   /* Section reveal: stronger entrance with stagger */
   .section-reveal { opacity: 0; transform: translateY(28px); animation: section-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }

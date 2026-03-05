@@ -214,7 +214,7 @@ cargo build
 
 ## 8. Testnet Operations
 
-When running the **public incentivized testnet**, the following operations keep bootnodes and the faucet available. See [INCENTIVIZED-TESTNET.md](INCENTIVIZED-TESTNET.md) for the full launch checklist.
+When running the **public incentivized testnet**, the following operations keep bootnodes and the faucet available. See [TESTNET.md](TESTNET.md) Part 3 for the full launch checklist.
 
 ### 8.1 Running a bootnode
 

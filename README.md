@@ -34,14 +34,12 @@ All project documentation lives in **[docs/](docs/)**:
 | [READINESS.md](docs/READINESS.md) | Beta checklist, six-pillar readiness, launch-blocking path, verification commands |
 | [BOING-BLOCKCHAIN-DESIGN-PLAN.md](docs/BOING-BLOCKCHAIN-DESIGN-PLAN.md) | Architecture, design decisions, innovations |
 | [RUNBOOK.md](docs/RUNBOOK.md) | Operational runbook for node operators |
-| [TESTNET.md](docs/TESTNET.md) | Join testnet: single vs multi-node, bootnodes, faucet |
-| [VIBEMINER-INTEGRATION.md](docs/VIBEMINER-INTEGRATION.md) | One-click mining/validator integration (VibeMiner) |
+| [TESTNET.md](docs/TESTNET.md) | Join testnet (single vs multi-node, bootnodes, faucet); Testnet Portal (registration, dashboards, quests); Incentivized testnet (readiness, promotion, mainnet migration) |
 | [DECENTRALIZATION-AND-NETWORKING.md](docs/DECENTRALIZATION-AND-NETWORKING.md) | Advanced P2P, peer discovery, WebRTC signaling, light clients |
 | [DEVELOPMENT-AND-ENHANCEMENTS.md](docs/DEVELOPMENT-AND-ENHANCEMENTS.md) | SDK, automation, dApp incentives, enhancement vision |
 | [SECURITY-STANDARDS.md](docs/SECURITY-STANDARDS.md) | Protocol, network, application, and operational security |
 | [QUALITY-ASSURANCE-NETWORK.md](docs/QUALITY-ASSURANCE-NETWORK.md) | Protocol-enforced QA: only quality assets allowed on-chain; automation + community pool; Appendix A (deployer checklist), Appendix B (malice definition) |
 | [BUILD-ROADMAP.md](docs/BUILD-ROADMAP.md) | Implementation tasks and phases |
-| [TESTNET-PORTAL.md](docs/TESTNET-PORTAL.md) | Testnet portal: registration, dashboards, community quests |
 | [AUTOMATION-VERIFICATION.md](docs/AUTOMATION-VERIFICATION.md) | Cryptographic verification for decentralized automation |
 | [NETWORK-COST-ESTIMATE.md](docs/NETWORK-COST-ESTIMATE.md) | Cost overview and economic parameters |
 | [RPC-API-SPEC.md](docs/RPC-API-SPEC.md) | JSON-RPC API reference |

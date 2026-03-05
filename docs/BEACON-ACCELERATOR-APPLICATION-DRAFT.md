@@ -131,7 +131,7 @@ We target early adopters: security-conscious protocols, validators tired of opaq
 
 **Operational validation:** Testnet infrastructure designed—bootnodes, faucet, public RPC. Documentation (RUNBOOK, RPC-API-SPEC, TESTNET, READINESS) supports validators and developers. boing.network site live with docs, faucet, and investor materials.
 
-**Market validation:** Design aligns with user pain (scams, congestion, opacity). Six-pillar philosophy (Security, Scalability, Decentralization, Authenticity, Transparency, QA) documented. Tokenomics and governance designed for sustainability. Incentivized testnet plan (INCENTIVIZED-TESTNET.md) outlines validator/developer incentives. Next: bootnode launch, public testnet, and early validator/developer feedback.
+**Market validation:** Design aligns with user pain (scams, congestion, opacity). Six-pillar philosophy (Security, Scalability, Decentralization, Authenticity, Transparency, QA) documented. Tokenomics and governance designed for sustainability. Incentivized testnet plan ([TESTNET.md](TESTNET.md) Part 3) outlines validator/developer incentives. Next: bootnode launch, public testnet, and early validator/developer feedback.
 
 ---
 
