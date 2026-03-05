@@ -8,32 +8,35 @@ import Layout from '../../layouts/Layout.astro';
 >
   <article class="portal-page portal-entry">
     <script is:inline src="/portal-session.js"></script>
-    <div class="portal-hero">
-      <h1>Testnet Portal</h1>
-      <p class="lead">
-        Sign in to open your hub, or register as a <strong>developer</strong>, <strong>community user</strong>, or <strong>node operator</strong>. Each hub is separate — you’ll be directed there after sign-in or registration.
+    <div class="portal-hero fade-in-up">
+      <h1 class="portal-hero-title">Testnet Portal</h1>
+      <p class="lead portal-hero-lead fade-in-up delay-1">
+        Sign in to open your hub, or register as a <strong>developer</strong>, <strong>community user</strong>, or <strong>node operator</strong>. Each hub is separate — you'll be directed there after sign-in or registration.
       </p>
-      <div class="hero-ctas">
+      <div class="hero-ctas fade-in-up delay-2">
         <a href="/testnet/sign-in" class="btn btn-primary">Sign in</a>
         <a href="/testnet/register" class="btn btn-secondary">Register</a>
       </div>
     </div>
 
-    <section class="section" id="register-options">
+    <section class="section section-role-cards fade-in-up delay-1" id="register-options">
       <h2>Register for a hub</h2>
-      <p class="muted">Choose one role. After registration you’re taken to that hub’s dashboard.</p>
+      <p class="muted">Choose one role. After registration you're taken to that hub's dashboard.</p>
       <div class="role-cards">
-        <a href="/testnet/register/developer" class="role-card">
+        <a href="/testnet/register/developer" class="role-card role-card--developer">
+          <span class="role-card-icon" aria-hidden="true">{ }</span>
           <h3>Developer Hub</h3>
           <p>Build dApps, register contracts, qualify for grants and the dApp incentive pool.</p>
           <span class="card-arrow">Register as developer →</span>
         </a>
-        <a href="/testnet/register/user" class="role-card">
+        <a href="/testnet/register/user" class="role-card role-card--user">
+          <span class="role-card-icon" aria-hidden="true">★</span>
           <h3>Community Hub</h3>
           <p>Use the faucet, complete quests, share feedback. Earn user rewards.</p>
           <span class="card-arrow">Register as user →</span>
         </a>
-        <a href="/testnet/register/operator" class="role-card">
+        <a href="/testnet/register/operator" class="role-card role-card--operator">
+          <span class="role-card-icon" aria-hidden="true">◇</span>
           <h3>Operator Hub</h3>
           <p>Run a node or miner, join the leaderboard, earn testnet BOING.</p>
           <span class="card-arrow">Register as operator →</span>
@@ -41,8 +44,8 @@ import Layout from '../../layouts/Layout.astro';
       </div>
     </section>
 
-    <section class="section">
-      <p><a href="/">← Back to Boing Network</a></p>
+    <section class="section section-back">
+      <p><a href="/" class="back-to-site">← Back to Boing Network</a></p>
     </section>
   </article>
 </Layout>
@@ -60,33 +63,120 @@ import Layout from '../../layouts/Layout.astro';
 </script>
 
 <style>
-  .portal-page { max-width: 640px; margin: 0 auto; padding: 2rem; }
-  .portal-entry .portal-hero { margin-bottom: 2rem; }
-  .portal-hero h1 { color: var(--text-primary); margin-bottom: 0.5rem; }
-  .lead { color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 1rem; }
+  .portal-page { max-width: 720px; margin: 0 auto; padding: 2rem; }
+  .portal-entry .portal-hero { margin-bottom: 2.5rem; }
+  .portal-hero-title { color: var(--text-primary); margin-bottom: 0.5rem; }
+  .portal-hero .lead { color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 1rem; }
+  .portal-hero-lead { display: block; }
   .hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
-  .hero-ctas .btn { padding: 0.6rem 1.2rem; font-size: 1rem; text-decoration: none; font-weight: 600; border-radius: 6px; display: inline-block; }
+  .hero-ctas .btn {
+    padding: 0.6rem 1.2rem; font-size: 1rem; text-decoration: none; font-weight: 600; border-radius: 6px;
+    display: inline-block; transition: opacity 0.2s ease, box-shadow 0.2s ease;
+  }
   .hero-ctas .btn-primary { background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)); color: var(--bg-primary); }
-  .hero-ctas .btn-secondary { background: rgba(34,211,238,0.15); color: var(--accent-teal); border: 1px solid rgba(34,211,238,0.3); }
-  .hero-ctas .btn-secondary:hover { background: rgba(34,211,238,0.25); }
+  .hero-ctas .btn-secondary { background: rgba(124, 58, 237, 0.2); color: var(--accent-teal); border: 1px solid rgba(124, 58, 237, 0.4); }
+  .hero-ctas .btn-secondary:hover { background: rgba(124, 58, 237, 0.3); }
+  .hero-ctas .btn:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
+
   .section { margin-top: 2rem; }
-  .section h2 { font-size: 1.2rem; color: var(--text-primary); margin-bottom: 0.5rem; }
+  .section h2 { font-size: 1.25rem; color: var(--text-primary); margin-bottom: 0.5rem; }
   .section p { color: var(--text-secondary); }
   .muted { color: var(--text-tertiary); font-size: 0.95rem; margin-bottom: 1rem; }
-  .role-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
+
+  .role-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.25rem;
+  }
   .role-card {
     display: flex;
     flex-direction: column;
-    padding: 1.25rem;
-    background: rgba(30,41,59,0.35);
-    border: 1px solid rgba(34,211,238,0.2);
+    padding: 1.5rem;
+    background: rgba(8, 13, 26, 0.6);
+    border: 1px solid rgba(124, 58, 237, 0.25);
     border-radius: 1rem;
     text-decoration: none;
     color: inherit;
-    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    transform-style: preserve-3d;
+    transition: transform var(--motion-cards-transition_duration, 0.35s) var(--motion-cards-easing, ease-out),
+      box-shadow var(--motion-cards-transition_duration, 0.35s) ease-out,
+      border-color 0.2s ease;
+    position: relative;
+    overflow: hidden;
   }
-  .role-card:hover { border-color: rgba(34,211,238,0.5); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(6,182,212,0.2); }
-  .role-card h3 { font-size: 1.1rem; margin: 0 0 0.5rem; color: var(--text-primary); }
-  .role-card p { font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 0.75rem; line-height: 1.4; flex: 1; }
+  .role-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 4px 0 0 4px;
+  }
+  .role-card--developer::before { background: linear-gradient(180deg, #06b6d4, #22d3ee); }
+  .role-card--user::before { background: linear-gradient(180deg, #fbbf24, #f59e0b); }
+  .role-card--operator::before { background: linear-gradient(180deg, #7c3aed, #a78bfa); }
+  .role-card:hover {
+    border-color: rgba(124, 58, 237, 0.5);
+    transform: perspective(var(--motion-cards-perspective, 1200px)) rotateX(2deg) rotateY(-3deg) translateY(-4px);
+    box-shadow: 0 12px 32px rgba(124, 58, 237, 0.2);
+  }
+  .role-card:focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+  }
+  .role-card-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.9;
+    font-family: var(--font-mono);
+  }
+  .role-card--developer .role-card-icon { color: #22d3ee; }
+  .role-card--user .role-card-icon { color: #fbbf24; }
+  .role-card--operator .role-card-icon { color: #a78bfa; }
+  .role-card h3 { font-size: 1.15rem; margin: 0 0 0.5rem; color: var(--text-primary); }
+  .role-card p { font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 0.75rem; line-height: 1.45; flex: 1; }
   .card-arrow { margin-top: auto; padding-top: 0.75rem; font-size: 0.85rem; color: var(--accent-teal); font-weight: 500; }
+
+  .portal-hero.fade-in-up,
+  .portal-hero .fade-in-up,
+  .section.fade-in-up {
+    animation: portal-fade-in-up var(--motion-sections-fade_in_duration, 0.6s) ease-out both;
+  }
+  .role-card {
+    animation: portal-fade-in-up 0.6s ease-out both;
+  }
+  .portal-hero .delay-1 { animation-delay: 0.08s; }
+  .portal-hero .delay-2 { animation-delay: 0.16s; }
+  .section-role-cards.delay-1 { animation-delay: 0.08s; }
+  .role-card--developer { animation-delay: 0.12s; }
+  .role-card--user { animation-delay: 0.2s; }
+  .role-card--operator { animation-delay: 0.28s; }
+  @keyframes portal-fade-in-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .role-card.role-card--developer,
+  .role-card.role-card--user,
+  .role-card.role-card--operator { animation: portal-fade-in-up 0.6s ease-out both; }
+  .role-card:hover { animation: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .portal-hero.fade-in-up,
+    .portal-hero .fade-in-up,
+    .section.fade-in-up,
+    .role-card.role-card--developer,
+    .role-card.role-card--user,
+    .role-card.role-card--operator { animation: none; opacity: 1; transform: none; }
+    .role-card:hover { transform: translateY(-2px); }
+  }
+
+  .back-to-site {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+  }
+  .back-to-site:hover { color: var(--accent-teal); }
+  .back-to-site:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
 </style>

@@ -15,12 +15,12 @@ import '../../../styles/hub-common.css';
 
     <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
 
-    <section class="section">
+    <section class="section fade-in-up">
       <h1>Community quests</h1>
       <p class="muted">Complete these to qualify for rewards. Rewards and caps are in the <a href="https://github.com/chiku524/boing.network/blob/main/docs/INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">Incentivized testnet</a> rules.</p>
       <ul class="quest-list">
-        {QUESTS.map((q) => (
-          <li class="quest-card">
+        {QUESTS.map((q, i) => (
+          <li class="quest-card fade-in-up" style={`animation-delay: ${i * 0.08}s`}>
             <h2>{q.name}</h2>
             <p class="quest-desc">{q.description}</p>
             <p class="quest-how"><strong>How:</strong> {q.howToComplete}</p>
@@ -33,7 +33,7 @@ import '../../../styles/hub-common.css';
       </ul>
     </section>
 
-    <section class="section submit-section">
+    <section class="section submit-section fade-in-up delay-1">
       <h2>Submit a quest completion</h2>
       {EXTERNAL_QUEST_FORM_URL ? (
         <p><a href={EXTERNAL_QUEST_FORM_URL} class="btn btn-primary" target="_blank" rel="noopener">Open submission form →</a></p>
@@ -60,7 +60,7 @@ import '../../../styles/hub-common.css';
       )}
     </section>
 
-    <section class="section">
+    <section class="section fade-in-up delay-2">
       <h2>Quick links</h2>
       <p><a href="/network/faucet">Faucet</a> · <a href="/network/testnet">Join Testnet</a> · <a href="/testnet/users/dashboard">Your progress</a> · <a href="https://github.com/chiku524/boing.network/blob/main/docs/TESTNET-PORTAL.md#10-community-quests" target="_blank" rel="noopener">TESTNET-PORTAL.md §10 (Community Quests)</a></p>
     </section>
@@ -151,14 +151,33 @@ import '../../../styles/hub-common.css';
 
 <style>
   .quest-list { list-style: none; padding: 0; margin: 1rem 0; }
-  .quest-card { background: rgba(30,41,59,0.35); border: 1px solid rgba(34,211,238,0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.75rem; }
+  .quest-card {
+    background: rgba(30,41,59,0.35);
+    border: 1px solid rgba(124, 58, 237, 0.25);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    animation: hub-fade-in-up 0.5s ease-out both;
+  }
+  .quest-card:hover {
+    border-color: rgba(124, 58, 237, 0.45);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.15);
+  }
   .quest-desc { color: var(--text-secondary); margin: 0 0 0.25rem; font-size: 0.95rem; }
   .quest-how { font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 0.5rem; }
   .quest-meta { margin: 0.5rem 0 0; }
-  .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-right: 0.5rem; background: rgba(34,211,238,0.2); color: var(--accent-teal); }
+  .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-right: 0.5rem; background: rgba(124, 58, 237, 0.25); color: var(--accent-teal); }
   .badge.tier { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
   .quest-form label { display: block; margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem; }
-  .quest-form input, .quest-form select { width: 100%; max-width: 400px; padding: 10px 14px; margin-top: 0.25rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); font-family: var(--font-mono); }
-  .quest-form button { margin-top: 1rem; padding: 0.5rem 1rem; border: none; border-radius: 6px; background: var(--accent-teal); color: var(--bg-primary); font-weight: 600; cursor: pointer; }
+  .quest-form input, .quest-form select { width: 100%; max-width: 400px; padding: 10px 14px; margin-top: 0.25rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); font-family: var(--font-mono); transition: border-color 0.2s ease; }
+  .quest-form input:focus-visible, .quest-form select:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; border-color: rgba(124, 58, 237, 0.6); }
+  .quest-form button { margin-top: 1rem; padding: 0.5rem 1rem; border: none; border-radius: 6px; background: var(--accent-teal); color: var(--bg-primary); font-weight: 600; cursor: pointer; transition: opacity 0.2s ease; }
+  .quest-form button:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
   .form-note { margin-top: 0.75rem; font-size: 0.9rem; color: var(--text-tertiary); }
+  @media (prefers-reduced-motion: reduce) {
+    .quest-card { animation: none; }
+    .quest-card:hover { transform: none; }
+  }
 </style>

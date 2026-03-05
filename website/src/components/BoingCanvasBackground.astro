@@ -20,9 +20,15 @@ const normalizedPath = (path || '/').replace(/\/$/, '') || '';
 </div>
 
 <script>
-  /** Route → background config key. Each page gets a Cosmic Foundation variant (landing, pillars, developers). */
+  /** Route → background config key. Testnet portal and hubs get dedicated configs; rest use landing/pillars/developers. */
   function getConfigKey(path) {
     const p = (path || '/').replace(/\/$/, '') || '';
+    if (p.startsWith('/testnet')) {
+      if (p.startsWith('/testnet/developers')) return 'developers';
+      if (p.startsWith('/testnet/users')) return 'users';
+      if (p.startsWith('/testnet/operators')) return 'operators';
+      return 'portal';
+    }
     if (p.startsWith('/docs') || p.startsWith('/developers')) return 'developers';
     if (p === '/about') return 'pillars';
     if (p === '/network/testnet' || p === '/network/faucet' || p === '/network/bootnodes' || p === '/network/single-vs-multi') return 'developers';

@@ -7,16 +7,16 @@ import Layout from '../../layouts/Layout.astro';
   description="Sign in to the Boing Network testnet portal with your account ID. Access your developer, user, or operator dashboard."
 >
   <article class="portal-page sign-in-page">
-    <p class="back-link"><a href="/testnet">← Portal</a></p>
+    <p class="back-link fade-in-up"><a href="/testnet">← Portal</a></p>
 
-    <div class="sign-in-hero">
+    <div class="sign-in-hero fade-in-up delay-1">
       <h1>Sign in</h1>
       <p class="lead">
-        Enter your testnet account ID (32-byte hex). If you’re registered, we’ll take you to your role’s dashboard. New? <a href="/testnet/register">Register first</a>.
+        Enter your testnet account ID (32-byte hex). If you're registered, we'll take you to your role's dashboard. New? <a href="/testnet/register">Register first</a>.
       </p>
     </div>
 
-    <form id="signin-form" class="auth-form">
+    <form id="signin-form" class="auth-form fade-in-up delay-2">
       <label for="account-id">Account ID (0x... 64 hex chars)</label>
       <input id="account-id" name="account_id_hex" type="text" placeholder="0x..." maxlength="66" required autocomplete="off" />
       <button type="submit" id="submit-btn">Sign in</button>
@@ -24,8 +24,8 @@ import Layout from '../../layouts/Layout.astro';
     </form>
 
     <section class="section">
-      <p class="muted">Not registered? <a href="/testnet/register">Choose your role and register</a> — you’ll be directed to your hub after registration.</p>
-      <p><a href="/">← Back to Boing Network</a></p>
+      <p class="muted">Not registered? <a href="/testnet/register">Choose your role and register</a> — you'll be directed to your hub after registration.</p>
+      <p><a href="/" class="back-to-site">← Back to Boing Network</a></p>
     </section>
   </article>
 </Layout>
@@ -39,10 +39,13 @@ import Layout from '../../layouts/Layout.astro';
     var submitBtn = document.getElementById('submit-btn');
     var messageEl = document.getElementById('form-message');
 
-    function setMessage(text, isError) {
+    function setMessage(text, isError, isSuccess) {
       if (messageEl) {
         messageEl.textContent = text;
-        messageEl.style.color = isError ? 'var(--error-color, #f87171)' : 'var(--text-secondary)';
+        messageEl.classList.remove('form-message--error', 'form-message--success');
+        if (isSuccess) messageEl.classList.add('form-message--success');
+        else if (isError) messageEl.classList.add('form-message--error');
+        else messageEl.style.color = '';
       }
     }
 
@@ -88,10 +91,11 @@ import Layout from '../../layouts/Layout.astro';
           window.BoingPortalSession.setSession(accountHex, data.role);
         }
         var appPath = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(data.role) : '/testnet';
-        setMessage('Signed in. Redirecting…');
+        setMessage('Signed in. Redirecting…', false, true);
+        form.classList.add('auth-form--success');
         setTimeout(function () {
           window.location.href = appPath || '/testnet';
-        }, 400);
+        }, 600);
       } catch (err) {
         setMessage('Network error. Try again.', true);
         if (submitBtn) submitBtn.disabled = false;
@@ -103,17 +107,53 @@ import Layout from '../../layouts/Layout.astro';
 <style>
   .portal-page { max-width: 480px; margin: 0 auto; padding: 2rem; }
   .back-link { margin-bottom: 1.5rem; }
-  .back-link a { color: var(--accent-teal); }
+  .back-link a { color: var(--accent-teal); text-decoration: none; transition: color 0.2s ease; }
+  .back-link a:hover { color: var(--accent-cyan); }
+  .back-link a:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
   .sign-in-hero { margin-bottom: 2rem; }
   .sign-in-hero h1 { color: var(--text-primary); margin-bottom: 0.5rem; }
   .lead { color: var(--text-secondary); margin-bottom: 0.5rem; }
+  .lead a { color: var(--accent-teal); }
+  .lead a:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
   .auth-form label { display: block; margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem; }
-  .auth-form input { width: 100%; max-width: 400px; padding: 12px 16px; margin-top: 0.25rem; font-family: var(--font-mono); font-size: 0.9rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); }
-  .auth-form button { margin-top: 1.25rem; padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; border: none; border-radius: 6px; background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)); color: var(--bg-primary); cursor: pointer; }
+  .auth-form input {
+    width: 100%; max-width: 400px; padding: 12px 16px; margin-top: 0.25rem;
+    font-family: var(--font-mono); font-size: 0.9rem; border: 1px solid var(--border-color);
+    border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary);
+    transition: border-color 0.2s ease;
+  }
+  .auth-form input:focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+    border-color: rgba(124, 58, 237, 0.6);
+  }
+  .auth-form button {
+    margin-top: 1.25rem; padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; border: none; border-radius: 6px;
+    background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)); color: var(--bg-primary); cursor: pointer;
+    transition: opacity 0.2s ease;
+  }
   .auth-form button:hover:not(:disabled) { opacity: 0.9; }
+  .auth-form button:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
   .auth-form button:disabled { opacity: 0.6; cursor: not-allowed; }
   .form-message { margin-top: 1rem; min-height: 1.5em; font-size: 0.95rem; }
+  .form-message--success { color: var(--success-color, #22c55e) !important; font-weight: 500; }
+  .form-message--success::before { content: '✓ '; }
+  .form-message--error { color: var(--error-color, #f87171) !important; }
   .section { margin-top: 2rem; }
   .muted { color: var(--text-tertiary); font-size: 0.9rem; }
   .muted a { color: var(--accent-teal); }
+  .back-to-site { color: var(--text-secondary); text-decoration: none; transition: color 0.2s ease; }
+  .back-to-site:hover { color: var(--accent-teal); }
+  .back-to-site:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
+
+  .sign-in-page .fade-in-up { animation: auth-fade-in-up 0.5s ease-out both; }
+  .sign-in-page .delay-1 { animation-delay: 0.06s; }
+  .sign-in-page .delay-2 { animation-delay: 0.12s; }
+  @keyframes auth-fade-in-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sign-in-page .fade-in-up { animation: none; opacity: 1; transform: none; }
+  }
 </style>

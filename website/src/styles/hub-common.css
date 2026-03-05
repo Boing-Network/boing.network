@@ -1,4 +1,28 @@
-/* Shared styles for testnet hub pages (developers, users, operators) */
+/* Shared styles for testnet hub pages (developers, users, operators)
+   Uses motion vars from motion-config.css (via boing-theme). */
+
+/* Entrance: hub hero and sections use stagger + fade-in-up */
+.hub-hero.fade-in-up,
+.hub-page .section.fade-in-up {
+  animation: hub-fade-in-up var(--motion-sections-fade_in_duration, 0.6s) ease-out both;
+}
+.hub-hero.delay-0 { animation-delay: 0s; }
+.hub-hero.delay-1 { animation-delay: var(--motion-sections-stagger_step, 0.08s); }
+.hub-hero.delay-2 { animation-delay: calc(2 * var(--motion-sections-stagger_step, 0.08s)); }
+.hub-page .section.delay-1 { animation-delay: var(--motion-sections-stagger_step, 0.08s); }
+.hub-page .section.delay-2 { animation-delay: calc(2 * var(--motion-sections-stagger_step, 0.08s)); }
+.hub-page .section.delay-3 { animation-delay: calc(3 * var(--motion-sections-stagger_step, 0.08s)); }
+@keyframes hub-fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-hero.fade-in-up,
+  .hub-page .section.fade-in-up { animation: none; opacity: 1; transform: none; }
+  .hub-metric-card,
+  .resources-list li,
+  .leaderboard-table tbody tr { transition: none; }
+}
 
 .portal-page {
   max-width: 800px;
@@ -39,6 +63,11 @@
   border-radius: 6px;
   font-weight: 600;
   text-decoration: none;
+  transition: opacity 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
 }
 .btn-primary {
   background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
@@ -52,6 +81,10 @@
 .btn-secondary:hover {
   background: rgba(34, 211, 238, 0.25);
 }
+.btn-secondary:focus-visible {
+  outline-color: var(--accent-teal);
+  border-color: var(--border-hover, rgba(34, 211, 238, 0.5));
+}
 
 .steps-section {
   margin-top: 2rem;
@@ -64,6 +97,31 @@
 }
 .steps-list li {
   margin-bottom: 0.5rem;
+}
+.steps-list--numbered {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.hub-developer .steps-list--numbered li {
+  padding-left: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-left: 3px solid rgba(6, 182, 212, 0.4);
+  padding-left: 0.75rem;
+  margin-left: -0.25rem;
+}
+.hub-community .steps-list--numbered li {
+  padding-left: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-left: 3px solid rgba(251, 191, 36, 0.5);
+  padding-left: 0.75rem;
+  margin-left: -0.25rem;
+}
+.hub-operator .steps-list--numbered li {
+  padding-left: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-left: 3px solid rgba(124, 58, 237, 0.5);
+  padding-left: 0.75rem;
+  margin-left: -0.25rem;
 }
 .steps-list a {
   color: var(--accent-teal);
@@ -123,6 +181,14 @@
   border-radius: 10px;
   padding: 1rem;
   text-align: center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.hub-metric-card:hover {
+  border-color: rgba(34, 211, 238, 0.4);
+}
+.hub-metric-card:focus-within {
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
 }
 .hub-metric-card .value {
   font-size: 1.75rem;
@@ -151,6 +217,12 @@
 .leaderboard-table th {
   color: var(--text-tertiary);
   font-weight: 600;
+}
+.leaderboard-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+.leaderboard-table tbody tr:hover {
+  background: rgba(124, 58, 237, 0.08);
 }
 .leaderboard-placeholder-note {
   background: rgba(30, 41, 59, 0.35);
@@ -181,6 +253,12 @@
   font-family: var(--font-mono);
   width: 320px;
   max-width: 100%;
+  transition: border-color 0.2s ease;
+}
+.dashboard-load input:focus-visible {
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
+  border-color: var(--border-hover, rgba(34, 211, 238, 0.5));
 }
 .dashboard-load button {
   padding: 8px 14px;
@@ -190,6 +268,11 @@
   color: var(--bg-primary);
   font-weight: 600;
   cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.dashboard-load button:focus-visible {
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
 }
 .dashboard-loaded {
   margin-bottom: 1rem;
@@ -218,6 +301,12 @@
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: 0.9rem;
+  transition: border-color 0.2s ease;
+}
+.compact-form input:focus-visible {
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
+  border-color: var(--border-hover, rgba(34, 211, 238, 0.5));
 }
 .compact-form button {
   padding: 8px 14px;
@@ -227,6 +316,11 @@
   color: var(--bg-primary);
   font-weight: 600;
   cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.compact-form button:focus-visible {
+  outline: 2px solid var(--accent-teal);
+  outline-offset: 2px;
 }
 .form-message {
   margin-top: 0.5rem;
@@ -258,6 +352,15 @@
   background: rgba(30, 41, 59, 0.35);
   border: 1px solid rgba(34, 211, 238, 0.15);
   border-radius: 8px;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.resources-list li:hover {
+  border-color: rgba(34, 211, 238, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .resources-list li:hover { transform: none; }
 }
 .resources-list a {
   color: var(--accent-teal);

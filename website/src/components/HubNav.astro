@@ -58,6 +58,7 @@ const navItems =
     color: var(--text-secondary);
     font-weight: 500;
     text-decoration: none;
+    transition: color var(--motion-links-transition_duration, 0.25s) ease-out;
   }
   .hub-nav a:hover {
     color: var(--accent-teal);
@@ -65,6 +66,11 @@ const navItems =
   .hub-nav a.active {
     color: var(--accent-teal);
     font-weight: 600;
+  }
+  .hub-nav a:focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
   .hub-name {
     color: var(--accent-teal);
@@ -81,6 +87,12 @@ const navItems =
   }
   .hub-auth a {
     color: var(--accent-teal);
+    transition: color 0.2s ease;
+  }
+  .hub-auth a:focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
   .auth-signout {
     background: none;
@@ -89,8 +101,14 @@ const navItems =
     cursor: pointer;
     font-size: inherit;
     padding: 0;
+    transition: color 0.2s ease;
   }
   .auth-signout:hover {
     color: var(--accent-teal);
+  }
+  .auth-signout:focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 </style>
