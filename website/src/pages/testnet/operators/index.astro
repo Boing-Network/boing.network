@@ -1,0 +1,84 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import HubNav from '../../../components/HubNav.astro';
+import '../../../styles/hub-common.css';
+---
+
+<Layout
+  title="Operator Hub — Testnet Portal"
+  description="Boing Network testnet: run a validator, join the leaderboard, and earn testnet rewards."
+>
+  <article class="portal-page role-hub operators-hub hub-page hub-operator" data-hub="node_operator">
+    <script is:inline src="/portal-session.js"></script>
+    <HubNav hub="operator" current="index" />
+
+    <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
+
+    <div class="hub-hero">
+      <h1>Operator Hub</h1>
+      <p class="lead">
+        Run a validator or miner, connect to the testnet with bootnodes or VibeMiner. This hub is for <strong>node operators and miners</strong> only. Compete on the leaderboard and earn testnet BOING; qualify for mainnet recognition (e.g. allocation or NFT for top N).
+      </p>
+      <div class="hub-ctas" id="hub-ctas">
+        <a href="/testnet/register/operator" class="btn btn-primary">Register as operator</a>
+        <a href="/testnet/sign-in" class="btn btn-secondary">Sign in</a>
+        <a href="/testnet/operators/leaderboard" class="btn btn-secondary">Leaderboard</a>
+        <a href="/network/faucet" class="btn btn-secondary">Faucet</a>
+      </div>
+    </div>
+
+    <section class="section steps-section">
+      <h2>Your journey</h2>
+      <ol class="steps-list">
+        <li><strong>Register</strong> — Add your account ID and optional node multiaddr on the <a href="/testnet/register/operator">operator registration</a> page.</li>
+        <li><strong>Get testnet BOING</strong> — Use the <a href="/network/faucet">faucet</a> for staking and gas.</li>
+        <li><strong>Run your node</strong> — Build <code>boing-node</code>, use <code>--p2p_listen</code> and <code>--bootnodes</code>, or use <a href="https://github.com/chiku524/boing.network/blob/main/docs/VIBEMINER-INTEGRATION.md" target="_blank" rel="noopener">VibeMiner</a> for one-click setup.</li>
+        <li><strong>Compete</strong> — Blocks proposed and uptime will show on the <a href="/testnet/operators/leaderboard">Leaderboard</a> once the indexer is live.</li>
+      </ol>
+    </section>
+
+    <section class="section">
+      <h2>Quick links</h2>
+      <p><a href="/testnet/operators/leaderboard" class="btn btn-secondary">Leaderboard</a> · <a href="/testnet/operators/resources" class="btn btn-secondary">Resources</a> · <a href="/network/faucet">Faucet</a></p>
+    </section>
+  </article>
+</Layout>
+
+<script is:inline src="/portal-session.js"></script>
+<script>
+  (function () {
+    var expectedRole = 'node_operator';
+    var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
+    var authEl = document.getElementById('portal-auth');
+    var wrongBanner = document.getElementById('wrong-role-banner');
+    var hubCtas = document.getElementById('hub-ctas');
+
+    function renderAuth() {
+      if (!authEl) return;
+      if (!session) {
+        authEl.innerHTML = '<a href="/testnet/sign-in" class="auth-link">Sign in</a>';
+        return;
+      }
+      var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
+      var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '';
+      if (session.role !== expectedRole) {
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">Go to my hub</a> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+        if (wrongBanner) {
+          wrongBanner.style.display = 'block';
+          wrongBanner.innerHTML = 'You\'re signed in as <strong>' + session.role + '</strong>. <a href="' + path + '">Go to your dashboard</a> or sign out below.';
+        }
+        if (hubCtas) hubCtas.style.display = 'flex';
+      } else {
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+        if (wrongBanner) wrongBanner.style.display = 'none';
+        if (hubCtas) hubCtas.style.display = 'none';
+      }
+      var so = document.getElementById('portal-signout');
+      if (so) so.addEventListener('click', function () {
+        if (window.BoingPortalSession && window.BoingPortalSession.logout) window.BoingPortalSession.logout();
+        else { try { localStorage.removeItem('boing_portal_session'); } catch(_){} window.location.href = '/'; }
+      });
+    }
+    renderAuth();
+  })();
+</script>

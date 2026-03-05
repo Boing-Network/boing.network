@@ -1,0 +1,80 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import HubNav from '../../../components/HubNav.astro';
+import '../../../styles/hub-common.css';
+---
+
+<Layout
+  title="Resources — Operator Hub — Testnet Portal"
+  description="Testnet RPC, bootnodes, and operator docs for Boing Network."
+>
+  <article class="portal-page role-hub operators-hub hub-page hub-operator" data-hub="node_operator">
+    <script is:inline src="/portal-session.js"></script>
+    <HubNav hub="operator" current="resources" />
+
+    <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
+
+    <section class="section">
+      <h1>Resources</h1>
+      <p class="muted">Links to run and operate a node on testnet.</p>
+      <ul class="resources-list">
+        <li>
+          <a href="/network/testnet">Join Testnet</a>
+          <p class="desc">Quick start, bootnodes</p>
+        </li>
+        <li>
+          <a href="/network/bootnodes">Bootnodes</a>
+          <p class="desc">What they are and how to use</p>
+        </li>
+        <li>
+          <a href="/network/faucet">Faucet</a>
+          <p class="desc">Get testnet BOING</p>
+        </li>
+        <li>
+          <a href="https://github.com/chiku524/boing.network/blob/main/docs/VIBEMINER-INTEGRATION.md" target="_blank" rel="noopener">VibeMiner</a>
+          <p class="desc">One-click mining/validator UI</p>
+        </li>
+        <li>
+          <a href="https://github.com/chiku524/boing.network/blob/main/docs/RUNBOOK.md" target="_blank" rel="noopener">RUNBOOK.md</a>
+          <p class="desc">Node operations</p>
+        </li>
+      </ul>
+    </section>
+  </article>
+</Layout>
+
+<script is:inline src="/portal-session.js"></script>
+<script>
+  (function () {
+    var expectedRole = 'node_operator';
+    var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
+    var authEl = document.getElementById('portal-auth');
+    var wrongBanner = document.getElementById('wrong-role-banner');
+
+    function renderAuth() {
+      if (!authEl) return;
+      if (!session) {
+        authEl.innerHTML = '<a href="/testnet/sign-in" class="auth-link">Sign in</a>';
+        return;
+      }
+      var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
+      var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '';
+      if (session.role !== expectedRole) {
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">Go to my hub</a> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+        if (wrongBanner) {
+          wrongBanner.style.display = 'block';
+          wrongBanner.innerHTML = 'You\'re signed in as <strong>' + session.role + '</strong>. <a href="' + path + '">Go to your dashboard</a> or sign out below.';
+        }
+      } else {
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+        if (wrongBanner) wrongBanner.style.display = 'none';
+      }
+      var so = document.getElementById('portal-signout');
+      if (so) so.addEventListener('click', function () {
+        if (window.BoingPortalSession && window.BoingPortalSession.logout) window.BoingPortalSession.logout();
+        else { try { localStorage.removeItem('boing_portal_session'); } catch(_){} window.location.href = '/'; }
+      });
+    }
+    renderAuth();
+  })();
+</script>

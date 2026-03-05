@@ -1,0 +1,164 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import HubNav from '../../../components/HubNav.astro';
+import { QUESTS, EXTERNAL_QUEST_FORM_URL } from '../../../config/quests';
+import '../../../styles/hub-common.css';
+---
+
+<Layout
+  title="Quests — Community Hub — Testnet Portal"
+  description="Community quests and submission for Boing Network testnet."
+>
+  <article class="portal-page role-hub users-hub hub-page hub-community" data-hub="user">
+    <script is:inline src="/portal-session.js"></script>
+    <HubNav hub="user" current="quests" />
+
+    <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
+
+    <section class="section">
+      <h1>Community quests</h1>
+      <p class="muted">Complete these to qualify for rewards. Rewards and caps are in the <a href="https://github.com/chiku524/boing.network/blob/main/docs/INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">Incentivized testnet</a> rules.</p>
+      <ul class="quest-list">
+        {QUESTS.map((q) => (
+          <li class="quest-card">
+            <h2>{q.name}</h2>
+            <p class="quest-desc">{q.description}</p>
+            <p class="quest-how"><strong>How:</strong> {q.howToComplete}</p>
+            <p class="quest-meta">
+              <span class="badge">{q.verificationType === 'on_chain' ? 'Auto' : 'Manual'}</span>
+              <span class="badge tier">{q.rewardTier}</span>
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="section submit-section">
+      <h2>Submit a quest completion</h2>
+      {EXTERNAL_QUEST_FORM_URL ? (
+        <p><a href={EXTERNAL_QUEST_FORM_URL} class="btn btn-primary" target="_blank" rel="noopener">Open submission form →</a></p>
+      ) : (
+        <>
+          <p>Enter your account ID and which quest you completed. For manual quests, add proof (tx hash, Discord handle, or feedback link).</p>
+          <form id="quest-submit-form" class="quest-form">
+            <label for="account-id">Account ID (32-byte hex)</label>
+            <input id="account-id" name="account_id" type="text" placeholder="0x..." maxlength="66" required />
+            <label for="quest-id">Quest</label>
+            <select id="quest-id" name="quest_id" required>
+              <option value="">— Select —</option>
+              {QUESTS.map((q) => (
+                <option value={q.id}>{q.name}</option>
+              ))}
+            </select>
+            <label for="proof-value">Proof (optional for auto; required for manual)</label>
+            <input id="proof-value" name="proof_value" type="text" placeholder="tx hash, Discord, or link" />
+            <button type="submit" id="submit-btn">Submit</button>
+            <p id="form-message" class="form-message" aria-live="polite"></p>
+          </form>
+          <p class="form-note">If the API isn't deployed yet, submit in <a href="https://discord.gg/boing" target="_blank" rel="noopener">Discord #testnet</a>.</p>
+        </>
+      )}
+    </section>
+
+    <section class="section">
+      <h2>Quick links</h2>
+      <p><a href="/network/faucet">Faucet</a> · <a href="/network/testnet">Join Testnet</a> · <a href="/testnet/users/dashboard">Your progress</a> · <a href="https://github.com/chiku524/boing.network/blob/main/docs/TESTNET-PORTAL.md#10-community-quests" target="_blank" rel="noopener">TESTNET-PORTAL.md §10 (Community Quests)</a></p>
+    </section>
+  </article>
+</Layout>
+
+<script is:inline src="/portal-session.js"></script>
+<script>
+  (function () {
+    var expectedRole = 'user';
+    var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
+    var authEl = document.getElementById('portal-auth');
+    var wrongBanner = document.getElementById('wrong-role-banner');
+
+    function renderAuth() {
+      if (!authEl) return;
+      if (!session) {
+        authEl.innerHTML = '<a href="/testnet/sign-in" class="auth-link">Sign in</a>';
+        return;
+      }
+      var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
+      var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '';
+      if (session.role !== expectedRole) {
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">Go to my hub</a> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+        if (wrongBanner) {
+          wrongBanner.style.display = 'block';
+          wrongBanner.innerHTML = 'You\'re signed in as <strong>' + session.role + '</strong>. <a href="' + path + '">Go to your dashboard</a> or sign out below.';
+        }
+      } else {
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+        if (wrongBanner) wrongBanner.style.display = 'none';
+      }
+      var so = document.getElementById('portal-signout');
+      if (so) so.addEventListener('click', function () {
+        if (window.BoingPortalSession && window.BoingPortalSession.logout) window.BoingPortalSession.logout();
+        else { try { localStorage.removeItem('boing_portal_session'); } catch(_){} window.location.href = '/'; }
+      });
+    }
+
+    renderAuth();
+
+    var accountInput = document.getElementById('account-id');
+    if (session && session.role === expectedRole && accountInput) accountInput.value = session.account_id_hex;
+
+    var form = document.getElementById('quest-submit-form');
+    if (form) {
+      var questSelect = form.querySelector('#quest-id');
+      var proofInput = form.querySelector('#proof-value');
+      var submitBtn = form.querySelector('#submit-btn');
+      var messageEl = form.querySelector('#form-message');
+      function setMessage(text, isError) {
+        if (messageEl) { messageEl.textContent = text; messageEl.style.color = isError ? 'var(--error-color, #f87171)' : 'var(--text-secondary)'; }
+      }
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var accountHex = (accountInput && accountInput.value || '').trim();
+        if (!accountHex.startsWith('0x')) accountHex = '0x' + accountHex;
+        if (accountHex.length !== 66) { setMessage('Account ID must be 32 bytes (64 hex + 0x).', true); return; }
+        if (submitBtn) submitBtn.disabled = true;
+        setMessage('Submitting…');
+        fetch('/api/quests/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quest_id: questSelect && questSelect.value,
+            account_id_hex: accountHex,
+            proof_type: proofInput && proofInput.value && proofInput.value.trim() ? 'form' : undefined,
+            proof_value: proofInput && proofInput.value ? proofInput.value.trim() : undefined,
+          }),
+        })
+          .then(function (res) { return res.json().catch(function () { return {}; }).then(function (data) { return { res: res, data: data }; }); })
+          .then(function (out) {
+            var data = out.data;
+            var res = out.res;
+            if (data.ok) {
+              setMessage('Submitted.');
+              form.reset();
+              if (session && session.role === expectedRole && accountInput) accountInput.value = session.account_id_hex;
+            } else if (res.status === 404 || res.status === 502) setMessage('API not available. Submit in Discord.', true);
+            else setMessage(data.message || 'Failed.', true);
+          })
+          .catch(function () { setMessage('Network error. Try Discord.', true); })
+          .finally(function () { if (submitBtn) submitBtn.disabled = false; });
+      });
+    }
+  })();
+</script>
+
+<style>
+  .quest-list { list-style: none; padding: 0; margin: 1rem 0; }
+  .quest-card { background: rgba(30,41,59,0.35); border: 1px solid rgba(34,211,238,0.2); border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.75rem; }
+  .quest-desc { color: var(--text-secondary); margin: 0 0 0.25rem; font-size: 0.95rem; }
+  .quest-how { font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 0.5rem; }
+  .quest-meta { margin: 0.5rem 0 0; }
+  .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-right: 0.5rem; background: rgba(34,211,238,0.2); color: var(--accent-teal); }
+  .badge.tier { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
+  .quest-form label { display: block; margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+  .quest-form input, .quest-form select { width: 100%; max-width: 400px; padding: 10px 14px; margin-top: 0.25rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); font-family: var(--font-mono); }
+  .quest-form button { margin-top: 1rem; padding: 0.5rem 1rem; border: none; border-radius: 6px; background: var(--accent-teal); color: var(--bg-primary); font-weight: 600; cursor: pointer; }
+  .form-note { margin-top: 0.75rem; font-size: 0.9rem; color: var(--text-tertiary); }
+</style>

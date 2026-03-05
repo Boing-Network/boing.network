@@ -1,0 +1,133 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import HubNav from '../../../components/HubNav.astro';
+import { QUESTS } from '../../../config/quests';
+import '../../../styles/hub-common.css';
+---
+
+<Layout
+  title="Dashboard — Community Hub — Testnet Portal"
+  description="Your quest progress on Boing Network testnet."
+>
+  <article class="portal-page role-hub users-hub hub-page hub-community" data-hub="user">
+    <script is:inline src="/portal-session.js"></script>
+    <HubNav hub="user" current="dashboard" />
+
+    <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
+
+    <section class="section">
+      <h1>Your dashboard</h1>
+      <p class="muted">Quest progress and faucet usage appear here once you register and complete tasks. <a href="/testnet/register/user">Register as user</a> if you haven't.</p>
+      <div class="dashboard-load" id="dashboard-load">
+        <label for="me-account">Account ID to load progress</label>
+        <input id="me-account" type="text" placeholder="0x..." maxlength="66" />
+        <button type="button" id="me-load-btn">Load progress</button>
+      </div>
+      <div id="metrics-row" class="hub-metrics" style="display: none;"></div>
+      <div id="quest-progress-placeholder" class="dashboard-placeholder">
+        <p>Quest completions will appear here when the API is connected.</p>
+      </div>
+      <div id="dashboard-loaded" class="dashboard-loaded" style="display: none;"></div>
+      <p><a href="/testnet/users/quests" class="btn btn-primary">Go to Quests</a></p>
+    </section>
+  </article>
+</Layout>
+
+<script is:inline src="/portal-session.js"></script>
+<script define:vars={{ totalQuests: QUESTS.length }}>
+  (function () {
+    var expectedRole = 'user';
+    var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
+    var authEl = document.getElementById('portal-auth');
+    var wrongBanner = document.getElementById('wrong-role-banner');
+    var dashboardLoad = document.getElementById('dashboard-load');
+    var meInput = document.getElementById('me-account');
+    var loadBtn = document.getElementById('me-load-btn');
+    var placeholder = document.getElementById('quest-progress-placeholder');
+    var loaded = document.getElementById('dashboard-loaded');
+    var metricsRow = document.getElementById('metrics-row');
+
+    function renderAuth() {
+      if (!authEl) return;
+      if (!session) {
+        authEl.innerHTML = '<a href="/testnet/sign-in" class="auth-link">Sign in</a>';
+        return;
+      }
+      var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
+      var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '';
+      if (session.role !== expectedRole) {
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">Go to my hub</a> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+        if (wrongBanner) {
+          wrongBanner.style.display = 'block';
+          wrongBanner.innerHTML = 'You\'re signed in as <strong>' + session.role + '</strong>. <a href="' + path + '">Go to your dashboard</a> or sign out below.';
+        }
+        if (dashboardLoad) dashboardLoad.style.display = 'block';
+      } else {
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+        if (wrongBanner) wrongBanner.style.display = 'none';
+        if (dashboardLoad) dashboardLoad.style.display = 'none';
+      }
+      var so = document.getElementById('portal-signout');
+      if (so) so.addEventListener('click', function () {
+        if (window.BoingPortalSession && window.BoingPortalSession.logout) window.BoingPortalSession.logout();
+        else { try { localStorage.removeItem('boing_portal_session'); } catch(_){} window.location.href = '/'; }
+      });
+    }
+
+    function setMetrics(completed, total) {
+      if (!metricsRow) return;
+      metricsRow.style.display = 'grid';
+      metricsRow.innerHTML =
+        '<div class="hub-metric-card"><span class="value">' + completed + '</span><span class="label">Quests completed</span></div>' +
+        '<div class="hub-metric-card"><span class="value">' + total + '</span><span class="label">Total quests</span></div>' +
+        '<div class="hub-metric-card"><span class="value">' + (total ? Math.round((completed / total) * 100) : 0) + '%</span><span class="label">Progress</span></div>';
+    }
+
+    function loadDashboard(hex) {
+      if (!loadBtn || !placeholder || !loaded) return;
+      loadBtn.textContent = 'Loading…';
+      placeholder.style.display = 'none';
+      loaded.style.display = 'block';
+      if (metricsRow) metricsRow.style.display = 'none';
+      fetch('/api/portal/me?account_id_hex=' + encodeURIComponent(hex))
+        .then(function (res) { return res.json().catch(function () { return {}; }); })
+        .then(function (data) {
+          if (!data.ok) { loaded.innerHTML = '<p class="err">' + (data.message || 'Failed to load.') + '</p>'; return; }
+          if (!data.registered) { loaded.innerHTML = '<p>Not registered. <a href="/testnet/register/user">Register as user</a>.</p>'; return; }
+          if (data.role !== 'user') { loaded.innerHTML = '<p>This account is registered as <strong>' + data.role + '</strong>. Use the correct dashboard.</p>'; return; }
+          var completions = data.quest_completions || [];
+          setMetrics(completions.length, totalQuests);
+          var html = '<p><strong>Registered as user.</strong></p>';
+          if (completions.length === 0) html += '<p>No quest completions yet. <a href="/testnet/users/quests">Submit one on the Quests page</a>.</p>';
+          else {
+            html += '<p><strong>Quest completions (' + completions.length + '):</strong></p><ul class="quest-list-loaded">';
+            completions.forEach(function (c) { html += '<li>' + (c.quest_id || '') + (c.verified_at ? ' ✓ verified' : ' (pending)') + '</li>'; });
+            html += '</ul>';
+          }
+          loaded.innerHTML = html;
+        })
+        .catch(function () { loaded.innerHTML = '<p class="err">Network error. Is the API deployed?</p>'; })
+        .finally(function () { if (loadBtn) loadBtn.textContent = 'Load progress'; });
+    }
+
+    renderAuth();
+
+    if (session && session.role === expectedRole && session.account_id_hex) {
+      loadDashboard(session.account_id_hex);
+      if (meInput) meInput.value = session.account_id_hex;
+    } else if (meInput && loadBtn && placeholder && loaded) {
+      try { if (localStorage.getItem('boing_portal_account')) meInput.value = localStorage.getItem('boing_portal_account'); } catch (_) {}
+      loadBtn.addEventListener('click', function () {
+        var hex = (meInput.value || '').trim();
+        if (!hex.startsWith('0x')) hex = '0x' + hex;
+        if (hex.length !== 66) {
+          placeholder.style.display = 'none';
+          loaded.innerHTML = '<p class="err">Enter a valid 32-byte hex account ID.</p>';
+          loaded.style.display = 'block';
+          return;
+        }
+        loadDashboard(hex);
+      });
+    }
+  })();
+</script>

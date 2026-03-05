@@ -1,0 +1,86 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import HubNav from '../../../components/HubNav.astro';
+import '../../../styles/hub-common.css';
+---
+
+<Layout
+  title="Resources — Developer Hub — Testnet Portal"
+  description="Quickstart, faucet, and RPC for Boing Network testnet developers."
+>
+  <article class="portal-page role-hub developers-hub hub-page hub-developer" data-hub="developer">
+    <script is:inline src="/portal-session.js"></script>
+    <HubNav hub="developer" current="resources" />
+
+    <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
+
+    <section class="section">
+      <h1>Resources</h1>
+      <p class="muted">Links and docs to build and deploy on testnet.</p>
+      <ul class="resources-list">
+        <li>
+          <a href="/developers/quickstart">Quickstart</a>
+          <p class="desc">CLI, SDK, local dev</p>
+        </li>
+        <li>
+          <a href="/network/testnet">Join Testnet</a>
+          <p class="desc">Bootnodes, faucet</p>
+        </li>
+        <li>
+          <a href="/network/faucet">Faucet</a>
+          <p class="desc">Get testnet BOING</p>
+        </li>
+        <li>
+          <a href="https://github.com/chiku524/boing.network/blob/main/docs/RPC-API-SPEC.md" target="_blank" rel="noopener">RPC API</a>
+          <p class="desc"><code>boing_registerDappMetrics</code></p>
+        </li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>dApp incentive pool</h2>
+      <p>
+        A portion of the <strong>Community & Grants</strong> allocation is reserved for <strong>successful dApps</strong>: rewards are based on usage (e.g. fees generated), with a <strong>per-dApp value cap</strong> per epoch. See
+        <a href="https://github.com/chiku524/boing.network/blob/main/docs/BOING-BLOCKCHAIN-DESIGN-PLAN.md" target="_blank" rel="noopener">BOING-BLOCKCHAIN-DESIGN-PLAN.md</a>
+        and
+        <a href="https://github.com/chiku524/boing.network/blob/main/docs/DEVELOPMENT-AND-ENHANCEMENTS.md" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS.md</a>.
+      </p>
+    </section>
+  </article>
+</Layout>
+
+<script is:inline src="/portal-session.js"></script>
+<script>
+  (function () {
+    var expectedRole = 'developer';
+    var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
+    var authEl = document.getElementById('portal-auth');
+    var wrongBanner = document.getElementById('wrong-role-banner');
+
+    function renderAuth() {
+      if (!authEl) return;
+      if (!session) {
+        authEl.innerHTML = '<a href="/testnet/sign-in" class="auth-link">Sign in</a>';
+        return;
+      }
+      var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
+      var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '';
+      if (session.role !== expectedRole) {
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">Go to my hub</a> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+        if (wrongBanner) {
+          wrongBanner.style.display = 'block';
+          wrongBanner.innerHTML = 'You\'re signed in as <strong>' + session.role + '</strong>. <a href="' + path + '">Go to your dashboard</a> or sign out below.';
+        }
+      } else {
+        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+        if (wrongBanner) wrongBanner.style.display = 'none';
+      }
+      var so = document.getElementById('portal-signout');
+      if (so) so.addEventListener('click', function () {
+        if (window.BoingPortalSession && window.BoingPortalSession.logout) window.BoingPortalSession.logout();
+        else { try { localStorage.removeItem('boing_portal_session'); } catch(_){} window.location.href = '/'; }
+      });
+    }
+    renderAuth();
+  })();
+</script>

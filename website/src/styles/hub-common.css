@@ -1,0 +1,270 @@
+/* Shared styles for testnet hub pages (developers, users, operators) */
+
+.portal-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.wrong-role-banner {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.wrong-role-banner a {
+  color: var(--accent-teal);
+  font-weight: 600;
+}
+
+.hub-hero {
+  margin-bottom: 2rem;
+}
+.hub-hero .lead {
+  margin-bottom: 1.25rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.hub-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+  color: var(--bg-primary);
+}
+.btn-secondary {
+  background: rgba(34, 211, 238, 0.15);
+  color: var(--accent-teal);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+.btn-secondary:hover {
+  background: rgba(34, 211, 238, 0.25);
+}
+
+.steps-section {
+  margin-top: 2rem;
+}
+.steps-list {
+  margin: 0.5rem 0 0 1.25rem;
+  padding-left: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.steps-list li {
+  margin-bottom: 0.5rem;
+}
+.steps-list a {
+  color: var(--accent-teal);
+}
+
+.hub-page .section {
+  margin-top: 2rem;
+}
+.hub-page .section h2 {
+  font-size: 1.25rem;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+.hub-page .section h3 {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+}
+.hub-page .muted {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+.hub-page .dashboard-placeholder {
+  background: rgba(30, 41, 59, 0.35);
+  border: 1px dashed rgba(34, 211, 238, 0.3);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.hub-page .dashboard-placeholder p {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+}
+.hub-page .section ul {
+  color: var(--text-secondary);
+  margin: 0.5rem 0 0 1.2rem;
+}
+.hub-page .section code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+/* Metrics cards */
+.hub-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.hub-metric-card {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+}
+.hub-metric-card .value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--accent-teal);
+  font-family: var(--font-mono);
+}
+.hub-metric-card .label {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-top: 0.25rem;
+}
+
+/* Leaderboard placeholder */
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.leaderboard-table th,
+.leaderboard-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+.leaderboard-table th {
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.leaderboard-placeholder-note {
+  background: rgba(30, 41, 59, 0.35);
+  border: 1px dashed rgba(34, 211, 238, 0.3);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.dashboard-load {
+  margin-bottom: 1rem;
+}
+.dashboard-load label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+.dashboard-load input {
+  margin-right: 0.5rem;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  width: 320px;
+  max-width: 100%;
+}
+.dashboard-load button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent-teal);
+  color: var(--bg-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+.dashboard-loaded {
+  margin-bottom: 1rem;
+}
+.dashboard-loaded .err {
+  color: var(--error-color, #f87171);
+}
+.dashboard-loaded .dapp-list,
+.dashboard-loaded .quest-list-loaded {
+  margin: 0.5rem 0 0 1.2rem;
+  color: var(--text-secondary);
+}
+
+.compact-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.compact-form input {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+.compact-form button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent-teal);
+  color: var(--bg-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+.form-message {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.code-block {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+.code-block code {
+  background: none;
+  padding: 0;
+}
+
+.resources-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.resources-list li {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(30, 41, 59, 0.35);
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  border-radius: 8px;
+}
+.resources-list a {
+  color: var(--accent-teal);
+  font-weight: 500;
+}
+.resources-list .desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
