@@ -1,6 +1,5 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import HubNav from '../../../components/HubNav.astro';
 import '../../../styles/hub-common.css';
 ---
 
@@ -10,9 +9,6 @@ import '../../../styles/hub-common.css';
 >
   <article class="portal-page role-hub developers-hub hub-page hub-developer" data-hub="developer">
     <script is:inline src="/portal-session.js"></script>
-    <HubNav hub="developer" current="dashboard" />
-
-    <div id="wrong-role-banner" class="wrong-role-banner" style="display: none;"></div>
 
     <section class="section fade-in-up">
       <h1>Your dashboard</h1>
@@ -49,14 +45,17 @@ import '../../../styles/hub-common.css';
     var expectedRole = 'developer';
     var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
     var authEl = document.getElementById('portal-auth');
-    var wrongBanner = document.getElementById('wrong-role-banner');
     var dashboardLoad = document.getElementById('dashboard-load');
+    if (session && session.role !== expectedRole) {
+      var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '/testnet';
+      window.location.href = path;
+      return;
+    }
     var meInput = document.getElementById('me-account');
     var loadBtn = document.getElementById('me-load-btn');
     var placeholder = document.getElementById('dashboard-placeholder');
     var loaded = document.getElementById('dashboard-loaded');
     var metricsRow = document.getElementById('metrics-row');
-
     function renderAuth() {
       if (!authEl) return;
       if (!session) {
@@ -64,19 +63,8 @@ import '../../../styles/hub-common.css';
         return;
       }
       var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
-      var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '';
-      if (session.role !== expectedRole) {
-        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <a href="' + path + '">Go to my hub</a> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
-        if (wrongBanner) {
-          wrongBanner.style.display = 'block';
-          wrongBanner.innerHTML = 'You\'re signed in as <strong>' + session.role + '</strong>. <a href="' + path + '">Go to your dashboard</a> or sign out below.';
-        }
-        if (dashboardLoad) dashboardLoad.style.display = 'block';
-      } else {
-        authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
-        if (wrongBanner) wrongBanner.style.display = 'none';
-        if (dashboardLoad) dashboardLoad.style.display = 'none';
-      }
+      authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+      if (dashboardLoad) dashboardLoad.style.display = 'none';
       var so = document.getElementById('portal-signout');
       if (so) so.addEventListener('click', function () {
         if (window.BoingPortalSession && window.BoingPortalSession.logout) window.BoingPortalSession.logout();

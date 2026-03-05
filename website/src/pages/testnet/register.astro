@@ -7,6 +7,18 @@ import Layout from '../../layouts/Layout.astro';
   description="Choose your role: developer, user, or node operator. Register for the Boing Network testnet."
 >
   <article class="portal-page choose-role-page page-wrap-full">
+    <script is:inline src="/portal-session.js"></script>
+    <script is:inline>
+      (function(){
+        try {
+          var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
+          if (session && session.role) {
+            var path = window.BoingPortalSession.roleAppPath(session.role);
+            if (path) { window.location.href = path; return; }
+          }
+        } catch(e) {}
+      })();
+    </script>
     <header class="page-hero-full">
       <div class="page-wrap-inner" style="max-width: 720px;">
         <span class="stage-badge-global">Testnet</span>

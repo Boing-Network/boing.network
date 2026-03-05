@@ -88,14 +88,15 @@ const ogImage = `${siteUrl}/og.png`;
           </>
         ) : isTestnetApp ? (
           <>
-            <a href="/testnet" class="nav-testnet">Dashboard</a>
-            <a href="/testnet/developers">Developers</a>
-            <a href="/testnet/users">Users</a>
-            <a href="/testnet/operators">Operators</a>
-            <a href="/testnet/register">Register</a>
+            <a href="/testnet" class="nav-testnet" data-testnet-nav="dashboard" id="nav-testnet-dashboard">Dashboard</a>
+            <a href="/testnet/developers" data-testnet-nav="developers">Developers</a>
+            <a href="/testnet/users" data-testnet-nav="users">Users</a>
+            <a href="/testnet/operators" data-testnet-nav="operators">Operators</a>
+            <a href="/testnet/register" data-testnet-nav="register">Register</a>
             <a href="/resources">Resources</a>
             <a href="/about">About</a>
             <a href="/community">Community</a>
+            <span id="portal-auth" class="portal-auth-nav"></span>
             <a href="/" class="testnet-logout">Back to website</a>
           </>
         ) : (
@@ -141,6 +142,28 @@ const ogImage = `${siteUrl}/og.png`;
           try { localStorage.removeItem('boing_portal_session'); } catch(_){}
           window.location.href = '/';
         });
+      })();
+    </script>
+    <script is:inline src="/portal-session.js"></script>
+    <script is:inline>
+      (function() {
+        var p = window.location.pathname.replace(/\/$/, '') || '/';
+        if (p !== '/testnet' && p.indexOf('/testnet/') !== 0) return;
+        var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
+        var dashboardLink = document.getElementById('nav-testnet-dashboard');
+        var navItems = document.querySelectorAll('.site-nav [data-testnet-nav]');
+        if (!session) return;
+        var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '/testnet';
+        if (dashboardLink) dashboardLink.href = path;
+        navItems.forEach(function(el) {
+          var role = el.getAttribute('data-testnet-nav');
+          if (role === 'register' || role === 'dashboard') return;
+          if (role === 'developers' && session.role !== 'developer') el.style.display = 'none';
+          else if (role === 'users' && session.role !== 'user') el.style.display = 'none';
+          else if (role === 'operators' && session.role !== 'node_operator') el.style.display = 'none';
+        });
+        var registerLink = document.querySelector('.site-nav [data-testnet-nav="register"]');
+        if (registerLink) registerLink.style.display = 'none';
       })();
     </script>
   </body>
@@ -311,12 +334,34 @@ const ogImage = `${siteUrl}/og.png`;
   body.page-home .site-footer-main { display: none !important; }
   .site-nav { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 
-  /* Testnet app: logout link */
+  /* Testnet app: logout link + portal-auth in header */
   .site-header nav a.testnet-logout {
     margin-left: auto;
     color: var(--text-tertiary);
   }
   .site-header nav a.testnet-logout:hover {
+    color: var(--accent-teal);
+  }
+  .portal-auth-nav {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+  .portal-auth-nav .account-short {
+    font-family: var(--font-mono);
+    color: var(--accent-teal);
+  }
+  .portal-auth-nav a {
+    color: var(--accent-teal);
+  }
+  .portal-auth-nav .auth-signout {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: inherit;
+    padding: 0;
+  }
+  .portal-auth-nav .auth-signout:hover {
     color: var(--accent-teal);
   }
 
