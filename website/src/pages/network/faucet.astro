@@ -35,7 +35,7 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
         placeholder="0x..."
         maxlength="66"
       />
-      <button id="request-btn" type="button">Request 1,000 testnet BOING</button>
+      <button id="request-btn" type="button" aria-busy="false">Request 1,000 testnet BOING</button>
       <p id="message" class="message" aria-live="polite" data-state=""></p>
     </section>
 
@@ -86,6 +86,7 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
       }
 
       btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
       setMessage('Requesting…');
 
       try {
@@ -114,6 +115,7 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
         setMessage('Network error: ' + (e instanceof Error ? e.message : String(e)), true);
       } finally {
         btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
       }
     });
   })();
@@ -167,6 +169,27 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
   }
   .faucet-form button:hover:not(:disabled) { opacity: 0.9; }
   .faucet-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .faucet-form button[aria-busy="true"] {
+    position: relative;
+  }
+  .faucet-form button[aria-busy="true"]::after {
+    content: '';
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    margin-left: 0.5em;
+    vertical-align: middle;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: faucet-spin 0.6s linear infinite;
+  }
+  @keyframes faucet-spin {
+    to { transform: rotate(360deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .faucet-form button[aria-busy="true"]::after { animation: none; opacity: 0.7; }
+  }
   .message { margin-top: 1rem; min-height: 1.5em; font-size: 0.95rem; }
   .message[data-state="success"] { color: var(--accent-teal); font-weight: 500; }
   .message[data-state="error"] { color: var(--error-color, #f87171); }

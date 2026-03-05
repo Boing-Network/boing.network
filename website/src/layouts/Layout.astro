@@ -369,6 +369,11 @@ const ogImage = `${siteUrl}/og.png`;
   }
 
   @media print {
+    .skip-link,
+    .boing-canvas-bg,
+    .boing-mascot {
+      display: none !important;
+    }
     .site-header {
       position: relative !important;
       background: #f5f5f5 !important;
@@ -376,6 +381,9 @@ const ogImage = `${siteUrl}/og.png`;
     }
     main {
       padding-top: 0 !important;
+    }
+    a[href]::after {
+      content: none;
     }
   }
 
