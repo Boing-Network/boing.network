@@ -379,7 +379,7 @@ cargo build --release</code></pre>
     window.addEventListener('hashchange', () => showSection(getSectionFromHash()));
     showSection(getSectionFromHash());
 
-    // Copy button for code blocks
+    // Copy button for code blocks — icon on the right of each block
     document.querySelectorAll('.docs-content .doc-section pre').forEach((pre) => {
       if (pre.closest('.code-block-wrapper')) return;
       const wrapper = document.createElement('div');
@@ -389,16 +389,21 @@ cargo build --release</code></pre>
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'code-copy-btn';
-      btn.textContent = 'Copy';
       btn.setAttribute('aria-label', 'Copy code');
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
       wrapper.appendChild(btn);
       btn.addEventListener('click', function () {
         const text = (pre.textContent || '').trim();
         if (!text) return;
         navigator.clipboard.writeText(text).then(() => {
-          btn.textContent = 'Copied!';
+          btn.setAttribute('aria-label', 'Copied!');
           btn.classList.add('copied');
-          setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+          setTimeout(() => {
+            btn.setAttribute('aria-label', 'Copy code');
+            btn.classList.remove('copied');
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+          }, 2000);
         });
       });
     });
@@ -410,6 +415,9 @@ cargo build --release</code></pre>
     max-width: 100%;
     margin: 0;
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 4.5rem);
   }
   .docs-hero .docs-main-title {
     margin: 0 0 0.5rem;
@@ -423,18 +431,27 @@ cargo build --release</code></pre>
   .docs-body {
     display: grid;
     grid-template-columns: 220px 1fr;
+    grid-template-rows: 1fr;
     gap: 2rem;
+    flex: 1;
+    min-height: 0;
     max-width: 1280px;
     margin: 0 auto;
-    padding: 0 2rem 4rem;
-    align-items: start;
+    padding: 0 2rem 1rem;
+    align-items: stretch;
+    overflow: hidden;
   }
   .docs-body .docs-toc {
     grid-column: 1;
   }
   .docs-body .docs-content {
     grid-column: 2;
+    grid-row: 1;
     min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    max-height: 100%;
+    padding-bottom: 2rem;
   }
   .docs-toc {
     position: sticky;
@@ -537,27 +554,39 @@ cargo build --release</code></pre>
   }
   .code-block-wrapper pre {
     margin: 0;
-    padding-right: 4rem;
+    padding-right: 2.75rem;
   }
   .code-copy-btn {
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
-    padding: 0.3rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 500;
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 0;
     color: var(--accent-teal);
     background: rgba(34, 211, 238, 0.15);
     border: 1px solid rgba(34, 211, 238, 0.3);
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }
   .code-copy-btn:hover {
     background: rgba(34, 211, 238, 0.25);
     border-color: rgba(34, 211, 238, 0.5);
+    color: var(--accent-cyan);
   }
-  .code-copy-btn.copied { color: var(--accent-teal); }
+  .code-copy-btn.copied {
+    color: var(--success-color, #22c55e);
+    border-color: rgba(34, 197, 94, 0.5);
+    background: rgba(34, 197, 94, 0.15);
+  }
+  .code-copy-btn svg {
+    flex-shrink: 0;
+  }
   .code-copy-btn:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
   .rpc-methods dt {
     margin-top: 1rem;
@@ -626,7 +655,13 @@ cargo build --release</code></pre>
   @media (max-width: 768px) {
     .docs-body {
       grid-template-columns: 1fr;
-      padding: 1.5rem 1.25rem 3rem;
+      grid-template-rows: auto 1fr;
+      padding: 1.5rem 1.25rem 1rem;
+    }
+    .docs-body .docs-content {
+      grid-column: 1;
+      grid-row: 2;
+      min-height: 0;
     }
     .docs-toc {
       position: static;
