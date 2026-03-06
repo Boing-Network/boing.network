@@ -8,7 +8,7 @@ import Layout from '../../layouts/Layout.astro';
 >
   <article class="portal-page sign-in-page page-wrap-full">
     <header class="page-hero-full page-hero-signin">
-      <div class="page-wrap-inner" style="max-width: 560px;">
+      <div class="page-wrap-inner sign-in-hero-inner">
         <span class="stage-badge-global">Testnet</span>
         <p class="back-link fade-in-up" style="margin-bottom: 1rem;"><a href="/testnet">← Dashboard</a></p>
         <h1 class="sign-in-hero-title">Sign in</h1>
@@ -17,7 +17,7 @@ import Layout from '../../layouts/Layout.astro';
         </p>
       </div>
     </header>
-    <div class="page-wrap-inner sign-in-content" style="max-width: 560px;">
+    <div class="page-wrap-inner sign-in-content">
     <form id="signin-form" class="auth-form fade-in-up delay-2">
       <label for="account-id">Account ID (0x... 64 hex chars)</label>
       <input id="account-id" name="account_id_hex" type="text" placeholder="0x..." maxlength="66" required autocomplete="off" />
@@ -108,7 +108,21 @@ import Layout from '../../layouts/Layout.astro';
 </script>
 
 <style>
-  .portal-page { padding: 0; margin: 0; }
+  .portal-page { padding: 0; margin: 0; width: 100%; }
+  .sign-in-page .sign-in-hero-inner,
+  .sign-in-page .sign-in-content {
+    width: 100%;
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    box-sizing: border-box;
+  }
+  @media (max-width: 640px) {
+    .sign-in-page .sign-in-hero-inner,
+    .sign-in-page .sign-in-content { padding-left: 1.25rem; padding-right: 1.25rem; }
+  }
   .sign-in-hero-title { color: var(--text-primary); margin: 0 0 0.5rem; font-size: 1.75rem; }
   .page-hero-signin .lead { margin: 0; color: var(--text-secondary); }
   .sign-in-content { padding-bottom: 3rem; }
@@ -144,7 +158,7 @@ import Layout from '../../layouts/Layout.astro';
   .form-message--success { color: var(--success-color, #22c55e) !important; font-weight: 500; }
   .form-message--success::before { content: '✓ '; }
   .form-message--error { color: var(--error-color, #f87171) !important; }
-  .section { margin-top: 2rem; }
+  .section { margin-top: 2rem; text-align: center; }
   .muted { color: var(--text-tertiary); font-size: 0.9rem; }
   .muted a { color: var(--accent-teal); }
   .back-to-site { color: var(--text-secondary); text-decoration: none; transition: color 0.2s ease; }
