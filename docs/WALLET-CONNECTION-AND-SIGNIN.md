@@ -19,7 +19,7 @@ To support “Connect wallet” on the portal (and later dApps):
 ### 2.1 Wallet injector (browser extension)
 
 - The wallet (e.g. boing.express) injects a provider into `window` (e.g. `window.ethereum` or `window.boing`).
-- Standard pattern: **EIP-1193** (`request({ method: 'eth_requestAccounts' })` to get accounts; `personal_sign` or equivalent for signing a message).
+- Standard pattern: **EIP-1193**, but for Boing wallets the preferred methods are **`boing_requestAccounts`** and **`boing_signMessage`**. Compatibility aliases like `eth_requestAccounts` and `personal_sign` may still exist.
 - **Website/dApp responsibilities:**
   - Detect provider (e.g. `window.boing` or `window.ethereum`).
   - Call “request accounts” to get the current account (address).
@@ -27,8 +27,8 @@ To support “Connect wallet” on the portal (and later dApps):
 
 ### 2.2 What the portal would need
 
-- **Frontend:** A small “Connect wallet” button that (1) requests accounts from the injected provider, (2) requests a sign-in message and sends it to the backend, (3) on success, stores session and redirects.
-- **Backend:** New endpoint, e.g. `POST /api/portal/auth/sign-in` with body `{ account_id_hex, message, signature }`. Backend recovers signer from `message` + `signature` and checks it matches `account_id_hex`; if the account is registered, create session and return success.
+- **Frontend:** A “Connect wallet” button that (1) requests accounts from the injected provider, (2) fetches a backend nonce, (3) asks the wallet to sign the message, and (4) on success, stores session and redirects. **Implemented:** The portal prefers `boing_requestAccounts`, `boing_signMessage`, `boing_chainId`, and `boing_switchChain`, with alias fallback for compatibility.
+- **Backend:** `GET /api/portal/auth/nonce?origin=...` issues a short-lived nonce, and `POST /api/portal/auth/sign-in` verifies Ed25519(`message`, `signature`) against `account_id_hex`. If the message includes a nonce, the backend validates origin, expiry, and one-time use before creating session. **Implemented:** Uses Node built-in `crypto` (Ed25519) via `nodejs_compat`; no external libraries.
 - **Chain/RPC:** The wallet and the site must agree on the chain (e.g. Boing testnet/mainnet) and that the address format is 32-byte hex. The portal does not need to send transactions; only **message signing** for auth.
 
 ---
@@ -89,3 +89,41 @@ For the Boing wallet to connect securely to websites/web apps/dApps, the followi
 | **Secure dApp connection** | Use provider for accounts + signing; never trust “I have the address” without a signature | Provider API; 32-byte hex accounts; Boing chain ID + RPC; secure key storage; clear user prompts with origin |
 
 Implementing wallet connection on the portal requires a backend sign-in endpoint that verifies a signature and then creates a session. Implementing address + password requires storing and checking a hashed password per account. The Boing wallet needs an EIP-1193–style provider with account discovery and message (and transaction) signing, plus clear UX and secure key handling, to support secure connections to any website or dApp.
+
+---
+
+## 6. Portal wallet sign-in API (implemented)
+
+The portal and developer tools use **no external wallet libraries**. Connection uses the standard EIP-1193 pattern against the injected provider (`window.boing` or `window.ethereum`).
+
+### 6.1 `POST /api/portal/auth/sign-in`
+
+- **Body (JSON):** `{ account_id_hex, message, signature }`
+  - `account_id_hex`: 32-byte address as hex with `0x` (66 chars).
+  - `message`: Exact UTF-8 string that was shown to the user and signed (e.g. `Sign in to Boing Portal at https://boing.network at 2025-03-06T12:00:00.000Z`).
+  - `signature`: Ed25519 signature as **64-byte hex** (128 hex chars, optional `0x` prefix). The wallet must return raw Ed25519 for the account's public key (same as Boing account ID).
+- **Verification:** Backend verifies Ed25519(`message`, `signature`) with public key = `account_id_hex` using Node built-in `crypto` (no npm packages). Messages with a timestamp are rejected if older than 5 minutes; nonce-based messages also require a valid unconsumed nonce from `GET /api/portal/auth/nonce`.
+- **Response:** Same shape as `GET /api/portal/me` on success (e.g. `ok`, `registered`, `account_id_hex`, `role`, …). Frontend then sets session via `BoingPortalSession.setSession(account_id_hex, role)` and redirects.
+
+### 6.2 Frontend (sign-in page)
+
+- "Connect wallet" prefers `provider.request({ method: 'boing_requestAccounts' })` and `provider.request({ method: 'boing_signMessage', params: [message, address] })`, with alias fallback to `eth_requestAccounts` and `personal_sign`.
+- On the testnet portal, frontend checks `boing_chainId` and attempts `boing_switchChain` to `0x1b01` before signing.
+- Message format now uses a nonce-backed multiline form:
+  `Sign in to Boing Portal`
+  `Origin: {origin}`
+  `Timestamp: {new Date().toISOString()}`
+  `Nonce: {serverNonce}`
+- No third-party SDKs (e.g. no ethers, viem, web3.js); only the injected provider and `fetch`.
+
+### 6.3 Portal password (wallet sign-in)
+
+- **Wallet sign-in** requires a **portal password** after the wallet signs the nonce message. Users set this password at registration (all three roles) or on the **Set password** page (`/testnet/set-password`) if they registered before passwords were added.
+- **Registration** includes "Connect wallet" to fill the account ID and **Portal password** + **Confirm password** (min 8 characters). The backend stores a scrypt hash (salt + hash) in `portal_registrations.password_salt` and `portal_registrations.password_hash`.
+- **Set password:** `POST /api/portal/auth/set-password` with `{ account_id_hex, message, signature, new_password }`. Message format: `Set portal password for Boing Portal\nOrigin: {origin}\nTimestamp: {ts}\nNonce: {nonce}`. Same nonce as sign-in; backend verifies Ed25519 signature then updates the stored hash.
+- **Sign-in:** If the account has no password set, the API returns `403` with `need_password: true` and the frontend redirects to `/testnet/set-password`. If the account has a password, the request must include `password` and it is verified before returning session data.
+
+### 6.4 Dependencies (network side)
+
+- **Website/Functions:** No wallet-related npm packages. Portal uses only Astro and Wrangler; auth sign-in uses Node built-in crypto (Ed25519) via nodejs_compat in wrangler.toml. No ethers, viem, web3.js, MetaMask SDK, or similar.
+- **Rust/node:** The chain uses ed25519-dalek for transaction and faucet signing; RPC does not implement personal_sign (signing is done in the wallet). CORS allows boing.express and boing.network origins for dApp to node communication.

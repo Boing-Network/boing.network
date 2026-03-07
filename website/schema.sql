@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS network_stats (
   updated_at TEXT
 );
 
+CREATE INDEX IF NOT EXISTS idx_blocks_proposer ON blocks(proposer);
+
 -- Community quests (incentivized testnet). See docs/TESTNET.md Part 2 §2.7 (Community Quests).
 CREATE TABLE IF NOT EXISTS quests (
   id TEXT PRIMARY KEY,
@@ -67,6 +69,8 @@ CREATE TABLE IF NOT EXISTS portal_registrations (
   discord_handle TEXT,
   github_username TEXT,
   node_multiaddr TEXT,
+  password_salt TEXT,
+  password_hash TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -80,3 +84,13 @@ CREATE TABLE IF NOT EXISTS portal_dapps (
 );
 
 CREATE INDEX IF NOT EXISTS idx_portal_dapps_owner ON portal_dapps(owner_account_hex);
+
+CREATE TABLE IF NOT EXISTS portal_auth_nonces (
+  nonce TEXT PRIMARY KEY,
+  origin TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_portal_auth_nonces_expires ON portal_auth_nonces(expires_at);

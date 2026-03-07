@@ -29,6 +29,13 @@ import Layout from '../../../layouts/Layout.astro';
 
       <label for="account-id">Account ID (32-byte hex, with or without 0x) *</label>
       <input id="account-id" name="account_id_hex" type="text" placeholder="0x..." maxlength="66" required />
+      <p class="form-hint"><button type="button" id="connect-wallet-btn" class="link-btn">Connect wallet</button> to fill from your Boing wallet</p>
+
+      <label for="portal-password">Portal password (for wallet sign-in later) *</label>
+      <input id="portal-password" name="portal_password" type="password" placeholder="Min 8 characters" minlength="8" required autocomplete="new-password" />
+
+      <label for="confirm-password">Confirm password *</label>
+      <input id="confirm-password" name="confirm_password" type="password" placeholder="Repeat password" minlength="8" required autocomplete="new-password" />
 
       <label for="email">Email (optional)</label>
       <input id="email" name="email" type="email" placeholder="you@example.com" />
@@ -53,6 +60,7 @@ import Layout from '../../../layouts/Layout.astro';
     const accountInput = form.querySelector('#account-id');
     const submitBtn = document.getElementById('submit-btn');
     const messageEl = document.getElementById('form-message');
+    const connectBtn = document.getElementById('connect-wallet-btn');
 
     function setMessage(text, isError = false, isSuccess = false) {
       if (messageEl) {
@@ -64,16 +72,80 @@ import Layout from '../../../layouts/Layout.astro';
       }
     }
 
+    function getProvider() {
+      return typeof window !== 'undefined' ? (window.boing || window.ethereum || null) : null;
+    }
+    function providerMethod(primary, fallback) {
+      return function (provider, params) {
+        return provider.request({ method: primary, params: params || [] }).catch(function (err) {
+          const msg = (err && err.message || '').toLowerCase();
+          if (!fallback || primary === fallback || (msg.indexOf('not found') === -1 && msg.indexOf('unsupported') === -1)) throw err;
+          return provider.request({ method: fallback, params: params || [] });
+        });
+      };
+    }
+    const requestAccounts = providerMethod('boing_requestAccounts', 'eth_requestAccounts');
+    const getChainId = providerMethod('boing_chainId', 'eth_chainId');
+    const switchChain = providerMethod('boing_switchChain', 'wallet_switchEthereumChain');
+    async function ensureTestnetChain(provider) {
+      try {
+        const chainId = await getChainId(provider, []);
+        if (chainId && String(chainId).toLowerCase() === '0x1b01') return true;
+        setMessage('Switching wallet to Boing Testnet…');
+        await switchChain(provider, [{ chainId: '0x1b01' }]);
+        return true;
+      } catch (err) {
+        setMessage('Please switch your wallet to Boing Testnet and try again.', true);
+        return false;
+      }
+    }
+    if (connectBtn) {
+      connectBtn.addEventListener('click', async function () {
+        const provider = getProvider();
+        if (!provider) {
+          setMessage('No Boing wallet found. Install boing.express or a Boing-compatible wallet.', true);
+          return;
+        }
+        connectBtn.disabled = true;
+        setMessage('Connecting…');
+        try {
+          const ok = await ensureTestnetChain(provider);
+          if (!ok) { connectBtn.disabled = false; return; }
+          const accounts = await requestAccounts(provider, []);
+          const address = Array.isArray(accounts) && accounts[0] ? accounts[0] : null;
+          if (address && accountInput) {
+            accountInput.value = address;
+            setMessage('Account filled. Set your portal password below.', false);
+          } else {
+            setMessage('No account selected.', true);
+          }
+        } catch (err) {
+          setMessage(err.message || 'Connection failed.', true);
+        }
+        connectBtn.disabled = false;
+      });
+    }
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       let accountHex = (accountInput?.value || '').trim();
       const email = (form.querySelector('#email')?.value || '').trim() || undefined;
       const discordHandle = (form.querySelector('#discord')?.value || '').trim() || undefined;
+      const password = (form.querySelector('#portal-password')?.value || '').trim();
+      const confirmPassword = (form.querySelector('#confirm-password')?.value || '').trim();
 
       if (!accountHex) { setMessage('Please enter your account ID.', true); return; }
       if (!accountHex.startsWith('0x')) accountHex = '0x' + accountHex;
       if (accountHex.length !== 66) {
         setMessage('Account ID must be 32 bytes (64 hex chars + 0x).', true);
+        return;
+      }
+      if (password.length < 8) {
+        setMessage('Portal password must be at least 8 characters.', true);
+        return;
+      }
+      if (password !== confirmPassword) {
+        setMessage('Passwords do not match.', true);
         return;
       }
 
@@ -87,6 +159,7 @@ import Layout from '../../../layouts/Layout.astro';
           body: JSON.stringify({
             account_id_hex: accountHex,
             role: 'user',
+            password: password,
             email: email || undefined,
             discord_handle: discordHandle || undefined,
           }),
@@ -125,7 +198,10 @@ import Layout from '../../../layouts/Layout.astro';
   .register-header { margin-bottom: 1.5rem; }
   .lead { color: var(--text-secondary); margin-bottom: 1.5rem; }
   .register-form label { display: block; margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem; }
-  .register-form input[type="text"], .register-form input[type="email"] {
+  .register-form .form-hint { font-size: 0.85rem; color: var(--text-tertiary); margin: 0.25rem 0 0; }
+  .register-form .link-btn { background: none; border: none; padding: 0; color: var(--accent-teal); cursor: pointer; font-size: inherit; }
+  .register-form .link-btn:hover { text-decoration: underline; }
+  .register-form input[type="text"], .register-form input[type="email"], .register-form input[type="password"] {
     width: 100%; max-width: 400px; padding: 12px 16px; margin-top: 0.25rem;
     font-family: var(--font-mono); font-size: 0.9rem; border: 1px solid var(--border-color);
     border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary);

@@ -4,7 +4,7 @@ import Layout from '../../layouts/Layout.astro';
 
 <Layout
   title="Sign in — Testnet Portal"
-  description="Sign in to the Boing Network testnet portal with your account ID. Access your developer, user, or operator dashboard."
+  description="Sign in to the Boing Network testnet portal with your account ID or connect your wallet. Access your developer, user, or operator dashboard."
 >
   <article class="portal-page sign-in-page page-wrap-full">
     <header class="page-hero-full page-hero-signin">
@@ -13,17 +13,37 @@ import Layout from '../../layouts/Layout.astro';
         <p class="back-link fade-in-up" style="margin-bottom: 1rem;"><a href="/testnet">← Dashboard</a></p>
         <h1 class="sign-in-hero-title">Sign in</h1>
         <p class="lead">
-          Enter your testnet account ID (32-byte hex). If you're registered, we'll take you to your role's dashboard. New? <a href="/testnet/register">Register first</a>.
+          Connect your wallet and enter your portal password to sign in, or enter your account ID for address-only sign-in (testnet). New? <a href="/testnet/register">Register first</a>.
         </p>
       </div>
     </header>
     <div class="page-wrap-inner sign-in-content">
+    <div class="auth-options">
+      <section class="auth-option connect-wallet-section">
+        <h2 class="auth-option-title">Connect wallet</h2>
+        <p class="auth-option-desc">Use your Boing-compatible wallet (e.g. boing.express) to sign in. You will sign a message and then enter your portal password.</p>
+        <div id="connect-wallet-step1">
+          <button type="button" id="connect-wallet-btn" class="auth-btn auth-btn-primary">Connect wallet</button>
+        </div>
+        <div id="connect-wallet-step2" class="wallet-password-step hidden">
+          <label for="wallet-password">Portal password</label>
+          <input id="wallet-password" name="wallet_password" type="password" placeholder="Enter your portal password" autocomplete="current-password" minlength="8" />
+          <p class="wallet-password-hint">Required to sign in with your wallet. Set at registration or on the <a href="/testnet/set-password">Set password</a> page.</p>
+          <button type="button" id="wallet-signin-btn" class="auth-btn auth-btn-primary">Sign in</button>
+        </div>
+      </section>
+      <span class="auth-divider" aria-hidden="true">or</span>
+      <section class="auth-option">
+        <h2 class="auth-option-title">Sign in with account ID</h2>
+        <p class="auth-option-desc">Enter your testnet account ID. No proof of control (testnet only).</p>
     <form id="signin-form" class="auth-form fade-in-up delay-2">
       <label for="account-id">Account ID (0x... 64 hex chars)</label>
       <input id="account-id" name="account_id_hex" type="text" placeholder="0x..." maxlength="66" required autocomplete="off" />
       <button type="submit" id="submit-btn">Sign in</button>
       <p id="form-message" class="form-message" aria-live="polite"></p>
     </form>
+      </section>
+    </div>
 
     <section class="section">
       <p class="muted">Not registered? <a href="/testnet/register">Choose your role and register</a> — you'll be directed to your hub after registration.</p>
@@ -37,6 +57,7 @@ import Layout from '../../layouts/Layout.astro';
 <script>
   (function () {
     var form = document.getElementById('signin-form');
+    var connectBtn = document.getElementById('connect-wallet-btn');
     if (!form) return;
     var accountInput = document.getElementById('account-id');
     var submitBtn = document.getElementById('submit-btn');
@@ -62,6 +83,179 @@ import Layout from '../../layouts/Layout.astro';
         }
       }
     } catch (e) {}
+
+    function getProvider() {
+      if (typeof window === 'undefined') return null;
+      return window.boing || window.ethereum || null;
+    }
+
+    function providerMethod(primary, fallback) {
+      return function (provider, params) {
+        return provider.request({ method: primary, params: params || [] }).catch(function (err) {
+          if (!fallback || primary === fallback || !isUnsupportedMethodError(err)) throw err;
+          return provider.request({ method: fallback, params: params || [] });
+        });
+      };
+    }
+
+    function isUnsupportedMethodError(err) {
+      var message = err && err.message ? String(err.message).toLowerCase() : '';
+      return message.indexOf('not found') !== -1
+        || message.indexOf('unsupported') !== -1
+        || message.indexOf('does not exist') !== -1
+        || message.indexOf('not implemented') !== -1;
+    }
+
+    var requestAccounts = providerMethod('boing_requestAccounts', 'eth_requestAccounts');
+    var signMessage = providerMethod('boing_signMessage', 'personal_sign');
+    var getChainId = providerMethod('boing_chainId', 'eth_chainId');
+    var switchChain = providerMethod('boing_switchChain', 'wallet_switchEthereumChain');
+
+    async function ensureTestnetChain(provider) {
+      try {
+        var chainId = await getChainId(provider, []);
+        if (!chainId || String(chainId).toLowerCase() === '0x1b01') return true;
+        setMessage('Switching wallet to Boing Testnet…');
+        await switchChain(provider, [{ chainId: '0x1b01' }]);
+        return true;
+      } catch (err) {
+        setMessage('Please switch your wallet to Boing Testnet and try again.', true);
+        return false;
+      }
+    }
+
+    async function buildSignInMessage() {
+      var origin = window.location.origin || '';
+      var res = await fetch('/api/portal/auth/nonce?origin=' + encodeURIComponent(origin));
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok || !data.ok || !data.nonce) {
+        throw new Error(data.message || 'Could not start secure sign-in.');
+      }
+      var timestamp = new Date().toISOString();
+      return 'Sign in to Boing Portal\n'
+        + 'Origin: ' + data.origin + '\n'
+        + 'Timestamp: ' + timestamp + '\n'
+        + 'Nonce: ' + data.nonce;
+    }
+
+    if (connectBtn) {
+      var pendingWallet = { account_id_hex: null, message: null, signature: null };
+
+      function showPasswordStep() {
+        var step1 = document.getElementById('connect-wallet-step1');
+        var step2 = document.getElementById('connect-wallet-step2');
+        if (step1) step1.classList.add('hidden');
+        if (step2) step2.classList.remove('hidden');
+      }
+      function hidePasswordStep() {
+        var step1 = document.getElementById('connect-wallet-step1');
+        var step2 = document.getElementById('connect-wallet-step2');
+        if (step1) step1.classList.remove('hidden');
+        if (step2) step2.classList.add('hidden');
+        pendingWallet = { account_id_hex: null, message: null, signature: null };
+      }
+
+      connectBtn.addEventListener('click', async function () {
+        var provider = getProvider();
+        if (!provider) {
+          setMessage('No Boing wallet found. Install the boing.express extension or another Boing-compatible wallet.', true);
+          return;
+        }
+        connectBtn.disabled = true;
+        setMessage('Connecting…');
+        try {
+          var chainReady = await ensureTestnetChain(provider);
+          if (!chainReady) {
+            connectBtn.disabled = false;
+            return;
+          }
+          var accounts = await requestAccounts(provider, []);
+          var address = Array.isArray(accounts) && accounts[0] ? accounts[0] : null;
+          if (!address) {
+            setMessage('No account selected.', true);
+            connectBtn.disabled = false;
+            return;
+          }
+          var message = await buildSignInMessage();
+          setMessage('Please sign the message in your wallet…');
+          var signature = await signMessage(provider, [message, address]);
+          if (!signature || typeof signature !== 'string') {
+            setMessage('Signing was cancelled or failed.', true);
+            connectBtn.disabled = false;
+            return;
+          }
+          pendingWallet.account_id_hex = address;
+          pendingWallet.message = message;
+          pendingWallet.signature = signature;
+          setMessage('Enter your portal password below and click Sign in.');
+          showPasswordStep();
+          connectBtn.disabled = false;
+        } catch (err) {
+          setMessage(err.message || 'Connection or signing failed. Try again.', true);
+          connectBtn.disabled = false;
+        }
+      });
+
+      var walletSigninBtn = document.getElementById('wallet-signin-btn');
+      var walletPasswordInput = document.getElementById('wallet-password');
+      if (walletSigninBtn) {
+        walletSigninBtn.addEventListener('click', async function () {
+          var password = walletPasswordInput ? walletPasswordInput.value : '';
+          if (!pendingWallet.account_id_hex || !pendingWallet.message || !pendingWallet.signature) {
+            setMessage('Please connect your wallet and sign the message first.', true);
+            return;
+          }
+          if (!password) {
+            setMessage('Enter your portal password.', true);
+            return;
+          }
+          walletSigninBtn.disabled = true;
+          setMessage('Verifying…');
+          try {
+            var res = await fetch('/api/portal/auth/sign-in', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                account_id_hex: pendingWallet.account_id_hex,
+                message: pendingWallet.message,
+                signature: pendingWallet.signature,
+                password: password
+              })
+            });
+            var data = await res.json().catch(function () { return {}; });
+            if (!res.ok) {
+              if (data.need_password === true && data.account_id_hex) {
+                setMessage('Set a portal password first.', true);
+                setTimeout(function () {
+                  window.location.href = '/testnet/set-password?account_id_hex=' + encodeURIComponent(data.account_id_hex);
+                }, 800);
+                walletSigninBtn.disabled = false;
+                return;
+              }
+              setMessage(data.message || 'Sign-in failed.', true);
+              walletSigninBtn.disabled = false;
+              return;
+            }
+            if (!data.ok || !data.registered) {
+              setMessage(data.message || 'Account not registered. Register first.', true);
+              walletSigninBtn.disabled = false;
+              return;
+            }
+            if (window.BoingPortalSession) {
+              window.BoingPortalSession.setSession(data.account_id_hex, data.role);
+            }
+            setMessage('Signed in. Redirecting…', false, true);
+            var appPath = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(data.role) : '/testnet';
+            setTimeout(function () {
+              window.location.href = appPath || '/testnet';
+            }, 600);
+          } catch (err) {
+            setMessage(err.message || 'Sign-in failed. Try again.', true);
+            walletSigninBtn.disabled = false;
+          }
+        });
+      }
+    }
 
     form.addEventListener('submit', async function (e) {
       e.preventDefault();
@@ -164,6 +358,31 @@ import Layout from '../../layouts/Layout.astro';
   .back-to-site { color: var(--text-secondary); text-decoration: none; transition: color 0.2s ease; }
   .back-to-site:hover { color: var(--accent-teal); }
   .back-to-site:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
+
+  .auth-options { display: flex; flex-direction: column; gap: 1.5rem; }
+  .auth-option { padding: 1.25rem; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-secondary); }
+  .auth-option-title { margin: 0 0 0.35rem; font-size: 1.1rem; color: var(--text-primary); }
+  .auth-option-desc { margin: 0 0 1rem; font-size: 0.9rem; color: var(--text-secondary); }
+  .auth-btn { padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: opacity 0.2s ease; }
+  .auth-btn:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
+  .auth-btn:hover:not(:disabled) { opacity: 0.9; }
+  .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .auth-btn-primary { background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)); color: var(--bg-primary); }
+  .auth-divider { text-align: center; color: var(--text-tertiary); font-size: 0.9rem; }
+  .wallet-password-step { margin-top: 1rem; }
+  .wallet-password-step.hidden { display: none !important; }
+  .wallet-password-step label { display: block; margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem; }
+  .wallet-password-step input[type="password"] {
+    width: 100%; max-width: 320px; padding: 12px 16px; margin-top: 0.25rem;
+    font-family: var(--font-mono); font-size: 0.9rem; border: 1px solid var(--border-color);
+    border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary);
+  }
+  .wallet-password-step input:focus-visible {
+    outline: 2px solid var(--accent-teal); outline-offset: 2px;
+  }
+  .wallet-password-step .wallet-password-hint { font-size: 0.85rem; color: var(--text-tertiary); margin: 0.5rem 0 1rem; }
+  .wallet-password-step .wallet-password-hint a { color: var(--accent-teal); }
+  .wallet-password-step .auth-btn { margin-top: 0.25rem; }
 
   .sign-in-page .fade-in-up { animation: auth-fade-in-up 0.5s ease-out both; }
   .sign-in-page .delay-1 { animation-delay: 0.06s; }
