@@ -86,6 +86,7 @@ Use this when **preparing for production**: full Boing integration and Chrome We
 - [ ] **Storage:** chrome.storage.local (or session) for keys/settings.
 - [ ] **Permissions:** Minimal; host permissions only for RPC URLs used.
 - [ ] **CSP:** No unsafe-inline or remote script unless documented.
+- [ ] **Connection approval (required for every site):** When **any** website or dApp with Boing integration calls `boing_requestAccounts` (or `eth_requestAccounts`), the wallet **must** show a connection-approval UI (e.g. "Allow [origin] to view your address?" or "Connect to [site name]?") and **only return accounts after the user explicitly approves**. Do not return accounts without user approval, regardless of origin—this applies to boing.network, boing.express, and any other site that integrates Boing. Similarly, for `boing_signMessage` / `personal_sign`, show what is being signed (e.g. "Connect to Boing Portal" or the dApp’s message) and require the user to approve before returning a signature. Storing "connected sites" per origin is optional; the important part is that the **first** time a site requests accounts (or after the user disconnects), the wallet always prompts for approval.
 
 ### Part 2.3 — Chrome Web Store listing
 

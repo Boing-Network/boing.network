@@ -55,6 +55,7 @@ For the Boing wallet to connect securely to websites/web apps/dApps, the followi
   - `request({ method: 'personal_sign', params: [message, address] })` (or equivalent) → returns signature so the dApp or backend can verify the signer.
 - Optional: `request({ method: 'eth_chainId' })` and/or `request({ method: 'wallet_switchEthereumChain', params: [{ chainId: ... }] })` if the wallet supports multiple chains (e.g. Boing testnet vs mainnet).
 - Expose this on a well-known object (e.g. `window.boing` or register as an EIP-6963 provider) so dApps can discover and use it.
+- **Connection approval is the wallet’s responsibility:** For **every** site that has Boing integration (not just boing.network), the wallet must show an approval UI when a site calls `boing_requestAccounts` / `eth_requestAccounts` and only return accounts after the user approves. See [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) Part 2.2 (Chrome extension) for the checklist item.
 
 ### 4.2 Account format and chain
 
