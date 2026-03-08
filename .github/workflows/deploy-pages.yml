@@ -34,7 +34,7 @@ jobs:
         run: |
           cd website
           for i in 1 2 3; do
-            npx wrangler pages deploy dist --project-name=boing-network --config wrangler.toml && exit 0
+            npx wrangler pages deploy dist --project-name=boing-network && exit 0
             echo "Deploy attempt $i failed (e.g. 504). Retrying in 30s..."
             sleep 30
           done

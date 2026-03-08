@@ -168,10 +168,10 @@ Add bindings to `wrangler.toml`. Typical uses: RPC response cache, rate-limit co
 ```bash
 cd website
 wrangler pages project create boing-network --production-branch main
-wrangler pages deploy dist --project-name=boing-network --config wrangler.toml
+wrangler pages deploy dist --project-name=boing-network
 ```
 
-The repo `website/wrangler.toml` sets `compatibility_flags = ["nodejs_compat"]` so Functions can use `node:crypto` (e.g. portal auth). If deploy fails with **No such module "node:crypto"**, ensure the project uses this config (CLI deploy with `--config wrangler.toml`) or in the dashboard: **Workers & Pages** → **boing-network** → **Settings** → **Functions** → **Compatibility flags** → add **nodejs_compat**.
+The repo `website/wrangler.toml` sets `compatibility_flags = ["nodejs_compat"]` so Functions can use `node:crypto` (e.g. portal auth). If deploy fails with **No such module "node:crypto"**, run the deploy from the `website` directory so Wrangler picks up `wrangler.toml`, or in the dashboard: **Workers & Pages** → **boing-network** → **Settings** → **Functions** → **Compatibility flags** → add **nodejs_compat**.
 
 If you see **504 Gateway Timeout** or "upstream request timeout" from the Cloudflare API, the API was temporarily overloaded. Retry the deploy in a few minutes; the GitHub Actions workflow retries up to 3 times with a 30s delay.
 
