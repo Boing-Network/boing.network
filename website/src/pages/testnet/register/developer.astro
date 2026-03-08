@@ -28,9 +28,20 @@ import Layout from '../../../layouts/Layout.astro';
     <form id="register-form" class="register-form fade-in-up delay-1">
       <input type="hidden" name="role" value="developer" />
 
+      <div class="auth-tabs" role="tablist" aria-label="How to provide account ID">
+        <button type="button" class="auth-tab" role="tab" id="tab-wallet" aria-selected="true" aria-controls="panel-wallet" tabindex="0">Connect wallet</button>
+        <button type="button" class="auth-tab" role="tab" id="tab-account" aria-selected="false" aria-controls="panel-account" tabindex="-1">Enter account ID</button>
+      </div>
+      <div id="panel-wallet" role="tabpanel" aria-labelledby="tab-wallet" class="auth-panel">
+        <p class="auth-panel-desc">Connect your Boing wallet to fill your account ID below. You'll approve the connection in your wallet.</p>
+        <p class="form-hint"><button type="button" id="connect-wallet-btn" class="link-btn auth-cta">Connect wallet</button><span id="wallet-actions"></span></p>
+      </div>
+      <div id="panel-account" role="tabpanel" aria-labelledby="tab-account" class="auth-panel hidden">
+        <p class="auth-panel-desc">Enter your account ID (32-byte hex) below. You can copy it from your wallet or paste from elsewhere.</p>
+      </div>
+
       <label for="account-id">Account ID (32-byte hex, with or without 0x) *</label>
       <input id="account-id" name="account_id_hex" type="text" placeholder="0x..." maxlength="66" required />
-      <p class="form-hint"><button type="button" id="connect-wallet-btn" class="link-btn">Connect wallet</button><span id="wallet-actions"></span> to fill from your Boing wallet</p>
 
       <label for="portal-password">Portal password (for wallet sign-in later) *</label>
       <input id="portal-password" name="portal_password" type="password" placeholder="Min 8 characters" minlength="8" required autocomplete="new-password" />
@@ -65,6 +76,28 @@ import Layout from '../../../layouts/Layout.astro';
     const submitBtn = document.getElementById('submit-btn');
     const messageEl = document.getElementById('form-message');
     const connectBtn = document.getElementById('connect-wallet-btn');
+
+    function switchTab(activeTabId) {
+      var tabWallet = document.getElementById('tab-wallet');
+      var tabAccount = document.getElementById('tab-account');
+      var panelWallet = document.getElementById('panel-wallet');
+      var panelAccount = document.getElementById('panel-account');
+      if (activeTabId === 'wallet') {
+        if (tabWallet) { tabWallet.setAttribute('aria-selected', 'true'); tabWallet.setAttribute('tabindex', '0'); }
+        if (tabAccount) { tabAccount.setAttribute('aria-selected', 'false'); tabAccount.setAttribute('tabindex', '-1'); }
+        if (panelWallet) panelWallet.classList.remove('hidden');
+        if (panelAccount) panelAccount.classList.add('hidden');
+      } else {
+        if (tabAccount) { tabAccount.setAttribute('aria-selected', 'true'); tabAccount.setAttribute('tabindex', '0'); }
+        if (tabWallet) { tabWallet.setAttribute('aria-selected', 'false'); tabWallet.setAttribute('tabindex', '-1'); }
+        if (panelAccount) panelAccount.classList.remove('hidden');
+        if (panelWallet) panelWallet.classList.add('hidden');
+      }
+    }
+    var tabWalletBtn = document.getElementById('tab-wallet');
+    var tabAccountBtn = document.getElementById('tab-account');
+    if (tabWalletBtn) tabWalletBtn.addEventListener('click', function () { switchTab('wallet'); });
+    if (tabAccountBtn) tabAccountBtn.addEventListener('click', function () { switchTab('account'); });
 
     function setMessage(text, isError = false, isSuccess = false) {
       if (messageEl) {
@@ -224,7 +257,19 @@ import Layout from '../../../layouts/Layout.astro';
   .register-form label { display: block; margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem; }
   .register-form .form-hint { font-size: 0.85rem; color: var(--text-tertiary); margin: 0.25rem 0 0; }
   .register-form .link-btn { background: none; border: none; padding: 0; color: var(--accent-teal); cursor: pointer; font-size: inherit; }
+  .register-form .link-btn.auth-cta { font-weight: 600; }
   .register-form .link-btn:hover { text-decoration: underline; }
+  .register-form .auth-tabs { display: flex; gap: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+  .register-form .auth-tab {
+    padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: 500; border: none; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; background: none; color: var(--text-secondary); cursor: pointer; border-radius: 6px 6px 0 0;
+  }
+  .register-form .auth-tab:hover { color: var(--text-primary); }
+  .register-form .auth-tab[aria-selected="true"] { color: var(--accent-teal); border-bottom-color: var(--accent-teal); }
+  .register-form .auth-tab:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
+  .register-form .auth-panel { margin-bottom: 1rem; }
+  .register-form .auth-panel.hidden { display: none !important; }
+  .register-form .auth-panel-desc { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--text-secondary); }
   .register-form input[type="text"], .register-form input[type="email"], .register-form input[type="password"] {
     width: 100%; max-width: 400px; padding: 12px 16px; margin-top: 0.25rem;
     font-family: var(--font-mono); font-size: 0.9rem; border: 1px solid var(--border-color);

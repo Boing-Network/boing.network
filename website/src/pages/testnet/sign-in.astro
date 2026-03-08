@@ -18,10 +18,13 @@ import Layout from '../../layouts/Layout.astro';
       </div>
     </header>
     <div class="page-wrap-inner sign-in-content">
-    <div class="auth-options">
-      <section class="auth-option connect-wallet-section">
-        <h2 class="auth-option-title">Connect wallet</h2>
-        <p class="auth-option-desc">Use your Boing-compatible wallet (e.g. Boing Express). You'll be asked to approve the connection and sign a message in your wallet, then enter your portal password.</p>
+    <div class="auth-card">
+      <div class="auth-tabs" role="tablist" aria-label="Sign in method">
+        <button type="button" class="auth-tab" role="tab" id="tab-wallet" aria-selected="true" aria-controls="panel-wallet" tabindex="0">Sign in with wallet</button>
+        <button type="button" class="auth-tab" role="tab" id="tab-account" aria-selected="false" aria-controls="panel-account" tabindex="-1">Sign in with account ID</button>
+      </div>
+      <div id="panel-wallet" role="tabpanel" aria-labelledby="tab-wallet" class="auth-panel">
+        <p class="auth-panel-desc">Use your Boing-compatible wallet (e.g. Boing Express). You'll approve the connection and sign a message, then enter your portal password.</p>
         <div id="connect-wallet-step1">
           <button type="button" id="connect-wallet-btn" class="auth-btn auth-btn-primary">Connect wallet</button>
         </div>
@@ -32,18 +35,16 @@ import Layout from '../../layouts/Layout.astro';
           <button type="button" id="wallet-signin-btn" class="auth-btn auth-btn-primary">Sign in</button>
           <p class="wallet-disconnect-hint"><button type="button" id="wallet-disconnect-btn" class="link-btn">Disconnect</button> to use a different wallet or account</p>
         </div>
-      </section>
-      <span class="auth-divider" aria-hidden="true">or</span>
-      <section class="auth-option">
-        <h2 class="auth-option-title">Sign in with account ID</h2>
-        <p class="auth-option-desc">Enter your testnet account ID. No proof of control (testnet only).</p>
-    <form id="signin-form" class="auth-form fade-in-up delay-2">
-      <label for="account-id">Account ID (0x... 64 hex chars)</label>
-      <input id="account-id" name="account_id_hex" type="text" placeholder="0x..." maxlength="66" required autocomplete="off" />
-      <button type="submit" id="submit-btn">Sign in</button>
-      <p id="form-message" class="form-message" aria-live="polite"></p>
-    </form>
-      </section>
+      </div>
+      <div id="panel-account" role="tabpanel" aria-labelledby="tab-account" class="auth-panel hidden">
+        <p class="auth-panel-desc">Enter your testnet account ID. No proof of control (testnet only).</p>
+        <form id="signin-form" class="auth-form">
+          <label for="account-id">Account ID (0x... 64 hex chars)</label>
+          <input id="account-id" name="account_id_hex" type="text" placeholder="0x..." maxlength="66" required autocomplete="off" />
+          <button type="submit" id="submit-btn">Sign in</button>
+          <p id="form-message" class="form-message" aria-live="polite"></p>
+        </form>
+      </div>
     </div>
 
     <section class="section">
@@ -85,6 +86,28 @@ import Layout from '../../layouts/Layout.astro';
         }
       }
     } catch (e) {}
+
+    function switchTab(activeTabId) {
+      var tabWallet = document.getElementById('tab-wallet');
+      var tabAccount = document.getElementById('tab-account');
+      var panelWallet = document.getElementById('panel-wallet');
+      var panelAccount = document.getElementById('panel-account');
+      if (activeTabId === 'wallet') {
+        if (tabWallet) { tabWallet.setAttribute('aria-selected', 'true'); tabWallet.setAttribute('tabindex', '0'); }
+        if (tabAccount) { tabAccount.setAttribute('aria-selected', 'false'); tabAccount.setAttribute('tabindex', '-1'); }
+        if (panelWallet) panelWallet.classList.remove('hidden');
+        if (panelAccount) panelAccount.classList.add('hidden');
+      } else {
+        if (tabAccount) { tabAccount.setAttribute('aria-selected', 'true'); tabAccount.setAttribute('tabindex', '0'); }
+        if (tabWallet) { tabWallet.setAttribute('aria-selected', 'false'); tabWallet.setAttribute('tabindex', '-1'); }
+        if (panelAccount) panelAccount.classList.remove('hidden');
+        if (panelWallet) panelWallet.classList.add('hidden');
+      }
+    }
+    var tabWalletBtn = document.getElementById('tab-wallet');
+    var tabAccountBtn = document.getElementById('tab-account');
+    if (tabWalletBtn) tabWalletBtn.addEventListener('click', function () { switchTab('wallet'); });
+    if (tabAccountBtn) tabAccountBtn.addEventListener('click', function () { switchTab('account'); });
 
     function getProvider() {
       if (typeof window === 'undefined') return null;
@@ -371,6 +394,20 @@ import Layout from '../../layouts/Layout.astro';
   .back-to-site { color: var(--text-secondary); text-decoration: none; transition: color 0.2s ease; }
   .back-to-site:hover { color: var(--accent-teal); }
   .back-to-site:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
+
+  .auth-card { padding: 1.25rem; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-secondary); }
+  .auth-tabs { display: flex; gap: 0; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); }
+  .auth-tab {
+    padding: 0.6rem 1rem; font-size: 0.95rem; font-weight: 500; border: none; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; background: none; color: var(--text-secondary); cursor: pointer; border-radius: 6px 6px 0 0;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+  .auth-tab:hover { color: var(--text-primary); }
+  .auth-tab[aria-selected="true"] { color: var(--accent-teal); border-bottom-color: var(--accent-teal); }
+  .auth-tab:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
+  .auth-panel { display: block; }
+  .auth-panel.hidden { display: none !important; }
+  .auth-panel-desc { margin: 0 0 1rem; font-size: 0.9rem; color: var(--text-secondary); }
 
   .auth-options { display: flex; flex-direction: column; gap: 1.5rem; }
   .auth-option { padding: 1.25rem; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-secondary); }
