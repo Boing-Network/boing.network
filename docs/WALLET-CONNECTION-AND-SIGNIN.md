@@ -96,6 +96,13 @@ Implementing wallet connection on the portal requires a backend sign-in endpoint
 
 The portal and developer tools use **no external wallet libraries**. Connection uses the standard EIP-1193 pattern against the injected provider (`window.boing` or `window.ethereum`).
 
+### 6.0 Provider discovery and errors (portal-wallet.js)
+
+- **Discovery:** The portal loads `/portal-wallet.js`, which (1) prefers `window.boing`, (2) discovers Boing-compatible wallets via **EIP-6963** (`eip6963:announceProvider` with name/rdns containing "boing"), and (3) falls back to `window.ethereum`. Use `BoingPortalWallet.getProvider()` when present.
+- **Friendly errors:** If the wallet returns an error such as *"No wallet found. Create or import a wallet in Boing Express"*, the portal maps it to a clear message: *"Create or import a wallet in Boing Express first. Click the Boing Express extension icon…"* so users know to create/import a wallet before connecting. Other known messages (e.g. user rejected) are normalized for consistency.
+- **Disconnect / Clear:** Sign-in page has a "Disconnect" control in the password step; register and set-password pages show "Clear account" after filling from the wallet so the user can switch account or wallet.
+- **Boing Express alignment:** For seamless connection, the wallet should inject `window.boing` and/or announce via EIP-6963 with `name` or `rdns` containing "boing". Implement `boing_requestAccounts` (and optionally `boing_signMessage`, `boing_chainId`, `boing_switchChain`); the portal falls back to `eth_requestAccounts` / `personal_sign` etc. when the Boing-named methods are not found.
+
 ### 6.1 `POST /api/portal/auth/sign-in`
 
 - **Body (JSON):** `{ account_id_hex, message, signature }`

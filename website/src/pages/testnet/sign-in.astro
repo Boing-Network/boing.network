@@ -30,6 +30,7 @@ import Layout from '../../layouts/Layout.astro';
           <input id="wallet-password" name="wallet_password" type="password" placeholder="Enter your portal password" autocomplete="current-password" minlength="8" />
           <p class="wallet-password-hint">Required to sign in with your wallet. Set at registration or on the <a href="/testnet/set-password">Set password</a> page.</p>
           <button type="button" id="wallet-signin-btn" class="auth-btn auth-btn-primary">Sign in</button>
+          <p class="wallet-disconnect-hint"><button type="button" id="wallet-disconnect-btn" class="link-btn">Disconnect</button> to use a different wallet or account</p>
         </div>
       </section>
       <span class="auth-divider" aria-hidden="true">or</span>
@@ -54,6 +55,7 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <script is:inline src="/portal-session.js"></script>
+<script is:inline src="/portal-wallet.js"></script>
 <script>
   (function () {
     var form = document.getElementById('signin-form');
@@ -86,7 +88,8 @@ import Layout from '../../layouts/Layout.astro';
 
     function getProvider() {
       if (typeof window === 'undefined') return null;
-      return window.boing || window.ethereum || null;
+      var w = window.BoingPortalWallet;
+      return (w && w.getProvider && w.getProvider()) || window.boing || window.ethereum || null;
     }
 
     function providerMethod(primary, fallback) {
@@ -158,7 +161,7 @@ import Layout from '../../layouts/Layout.astro';
       connectBtn.addEventListener('click', async function () {
         var provider = getProvider();
         if (!provider) {
-          setMessage('No Boing wallet found. Install the boing.express extension or another Boing-compatible wallet.', true);
+          setMessage('No Boing wallet found. Install Boing Express (boing.express) or another Boing-compatible wallet.', true);
           return;
         }
         connectBtn.disabled = true;
@@ -191,10 +194,20 @@ import Layout from '../../layouts/Layout.astro';
           showPasswordStep();
           connectBtn.disabled = false;
         } catch (err) {
-          setMessage(err.message || 'Connection or signing failed. Try again.', true);
+          var msg = (window.BoingPortalWallet && window.BoingPortalWallet.normalizeWalletError && window.BoingPortalWallet.normalizeWalletError(err.message)) || err.message || 'Connection or signing failed. Try again.';
+          setMessage(msg, true);
           connectBtn.disabled = false;
         }
       });
+
+      var disconnectBtn = document.getElementById('wallet-disconnect-btn');
+      if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', function () {
+          hidePasswordStep();
+          if (walletPasswordInput) walletPasswordInput.value = '';
+          setMessage('');
+        });
+      }
 
       var walletSigninBtn = document.getElementById('wallet-signin-btn');
       var walletPasswordInput = document.getElementById('wallet-password');
@@ -383,6 +396,10 @@ import Layout from '../../layouts/Layout.astro';
   .wallet-password-step .wallet-password-hint { font-size: 0.85rem; color: var(--text-tertiary); margin: 0.5rem 0 1rem; }
   .wallet-password-step .wallet-password-hint a { color: var(--accent-teal); }
   .wallet-password-step .auth-btn { margin-top: 0.25rem; }
+  .wallet-disconnect-hint { font-size: 0.85rem; color: var(--text-tertiary); margin-top: 0.75rem; }
+  .wallet-disconnect-hint .link-btn { background: none; border: none; padding: 0; color: var(--accent-teal); cursor: pointer; }
+  .wallet-disconnect-hint .link-btn:hover { text-decoration: underline; }
+  .wallet-disconnect-hint .link-btn:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; }
 
   .sign-in-page .fade-in-up { animation: auth-fade-in-up 0.5s ease-out both; }
   .sign-in-page .delay-1 { animation-delay: 0.06s; }
