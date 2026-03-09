@@ -6,41 +6,51 @@
  * After changing this file, redeploy the site so the live portal uses the new code (push to main or run npm run deploy from website/).
  * Body: { account_id_hex, message, signature }
  */
+const SIGN_IN_VERSION = 'blake3-first-v1';
+
 import { createPublicKey, verify } from 'node:crypto';
 import { blake3 } from '@noble/hashes/blake3.js';
 
 export async function onRequestPost(context) {
   const { env, request } = context;
+  const addVersionHeader = (r) => {
+    const res = r instanceof Response ? r : new Response(JSON.stringify(r), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    const h = new Headers(res.headers);
+    h.set('X-Portal-Sign-In-Version', SIGN_IN_VERSION);
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
+  };
+
   if (!env.DB) {
-    return Response.json({ ok: false, message: 'Database not configured', error_code: 'config' }, { status: 503 });
+    return addVersionHeader(Response.json({ ok: false, message: 'Database not configured', error_code: 'config' }, { status: 503 }));
   }
 
   const json401 = (message, error_code) =>
-    Response.json({ ok: false, message, error_code }, { status: 401 });
+    addVersionHeader(Response.json({ ok: false, message, error_code }, { status: 401 }));
 
   try {
     const body = await request.json();
     const account_id_hex = normalizeHex(body.account_id_hex);
+    // Use the exact message string from the parsed body (same as client's pendingWallet.message after JSON round-trip)
     const messageRaw = typeof body.message === 'string' ? body.message : '';
     const message = normalizeMessage(messageRaw);
     const signatureHex = normalizeHex(body.signature || '');
 
     if (!message) {
-      return Response.json({ ok: false, message: 'Missing message', error_code: 'missing_message' }, { status: 400 });
+      return addVersionHeader(Response.json({ ok: false, message: 'Missing message', error_code: 'missing_message' }, { status: 400 }));
     }
     // Boing-native: 32-byte account (0x + 64 hex), 64-byte Ed25519 signature (128 hex) only
     if (!account_id_hex || account_id_hex.length !== 66) {
-      return Response.json({ ok: false, message: 'Invalid account_id_hex (must be 0x + 64 hex chars, Boing Ed25519)', error_code: 'bad_account' }, { status: 400 });
+      return addVersionHeader(Response.json({ ok: false, message: 'Invalid account_id_hex (must be 0x + 64 hex chars, Boing Ed25519)', error_code: 'bad_account' }, { status: 400 }));
     }
     const sigHex = signatureHex.replace(/^0x/, '');
     if (sigHex.length !== 128 || !/^[0-9a-f]+$/.test(sigHex)) {
-      return Response.json({ ok: false, message: 'Invalid signature (must be 64-byte hex, Ed25519)', error_code: 'bad_signature' }, { status: 400 });
+      return addVersionHeader(Response.json({ ok: false, message: 'Invalid signature (must be 64-byte hex, Ed25519)', error_code: 'bad_signature' }, { status: 400 }));
     }
 
     const publicKeyBytes = hexToBytes(account_id_hex);
     const signatureBytes = hexToBytes(signatureHex);
     if (!publicKeyBytes || !signatureBytes) {
-      return Response.json({ ok: false, message: 'Invalid hex', error_code: 'bad_hex' }, { status: 400 });
+      return addVersionHeader(Response.json({ ok: false, message: 'Invalid hex', error_code: 'bad_hex' }, { status: 400 }));
     }
 
     // Try BLAKE3(message) first (Boing Express and Boing tx convention), then raw variants
@@ -127,9 +137,9 @@ export async function onRequestPost(context) {
       result.quest_completions = quests.results || [];
     }
 
-    return Response.json(result);
+    return addVersionHeader(Response.json(result));
   } catch (e) {
-    return Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 });
+    return addVersionHeader(Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 }));
   }
 }
 

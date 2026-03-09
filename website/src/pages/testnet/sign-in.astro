@@ -255,7 +255,10 @@ import Layout from '../../layouts/Layout.astro';
               else if (data.error_code === 'message_expired' || data.error_code === 'nonce_expired') msg = 'Sign-in expired. Disconnect and connect your wallet again, then sign.';
               else if (data.error_code === 'nonce_used') msg = 'This sign-in was already used. Disconnect and connect again to get a new message.';
               else if (data.error_code === 'invalid_message' || data.error_code === 'nonce_invalid') msg = msg || 'Invalid sign-in data. Refresh the page and try again.';
-              if (res.status === 401 && data.error_code) console.warn('Portal sign-in 401:', data.error_code, data.message);
+              if (res.status === 401 && data.error_code) {
+                var version = res.headers.get('X-Portal-Sign-In-Version');
+                console.warn('Portal sign-in 401:', data.error_code, data.message, version ? '(version: ' + version + ')' : '(no version header — redeploy portal?)');
+              }
               setMessage(msg, true);
               walletSigninBtn.disabled = false;
               return;
