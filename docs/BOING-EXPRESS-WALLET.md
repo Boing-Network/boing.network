@@ -118,6 +118,14 @@ Use this when **preparing for production**: full Boing integration and Chrome We
 
 When integrating with Boing (wallet, portal, or node), use Boing’s specs only. Do not assume Ethereum or Solana compatibility.
 
+### Portal sign-in 401 (invalid_signature)
+
+If the portal returns **401 Unauthorized** with `invalid_signature` when you click "Sign in" after connecting Boing Express:
+
+1. **Redeploy the portal** — The live site (boing.network) must be running the sign-in API that verifies **BLAKE3(message)**. Push to `main` to trigger the GitHub Action, or run from repo: `cd website && npm run deploy` (requires `CLOUDFLARE_API_TOKEN`). After changing `website/functions/api/portal/auth/sign-in.js`, a deploy is required for the change to take effect.
+2. **Use the latest Boing Express** — The extension must sign **BLAKE3(UTF-8 message)** with Ed25519 (see `src/crypto/keys.ts`). Rebuild the extension (`pnpm run build:extension:load` in boing.express), load the unpacked build from the output folder, then **reload the extension** in `chrome://extensions` and try again.
+3. **Same message** — The exact string the page sends to the wallet for signing must be the same as the `message` in the POST body to `/api/portal/auth/sign-in`. The sign-in page does this by storing the signed message and reusing it; do not modify or re-build the message between signing and the sign-in request.
+
 ---
 
 ## Session-based lock and unlock

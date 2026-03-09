@@ -2,6 +2,8 @@
  * POST /api/portal/auth/sign-in
  * Wallet-based sign-in: Ed25519 only (Boing-native). No EVM/Solana/other-chain dependencies.
  * Supports both raw-message and BLAKE3(message) signing (Boing tx style).
+ * BLAKE3 variants are tried first so Boing Express (signs BLAKE3(UTF-8 message)) verifies without extra variants.
+ * After changing this file, redeploy the site so the live portal uses the new code (push to main or run npm run deploy from website/).
  * Body: { account_id_hex, message, signature }
  */
 import { createPublicKey, verify } from 'node:crypto';
@@ -41,19 +43,19 @@ export async function onRequestPost(context) {
       return Response.json({ ok: false, message: 'Invalid hex', error_code: 'bad_hex' }, { status: 400 });
     }
 
-    // Try all message variants: raw bytes and BLAKE3(message) — Boing may sign hash like tx signing
-    const variants = messageVariants(messageRaw);
+    // Try BLAKE3(message) first (Boing Express and Boing tx convention), then raw variants
+    const blake3Variants = messageVariantsBLAKE3(messageRaw);
     let valid = false;
-    for (const msgBuf of variants) {
-      if (verifyEd25519(publicKeyBytes, msgBuf, signatureBytes)) {
+    for (const hashBuf of blake3Variants) {
+      if (verifyEd25519(publicKeyBytes, hashBuf, signatureBytes)) {
         valid = true;
         break;
       }
     }
     if (!valid) {
-      const blake3Variants = messageVariantsBLAKE3(messageRaw);
-      for (const hashBuf of blake3Variants) {
-        if (verifyEd25519(publicKeyBytes, hashBuf, signatureBytes)) {
+      const variants = messageVariants(messageRaw);
+      for (const msgBuf of variants) {
+        if (verifyEd25519(publicKeyBytes, msgBuf, signatureBytes)) {
           valid = true;
           break;
         }
