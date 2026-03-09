@@ -1,7 +1,7 @@
 /**
  * POST /api/portal/auth/sign-in
  * Wallet-based sign-in: verify Ed25519(message, signature) with public key = account_id_hex.
- * No password required — the signature is proof of control. Returns registration payload.
+ * Supports both raw message and EIP-191 prefixed (personal_sign style). Returns registration payload.
  * Body: { account_id_hex, message, signature }
  */
 import { createPublicKey, verify } from 'node:crypto';
@@ -15,7 +15,8 @@ export async function onRequestPost(context) {
   try {
     const body = await request.json();
     const account_id_hex = normalizeHex(body.account_id_hex);
-    const message = typeof body.message === 'string' ? body.message : '';
+    const messageRaw = typeof body.message === 'string' ? body.message : '';
+    const message = normalizeMessage(messageRaw);
     const signatureHex = normalizeHex(body.signature || '');
 
     if (!account_id_hex || account_id_hex.length !== 66) {
@@ -36,11 +37,11 @@ export async function onRequestPost(context) {
       return Response.json({ ok: false, message: 'Invalid hex in account_id_hex or signature' }, { status: 400 });
     }
 
-    const messageBytes = Buffer.from(message, 'utf8');
-    let valid = verifyEd25519(publicKeyBytes, messageBytes, signatureBytes);
+    const messageBytes = Buffer.from(messageRaw, 'utf8');
+    const eip191Prefixed = buildEIP191Message(messageRaw);
+    let valid = verifyEd25519(publicKeyBytes, eip191Prefixed, signatureBytes);
     if (!valid) {
-      const eip191Prefixed = buildEIP191Message(message);
-      valid = verifyEd25519(publicKeyBytes, eip191Prefixed, signatureBytes);
+      valid = verifyEd25519(publicKeyBytes, messageBytes, signatureBytes);
     }
     if (!valid) {
       return Response.json({ ok: false, message: 'Invalid signature' }, { status: 401 });
@@ -111,6 +112,12 @@ function normalizeHex(s) {
   return t.startsWith('0x') ? t : '0x' + t;
 }
 
+/** Normalize sign-in message: unified line endings, trim (so parsing and verification match wallet output). */
+function normalizeMessage(s) {
+  if (!s || typeof s !== 'string') return '';
+  return s.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+}
+
 /** EIP-191 personal_sign prefix: "\x19Ethereum Signed Message:\n" + len(message) + message (UTF-8) */
 function buildEIP191Message(message) {
   const msgBuf = Buffer.from(message, 'utf8');
@@ -150,23 +157,24 @@ function verifyEd25519(publicKeyBytes, messageBytes, signatureBytes) {
 }
 
 function parseSignInMessage(message) {
-  const modern = message.match(
-    /^Sign in to Boing Portal\s+Origin:\s*(.+)\s+Timestamp:\s*(\d{4}-\d{2}-\d{2}T[\d.:]+Z)\s+Nonce:\s*([a-zA-Z0-9_-]+)\s*$/m
+  const normalized = normalizeMessage(message);
+  const modern = normalized.match(
+    /^Sign in to Boing Portal\s+Origin:\s*(.+?)\s+Timestamp:\s*(\d{4}-\d{2}-\d{2}T[\d.:]+Z)\s+Nonce:\s*([a-zA-Z0-9_-]+)\s*$/m
   );
   if (modern) {
     return {
-      origin: normalizeOrigin(modern[1]),
-      timestamp: modern[2],
-      nonce: modern[3],
+      origin: normalizeOrigin(modern[1].trim()),
+      timestamp: modern[2].trim(),
+      nonce: modern[3].trim(),
       version: 'nonce',
     };
   }
 
-  const legacy = message.match(/^Sign in to Boing Portal at (.+) at (\d{4}-\d{2}-\d{2}T[\d.:]+Z)\s*$/);
+  const legacy = normalized.match(/^Sign in to Boing Portal at (.+?) at (\d{4}-\d{2}-\d{2}T[\d.:]+Z)\s*$/);
   if (legacy) {
     return {
-      origin: normalizeOrigin(legacy[1]),
-      timestamp: legacy[2],
+      origin: normalizeOrigin(legacy[1].trim()),
+      timestamp: legacy[2].trim(),
       nonce: '',
       version: 'legacy',
     };
