@@ -250,7 +250,12 @@ import Layout from '../../layouts/Layout.astro';
             });
             var data = await res.json().catch(function () { return {}; });
             if (!res.ok) {
-              setMessage(data.message || 'Sign-in failed.', true);
+              var msg = data.message || 'Sign-in failed.';
+              if (data.error_code === 'invalid_signature') msg = 'Signature verification failed. Try disconnecting, then connect and sign again.';
+              else if (data.error_code === 'message_expired' || data.error_code === 'nonce_expired') msg = 'Sign-in expired. Disconnect and connect your wallet again, then sign.';
+              else if (data.error_code === 'nonce_used') msg = 'This sign-in was already used. Disconnect and connect again to get a new message.';
+              else if (data.error_code === 'invalid_message' || data.error_code === 'nonce_invalid') msg = msg || 'Invalid sign-in data. Refresh the page and try again.';
+              setMessage(msg, true);
               walletSigninBtn.disabled = false;
               return;
             }
@@ -381,6 +386,10 @@ import Layout from '../../layouts/Layout.astro';
     outline: 2px solid var(--accent-teal);
     outline-offset: 2px;
     border-color: rgba(124, 58, 237, 0.6);
+  }
+  @media (max-width: 480px) {
+    .auth-form input { max-width: 100%; }
+    .wallet-password-step input[type="password"] { max-width: 100%; }
   }
   .auth-form button {
     margin-top: 1.25rem; padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; border: none; border-radius: 6px;

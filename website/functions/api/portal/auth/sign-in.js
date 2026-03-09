@@ -1,16 +1,20 @@
 /**
  * POST /api/portal/auth/sign-in
- * Wallet-based sign-in: verify Ed25519(message, signature) with public key = account_id_hex.
- * Supports both raw message and EIP-191 prefixed (personal_sign style). Returns registration payload.
+ * Wallet-based sign-in: verify signature (Ed25519 or EIP-191 secp256k1).
  * Body: { account_id_hex, message, signature }
  */
 import { createPublicKey, verify } from 'node:crypto';
+import { Signature } from '@noble/secp256k1';
+import { keccak_256 } from '@noble/hashes/sha3';
 
 export async function onRequestPost(context) {
   const { env, request } = context;
   if (!env.DB) {
-    return Response.json({ ok: false, message: 'Database not configured' }, { status: 503 });
+    return Response.json({ ok: false, message: 'Database not configured', error_code: 'config' }, { status: 503 });
   }
+
+  const json401 = (message, error_code) =>
+    Response.json({ ok: false, message, error_code }, { status: 401 });
 
   try {
     const body = await request.json();
@@ -19,44 +23,68 @@ export async function onRequestPost(context) {
     const message = normalizeMessage(messageRaw);
     const signatureHex = normalizeHex(body.signature || '');
 
-    if (!account_id_hex || account_id_hex.length !== 66) {
-      return Response.json({ ok: false, message: 'Invalid account_id_hex (must be 32-byte hex with 0x)' }, { status: 400 });
-    }
     if (!message) {
-      return Response.json({ ok: false, message: 'Missing message' }, { status: 400 });
+      return Response.json({ ok: false, message: 'Missing message', error_code: 'missing_message' }, { status: 400 });
     }
-    // Ed25519 signature is 64 bytes = 128 hex chars (with or without 0x prefix)
-    const sigHex = signatureHex.replace(/^0x/, '');
-    if (sigHex.length !== 128 || !/^[0-9a-f]+$/.test(sigHex)) {
-      return Response.json({ ok: false, message: 'Invalid signature (must be 64-byte hex)' }, { status: 400 });
+    if (!account_id_hex || (account_id_hex.length !== 66 && account_id_hex.length !== 42)) {
+      return Response.json({ ok: false, message: 'Invalid account_id_hex (use 0x+64hex or 0x+40hex)', error_code: 'bad_account' }, { status: 400 });
     }
 
-    const publicKeyBytes = hexToBytes(account_id_hex);
-    const signatureBytes = hexToBytes(signatureHex);
-    if (!publicKeyBytes || !signatureBytes) {
-      return Response.json({ ok: false, message: 'Invalid hex in account_id_hex or signature' }, { status: 400 });
-    }
-
-    const messageBytes = Buffer.from(messageRaw, 'utf8');
-    const eip191Prefixed = buildEIP191Message(messageRaw);
-    let valid = verifyEd25519(publicKeyBytes, eip191Prefixed, signatureBytes);
-    if (!valid) {
-      valid = verifyEd25519(publicKeyBytes, messageBytes, signatureBytes);
-    }
-    if (!valid) {
-      return Response.json({ ok: false, message: 'Invalid signature' }, { status: 401 });
-    }
-
+    // Parse and validate message first (don't consume nonce yet)
     const messageInfo = parseSignInMessage(message);
     const messageError = validateMessageWindow(messageInfo);
     if (messageError) {
-      return Response.json({ ok: false, message: messageError }, { status: 401 });
+      const code = !messageInfo.timestamp ? 'invalid_message' : messageError.includes('expired') ? 'message_expired' : 'invalid_message';
+      return json401(messageError, code);
+    }
+    if (messageInfo.nonce) {
+      const nonceCheck = await checkNonce(env.DB, messageInfo.nonce, messageInfo.origin);
+      if (!nonceCheck.ok) {
+        const code = nonceCheck.message.includes('expired') ? 'nonce_expired' : nonceCheck.message.includes('already used') ? 'nonce_used' : 'nonce_invalid';
+        return json401(nonceCheck.message, code);
+      }
+    }
+
+    const sigHex = signatureHex.replace(/^0x/, '');
+    const isEVM = account_id_hex.length === 42 && sigHex.length === 130 && /^[0-9a-f]+$/.test(sigHex);
+    const isEd25519 = account_id_hex.length === 66 && sigHex.length === 128 && /^[0-9a-f]+$/.test(sigHex);
+
+    if (isEVM) {
+      const recovered = verifyEVMPersonalSign(messageRaw, sigHex);
+      if (!recovered || recovered.toLowerCase() !== account_id_hex.toLowerCase()) {
+        return json401('Invalid signature', 'invalid_signature');
+      }
+    } else if (isEd25519) {
+      const publicKeyBytes = hexToBytes(account_id_hex);
+      const signatureBytes = hexToBytes(signatureHex);
+      if (!publicKeyBytes || !signatureBytes) {
+        return Response.json({ ok: false, message: 'Invalid hex', error_code: 'bad_hex' }, { status: 400 });
+      }
+      const variants = messageVariants(messageRaw);
+      let valid = false;
+      for (const msgBuf of variants) {
+        if (verifyEd25519(publicKeyBytes, msgBuf, signatureBytes)) {
+          valid = true;
+          break;
+        }
+      }
+      if (!valid) {
+        return json401('Invalid signature', 'invalid_signature');
+      }
+    } else {
+      if (account_id_hex.length !== 66 && account_id_hex.length !== 42) {
+        return Response.json({ ok: false, message: 'Invalid account_id_hex (use 32-byte 0x+64hex or 20-byte 0x+40hex)', error_code: 'bad_account' }, { status: 400 });
+      }
+      if (sigHex.length !== 128 && sigHex.length !== 130) {
+        return Response.json({ ok: false, message: 'Invalid signature length (expected 64 or 65 bytes hex)', error_code: 'bad_signature' }, { status: 400 });
+      }
+      return json401('Invalid signature', 'invalid_signature');
     }
 
     if (messageInfo.nonce) {
       const nonceOk = await consumeNonce(env.DB, messageInfo.nonce, messageInfo.origin);
       if (!nonceOk.ok) {
-        return Response.json({ ok: false, message: nonceOk.message }, { status: 401 });
+        return json401(nonceOk.message, 'nonce_used');
       }
     }
 
@@ -67,7 +95,7 @@ export async function onRequestPost(context) {
       .first();
 
     if (!row) {
-      return Response.json({ ok: false, message: 'Account not registered' }, { status: 403 });
+      return Response.json({ ok: false, message: 'Account not registered', error_code: 'not_registered' }, { status: 403 });
     }
 
     const result = {
@@ -123,6 +151,47 @@ function buildEIP191Message(message) {
   const msgBuf = Buffer.from(message, 'utf8');
   const prefix = Buffer.from(`\x19Ethereum Signed Message:\n${msgBuf.length}`, 'utf8');
   return Buffer.concat([prefix, msgBuf]);
+}
+
+/** Return multiple message byte variants to try for Ed25519 (wallet may sign raw, trimmed, or EIP-191). */
+function messageVariants(messageRaw) {
+  const normalized = normalizeMessage(messageRaw);
+  const trimRaw = messageRaw.trim();
+  const out = [];
+  const add = (msg) => {
+    if (typeof msg === 'string') out.push(Buffer.from(msg, 'utf8'));
+    else out.push(msg);
+  };
+  add(messageRaw);
+  add(trimRaw);
+  add(normalized);
+  add(buildEIP191Message(messageRaw));
+  add(buildEIP191Message(trimRaw));
+  add(buildEIP191Message(normalized));
+  return out;
+}
+
+/** Recover Ethereum address from EIP-191 personal_sign. sigHex is 130 hex (65 bytes: r,s,v). Returns 0x+40hex or null. */
+function verifyEVMPersonalSign(messageRaw, sigHex) {
+  try {
+    const msgBytes = typeof messageRaw === 'string' ? Buffer.from(messageRaw, 'utf8') : messageRaw;
+    const eip191 = buildEIP191Message(msgBytes);
+    const hash = new Uint8Array(keccak_256(new Uint8Array(eip191)));
+    const sigBytes = hexToBytes('0x' + sigHex);
+    if (!sigBytes || sigBytes.length !== 65) return null;
+    const v = sigBytes[64];
+    const recovery = v === 27 || v === 28 ? v - 27 : v;
+    if (recovery !== 0 && recovery !== 1) return null;
+    const compact64 = sigBytes.slice(0, 64);
+    const sigObj = Signature.fromBytes(compact64).addRecoveryBit(recovery);
+    const pubPoint = sigObj.recoverPublicKey(hash);
+    const uncompressed = pubPoint.toRawBytes(false);
+    const addrHash = keccak_256(uncompressed.slice(1));
+    const addr = Buffer.from(addrHash).slice(-20);
+    return '0x' + addr.toString('hex');
+  } catch {
+    return null;
+  }
 }
 
 function hexToBytes(hexStr) {
@@ -207,6 +276,29 @@ function validateMessageWindow(messageInfo) {
     return 'Invalid sign-in timestamp';
   }
   return null;
+}
+
+async function checkNonce(db, nonce, origin) {
+  const row = await db.prepare(
+    'SELECT nonce, origin, expires_at, used_at FROM portal_auth_nonces WHERE nonce = ?'
+  )
+    .bind(nonce)
+    .first();
+
+  if (!row) {
+    return { ok: false, message: 'Invalid sign-in nonce' };
+  }
+  if (row.origin !== origin) {
+    return { ok: false, message: 'Sign-in origin mismatch' };
+  }
+  if (row.used_at) {
+    return { ok: false, message: 'Sign-in nonce already used' };
+  }
+  const expiresAt = new Date(row.expires_at);
+  if (Number.isNaN(expiresAt.getTime()) || Date.now() > expiresAt.getTime()) {
+    return { ok: false, message: 'Sign-in nonce expired. Please try again.' };
+  }
+  return { ok: true };
 }
 
 async function consumeNonce(db, nonce, origin) {

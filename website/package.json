@@ -11,6 +11,8 @@
     "deploy": "npm run build && npx wrangler pages deploy dist --project-name=boing-network"
   },
   "dependencies": {
+    "@noble/hashes": "^1.8.0",
+    "@noble/secp256k1": "^2.3.0",
     "astro": "^4.16.0"
   },
   "devDependencies": {
