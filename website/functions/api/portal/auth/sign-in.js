@@ -4,7 +4,8 @@
  * Supports both raw-message and BLAKE3(message) signing (Boing tx style).
  * BLAKE3 variants are tried first so Boing Express (signs BLAKE3(UTF-8 message)) verifies without extra variants.
  * After changing this file, redeploy the site so the live portal uses the new code (push to main or run npm run deploy from website/).
- * Body: { account_id_hex, message, signature }
+ * Body: { account_id_hex, message, signature } or { account_id_hex, message, message_hex, signature }.
+ * If message_hex is present (UTF-8 message bytes as hex), verification uses those exact bytes first for BLAKE3.
  */
 const SIGN_IN_VERSION = 'blake3-first-v1';
 
@@ -32,10 +33,16 @@ export async function onRequestPost(context) {
     const account_id_hex = normalizeHex(body.account_id_hex);
     // Use the exact message string from the parsed body (same as client's pendingWallet.message after JSON round-trip)
     const messageRaw = typeof body.message === 'string' ? body.message : '';
-    const message = normalizeMessage(messageRaw);
+    // Optional: client can send message_hex = hex(UTF-8(message)) so we use the exact bytes the wallet signed
+    const messageHexRaw = typeof body.message_hex === 'string' ? body.message_hex.replace(/^0x/, '').trim() : '';
+    const clientMessageBytes = messageHexRaw && /^[0-9a-f]+$/.test(messageHexRaw) && messageHexRaw.length % 2 === 0
+      ? hexToBytes('0x' + messageHexRaw)
+      : null;
+    const message = normalizeMessage(messageRaw) || (clientMessageBytes ? Buffer.from(clientMessageBytes).toString('utf8') : '');
+    const messageForValidation = normalizeMessage(message);
     const signatureHex = normalizeHex(body.signature || '');
 
-    if (!message) {
+    if (!message && !clientMessageBytes) {
       return addVersionHeader(Response.json({ ok: false, message: 'Missing message', error_code: 'missing_message' }, { status: 400 }));
     }
     // Boing-native: 32-byte account (0x + 64 hex), 64-byte Ed25519 signature (128 hex) only
@@ -53,8 +60,8 @@ export async function onRequestPost(context) {
       return addVersionHeader(Response.json({ ok: false, message: 'Invalid hex', error_code: 'bad_hex' }, { status: 400 }));
     }
 
-    // Try BLAKE3(message) first (Boing Express and Boing tx convention), then raw variants
-    const blake3Variants = messageVariantsBLAKE3(messageRaw);
+    // Try BLAKE3(message) first — if client sent message_hex, use those exact bytes so we match the wallet
+    const blake3Variants = messageVariantsBLAKE3(messageRaw, clientMessageBytes);
     let valid = false;
     for (const hashBuf of blake3Variants) {
       if (verifyEd25519(publicKeyBytes, hashBuf, signatureBytes)) {
@@ -74,8 +81,8 @@ export async function onRequestPost(context) {
     if (!valid) {
       const debugHeader = request.headers.get('X-Portal-Debug');
       const payload = { message: 'Invalid signature. Use a Boing-native wallet (e.g. Boing Express) and sign the exact message.', error_code: 'invalid_signature' };
-      if (debugHeader === '1' && messageRaw) {
-        const msgBuf = Buffer.from(messageRaw, 'utf8');
+      if (debugHeader === '1' && (messageRaw || clientMessageBytes)) {
+        const msgBuf = clientMessageBytes || Buffer.from(messageRaw, 'utf8');
         const u8 = msgBuf instanceof Uint8Array ? msgBuf : new Uint8Array(msgBuf);
         const serverBlake3 = blake3(u8);
         payload.debug = {
@@ -86,7 +93,7 @@ export async function onRequestPost(context) {
     }
 
     // Parse and validate message structure and nonce (after signature is valid)
-    const messageInfo = parseSignInMessage(message);
+    const messageInfo = parseSignInMessage(messageForValidation);
     const messageError = validateMessageWindow(messageInfo);
     if (messageError) {
       const code = !messageInfo.timestamp ? 'invalid_message' : messageError.includes('expired') ? 'message_expired' : 'invalid_message';
@@ -192,7 +199,12 @@ function messageVariants(messageRaw) {
 }
 
 /** BLAKE3(message) variants — Boing tx signing uses Ed25519(BLAKE3(...)); wallet may do same for message sign. */
-function messageVariantsBLAKE3(messageRaw) {
+function messageVariantsBLAKE3(messageRaw, clientMessageBytes = null) {
+  const out = [];
+  if (clientMessageBytes && clientMessageBytes.length > 0) {
+    const u8 = clientMessageBytes instanceof Uint8Array ? clientMessageBytes : new Uint8Array(clientMessageBytes);
+    out.push(blake3(u8));
+  }
   const rawVariants = [
     messageRaw,
     messageRaw.trim(),
@@ -201,7 +213,6 @@ function messageVariantsBLAKE3(messageRaw) {
     messageRaw.trim() + '\n',
     normalizeMessage(messageRaw) + '\n',
   ];
-  const out = [];
   for (const msg of rawVariants) {
     const buf = typeof msg === 'string' ? Buffer.from(msg, 'utf8') : msg;
     const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);

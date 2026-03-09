@@ -255,6 +255,12 @@ import Layout from '../../layouts/Layout.astro';
               body: JSON.stringify({
                 account_id_hex: pendingWallet.account_id_hex,
                 message: pendingWallet.message,
+                message_hex: (function () {
+                  try {
+                    var bytes = new TextEncoder().encode(pendingWallet.message);
+                    return Array.from(bytes).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+                  } catch (e) { return undefined; }
+                })(),
                 signature: pendingWallet.signature
               })
             });
