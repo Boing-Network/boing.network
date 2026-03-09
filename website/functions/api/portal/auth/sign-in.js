@@ -2,18 +2,21 @@
  * POST /api/portal/auth/sign-in
  * Wallet-based sign-in: Ed25519 only (Boing-native). No EVM/Solana/other-chain dependencies.
  * Supports both raw-message and BLAKE3(message) signing (Boing tx style).
- * BLAKE3 variants are tried first so Boing Express (signs BLAKE3(UTF-8 message)) verifies without extra variants.
- * After changing this file, redeploy the site so the live portal uses the new code (push to main or run npm run deploy from website/).
+ * Uses @noble/ed25519 for verification so it matches the wallet (Boing Express) exactly.
  * Body: { account_id_hex, message, signature } or { account_id_hex, message, message_hex, signature }.
  * If message_hex is present (UTF-8 message bytes as hex), verification uses those exact bytes first for BLAKE3.
  */
-const SIGN_IN_VERSION = 'blake3-first-v1';
+const SIGN_IN_VERSION = 'blake3-noble-v1';
 
-import { createPublicKey, verify } from 'node:crypto';
+import * as ed from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha2.js';
 import { blake3 } from '@noble/hashes/blake3.js';
 
 export async function onRequestPost(context) {
   const { env, request } = context;
+  if (typeof ed.etc.sha512Sync !== 'function') {
+    ed.etc.sha512Sync = (...messages) => sha512(ed.etc.concatBytes(...messages));
+  }
   const addVersionHeader = (r) => {
     const res = r instanceof Response ? r : new Response(JSON.stringify(r), { status: 500, headers: { 'Content-Type': 'application/json' } });
     const h = new Headers(res.headers);
@@ -127,7 +130,7 @@ export async function onRequestPost(context) {
       .first();
 
     if (!row) {
-      return Response.json({ ok: false, message: 'Account not registered', error_code: 'not_registered' }, { status: 403 });
+      return addVersionHeader(Response.json({ ok: false, message: 'Account not registered', error_code: 'not_registered' }, { status: 403 }));
     }
 
     const result = {
@@ -240,12 +243,10 @@ function hexToBytes(hexStr) {
 function verifyEd25519(publicKeyBytes, messageBytes, signatureBytes) {
   if (publicKeyBytes.length !== 32 || signatureBytes.length !== 64) return false;
   try {
-    const key = createPublicKey({
-      key: publicKeyBytes,
-      format: 'raw',
-      type: 'ed25519',
-    });
-    return verify(null, messageBytes, key, signatureBytes);
+    const pub = publicKeyBytes instanceof Uint8Array ? publicKeyBytes : new Uint8Array(publicKeyBytes);
+    const msg = messageBytes instanceof Uint8Array ? messageBytes : new Uint8Array(messageBytes);
+    const sig = signatureBytes instanceof Uint8Array ? signatureBytes : new Uint8Array(signatureBytes);
+    return ed.verify(sig, msg, pub);
   } catch {
     return false;
   }
