@@ -78,4 +78,12 @@ import { BOOTNODES, isTestnetLive } from '../../config/testnet';
   .code-block code { background: none; padding: 0; font-size: 0.9rem; }
   .nav-links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
   .nav-links a { color: var(--accent-teal); font-weight: 500; }
+  @media (max-width: 640px) {
+    .bootnodes-content { padding-bottom: 2rem; }
+    .section { margin-top: 1.5rem; }
+    .code-block { font-size: 0.85rem; padding: 0.75rem; }
+  }
+  @media (max-width: 375px) {
+    .section { margin-top: 1.25rem; }
+  }
 </style>

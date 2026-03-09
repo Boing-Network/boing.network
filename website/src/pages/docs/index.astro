@@ -35,6 +35,7 @@ const paramsObjectWrong = '{}';
           <li><a href="#testnet" class="toc-link">Testnet</a></li>
           <li><a href="#security" class="toc-link">Security</a></li>
           <li><a href="#governance" class="toc-link">Governance & Transparency</a></li>
+          <li><a href="#responsive" class="toc-link">Responsive</a></li>
           <li><a href="#resources" class="toc-link">Resources</a></li>
         </ol>
       </nav>
@@ -288,6 +289,26 @@ cargo build --release</code></pre>
         <p>Parameter changes use <strong>time-locked stages</strong>: proposal → cooling period → execution. This allows the community to react and exit if needed. No single party can change critical parameters unilaterally; changes require broad consensus within protocol bounds.</p>
       </section>
 
+      <section id="responsive" class="doc-section">
+        <h2>Responsive</h2>
+        <p>The Boing Network website and documentation are built to be <strong>fully responsive</strong> across all viewports — from small phones (320px) to large desktops.</p>
+        <h3>Breakpoints</h3>
+        <p>Global breakpoints used across the site:</p>
+        <ul>
+          <li><strong>375px</strong> — Very small phones: reduced padding, single-column layouts where needed, smaller nav text.</li>
+          <li><strong>480px</strong> — Small phones: form inputs full-width, footer and section padding reduced.</li>
+          <li><strong>640px</strong> — Phones and narrow tablets: section padding, table font size, stats/pillars single column, docs sidebar stacks.</li>
+          <li><strong>768px</strong> — Tablets: header padding, horizontal scroll for wide content.</li>
+          <li><strong>900px+</strong> — Desktop: hero two-column, full nav.</li>
+        </ul>
+        <h3>Main website</h3>
+        <p>Landing (home), About, Community, Resources, Documentation, Developer quickstart, and all Network pages (Join Testnet, Bootnodes, Faucet, Status, Single vs multi-node, Quests) use <code>page-wrap-inner</code> and shared layout with responsive padding. Images use <code>max-width: 100%</code>. Tables and code blocks scroll horizontally on small screens when needed. Long URLs and code use <code>word-break: break-word</code> to avoid overflow.</p>
+        <h3>Testnet portal</h3>
+        <p>The testnet environment (Dashboard, Sign in, Register, Set password, hub dashboards, leaderboards) uses the same breakpoints. Portal forms, role cards, and hub content are fluid; inputs and cards never overflow the viewport.</p>
+        <h3>Accessibility</h3>
+        <p>Focus styles (<code>:focus-visible</code>), skip links, and sufficient touch targets are applied site-wide. Reduced-motion preferences disable non-essential animations.</p>
+      </section>
+
       <section id="resources" class="doc-section">
         <h2>Resources</h2>
         <h3>Site pages</h3>
@@ -357,7 +378,7 @@ cargo build --release</code></pre>
 
 <script>
   (function () {
-    const sectionIds = ['overview', 'getting-started', 'network-overview', 'tokenomics', 'architecture', 'rpc-api', 'operations', 'roadmap', 'testnet', 'security', 'governance', 'resources'];
+    const sectionIds = ['overview', 'getting-started', 'network-overview', 'tokenomics', 'architecture', 'rpc-api', 'operations', 'roadmap', 'testnet', 'security', 'governance', 'responsive', 'resources'];
     function showSection(id) {
       const sections = document.querySelectorAll('.doc-section');
       const links = document.querySelectorAll('.toc-link');
