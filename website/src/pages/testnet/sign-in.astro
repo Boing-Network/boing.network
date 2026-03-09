@@ -41,7 +41,7 @@ import Layout from '../../layouts/Layout.astro';
           <input id="account-id" name="account_id_hex" type="text" placeholder="0x..." maxlength="66" required autocomplete="off" />
           <label for="account-password">Portal password</label>
           <input id="account-password" name="password" type="password" placeholder="Your portal password" autocomplete="current-password" minlength="8" required />
-          <button type="submit" id="submit-btn">Sign in</button>
+          <button type="submit" id="submit-btn" aria-describedby="form-message">Sign in</button>
         </form>
       </div>
       <p id="form-message" class="form-message" aria-live="polite"></p>
