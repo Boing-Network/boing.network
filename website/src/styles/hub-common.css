@@ -409,12 +409,14 @@
   max-width: 100%;
   transition: border-color 0.2s ease;
 }
-.dashboard-load input:focus-visible {
+.dashboard-load input:focus-visible,
+.compact-form input:focus-visible {
   outline: 2px solid var(--accent-teal);
   outline-offset: 2px;
   border-color: var(--border-hover, rgba(34, 211, 238, 0.5));
 }
-.dashboard-load button {
+.dashboard-load button,
+.compact-form button {
   padding: 8px 14px;
   border: none;
   border-radius: 6px;
@@ -424,7 +426,8 @@
   cursor: pointer;
   transition: opacity 0.2s ease;
 }
-.dashboard-load button:focus-visible {
+.dashboard-load button:focus-visible,
+.compact-form button:focus-visible {
   outline: 2px solid var(--accent-teal);
   outline-offset: 2px;
 }
@@ -456,25 +459,6 @@
   font-family: var(--font-mono);
   font-size: 0.9rem;
   transition: border-color 0.2s ease;
-}
-.compact-form input:focus-visible {
-  outline: 2px solid var(--accent-teal);
-  outline-offset: 2px;
-  border-color: var(--border-hover, rgba(34, 211, 238, 0.5));
-}
-.compact-form button {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  background: var(--accent-teal);
-  color: var(--bg-primary);
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s ease;
-}
-.compact-form button:focus-visible {
-  outline: 2px solid var(--accent-teal);
-  outline-offset: 2px;
 }
 .form-message {
   margin-top: 0.5rem;
