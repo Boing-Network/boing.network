@@ -176,7 +176,7 @@ Once both bootnodes and the tunnel are running:
 
 ## CORS
 
-The boing-node RPC server includes CORS headers so browser-based clients (e.g. boing.observer, boing.network faucet) can call the RPC from different origins. Allowed origins: `https://boing.observer`, `https://boing.network`, `https://www.boing.network`, and localhost variants for development.
+The boing-node RPC server includes CORS headers so browser-based clients (e.g. boing.observer, boing.express, boing.network faucet) can call the RPC from different origins. Allowed origins: `https://boing.observer`, `https://boing.express`, `https://boing.network`, `https://www.boing.network`, and localhost variants for development.
 
 ---
 

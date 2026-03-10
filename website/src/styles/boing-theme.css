@@ -629,6 +629,26 @@ table, .compare-table, .doc-table {
   }
 }
 
+/* Footer and article containers — prevent overflow on all viewports */
+@media (max-width: 480px) {
+  .site-footer {
+    padding: 1.5rem 1rem;
+  }
+}
+@media (max-width: 375px) {
+  .site-footer {
+    padding: 1.25rem 0.75rem;
+  }
+}
+
+.page-wrap-full,
+.page-wrap-inner,
+article.page,
+article.resources-page,
+article.docs-page {
+  min-width: 0;
+}
+
 /* Long URLs and code — prevent overflow on small viewports */
 @media (max-width: 640px) {
   .doc-section a,
@@ -683,6 +703,14 @@ table, .compare-table, .doc-table {
 @media (max-width: 640px) {
   .page-wrap-inner { padding: 0 1.25rem; }
   .page-hero-full { padding: 2.5rem 0 3rem; }
+}
+@media (max-width: 480px) {
+  .page-wrap-inner { padding: 0 1rem; }
+  .page-hero-full { padding: 2rem 0 2.5rem; }
+}
+@media (max-width: 375px) {
+  .page-wrap-inner { padding: 0 0.75rem; }
+  .page-hero-full { padding: 1.5rem 0 2rem; }
 }
 
 /* Hero content entrance */

@@ -433,6 +433,15 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
     width: 100%;
     box-sizing: border-box;
   }
+  @media (max-width: 640px) {
+    .section { padding: 3rem 1.25rem; }
+  }
+  @media (max-width: 480px) {
+    .section { padding: 2.5rem 1rem; }
+  }
+  @media (max-width: 375px) {
+    .section { padding: 2rem 0.75rem; }
+  }
   .section > * {
     max-width: 1280px;
     margin-left: auto;
@@ -476,12 +485,21 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
 
   /* Pillars */
   .pillars-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem; margin-top: 1rem; }
+  @media (max-width: 380px) {
+    .pillars-grid { grid-template-columns: 1fr; }
+  }
   .pillar-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; padding: 0.875rem 1rem; text-align: center; transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease; backdrop-filter: blur(12px); display: flex; flex-direction: column; align-items: center; }
   .pillar-card:hover { border-color: var(--border-hover); box-shadow: 0 4px 30px var(--glow-cyan); transform: translateY(-2px); }
   .pillar-img { width: 100%; height: auto; max-height: 160px; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto 0.5rem; }
   .pillar-card h3 { font-size: 0.95rem; margin: 0 0 0.25rem; color: var(--text-primary); }
   .pillar-card p { font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.35; }
   .pillars-unique { margin-top: 2.5rem; padding: 1.75rem 1.5rem; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; max-width: 800px; margin-left: auto; margin-right: auto; backdrop-filter: blur(12px); }
+  @media (max-width: 640px) {
+    .pillars-unique { padding: 1.25rem 1rem; margin-top: 2rem; }
+  }
+  @media (max-width: 375px) {
+    .pillars-unique { padding: 1rem 0.75rem; }
+  }
   .pillars-unique-title { font-size: 1.1rem; margin: 0 0 0.75rem; color: var(--accent-teal); text-align: center; }
   .pillars-unique-lead { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin: 0 0 1rem; }
   .pillars-unique-adoption { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
@@ -514,6 +532,15 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
     width: 100%;
     box-sizing: border-box;
   }
+  @media (max-width: 640px) {
+    .section { padding: 3rem 1.25rem; }
+  }
+  @media (max-width: 480px) {
+    .section { padding: 2.5rem 1rem; }
+  }
+  @media (max-width: 375px) {
+    .section { padding: 2rem 0.75rem; }
+  }
   .section > * {
     max-width: 1280px;
     margin-left: auto;
@@ -538,6 +565,9 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
   .chart-note { font-size: 0.8rem; color: var(--text-tertiary); margin: 0.5rem 0 0; font-style: italic; }
   .legend-inline { justify-content: flex-start; margin-top: 0.75rem; }
   .charts-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
+  @media (max-width: 320px) {
+    .charts-row { grid-template-columns: 1fr; gap: 1rem; }
+  }
   .chart-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; backdrop-filter: blur(12px); transition: border-color 0.3s, box-shadow 0.3s; }
   .chart-card:hover { border-color: var(--border-hover); box-shadow: 0 8px 24px var(--glow-cyan); }
   .chart-card h3 { font-size: 1rem; margin: 0 0 0.75rem; color: var(--text-primary); }
@@ -601,6 +631,17 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
   .link-grid a.link-highlight:hover { border-color: var(--accent-teal); box-shadow: 0 0 12px var(--glow-cyan); }
 
   @media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) {
+    .timeline-compact { display: flex; flex-direction: column; gap: 0.5rem; }
+    .testnet-banner { padding: 1.25rem 1rem; }
+    .cta-banner { padding: 1.25rem 1rem; }
+  }
+  @media (max-width: 375px) {
+    .testnet-banner { padding: 1rem 0.75rem; }
+    .cta-banner { padding: 1rem 0.75rem; }
+    .testnet-banner-btns { flex-direction: column; }
+    .cta-banner-links { flex-direction: column; }
+  }
   .t-item { transition: transform 0.2s ease; }
   .t-item:hover { transform: scale(1.02); }
   @media (prefers-reduced-motion: reduce) {

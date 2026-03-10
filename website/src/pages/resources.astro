@@ -37,6 +37,18 @@ import Icon from '../components/Icon.astro';
           <p>Get testnet BOING for gas and staking. One request per account per 60 seconds.</p>
           <span class="resource-tile-cta">Get testnet BOING →</span>
         </a>
+        <a href="https://boing.observer" target="_blank" rel="noopener" class="resource-tile">
+          <span class="resource-tile-icon"><Icon name="link" size={40} /></span>
+          <h2>Block Explorer</h2>
+          <p>Browse blocks, accounts, and chain data at boing.observer. Search by height, hash, or address.</p>
+          <span class="resource-tile-cta">Open Explorer →</span>
+        </a>
+        <a href="https://boing.express" target="_blank" rel="noopener" class="resource-tile">
+          <span class="resource-tile-icon"><Icon name="portal" size={40} /></span>
+          <h2>Boing Wallet</h2>
+          <p>Non-custodial wallet for Boing Network. Send BOING, use the faucet, and sign in to the portal.</p>
+          <span class="resource-tile-cta">boing.express →</span>
+        </a>
         <a href="/docs" class="resource-tile">
           <span class="resource-tile-icon"><Icon name="book" size={40} /></span>
           <h2>Documentation</h2>
@@ -171,6 +183,8 @@ import Icon from '../components/Icon.astro';
   .resource-tile:nth-child(7) { animation-delay: 0.35s; }
   .resource-tile:nth-child(8) { animation-delay: 0.4s; }
   .resource-tile:nth-child(9) { animation-delay: 0.45s; }
+  .resource-tile:nth-child(10) { animation-delay: 0.5s; }
+  .resource-tile:nth-child(11) { animation-delay: 0.55s; }
   @keyframes resource-tile-reveal { to { opacity: 1; transform: translateY(0); } }
   .resource-tile:hover .resource-tile-icon {
     transform: scale(1.12);
@@ -226,5 +240,12 @@ import Icon from '../components/Icon.astro';
     .resources-grid-inner { padding: 0 1.25rem; }
     .resources-hero { padding: 3rem 0; }
     .resources-grid { padding: 2rem 0 3rem; }
+  }
+  @media (max-width: 375px) {
+    .resources-hero-inner,
+    .resources-grid-inner { padding: 0 1rem; }
+    .resources-hero { padding: 2.5rem 0; }
+    .resources-grid { padding: 1.5rem 0 2.5rem; }
+    .resources-grid-inner { grid-template-columns: 1fr; }
   }
 </style>

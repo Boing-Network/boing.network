@@ -16,6 +16,7 @@ const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DOCS_TO_PDF = [
+  'Executive-Summary-Pitch-Deck.md',
   'TESTNET.md',
   'VIBEMINER-INTEGRATION.md',
   'RUNBOOK.md',

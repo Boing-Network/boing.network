@@ -142,9 +142,13 @@ import { TESTNET_RPC_URL } from '../../config/testnet';
     flex-wrap: wrap;
   }
   .faucet-form .input-with-copy input { flex: 1; min-width: 200px; }
+  @media (max-width: 360px) {
+    .faucet-form .input-with-copy { flex-direction: column; align-items: stretch; }
+    .faucet-form .input-with-copy input { min-width: 0; }
+  }
   .faucet-form input {
     width: 100%;
-    max-width: 480px;
+    max-width: 100%;
     padding: 12px 16px;
     margin-top: 0.25rem;
     font-family: var(--font-mono);

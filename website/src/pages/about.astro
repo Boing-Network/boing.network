@@ -65,13 +65,19 @@ import Icon from '../components/Icon.astro';
   .about-title-icon { color: var(--accent-teal); flex-shrink: 0; }
   .page-hero-full .lead { color: var(--text-secondary); margin: 0; }
   .about-content { padding-bottom: 3rem; }
+  @media (max-width: 480px) {
+    .about-content { padding-bottom: 2rem; }
+  }
   .about-section { margin-top: 2.5rem; }
-  .about-section h2 { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; color: var(--text-primary); font-size: 1.35rem; }
+  @media (max-width: 640px) {
+    .about-section { margin-top: 2rem; }
+  }
+  .about-section h2 { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; color: var(--text-primary); font-size: 1.35rem; flex-wrap: wrap; }
   .section-icon { color: var(--accent-teal); flex-shrink: 0; }
   .about-section ul { padding-left: 1.5rem; margin: 0.5rem 0; }
   .about-section li, .about-section p { color: var(--text-secondary); line-height: 1.6; }
   .about-section a { color: var(--accent-teal); }
-  .about-section code { background: var(--bg-tertiary); padding: 0.2em 0.4em; border-radius: 4px; font-size: 0.9em; }
+  .about-section code { background: var(--bg-tertiary); padding: 0.2em 0.4em; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
   .about-content > p { margin-top: 2rem; }
   .about-content > p a { color: var(--accent-teal); }
 </style>

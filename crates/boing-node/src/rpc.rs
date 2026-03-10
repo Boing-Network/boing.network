@@ -550,6 +550,7 @@ pub fn rpc_router(
     let cors = CorsLayer::new()
         .allow_origin(AllowOrigin::list(vec![
             HeaderValue::from_static("https://boing.observer"),
+            HeaderValue::from_static("https://boing.express"),
             HeaderValue::from_static("https://boing.network"),
             HeaderValue::from_static("https://www.boing.network"),
             HeaderValue::from_static("https://bootnode2.boing.network"),

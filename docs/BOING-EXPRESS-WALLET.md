@@ -118,6 +118,8 @@ Use this when **preparing for production**: full Boing integration and Chrome We
 
 When integrating with Boing (wallet, portal, or node), use Boing’s specs only. Do not assume Ethereum or Solana compatibility.
 
+For **dependency and infrastructure** independence (what can be custom-built vs kept, self-hosting, vendoring), see **[BOING-INFRASTRUCTURE-INDEPENDENCE.md](BOING-INFRASTRUCTURE-INDEPENDENCE.md)** in the boing-network repo.
+
 ### Portal sign-in 401 (invalid_signature)
 
 If the portal returns **401 Unauthorized** with `invalid_signature` when you click "Sign in" after connecting Boing Express:

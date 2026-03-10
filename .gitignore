@@ -3,6 +3,7 @@ node_modules/
 
 # Build outputs
 dist/
+website/dist/
 target/
 
 # Local dev / Wrangler
