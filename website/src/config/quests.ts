@@ -1,6 +1,6 @@
 /**
  * Community quest definitions for the incentivized testnet.
- * Used by /network/quests page. See docs/TESTNET.md Part 2 §2.7 (Community Quests).
+ * Used by testnet portal user hub (dashboard, community, quests). See docs/TESTNET.md Part 2 §2.7 (Community Quests).
  */
 
 export type VerificationType = 'on_chain' | 'manual';
