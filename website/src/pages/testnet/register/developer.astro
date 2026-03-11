@@ -34,7 +34,7 @@ import Layout from '../../../layouts/Layout.astro';
       </div>
       <div id="panel-wallet" role="tabpanel" aria-labelledby="tab-wallet" class="auth-panel">
         <p class="auth-panel-desc">Connect your Boing wallet to fill your account ID below. You'll approve the connection in your wallet.</p>
-        <p class="form-hint"><button type="button" id="connect-wallet-btn" class="link-btn auth-cta">Connect wallet</button><span id="wallet-actions"></span></p>
+        <p class="form-hint"><span id="connect-wallet-wrap"><button type="button" id="connect-wallet-btn" class="link-btn auth-cta">Connect wallet</button></span><span id="wallet-actions"></span></p>
       </div>
       <div id="panel-account" role="tabpanel" aria-labelledby="tab-account" class="auth-panel hidden">
         <p class="auth-panel-desc">Enter your account ID (32-byte hex) below. You can copy it from your wallet or paste from elsewhere.</p>
@@ -182,9 +182,11 @@ import Layout from '../../../layouts/Layout.astro';
             accountInput.value = address;
             setMessage('Account filled. Complete the form below (no password needed for wallet sign-in).', false);
             var actions = document.getElementById('wallet-actions');
-            if (actions) { actions.innerHTML = ' · <button type="button" class="link-btn" id="clear-account-btn">Clear account</button>'; }
+            if (actions) { actions.innerHTML = ' · <button type="button" class="link-btn clear-account-btn" id="clear-account-btn">Clear account</button>'; }
+            var connectWrap = document.getElementById('connect-wallet-wrap');
+            if (connectWrap) connectWrap.classList.add('hidden');
             var clearBtn = document.getElementById('clear-account-btn');
-            if (clearBtn) clearBtn.onclick = function () { accountInput.value = ''; setMessage(''); if (actions) actions.innerHTML = ''; };
+            if (clearBtn) clearBtn.onclick = function () { accountInput.value = ''; setMessage(''); if (actions) actions.innerHTML = ''; var w = document.getElementById('connect-wallet-wrap'); if (w) w.classList.remove('hidden'); };
           }
         } catch (err) {
           var msg = (window.BoingPortalWallet && window.BoingPortalWallet.normalizeWalletError && window.BoingPortalWallet.normalizeWalletError(err.message)) || err.message || 'Connection failed.';
@@ -269,6 +271,20 @@ import Layout from '../../../layouts/Layout.astro';
   .register-form .link-btn { background: none; border: none; padding: 0; color: var(--accent-teal); cursor: pointer; font-size: inherit; }
   .register-form .link-btn.auth-cta { font-weight: 600; }
   .register-form .link-btn:hover { text-decoration: underline; }
+  .register-form button.link-btn,
+  .register-form .clear-account-btn {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: var(--accent-teal);
+    cursor: pointer;
+    font-size: inherit;
+    font-weight: 500;
+    box-shadow: none !important;
+  }
+  .register-form .clear-account-btn:hover { text-decoration: underline; }
+  .register-form .form-hint #connect-wallet-wrap.hidden { display: none !important; }
   .register-form .auth-tabs { display: flex; gap: 0; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); }
   .register-form .auth-tab {
     padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: 500; border: none; border-bottom: 2px solid transparent;
