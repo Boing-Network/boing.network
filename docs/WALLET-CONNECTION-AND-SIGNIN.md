@@ -142,3 +142,56 @@ The portal and developer tools use **no external wallet libraries**. Connection 
 
 - **Website/Functions:** No wallet-related npm packages. Portal uses only Astro and Wrangler; auth sign-in uses Node built-in crypto (Ed25519) via nodejs_compat in wrangler.toml. No ethers, viem, web3.js, MetaMask SDK, or similar.
 - **Rust/node:** The chain uses ed25519-dalek for transaction and faucet signing; RPC does not implement personal_sign (signing is done in the wallet). CORS allows boing.express and boing.network origins for dApp to node communication.
+
+---
+
+## 7. Rollout, migrations, and smoke test (nonce-backed wallet auth)
+
+This section covers deployment steps for the nonce-backed wallet sign-in flow.
+
+### 7.1 Files involved
+
+- `website/src/pages/testnet/sign-in.astro`, `set-password.astro`, register pages
+- `website/functions/api/portal/auth/nonce.js`, `sign-in.js`, `set-password.js`, `password.js`, `register.js`
+- `website/schema.sql`, `website/migrations/2026-03-06-portal-auth-nonces.sql`, `website/migrations/2026-03-06-portal-password.sql`
+- `website/wrangler.toml`, `website/wrangler.worker.toml`
+
+### 7.2 Database migrations
+
+Apply before deploying the updated portal:
+
+```bash
+cd website
+wrangler d1 execute boing-network-db --file=./migrations/2026-03-06-portal-auth-nonces.sql
+wrangler d1 execute boing-network-db --file=./migrations/2026-03-06-portal-password.sql
+```
+
+(If applying full schema from scratch, these are already in `website/schema.sql`.)
+
+### 7.3 Deployment
+
+Auth uses Node built-in `crypto`; ensure `compatibility_flags = ["nodejs_compat"]` in `wrangler.toml` and `wrangler.worker.toml`.
+
+### 7.4 Nonce and sign-in contract (reference)
+
+- **`GET /api/portal/auth/nonce?origin=https://boing.network`** — Returns `{ ok, nonce, origin, issued_at, expires_at, message_template }`.
+- **Sign-in message (exact UTF-8):**  
+  `Sign in to Boing Portal`  
+  `Origin: https://boing.network`  
+  `Timestamp: <ISO>`  
+  `Nonce: <server nonce>`
+- **`POST /api/portal/auth/sign-in`** — Body: `{ account_id_hex, message, signature }`. Backend validates 32-byte address, 64-byte Ed25519 signature, message verification, timestamp, nonce (exists, matches origin, not expired, not used), and that the account is registered.
+
+### 7.5 Smoke test checklist
+
+After migration and deploy:
+
+1. Open `/testnet/sign-in`; confirm wallet connect UI and preference for `window.boing` / `boing_requestAccounts`.
+2. Confirm testnet chain `0x1b01` is requested; `/api/portal/auth/nonce` returns a nonce.
+3. Confirm signing succeeds with connected, unlocked wallet; sign-in fails on replayed nonce, locked wallet, or unregistered address.
+4. Confirm legacy address-only sign-in still works for testnet.
+
+### 7.6 Compatibility
+
+- Portal prefers `boing_requestAccounts`, `boing_signMessage`, `boing_chainId`, `boing_switchChain`; falls back to `eth_requestAccounts`, `personal_sign`, etc. when Boing methods are unsupported.
+- Backend accepts older timestamp-only message format; nonce-based sign-in is the preferred flow.

@@ -275,9 +275,12 @@ class BoingBackground {
   // ─── START / STOP ─────────────────────────────────────────────────────────
   start() {
     if (this.raf) return;
+    let frameCount = 0;
     const loop = (ts) => {
       this.raf = requestAnimationFrame(loop);
       if (this._scrollPaused) return; // skip frame while scrolling or tab hidden
+      frameCount++;
+      if (frameCount % 2 !== 0) return; // run at 30fps to reduce main-thread load
       if (!this.last) this.last = ts;
       const dt = Math.min((ts - this.last) / 1000, 0.05);
       this.last = ts;

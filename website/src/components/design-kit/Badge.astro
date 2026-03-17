@@ -1,0 +1,24 @@
+---
+/**
+ * Boing Design Kit — Badge
+ * Variants: default (cyan) | success | warning | error
+ */
+interface Props {
+  variant?: 'default' | 'success' | 'warning' | 'error';
+  className?: string;
+}
+
+const { variant = 'default', className = '' } = Astro.props;
+
+const variantClasses = {
+  default: 'bg-cyan-transparent text-neon-cyan',
+  success: 'bg-green-transparent text-bio-green',
+  warning: 'bg-gold-transparent text-warm-gold',
+  error: 'bg-red-transparent text-coral-red',
+};
+---
+<span
+  class={`inline-block px-3 py-1 rounded-full text-xs font-body font-medium tracking-widest uppercase ${variantClasses[variant]} ${className}`.trim()}
+>
+  <slot />
+</span>

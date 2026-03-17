@@ -1,0 +1,29 @@
+---
+/**
+ * Boing Design Kit — Card
+ * Ocean gradient, cyan border, hover lift + glow.
+ */
+interface Props {
+  title?: string;
+  description?: string;
+  className?: string;
+  as?: 'div' | 'article' | 'section';
+}
+
+const { title, description, className = '', as: Tag = 'div' } = Astro.props;
+---
+<Tag
+  class={`bg-gradient-ocean border border-cyan-transparent rounded-lg p-6 shadow-md hover:border-cyan-transparent-light hover:shadow-lg hover:shadow-glow-cyan transition-all duration-300 hover:-translate-y-1 ${className}`.trim()}
+>
+  {title && (
+    <h3 class="font-display font-bold text-xl text-neon-cyan mb-2">
+      {title}
+    </h3>
+  )}
+  {description && (
+    <p class="text-body-sm text-soft-white/80 mb-4">
+      {description}
+    </p>
+  )}
+  <slot />
+</Tag>

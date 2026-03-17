@@ -1,0 +1,36 @@
+---
+/**
+ * Boing Design Kit — TestimonialCard
+ * Quote card with optional avatar, author, role.
+ */
+import Card from './Card.astro';
+
+interface Props {
+  quote: string;
+  author: string;
+  role: string;
+  avatar?: string;
+  className?: string;
+}
+
+const { quote, author, role, avatar, className = '' } = Astro.props;
+---
+<Card className={`relative ${className}`}>
+  <div class="absolute top-4 left-4 text-4xl text-neon-cyan/30" aria-hidden="true">"</div>
+  <p class="text-soft-white/90 mb-6 italic">{quote}</p>
+  <div class="flex items-center gap-4">
+    {avatar && (
+      <img
+        src={avatar}
+        alt=""
+        class="w-12 h-12 rounded-full border-2 border-neon-cyan"
+        width="48"
+        height="48"
+      />
+    )}
+    <div>
+      <p class="font-display font-semibold text-neon-cyan">{author}</p>
+      <p class="text-sm text-soft-white/60">{role}</p>
+    </div>
+  </div>
+</Card>

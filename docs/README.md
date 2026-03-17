@@ -19,6 +19,7 @@ Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the si
 | [TESTNET.md](TESTNET.md) | Join testnet (bootnodes, faucet, single vs multi-node); **Testnet Portal** (registration, dashboards, community quests); **Incentivized testnet** (readiness, promotion, mainnet migration, Reddit draft in Appendix A) |
 | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Bootnodes, Cloudflare tunnel |
 | [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) | One-click mining via VibeMiner |
+| [VIBEMINER-NETWORK-LISTING.md](VIBEMINER-NETWORK-LISTING.md) | VibeMiner network listing form values (Boing) and listing requirements |
 
 ## Quality & Security
 
@@ -43,12 +44,13 @@ Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the si
 | Doc | Description |
 |-----|-------------|
 | [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) | Express wallet integration |
-| [WALLET-CONNECTION-AND-SIGNIN.md](WALLET-CONNECTION-AND-SIGNIN.md) | Wallet connect, portal sign-in, provider/API alignment |
-| [PORTAL-WALLET-AUTH-ROLLOUT.md](PORTAL-WALLET-AUTH-ROLLOUT.md) | Nonce-backed wallet auth rollout, migration, smoke-test checklist |
+| [WALLET-CONNECTION-AND-SIGNIN.md](WALLET-CONNECTION-AND-SIGNIN.md) | Wallet connect, portal sign-in, API, rollout & smoke test |
 | [BOING-OBSERVER-EXPLORER-PROMPT.md](BOING-OBSERVER-EXPLORER-PROMPT.md) | boing.observer explorer spec |
 | [BOING-OBSERVER-AND-EXPRESS-BUILD.md](BOING-OBSERVER-AND-EXPRESS-BUILD.md) | **What’s in repo vs what to build** for boing.observer and boing.express |
 | [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) | **Sync checklist** for boing.network, boing.express, boing.observer (URLs, RPC, chain IDs, cross-links) |
 | [DECENTRALIZATION-AND-NETWORKING.md](DECENTRALIZATION-AND-NETWORKING.md) | P2P, discovery, WebRTC signaling |
 | [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md) | Website and Cloudflare deployment |
 | [NOTION-INTEGRATION-SETUP.md](NOTION-INTEGRATION-SETUP.md) | Notion integration |
-| [BEACON-ACCELERATOR-APPLICATION-DRAFT.md](BEACON-ACCELERATOR-APPLICATION-DRAFT.md) | Draft answers for Beacon accelerator application |
+| [INDEXER-OPERATOR-STATS.md](INDEXER-OPERATOR-STATS.md) | Operator stats indexer & leaderboard (portal) |
+| [ACCELERATOR-APPLICATIONS.md](ACCELERATOR-APPLICATIONS.md) | Draft answers for Beacon & Outlier Ventures accelerator applications |
+| [Executive-Summary-Pitch-Deck.md](Executive-Summary-Pitch-Deck.md) | Executive summary & pitch deck (source for PDF) |

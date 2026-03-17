@@ -43,7 +43,7 @@ const normalizedPath = (path || '/').replace(/\/$/, '') || '';
     fallback?.classList.add('visible');
   }
 
-  function init() {
+  function startCanvas() {
     const wrap = document.querySelector('.boing-canvas-bg');
     const canvas = document.getElementById('boing-bg-canvas');
     const fallback = wrap?.querySelector('.boing-canvas-bg-fallback');
@@ -70,6 +70,30 @@ const normalizedPath = (path || '/').replace(/\/$/, '') || '';
       .catch(() => {
         showFallback(wrap, fallback);
       });
+  }
+
+  function init() {
+    const path = (document.querySelector('.boing-canvas-bg')?.dataset.path || '/').replace(/\/$/, '') || '';
+    const isHome = path === '' || path === '/';
+
+    if (isHome) {
+      if (document.documentElement.classList.contains('intro-complete')) {
+        startCanvas();
+        return;
+      }
+      let started = false;
+      const onIntroEnded = () => {
+        if (started) return;
+        started = true;
+        window.removeEventListener('genesis-intro-ended', onIntroEnded);
+        if (window._genesisIntroTimeout) clearTimeout(window._genesisIntroTimeout);
+        startCanvas();
+      };
+      window.addEventListener('genesis-intro-ended', onIntroEnded);
+      window._genesisIntroTimeout = setTimeout(onIntroEnded, 5000);
+    } else {
+      setTimeout(startCanvas, 200);
+    }
   }
 
   if (document.readyState === 'loading') {

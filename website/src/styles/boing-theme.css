@@ -4,49 +4,48 @@
    Design Takeover: Steps 2–7
    ============================================================ */
 
-/* Step 3: Import Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Comfortaa:wght@400;700&family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Fonts imported in boing-design-kit.css (Poppins, Inter, JetBrains Mono) */
 @import './motion-config.css';
 
-/* Step 2: Design Token Foundation */
+/* Step 2: Design Token Foundation (overridden by design-tokens-cosmic.css for Boing Design Kit) */
 :root {
   /* === BACKGROUNDS === */
-  --bg-primary: #0A0E1A;
-  --bg-secondary: #121829;
-  --bg-tertiary: #1A2235;
-  --bg-card: rgba(18, 24, 41, 0.7);
+  --bg-primary: #0A1E2E;
+  --bg-secondary: #0D2E42;
+  --bg-tertiary: #122a3d;
+  --bg-card: rgba(13, 46, 66, 0.6);
 
   /* === TEXT === */
-  --text-primary: #F0FFFE;
-  --text-secondary: #B8E6E3;
-  --text-tertiary: #7EB8B5;
+  --text-primary: #F0F4F8;
+  --text-secondary: rgba(240, 244, 248, 0.85);
+  --text-tertiary: rgba(240, 244, 248, 0.6);
 
-  /* === ACCENTS === */
-  --accent-teal: #00E5CC;
-  --accent-cyan: #00B4FF;
-  --accent-gold: #FACC15;
-  --accent-gold-dim: #EAB308;
-  --accent-purple: #9B59B6;
+  /* === ACCENTS (Boing Design Kit) === */
+  --accent-teal: #00D9FF;
+  --accent-cyan: #00D9FF;
+  --accent-gold: #FFB800;
+  --accent-gold-dim: #e5a600;
+  --accent-purple: #6B21A8;
   --mascot-yellow: #FFE000;
 
   /* === BORDERS === */
-  --border-color: rgba(0, 229, 204, 0.2);
-  --border-hover: rgba(0, 229, 204, 0.5);
+  --border-color: rgba(0, 217, 255, 0.2);
+  --border-hover: rgba(0, 217, 255, 0.45);
 
-  /* === GLOWS (for box-shadow / text-shadow) === */
-  --glow-cyan: rgba(0, 229, 204, 0.4);
-  --glow-blue: rgba(0, 180, 255, 0.35);
-  --glow-gold: rgba(250, 204, 21, 0.35);
-  --glow-purple: rgba(155, 89, 182, 0.35);
+  /* === GLOWS === */
+  --glow-cyan: rgba(0, 217, 255, 0.5);
+  --glow-blue: rgba(0, 153, 255, 0.4);
+  --glow-gold: rgba(255, 184, 0, 0.35);
+  --glow-purple: rgba(107, 33, 168, 0.35);
 
   /* === SHADOWS === */
   --shadow: rgba(0, 0, 0, 0.35);
   --shadow-hover: rgba(0, 0, 0, 0.45);
 
-  /* === TYPOGRAPHY === */
-  --font-sans: 'Comfortaa', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Orbitron', sans-serif;
-  --font-display-serif: 'Cinzel', Georgia, serif;
+  /* === TYPOGRAPHY (Boing Design Kit) === */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Poppins', sans-serif;
+  --font-display-serif: 'Poppins', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* === MOTION === */
@@ -55,20 +54,20 @@
   --motion-transition: 0.3s ease;
   --motion-easing: ease-in-out;
 
-  /* Aliases (compatibility) */
+  /* Aliases */
   --primary-color: var(--accent-teal);
-  --secondary-color: var(--accent-cyan);
+  --secondary-color: #0099FF;
   --accent-color: var(--accent-teal);
   --accent-neon: var(--accent-teal);
-  --accent-electric: var(--accent-cyan);
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --error-color: #ef4444;
+  --accent-electric: #0099FF;
+  --success-color: #00FF88;
+  --warning-color: #FFB800;
+  --error-color: #FF4444;
   --text-muted: var(--text-tertiary);
   --surface: var(--bg-tertiary);
   --border: var(--border-color);
-  --glow-cyan-subtle: rgba(0, 229, 204, 0.35);
-  --glow-gold-subtle: rgba(234, 179, 8, 0.25);
+  --glow-cyan-subtle: rgba(0, 217, 255, 0.25);
+  --glow-gold-subtle: rgba(255, 184, 0, 0.25);
 }
 
 /* Step 4: Base Body Styles */
@@ -681,11 +680,22 @@ article.docs-page {
   width: 100%;
   padding: 3rem 0 4rem;
   text-align: center;
-  background: linear-gradient(180deg, rgba(6, 182, 212, 0.06) 0%, transparent 65%);
+  background: linear-gradient(180deg, rgba(0, 217, 255, 0.06) 0%, transparent 65%);
   border-bottom: 1px solid var(--border-color);
 }
 .page-hero-full .page-wrap-inner {
   max-width: 900px;
+}
+.page-hero-full h1,
+.page-hero-full .page-title {
+  font-family: var(--font-display);
+  color: var(--text-primary);
+}
+.page-hero-full .docs-main-title,
+.page-hero-full .community-title,
+.page-hero-full .about-title {
+  color: var(--accent-teal);
+  text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
 }
 .stage-badge-global {
   display: inline-block;
@@ -694,9 +704,9 @@ article.docs-page {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #FFB800;
+  background: rgba(255, 184, 0, 0.15);
+  border: 1px solid rgba(255, 184, 0, 0.4);
   border-radius: 999px;
   margin-bottom: 1rem;
 }

@@ -320,6 +320,12 @@ const { durationMs = 4000 } = Astro.props;
       raf = requestAnimationFrame(render);
     }
 
+    function emitIntroEnded() {
+      try {
+        window.dispatchEvent(new CustomEvent('genesis-intro-ended'));
+      } catch (_) {}
+    }
+
     function endIntro() {
       if (done) return;
       done = true;
@@ -328,6 +334,7 @@ const { durationMs = 4000 } = Astro.props;
       overlay.classList.add('intro-exiting');
       document.documentElement.classList.remove('intro-active');
       document.documentElement.classList.add('intro-complete');
+      emitIntroEnded();
       setTimeout(() => {
         overlay.classList.add('intro-done');
       }, 1200);
@@ -341,6 +348,7 @@ const { durationMs = 4000 } = Astro.props;
       overlay.classList.add('intro-exiting');
       document.documentElement.classList.remove('intro-active');
       document.documentElement.classList.add('intro-complete');
+      emitIntroEnded();
       setTimeout(() => {
         overlay.classList.add('intro-done');
       }, 700);

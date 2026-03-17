@@ -1,0 +1,46 @@
+---
+/**
+ * Boing Design Kit — Input
+ * Transparent bg, cyan border, focus glow.
+ */
+interface Props {
+  type?: string;
+  name?: string;
+  id?: string;
+  placeholder?: string;
+  value?: string;
+  required?: boolean;
+  disabled?: boolean;
+  autocomplete?: string;
+  maxlength?: number;
+  minlength?: number;
+  className?: string;
+}
+
+const {
+  type = 'text',
+  name,
+  id,
+  placeholder = '',
+  value,
+  required = false,
+  disabled = false,
+  autocomplete,
+  maxlength,
+  minlength,
+  className = '',
+} = Astro.props;
+---
+<input
+  type={type}
+  name={name}
+  id={id}
+  placeholder={placeholder}
+  value={value}
+  required={required}
+  disabled={disabled}
+  autocomplete={autocomplete}
+  maxlength={maxlength}
+  minlength={minlength}
+  class={`bg-white-transparent border border-cyan-transparent rounded-md px-4 py-3 text-soft-white placeholder-white-transparent/50 focus:outline-none focus:border-neon-cyan focus:shadow-glow-cyan focus:bg-cyan-transparent-light transition-all duration-200 w-full font-body ${className}`.trim()}
+/>

@@ -1,4 +1,5 @@
 ---
+import '../styles/boing-design-kit.css';
 import '../styles/boing-theme.css';
 import '../styles/design-tokens-cosmic.css';
 import BoingCanvasBackground from '../components/BoingCanvasBackground.astro';
@@ -59,7 +60,7 @@ const noindex = isAuthPage;
     <meta name="twitter:image" content={ogImage} />
 
     <!-- Additional SEO -->
-    <meta name="theme-color" content="#020408" />
+    <meta name="theme-color" content="#0A1E2E" />
     <meta name="keywords" content="Boing, Boing Network, blockchain, DeFi, L1, cryptocurrency, boing.finance, decentralized finance" />
 
     <script type="application/ld+json" set:html={JSON.stringify({
@@ -75,10 +76,10 @@ const noindex = isAuthPage;
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <BoingCanvasBackground path={path} />
     <BoingMascot />
-    <header class="site-header">
-      <a href="/" class="logo">
-        <img src="/assets/icon-only-transparent.png" alt="Boing" width="40" height="40" class="logo-icon" />
-        <span class="gradient-text">Boing Network</span>
+    <header class="site-header bg-ocean-blue/95 backdrop-blur-md border-b border-cyan-transparent shadow-md">
+      <a href="/" class="logo flex items-center gap-2 no-underline">
+        <img src="/assets/icon-only-transparent.png" alt="Boing" width="40" height="40" class="logo-icon flex-shrink-0" />
+        <span class="font-display font-extrabold text-xl text-neon-cyan">Boing Network</span>
       </a>
       <nav class="site-nav" aria-label="Main">
         {path === '/' || path === '' ? (
@@ -288,10 +289,6 @@ const noindex = isAuthPage;
     flex-wrap: wrap;
     gap: 0.75rem 1rem;
     padding: 0.875rem 1.5rem;
-    border-bottom: 1px solid var(--border-color);
-    /* Solid background instead of backdrop-filter for scroll/hover perf */
-    background: rgba(10, 14, 26, 0.97);
-    box-shadow: 0 4px 20px var(--shadow);
   }
   @media (min-width: 768px) {
     .site-header { padding: 0.875rem 2rem; }
@@ -335,12 +332,14 @@ const noindex = isAuthPage;
     gap: 0.5rem 0.75rem;
   }
   .site-header nav a {
-    color: var(--text-secondary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
     font-weight: 500;
-    padding: 0.35rem 0.25rem;
+    padding: 0.35rem 0.5rem;
     line-height: 1.5;
     display: inline-block;
     white-space: nowrap;
+    transition: color 0.2s ease;
   }
   body.testnet-app .site-header nav a {
     padding: 0.4rem 0.35rem;
@@ -349,6 +348,10 @@ const noindex = isAuthPage;
   .site-header nav a:hover,
   .site-header nav a.active {
     color: var(--accent-teal);
+  }
+  .site-header nav a.nav-section.active {
+    color: var(--accent-teal);
+    border-bottom: 2px solid var(--accent-teal);
   }
 
   /* Testnet: far right, distinct color (amber/gold) */
@@ -419,37 +422,39 @@ const noindex = isAuthPage;
     color: var(--accent-teal);
   }
 
-  /* Cosmic Foundation: primary CTA = violet → cyan gradient */
+  /* Boing Design Kit: primary CTA = neon cyan */
   .site-header nav a.nav-cta {
     padding: 0.35rem 0.75rem;
-    border-radius: var(--radius-pill, 999px);
+    border-radius: 8px;
     font-weight: 600;
-    color: white;
-    background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+    font-family: var(--font-display);
+    color: #0A1E2E;
+    background: var(--accent-teal);
     border: none;
-    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
-    transition: all var(--motion-transition);
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
+    transition: all 0.2s ease;
   }
 
   .site-header nav a.nav-cta:hover {
-    color: white;
-    transform: translateY(-1px);
-    box-shadow: 0 0 28px rgba(124, 58, 237, 0.5);
+    color: #0A1E2E;
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
   }
 
-  /* Shared Join Testnet / primary CTA (hero, banners) — Cosmic gradient */
+  /* Shared Join Testnet / primary CTA (hero, banners) — Design Kit */
   .btn-testnet {
-    color: white !important;
-    background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan)) !important;
+    color: #0A1E2E !important;
+    background: var(--accent-teal) !important;
     border: none !important;
     font-weight: 600;
-    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
-    transition: all var(--motion-transition);
+    font-family: var(--font-display);
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
+    transition: all 0.2s ease;
   }
   .btn-testnet:hover {
-    color: white !important;
-    transform: translateY(-1px);
-    box-shadow: 0 0 28px rgba(124, 58, 237, 0.5);
+    color: #0A1E2E !important;
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -465,10 +470,14 @@ const noindex = isAuthPage;
     text-align: center;
     color: var(--text-tertiary);
     font-size: 0.875rem;
+    background: var(--bg-primary);
   }
 
   .site-footer a {
-    color: var(--accent-neon);
+    color: var(--accent-teal);
+  }
+  .site-footer a:hover {
+    color: var(--accent-electric);
   }
 
   .footer-links {

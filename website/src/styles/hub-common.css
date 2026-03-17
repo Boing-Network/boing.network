@@ -116,8 +116,8 @@
 }
 
 .wrong-role-banner {
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(255, 184, 0, 0.12);
+  border: 1px solid rgba(255, 184, 0, 0.35);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-bottom: 1.5rem;
@@ -157,20 +157,27 @@
   outline-offset: 2px;
 }
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+  background: var(--accent-teal);
   color: var(--bg-primary);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
+  font-family: var(--font-display);
+}
+.btn-primary:hover {
+  box-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
+  transform: translateY(-2px);
 }
 .btn-secondary {
-  background: rgba(34, 211, 238, 0.15);
-  color: var(--accent-teal);
-  border: 1px solid rgba(34, 211, 238, 0.3);
+  background: transparent;
+  color: var(--accent-electric, #0099FF);
+  border: 2px solid var(--accent-electric, #0099FF);
 }
 .btn-secondary:hover {
-  background: rgba(34, 211, 238, 0.25);
+  background: var(--accent-electric, #0099FF);
+  color: var(--color-soft-white, #F0F4F8);
 }
 .btn-secondary:focus-visible {
   outline-color: var(--accent-teal);
-  border-color: var(--border-hover, rgba(34, 211, 238, 0.5));
+  border-color: var(--border-hover);
 }
 
 .steps-section {
@@ -192,21 +199,21 @@
 .hub-developer .steps-list--numbered li {
   padding-left: 0.5rem;
   margin-bottom: 0.75rem;
-  border-left: 3px solid rgba(6, 182, 212, 0.4);
+  border-left: 3px solid rgba(0, 217, 255, 0.4);
   padding-left: 0.75rem;
   margin-left: -0.25rem;
 }
 .hub-community .steps-list--numbered li {
   padding-left: 0.5rem;
   margin-bottom: 0.75rem;
-  border-left: 3px solid rgba(251, 191, 36, 0.5);
+  border-left: 3px solid rgba(255, 184, 0, 0.5);
   padding-left: 0.75rem;
   margin-left: -0.25rem;
 }
 .hub-operator .steps-list--numbered li {
   padding-left: 0.5rem;
   margin-bottom: 0.75rem;
-  border-left: 3px solid rgba(124, 58, 237, 0.5);
+  border-left: 3px solid rgba(0, 153, 255, 0.5);
   padding-left: 0.75rem;
   margin-left: -0.25rem;
 }
@@ -256,8 +263,8 @@
   margin-top: 0;
 }
 .hub-page .dashboard-placeholder {
-  background: rgba(30, 41, 59, 0.35);
-  border: 1px dashed rgba(34, 211, 238, 0.3);
+  background: linear-gradient(180deg, rgba(10, 30, 46, 0.5) 0%, rgba(13, 46, 66, 0.5) 100%);
+  border: 1px dashed var(--border-color);
   border-radius: 8px;
   padding: 1.25rem;
   margin: 1rem 0 1.25rem;
@@ -295,15 +302,16 @@
   }
 }
 .hub-metric-card {
-  background: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(34, 211, 238, 0.2);
-  border-radius: 10px;
+  background: linear-gradient(180deg, #0A1E2E 0%, #0D2E42 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
   padding: 1rem;
   text-align: center;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .hub-metric-card:hover {
-  border-color: rgba(34, 211, 238, 0.4);
+  border-color: rgba(0, 217, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.15);
 }
 .hub-metric-card:focus-within {
   outline: 2px solid var(--accent-teal);
@@ -357,11 +365,11 @@
   transition: background-color 0.2s ease;
 }
 .leaderboard-table tbody tr:hover {
-  background: rgba(124, 58, 237, 0.08);
+  background: rgba(0, 217, 255, 0.08);
 }
 .leaderboard-placeholder-note {
-  background: rgba(30, 41, 59, 0.35);
-  border: 1px dashed rgba(34, 211, 238, 0.3);
+  background: linear-gradient(180deg, rgba(10, 30, 46, 0.5) 0%, rgba(13, 46, 66, 0.5) 100%);
+  border: 1px dashed var(--border-color);
   border-radius: 8px;
   padding: 1.25rem;
   margin-top: 1.25rem;
@@ -468,7 +476,7 @@
 
 .code-block {
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(34, 211, 238, 0.2);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1rem;
   overflow-x: auto;
@@ -487,15 +495,15 @@
 .resources-list li {
   margin-bottom: 0.75rem;
   padding: 0.75rem 1rem;
-  background: rgba(30, 41, 59, 0.35);
-  border: 1px solid rgba(34, 211, 238, 0.15);
+  background: linear-gradient(180deg, rgba(10, 30, 46, 0.6) 0%, rgba(13, 46, 66, 0.6) 100%);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 .resources-list li:hover {
-  border-color: rgba(34, 211, 238, 0.35);
+  border-color: rgba(0, 217, 255, 0.4);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 0 16px rgba(0, 217, 255, 0.1);
 }
 @media (prefers-reduced-motion: reduce) {
   .resources-list li:hover { transform: none; }
@@ -540,15 +548,15 @@
 .testnet-progress-bar {
   height: 12px;
   border-radius: 999px;
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(34, 211, 238, 0.25);
+  background: rgba(10, 30, 46, 0.8);
+  border: 1px solid var(--border-color);
   overflow: hidden;
   margin: 0.75rem 0 1rem;
 }
 .testnet-progress-bar__fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent-teal), var(--accent-cyan));
+  background: linear-gradient(90deg, #00D9FF, #00FF88);
   width: calc(var(--progress, 0) * 1%);
   max-width: 100%;
   transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -588,13 +596,13 @@
   min-width: 0;
   height: 24px;
   border-radius: 6px;
-  background: rgba(30, 41, 59, 0.6);
+  background: rgba(10, 30, 46, 0.6);
   overflow: hidden;
 }
 .testnet-chart-bar-fill {
   height: 100%;
   border-radius: 6px;
-  background: linear-gradient(90deg, rgba(251, 191, 36, 0.9), rgba(245, 158, 11, 0.9));
+  background: linear-gradient(90deg, #FFB800, #e5a600);
   width: calc(var(--pct, 0) * 1%);
   max-width: 100%;
   transition: width 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -636,7 +644,7 @@
   left: 16.666%;
   right: 16.666%;
   height: 2px;
-  background: linear-gradient(90deg, rgba(34, 211, 238, 0.4), rgba(34, 211, 238, 0.6));
+  background: linear-gradient(90deg, rgba(0, 217, 255, 0.4), rgba(0, 217, 255, 0.6));
   border-radius: 1px;
   opacity: 0;
   animation: testnet-connector-draw 0.6s ease-out 0.4s forwards;
@@ -671,12 +679,12 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+  background: var(--accent-teal);
   color: var(--bg-primary);
   font-weight: 700;
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
-  box-shadow: 0 4px 14px rgba(34, 211, 238, 0.35);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
 }
 .testnet-step__title {
   font-size: 1rem;
@@ -699,16 +707,16 @@
   margin: 1.25rem 0;
 }
 .testnet-glance__card {
-  background: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(34, 211, 238, 0.2);
+  background: linear-gradient(180deg, #0A1E2E 0%, #0D2E42 100%);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1.25rem;
   text-align: center;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .testnet-glance__card:hover {
-  border-color: rgba(34, 211, 238, 0.4);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  border-color: rgba(0, 217, 255, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 20px rgba(0, 217, 255, 0.1);
 }
 .testnet-glance__value {
   font-size: 1.75rem;
@@ -734,7 +742,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-teal), var(--accent-cyan));
+  background: var(--accent-teal);
   opacity: 0.85;
   animation: hub-pill-in 0.4s ease-out both;
 }
@@ -763,14 +771,14 @@
   font-weight: 700;
   font-family: var(--font-mono);
   color: var(--bg-primary);
-  background: linear-gradient(135deg, #7c3aed, #a78bfa);
+  background: var(--accent-teal);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
   animation: hub-rank-pulse 2s ease-in-out infinite;
 }
 @keyframes hub-rank-pulse {
-  0%, 100% { box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35); }
-  50% { box-shadow: 0 4px 20px rgba(124, 58, 237, 0.5); }
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 217, 255, 0.6); }
+  50% { box-shadow: 0 0 30px rgba(0, 217, 255, 0.8); }
 }
 @media (prefers-reduced-motion: reduce) {
   .hub-rank-badge { animation: none; }
@@ -782,7 +790,7 @@
 .hub-empty-state__icon {
   display: inline-block;
   font-size: 2.5rem;
-  color: rgba(34, 211, 238, 0.4);
+  color: rgba(0, 217, 255, 0.4);
   animation: hub-empty-spin 4s linear infinite;
 }
 @keyframes hub-empty-spin {

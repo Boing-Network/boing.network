@@ -1,0 +1,101 @@
+/* Boing Network Design Kit - Global CSS Variables & Utilities
+   Use with Tailwind (tailwind.config.mjs) for full design system. */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Primary Colors */
+  --color-ocean-blue: #0A1E2E;
+  --color-neon-cyan: #00D9FF;
+  --color-electric-blue: #0099FF;
+  --color-cosmic-purple: #6B21A8;
+  --color-soft-white: #F0F4F8;
+
+  /* Secondary */
+  --color-bio-green: #00FF88;
+  --color-warm-gold: #FFB800;
+  --color-coral-red: #FF4444;
+
+  /* Transparent */
+  --color-cyan-transparent: rgba(0, 217, 255, 0.2);
+  --color-cyan-transparent-light: rgba(0, 217, 255, 0.1);
+  --color-white-transparent: rgba(240, 244, 248, 0.05);
+  --color-white-transparent-dark: rgba(240, 244, 248, 0.5);
+
+  /* Typography */
+  --font-display: 'Poppins', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows & Glows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --glow-cyan: 0 0 20px rgba(0, 217, 255, 0.6);
+  --glow-cyan-lg: 0 0 30px rgba(0, 217, 255, 0.8);
+  --glow-blue: 0 0 20px rgba(0, 153, 255, 0.6);
+  --glow-blue-lg: 0 0 30px rgba(0, 153, 255, 0.8);
+
+  /* Transitions */
+  --transition-micro: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-entrance: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Design kit animations */
+@keyframes boing-glow-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(0, 217, 255, 0.6); }
+  50% { box-shadow: 0 0 20px rgba(0, 217, 255, 1); }
+}
+
+@keyframes boing-float {
+  0%, 100% { transform: translateY(0); opacity: 0.3; }
+  50% { transform: translateY(-20px); opacity: 0.6; }
+}
+
+@keyframes boing-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-glow-pulse {
+  animation: boing-glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: boing-float 4s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: boing-slide-up 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Text glow utility */
+.text-shadow-glow {
+  text-shadow: 0 0 10px rgba(0, 217, 255, 0.6), 0 0 20px rgba(0, 217, 255, 0.3);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-glow-pulse,
+  .animate-float,
+  .animate-slide-up {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
