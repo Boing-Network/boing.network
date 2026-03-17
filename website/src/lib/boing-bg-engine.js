@@ -23,11 +23,6 @@ class BoingBackground {
     this.t = 0; // global time counter (seconds)
     this.last = null;
 
-    // Scroll/interaction-aware: pause animation while user scrolls or interacts to reduce main-thread contention
-    this._scrollPaused = false;
-    this._scrollResumeId = null;
-    this._scrollResumeDelayMs = 400;
-
     // Element pools
     this.stars = [];
     this.shootingStars = [];
@@ -41,34 +36,15 @@ class BoingBackground {
     this._init();
     window.addEventListener('resize', () => { this._resize(); this._init(); });
 
-    // Pause when tab is hidden to save CPU; resume when visible
+    // Pause only when tab is hidden to save CPU; never pause for scroll so animations stay smooth
     if (typeof document !== 'undefined' && document.addEventListener) {
       document.addEventListener('visibilitychange', () => this._onVisibilityChange());
     }
-    this._boundOnScroll = () => this._onScrollStart();
-    this._boundOnWheel = () => this._onScrollStart();
-    this._boundOnTouchStart = () => this._onScrollStart();
+    this._visibilityPaused = false;
   }
 
   _onVisibilityChange() {
-    if (document.visibilityState === 'hidden') {
-      this._scrollPaused = true;
-      if (this._scrollResumeId) {
-        clearTimeout(this._scrollResumeId);
-        this._scrollResumeId = null;
-      }
-    } else if (document.visibilityState === 'visible' && this.raf !== null) {
-      this._scrollPaused = false;
-    }
-  }
-
-  _onScrollStart() {
-    this._scrollPaused = true;
-    if (this._scrollResumeId) clearTimeout(this._scrollResumeId);
-    this._scrollResumeId = setTimeout(() => {
-      this._scrollPaused = false;
-      this._scrollResumeId = null;
-    }, this._scrollResumeDelayMs);
+    this._visibilityPaused = document.visibilityState === 'hidden';
   }
 
   // ─── DEFAULT CONFIG ────────────────────────────────────────────────────────
@@ -224,15 +200,18 @@ class BoingBackground {
   // ─── FACTORY HELPERS ──────────────────────────────────────────────────────
   _newBubble(randomY = false) {
     const { W, H, cfg } = this;
+    const baseRise = 0.25 + Math.random() * 0.55;
     return {
       x: Math.random() * W,
       y: randomY ? H * (0.4 + Math.random() * 0.6) : H + 20,
       r: cfg.bubbleSizeMin + Math.random() * (cfg.bubbleSizeMax - cfg.bubbleSizeMin),
       opacity: cfg.bubbleOpacityMin + Math.random() * (cfg.bubbleOpacityMax - cfg.bubbleOpacityMin),
-      riseSpeed: 0.25 + Math.random() * 0.55,
+      baseRiseSpeed: baseRise,
+      riseSpeed: baseRise,
       wobbleAmp: 0.4 + Math.random() * 0.8,
       wobblePeriod: 2 + Math.random() * 3,
       wobbleOffset: Math.random() * Math.PI * 2,
+      seed: Math.random() * Math.PI * 2,
     };
   }
 
@@ -275,12 +254,9 @@ class BoingBackground {
   // ─── START / STOP ─────────────────────────────────────────────────────────
   start() {
     if (this.raf) return;
-    let frameCount = 0;
     const loop = (ts) => {
       this.raf = requestAnimationFrame(loop);
-      if (this._scrollPaused) return; // skip frame while scrolling or tab hidden
-      frameCount++;
-      if (frameCount % 2 !== 0) return; // run at 30fps to reduce main-thread load
+      if (this._visibilityPaused) return; // only pause when tab is hidden
       if (!this.last) this.last = ts;
       const dt = Math.min((ts - this.last) / 1000, 0.05);
       this.last = ts;
@@ -289,20 +265,10 @@ class BoingBackground {
       this._draw();
     };
     this.raf = requestAnimationFrame(loop);
-    window.addEventListener('scroll', this._boundOnScroll, { passive: true });
-    window.addEventListener('wheel', this._boundOnWheel, { passive: true });
-    window.addEventListener('touchstart', this._boundOnTouchStart, { passive: true });
   }
 
   stop() {
     if (this.raf) { cancelAnimationFrame(this.raf); this.raf = null; }
-    window.removeEventListener('scroll', this._boundOnScroll);
-    window.removeEventListener('wheel', this._boundOnWheel);
-    window.removeEventListener('touchstart', this._boundOnTouchStart);
-    if (this._scrollResumeId) {
-      clearTimeout(this._scrollResumeId);
-      this._scrollResumeId = null;
-    }
   }
 
   // ─── UPDATE ───────────────────────────────────────────────────────────────
@@ -324,19 +290,21 @@ class BoingBackground {
       });
     }
 
-    // Bubbles
+    // Bubbles (rise speed varies subtly over time for dynamism)
     if (cfg.bubblesEnabled) {
       this.bubbles.forEach(b => {
+        b.riseSpeed = (b.baseRiseSpeed || b.riseSpeed) * (1 + 0.12 * Math.sin(t * 0.35 + (b.seed || 0)));
         b.y -= b.riseSpeed;
         b.x += Math.sin(t * (Math.PI * 2 / b.wobblePeriod) + b.wobbleOffset) * b.wobbleAmp * dt;
         if (b.y + b.r < 0) Object.assign(b, this._newBubble(false));
       });
     }
 
-    // Jellyfish drift
+    // Jellyfish drift (horizontal + subtle vertical wave)
     if (cfg.jellyfishEnabled) {
-      this.jellyfish.forEach(j => {
+      this.jellyfish.forEach((j, i) => {
         j.x += j.driftSpeed;
+        j.verticalPhase = (j.verticalPhase || 0) + dt * (0.3 + (i % 3) * 0.1);
         if (j.x > W + j.r * 2) j.x = -j.r * 2;
         if (j.x < -j.r * 2) j.x = W + j.r * 2;
       });
@@ -385,12 +353,23 @@ class BoingBackground {
 
   // ─── DRAW: BASE GRADIENT ──────────────────────────────────────────────────
   _drawBase() {
-    const { ctx, W, H, cfg } = this;
+    const { ctx, W, H, cfg, t } = this;
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, cfg.baseBg[0] || '#020408');
     grad.addColorStop(0.45, cfg.baseBg[1] || '#050c18');
     grad.addColorStop(1, cfg.baseBg[2] || '#060f1e');
     ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    // Subtle breathing glow at top (dynamic)
+    const breath = Math.round((0.03 + 0.02 * Math.sin(t * 0.25)) * 255);
+    const hexAlpha = (breath < 16 ? '0' : '') + breath.toString(16);
+    const glowGrad = ctx.createRadialGradient(W * 0.5, 0, 0, W * 0.5, 0, H * 0.6);
+    const accent = cfg.accentColor || '#00e8c8';
+    glowGrad.addColorStop(0, accent + hexAlpha);
+    glowGrad.addColorStop(0.4, accent + '08');
+    glowGrad.addColorStop(1, 'transparent');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = glowGrad;
     ctx.fillRect(0, 0, W, H);
   }
 
@@ -416,17 +395,20 @@ class BoingBackground {
     const { ctx, W, H, cfg, t } = this;
     ctx.save();
     cfg.nebulaClouds.forEach((cloud, i) => {
-      const drift = Math.sin(t * 0.04 + i * 1.3) * 30;
-      const cx = cloud.x * W + drift;
-      const cy = cloud.y * H + Math.cos(t * 0.03 + i) * 15;
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cloud.r);
-      grad.addColorStop(0, cloud.color + 'cc');
-      grad.addColorStop(0.5, cloud.color + '44');
+      const driftX = Math.sin(t * 0.06 + i * 1.3) * 45 + Math.cos(t * 0.02 + i * 0.7) * 20;
+      const driftY = Math.cos(t * 0.05 + i * 0.9) * 25 + Math.sin(t * 0.03) * 10;
+      const cx = cloud.x * W + driftX;
+      const cy = cloud.y * H + driftY;
+      const breath = 0.85 + 0.2 * Math.sin(t * 0.2 + i);
+      const r = cloud.r * breath;
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      grad.addColorStop(0, cloud.color + 'dd');
+      grad.addColorStop(0.5, cloud.color + '55');
       grad.addColorStop(1, 'transparent');
-      ctx.globalAlpha = cloud.opacity;
+      ctx.globalAlpha = cloud.opacity * (0.9 + 0.15 * Math.sin(t * 0.15 + i * 0.5));
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(cx, cy, cloud.r, 0, Math.PI * 2);
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fill();
     });
     ctx.restore();
@@ -436,22 +418,25 @@ class BoingBackground {
   _drawStars() {
     const { ctx, cfg, t } = this;
     ctx.save();
-    this.stars.forEach(s => {
+    this.stars.forEach((s, i) => {
       const twinkle = 0.5 + 0.5 * Math.sin(t * (Math.PI * 2 / s.twinklePeriod) + s.twinkleOffset);
       const opacity = s.baseOpacity * (0.4 + 0.6 * twinkle);
+      const driftX = Math.sin(t * 0.025 + i * 0.1) * 5;
+      const driftY = Math.cos(t * 0.02 + i * 0.15) * 3;
+      const x = s.x + driftX;
+      const y = s.y + driftY;
       ctx.globalAlpha = opacity;
       ctx.fillStyle = cfg.starColor;
       ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.arc(x, y, s.r, 0, Math.PI * 2);
       ctx.fill();
-      // Subtle cross-sparkle for brighter stars
       if (s.baseOpacity > 0.45 && twinkle > 0.7) {
         ctx.globalAlpha = opacity * 0.4;
         ctx.strokeStyle = cfg.starColor;
         ctx.lineWidth = 0.5;
         const len = s.r * 3;
-        ctx.beginPath(); ctx.moveTo(s.x - len, s.y); ctx.lineTo(s.x + len, s.y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(s.x, s.y - len); ctx.lineTo(s.x, s.y + len); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - len, y); ctx.lineTo(x + len, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, y - len); ctx.lineTo(x, y + len); ctx.stroke();
       }
     });
     ctx.restore();
@@ -495,9 +480,10 @@ class BoingBackground {
   _drawWaterline() {
     const { ctx, W, H, cfg, t } = this;
     const baseY = cfg.waterlineY * H;
+    const amp = cfg.waterlineWaveAmp * (1 + 0.2 * Math.sin(t * 0.4));
+    const phase = t * 1.2 + Math.sin(t * 0.15) * 0.3;
     ctx.save();
 
-    // Refraction shimmer below waterline
     const shimmerGrad = ctx.createLinearGradient(0, baseY, 0, baseY + H * 0.12);
     shimmerGrad.addColorStop(0, cfg.waterlineColor + '18');
     shimmerGrad.addColorStop(1, 'transparent');
@@ -505,7 +491,7 @@ class BoingBackground {
     ctx.beginPath();
     ctx.moveTo(0, baseY);
     for (let x = 0; x <= W; x += 4) {
-      const y = baseY + Math.sin(x * cfg.waterlineWaveFreq + t * 1.2) * cfg.waterlineWaveAmp;
+      const y = baseY + Math.sin(x * cfg.waterlineWaveFreq + phase) * amp;
       ctx.lineTo(x, y);
     }
     ctx.lineTo(W, H);
@@ -513,15 +499,14 @@ class BoingBackground {
     ctx.closePath();
     ctx.fill();
 
-    // Waterline itself
-    ctx.globalAlpha = cfg.waterlineOpacity;
+    ctx.globalAlpha = cfg.waterlineOpacity * (0.92 + 0.08 * Math.sin(t * 0.2));
     ctx.strokeStyle = cfg.waterlineColor;
     ctx.lineWidth = 1.2;
     ctx.shadowColor = cfg.waterlineColor;
     ctx.shadowBlur = 8;
     ctx.beginPath();
     for (let x = 0; x <= W; x += 4) {
-      const y = baseY + Math.sin(x * cfg.waterlineWaveFreq + t * 1.2) * cfg.waterlineWaveAmp;
+      const y = baseY + Math.sin(x * cfg.waterlineWaveFreq + phase) * amp;
       x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
     ctx.stroke();
@@ -557,7 +542,8 @@ class BoingBackground {
     const { ctx, cfg, t } = this;
     ctx.save();
     this.jellyfish.forEach(j => {
-      const bobY = j.y + Math.sin(t * (Math.PI * 2 / j.bobPeriod) + j.bobOffset) * 12;
+      const bobY = j.y + Math.sin(t * (Math.PI * 2 / j.bobPeriod) + j.bobOffset) * 12 +
+        Math.sin(j.verticalPhase || 0) * 8;
 
       // Glow halo
       const halo = ctx.createRadialGradient(j.x, bobY, 0, j.x, bobY, j.r * 2.2);
