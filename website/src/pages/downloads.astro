@@ -1,0 +1,267 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const GITHUB_RELEASES_BASE = 'https://github.com/chiku524/boing.network/releases';
+const HUB_TAG = 'desktop-hub/v0.1.0';
+const HUB_VERSION = '0.1.0';
+
+/** Direct download URL for a release asset (triggers download, not release page). */
+function directDownload(tag: string, filename: string): string {
+  const segment = tag.includes('/') ? tag : `${tag}`;
+  return `${GITHUB_RELEASES_BASE}/download/${segment}/${encodeURIComponent(filename)}`;
+}
+
+const hubDownloads: { platform: string; label: string; filename: string; note?: string }[] = [
+  { platform: 'Windows', label: 'Windows (x64)', filename: `Boing Network Hub_${HUB_VERSION}_x64_en-US.msi`, note: 'MSI installer' },
+  { platform: 'macOS', label: 'macOS (Apple Silicon)', filename: `Boing Network Hub_${HUB_VERSION}_aarch64.dmg` },
+  { platform: 'macOS', label: 'macOS (Intel)', filename: `Boing Network Hub_${HUB_VERSION}_x86_64.dmg` },
+  { platform: 'Linux', label: 'Linux (x64)', filename: `boing-network-hub_${HUB_VERSION}_amd64.deb`, note: 'Debian / Ubuntu' },
+  { platform: 'Linux', label: 'Linux (AppImage)', filename: `Boing Network Hub_${HUB_VERSION}_amd64.AppImage`, note: 'Portable' },
+];
+---
+
+<Layout
+  title="Downloads"
+  description="Download Boing Network Hub — the all-in-one desktop app for Observer, Wallet, Finance, and Testnet."
+  canonical="/downloads"
+>
+  <article class="downloads-page">
+    <header class="downloads-hero full-width">
+      <div class="downloads-hero-inner">
+        <span class="stage-badge">Desktop</span>
+        <h1 class="downloads-title">Downloads</h1>
+        <p class="downloads-lead">Get the Boing Network Hub — one app for the whole ecosystem. Direct download links below; no need to visit the release page.</p>
+      </div>
+    </header>
+
+    <section class="downloads-section full-width">
+      <div class="downloads-section-inner">
+        <h2 class="downloads-app-title">
+          <span class="downloads-app-icon" aria-hidden="true">◇</span>
+          Boing Network Hub
+        </h2>
+        <p class="downloads-app-desc">All-in-one desktop app (Tauri 2): Observer, Wallet, Finance, and Testnet in one window. Windows, macOS, and Linux.</p>
+        <p class="downloads-version">Version {HUB_VERSION}</p>
+
+        <ul class="downloads-list" role="list">
+          {hubDownloads.map((item) => {
+            const url = directDownload(HUB_TAG, item.filename);
+            return (
+              <li class="download-item">
+                <a href={url} class="download-link" download={item.filename} rel="noopener noreferrer">
+                  <span class="download-platform">{item.platform}</span>
+                  <span class="download-label">{item.label}</span>
+                  {item.note && <span class="download-note">{item.note}</span>}
+                  <span class="download-cta">Download</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+
+        <p class="downloads-fallback">
+          Other architectures or formats (e.g. NSIS, .app)? See the <a href={`${GITHUB_RELEASES_BASE}/tag/${HUB_TAG}`} target="_blank" rel="noopener noreferrer">release page</a> for all assets.
+        </p>
+      </div>
+    </section>
+
+    <section class="downloads-other full-width">
+      <div class="downloads-section-inner">
+        <h2 class="downloads-other-title">Web &amp; extension</h2>
+        <p class="downloads-other-lead">No install required — use the ecosystem in your browser or install the wallet extension.</p>
+        <div class="downloads-other-links">
+          <a href="https://boing.observer" target="_blank" rel="noopener" class="downloads-other-link">boing.observer — Explorer</a>
+          <a href="https://boing.express" target="_blank" rel="noopener" class="downloads-other-link">boing.express — Wallet</a>
+          <a href="https://boing.finance" target="_blank" rel="noopener" class="downloads-other-link">boing.finance — DEX</a>
+          <a href="/testnet" class="downloads-other-link">Testnet dashboard</a>
+        </div>
+      </div>
+    </section>
+  </article>
+</Layout>
+
+<style>
+  .full-width {
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+  }
+  .downloads-hero-inner,
+  .downloads-section-inner {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+  .downloads-hero {
+    padding: 4rem 0;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(0, 217, 255, 0.06) 0%, transparent 70%);
+    border-bottom: 1px solid var(--border-color);
+  }
+  .downloads-hero .stage-badge,
+  .downloads-hero .downloads-title,
+  .downloads-hero .downloads-lead {
+    opacity: 0;
+    transform: translateY(16px);
+    animation: downloads-hero-reveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .downloads-hero .stage-badge { animation-delay: 0s; }
+  .downloads-hero .downloads-title { animation-delay: 0.08s; }
+  .downloads-hero .downloads-lead { animation-delay: 0.16s; }
+  @keyframes downloads-hero-reveal { to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .downloads-hero .stage-badge, .downloads-hero .downloads-title, .downloads-hero .downloads-lead { animation: none; opacity: 1; transform: none; }
+  }
+  .stage-badge {
+    display: inline-block;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #FFB800;
+    background: rgba(255, 184, 0, 0.15);
+    border: 1px solid rgba(255, 184, 0, 0.4);
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+  .downloads-title {
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    margin: 0 0 0.5rem;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--accent-teal);
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
+  }
+  .downloads-lead {
+    font-size: 1.15rem;
+    color: var(--text-secondary);
+    margin: 0;
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .downloads-section {
+    padding: 3rem 0 2rem;
+  }
+  .downloads-app-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .downloads-app-icon {
+    color: var(--accent-teal);
+    font-size: 1.25rem;
+  }
+  .downloads-app-desc {
+    color: var(--text-secondary);
+    margin: 0 0 0.25rem;
+    line-height: 1.5;
+  }
+  .downloads-version {
+    font-size: 0.9rem;
+    color: var(--text-tertiary);
+    margin: 0 0 1.5rem;
+  }
+  .downloads-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .download-item {
+    margin: 0;
+  }
+  .download-link {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(180deg, #0A1E2E 0%, #0D2E42 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .download-link:hover {
+    border-color: rgba(0, 217, 255, 0.5);
+    box-shadow: 0 0 16px rgba(0, 217, 255, 0.12);
+  }
+  .download-platform {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    min-width: 4.5rem;
+  }
+  .download-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+  }
+  .download-note {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+  }
+  .download-cta {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent-teal);
+  }
+  .downloads-fallback {
+    font-size: 0.9rem;
+    color: var(--text-tertiary);
+    margin: 0;
+  }
+  .downloads-fallback a {
+    color: var(--accent-teal);
+    text-decoration: underline;
+  }
+  .downloads-fallback a:hover {
+    text-decoration: none;
+  }
+  .downloads-other {
+    padding: 2rem 0 4rem;
+    border-top: 1px solid var(--border-color);
+  }
+  .downloads-other-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+  }
+  .downloads-other-lead {
+    color: var(--text-secondary);
+    margin: 0 0 1rem;
+    line-height: 1.5;
+  }
+  .downloads-other-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+  }
+  .downloads-other-link {
+    font-weight: 500;
+    color: var(--accent-teal);
+    text-decoration: none;
+  }
+  .downloads-other-link:hover {
+    text-decoration: underline;
+  }
+  @media (max-width: 640px) {
+    .downloads-hero-inner,
+    .downloads-section-inner { padding: 0 1.25rem; }
+    .downloads-hero { padding: 3rem 0; }
+    .downloads-section { padding: 2rem 0 1.5rem; }
+    .downloads-other { padding: 1.5rem 0 3rem; }
+  }
+</style>

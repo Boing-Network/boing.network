@@ -1,0 +1,77 @@
+# Build and publish Boing Network Hub (Tauri 2 desktop app) for Windows, macOS, and Linux.
+# Creates a GitHub Release with direct-download assets when you push a tag desktop-hub/v* or run manually.
+name: Release Boing Network Hub
+
+on:
+  push:
+    tags:
+      - 'desktop-hub/v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            args: ''
+          - platform: windows-latest
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          # Workspace root contains desktop-hub/src-tauri; target is at repo root
+          workspaces: '.'
+
+      - name: Install frontend dependencies
+        working-directory: desktop-hub
+        run: npm ci
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop-hub
+          tagName: desktop-hub/v__VERSION__
+          releaseName: 'Boing Network Hub v__VERSION__'
+          releaseBody: |
+            All-in-one desktop app for the Boing Network ecosystem: Observer, Wallet (boing.express), Finance, and Testnet.
+            **Direct downloads** — use the assets below; no need to visit the release page from the [Downloads page](https://boing.network/downloads).
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

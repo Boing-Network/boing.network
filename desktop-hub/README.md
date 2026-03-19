@@ -84,6 +84,26 @@ desktop-hub/
 - **Desktop**: Tauri 2 (Rust), with `tauri-plugin-shell` for opening external links
 - **Embedded apps**: Loaded via iframe from production (or configured) URLs; no code from observer/express/finance is bundled into the hub
 
+## GitHub Release (CI)
+
+Releases are built and published automatically via GitHub Actions.
+
+### What you need to do once
+
+1. **Workflow permissions**  
+   In the repo: **Settings → Actions → General → Workflow permissions** → select **Read and write permissions** (so the workflow can create the release and upload assets). No extra secrets are required; `GITHUB_TOKEN` is provided by GitHub.
+
+2. **Create the release** (first time or after a new version):
+   - **Option A — From a new tag:** Push a tag `desktop-hub/vX.Y.Z` (e.g. `desktop-hub/v0.1.0`). The workflow [release-desktop-hub.yml](../.github/workflows/release-desktop-hub.yml) runs, builds Windows (MSI), macOS (Intel + Apple Silicon DMG), and Linux (Debian + AppImage), and creates/updates the GitHub Release with those assets.
+   - **Option B — Manual run:** In **Actions → Release Boing Network Hub** → **Run workflow**. This builds from the default branch and publishes to the tag `desktop-hub/v{VERSION}` from `tauri.conf.json` (e.g. `desktop-hub/v0.1.0`). Use this to backfill an existing tag with installers.
+
+3. **Downloads page**  
+   [boing.network/downloads](https://boing.network/downloads) uses direct-download URLs to these release assets. If Tauri outputs different filenames, update the `hubDownloads` list in `website/src/pages/downloads.astro`.
+
+### No env vars or secrets needed
+
+The workflow uses the default `GITHUB_TOKEN` only. You do not need to add any repository secrets or environment variables for building or publishing the desktop hub.
+
 ## Why Tauri over Electron
 
 - Smaller binaries and lower memory use
