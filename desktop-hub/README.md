@@ -19,7 +19,7 @@ Users get a single window with a sidebar to switch between these apps, each load
 
 If on Windows you see **"An Application Control policy has blocked this file" (os error 4551)** when running `tauri dev` or `tauri build`, allow Rust/cargo build scripts in your security policy (e.g. Windows Defender Application Control or corporate policy), or run from a path/folder that is not restricted.
 
-**Installed app won’t open (shortcut does nothing):** The app needs the **WebView2** runtime on Windows. Install it from [Microsoft’s WebView2 page](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) (Evergreen Standalone Installer). Then try opening the app again. If it still fails, run the `.exe` from the install folder in a Command Prompt to see any error message, or check **Event Viewer** → Windows Logs → Application for a crash entry for the app.
+**Installed app won’t open (shortcut does nothing, no process in Task Manager):** The app may be exiting immediately. On Windows it writes a **crash log** when it fails: check `%LOCALAPPDATA%\network.boing.hub\crash-log.txt` (e.g. open Run → `%LOCALAPPDATA%\network.boing.hub` and open `crash-log.txt`). Install or repair the **WebView2** runtime from [Microsoft’s WebView2 page](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) (Evergreen Standalone Installer). If the log shows a path or permission error under that folder, try running the app once as Administrator so the folder can be created, then run normally. You can also check **Event Viewer** → Windows Logs → Application for a crash entry.
 
 ## Quick start
 
