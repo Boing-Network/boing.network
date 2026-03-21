@@ -5,8 +5,8 @@ const GITHUB_RELEASES_BASE = 'https://github.com/chiku524/boing.network/releases
 const GITHUB_API_RELEASES = 'https://api.github.com/repos/chiku524/boing.network/releases';
 
 /** Fallback when API fails or no desktop-hub release exists yet (keep in sync with latest release) */
-const FALLBACK_TAG = 'desktop-hub/v0.1.7';
-const FALLBACK_VERSION = '0.1.7';
+const FALLBACK_TAG = 'desktop-hub/v0.1.8';
+const FALLBACK_VERSION = '0.1.8';
 const FALLBACK_DOWNLOADS: { platform: string; label: string; description: string; filename: string; note?: string }[] = [
   { platform: 'Windows', label: 'Windows (x64)', description: 'For Windows 10 and 11. Standard MSI installer with automatic updates.', filename: `Boing Network Hub_${FALLBACK_VERSION}_x64_en-US.msi`, note: 'MSI installer' },
   { platform: 'macOS', label: 'macOS (Apple Silicon)', description: 'For Macs with M1, M2, M3, or newer Apple Silicon chips. Native performance.', filename: `Boing Network Hub_${FALLBACK_VERSION}_aarch64.dmg`, note: 'M1/M2/M3' },
@@ -128,42 +128,34 @@ try {
         <p class="downloads-app-desc">All-in-one desktop app (Tauri 2): Observer, Wallet, Finance, and Testnet in one window. Windows, macOS, and Linux.</p>
         <p id="downloads-hub-version" class="downloads-version">Version {hubVersion} · <a href={`${GITHUB_RELEASES_BASE}/tag/${hubTag}`} target="_blank" rel="noopener noreferrer" class="downloads-release-link">Release</a></p>
 
-        <ul id="downloads-hub-list" class="downloads-list" role="list">
+        <div id="downloads-hub-list" class="downloads-cards" role="list">
           {useApiAssets
             ? apiAssets.map((item) => (
-                <li class="download-item">
-                  <a href={item.url} class="download-link" download={item.name} rel="noopener noreferrer" title={item.name}>
-                    <div class="download-link-content">
-                      <div class="download-link-header">
-                        <span class="download-platform">{item.platform}</span>
-                        <span class="download-label">{item.label}</span>
-                        {item.note && <span class="download-note">{item.note}</span>}
-                      </div>
-                      <p class="download-description">{item.description || 'Download for your platform'}</p>
-                    </div>
+                <a href={item.url} class="download-card" download={item.name} rel="noopener noreferrer" title={item.name} role="listitem">
+                  <div class="download-card-content">
+                    <span class="download-platform">{item.platform}</span>
+                    <h3 class="download-card-title">{item.label}</h3>
+                    {item.note && <span class="download-note">{item.note}</span>}
+                    <p class="download-description">{item.description || 'Download for your platform'}</p>
                     <span class="download-cta">Download →</span>
-                  </a>
-                </li>
+                  </div>
+                </a>
               ))
             : FALLBACK_DOWNLOADS.map((item) => {
                 const url = directDownload(FALLBACK_TAG, item.filename);
                 return (
-                  <li class="download-item">
-                    <a href={url} class="download-link" download={item.filename} rel="noopener noreferrer">
-                      <div class="download-link-content">
-                        <div class="download-link-header">
-                          <span class="download-platform">{item.platform}</span>
-                          <span class="download-label">{item.label}</span>
-                          {item.note && <span class="download-note">{item.note}</span>}
-                        </div>
-                        <p class="download-description">{item.description}</p>
-                      </div>
+                  <a href={url} class="download-card" download={item.filename} rel="noopener noreferrer" role="listitem">
+                    <div class="download-card-content">
+                      <span class="download-platform">{item.platform}</span>
+                      <h3 class="download-card-title">{item.label}</h3>
+                      {item.note && <span class="download-note">{item.note}</span>}
+                      <p class="download-description">{item.description}</p>
                       <span class="download-cta">Download →</span>
-                    </a>
-                  </li>
+                    </div>
+                  </a>
                 );
               })}
-        </ul>
+        </div>
 
         <p class="downloads-fallback">
           Other architectures or formats? See the <a id="downloads-release-link" href={`${GITHUB_RELEASES_BASE}/tag/${hubTag}`} target="_blank" rel="noopener noreferrer">release page</a> for all assets.
@@ -230,7 +222,7 @@ try {
           listEl.innerHTML = sorted
             .map(
               (a) =>
-                `<li class="download-item"><a href="${escUrl(a.browser_download_url)}" class="download-link" download="${esc(a.name)}" rel="noopener noreferrer" title="${esc(a.name)}"><div class="download-link-content"><div class="download-link-header"><span class="download-platform">${esc(a.platform)}</span><span class="download-label">${esc(a.label)}</span>${a.note ? `<span class="download-note">${esc(a.note)}</span>` : ''}</div><p class="download-description">${esc(a.description || 'Download for your platform')}</p></div><span class="download-cta">Download →</span></a></li>`
+                `<a href="${escUrl(a.browser_download_url)}" class="download-card" download="${esc(a.name)}" rel="noopener noreferrer" title="${esc(a.name)}" role="listitem"><div class="download-card-content"><span class="download-platform">${esc(a.platform)}</span><h3 class="download-card-title">${esc(a.label)}</h3>${a.note ? `<span class="download-note">${esc(a.note)}</span>` : ''}<p class="download-description">${esc(a.description || 'Download for your platform')}</p><span class="download-cta">Download →</span></div></a>`
             )
             .join('');
         })
@@ -245,9 +237,13 @@ try {
     max-width: 100vw;
     box-sizing: border-box;
   }
-  .downloads-hero-inner,
-  .downloads-section-inner {
+  .downloads-hero-inner {
     max-width: 800px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+  .downloads-section-inner {
+    max-width: 1000px;
     margin: 0 auto;
     padding: 0 2rem;
   }
@@ -333,23 +329,20 @@ try {
   .downloads-release-link:hover {
     text-decoration: underline;
   }
-  .downloads-list {
+  .downloads-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 0 0 1.5rem;
     list-style: none;
     padding: 0;
-    margin: 0 0 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
   }
-  .download-item {
-    margin: 0;
-  }
-  .download-link {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.5rem;
-    padding: 1.5rem;
+  .download-card {
+    display: block;
+    flex: 1 1 200px;
+    min-width: 200px;
+    max-width: 320px;
+    padding: 0;
     background: linear-gradient(180deg, #0A1E2E 0%, #0D2E42 100%);
     border: 1px solid var(--border-color);
     border-radius: 0.875rem;
@@ -358,58 +351,57 @@ try {
     transition: all 0.2s ease;
     cursor: pointer;
   }
-  .download-link:hover {
+  .download-card:hover {
     border-color: rgba(0, 217, 255, 0.6);
     box-shadow: 0 4px 20px rgba(0, 217, 255, 0.15), 0 0 0 1px rgba(0, 217, 255, 0.1);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
     background: linear-gradient(180deg, #0B2233 0%, #0E3449 100%);
   }
-  .download-link:active {
+  .download-card:active {
     transform: translateY(0);
   }
-  .download-link-content {
-    flex: 1;
-    min-width: 0;
-  }
-  .download-link-header {
+  .download-card-content {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 1rem;
-    margin-bottom: 0.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 1.25rem;
+    height: 100%;
+    box-sizing: border-box;
   }
   .download-platform {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     color: var(--accent-teal);
-    min-width: 4.5rem;
   }
-  .download-label {
-    font-size: 1.05rem;
+  .download-card-title {
+    font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-primary);
+    margin: 0;
+    line-height: 1.3;
   }
   .download-note {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--text-tertiary);
     padding: 0.2rem 0.5rem;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 0.25rem;
   }
   .download-description {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     color: var(--text-secondary);
     margin: 0;
     line-height: 1.5;
+    flex: 1;
   }
   .download-cta {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     color: var(--accent-teal);
-    white-space: nowrap;
-    flex-shrink: 0;
+    margin-top: 0.25rem;
   }
   .downloads-fallback {
     font-size: 0.9rem;
@@ -428,5 +420,6 @@ try {
     .downloads-section-inner { padding: 0 1.25rem; }
     .downloads-hero { padding: 3rem 0; }
     .downloads-section { padding: 2rem 0 3rem; }
+    .download-card { min-width: 100%; max-width: 100%; }
   }
 </style>

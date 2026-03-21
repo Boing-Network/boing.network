@@ -103,6 +103,14 @@ function App() {
     [runCheck, clearStatus]
   );
 
+  // Ensure main window is shown when running in Tauri (helps if window was created hidden)
+  useEffect(() => {
+    if (typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ === "undefined") return;
+    import("@tauri-apps/api/core").then(({ invoke }) => {
+      invoke("show_main_window").catch(() => {});
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (phase !== "app") return;
     setSignedInState(getSignedIn());
