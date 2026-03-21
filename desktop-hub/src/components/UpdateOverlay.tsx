@@ -4,19 +4,42 @@ export type UpdateStatus =
   | { phase: "ready" }
   | { phase: "downloading"; percent: number; detail?: string }
   | { phase: "installing" }
-  | { phase: "error"; message: string };
+  | { phase: "error"; message: string }
+  | { phase: "uptodate" };
 
 type Props = {
   status: UpdateStatus;
   /** When true, show the card with "Checking for updates…" when status is idle (e.g. on updating screen). */
   showCheckingWhenIdle?: boolean;
+  /** Clears persisted update error (Settings → Check for updates). */
+  onDismissError?: () => void;
 };
 
 /** VibeMiner-style overlay: full-screen blur, centered card with icon, spinner, and phase label. */
-export function UpdateOverlay({ status, showCheckingWhenIdle }: Props) {
+export function UpdateOverlay({ status, showCheckingWhenIdle, onDismissError }: Props) {
+  if (status.phase === "uptodate") {
+    return (
+      <div className="update-toast update-toast--success" role="status" aria-live="polite">
+        <p className="update-toast__message">You’re on the latest version.</p>
+      </div>
+    );
+  }
+
+  if (status.phase === "error" && onDismissError) {
+    return (
+      <div className="update-toast update-toast--error" role="alert">
+        <p className="update-toast__message">{status.message}</p>
+        <button type="button" className="update-toast__dismiss" onClick={onDismissError}>
+          Dismiss
+        </button>
+      </div>
+    );
+  }
+
   if (status.phase === "ready" || status.phase === "error") {
     return null;
   }
+
   const showCard =
     status.phase === "checking" ||
     status.phase === "downloading" ||

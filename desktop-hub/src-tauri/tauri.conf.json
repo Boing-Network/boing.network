@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Boing Network Hub",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "identifier": "network.boing.hub",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -15,11 +15,26 @@
       {
         "label": "main",
         "title": "Boing Network Hub",
-        "visible": true,
+        "url": "/app",
         "width": 1280,
         "height": 800,
         "minWidth": 800,
-        "minHeight": 600
+        "minHeight": 600,
+        "center": true,
+        "visible": false,
+        "decorations": true
+      },
+      {
+        "label": "splashscreen",
+        "title": "Boing Network Hub",
+        "url": "/splash",
+        "width": 420,
+        "height": 320,
+        "resizable": false,
+        "center": true,
+        "visible": true,
+        "decorations": false,
+        "transparent": false
       }
     ]
   },
@@ -44,14 +59,21 @@
     "copyright": "",
     "licenseFile": null,
     "resources": [],
-    "externalBin": []
+    "externalBin": [],
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "shell": {
-      "open": true,
-      "scope": [
-        { "name": "open", "cmd": "open", "args": true }
-      ]
+      "open": true
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkwRDYxQTFGMUU0Q0I1RkYKUldUL3RVd2VIeHJXa04xUGtDMkJ4cVRlbmNuRy9mREUvUzd6S05FaDN0Uktod0NmcDh3MFZQMUoK",
+      "endpoints": [
+        "https://github.com/chiku524/boing.network/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

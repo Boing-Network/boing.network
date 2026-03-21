@@ -36,12 +36,16 @@ function isValidView(v: string): v is HubView {
 
 const WINDOW_TITLE_BASE = "Boing Network Hub";
 
-type AppPhase = "intro" | "updating" | "welcome" | "app";
+type AppPhase = "intro" | "welcome" | "app";
 
 type EntryMode = "guest" | "signin" | "register";
 
+/**
+ * When coming from splash (at /app), update check already ran there — skip "updating".
+ * Goes straight to intro (if enabled), welcome, or app.
+ */
 function getInitialPhase(): AppPhase {
-  return getShowIntro() ? "intro" : "updating";
+  return getShowIntro() ? "intro" : getWelcomeDismissed() ? "app" : "welcome";
 }
 
 function App() {
@@ -81,34 +85,22 @@ function App() {
     setShowIntroNextLaunchState(show);
   }, []);
 
+  const dismissUpdateFeedback = useCallback(() => {
+    clearStatus();
+  }, [clearStatus]);
+
   const handleCheckForUpdates = useCallback(() => {
-    runCheck().then((result) => {
+    void runCheck({ persistError: true, notifyUpToDate: true }).then((result) => {
       if (result === "proceed") clearStatus();
     });
   }, [runCheck, clearStatus]);
 
-  const handleIntroComplete = useCallback(
-    (skipIntroNextTime: boolean) => {
-      if (skipIntroNextTime) {
-        setShowIntro(false);
-        setShowIntroNextLaunchState(false);
-      }
-      setPhase("updating");
-      runCheck().then((result) => {
-        clearStatus();
-        if (result === "restarting") return;
-        setPhase(getWelcomeDismissed() ? "app" : "welcome");
-      });
-    },
-    [runCheck, clearStatus]
-  );
-
-  // Ensure main window is shown when running in Tauri (helps if window was created hidden)
-  useEffect(() => {
-    if (typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ === "undefined") return;
-    import("@tauri-apps/api/core").then(({ invoke }) => {
-      invoke("show_main_window").catch(() => {});
-    }).catch(() => {});
+  const handleIntroComplete = useCallback((skipIntroNextTime: boolean) => {
+    if (skipIntroNextTime) {
+      setShowIntro(false);
+      setShowIntroNextLaunchState(false);
+    }
+    setPhase(getWelcomeDismissed() ? "app" : "welcome");
   }, []);
 
   useEffect(() => {
@@ -189,18 +181,10 @@ function App() {
     return <IntroView onComplete={handleIntroComplete} />;
   }
 
-  if (phase === "updating") {
-    return (
-      <div className="update-overlay-screen update-overlay-screen--card" role="status" aria-live="polite">
-        <UpdateOverlay status={updateStatus} showCheckingWhenIdle />
-      </div>
-    );
-  }
-
   if (phase === "welcome") {
     return (
       <>
-        <UpdateOverlay status={updateStatus} />
+        <UpdateOverlay status={updateStatus} onDismissError={dismissUpdateFeedback} />
         <WelcomeView
           onSignIn={() => enterApp("signin")}
           onRegister={() => enterApp("register")}
@@ -212,7 +196,7 @@ function App() {
 
   return (
     <div className="hub">
-      <UpdateOverlay status={updateStatus} />
+      <UpdateOverlay status={updateStatus} onDismissError={dismissUpdateFeedback} />
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>

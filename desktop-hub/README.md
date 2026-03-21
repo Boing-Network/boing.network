@@ -87,16 +87,27 @@ desktop-hub/
 
 ## Auto-updates
 
-On first launch the app checks for updates; users can also use **Settings → Check for updates**. If the Tauri updater plugin is installed and an update server is configured, the app shows download progress and restarts after install (using `tauri-plugin-process` for relaunch). To enable updates:
+The hub uses [Tauri’s updater plugin](https://v2.tauri.app/plugin/updater/): **Rust** (`tauri-plugin-updater` in `Cargo.toml` + `lib.rs`), **`tauri.conf.json`** (`bundle.createUpdaterArtifacts`, `plugins.updater.pubkey` + `endpoints`), and **capabilities** (`updater:default`).
 
-1. Add `tauri-plugin-updater` to `src-tauri/Cargo.toml` (see [Tauri Updater](https://v2.tauri.app/plugin/updater/)) and register it in `lib.rs`.
-2. Configure an update server (e.g. GitHub Releases or CrabNebula) and set `bundle.createUpdaterArtifacts` and endpoints in `tauri.conf.json`.
-3. Without the plugin, the check completes immediately and the user proceeds; “Check for updates” does nothing in that case.
+- On first launch (after intro), the app checks for updates with a **network timeout** so offline or slow networks do not hang indefinitely.
+- **Settings → Check for updates** shows **“You’re on the latest version”** when nothing newer is available, or a **dismissible error** if the check fails.
+- When an update is found, the UI shows progress; after install, **`tauri-plugin-process`** relaunches the app (Windows uses **passive** install mode by default).
+
+**Update manifest URL:** `plugins.updater.endpoints` points at GitHub’s `…/releases/latest/download/latest.json`. That file is uploaded by [`tauri-action`](../.github/workflows/release-desktop-hub.yml) when builds are signed. Ensure the **latest** GitHub Release is a desktop-hub release when you ship hub updates (or publish `latest.json` from another HTTPS URL you control and change the endpoint).
+
+**Signing:** Updates are signed with a minisign keypair. The **public** key is in `tauri.conf.json`. The **private** key must **never** be committed (`desktop-hub/.tauri/` is gitignored). Release CI reads it from GitHub Secrets (see below). To generate a new pair locally (empty password example):
+
+```bash
+cd desktop-hub
+# Unset CI in some shells if the CLI prompts incorrectly
+npx @tauri-apps/cli@2 signer generate -w .tauri/boing-hub.key -f -p ""
+# Paste contents of .tauri/boing-hub.key.pub into plugins.updater.pubkey in tauri.conf.json
+```
 
 ## Tech stack
 
 - **Shell**: React 18 + TypeScript + Vite
-- **Desktop**: Tauri 2 (Rust), with `tauri-plugin-shell` (open links) and `tauri-plugin-process` (relaunch after update)
+- **Desktop**: Tauri 2 (Rust), with `tauri-plugin-shell` (open links), `tauri-plugin-process` (relaunch after update), and `tauri-plugin-updater` (signed updates)
 - **Embedded apps**: Loaded via iframe from production (or configured) URLs; no code from observer/express/finance is bundled into the hub
 
 ## GitHub Release (CI)
@@ -106,13 +117,23 @@ Releases are built and published automatically via GitHub Actions.
 ### What you need to do once
 
 1. **Workflow permissions**  
-   In the repo: **Settings → Actions → General → Workflow permissions** → select **Read and write permissions** (so the workflow can create the release and upload assets). No extra secrets are required; `GITHUB_TOKEN` is provided by GitHub.
+   In the repo: **Settings → Actions → General → Workflow permissions** → select **Read and write permissions** (so the workflow can create the release and upload assets). `GITHUB_TOKEN` is provided by GitHub.
 
-2. **Create the release** (first time or after a new version):
+2. **Updater signing secrets (required for release builds)**  
+   `bundle.createUpdaterArtifacts` is enabled, so **`tauri build` needs the private key** to produce signatures and `latest.json`. Add these repository secrets (same values you would use locally as env vars):
+
+   | Secret | Description |
+   |--------|-------------|
+   | `TAURI_SIGNING_PRIVATE_KEY` | Full text of the minisign **private** key file (e.g. contents of `desktop-hub/.tauri/boing-hub.key`) |
+   | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Optional; leave empty or omit if the key has no password |
+
+   If this secret is missing or wrong, the release workflow will fail at build time. **Back up the private key** outside the repo; losing it means you cannot ship signed updates to existing installs until you rotate the public key in `tauri.conf.json` and ship a one-time manual upgrade.
+
+3. **Create the release** (first time or after a new version):
    - **Option A — From a new tag:** Push a tag `desktop-hub/vX.Y.Z` (e.g. `desktop-hub/v0.1.0`). The workflow [release-desktop-hub.yml](../.github/workflows/release-desktop-hub.yml) runs, builds Windows (MSI), macOS (Intel + Apple Silicon DMG), and Linux (Debian + AppImage), and creates/updates the GitHub Release with those assets.
    - **Option B — Manual run:** In **Actions → Release Boing Network Hub** → **Run workflow**. This builds from the default branch and publishes to the tag `desktop-hub/v{VERSION}` from `tauri.conf.json` (e.g. `desktop-hub/v0.1.0`). Use this to backfill an existing tag with installers.
 
-3. **Downloads page**  
+4. **Downloads page**  
    [boing.network/downloads](https://boing.network/downloads) uses direct-download URLs to these release assets. If Tauri outputs different filenames, update the `hubDownloads` list in `website/src/pages/downloads.astro`.
 
 ### Windows code signing (recommended)

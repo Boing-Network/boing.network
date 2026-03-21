@@ -5,8 +5,8 @@ const GITHUB_RELEASES_BASE = 'https://github.com/chiku524/boing.network/releases
 const GITHUB_API_RELEASES = 'https://api.github.com/repos/chiku524/boing.network/releases';
 
 /** Fallback when API fails or no desktop-hub release exists yet (keep in sync with latest release) */
-const FALLBACK_TAG = 'desktop-hub/v0.1.8';
-const FALLBACK_VERSION = '0.1.8';
+const FALLBACK_TAG = 'desktop-hub/v0.1.9';
+const FALLBACK_VERSION = '0.1.9';
 const FALLBACK_DOWNLOADS: { platform: string; label: string; description: string; filename: string; note?: string }[] = [
   { platform: 'Windows', label: 'Windows (x64)', description: 'For Windows 10 and 11. Standard MSI installer with automatic updates.', filename: `Boing Network Hub_${FALLBACK_VERSION}_x64_en-US.msi`, note: 'MSI installer' },
   { platform: 'macOS', label: 'macOS (Apple Silicon)', description: 'For Macs with M1, M2, M3, or newer Apple Silicon chips. Native performance.', filename: `Boing Network Hub_${FALLBACK_VERSION}_aarch64.dmg`, note: 'M1/M2/M3' },
@@ -330,18 +330,17 @@ try {
     text-decoration: underline;
   }
   .downloads-cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+    gap: 1rem 1.25rem;
     margin: 0 0 1.5rem;
     list-style: none;
     padding: 0;
+    align-items: stretch;
   }
   .download-card {
     display: block;
-    flex: 1 1 200px;
-    min-width: 200px;
-    max-width: 320px;
+    min-width: 0;
     padding: 0;
     background: linear-gradient(180deg, #0A1E2E 0%, #0D2E42 100%);
     border: 1px solid var(--border-color);
@@ -352,10 +351,10 @@ try {
     cursor: pointer;
   }
   .download-card:hover {
-    border-color: rgba(0, 217, 255, 0.6);
-    box-shadow: 0 4px 20px rgba(0, 217, 255, 0.15), 0 0 0 1px rgba(0, 217, 255, 0.1);
-    transform: translateY(-2px);
-    background: linear-gradient(180deg, #0B2233 0%, #0E3449 100%);
+    border-color: rgba(0, 217, 255, 0.28);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 217, 255, 0.06);
+    transform: translateY(-1px);
+    background: linear-gradient(180deg, #0A1F30 0%, #0D2D40 100%);
   }
   .download-card:active {
     transform: translateY(0);
@@ -420,6 +419,6 @@ try {
     .downloads-section-inner { padding: 0 1.25rem; }
     .downloads-hero { padding: 3rem 0; }
     .downloads-section { padding: 2rem 0 3rem; }
-    .download-card { min-width: 100%; max-width: 100%; }
+    .downloads-cards { grid-template-columns: 1fr; }
   }
 </style>

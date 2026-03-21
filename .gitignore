@@ -17,3 +17,14 @@ NUL
 
 # Cloudflare tunnel binary (local)
 .cloudflared/
+
+# Tauri updater signing key (never commit; pubkey lives in tauri.conf.json)
+desktop-hub/.tauri/
+
+# Tauri CLI generated schemas (regenerated on build)
+desktop-hub/src-tauri/gen/
+
+# TypeScript / Vite emit artifacts (local)
+desktop-hub/*.tsbuildinfo
+desktop-hub/vite.config.js
+desktop-hub/vite.config.d.ts

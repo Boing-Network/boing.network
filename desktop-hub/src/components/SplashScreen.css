@@ -1,0 +1,169 @@
+/* Splash intro (dice.express / vibeminer style) */
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.splash-screen__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+}
+
+.splash-screen__symbol {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.25) 0%, rgba(52, 211, 153, 0.2) 100%);
+  border-radius: 1.25rem;
+  animation: splash-symbol-fade 0.8s ease-out;
+}
+
+@keyframes splash-symbol-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.splash-screen__name {
+  margin-top: 1rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, var(--accent-teal), #34d399);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: splash-name-fade 0.6s ease-out 0.15s both;
+}
+
+@keyframes splash-name-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.splash-screen__tagline {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  animation: splash-tagline-fade 0.5s ease-out 0.3s both;
+}
+
+@keyframes splash-tagline-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Update overlay during download/install */
+.splash-update-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 30, 46, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: splash-update-fade-in 0.3s ease-out;
+}
+
+@keyframes splash-update-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.splash-update-overlay__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  border: 1px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(13, 46, 66, 0.95) 0%, rgba(8, 30, 46, 0.98) 100%);
+  padding: 2.5rem 2.5rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.splash-update-overlay__symbol {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.25) 0%, rgba(52, 211, 153, 0.2) 100%);
+  border-radius: 1rem;
+}
+
+.splash-update-overlay__name {
+  margin-top: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, var(--accent-teal), #34d399);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.splash-update-overlay__spinner {
+  width: 28px;
+  height: 28px;
+  margin-top: 1rem;
+  border: 2px solid var(--accent-teal);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: splash-spinner 0.8s linear infinite;
+}
+
+@keyframes splash-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.splash-update-overlay__message {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-screen__symbol,
+  .splash-screen__name,
+  .splash-screen__tagline,
+  .splash-update-overlay {
+    animation: none;
+  }
+}

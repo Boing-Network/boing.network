@@ -1,20 +1,65 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { UpdateStatus } from "../components/UpdateOverlay";
 
 const isTauri = typeof window !== "undefined" && typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== "undefined";
 
+const CHECK_TIMEOUT_MS = 22_000;
+
+export type UpdateCheckOptions = {
+  /** Keep an error state until dismissed (e.g. Settings → Check for updates). */
+  persistError?: boolean;
+  /** Show a short confirmation when no update is available (manual checks). */
+  notifyUpToDate?: boolean;
+};
+
+export type UpdateCheckResult = "restarting" | "proceed" | "error" | "uptodate";
+
+function formatUpdateError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  if (/timed?\s*out|timeout/i.test(raw)) {
+    return "Update check timed out. Check your connection and try again.";
+  }
+  if (/network|fetch|dns|getaddrinfo|connection refused|econnrefused/i.test(raw)) {
+    return "Couldn't reach the update server. Check your connection.";
+  }
+  if (/signature|verification|pubkey|invalid key/i.test(raw)) {
+    return "Update could not be verified. Try again later or reinstall from boing.network/downloads.";
+  }
+  return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw;
+}
+
 export function useUpdateCheck() {
   const [status, setStatus] = useState<UpdateStatus>({ phase: "idle" });
+  const upToDateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const runCheck = useCallback(async (): Promise<"proceed" | "restarting"> => {
+  useEffect(() => {
+    return () => {
+      if (upToDateTimerRef.current != null) clearTimeout(upToDateTimerRef.current);
+    };
+  }, []);
+
+  const runCheck = useCallback(async (options?: UpdateCheckOptions): Promise<UpdateCheckResult> => {
     if (!isTauri) return "proceed";
+
+    if (upToDateTimerRef.current != null) {
+      clearTimeout(upToDateTimerRef.current);
+      upToDateTimerRef.current = null;
+    }
 
     setStatus({ phase: "checking" });
     try {
       const { check } = await import("@tauri-apps/plugin-updater");
-      const update = await check();
+      const update = await check({ timeout: CHECK_TIMEOUT_MS });
 
       if (update == null) {
+        if (options?.notifyUpToDate) {
+          setStatus({ phase: "uptodate" });
+          upToDateTimerRef.current = setTimeout(() => {
+            upToDateTimerRef.current = null;
+            setStatus({ phase: "idle" });
+          }, 2800);
+          return "uptodate";
+        }
         setStatus({ phase: "ready" });
         return "proceed";
       }
@@ -43,13 +88,20 @@ export function useUpdateCheck() {
       }
       return "restarting";
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Update check failed";
-      setStatus({ phase: "error", message });
+      const message = formatUpdateError(err);
+      if (options?.persistError) {
+        setStatus({ phase: "error", message });
+        return "error";
+      }
       return "proceed";
     }
   }, []);
 
   const clearStatus = useCallback(() => {
+    if (upToDateTimerRef.current != null) {
+      clearTimeout(upToDateTimerRef.current);
+      upToDateTimerRef.current = null;
+    }
     setStatus({ phase: "idle" });
   }, []);
 
