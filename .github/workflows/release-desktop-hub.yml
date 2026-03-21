@@ -98,24 +98,20 @@ jobs:
           "
         working-directory: .
 
-      # Minisign private keys are two lines (untrusted comment + base64). Inline env can break newlines;
-      # an empty TAURI_SIGNING_PRIVATE_KEY_PASSWORD also triggers misleading decode errors. Write file + PATH.
-      - name: Write Tauri updater signing key
-        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+      # Minisign key: write to file (preserves newlines). Cannot use `secrets` in step `if:` (invalid workflow).
+      # Optional password only appended to GITHUB_ENV when non-empty.
+      - name: Configure Tauri updater signing
+        shell: bash
         env:
           KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        shell: bash
-        run: |
-          mkdir -p desktop-hub/.tauri
-          python -c "import os, pathlib; pathlib.Path('desktop-hub/.tauri/ci-updater.key').write_text(os.environ['KEY'], encoding='utf-8')"
-
-      # PATH + optional password via GITHUB_ENV so we never set an empty TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
-      - name: Configure Tauri signing environment
-        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
-        shell: bash
-        env:
           _PW: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
+          if [ -z "${KEY}" ]; then
+            echo "::error::Set repository secret TAURI_SIGNING_PRIVATE_KEY (full minisign private key, both lines)."
+            exit 1
+          fi
+          mkdir -p desktop-hub/.tauri
+          python -c "import os, pathlib; pathlib.Path('desktop-hub/.tauri/ci-updater.key').write_text(os.environ['KEY'], encoding='utf-8')"
           echo "TAURI_SIGNING_PRIVATE_KEY_PATH=${{ github.workspace }}/desktop-hub/.tauri/ci-updater.key" >> "$GITHUB_ENV"
           if [ -n "${_PW}" ]; then
             {
