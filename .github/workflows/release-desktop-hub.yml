@@ -109,11 +109,27 @@ jobs:
           mkdir -p desktop-hub/.tauri
           python -c "import os, pathlib; pathlib.Path('desktop-hub/.tauri/ci-updater.key').write_text(os.environ['KEY'], encoding='utf-8')"
 
+      # PATH + optional password via GITHUB_ENV so we never set an empty TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
+      - name: Configure Tauri signing environment
+        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        shell: bash
+        env:
+          _PW: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          echo "TAURI_SIGNING_PRIVATE_KEY_PATH=${{ github.workspace }}/desktop-hub/.tauri/ci-updater.key" >> "$GITHUB_ENV"
+          if [ -n "${_PW}" ]; then
+            {
+              echo 'TAURI_SIGNING_PRIVATE_KEY_PASSWORD<<__TAURI_PW_EOF__'
+              printf '%s' "${_PW}"
+              echo ''
+              echo '__TAURI_PW_EOF__'
+            } >> "$GITHUB_ENV"
+          fi
+
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ github.workspace }}/desktop-hub/.tauri/ci-updater.key
         with:
           projectPath: desktop-hub
           tagName: desktop-hub/v__VERSION__

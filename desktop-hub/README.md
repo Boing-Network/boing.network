@@ -122,15 +122,24 @@ Releases are built and published automatically via GitHub Actions.
 2. **Updater signing secrets (required for release builds)**  
    `bundle.createUpdaterArtifacts` is enabled, so **`tauri build` needs the private key** to produce signatures and `latest.json`.
 
+   **Helper script** (generates a password + keypair, prints pubkey for `tauri.conf.json`, and lists GitHub steps):
+
+   ```bash
+   cd desktop-hub   # or repo root; see script header
+   python scripts/tauri_updater_signing.py generate
+   ```
+
+   Or from repo root: `python desktop-hub/scripts/tauri_updater_signing.py generate`  
+   Optional: `python desktop-hub/scripts/tauri_updater_signing.py instructions` (checklist only).
+
    | Secret | Description |
    |--------|-------------|
-   | `TAURI_SIGNING_PRIVATE_KEY` | **Entire** minisign **private** key file as one secret — **both lines**: (1) `untrusted comment: …` and (2) the long base64 line. Copy from `desktop-hub/.tauri/boing-hub.key` (or your key path). If you paste only the second line, CI fails with *Missing comment in secret key*. |
+   | `TAURI_SIGNING_PRIVATE_KEY` | **Entire** minisign **private** key file — **both lines**: (1) `untrusted comment: …` and (2) the long base64 line. If you paste only the second line, CI fails with *Missing comment in secret key*. |
+   | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | **Only if** the key was created with a password (the helper script does). Paste the same password. If the key has **no** password (`-p ""`), **do not** create this secret — an empty value breaks the build. |
 
-   **Do not** add a repository secret named `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` unless your key was created **with** a password (`tauri signer generate …` without `-p ""`). GitHub turns “missing” secrets into an empty string when referenced; passing an empty password to Tauri can produce the same misleading error.
+   The release workflow writes the private key to a temp file and only sets `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` when that secret is non-empty.
 
-   The release workflow writes this secret to a temp file (`TAURI_SIGNING_PRIVATE_KEY_PATH`) so newlines are preserved on all runners.
-
-   If the secret is missing or wrong, the release workflow fails at build time. **Back up the private key** outside the repo; losing it means you cannot ship signed updates to existing installs until you rotate the public key in `tauri.conf.json` and ship a one-time manual upgrade.
+   **Back up the private key** (and password) outside the repo; losing them blocks signed updates until you rotate `pubkey` in `tauri.conf.json` and users reinstall once.
 
 3. **Create the release** (first time or after a new version):
    - **Option A — From a new tag:** Push a tag `desktop-hub/vX.Y.Z` (e.g. `desktop-hub/v0.1.0`). The workflow [release-desktop-hub.yml](../.github/workflows/release-desktop-hub.yml) runs, builds Windows (MSI), macOS (Intel + Apple Silicon DMG), and Linux (Debian + AppImage), and creates/updates the GitHub Release with those assets.
