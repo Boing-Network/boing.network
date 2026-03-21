@@ -19,7 +19,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![close_splash_and_show_main])
-        .setup(|_app| {
+        .setup(|app| {
             // On Windows, ensure app data dir exists so WebView2 can create EBWebView (see tauri-apps/tauri#12787)
             #[cfg(target_os = "windows")]
             if let Ok(data_dir) = app.path().app_data_dir() {
