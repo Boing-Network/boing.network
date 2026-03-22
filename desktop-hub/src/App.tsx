@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { HUB_APP_URLS, type HubView } from "./config";
 import {
   STORAGE_KEY_VIEW,
@@ -167,9 +168,7 @@ function App() {
     const title = view === "home" ? WINDOW_TITLE_BASE : `${label} — ${WINDOW_TITLE_BASE}`;
     document.title = title;
     if (typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== "undefined") {
-      import("@tauri-apps/api/window")
-        .then((w) => w.getCurrentWindow().setTitle(title))
-        .catch(() => {});
+      void getCurrentWindow().setTitle(title).catch(() => {});
     }
   }, [phase, view]);
 

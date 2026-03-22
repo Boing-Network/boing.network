@@ -1,4 +1,7 @@
 import { useEffect, useState, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check } from "@tauri-apps/plugin-updater";
 import { useNavigate } from "react-router-dom";
 import { isTauri } from "../lib/tauri";
 import UpdateOverlay from "./SplashUpdateOverlay";
@@ -45,10 +48,6 @@ export function SplashScreen() {
       setPhase(PHASE.CHECKING);
 
       try {
-        const [{ check }, { relaunch }] = await Promise.all([
-          import("@tauri-apps/plugin-updater"),
-          import("@tauri-apps/plugin-process"),
-        ]);
         const update = await check({ timeout: 22_000 });
         if (cancelledRef.current) return;
 
@@ -74,7 +73,6 @@ export function SplashScreen() {
 
       if (isTauri) {
         try {
-          const { invoke } = await import("@tauri-apps/api/core");
           await invoke("close_splash_and_show_main");
         } catch {
           /* ignore */

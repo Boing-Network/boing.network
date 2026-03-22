@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check } from "@tauri-apps/plugin-updater";
 import type { UpdateStatus } from "../components/UpdateOverlay";
 
 const isTauri = typeof window !== "undefined" && typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== "undefined";
@@ -48,7 +50,6 @@ export function useUpdateCheck() {
 
     setStatus({ phase: "checking" });
     try {
-      const { check } = await import("@tauri-apps/plugin-updater");
       const update = await check({ timeout: CHECK_TIMEOUT_MS });
 
       if (update == null) {
@@ -81,7 +82,6 @@ export function useUpdateCheck() {
       });
 
       try {
-        const { relaunch } = await import("@tauri-apps/plugin-process");
         await relaunch();
       } catch {
         /* process plugin not installed; installer may restart the app */
