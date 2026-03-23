@@ -1,0 +1,30 @@
+{
+  "name": "Boing Network",
+  "short_name": "Boing",
+  "description": "The DeFi that always bounces back. Authentic L1 blockchain and ecosystem.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0A1E2E",
+  "theme_color": "#0A1E2E",
+  "icons": [
+    {
+      "src": "/assets/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-only-transparent.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -34,10 +34,14 @@ const noindex = isAuthPage;
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonicalUrl} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
-    <link rel="icon" type="image/png" sizes="any" href="/assets/icon-only-transparent.png" />
-    <link rel="shortcut icon" href="/favicon.svg?v=2" />
-    <link rel="apple-touch-icon" href="/assets/icon-only-transparent.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=4" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/logo-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/assets/icon-only-transparent.png" />
+    <link rel="shortcut icon" href="/favicon.svg?v=4" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
 
     <title>{fullTitle}</title>
 
@@ -49,6 +53,7 @@ const noindex = isAuthPage;
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Boing Network — The DeFi that always bounces back!" />
     <meta property="og:site_name" content="Boing Network" />
     <meta property="og:locale" content="en_US" />
 
@@ -58,6 +63,7 @@ const noindex = isAuthPage;
     <meta name="twitter:title" content={fullTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content="Boing Network — The DeFi that always bounces back!" />
 
     <!-- Additional SEO -->
     <meta name="theme-color" content="#0A1E2E" />
@@ -69,7 +75,9 @@ const noindex = isAuthPage;
       "name": "Boing Network",
       "url": siteUrl,
       "description": "Authentic. Decentralized. Optimal. Quality-Assured. Authentic L1 blockchain built from first principles.",
-      "slogan": "Authentic. Decentralized. Optimal. Quality-Assured."
+      "slogan": "The DeFi that always bounces back!",
+      "logo": `${siteUrl}/assets/icon-only-transparent.png`,
+      "image": ogImage
     })} />
   </head>
   <body class:list={[pageClass, `route-${(path || '/').replace(/^\//, '').replace(/\//g, '-') || 'index'}`, isTestnetApp && 'testnet-app']}>
@@ -78,7 +86,7 @@ const noindex = isAuthPage;
     <BoingMascot />
     <header class="site-header bg-ocean-blue/95 backdrop-blur-md border-b border-cyan-transparent shadow-md">
       <a href="/" class="logo flex items-center gap-2 no-underline">
-        <img src="/assets/icon-only-transparent.png" alt="Boing" width="40" height="40" class="logo-icon flex-shrink-0" />
+        <img src="/logo.svg" alt="Boing" width="40" height="40" class="logo-icon flex-shrink-0" />
         <span class="font-display font-extrabold text-xl text-neon-cyan">Boing Network</span>
       </a>
       <nav class="site-nav" aria-label="Main">

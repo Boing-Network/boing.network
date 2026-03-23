@@ -41,7 +41,9 @@ fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         .menu(&tray_menu)
         // Left-click restores the window; use the menu (e.g. right-click on Windows) for Quit.
         .show_menu_on_left_click(false)
-        .tooltip("Boing Network Hub — running in the background. Click to open.");
+        .tooltip(
+            "Boing Network Hub — closing the window keeps the hub in the tray. Click to reopen, or use Quit to exit.",
+        );
 
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
@@ -74,20 +76,18 @@ fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-fn setup_main_close_to_tray(app: &tauri::AppHandle) {
-    let Some(main_win) = app.get_webview_window("main") else {
+/// Hide the main window to the system tray instead of exiting when the user closes it.
+/// Registered on [`tauri::Builder::on_window_event`] so it always runs with the window pipeline
+/// (attaching only in `.setup()` on the webview can miss the hook on some platforms).
+fn main_window_close_to_tray(window: &tauri::Window, event: &WindowEvent) {
+    if window.label() != "main" {
+        return;
+    }
+    let WindowEvent::CloseRequested { api, .. } = event else {
         return;
     };
-    let app_handle = app.clone();
-    main_win.on_window_event(move |event| {
-        let WindowEvent::CloseRequested { api, .. } = event else {
-            return;
-        };
-        api.prevent_close();
-        if let Some(w) = app_handle.get_webview_window("main") {
-            let _ = w.hide();
-        }
-    });
+    api.prevent_close();
+    let _ = window.hide();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -96,6 +96,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .on_window_event(main_window_close_to_tray)
         .invoke_handler(tauri::generate_handler![close_splash_and_show_main])
         .setup(|app| {
             // On Windows, ensure app data dir exists so WebView2 can create EBWebView (see tauri-apps/tauri#12787)
@@ -106,7 +107,6 @@ pub fn run() {
 
             let handle = app.handle().clone();
             setup_tray(&handle)?;
-            setup_main_close_to_tray(&handle);
 
             Ok(())
         })
