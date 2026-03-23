@@ -1,4 +1,0 @@
-opencv-python-headless>=4.8.0
-numpy>=1.24.0
-# Optional: pip install rembg for best robot/environment extraction (extract_robot_and_environment.py)
-# rembg>=2.0.50

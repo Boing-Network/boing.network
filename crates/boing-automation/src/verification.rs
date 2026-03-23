@@ -1,6 +1,6 @@
 //! Cryptographic verification for automation execution.
 //!
-//! See [AUTOMATION-VERIFICATION.md](../../../AUTOMATION-VERIFICATION.md).
+//! See [DEVELOPMENT-AND-ENHANCEMENTS.md](../../../docs/DEVELOPMENT-AND-ENHANCEMENTS.md#appendix-cryptographic-verification-for-decentralized-automation).
 
 use boing_primitives::{hasher, signature::Signature, AccountId, Hash};
 use ed25519_dalek::{Signature as Ed25519Sig, Signer, SigningKey, Verifier, VerifyingKey};

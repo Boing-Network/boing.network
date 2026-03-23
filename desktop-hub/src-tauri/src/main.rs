@@ -13,11 +13,7 @@ fn install_panic_hook() {
         default_hook(info);
         if let Some(log_path) = crash_log_path() {
             let _ = std::fs::create_dir_all(log_path.parent().unwrap_or(std::path::Path::new(".")));
-            let msg = format!(
-                "{} panic: {}",
-                chrono_now(),
-                info.to_string()
-            );
+            let msg = format!("{} panic: {}", chrono_now(), info);
             let _ = std::fs::write(&log_path, format!("{}\n", msg));
         }
     }));

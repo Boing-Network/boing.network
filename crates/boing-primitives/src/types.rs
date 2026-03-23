@@ -129,6 +129,15 @@ pub enum TransactionPayload {
     Unbond { amount: u128 },
 }
 
+/// Borrowed fields exposed by [`TransactionPayload::as_contract_deploy`].
+pub type ContractDeployFields<'a> = (
+    &'a [u8],
+    Option<&'a str>,
+    Option<&'a [u8]>,
+    Option<&'a str>,
+    Option<&'a str>,
+);
+
 impl TransactionPayload {
     /// Max length for asset_name in ContractDeployWithPurpose (UTF-8 bytes).
     pub const MAX_ASSET_NAME_LEN: usize = 256;
@@ -136,7 +145,7 @@ impl TransactionPayload {
     pub const MAX_ASSET_SYMBOL_LEN: usize = 32;
 
     /// Returns (bytecode, purpose_category, description_hash, asset_name, asset_symbol) if this is a contract deploy payload.
-    pub fn as_contract_deploy(&self) -> Option<(&[u8], Option<&str>, Option<&[u8]>, Option<&str>, Option<&str>)> {
+    pub fn as_contract_deploy(&self) -> Option<ContractDeployFields<'_>> {
         match self {
             TransactionPayload::ContractDeploy { bytecode } => {
                 Some((bytecode.as_slice(), None, None, None, None))

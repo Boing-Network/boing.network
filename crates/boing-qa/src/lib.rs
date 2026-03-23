@@ -279,7 +279,8 @@ fn check_content_policy(
             if !term.is_empty() && lower.contains(&term.to_lowercase()) {
                 return Some(QaReject::new(
                     RuleId(RuleId::CONTENT_POLICY_VIOLATION.to_string()),
-                    format!("Deployment metadata contains governance-forbidden content (vulgarity/offensiveness policy)"),
+                    "Deployment metadata contains governance-forbidden content (vulgarity/offensiveness policy)"
+                        .to_string(),
                 ));
             }
         }

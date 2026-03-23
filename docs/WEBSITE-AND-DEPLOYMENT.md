@@ -64,7 +64,7 @@ boing.network/
 | /docs/security | docs/SECURITY-STANDARDS.md | DDoS, rate limits, incident response |
 | /developers/quickstart | README, docs/BUILD-ROADMAP.md | Crates, CLI, local dev |
 | /developers/sdk | docs/DEVELOPMENT-AND-ENHANCEMENTS.md | boing init, dev, deploy |
-| /developers/automation | docs/AUTOMATION-VERIFICATION.md | Verification types, incentives |
+| /developers/automation | docs/DEVELOPMENT-AND-ENHANCEMENTS.md (appendix) | Verification types, incentives |
 | /network/status | API (D1 or live RPC) | Block height, validator count |
 | /network/testnet | docs/TESTNET.md | Bootnodes, faucet, config |
 | /resources | docs/BUILD-ROADMAP.md, docs/NETWORK-COST-ESTIMATE.md | Roadmap, cost estimates |

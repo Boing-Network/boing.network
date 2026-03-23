@@ -36,16 +36,16 @@ All project documentation lives in **[docs/](docs/)**:
 | [RUNBOOK.md](docs/RUNBOOK.md) | Operational runbook for node operators |
 | [TESTNET.md](docs/TESTNET.md) | Join testnet (single vs multi-node, bootnodes, faucet); Testnet Portal (registration, dashboards, quests); Incentivized testnet (readiness, promotion, mainnet migration) |
 | [DECENTRALIZATION-AND-NETWORKING.md](docs/DECENTRALIZATION-AND-NETWORKING.md) | Advanced P2P, peer discovery, WebRTC signaling, light clients |
-| [DEVELOPMENT-AND-ENHANCEMENTS.md](docs/DEVELOPMENT-AND-ENHANCEMENTS.md) | SDK, automation, dApp incentives, enhancement vision |
+| [DEVELOPMENT-AND-ENHANCEMENTS.md](docs/DEVELOPMENT-AND-ENHANCEMENTS.md) | SDK, automation, dApp incentives, enhancement vision; appendix covers cryptographic verification for automation |
 | [SECURITY-STANDARDS.md](docs/SECURITY-STANDARDS.md) | Protocol, network, application, and operational security |
-| [QUALITY-ASSURANCE-NETWORK.md](docs/QUALITY-ASSURANCE-NETWORK.md) | Protocol-enforced QA: only quality assets allowed on-chain; automation + community pool; Appendix A (deployer checklist), Appendix B (malice definition) |
+| [QUALITY-ASSURANCE-NETWORK.md](docs/QUALITY-ASSURANCE-NETWORK.md) | Protocol-enforced QA: automation + community pool; Appendices A–C (deployer checklist, malice definition, governance-mutable rules) |
 | [BUILD-ROADMAP.md](docs/BUILD-ROADMAP.md) | Implementation tasks and phases |
-| [AUTOMATION-VERIFICATION.md](docs/AUTOMATION-VERIFICATION.md) | Cryptographic verification for decentralized automation |
 | [NETWORK-COST-ESTIMATE.md](docs/NETWORK-COST-ESTIMATE.md) | Cost overview and economic parameters |
 | [RPC-API-SPEC.md](docs/RPC-API-SPEC.md) | JSON-RPC API reference |
 | [INFRASTRUCTURE-SETUP.md](docs/INFRASTRUCTURE-SETUP.md) | Testnet bootnodes, Cloudflare tunnel, deploy config |
 | [WEBSITE-AND-DEPLOYMENT.md](docs/WEBSITE-AND-DEPLOYMENT.md) | Website spec, Cloudflare setup (D1, R2, KV), deployment |
-| [BOING-EXPRESS-WALLET.md](docs/BOING-EXPRESS-WALLET.md) | Boing Express wallet: bootstrap, integration & Chrome Web Store |
+| [BOING-EXPRESS-WALLET.md](docs/BOING-EXPRESS-WALLET.md) | Boing Express wallet: bootstrap, integration, Chrome Web Store, portal sign-in (Part 3) |
+| [BOING-OBSERVER-AND-EXPRESS.md](docs/BOING-OBSERVER-AND-EXPRESS.md) | Observer + Express: in-repo vs build-outside; full explorer spec for boing.observer |
 
 ## Website
 

@@ -1,7 +1,7 @@
 # Boing Network — Security Standards
 
 > **Purpose:** Top-tier security across protocol, network, application, and operational layers.  
-> **References:** [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [AUTOMATION-VERIFICATION.md](AUTOMATION-VERIFICATION.md)
+> **References:** [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md) (appendix: cryptographic verification)
 
 ---
 
@@ -85,7 +85,7 @@
 
 | Measure | Description | Status |
 |---------|-------------|--------|
-| **ZKPs / Fraud Proofs** | Verify off-chain execution | Design in AUTOMATION-VERIFICATION |
+| **ZKPs / Fraud Proofs** | Verify off-chain execution | Design in DEVELOPMENT-AND-ENHANCEMENTS (appendix) |
 | **Decentralized Oracles** | External data via decentralized oracle networks | Roadmap |
 | **Executor Incentives & Slashing** | Economic alignment for honest execution | ✓ ExecutorIncentive |
 

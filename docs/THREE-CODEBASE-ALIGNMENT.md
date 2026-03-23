@@ -47,7 +47,7 @@ For wallet connection and dApp integration (e.g. portal sign-in, chain switching
 | **Mainnet** | `0x1b02` (6914) | `boing-mainnet` |
 
 - **boing.express** exposes these via `boing_chainId` and `boing_switchChain`; the portal and any dApp should use the same values when checking or requesting a network switch.
-- **boing.observer** does not currently implement wallet connect; when it does, it should use the same chain IDs and the same Boing provider/auth contract as the portal (see [WALLET-CONNECTION-AND-SIGNIN.md](WALLET-CONNECTION-AND-SIGNIN.md)).
+- **boing.observer** does not currently implement wallet connect; when it does, it should use the same chain IDs and the same Boing provider/auth contract as the portal (see [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) Part 3).
 
 ---
 
@@ -85,7 +85,7 @@ Use this to avoid drift after deployments.
 ## 7. Infrastructure and deployment
 
 - **RPC:** Single public testnet RPC at `https://testnet-rpc.boing.network/` (e.g. via Cloudflare Tunnel from a node with `--faucet-enable`). All three apps depend on it for testnet.
-- **Portal (sign-in):** boing.network Cloudflare Pages + Workers (D1 for nonces/sessions). Wallet signs BLAKE3(message) with Ed25519; portal verifies with same stack (@noble/ed25519 + @noble/hashes). See [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md), [WALLET-CONNECTION-AND-SIGNIN.md](WALLET-CONNECTION-AND-SIGNIN.md) (includes rollout and smoke test).
+- **Portal (sign-in):** boing.network Cloudflare Pages + Workers (D1 for nonces/sessions). Wallet signs BLAKE3(message) with Ed25519; portal verifies with same stack (@noble/ed25519 + @noble/hashes). See [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) (Part 3: rollout and smoke test).
 - **Self-host:** Optional static + minimal API runbook and vendoring are documented in [BOING-INFRASTRUCTURE-INDEPENDENCE.md](BOING-INFRASTRUCTURE-INDEPENDENCE.md).
 
 When the mainnet RPC URL is published, set the corresponding env in all three codebases and redeploy; do not point mainnet to the testnet URL.
@@ -94,7 +94,7 @@ When the mainnet RPC URL is published, set the corresponding env in all three co
 
 ## 8. References
 
-- [BOING-OBSERVER-AND-EXPRESS-BUILD.md](BOING-OBSERVER-AND-EXPRESS-BUILD.md) — What’s in repo vs what to build for observer and wallet.
+- [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md) — What’s in repo vs what to build; full explorer spec for boing.observer.
 - [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) — Wallet integration, signing, portal 401 troubleshooting.
 - [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) — RPC, CORS, Cloudflare Tunnel.
 - [RPC-API-SPEC.md](RPC-API-SPEC.md) — Boing JSON-RPC methods used by all three.
