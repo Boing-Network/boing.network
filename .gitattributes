@@ -1,3 +1,5 @@
 # Ensure JSON and Tauri config use LF so CI (including Windows) parses them correctly
 *.json text eol=lf
 desktop-hub/src-tauri/** text eol=lf
+# Icons are binary — the rule above must not apply to them (PNG signature includes 0x0D 0x0A; text eol=lf corrupts it).
+desktop-hub/src-tauri/icons/** binary

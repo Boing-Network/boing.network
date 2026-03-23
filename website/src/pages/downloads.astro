@@ -6,7 +6,7 @@ const GITHUB_API_RELEASES = 'https://api.github.com/repos/chiku524/boing.network
 
 /** Fallback when API fails or no desktop-hub release exists yet (keep in sync with latest release) */
 const FALLBACK_TAG = 'desktop-hub/v0.1.11';
-const FALLBACK_VERSION = '0.1.15';
+const FALLBACK_VERSION = '0.1.16';
 const FALLBACK_DOWNLOADS: { platform: string; label: string; description: string; filename: string; note?: string }[] = [
   { platform: 'Windows', label: 'Windows (x64)', description: 'For Windows 10 and 11. Standard MSI installer with automatic updates.', filename: `Boing Network Hub_${FALLBACK_VERSION}_x64_en-US.msi`, note: 'MSI installer' },
   { platform: 'macOS', label: 'macOS (Apple Silicon)', description: 'For Macs with M1, M2, M3, or newer Apple Silicon chips. Native performance.', filename: `Boing Network Hub_${FALLBACK_VERSION}_aarch64.dmg`, note: 'M1/M2/M3' },
