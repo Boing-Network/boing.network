@@ -495,77 +495,307 @@ body,
   transition: opacity var(--transition-view);
 }
 
-/* Home view — app dashboard (desktop window feel) */
-.hub-main .home {
-  margin: 16px;
-  padding: 28px 36px;
-  max-width: 720px;
-  overflow-y: auto;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.2),
-    0 2px 4px -2px rgba(0, 0, 0, 0.15);
+/* Home view — full-bleed animated backdrop + centered column */
+.home-root {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 40px);
+  overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border-color) transparent;
 }
-.hub-main .home::-webkit-scrollbar {
+.home-root::-webkit-scrollbar {
   width: 6px;
 }
-.hub-main .home::-webkit-scrollbar-track {
+.home-root::-webkit-scrollbar-track {
   background: transparent;
 }
-.hub-main .home::-webkit-scrollbar-thumb {
+.home-root::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: 3px;
 }
 
-.home h1 {
-  font-size: 1.35rem;
-  font-weight: 600;
-  margin: 0 0 6px 0;
-  color: var(--text-primary);
-  letter-spacing: 0.01em;
+.home-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.home-bg-gradient {
+  position: absolute;
+  inset: -40%;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 20%, rgba(0, 217, 255, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 15%, rgba(52, 211, 153, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 70% at 50% 100%, rgba(99, 102, 241, 0.1) 0%, transparent 45%);
+  animation: home-bg-drift 22s ease-in-out infinite alternate;
+}
+
+.home-bg-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(0, 217, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 217, 255, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 85% 75% at 50% 45%, black 15%, transparent 70%);
+  animation: home-grid-pan 36s linear infinite;
+}
+
+.home-bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.45;
+  mix-blend-mode: screen;
+  animation: home-orb-float 18s ease-in-out infinite;
+}
+.home-bg-orb--a {
+  width: min(55vw, 420px);
+  height: min(55vw, 420px);
+  left: -8%;
+  top: 10%;
+  background: radial-gradient(circle, rgba(0, 217, 255, 0.55) 0%, transparent 70%);
+  animation-delay: 0s;
+  animation-duration: 19s;
+}
+.home-bg-orb--b {
+  width: min(45vw, 340px);
+  height: min(45vw, 340px);
+  right: -5%;
+  bottom: 15%;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.4) 0%, transparent 70%);
+  animation-delay: -6s;
+  animation-duration: 24s;
+}
+.home-bg-orb--c {
+  width: min(40vw, 280px);
+  height: min(40vw, 280px);
+  left: 35%;
+  bottom: -10%;
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.35) 0%, transparent 70%);
+  animation-delay: -12s;
+  animation-duration: 21s;
+}
+
+.home-bg-shimmer {
+  position: absolute;
+  inset: -50% -20%;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.03) 48%,
+    rgba(0, 217, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.03) 52%,
+    transparent 60%
+  );
+  animation: home-shimmer 14s ease-in-out infinite;
+}
+
+@keyframes home-bg-drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(3%, 2%) scale(1.05);
+  }
+}
+
+@keyframes home-grid-pan {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(48px, 48px);
+  }
+}
+
+@keyframes home-orb-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(4%, -3%) scale(1.06);
+  }
+  66% {
+    transform: translate(-3%, 4%) scale(0.96);
+  }
+}
+
+@keyframes home-shimmer {
+  0%,
+  100% {
+    transform: translateX(-15%) rotate(0deg);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateX(15%) rotate(0.5deg);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-bg-gradient,
+  .home-bg-grid,
+  .home-bg-orb,
+  .home-bg-shimmer {
+    animation: none;
+  }
+  .home-bg-gradient {
+    transform: none;
+  }
+  .home-title {
+    animation: none;
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    color: var(--text-primary);
+  }
+  .home-card {
+    animation: none;
+    opacity: 1;
+  }
+  .home-card:hover {
+    transform: none;
+  }
+}
+
+.hub-main .home {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.home-header {
+  margin-bottom: clamp(1.25rem, 4vw, 2rem);
+}
+
+.home-kicker {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent-teal);
+  margin-bottom: 0.65rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 217, 255, 0.25);
+  background: rgba(0, 217, 255, 0.06);
+}
+
+.home-title {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  background: linear-gradient(120deg, #f0f4f8 0%, var(--accent-teal) 45%, #a5f3fc 75%, #f0f4f8 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: home-title-shine 8s ease-in-out infinite;
+}
+
+@keyframes home-title-shine {
+  0%,
+  100% {
+    background-position: 0% center;
+  }
+  50% {
+    background-position: 100% center;
+  }
 }
 
 .home-lead {
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin: 0 0 28px 0;
-  line-height: 1.5;
+  font-size: clamp(0.875rem, 1.5vw, 0.95rem);
+  margin: 0 auto;
+  max-width: 42em;
+  line-height: 1.6;
+  text-wrap: balance;
 }
 
 .home-cards {
   display: grid;
+  grid-template-columns: 1fr;
   gap: 12px;
-  margin-top: 8px;
+  text-align: left;
+}
+
+@media (min-width: 520px) {
+  .home-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
 }
 
 .home-card {
   display: block;
-  padding: 18px 20px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  padding: 1rem 1.15rem;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 217, 255, 0.18);
+  background: rgba(13, 46, 66, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
   text-decoration: none;
   color: var(--text-primary);
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    background 0.22s ease,
+    transform 0.22s ease;
   cursor: pointer;
-  text-align: left;
+  opacity: 0;
+  animation: home-card-rise 0.55s ease forwards;
+}
+
+@keyframes home-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .home-card:hover {
-  border-color: var(--accent-teal);
-  background: rgba(0, 217, 255, 0.06);
-  box-shadow: 0 0 20px rgba(0, 217, 255, 0.12);
+  border-color: rgba(0, 217, 255, 0.45);
+  background: rgba(13, 46, 66, 0.65);
+  box-shadow:
+    0 0 0 1px rgba(0, 217, 255, 0.08),
+    0 12px 32px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
 }
+
 .home-card:focus-visible {
   outline: 2px solid var(--accent-teal);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 .home-card:focus {
   outline: none;
+}
+
+.home-card-last-used {
+  border-color: rgba(0, 217, 255, 0.35);
+  box-shadow: 0 0 0 1px rgba(0, 217, 255, 0.12);
 }
 
 .home-card-head {
@@ -573,34 +803,34 @@ body,
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .home-card h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.02rem;
   font-weight: 600;
   color: var(--accent-teal);
 }
 
 .home-card-badge {
   flex-shrink: 0;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--accent-teal);
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(0, 217, 255, 0.12);
-  border: 1px solid var(--border-color);
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(0, 217, 255, 0.14);
+  border: 1px solid rgba(0, 217, 255, 0.25);
 }
 
 .home-card p {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .home-card button {
