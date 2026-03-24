@@ -21,7 +21,9 @@ fn install_panic_hook() {
 
 fn chrono_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let t = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     format!("{}", t.as_secs())
 }
 
@@ -29,7 +31,9 @@ fn crash_log_path() -> Option<std::path::PathBuf> {
     #[cfg(target_os = "windows")]
     {
         std::env::var_os("LOCALAPPDATA").map(|local| {
-            std::path::PathBuf::from(local).join("network.boing.hub").join("crash-log.txt")
+            std::path::PathBuf::from(local)
+                .join("network.boing.hub")
+                .join("crash-log.txt")
         })
     }
     #[cfg(not(target_os = "windows"))]

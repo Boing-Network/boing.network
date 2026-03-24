@@ -9,7 +9,9 @@ async fn close_splash_and_show_main(app: tauri::AppHandle) -> Result<(), String>
     let splash = app
         .get_webview_window("splashscreen")
         .ok_or("splash window not found")?;
-    let main_win = app.get_webview_window("main").ok_or("main window not found")?;
+    let main_win = app
+        .get_webview_window("main")
+        .ok_or("main window not found")?;
     splash.close().map_err(|e| e.to_string())?;
     main_win.show().map_err(|e| e.to_string())?;
     main_win.set_focus().map_err(|e| e.to_string())?;
@@ -21,6 +23,17 @@ fn show_main_window(app: &tauri::AppHandle) {
         let _ = win.show();
         let _ = win.set_focus();
     }
+}
+
+/// Second instance was launched; surface the existing Hub (splash or main, e.g. from tray).
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn focus_running_hub_instance(app: &tauri::AppHandle) {
+    if let Some(splash) = app.get_webview_window("splashscreen") {
+        let _ = splash.show();
+        let _ = splash.set_focus();
+        return;
+    }
+    show_main_window(app);
 }
 
 const TRAY_MENU_SHOW: &str = "tray_show";
@@ -92,7 +105,16 @@ fn main_window_close_to_tray(window: &tauri::Window, event: &WindowEvent) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            focus_running_hub_instance(app);
+        }));
+    }
+
+    builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
