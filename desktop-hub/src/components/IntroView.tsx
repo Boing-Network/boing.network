@@ -55,8 +55,8 @@ export function IntroView({ onComplete }: Props) {
         <div className="intro-view__symbol" aria-hidden="true">
           <img src="/favicon.svg" alt="" className="intro-view__logo" />
         </div>
-        <h1 className="intro-view__title">Boing Network</h1>
-        <p className="intro-view__tag">Hub</p>
+        <h1 className="intro-view__title">Boing Network Hub</h1>
+        <p className="intro-view__tag">Observer, wallet &amp; apps — one desktop app.</p>
       </div>
       <label className="intro-view__checkbox">
         <input

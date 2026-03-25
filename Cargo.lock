@@ -645,7 +645,7 @@ dependencies = [
 
 [[package]]
 name = "boing-network-hub"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "serde_json",
  "tauri",

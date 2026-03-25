@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { useNavigate } from "react-router-dom";
 import { isTauri as isTauriApp } from "../lib/tauri";
-import UpdateOverlay from "./SplashUpdateOverlay";
+import SplashDesktopUpdateOverlay from "./SplashUpdateOverlay";
+import { BoingLoaderDots } from "./BoingLoaderDots";
 import "./SplashScreen.css";
 
 const INTRO_DURATION_MS = 1800;
@@ -18,16 +19,16 @@ const PHASE = {
 } as const;
 
 /**
- * Frameless splash window: intro animation → update check (and optional download) → close and show main.
- * Same pattern as dice.express and vibeminer for reliable cold start and update flow.
+ * Frameless splash: dice.express-style intro → inline “checking” on the same canvas →
+ * full-card overlay only while downloading/installing (quiet check like BountyHub) → main window.
  */
 export function SplashScreen() {
   const navigate = useNavigate();
-  const [phase, setPhase] = useState<typeof PHASE[keyof typeof PHASE]>(PHASE.INTRO);
+  const [phase, setPhase] = useState<(typeof PHASE)[keyof typeof PHASE]>(PHASE.INTRO);
   const [introDone, setIntroDone] = useState(false);
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+  const cancelledRef = useRef(false);
 
-  // Intro animation: minimal fade-in (dice.express / vibeminer style)
   useEffect(() => {
     if (!isTauriApp()) {
       setIntroDone(true);
@@ -37,63 +38,60 @@ export function SplashScreen() {
     return () => clearTimeout(t);
   }, []);
 
-  // After intro, run update check and optional download (StrictMode-safe: each mount gets its own cancelled flag)
+  useEffect(() => {
+    if (isTauriApp()) return;
+    if (!introDone) return;
+    navigate("/app", { replace: true });
+  }, [introDone, navigate]);
+
   useEffect(() => {
     if (!introDone || !isTauriApp()) return;
 
-    let cancelled = false;
+    cancelledRef.current = false;
 
     const run = async () => {
       setPhase(PHASE.CHECKING);
-      console.info("[Boing Hub] Checking for updates…");
 
       try {
         const update = await check({ timeout: 22_000 });
-        if (cancelled) return;
+        if (cancelledRef.current) return;
 
         if (update) {
           setUpdateVersion(update.version);
           setPhase(PHASE.DOWNLOADING);
 
-          await update.downloadAndInstall(() => {
-            if (cancelled) return;
+          await update.downloadAndInstall((ev) => {
+            if (cancelledRef.current) return;
+            if (ev.event === "Finished") {
+              setPhase(PHASE.INSTALLING);
+            }
           });
 
-          if (cancelled) return;
-          setPhase(PHASE.INSTALLING);
+          if (cancelledRef.current) return;
           await relaunch();
           return;
         }
-      } catch (err) {
-        // Missing capability, network, TLS, or signature verify — continue to app.
-        console.warn("[Boing Hub] Update check failed:", err);
+      } catch {
+        /* missing updater / network / TLS — continue (dice.express / BountyHub) */
       }
 
-      if (cancelled) return;
+      if (cancelledRef.current) return;
       setPhase(PHASE.OPENING);
 
-      if (isTauriApp()) {
-        try {
-          await invoke("close_splash_and_show_main");
-        } catch {
-          /* ignore */
-        }
-      } else {
-        navigate("/app", { replace: true });
+      try {
+        await invoke("close_splash_and_show_main");
+      } catch {
+        /* ignore */
       }
     };
 
     void run();
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
     };
-  }, [introDone, navigate]);
+  }, [introDone]);
 
-  const showSplashOverlay =
-    phase === PHASE.CHECKING ||
-    phase === PHASE.OPENING ||
-    phase === PHASE.DOWNLOADING ||
-    phase === PHASE.INSTALLING;
+  const showDownloadOverlay = phase === PHASE.DOWNLOADING || phase === PHASE.INSTALLING;
 
   return (
     <>
@@ -102,12 +100,18 @@ export function SplashScreen() {
           <div className="splash-screen__symbol" aria-hidden>
             <img src="/favicon.svg" alt="" width={72} height={72} />
           </div>
-          <h1 className="splash-screen__name">Boing Network</h1>
-          <p className="splash-screen__tagline">Hub</p>
+          <h1 className="splash-screen__name">Boing Network Hub</h1>
+          <p className="splash-screen__tagline">Observer, wallet &amp; apps — one desktop app.</p>
+          {phase === PHASE.CHECKING && (
+            <div className="splash-screen__checking">
+              <BoingLoaderDots size="sm" />
+              <p className="splash-screen__checking-label">Checking for updates…</p>
+            </div>
+          )}
         </div>
       </div>
-      {showSplashOverlay && (
-        <UpdateOverlay phase={phase} version={updateVersion} />
+      {showDownloadOverlay && (
+        <SplashDesktopUpdateOverlay phase={phase} version={updateVersion} />
       )}
     </>
   );

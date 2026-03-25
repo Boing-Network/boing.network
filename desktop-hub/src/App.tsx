@@ -184,7 +184,11 @@ function App() {
   if (phase === "welcome") {
     return (
       <>
-        <UpdateOverlay status={updateStatus} onDismissError={dismissUpdateFeedback} />
+        <UpdateOverlay
+          status={updateStatus}
+          onDismissError={dismissUpdateFeedback}
+          onRetryError={() => void runCheck({ persistError: true })}
+        />
         <WelcomeView
           onSignIn={() => enterApp("signin")}
           onRegister={() => enterApp("register")}
@@ -196,7 +200,11 @@ function App() {
 
   return (
     <div className="hub">
-      <UpdateOverlay status={updateStatus} onDismissError={dismissUpdateFeedback} />
+      <UpdateOverlay
+        status={updateStatus}
+        onDismissError={dismissUpdateFeedback}
+        onRetryError={() => void runCheck({ persistError: true })}
+      />
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>

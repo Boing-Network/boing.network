@@ -1,42 +1,33 @@
 import { BoingLoaderDots } from "./BoingLoaderDots";
 
 type Props = {
-  phase: "checking" | "opening" | "downloading" | "installing";
+  phase: "downloading" | "installing";
   version: string | null;
 };
 
 /**
- * Full-screen overlay during update check, download, and install in the splash window.
- * Checking/opening phases are shown so cold-start updates are visibly triggered.
+ * Full-screen overlay during update download/install only (dice.express DesktopUpdateOverlay pattern).
+ * “Checking” stays on the main splash canvas, not here.
  */
-export default function SplashUpdateOverlay({ phase, version }: Props) {
+export default function SplashDesktopUpdateOverlay({ phase, version }: Props) {
   const label =
-    phase === "checking"
-      ? "Checking for updates…"
-      : phase === "opening"
-        ? "Starting…"
-        : phase === "downloading"
-          ? version
-            ? `Downloading v${version}…`
-            : "Downloading update…"
-          : "Installing… The app will be restarting in a moment.";
+    phase === "downloading"
+      ? version
+        ? `Downloading v${version}…`
+        : "Downloading update…"
+      : "Installing… The app will be restarting in a moment.";
 
   return (
-    <div
-      className="splash-update-overlay"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <div className="splash-update-overlay__card">
-        <div className="splash-update-overlay__symbol" aria-hidden>
+    <div className="desktop-update-overlay" aria-live="polite" aria-busy="true">
+      <div className="desktop-update-overlay__card">
+        <div className="desktop-update-overlay__symbol" aria-hidden>
           <img src="/favicon.svg" alt="" width={56} height={56} />
         </div>
-        <p className="splash-update-overlay__name">Boing Network Hub</p>
-        <div className="splash-update-overlay__loader">
-          <BoingLoaderDots size="lg" />
+        <p className="desktop-update-overlay__name">Boing Network Hub</p>
+        <div className="desktop-update-overlay__loader">
+          <BoingLoaderDots size="sm" />
         </div>
-        <p className="splash-update-overlay__message">{label}</p>
+        <p className="desktop-update-overlay__message">{label}</p>
       </div>
     </div>
   );

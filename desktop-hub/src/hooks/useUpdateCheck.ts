@@ -64,7 +64,8 @@ export function useUpdateCheck() {
         return "proceed";
       }
 
-      setStatus({ phase: "downloading", percent: 0 });
+      const targetVersion = update.version;
+      setStatus({ phase: "downloading", percent: 0, version: targetVersion });
       let contentLength = 0;
       let downloaded = 0;
 
@@ -74,9 +75,9 @@ export function useUpdateCheck() {
         } else if (event.event === "Progress" && event.data?.chunkLength != null) {
           downloaded += event.data.chunkLength;
           const percent = contentLength > 0 ? Math.min(100, Math.round((downloaded / contentLength) * 100)) : 0;
-          setStatus({ phase: "downloading", percent, detail: `${percent}%` });
+          setStatus({ phase: "downloading", percent, version: targetVersion, detail: `${percent}%` });
         } else if (event.event === "Finished") {
-          setStatus({ phase: "installing" });
+          setStatus({ phase: "installing", version: targetVersion });
         }
       });
 
