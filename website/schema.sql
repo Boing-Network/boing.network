@@ -94,3 +94,13 @@ CREATE TABLE IF NOT EXISTS portal_auth_nonces (
 );
 
 CREATE INDEX IF NOT EXISTS idx_portal_auth_nonces_expires ON portal_auth_nonces(expires_at);
+
+-- VibeMiner / node runners: D1 overrides for public network listings (merged by GET /api/networks).
+-- id must match the client (e.g. vibeminer shared): boing-devnet
+CREATE TABLE IF NOT EXISTS network_listings (
+  id TEXT PRIMARY KEY,
+  node_download_url TEXT,
+  node_command_template TEXT,
+  node_binary_sha256 TEXT,
+  updated_at TEXT
+);

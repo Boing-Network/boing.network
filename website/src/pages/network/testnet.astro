@@ -104,9 +104,14 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
       <a href="/network/faucet" class="cta-link">Go to Faucet →</a>
     </section>
 
-    <section class="section">
+    <section class="section" id="vibeminer">
       <h2>One-click mining (VibeMiner)</h2>
-      <p>Prefer a desktop UI? <strong>VibeMiner</strong> offers one-click mining/validating for Boing. See <a href="/pdfs/VIBEMINER-INTEGRATION.pdf" target="_blank" rel="noopener">VIBEMINER-INTEGRATION (PDF)</a>.</p>
+      <p>
+        Prefer a desktop UI? <strong>VibeMiner</strong> offers one-click mining/validating for Boing. See
+        <a href="/pdfs/VIBEMINER-INTEGRATION.pdf" target="_blank" rel="noopener">VIBEMINER-INTEGRATION (PDF)</a>.
+        The live app reads <a href="/api/networks">/api/networks</a> (JSON) for the <code>boing-devnet</code> package URL and command template.
+      </p>
+      <p class="muted networks-api-line" id="networks-api-status" aria-live="polite">Checking network listing…</p>
     </section>
 
     <section class="section incentivized-callout" id="incentivized-callout">
@@ -231,4 +236,43 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
     .dedicated-cards { min-width: 0; }
     .section { margin-top: 1.25rem; }
   }
+  .networks-api-line { font-size: 0.9rem; margin-top: 0.75rem; }
 </style>
+
+<script is:inline>
+  (function () {
+    var el = document.getElementById('networks-api-status');
+    if (!el) return;
+    fetch('/api/networks', { credentials: 'omit' })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data || !data.ok || !Array.isArray(data.networks)) {
+          el.textContent = 'Could not read /api/networks.';
+          return;
+        }
+        if (data.warning) {
+          el.textContent = data.warning;
+          return;
+        }
+        var d = data.networks.filter(function (n) {
+          return n && n.id === 'boing-devnet';
+        })[0];
+        if (!d) {
+          el.textContent = 'No boing-devnet entry in /api/networks.';
+          return;
+        }
+        if (d.node_download_url && d.node_command_template) {
+          el.textContent =
+            'Listing active: VibeMiner can download the devnet node package from the URL in /api/networks.';
+        } else {
+          el.textContent =
+            'boing-devnet is listed, but D1 has not set node_download_url and node_command_template yet (see website migrations).';
+        }
+      })
+      .catch(function () {
+        el.textContent = 'Could not load /api/networks.';
+      });
+  })();
+</script>
