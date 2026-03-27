@@ -7,7 +7,7 @@
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
   'Access-Control-Max-Age': '86400',
 };
 
@@ -90,7 +90,11 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS });
 }
 
-export async function onRequestGet(context) {
+/**
+ * Build JSON body and status. Shared by GET and HEAD — HEAD must not 404 on Pages
+ * (otherwise clients that probe with HEAD see a failed request).
+ */
+async function networksJsonResponse(context) {
   const { env } = context;
   const headers = { 'Content-Type': 'application/json', ...CORS };
 
@@ -99,7 +103,15 @@ export async function onRequestGet(context) {
 
   if (!env.DB) {
     const networks = bases.map((b) => ({ ...b }));
-    return Response.json({ ok: true, networks, warning: 'Database not configured; D1 overrides skipped' }, { headers });
+    return {
+      status: 200,
+      headers,
+      body: JSON.stringify({
+        ok: true,
+        networks,
+        warning: 'Database not configured; D1 overrides skipped',
+      }),
+    };
   }
 
   try {
@@ -116,11 +128,28 @@ export async function onRequestGet(context) {
     }
 
     const networks = bases.map((b) => mergeListing(b, byId.get(b.id)));
-    return Response.json({ ok: true, networks }, { headers });
+    return {
+      status: 200,
+      headers,
+      body: JSON.stringify({ ok: true, networks }),
+    };
   } catch (e) {
-    return Response.json(
-      { ok: false, message: e.message || 'Server error' },
-      { status: 500, headers }
-    );
+    return {
+      status: 500,
+      headers,
+      body: JSON.stringify({ ok: false, message: e.message || 'Server error' }),
+    };
   }
+}
+
+export async function onRequestGet(context) {
+  const { status, headers, body } = await networksJsonResponse(context);
+  return new Response(body, { status, headers });
+}
+
+export async function onRequestHead(context) {
+  const { status, headers, body } = await networksJsonResponse(context);
+  const h = new Headers(headers);
+  h.set('Content-Length', String(new TextEncoder().encode(body).length));
+  return new Response(null, { status, headers: h });
 }
