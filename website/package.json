@@ -10,6 +10,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "build:pdfs": "node scripts/generate-pdfs.js",
+    "networks:release-sql": "node scripts/network-listings-release-sql.mjs",
     "deploy": "npm run build && npx wrangler pages deploy dist --project-name=boing-network"
   },
   "dependencies": {

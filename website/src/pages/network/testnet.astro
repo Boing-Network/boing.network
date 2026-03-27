@@ -109,7 +109,7 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
       <p>
         Prefer a desktop UI? <strong>VibeMiner</strong> offers one-click mining/validating for Boing. See
         <a href="/pdfs/VIBEMINER-INTEGRATION.pdf" target="_blank" rel="noopener">VIBEMINER-INTEGRATION (PDF)</a>.
-        The live app reads <a href="/api/networks">/api/networks</a> (JSON) for the <code>boing-devnet</code> package URL and command template.
+        The live app reads <a href="/api/networks">/api/networks</a> (JSON): <code>boing-devnet</code> (Windows), <code>boing-devnet-linux</code>, and <code>boing-devnet-macos</code> — each includes <code>platform</code>, download URL, and command template.
       </p>
       <p class="muted networks-api-line" id="networks-api-status" aria-live="polite">Checking network listing…</p>
     </section>
@@ -256,19 +256,33 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
           el.textContent = data.warning;
           return;
         }
-        var d = data.networks.filter(function (n) {
-          return n && n.id === 'boing-devnet';
-        })[0];
-        if (!d) {
-          el.textContent = 'No boing-devnet entry in /api/networks.';
-          return;
-        }
-        if (d.node_download_url && d.node_command_template) {
+        var want = ['boing-devnet', 'boing-devnet-linux', 'boing-devnet-macos'];
+        var ready = [];
+        var missing = [];
+        want.forEach(function (id) {
+          var n = data.networks.filter(function (x) {
+            return x && x.id === id;
+          })[0];
+          if (!n) {
+            missing.push(id);
+            return;
+          }
+          if (n.node_download_url && n.node_command_template) ready.push(id);
+          else missing.push(id);
+        });
+        if (missing.length === 0) {
           el.textContent =
-            'Listing active: VibeMiner can download the devnet node package from the URL in /api/networks.';
+            'Listings active: Windows, Linux, and macOS devnet packages are configured in /api/networks.';
+        } else if (ready.length > 0) {
+          el.textContent =
+            'Partial: ' +
+            ready.length +
+            ' of 3 platform listings have download URL + command. Missing or incomplete: ' +
+            missing.join(', ') +
+            '.';
         } else {
           el.textContent =
-            'boing-devnet is listed, but D1 has not set node_download_url and node_command_template yet (see website migrations).';
+            'Devnet entries exist but D1 has not set node_download_url / node_command_template yet (see website migrations).';
         }
       })
       .catch(function () {

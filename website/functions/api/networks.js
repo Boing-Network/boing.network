@@ -1,7 +1,8 @@
 /**
  * GET /api/networks
  * Static network definitions merged with D1 rows from network_listings (same id overlays node_* fields).
- * Used by VibeMiner and other clients; id "boing-devnet" must match @vibeminer/shared.
+ * Used by VibeMiner and other clients; id "boing-devnet" must match @vibeminer/shared (Windows).
+ * Linux / macOS use "boing-devnet-linux" and "boing-devnet-macos" — pick by `platform`.
  */
 
 const CORS = {
@@ -33,14 +34,32 @@ function isAllowedDownloadUrl(urlString) {
 /** Default bootnodes (keep in sync with website/src/config/testnet.ts fallbacks). */
 const DEFAULT_BOOTNODES = ['/ip4/73.84.106.121/tcp/4001', '/ip4/73.84.106.121/tcp/4001'];
 
+const DEVNET_BASE = {
+  rpc_url: 'https://testnet-rpc.boing.network/',
+  bootnodes: DEFAULT_BOOTNODES,
+  chain_id_hex: '0x1b01',
+};
+
+/** Same bootnodes/RPC/chain; `platform` helps clients choose a listing without parsing zip names. */
 function staticNetworks() {
   return [
     {
       id: 'boing-devnet',
-      name: 'Boing Devnet',
-      rpc_url: 'https://testnet-rpc.boing.network/',
-      bootnodes: DEFAULT_BOOTNODES,
-      chain_id_hex: '0x1b01',
+      name: 'Boing Devnet (Windows x86_64)',
+      platform: 'windows',
+      ...DEVNET_BASE,
+    },
+    {
+      id: 'boing-devnet-linux',
+      name: 'Boing Devnet (Linux x86_64)',
+      platform: 'linux',
+      ...DEVNET_BASE,
+    },
+    {
+      id: 'boing-devnet-macos',
+      name: 'Boing Devnet (macOS aarch64)',
+      platform: 'macos',
+      ...DEVNET_BASE,
     },
   ];
 }
