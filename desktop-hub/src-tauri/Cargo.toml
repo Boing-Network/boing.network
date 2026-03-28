@@ -1,6 +1,6 @@
 [package]
 name = "boing-network-hub"
-version = "0.1.22"
+version = "0.1.23"
 description = "Boing Network all-in-one desktop hub"
 authors = ["Boing Network"]
 license = ""

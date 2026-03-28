@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { useNavigate } from "react-router-dom";
-import { isTauri as isTauriApp } from "../lib/tauri";
+import { isTauri as isTauriApp, isWindowsWebview } from "../lib/tauri";
 import SplashDesktopUpdateOverlay from "./SplashUpdateOverlay";
 import { BoingLoaderDots } from "./BoingLoaderDots";
 import "./SplashScreen.css";
@@ -52,27 +52,38 @@ export function SplashScreen() {
     const run = async () => {
       setPhase(PHASE.CHECKING);
 
+      let update: Awaited<ReturnType<typeof check>> = null;
       try {
-        const update = await check({ timeout: 22_000 });
-        if (cancelledRef.current) return;
+        update = await check({ timeout: 22_000 });
+      } catch {
+        /* missing updater / network / TLS — continue (dice.express / BountyHub) */
+      }
+      if (cancelledRef.current) return;
 
-        if (update) {
-          setUpdateVersion(update.version);
-          setPhase(PHASE.DOWNLOADING);
+      if (update) {
+        setUpdateVersion(update.version);
+        setPhase(PHASE.DOWNLOADING);
 
+        try {
           await update.downloadAndInstall((ev) => {
             if (cancelledRef.current) return;
             if (ev.event === "Finished") {
               setPhase(PHASE.INSTALLING);
             }
           });
-
           if (cancelledRef.current) return;
-          await relaunch();
+          // Windows: successful updates exit the process inside the updater after spawning NSIS.
+          if (!isWindowsWebview()) {
+            try {
+              await relaunch();
+            } catch {
+              /* process plugin missing */
+            }
+          }
           return;
+        } catch {
+          /* download / verify / install failed — open main on current build */
         }
-      } catch {
-        /* missing updater / network / TLS — continue (dice.express / BountyHub) */
       }
 
       if (cancelledRef.current) return;

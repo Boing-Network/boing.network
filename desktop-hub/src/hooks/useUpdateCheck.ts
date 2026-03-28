@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import type { UpdateStatus } from "../components/UpdateOverlay";
-import { isTauri } from "../lib/tauri";
+import { isTauri, isWindowsWebview } from "../lib/tauri";
 
 const CHECK_TIMEOUT_MS = 22_000;
 
@@ -81,10 +81,12 @@ export function useUpdateCheck() {
         }
       });
 
-      try {
-        await relaunch();
-      } catch {
-        /* process plugin not installed; installer may restart the app */
+      if (!isWindowsWebview()) {
+        try {
+          await relaunch();
+        } catch {
+          /* process plugin not installed */
+        }
       }
       return "restarting";
     } catch (err) {

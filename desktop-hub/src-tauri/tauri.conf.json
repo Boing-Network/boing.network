@@ -1,8 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Boing Network Hub",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "identifier": "network.boing.hub",
+  "mainBinaryName": "boing-network-hub",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
@@ -53,7 +54,9 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": "http://timestamp.digicert.com",
       "wix": null,
-      "nsis": null
+      "nsis": {
+        "installerHooks": "./windows/installer-hooks.nsh"
+      }
     },
     "longDescription": "All-in-one desktop hub for the Boing Network ecosystem: Observer (block explorer), Express (wallet), and Finance (DEX).",
     "shortDescription": "Boing Network desktop hub",
