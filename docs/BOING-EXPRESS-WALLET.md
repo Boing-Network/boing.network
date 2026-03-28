@@ -55,7 +55,7 @@ Create a new project for a crypto wallet with the following specs.
 - View Boing address (64-char hex), copy button.
 - Balance: boing_getBalance or boing_getAccount (decimal strings for u128).
 - Send BOING: form (to, amount), build Transfer, sign, boing_submitTransaction.
-- Testnet faucet: boing_faucetRequest or link to boing.network/network/faucet with address.
+- Testnet faucet: boing_faucetRequest or link to boing.network/faucet with address.
 - Network selector: Mainnet / Testnet (RPC URLs).
 
 **Tech stack**
@@ -355,7 +355,7 @@ Users should **not** have to enter their password every time they open the walle
 | RPC methods, params, errors | docs/RPC-API-SPEC.md |
 | Address, Transaction, AccountState, bincode | crates/boing-primitives/src/types.rs |
 | Signable hash, SignedTransaction | crates/boing-primitives/src/signature.rs |
-| Faucet | RPC boing_faucetRequest; or boing.network/network/faucet |
+| Faucet | RPC boing_faucetRequest; or boing.network/faucet |
 
 ---
 

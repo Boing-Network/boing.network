@@ -76,7 +76,7 @@ Use this to avoid drift after deployments.
 
 - [ ] **boing.network** footer: links to Explorer (boing.observer) and Wallet (boing.express).
 - [ ] **boing.network** Resources: tiles for “Block Explorer” and “Boing Wallet” pointing to boing.observer and boing.express.
-- [ ] **boing.observer** header: “Wallet” link to boing.express; “Get Testnet BOING” to boing.network/network/faucet.
+- [ ] **boing.observer** header: “Wallet” link to boing.express; “Get Testnet BOING” to boing.network/faucet.
 - [ ] **boing.observer** footer: boing.network and boing.express links.
 - [ ] **boing.express** (web + extension): explorer base URL = `https://boing.observer` for account/tx deep links; docs/faucet point to boing.network.
 

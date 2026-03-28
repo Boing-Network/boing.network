@@ -1,7 +1,7 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import Icon from '../../components/Icon.astro';
-import { BOOTNODES, isTestnetLive } from '../../config/testnet';
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import { BOOTNODES, isTestnetLive } from '../config/testnet';
 ---
 
 <Layout
@@ -34,7 +34,7 @@ import { BOOTNODES, isTestnetLive } from '../../config/testnet';
 
     <section class="section">
       <h2>How to use</h2>
-      <p>When the testnet is live, the official bootnode list will be published here and on the <a href="/network/testnet">Join Testnet</a> page. Example:</p>
+      <p>When the testnet is live, the official bootnode list will be published here and on the <a href="/testnet/join">Join Testnet</a> page. Example:</p>
       <pre class="code-block"><code>./boing-node --p2p_listen /ip4/0.0.0.0/tcp/4001 \
   --bootnodes /ip4/testnet.boing.network/tcp/4001 \
   --validator --rpc-port 8545</code></pre>
@@ -57,8 +57,8 @@ import { BOOTNODES, isTestnetLive } from '../../config/testnet';
     </section>
 
     <nav class="section nav-links">
-      <a href="/network/testnet">← Join Testnet</a>
-      <a href="/network/faucet">Faucet →</a>
+      <a href="/testnet/join">← Join Testnet</a>
+      <a href="/faucet">Faucet →</a>
     </nav>
     </div>
   </article>

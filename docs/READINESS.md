@@ -100,7 +100,7 @@ Complete these **before** running bootnodes. See [BOING-NETWORK-ESSENTIALS.md](B
 After steps 1–3:
 
 - **VibeMiner** — Should connect to bootnodes and sync
-- **Faucet** — [boing.network/network/faucet](https://boing.network/network/faucet) succeeds
+- **Faucet** — [boing.network/faucet](https://boing.network/faucet) succeeds
 - **boing.observer** — With testnet RPC configured, shows blocks
 - **Terminal** — `boing-node --bootnodes <LIST> --validator` syncs
 

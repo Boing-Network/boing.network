@@ -197,7 +197,7 @@ Implement in this order:
 
 ### 8. Out of scope for MVP
 
-- Faucet UI (already at boing.network/network/faucet).
+- Faucet UI (already at boing.network/faucet).
 - Submitting transactions (explorer is read-only).
 - Wallet connection (optional later).
 - Historical analytics, charts, or indexing beyond what the RPC provides (can be a later phase).

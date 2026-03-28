@@ -26,19 +26,19 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
         <p>Choose your path: developer, user, or node operator. Each role has its own hub with registration, dashboard, and resources.</p>
         <span class="card-arrow">Open portal →</span>
       </a>
-      <a href="/network/single-vs-multi" class="dedicated-card card-reveal">
+      <a href="/single-vs-multi" class="dedicated-card card-reveal">
         <span class="card-icon"><Icon name="node" size={28} /></span>
         <h2>Single node vs multi-node</h2>
         <p>When to run alone vs joining the public testnet. Commands and comparison.</p>
         <span class="card-arrow">Read more →</span>
       </a>
-      <a href="/network/bootnodes" class="dedicated-card card-reveal">
+      <a href="/bootnodes" class="dedicated-card card-reveal">
         <span class="card-icon"><Icon name="network" size={28} /></span>
         <h2>Bootnodes</h2>
         <p>What bootnodes are, how to use them, and where to get the official list.</p>
         <span class="card-arrow">Read more →</span>
       </a>
-      <a href="/network/faucet" class="dedicated-card featured card-reveal">
+      <a href="/faucet" class="dedicated-card featured card-reveal">
         <span class="card-icon"><Icon name="faucet" size={28} /></span>
         <h2>Faucet</h2>
         <p>Get testnet BOING for gas and staking. One request per account per 60 seconds.</p>
@@ -58,13 +58,13 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
         <li>Build: <code>cargo build --release</code></li>
         <li>Run a single node (validator): <code>./target/release/boing-node --validator --rpc-port 8545</code></li>
         <li>Or join the testnet (when bootnodes are live): <code>--p2p_listen /ip4/0.0.0.0/tcp/4001 --bootnodes &lt;BOOTNODE_LIST&gt;</code></li>
-        <li>Get testnet BOING from the <a href="/network/faucet">faucet</a>.</li>
+        <li>Get testnet BOING from the <a href="/faucet">faucet</a>.</li>
       </ol>
     </section>
 
     <section class="section" id="single-vs-multi">
       <h2>Single node vs multi-node</h2>
-      <p>Brief summary. For the full guide, see <a href="/network/single-vs-multi">Single node vs multi-node</a>.</p>
+      <p>Brief summary. For the full guide, see <a href="/single-vs-multi">Single node vs multi-node</a>.</p>
       <ul>
         <li><strong>Single node</strong> — Run without P2P. Good for local dev. No bootnodes needed.</li>
         <li><strong>Multi-node testnet</strong> — Run with <code>--p2p_listen</code> and <code>--bootnodes</code> to join the public testnet.</li>
@@ -88,20 +88,20 @@ import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../config/testnet'
           )}
         </>
       ) : (
-        <p>Once the testnet is live, the official RPC URL and bootnode list will appear here. Until then, use <code>http://127.0.0.1:8545</code> for local testing and run a <a href="/network/single-vs-multi">local multi-node</a> setup.</p>
+        <p>Once the testnet is live, the official RPC URL and bootnode list will appear here. Until then, use <code>http://127.0.0.1:8545</code> for local testing and run a <a href="/single-vs-multi">local multi-node</a> setup.</p>
       )}
     </section>
 
     <section class="section" id="bootnodes">
       <h2>Bootnodes</h2>
-      <p>Bootnodes are stable peer addresses your node dials to join the testnet. Full details: <a href="/network/bootnodes">Bootnodes</a>.</p>
+      <p>Bootnodes are stable peer addresses your node dials to join the testnet. Full details: <a href="/bootnodes">Bootnodes</a>.</p>
       {!isTestnetLive && <p><em>Until the testnet is live, run a local multi-node setup by using the first node's address as <code>--bootnodes</code> for the second.</em></p>}
     </section>
 
     <section class="section" id="faucet">
       <h2>Faucet</h2>
       <p>Get testnet BOING for gas and staking on the dedicated faucet page.</p>
-      <a href="/network/faucet" class="cta-link">Go to Faucet →</a>
+      <a href="/faucet" class="cta-link">Go to Faucet →</a>
     </section>
 
     <section class="section" id="vibeminer">

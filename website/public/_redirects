@@ -1,0 +1,7 @@
+# Legacy /network/* URLs (removed Mar 2026)
+/network/faucet         /faucet                 301
+/network/testnet        /testnet/join           301
+/network/bootnodes      /bootnodes              301
+/network/status         /status                 301
+/network/single-vs-multi /single-vs-multi       301
+/network/quests         /testnet/users/quests   301

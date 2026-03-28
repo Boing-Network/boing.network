@@ -168,7 +168,7 @@ Once both bootnodes and the tunnel are running:
 
 **Verify:**
 
-1. **Faucet:** Visit [boing.network/network/faucet](https://boing.network/network/faucet); enter a 32-byte hex account ID; request testnet BOING.
+1. **Faucet:** Visit [boing.network/faucet](https://boing.network/faucet); enter a 32-byte hex account ID; request testnet BOING.
 2. **VibeMiner:** Should show nodes once the website is deployed with `PUBLIC_BOOTNODES`.
 3. **Terminal validator:** `boing-node --p2p_listen /ip4/0.0.0.0/tcp/4001 --bootnodes <LIST> --validator --rpc-port 8545`
 

@@ -253,9 +253,9 @@ The live site applies the Cosmic Foundation palette by importing `design-tokens-
 |-------|------------|--------|
 | `/` | landing | Full Cosmic (nebula, stars, jellyfish, coral, waterline, etc.) |
 | `/about` | pillars | Violet-dominant cosmic |
-| `/community`, `/network/status` | landing | Full Cosmic |
+| `/community`, `/status` | landing | Full Cosmic |
 | `/docs/*`, `/developers/*` | developers | Minimal (stars + nebula + grid) |
-| `/network/testnet`, `/network/faucet`, `/network/bootnodes`, `/network/single-vs-multi` | developers | Minimal (focused app feel) |
+| `/testnet/join`, `/faucet`, `/bootnodes`, `/single-vs-multi` | developers | Minimal (focused app feel) |
 
 When `prefers-reduced-motion: reduce` is set or the engine fails to load, the fallback is **boing-aquatic-space-bg.webp** with a dark overlay. The layout also adds a body class per route (e.g. `route-index`, `route-about`, `route-docs-getting-started`) so per-page color or style overrides can be applied in CSS if needed.
 

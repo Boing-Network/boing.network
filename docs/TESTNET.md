@@ -63,7 +63,7 @@ RPC: `http://127.0.0.1:8545/`. No bootnodes needed.
 1. **Build**  
    `cargo build --release`
 
-2. **Start with P2P + bootnodes** (use the bootnode list from [Network / Testnet](https://boing.network/network/testnet) or §6 below):
+2. **Start with P2P + bootnodes** (use the bootnode list from [Join Testnet](https://boing.network/testnet/join) or §6 below):
 
    ```bash
    ./target/release/boing-node \
@@ -74,7 +74,7 @@ RPC: `http://127.0.0.1:8545/`. No bootnodes needed.
      --data-dir ./boing-data
    ```
 
-3. **Get testnet BOING** from the [Faucet](https://boing.network/network/faucet) (see §5).
+3. **Get testnet BOING** from the [Faucet](https://boing.network/faucet) (see §5).
 
 4. **Stake** by submitting a `Bond` transaction via RPC so you can participate as a validator (validator set is derived from top stakers).
 
@@ -121,15 +121,15 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 
 ### 5.2 Public faucet page
 
-The website provides a **dedicated faucet page** at [boing.network/network/faucet](https://boing.network/network/faucet) (or your deployment path). Enter your account ID (hex) and request testnet BOING; the page calls the testnet RPC's `boing_faucetRequest` for you.
+The website provides a **dedicated faucet page** at [boing.network/faucet](https://boing.network/faucet) (or your deployment path). Enter your account ID (hex) and request testnet BOING; the page calls the testnet RPC's `boing_faucetRequest` for you.
 
-**Testnet RPC URL:** `https://testnet-rpc.boing.network/` (also on the [Testnet](https://boing.network/network/testnet) page).
+**Testnet RPC URL:** `https://testnet-rpc.boing.network/` (also on the [Testnet](https://boing.network/testnet/join) page).
 
 ## 6. Bootnode list (testnet)
 
 When the testnet is live, the canonical list will be kept at:
 
-- **Website:** [boing.network/network/testnet](https://boing.network/network/testnet) and [Bootnodes](https://boing.network/network/bootnodes) (driven by `website/src/config/testnet.ts` or env `PUBLIC_BOOTNODES`)
+- **Website:** [boing.network/testnet/join](https://boing.network/testnet/join) and [Bootnodes](https://boing.network/bootnodes) (driven by `website/src/config/testnet.ts` or env `PUBLIC_BOOTNODES`)
 - **This repo:** Below (update before testnet launch)
 - **Infrastructure setup:** [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)
 
@@ -141,7 +141,7 @@ When the testnet is live, the canonical list will be kept at:
 **Launch checklist (to open testnet):**
 
 1. **Bootnodes:** Run at least 2 nodes with stable IPs and `--p2p_listen /ip4/0.0.0.0/tcp/4001`. Add their multiaddrs to the table above and to `website/src/config/testnet.ts` (or set `PUBLIC_BOOTNODES` when building the website).
-2. **Public RPC:** Run a node with `--faucet-enable` behind a public URL (e.g. `https://testnet-rpc.boing.network/`). Set `PUBLIC_TESTNET_RPC_URL` when building the website so the [faucet page](https://boing.network/network/faucet) defaults to it.
+2. **Public RPC:** Run a node with `--faucet-enable` behind a public URL (e.g. `https://testnet-rpc.boing.network/`). Set `PUBLIC_TESTNET_RPC_URL` when building the website so the [faucet page](https://boing.network/faucet) defaults to it.
 3. **Genesis:** All nodes must use the same genesis so the faucet account has 10M testnet BOING.
 4. **Docs:** For the full pre-launch checklist and incentive program see [Part 3 — Incentivized Testnet](#part-3--incentivized-testnet) below. For the critical path (bootnodes → RPC → VibeMiner / boing.observer), see [READINESS.md](READINESS.md) §3.
 
@@ -193,7 +193,7 @@ The **Testnet Portal** is the single place to:
 | `/testnet/users` | Users community + dashboard (quests, faucet, feedback) |
 | `/testnet/operators` | Node operators community + dashboard (leaderboard, uptime, blocks) |
 
-The existing **Join Testnet** hub stays at `/network/testnet` (bootnodes, faucet, single-vs-multi). It links prominently to the portal for registration and dashboards. The former **Community Quests** page is folded into **Users** at `/testnet/users`.
+The **Join Testnet** hub is at `/testnet/join` (bootnodes, faucet, single-vs-multi). It links prominently to the portal for registration and dashboards. **Community Quests** live under **Users** at `/testnet/users/quests` (the old `/network/quests` URL redirects there).
 
 ## 2.2 Registration
 
@@ -314,7 +314,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_quest_completions_unique ON quest_completi
 | POST | `/api/quests/submit` | Submit a completion |
 | GET | `/api/quests/status?account_id_hex=0x...` | Quest progress for account |
 
-Define incentive rules on a single **Incentivized Testnet Rules** page (e.g. `/network/incentivized-rules`); link from Quests and announcements.
+Define incentive rules on a single **Incentivized Testnet Rules** page (e.g. `/incentivized-rules`); link from Quests and announcements.
 
 ---
 
@@ -405,13 +405,13 @@ Use this draft to promote the incentivized testnet on Reddit. Fill in **[PLACEHO
 
 ### Post body (short)
 
-**Boing Network** is an L1 blockchain built from first principles with **protocol-enforced quality assurance**. We're the first chain where only deployments that meet defined security and compliance rules are accepted on-chain. We're launching our **incentivized testnet** and invite validators, developers, and users to participate. **Validators:** Earn testnet BOING for blocks and uptime; top performers can qualify for mainnet recognition. **Developers:** Testnet BOING, bug bounties, dApp recognition, grant eligibility. **Users:** Faucet, quests, feedback; optional rewards per rules. All rewards from our **Community & Grants pool**. Timeline: Start [DATE], End [DATE], 2–4 weeks. **How to start:** [boing.network/network/testnet](https://boing.network/network/testnet) · [boing.network/network/faucet](https://boing.network/network/faucet) · Build from source or use **VibeMiner** for one-click validator. Rules & rewards: [Link to Incentivized Testnet Rules when live]. Tech: Rust, HotStuff BFT, libp2p, custom VM, Sparse Merkle. CLI: `boing init`, `boing dev`, `boing deploy`; TypeScript SDK. Questions welcome below.
+**Boing Network** is an L1 blockchain built from first principles with **protocol-enforced quality assurance**. We're the first chain where only deployments that meet defined security and compliance rules are accepted on-chain. We're launching our **incentivized testnet** and invite validators, developers, and users to participate. **Validators:** Earn testnet BOING for blocks and uptime; top performers can qualify for mainnet recognition. **Developers:** Testnet BOING, bug bounties, dApp recognition, grant eligibility. **Users:** Faucet, quests, feedback; optional rewards per rules. All rewards from our **Community & Grants pool**. Timeline: Start [DATE], End [DATE], 2–4 weeks. **How to start:** [boing.network/testnet/join](https://boing.network/testnet/join) · [boing.network/faucet](https://boing.network/faucet) · Build from source or use **VibeMiner** for one-click validator. Rules & rewards: [Link to Incentivized Testnet Rules when live]. Tech: Rust, HotStuff BFT, libp2p, custom VM, Sparse Merkle. CLI: `boing init`, `boing dev`, `boing deploy`; TypeScript SDK. Questions welcome below.
 
 ### Links to include
 
 - Website: https://boing.network
-- Join testnet: https://boing.network/network/testnet
-- Faucet: https://boing.network/network/faucet
+- Join testnet: https://boing.network/testnet/join
+- Faucet: https://boing.network/faucet
 - GitHub: https://github.com/chiku524/boing.network
 - Testnet doc: https://github.com/chiku524/boing.network/blob/main/docs/TESTNET.md
 

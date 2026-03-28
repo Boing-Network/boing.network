@@ -33,15 +33,12 @@ boing.network/
 │   ├── /sdk             → boing init, dev, deploy
 │   ├── /automation      → Scheduler, triggers, executor incentives
 │   └── /rpc-reference   → Full RPC docs + examples
-├── /network/            → Network status & explorer
-│   ├── /status          → Uptime, validators, block height (D1 / API)
-│   ├── /testnet         → Join testnet hub (bootnodes, single-vs-multi, faucet, link to portal)
-│   ├── /single-vs-multi → Dedicated page: single node vs multi-node
-│   ├── /bootnodes       → Dedicated page: what bootnodes are, how to use, official list
-│   ├── /faucet          → Dedicated page: request testnet BOING (RPC form)
-│   ├── /quests          → Redirects to /testnet/users (quests live in portal)
-│   └── /explorer        → Block/tx/account lookup (when available)
-├── /testnet/            → **Testnet Portal**: register (dev / user / node operator), dashboards, metrics
+├── /status              → Network status (uptime, validators, block height when API connected)
+├── /faucet              → Request testnet BOING (RPC form)
+├── /bootnodes           → What bootnodes are, how to use, official list
+├── /single-vs-multi     → Single node vs multi-node testnet
+├── /testnet/            → **Testnet Portal** + join hub
+│   ├── /join            → Join testnet hub (bootnodes, single-vs-multi, faucet, link to portal)
 │   ├── /                → Portal landing (role cards, dashboard links)
 │   ├── /register        → Registration form
 │   ├── /developers      → Developers community + dashboard (dApps, incentive pool)
@@ -65,8 +62,9 @@ boing.network/
 | /developers/quickstart | README, docs/BUILD-ROADMAP.md | Crates, CLI, local dev |
 | /developers/sdk | docs/DEVELOPMENT-AND-ENHANCEMENTS.md | boing init, dev, deploy |
 | /developers/automation | docs/DEVELOPMENT-AND-ENHANCEMENTS.md (appendix) | Verification types, incentives |
-| /network/status | API (D1 or live RPC) | Block height, validator count |
-| /network/testnet | docs/TESTNET.md | Bootnodes, faucet, config |
+| /status | API (D1 or live RPC) | Block height, validator count |
+| /testnet/join | docs/TESTNET.md | Bootnodes, faucet, config |
+| /faucet | docs/TESTNET.md | Testnet BOING request form |
 | /resources | docs/BUILD-ROADMAP.md, docs/NETWORK-COST-ESTIMATE.md | Roadmap, cost estimates |
 
 ### Cloudflare services mapping

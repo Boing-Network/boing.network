@@ -31,8 +31,8 @@ const normalizedPath = (path || '/').replace(/\/$/, '') || '';
     }
     if (p.startsWith('/docs') || p.startsWith('/developers')) return 'developers';
     if (p === '/about') return 'pillars';
-    if (p === '/network/testnet' || p === '/network/faucet' || p === '/network/bootnodes' || p === '/network/single-vs-multi') return 'developers';
-    if (p === '/network/status') return 'landing';
+    if (p === '/testnet/join' || p === '/faucet' || p === '/bootnodes' || p === '/single-vs-multi') return 'developers';
+    if (p === '/status') return 'landing';
     if (p === '/community') return 'landing';
     return 'landing';
   }

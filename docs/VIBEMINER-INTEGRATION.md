@@ -15,7 +15,7 @@ To support "one-click" running of a Boing node (validator or full node) from Vib
 | **How to run** | CLI flags: `--validator`, `--rpc-port`, `--data-dir`, `--p2p_listen`, `--bootnodes`, `--faucet-enable` (testnet). |
 | **RPC** | JSON-RPC over HTTP on `--rpc-port` (default 8545). Methods: `boing_chainHeight`, `boing_submitTransaction`, etc. See [RPC-API-SPEC.md](RPC-API-SPEC.md). |
 | **Testnet faucet** | RPC method `boing_faucetRequest([hex_account_id])` when node is started with `--faucet-enable`; or point users to the web faucet. |
-| **Bootnodes** | Comma-separated multiaddrs for testnet/mainnet; published on [TESTNET.md](TESTNET.md) and website `/network/testnet`. |
+| **Bootnodes** | Comma-separated multiaddrs for testnet/mainnet; published on [TESTNET.md](TESTNET.md) and website `/testnet/join`. |
 
 No separate "miner" binary: **validating** is done by running `boing-node --validator`. PoS: validators stake BOING (bond/unbond via transactions).
 
@@ -71,7 +71,7 @@ No separate "miner" binary: **validating** is done by running `boing-node --vali
 
 6. **Faucet (testnet only)**  
    - **Option A (recommended):** In-app "Get testnet BOING" that calls the public testnet RPC `https://testnet-rpc.boing.network/` with `boing_faucetRequest([user_account_hex])`. No need to run a faucet locally.  
-   - **Option B:** Link to the web faucet [boing.network/network/faucet](https://boing.network/network/faucet).
+   - **Option B:** Link to the web faucet [boing.network/faucet](https://boing.network/faucet).
 
 7. **Staking (validator)**  
    User must hold BOING and submit a `Bond` transaction (via RPC or a wallet that supports Boing). Validator set is derived from top stakers. VibeMiner can link to [TESTNET.md](TESTNET.md) or a "How to stake" page.
@@ -82,7 +82,7 @@ No separate "miner" binary: **validating** is done by running `boing-node --vali
 
 | Network | Bootnodes | Public RPC (for faucet / read-only) |
 |---------|-----------|-------------------------------------|
-| **Testnet** | [TESTNET.md](TESTNET.md) §6; website [boing.network/network/testnet](https://boing.network/network/testnet) | `https://testnet-rpc.boing.network/` |
+| **Testnet** | [TESTNET.md](TESTNET.md) §6; website [boing.network/testnet/join](https://boing.network/testnet/join) | `https://testnet-rpc.boing.network/` |
 | **Mainnet** | To be published at mainnet launch | To be published |
 
 **Testnet bootnodes (current):** Comma-separated multiaddrs, e.g. `/ip4/73.84.106.121/tcp/4001` (see [TESTNET.md](TESTNET.md) §6 and `website/src/config/testnet.ts`). Override via env `PUBLIC_BOOTNODES` when building the website.
@@ -112,7 +112,7 @@ Share the onboarding flow (or a draft) and we'll integrate it into the docs and 
 | `--validator`, `--rpc-port`, `--data-dir`, `--p2p_listen`, `--bootnodes` | Command line for "Start node" / "Start validator". |
 | RPC on port 8545 (default) | Status (`boing_chainHeight`), faucet (`boing_faucetRequest`), block/tx queries. See [RPC-API-SPEC.md](RPC-API-SPEC.md). |
 | Public RPC `https://testnet-rpc.boing.network/` | Faucet calls (no local faucet needed); read-only queries. |
-| Bootnode list ([TESTNET.md](TESTNET.md) §6, [website](https://boing.network/network/testnet)) | So the node joins the testnet. |
+| Bootnode list ([TESTNET.md](TESTNET.md) §6, [website](https://boing.network/testnet/join)) | So the node joins the testnet. |
 | P2P port 4001, RPC port 8545 | Firewall: open 4001 for P2P; 8545 only if exposing RPC. |
 
 No separate miner binary; no custom daemon protocol—just the node binary and JSON-RPC. For launch dependencies (bootnodes, public RPC), see [READINESS.md](READINESS.md) §3.
@@ -150,7 +150,7 @@ Use these values to list **Boing Network** in the VibeMiner request listing form
 **Notes for command template:**
 
 - Use `{dataDir}` exactly as your form expects (some systems use `{dataDir}`, others `{data_dir}`).
-- Bootnodes: current testnet bootnode is `/ip4/73.84.106.121/tcp/4001`. Canonical list is at [boing.network/network/testnet](https://boing.network/network/testnet) and in [TESTNET.md](TESTNET.md) §6. If VibeMiner supports configurable bootnodes (e.g. from a URL or env), you can document that so operators get the latest list.
+- Bootnodes: current testnet bootnode is `/ip4/73.84.106.121/tcp/4001`. Canonical list is at [boing.network/testnet/join](https://boing.network/testnet/join) and in [TESTNET.md](TESTNET.md) §6. If VibeMiner supports configurable bootnodes (e.g. from a URL or env), you can document that so operators get the latest list.
 - Omit `--validator` for a full-node-only run if the app offers that option.
 - **Windows:** Build with `--no-default-features` to disable mDNS (see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)).
 
@@ -158,7 +158,7 @@ Use these values to list **Boing Network** in the VibeMiner request listing form
 
 **Suggested copy:**
 
-Boing Network is an L1 blockchain with protocol-enforced quality assurance (only deployments meeting defined rules are accepted on-chain). Consensus is PoS + HotStuff BFT; signing and hashing use Ed25519 and BLAKE3. Run a **validator** by starting the node with `--validator` and staking BOING; testnet BOING is available via the faucet at https://boing.network/network/faucet or the RPC method `boing_faucetRequest`. No traditional mining; validators produce blocks. Public testnet RPC: https://testnet-rpc.boing.network/ — docs and bootnodes: https://boing.network/network/testnet.
+Boing Network is an L1 blockchain with protocol-enforced quality assurance (only deployments meeting defined rules are accepted on-chain). Consensus is PoS + HotStuff BFT; signing and hashing use Ed25519 and BLAKE3. Run a **validator** by starting the node with `--validator` and staking BOING; testnet BOING is available via the faucet at https://boing.network/faucet or the RPC method `boing_faucetRequest`. No traditional mining; validators produce blocks. Public testnet RPC: https://testnet-rpc.boing.network/ — docs and bootnodes: https://boing.network/testnet/join.
 
 ### What to require for network listings (recommendations)
 

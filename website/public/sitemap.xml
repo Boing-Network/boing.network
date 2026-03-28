@@ -6,6 +6,6 @@
   <url><loc>https://boing.network/docs/getting-started</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://boing.network/docs/rpc-api</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://boing.network/developers/quickstart</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://boing.network/network/status</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://boing.network/status</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
   <url><loc>https://boing.network/community</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 </urlset>
