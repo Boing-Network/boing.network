@@ -6,7 +6,9 @@
  *   node scripts/network-listings-release-sql.mjs testnet-v0.1.3
  *   node scripts/network-listings-release-sql.mjs testnet-v0.1.3 --apply
  *
- * --apply writes a temp .sql file and runs wrangler d1 execute --remote --file (requires auth).
+ * --apply writes a temp .sql file and runs wrangler d1 execute --remote --file.
+ * Prefer **CLOUDFLARE_API_TOKEN** (Dashboard → API Tokens, include D1 edit) if `wrangler login`
+ * OAuth hits Authentication error [10000] on D1 import.
  *
  * Requires a *published* GitHub release for that tag (drafts return 404 on public download URLs).
  * Uses node:https instead of fetch() to avoid a Windows libuv crash (UV_HANDLE_CLOSING)

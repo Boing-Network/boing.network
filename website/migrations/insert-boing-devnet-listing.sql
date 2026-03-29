@@ -1,10 +1,11 @@
 -- VibeMiner /api/networks D1 overrides (merged with static entries in functions/api/networks.js).
 -- Canonical ids: boing-devnet (Windows), boing-devnet-linux, boing-devnet-macos.
 --
--- After publishing GitHub release testnet-v0.1.3, refresh URLs + SHA256 from website/:
---   node scripts/network-listings-release-sql.mjs testnet-v0.1.3
+-- SHA256 values below match published GitHub assets for tag testnet-v0.1.3 (verified via
+-- `node scripts/network-listings-release-sql.mjs testnet-v0.1.3`). Re-run that script after each
+-- new release to regenerate SQL, then apply.
 --
--- Apply to remote D1:
+-- Apply to remote D1 (or use script with --apply and CLOUDFLARE_API_TOKEN — see script header):
 --   npx wrangler d1 execute boing-network-db --remote --file=migrations/insert-boing-devnet-listing.sql
 
 INSERT OR REPLACE INTO network_listings (id, node_download_url, node_command_template, node_binary_sha256, updated_at)

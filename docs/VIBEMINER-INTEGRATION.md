@@ -93,6 +93,28 @@ No separate "miner" binary: **validating** is done by running `boing-node --vali
 
 ---
 
+## 3.1 Public API: `GET https://boing.network/api/networks` and D1
+
+Boing exposes a small JSON list for node runners (used alongside `@vibeminer/shared` static data):
+
+| Mechanism | Shape |
+|-----------|--------|
+| **This API + D1** | Three entries: `boing-devnet`, `boing-devnet-linux`, `boing-devnet-macos` (each with `platform`, optional `node_*` from D1). |
+| **VibeMiner static `boing-devnet`** | One id with **`nodePresets`** (Windows / Linux / macOS) — same zips and commands, easier for the desktop preset picker. |
+
+**Refresh D1** after a new `boing-node` GitHub release tag:
+
+```bash
+cd website
+node scripts/network-listings-release-sql.mjs testnet-v0.1.3
+# Optional: apply (use CLOUDFLARE_API_TOKEN if OAuth fails on D1 import)
+node scripts/network-listings-release-sql.mjs testnet-v0.1.3 --apply
+```
+
+Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.sql](../website/migrations/insert-boing-devnet-listing.sql).
+
+---
+
 ## 4. Onboarding details you can provide
 
 If you have **VibeMiner-specific onboarding** (e.g. app store links, install steps, or a "Add your network" form), we can:

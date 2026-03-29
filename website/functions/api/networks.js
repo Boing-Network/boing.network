@@ -1,8 +1,11 @@
 /**
  * GET /api/networks
  * Static network definitions merged with D1 rows from network_listings (same id overlays node_* fields).
- * Used by VibeMiner and other clients; id "boing-devnet" must match @vibeminer/shared (Windows).
- * Linux / macOS use "boing-devnet-linux" and "boing-devnet-macos" — pick by `platform`.
+ *
+ * **IDs:** `boing-devnet` (Windows zip), `boing-devnet-linux`, `boing-devnet-macos` — clients pick by `platform`.
+ * This matches three D1 rows (see `website/migrations/insert-boing-devnet-listing.sql` and
+ * `scripts/network-listings-release-sql.mjs`). `@vibeminer/shared` instead exposes one static `boing-devnet`
+ * row with `nodePresets` for Windows / Linux / macOS — equivalent coverage, different shape.
  */
 
 const CORS = {
@@ -38,6 +41,7 @@ const DEVNET_BASE = {
   rpc_url: 'https://testnet-rpc.boing.network/',
   bootnodes: DEFAULT_BOOTNODES,
   chain_id_hex: '0x1b01',
+  website: 'https://boing.network',
 };
 
 /** Same bootnodes/RPC/chain; `platform` helps clients choose a listing without parsing zip names. */
@@ -45,19 +49,19 @@ function staticNetworks() {
   return [
     {
       id: 'boing-devnet',
-      name: 'Boing Devnet (Windows x86_64)',
+      name: 'Boing (Testnet) — Windows x86_64',
       platform: 'windows',
       ...DEVNET_BASE,
     },
     {
       id: 'boing-devnet-linux',
-      name: 'Boing Devnet (Linux x86_64)',
+      name: 'Boing (Testnet) — Linux x86_64',
       platform: 'linux',
       ...DEVNET_BASE,
     },
     {
       id: 'boing-devnet-macos',
-      name: 'Boing Devnet (macOS aarch64)',
+      name: 'Boing (Testnet) — macOS Apple Silicon',
       platform: 'macos',
       ...DEVNET_BASE,
     },

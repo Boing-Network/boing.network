@@ -130,6 +130,16 @@ Use the output `database_id` in `wrangler.toml`. Example schema: see `website/sc
 wrangler d1 execute boing-network-db --file=./website/schema.sql
 ```
 
+**VibeMiner / node listing rows (`network_listings`):** After publishing new `boing-node` release zips, refresh URLs and zip SHA-256 in D1 from `website/`:
+
+```bash
+cd website
+node scripts/network-listings-release-sql.mjs <release-tag>
+node scripts/network-listings-release-sql.mjs <release-tag> --apply
+```
+
+Use a **Cloudflare API token** with D1 write if `wrangler login` OAuth returns authentication error `10000` on `--apply`. The script downloads each zip from GitHub, hashes it, and upserts `boing-devnet`, `boing-devnet-linux`, and `boing-devnet-macos`.
+
 ### Step 3: Create R2 bucket
 
 ```bash
