@@ -91,7 +91,7 @@ Get the spendable balance for an account. **Recommended for wallets** (e.g. boin
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[hex_account_id]` | 32-byte AccountId (hex) |
-| Result | `{ balance: string }` | Balance in smallest units (u128 as decimal string to avoid JS precision loss) |
+| Result | `{ balance: string }` | Native BOING balance as **whole units** (u128 decimal string). Wallets and explorers should **not** assume Ethereum-style `10^18` scaling unless a future token standard adds it. |
 
 **Example:** `{"jsonrpc":"2.0","id":1,"method":"boing_getBalance","params":["0x..."]}` → `{"jsonrpc":"2.0","id":1,"result":{"balance":"1000000"}}`
 
