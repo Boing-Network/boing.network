@@ -34,6 +34,33 @@ function isAllowedDownloadUrl(urlString) {
   }
 }
 
+/** Pinned testnet tag for official zips (keep in sync with VibeMiner `BOING_TESTNET_DEFAULT_DOWNLOAD_TAG`). */
+const BOING_TESTNET_DOWNLOAD_TAG = 'testnet-v0.1.4';
+
+/** SHA-256 of each official zip for `BOING_TESTNET_DOWNLOAD_TAG`. */
+const BOING_ZIP_SHA = {
+  windows: '50898a02f3cba1effe0c91a6f0ea48d3eed62ab87b7aeb3ebb653b30a1248f65',
+  linux: 'a96987461201f00d618afad5a494b52837663f90f6d9d3d5c097b6843cad17ab',
+  macos: '26fd3477dfead760b3a04d5449173cbb7468286f33a51eec09d07d96982c0718',
+};
+
+const STALE_TESTNET_TAG_RE = /\/download\/(testnet-v0\.1\.(?:0|1|2))\//;
+
+/**
+ * Upgrade chiku524/boing.network release URLs that pointed at zips without QA transparency RPC
+ * (`boing_getQaRegistry` / `boing_qaPoolConfig`) in published Windows builds.
+ */
+function maybeUpgradeStaleOfficialBoingZipUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  if (!url.includes('github.com/chiku524/boing.network/releases/download/')) return null;
+  if (!STALE_TESTNET_TAG_RE.test(url)) return null;
+  const next = url.replace(STALE_TESTNET_TAG_RE, `/download/${BOING_TESTNET_DOWNLOAD_TAG}/`);
+  let sha256 = BOING_ZIP_SHA.windows;
+  if (next.includes('release-linux-x86_64')) sha256 = BOING_ZIP_SHA.linux;
+  else if (next.includes('release-macos-aarch64')) sha256 = BOING_ZIP_SHA.macos;
+  return { url: next, sha256 };
+}
+
 /** Default bootnodes (keep in sync with website/src/config/testnet.ts fallbacks). */
 const DEFAULT_BOOTNODES = ['/ip4/73.84.106.121/tcp/4001', '/ip4/73.84.106.121/tcp/4001'];
 
@@ -72,7 +99,14 @@ function mergeListing(base, row) {
   const out = { ...base };
   if (!row) return out;
 
-  const url = row.node_download_url?.trim() || '';
+  let url = row.node_download_url?.trim() || '';
+  let sha = row.node_binary_sha256?.trim() || '';
+  const upgraded = maybeUpgradeStaleOfficialBoingZipUrl(url);
+  if (upgraded) {
+    url = upgraded.url;
+    sha = upgraded.sha256;
+  }
+
   if (url && isAllowedDownloadUrl(url)) {
     out.node_download_url = url;
   }
@@ -82,7 +116,6 @@ function mergeListing(base, row) {
     out.node_command_template = tpl;
   }
 
-  const sha = row.node_binary_sha256?.trim() || '';
   if (sha) {
     out.node_binary_sha256 = sha;
   }
