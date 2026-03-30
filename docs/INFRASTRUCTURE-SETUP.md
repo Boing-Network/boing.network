@@ -248,6 +248,7 @@ The boing-node RPC server includes CORS headers so browser-based clients (e.g. b
 | Faucet: “Faucet not enabled on this node.” | The RPC URL hits a node **without** `--faucet-enable`. Use `--faucet-enable` on the **same** node the tunnel forwards to (see `start-bootnode-1` scripts). A secondary full node alone cannot serve the public faucet. |
 | "No nodes" in VibeMiner | Website built with `PUBLIC_BOOTNODES` and `PUBLIC_TESTNET_RPC_URL`; config redeployed |
 | **Method not found:** `boing_getQaRegistry` / `boing_qaPoolConfig` on public URL | Tunnel points to **8545**, but the **boing-node binary** there is too old. Rebuild from this repo on the primary, restart node, keep tunnel. Run `node scripts/verify-public-testnet-rpc.mjs`. |
+| **HTTP 405** on `https://testnet-rpc.boing.network/` (verify script or `curl -X POST`) | **POST is not reaching boing-node.** Usually wrong DNS (hostname points to Pages/static host, not the tunnel), duplicate DNS records, or tunnel ingress missing this hostname. `curl -X POST http://127.0.0.1:8545` on the node PC must succeed first. JSON-RPC **requires POST**; GET-only frontends return 405. |
 
 ---
 
