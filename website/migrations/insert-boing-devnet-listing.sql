@@ -12,7 +12,7 @@ INSERT OR REPLACE INTO network_listings (id, node_download_url, node_command_tem
 VALUES (
   'boing-devnet',
   'https://github.com/chiku524/boing.network/releases/download/testnet-v0.1.3/release-windows-x86_64.zip',
-  'boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/73.84.106.121/tcp/4001 --rpc-port 8545 --faucet-enable',
+  'boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/73.84.106.121/tcp/4001,/ip4/73.84.106.121/tcp/4001 --rpc-port 8545 --faucet-enable',
   '37b2dc37164227f944b35712d709dc1d74dacd6f8c352def4b9dcefc239634ea',
   datetime('now')
 );
@@ -21,7 +21,7 @@ INSERT OR REPLACE INTO network_listings (id, node_download_url, node_command_tem
 VALUES (
   'boing-devnet-linux',
   'https://github.com/chiku524/boing.network/releases/download/testnet-v0.1.3/release-linux-x86_64.zip',
-  'boing-node-linux-x86_64 --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/73.84.106.121/tcp/4001 --rpc-port 8545 --faucet-enable',
+  'boing-node-linux-x86_64 --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/73.84.106.121/tcp/4001,/ip4/73.84.106.121/tcp/4001 --rpc-port 8545 --faucet-enable',
   'a2dc84bc1c92769408a29f64c782ca86b991ef8d8d99ee14b5c07ddb5d6ed546',
   datetime('now')
 );
@@ -30,7 +30,7 @@ INSERT OR REPLACE INTO network_listings (id, node_download_url, node_command_tem
 VALUES (
   'boing-devnet-macos',
   'https://github.com/chiku524/boing.network/releases/download/testnet-v0.1.3/release-macos-aarch64.zip',
-  'boing-node-macos-aarch64 --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/73.84.106.121/tcp/4001 --rpc-port 8545 --faucet-enable',
+  'boing-node-macos-aarch64 --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/73.84.106.121/tcp/4001,/ip4/73.84.106.121/tcp/4001 --rpc-port 8545 --faucet-enable',
   'c7a7ed578c58b47e7b21cfc301c4e128b78da26eaf810ee13e0bfd223594be49',
   datetime('now')
 );
