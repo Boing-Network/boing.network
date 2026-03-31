@@ -89,6 +89,21 @@ AccessList = {
 
 Declares accounts this transaction reads/writes. Enables parallel scheduling (txs with disjoint access lists run in parallel).
 
+**Conflict rule:** Two transactions **conflict** for scheduling if any `AccountId` appears in **either** list (`read` or `write`) of one tx and **either** list of the other (`AccessList::conflicts_with`). Disjoint access lists allow the same batch to run transfers in parallel.
+
+**Soundness (required for correct parallel execution):** Every account whose state this transaction **may read or write** during execution must appear in the access list. Listing too few accounts can allow the scheduler to place conflicting txs in the same parallel batch; the executor then fails with a conflict error or, in worst cases, could compromise correctness if checks were incomplete. Listing redundant accounts is safe but reduces parallelism.
+
+**Recommended sets by payload (minimal patterns used in tests and tooling):**
+
+| Payload | `read` | `write` | Notes |
+|---------|--------|---------|--------|
+| `Transfer` | `sender`, `to` | `sender`, `to` | Sender: nonce + balance; recipient: balance (or account creation). |
+| `Bond` / `Unbond` | `sender` | `sender` | Only sender stake/balance/nonce change. |
+| `ContractCall` | `sender`, `contract`, … | `sender`, `contract`, … | Minimum: `sender` (nonce) and `contract` (code + contract storage). The interpreter’s `SLOAD`/`SSTORE` use the callee’s storage only; the VM does **not** infer extra accounts from bytecode—list any others if future host hooks read additional state. |
+| `ContractDeploy` (variants) | Often empty or `sender` | At least `sender` | Nonce and balance update on `sender`; new contract account is created at a deterministic derived address—other txs in the same block must not assume that address is free unless their access lists reflect ordering. For scheduling, including `sender` in **write** is required whenever nonce/balance changes. |
+
+**Mempool / signing:** The access list is part of the signed `Transaction` (hashed into `tx.id()`). Wallets should build lists consistent with the table above and any extra accounts the dApp knows the contract will touch.
+
 ### 4.3 Transaction
 
 ```text
@@ -110,14 +125,30 @@ TransactionPayload = enum {
   Bond { amount: u128 },
   Unbond { amount: u128 },
   ContractCall { contract: AccountId, calldata: Vec<u8> },
-  ContractDeploy { bytecode: Vec<u8> },
+  ContractDeploy {
+    bytecode:        Vec<u8>,
+    create2_salt:    Option<[u8; 32]>,   // None → nonce-derived contract address
+  },
   ContractDeployWithPurpose {
     bytecode:           Vec<u8>,
     purpose_category:   String,
     description_hash:   Option<Vec<u8>>,
+    create2_salt:       Option<[u8; 32]>,
+  },
+  ContractDeployWithPurposeAndMetadata {
+    bytecode:           Vec<u8>,
+    purpose_category:   String,
+    description_hash:   Option<Vec<u8>>,
+    asset_name:         Option<String>,
+    asset_symbol:       Option<String>,
+    create2_salt:       Option<[u8; 32]>,
   },
 }
 ```
+
+**CREATE2-style deploy:** When `create2_salt` is `Some(salt)`, the new contract’s `AccountId` is `create2_contract_address` in `boing_primitives`: `BLAKE3("boing.create2.v1\0" || deployer || salt || BLAKE3(bytecode))`. When `create2_salt` is `None`, the address is the legacy nonce hash `nonce_derived_contract_address(sender, tx.nonce)` using the **transaction nonce before this deploy is applied**. If the target address already has an account or stored bytecode, execution fails with `DeploymentAddressInUse` and the sender nonce is **not** incremented.
+
+**Bincode:** Adding `create2_salt` changes the serialized shape of deploy payloads versus older clients; wallets must match `boing-primitives` serde layout.
 
 ### 4.5 AccountState
 
@@ -146,12 +177,13 @@ Account = {
 
 ```text
 BlockHeader = {
-  parent_hash: Hash,
-  height:      u64,
-  timestamp:   u64,
-  proposer:    AccountId,
-  tx_root:     Hash,
-  state_root:  Hash,
+  parent_hash:    Hash,
+  height:         u64,
+  timestamp:      u64,
+  proposer:       AccountId,
+  tx_root:        Hash,
+  receipts_root:  Hash,
+  state_root:     Hash,
 }
 ```
 
@@ -234,7 +266,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 ### 7.1 VM Model
 
 - **Type:** Stack-based, deterministic
-- **Opcodes:** Inspired by EVM, simplified for auditability
+- **ISA:** The **Boing VM** is its own instruction set. Some opcode **bytes** mirror EVM mnemonics for familiarity; semantics are defined here and in `boing-execution`.
 - **Implementation:** `boing-execution` crate
 
 ### 7.2 Opcodes
@@ -245,6 +277,26 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | **Add** | `0x01` | 3 | Add top two stack values |
 | **Sub** | `0x02` | 3 | Subtract |
 | **Mul** | `0x03` | 5 | Multiply |
+| **Div** | `0x04` | 5 | Unsigned division (256-bit); divisor zero → VM fault |
+| **Mod** | `0x06` | 5 | Unsigned remainder; divisor zero → VM fault |
+| **AddMod** | `0x08` | 8 | Pop `n`, `b`, `a` (stack top = `n`). Push `(a + b) mod n` using full-width addition before reduce. If `n = 0`, push `0` (no fault). |
+| **MulMod** | `0x09` | 8 | Pop `n`, `b`, `a`. Push `(a × b) mod n` using full 512-bit product before reduce. If `n = 0`, push `0`. |
+| **Lt** | `0x10` | 3 | Less-than (unsigned 256-bit stack words) |
+| **Gt** | `0x11` | 3 | Greater-than (unsigned) |
+| **Eq** | `0x14` | 3 | Equality |
+| **IsZero** | `0x15` | 3 | 1 if top word is zero |
+| **And** | `0x16` | 3 | Bitwise AND |
+| **Or** | `0x17` | 3 | Bitwise OR |
+| **Xor** | `0x18` | 3 | Bitwise XOR |
+| **Not** | `0x19` | 3 | Bitwise NOT |
+| **Address** | `0x30` | 2 | Push this contract’s `AccountId` (32-byte word) |
+| **Caller** | `0x33` | 2 | Push the transaction signer’s `AccountId` (32-byte word) |
+| **Dup1** | `0x80` | 3 | Duplicate top stack word |
+| **Log0** | `0xa0` | dynamic | Pop `offset`, `size`; append log with empty topics and `memory[offset..size)` as data (bounds + per-tx limits apply) |
+| **Log1** | `0xa1` | dynamic | Pop `offset`, `size`, one topic (32-byte words); same as Log0 with one indexed topic |
+| **Log2** | `0xa2` | dynamic | Two topics + data |
+| **Log3** | `0xa3` | dynamic | Three topics + data |
+| **Log4** | `0xa4` | dynamic | Four topics + data |
 | **MLoad** | `0x51` | 3 | Load from memory at offset |
 | **MStore** | `0x52` | 3 | Store to memory |
 | **SLoad** | `0x54` | 100 | Load from storage |
@@ -258,6 +310,12 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | **Return** | `0xf3` | 0 | Return memory slice |
 
 **PUSH encoding:** For `0x60`..`0x7f`, immediate length = `byte - 0x5f` (PUSH1 = 1 byte, PUSH32 = 32 bytes).
+
+**LOG stack layout:** For `LOGn`, stack top is `offset`, then `size`, then topic words in order `topic_{n-1}` … `topic_0` below (so push topics first, then `size`, then `offset`). Gas scales with topic count and data length.
+
+**Execution logs (receipts):** Each contract call may emit up to **24** logs; each log has at most **4** topics (32-byte words each) and **1024** bytes of data (`ExecutionReceipt.logs` in `boing-primitives`).
+
+**Reference fungible calldata** (optional convention for wallets): see [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md).
 
 ### 7.3 Well-Formedness
 
@@ -305,7 +363,7 @@ Deployments must pass protocol QA before inclusion. See [QUALITY-ASSURANCE-NETWO
 | Rule | Limit | rule_id |
 |------|-------|---------|
 | Bytecode size | ≤ 32 KiB | `MAX_BYTECODE_SIZE` |
-| Valid opcodes only | Stop, Add, Sub, Mul, MLoad, MStore, SLoad, SStore, Jump, JumpI, Push1..Push32, Return | `INVALID_OPCODE` |
+| Valid opcodes only | Boing VM set in §7.2 (includes Address, Caller, Dup1, Log0..Log4, arithmetic, compare, bitwise, memory, storage, jump, push, return) | `INVALID_OPCODE` |
 | Well-formed | No truncated PUSH, no trailing bytes | `MALFORMED_BYTECODE` |
 | Not blocklisted | Bytecode hash not in blocklist | `BLOCKLIST_MATCH` |
 
@@ -345,13 +403,15 @@ Use `boing_qaCheck([hex_bytecode]` or `boing_qaCheck([hex_bytecode, purpose_cate
 |--------|--------|--------|
 | `boing_submitTransaction` | `[hex_signed_tx]` | — |
 | `boing_chainHeight` | `[]` | `u64` |
+| `boing_getSyncState` | `[]` | `{ head_height, finalized_height, latest_block_hash }` |
 | `boing_getBalance` | `[hex_account_id]` | `{ balance: string }` |
 | `boing_getAccount` | `[hex_account_id]` | `{ balance, nonce, stake }` |
 | `boing_getBlockByHeight` | `[height]` | Block or `null` |
 | `boing_getBlockByHash` | `[hex_block_hash]` | Block or `null` |
 | `boing_getAccountProof` | `[hex_account_id]` | `{ proof, root, value_hash }` |
 | `boing_verifyAccountProof` | `[hex_proof, hex_state_root]` | `{ valid: boolean }` |
-| `boing_simulateTransaction` | `[hex_signed_tx]` | `{ gas_used, success, error? }` |
+| `boing_getContractStorage` | `[hex_contract_id, hex_key]` | `{ value: hex }` |
+| `boing_simulateTransaction` | `[hex_signed_tx]` | `{ gas_used, success, return_data, logs?, error?, suggested_access_list, access_list_covers_suggestion }` |
 | `boing_registerDappMetrics` | `[hex_contract, hex_owner]` | `{ registered, contract, owner }` |
 | `boing_submitIntent` | `[hex_signed_intent]` | `{ intent_id }` |
 | `boing_qaCheck` | `[hex_bytecode]` or `[hex_bytecode, purpose, desc_hash?]` | `{ result, rule_id?, message? }` |
@@ -420,6 +480,7 @@ Use `boing_qaCheck([hex_bytecode]` or `boing_qaCheck([hex_bytecode, purpose_cate
 | [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) | Wallet integration, signing spec |
 | [RUNBOOK.md](RUNBOOK.md) | Node operation, monitoring, incidents |
 | [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) | Security requirements and practices |
+| [EXECUTION-PARITY-TASK-LIST.md](EXECUTION-PARITY-TASK-LIST.md) | Actionable tasks for VM, receipts, RPC finality, token standards (EVM/Solana-inspired, pillar-aligned) |
 
 ---
 

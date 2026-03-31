@@ -48,7 +48,7 @@ proptest! {
         let max_id = (count * 2) as u8;
         let total_before = total_balance(&state, max_id);
         let exec = BlockExecutor::new();
-        exec.execute_block(&txs, &mut state).unwrap();
+        exec.execute_block(1, &txs, &mut state).unwrap();
         let total_after = total_balance(&state, max_id);
         prop_assert_eq!(total_before, total_after, "total balance must be preserved");
     }
@@ -61,10 +61,10 @@ proptest! {
         let max_id = (count * 2) as u8;
 
         let mut s1 = state.snapshot();
-        exec.execute_block(&txs, &mut s1).unwrap();
+        exec.execute_block(1, &txs, &mut s1).unwrap();
 
         let mut s2 = state.snapshot();
-        exec.execute_block(&txs, &mut s2).unwrap();
+        exec.execute_block(1, &txs, &mut s2).unwrap();
 
         for i in 0..=max_id {
             let id = AccountId({ let mut a = [0u8; 32]; a[0] = i; a });

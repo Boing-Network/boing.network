@@ -19,6 +19,19 @@ http://<host>:<rpc_port>/
 
 Default RPC port: `8545`.
 
+### Chain tip, committed height, and finality
+
+Boing uses a **HotStuff-style BFT** consensus layer ([`boing-consensus`](../crates/boing-consensus)): a block is appended to this node’s [`ChainState`](../crates/boing-node/src/chain.rs) only after it is **committed** through that path. There is **no separate JSON-RPC “unsafe head”** ahead of commit in the current node implementation.
+
+| Term | Meaning in this codebase |
+|------|-------------------------|
+| **`boing_chainHeight` / `head_height` in `boing_getSyncState`** | Height of the latest **committed** block stored on this node (the chain tip). |
+| **Finalized (protocol sense)** | Under standard BFT assumptions (honest quorum, etc.), a committed block is not reverted by consensus. |
+| **`finalized_height` in `boing_getSyncState`** | Today **equal to** `head_height`, because the node only exposes committed blocks. Reserved so a future release can report lag (e.g. optimistic execution vs commit) without breaking clients. |
+| **Syncing / lagging peers** | A node that is still catching up may report a **lower** height than the rest of the network until it imports commits. Clients should not treat “height stopped increasing” as finality across the whole network without comparing multiple sources. |
+
+Wallets and observers that need a single number for “how deep is my tx” can use **`boing_chainHeight`** or **`boing_getSyncState`**; until multiple heights diverge in a future version, they are equivalent for “committed tip.”
+
 ### Request Format
 
 ```json
@@ -143,13 +156,37 @@ Return the **effective protocol QA rule registry** the node uses for deployment 
 
 ### boing_chainHeight
 
-Return the current chain height (tip block number).
+Return the height of the latest **committed** block on this node (see [Chain tip, committed height, and finality](#chain-tip-committed-height-and-finality)).
 
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[]` | None |
 
 **Result:** `u64`
+
+---
+
+### boing_getSyncState
+
+Structured view of the node’s committed chain tip for clients that want explicit **head** vs **finalized** fields (Solana-/Ethereum-style clarity). Today both heights are identical.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[]` | None |
+
+**Result:**
+
+```json
+{
+  "head_height": 42,
+  "finalized_height": 42,
+  "latest_block_hash": "0x..."
+}
+```
+
+- **`head_height`:** Same value as `boing_chainHeight`.
+- **`finalized_height`:** Same as `head_height` in the current implementation; may diverge in a future release if the node exposes pre-commit or optimistic data.
+- **`latest_block_hash`:** BLAKE3 hash of the tip block’s header (`Block::hash()`), 32-byte hex with `0x` prefix.
 
 ---
 
@@ -185,9 +222,48 @@ Get a block by height.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Params | `[height]` | Block height (u64) |
+| Params | `[height]` or `[height, include_receipts]` | Block height (u64); optional boolean — when `true`, adds `receipts` array (same order as `transactions`, `null` if no receipt cached). |
 
-**Result:** Block object or `null` if not found.
+**Result:** Block object or `null` if not found. `header` includes `receipts_root` (hex-encoded 32-byte Merkle root over execution receipts; see protocol spec). Optional `hash` field (hex) is added for convenience. With `include_receipts: true`, each entry matches **`boing_getTransactionReceipt`** shape or `null`.
+
+---
+
+### boing_getTransactionReceipt
+
+Lookup execution outcome for an included transaction (same id as `Transaction::id()` / mempool `tx_hash`).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[hex_tx_id]` | 32-byte transaction id (hex) |
+
+**Result:** Receipt object or `null` if unknown (e.g. not yet included, or node predates receipt persistence).
+
+Receipt: `{ tx_id, block_height, tx_index, success, gas_used, return_data, logs, error }` — `return_data` is hex; `logs` is an array of `{ topics: string[], data: string }` (each topic is `0x` + 32-byte hex, `data` is hex); `error` is set when `success` is false.
+
+---
+
+### boing_getLogs
+
+Query execution logs across a **bounded** range of committed blocks. Intended for indexers and wallets; nodes enforce limits to keep scans cheap.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[filter]` | Single object (camelCase keys below). |
+| `fromBlock` | number or string | Start height (inclusive). JSON number or decimal / `0x` hex string. |
+| `toBlock` | number or string | End height (inclusive). Must be `>= fromBlock`. |
+| `address` | string (optional) | 32-byte `AccountId` hex. When set, only logs attributed to that contract are returned (`ContractCall` target, or deploy-derived address for deploy txs that carry logs). |
+| `topics` | array (optional) | Up to 4 entries; each is `null` (wildcard) or a 32-byte topic hex string. Same index semantics as Ethereum `eth_getLogs` (positional match). |
+
+**Limits (reference implementation):** inclusive block span at most **128**; at most **2048** log entries per call. Exceeding span returns JSON-RPC error `-32602`; exceeding the result cap returns `-32603`.
+
+**Result:** JSON array of objects:
+
+`{ block_height, tx_index, tx_id, log_index, address, topics, data }`
+
+- `address` is hex or `null` when the node cannot attribute an emitting contract.
+- Order is block height ascending, then transaction order in the block, then `log_index`.
+
+**Example:** `{"jsonrpc":"2.0","id":1,"method":"boing_getLogs","params":[{"fromBlock":1,"toBlock":10,"topics":[null,"0x000…"]}]}`
 
 ---
 
@@ -197,7 +273,7 @@ Get a block by hash.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Params | `[hex_block_hash]` | 32-byte block hash (hex) |
+| Params | `[hex_block_hash]` or `[hex_block_hash, include_receipts]` | Optional boolean — same as `boing_getBlockByHeight`. |
 
 **Result:** Block object or `null` if not found.
 
@@ -227,6 +303,32 @@ Verify an account Merkle proof.
 
 ---
 
+### boing_getContractStorage
+
+Read a single 32-byte Boing VM storage word for a contract (same semantics as `SLOAD`: missing slot → zero word). Useful for indexers and wallets that know the storage key layout (e.g. reference NFT / token conventions).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[hex_contract_id, hex_storage_key]` | Two 32-byte values (hex) |
+
+**Result:** `{ value: string }` — `value` is `0x` + 64 hex chars (32 bytes).
+
+---
+
+### Native constant-product AMM (chain 6913 — integration note)
+
+The JSON-RPC surface does **not** embed a canonical pool address. Wallets and dApps configure the **32-byte pool `AccountId`** (e.g. boing.finance `nativeConstantProductPool` / `REACT_APP_BOING_NATIVE_AMM_POOL`).
+
+| Need | RPC / approach |
+|------|----------------|
+| **Reserve A / B** | Two **`boing_getContractStorage`** calls: `hex_contract_id` = pool account; storage keys are the **32-byte big-endian layout** for the pool program (see [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) and `boing_execution::reserve_a_key` / `reserve_b_key`). Each `value` word holds the u128 reserve in the **low 16 bytes** (high 16 zero), matching reference-token word style. |
+| **Swap / liquidity** | Signed **`contract_call`** transactions (calldata per [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md)); preflight **`boing_simulateTransaction`** / **`boing_qaCheck`** on deploy bytecode as usual. |
+| **Automated regression** | Repository test: `cargo test -p boing-node --test native_amm_rpc_happy_path` (deploy → add liquidity → swap; asserts reserves via `boing_getContractStorage`). |
+
+When operators publish a **long-lived public testnet pool id**, it should be duplicated in [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) and partner env/config (checklist **A6.4**).
+
+---
+
 ### boing_simulateTransaction
 
 Simulate a transaction without applying it.
@@ -235,7 +337,7 @@ Simulate a transaction without applying it.
 |-------|------|-------------|
 | Params | `[hex_signed_tx]` | Hex-encoded SignedTransaction |
 
-**Result:** `{ gas_used: number, success: boolean, error?: string }`
+**Result:** `{ gas_used: number, success: boolean, return_data: string, logs?: array, error?: string, suggested_access_list: { read: string[], write: string[] }, access_list_covers_suggestion: boolean }` — on success, `return_data` is hex (contract return buffer) and `logs` matches receipt log shape; on failure, `return_data` is `"0x"` and `logs` is `[]`. **`suggested_access_list`** is a **heuristic** minimum account set for parallel scheduling from the tx payload (see `TECHNICAL-SPECIFICATION.md` §4.2); **`access_list_covers_suggestion`** is `true` when the signed tx’s declared access list includes every account in that suggestion (read or write). Hints are included on both success and failure so clients can fix access lists before submit.
 
 ---
 

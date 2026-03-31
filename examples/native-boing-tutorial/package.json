@@ -1,0 +1,15 @@
+{
+  "name": "native-boing-tutorial",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Canonical native Boing flows: SDK-only (Node). Pair with Boing Express for browser signing.",
+  "scripts": {
+    "transfer": "node scripts/transfer.mjs",
+    "contract-call": "node scripts/contract-call.mjs",
+    "deploy-minimal": "node scripts/deploy-minimal.mjs"
+  },
+  "dependencies": {
+    "boing-sdk": "file:../../boing-sdk"
+  }
+}

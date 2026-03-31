@@ -12,8 +12,8 @@ use rand::seq::SliceRandom;
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use boing_primitives::{Account, AccountState};
 use boing_node::{faucet, node, rpc, security};
+use boing_primitives::{Account, AccountState};
 use boing_qa;
 use boing_tokenomics::BLOCK_TIME_SECS;
 
@@ -105,7 +105,10 @@ async fn main() -> anyhow::Result<()> {
                             if let Err(e) = n.import_network_block(&block) {
                                 tracing::debug!("P2P: block import failed: {}", e);
                             } else {
-                                tracing::info!("P2P: imported block height={}", block.header.height);
+                                tracing::info!(
+                                    "P2P: imported block height={}",
+                                    block.header.height
+                                );
                             }
                         }
                         boing_p2p::P2pEvent::TransactionReceived(_tx) => {
@@ -117,8 +120,7 @@ async fn main() -> anyhow::Result<()> {
 
             let node_sync = node.clone();
             tokio::spawn(async move {
-                let mut interval =
-                    tokio::time::interval(Duration::from_secs(SYNC_INTERVAL_SECS));
+                let mut interval = tokio::time::interval(Duration::from_secs(SYNC_INTERVAL_SECS));
                 loop {
                     interval.tick().await;
                     let peers = p2p_clone.connected_peers().await;
@@ -128,7 +130,8 @@ async fn main() -> anyhow::Result<()> {
                     };
                     let height = node_sync.read().await.chain.height();
                     let next_height = height + 1;
-                    if let Err(e) = p2p_clone.request_block(peer, BlockRequest::ByHeight(next_height))
+                    if let Err(e) =
+                        p2p_clone.request_block(peer, BlockRequest::ByHeight(next_height))
                     {
                         tracing::debug!("P2P: sync request failed: {}", e);
                     }
@@ -144,14 +147,18 @@ async fn main() -> anyhow::Result<()> {
     if args.qa_registry.is_some() || args.qa_pool_config.is_some() {
         let mut n = node.write().await;
         let registry = if let Some(ref path) = args.qa_registry {
-            let bytes = std::fs::read(path).map_err(|e| anyhow::anyhow!("read --qa-registry: {}", e))?;
-            boing_qa::rule_registry_from_json(&bytes).map_err(|e| anyhow::anyhow!("qa_registry JSON: {}", e))?
+            let bytes =
+                std::fs::read(path).map_err(|e| anyhow::anyhow!("read --qa-registry: {}", e))?;
+            boing_qa::rule_registry_from_json(&bytes)
+                .map_err(|e| anyhow::anyhow!("qa_registry JSON: {}", e))?
         } else {
             n.mempool.qa_registry().clone()
         };
         let pool_cfg = if let Some(ref path) = args.qa_pool_config {
-            let bytes = std::fs::read(path).map_err(|e| anyhow::anyhow!("read --qa-pool-config: {}", e))?;
-            boing_qa::qa_pool_config_from_json(&bytes).map_err(|e| anyhow::anyhow!("qa_pool_config JSON: {}", e))?
+            let bytes =
+                std::fs::read(path).map_err(|e| anyhow::anyhow!("read --qa-pool-config: {}", e))?;
+            boing_qa::qa_pool_config_from_json(&bytes)
+                .map_err(|e| anyhow::anyhow!("qa_pool_config JSON: {}", e))?
         } else {
             n.qa_pool.governance_config()
         };
@@ -173,7 +180,10 @@ async fn main() -> anyhow::Result<()> {
                     stake: 0,
                 },
             });
-            tracing::info!("Faucet account initialized with {} BOING", faucet::FAUCET_INITIAL_BALANCE);
+            tracing::info!(
+                "Faucet account initialized with {} BOING",
+                faucet::FAUCET_INITIAL_BALANCE
+            );
         }
         drop(n);
         Some(Arc::new(key))
@@ -201,12 +211,7 @@ async fn main() -> anyhow::Result<()> {
         );
     }
     let listener = tokio::net::TcpListener::bind(&rpc_addr).await?;
-    let app = rpc::rpc_router(
-        node.clone(),
-        &rate_limit,
-        faucet_signer,
-        operator_rpc_token,
-    );
+    let app = rpc::rpc_router(node.clone(), &rate_limit, faucet_signer, operator_rpc_token);
     let server = axum::serve(listener, app);
 
     if args.validator {

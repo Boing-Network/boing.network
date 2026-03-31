@@ -8,6 +8,9 @@ import type {
   AccountProof,
   AccountState,
   Block,
+  ExecutionReceipt,
+  GetLogsFilter,
+  RpcLogEntry,
   FaucetResult,
   QaCheckResponse,
   QaPoolConfigResult,
@@ -17,6 +20,8 @@ import type {
   SimulateResult,
   SubmitIntentResult,
   SubmitTransactionResult,
+  SyncState,
+  ContractStorageWord,
   VerifyProofResult,
   OperatorApplyQaPolicyResult,
   QaRegistryResult,
@@ -140,6 +145,14 @@ export class BoingClient {
     return this.request<number>('boing_chainHeight', []);
   }
 
+  /**
+   * Committed chain tip: `head_height`, `finalized_height` (same as head today), and tip `latest_block_hash`.
+   * See RPC-API-SPEC.md — finality semantics.
+   */
+  async getSyncState(): Promise<SyncState> {
+    return this.request<SyncState>('boing_getSyncState', []);
+  }
+
   /** Get spendable balance for an account. Params: 32-byte account ID (hex). */
   async getBalance(hexAccountId: string): Promise<AccountBalance> {
     const hex = validateHex32(hexAccountId);
@@ -153,14 +166,41 @@ export class BoingClient {
   }
 
   /** Get block by height. Returns null if not found. */
-  async getBlockByHeight(height: number): Promise<Block | null> {
-    return this.request<Block | null>('boing_getBlockByHeight', [height]);
+  async getBlockByHeight(height: number, includeReceipts?: boolean): Promise<Block | null> {
+    const params =
+      includeReceipts === true ? [height, true] : includeReceipts === false ? [height, false] : [height];
+    return this.request<Block | null>('boing_getBlockByHeight', params);
+  }
+
+  /** Receipt for an included tx (`Transaction.id` hex), or `null` if unknown. */
+  async getTransactionReceipt(hexTxId: string): Promise<ExecutionReceipt | null> {
+    return this.request<ExecutionReceipt | null>('boing_getTransactionReceipt', [validateHex32(hexTxId)]);
+  }
+
+  /**
+   * Bounded log query over committed blocks (see RPC-API-SPEC — max block span and result cap on the node).
+   * Optional `address` is normalized to 32-byte hex when provided.
+   */
+  async getLogs(filter: GetLogsFilter): Promise<RpcLogEntry[]> {
+    const payload: Record<string, unknown> = {
+      fromBlock: filter.fromBlock,
+      toBlock: filter.toBlock,
+    };
+    if (filter.address != null && filter.address !== '') {
+      payload.address = validateHex32(filter.address);
+    }
+    if (filter.topics != null) {
+      payload.topics = filter.topics;
+    }
+    return this.request<RpcLogEntry[]>('boing_getLogs', [payload]);
   }
 
   /** Get block by hash. Params: 32-byte block hash (hex). */
-  async getBlockByHash(hexBlockHash: string): Promise<Block | null> {
+  async getBlockByHash(hexBlockHash: string, includeReceipts?: boolean): Promise<Block | null> {
     const hex = validateHex32(hexBlockHash);
-    return this.request<Block | null>('boing_getBlockByHash', [hex]);
+    const params =
+      includeReceipts === true ? [hex, true] : includeReceipts === false ? [hex, false] : [hex];
+    return this.request<Block | null>('boing_getBlockByHash', params);
   }
 
   /** Get Merkle proof for an account. Params: 32-byte account ID (hex). */
@@ -174,6 +214,14 @@ export class BoingClient {
     return this.request<VerifyProofResult>('boing_verifyAccountProof', [
       ensureHex(hexProof),
       ensureHex(hexStateRoot),
+    ]);
+  }
+
+  /** Read one 32-byte VM storage slot for a contract (`SLOAD` semantics; missing → zero word). */
+  async getContractStorage(hexContractId: string, hexKey32: string): Promise<ContractStorageWord> {
+    return this.request<ContractStorageWord>('boing_getContractStorage', [
+      validateHex32(hexContractId),
+      validateHex32(hexKey32),
     ]);
   }
 

@@ -1,6 +1,9 @@
 //! Boing VM — deterministic execution engine.
 
-use boing_primitives::{hasher, AccountId, AccountState, Transaction, TransactionPayload};
+use boing_primitives::{
+    create2_contract_address, nonce_derived_contract_address, AccountId, AccountState, ExecutionLog,
+    Transaction, TransactionPayload,
+};
 use boing_qa::{check_contract_deploy_full_with_metadata, QaResult, RuleRegistry};
 use boing_state::StateStore;
 
@@ -11,6 +14,14 @@ use super::interpreter::Interpreter;
 pub const GAS_PER_TRANSFER: u64 = 21_000;
 pub const GAS_PER_CONTRACT_CALL: u64 = 100_000;
 pub const GAS_PER_CONTRACT_DEPLOY: u64 = 200_000;
+
+/// Successful VM / tx application outcome (for receipts and simulation).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct VmExecutionResult {
+    pub gas_used: u64,
+    pub return_data: Vec<u8>,
+    pub logs: Vec<ExecutionLog>,
+}
 
 /// Minimal state for Transfer-only execution (used by parallel path).
 pub trait TransferState {
@@ -75,7 +86,7 @@ impl Vm {
         &self,
         tx: &Transaction,
         state: &mut S,
-    ) -> Result<u64, VmError> {
+    ) -> Result<VmExecutionResult, VmError> {
         let sender_state = state.get(&tx.sender).ok_or(VmError::AccountNotFound)?;
         if sender_state.nonce != tx.nonce {
             return Err(VmError::InvalidNonce {
@@ -109,11 +120,15 @@ impl Vm {
                 });
             }
         }
-        Ok(GAS_PER_TRANSFER)
+        Ok(VmExecutionResult {
+            gas_used: GAS_PER_TRANSFER,
+            return_data: Vec::new(),
+            logs: Vec::new(),
+        })
     }
 
     /// Execute a single transaction against the state.
-    pub fn execute(&self, tx: &Transaction, state: &mut StateStore) -> Result<u64, VmError> {
+    pub fn execute(&self, tx: &Transaction, state: &mut StateStore) -> Result<VmExecutionResult, VmError> {
         // Nonce validation
         let sender_state = state.get(&tx.sender).ok_or(VmError::AccountNotFound)?;
         if sender_state.nonce != tx.nonce {
@@ -180,18 +195,22 @@ impl Vm {
                 GAS_PER_TRANSFER
             }
             TransactionPayload::ContractCall { contract, calldata } => {
-                self.execute_contract_call(state, tx, contract, calldata)?
+                return self.execute_contract_call(state, tx, contract, calldata);
             }
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
-                self.execute_contract_deploy(state, tx)?
+                return self.execute_contract_deploy(state, tx);
             }
         };
-        Ok(gas_used)
+        Ok(VmExecutionResult {
+            gas_used,
+            return_data: Vec::new(),
+            logs: Vec::new(),
+        })
     }
 
-    fn execute_contract_deploy(&self, state: &mut StateStore, tx: &Transaction) -> Result<u64, VmError> {
+    fn execute_contract_deploy(&self, state: &mut StateStore, tx: &Transaction) -> Result<VmExecutionResult, VmError> {
         // Defense in depth: same full QA path as mempool (`Mempool::insert`), using payload fields.
         // Malicious blocks must not apply deploys that honest mempools would reject.
         let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) = tx.payload.as_contract_deploy()
@@ -225,19 +244,31 @@ impl Vm {
             }
         }
 
+        let contract_addr = if let Some(salt) = tx.payload.deploy_create2_salt() {
+            create2_contract_address(&tx.sender, &salt, bytecode)
+        } else {
+            nonce_derived_contract_address(&tx.sender, tx.nonce)
+        };
+        if state.get(&contract_addr).is_some() || state.get_contract_code(&contract_addr).is_some() {
+            return Err(VmError::DeploymentAddressInUse);
+        }
+
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce
             .checked_add(1)
             .ok_or(VmError::NonceOverflow)?;
 
-        let contract_addr = derive_contract_address(&tx.sender, tx.nonce);
         state.insert(boing_primitives::Account {
             id: contract_addr,
             state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0 },
         });
         state.set_contract_code(contract_addr, bytecode.to_vec());
-        Ok(GAS_PER_CONTRACT_DEPLOY)
+        Ok(VmExecutionResult {
+            gas_used: GAS_PER_CONTRACT_DEPLOY,
+            return_data: Vec::new(),
+            logs: Vec::new(),
+        })
     }
 
     fn execute_contract_call(
@@ -246,7 +277,7 @@ impl Vm {
         tx: &Transaction,
         contract: &AccountId,
         calldata: &[u8],
-    ) -> Result<u64, VmError> {
+    ) -> Result<VmExecutionResult, VmError> {
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce
@@ -255,8 +286,14 @@ impl Vm {
 
         let code = state.get_contract_code(contract).ok_or(VmError::AccountNotFound)?.clone();
         let mut interpreter = Interpreter::new(code, GAS_PER_CONTRACT_CALL);
-        let gas_used = interpreter.run(*contract, calldata, state)?;
-        Ok(gas_used)
+        let gas_used = interpreter.run(tx.sender, *contract, calldata, state)?;
+        let return_data = interpreter.return_data.take().unwrap_or_default();
+        let logs = std::mem::take(&mut interpreter.logs);
+        Ok(VmExecutionResult {
+            gas_used,
+            return_data,
+            logs,
+        })
     }
 }
 
@@ -292,10 +329,14 @@ mod tests {
             sender,
             payload: TransactionPayload::ContractDeploy {
                 bytecode: vec![],
+                create2_salt: None,
             },
             access_list: AccessList::default(),
         };
-        assert!(matches!(vm.execute(&tx, &mut state), Err(VmError::QaRejected { .. })));
+        assert!(matches!(
+            vm.execute(&tx, &mut state),
+            Err(VmError::QaRejected { .. })
+        ));
     }
 
     #[test]
@@ -322,21 +363,128 @@ mod tests {
                 description_hash: None,
                 asset_name: None,
                 asset_symbol: None,
+                create2_salt: None,
             },
             access_list: AccessList::default(),
         };
         assert!(vm.execute(&tx, &mut state).is_ok());
         assert_eq!(state.get(&sender).unwrap().nonce, 1);
     }
-}
 
-fn derive_contract_address(sender: &AccountId, nonce: u64) -> AccountId {
-    let mut h = hasher();
-    h.update(&sender.0);
-    h.update(&nonce.to_le_bytes());
-    let mut out = [0u8; 32];
-    out.copy_from_slice(h.finalize().as_bytes());
-    AccountId(out)
+    #[test]
+    fn contract_call_smoke_emits_log_and_returns_caller() {
+        let vm = Vm::new();
+        let key = SigningKey::generate(&mut OsRng);
+        let sender = AccountId(key.verifying_key().to_bytes());
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: sender,
+            state: AccountState {
+                balance: 1_000_000,
+                nonce: 0,
+                stake: 0,
+            },
+        });
+        let code = crate::reference_token::smoke_contract_bytecode();
+        let deploy = Transaction {
+            nonce: 0,
+            sender,
+            payload: TransactionPayload::ContractDeploy {
+                bytecode: code,
+                create2_salt: None,
+            },
+            access_list: AccessList::default(),
+        };
+        let out = vm.execute(&deploy, &mut state).unwrap();
+        assert!(out.logs.is_empty());
+        let contract = nonce_derived_contract_address(&sender, 0);
+        let call = Transaction {
+            nonce: 1,
+            sender,
+            payload: TransactionPayload::ContractCall {
+                contract,
+                calldata: b"ping".to_vec(),
+            },
+            access_list: AccessList::default(),
+        };
+        let out2 = vm.execute(&call, &mut state).unwrap();
+        assert_eq!(out2.return_data.as_slice(), sender.0.as_slice());
+        assert_eq!(out2.logs.len(), 1);
+        assert_eq!(out2.logs[0].data.as_slice(), b"ping");
+    }
+
+    #[test]
+    fn deploy_create2_address_matches_prediction() {
+        let vm = Vm::new();
+        let key = SigningKey::generate(&mut OsRng);
+        let sender = AccountId(key.verifying_key().to_bytes());
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: sender,
+            state: AccountState {
+                balance: 1_000_000,
+                nonce: 0,
+                stake: 0,
+            },
+        });
+        let code = vec![0x00, 0x00];
+        let salt = [7u8; 32];
+        let expected = create2_contract_address(&sender, &salt, &code);
+        let deploy = Transaction {
+            nonce: 0,
+            sender,
+            payload: TransactionPayload::ContractDeploy {
+                bytecode: code.clone(),
+                create2_salt: Some(salt),
+            },
+            access_list: AccessList::default(),
+        };
+        assert!(vm.execute(&deploy, &mut state).is_ok());
+        assert!(state.get_contract_code(&expected).is_some());
+        assert_eq!(state.get(&sender).unwrap().nonce, 1);
+    }
+
+    #[test]
+    fn deploy_create2_second_time_fails_address_in_use() {
+        let vm = Vm::new();
+        let key = SigningKey::generate(&mut OsRng);
+        let sender = AccountId(key.verifying_key().to_bytes());
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: sender,
+            state: AccountState {
+                balance: 1_000_000,
+                nonce: 0,
+                stake: 0,
+            },
+        });
+        let code = vec![0x00];
+        let salt = [9u8; 32];
+        let deploy1 = Transaction {
+            nonce: 0,
+            sender,
+            payload: TransactionPayload::ContractDeploy {
+                bytecode: code.clone(),
+                create2_salt: Some(salt),
+            },
+            access_list: AccessList::default(),
+        };
+        assert!(vm.execute(&deploy1, &mut state).is_ok());
+        let deploy2 = Transaction {
+            nonce: 1,
+            sender,
+            payload: TransactionPayload::ContractDeploy {
+                bytecode: code,
+                create2_salt: Some(salt),
+            },
+            access_list: AccessList::default(),
+        };
+        assert!(matches!(
+            vm.execute(&deploy2, &mut state),
+            Err(VmError::DeploymentAddressInUse)
+        ));
+        assert_eq!(state.get(&sender).unwrap().nonce, 1);
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -359,6 +507,12 @@ pub enum VmError {
     InvalidBytecode,
     #[error("Invalid jump destination")]
     InvalidJump,
+    #[error("Invalid log event: {0}")]
+    InvalidLog(&'static str),
+    #[error("Deployment address already has an account or code")]
+    DeploymentAddressInUse,
+    #[error("Division by zero")]
+    DivisionByZero,
     #[error("QA rejected: {rule_id} — {message}")]
     QaRejected { rule_id: String, message: String },
 }

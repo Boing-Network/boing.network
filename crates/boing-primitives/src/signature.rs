@@ -50,6 +50,12 @@ impl std::fmt::Debug for Signature {
     }
 }
 
+/// BLAKE3 digest over `nonce_le || sender || bincode(payload) || bincode(access_list)`.
+/// Matches what [`sign_transaction`] and [`verify_signature`] use; exposed for SDKs and golden tests.
+pub fn signable_transaction_hash(tx: &Transaction) -> [u8; 32] {
+    signable_hash(tx)
+}
+
 /// Message hash that gets signed (deterministic serialization of tx fields).
 fn signable_hash(tx: &Transaction) -> [u8; 32] {
     let mut h = hasher();

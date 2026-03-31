@@ -13,10 +13,14 @@ pub mod types;
 
 pub use hash::{Hash, hasher};
 pub use signature::{
-    sign_transaction, verify_signature, Signature, SignatureError, SignedTransaction,
+    sign_transaction, signable_transaction_hash, verify_signature, Signature, SignatureError,
+    SignedTransaction,
 };
 pub use types::{
-    tx_root, AccountId, Block, BlockHeader, Transaction, TransactionPayload, AccessList,
+    create2_contract_address, nonce_derived_contract_address, receipt_leaf_hash, receipts_root,
+    tx_root, AccountId, Block, BlockHeader, ExecutionLog, ExecutionReceipt, Transaction,
+    TransactionPayload, AccessList, MAX_EXECUTION_LOG_DATA_BYTES, MAX_EXECUTION_LOGS_PER_TX,
+    MAX_EXECUTION_LOG_TOPICS, MAX_RECEIPT_ERROR_STRING_BYTES, MAX_RECEIPT_RETURN_DATA_BYTES,
 };
 pub use types::{Account, AccountState};
 pub use intent::{Intent, IntentKind, SignedIntent};
@@ -84,5 +88,47 @@ mod tests {
         assert!(!al1.conflicts_with(&al2));
         let al3 = AccessList::new(vec![b, c], vec![]);
         assert!(al1.conflicts_with(&al3));
+    }
+
+    #[test]
+    fn test_create2_contract_address_deterministic() {
+        let d = AccountId::from_bytes([3u8; 32]);
+        let salt = [5u8; 32];
+        let code = vec![0x60, 0x00];
+        let a = create2_contract_address(&d, &salt, &code);
+        let b = create2_contract_address(&d, &salt, &code);
+        assert_eq!(a, b);
+        assert_ne!(create2_contract_address(&d, &salt, &vec![0x61]), a);
+    }
+
+    #[test]
+    fn test_suggested_parallel_access_list() {
+        let sender = AccountId::from_bytes([1u8; 32]);
+        let to = AccountId::from_bytes([2u8; 32]);
+        let contract = AccountId::from_bytes([4u8; 32]);
+        let t_transfer = Transaction {
+            nonce: 0,
+            sender,
+            payload: TransactionPayload::Transfer { to, amount: 1 },
+            access_list: AccessList::default(),
+        };
+        let sug = t_transfer.suggested_parallel_access_list();
+        assert!(sug.read.contains(&sender) && sug.read.contains(&to));
+        assert!(!t_transfer.access_list_covers_parallel_suggestion());
+        let t_ok = Transaction {
+            access_list: sug.clone(),
+            ..t_transfer.clone()
+        };
+        assert!(t_ok.access_list_covers_parallel_suggestion());
+        let t_call = Transaction {
+            nonce: 0,
+            sender,
+            payload: TransactionPayload::ContractCall {
+                contract,
+                calldata: vec![],
+            },
+            access_list: AccessList::new(vec![sender, contract], vec![sender, contract]),
+        };
+        assert!(t_call.access_list_covers_parallel_suggestion());
     }
 }

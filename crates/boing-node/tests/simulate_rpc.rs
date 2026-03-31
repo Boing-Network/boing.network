@@ -1,8 +1,11 @@
 //! Test boing_simulateTransaction RPC.
 
+use std::collections::HashMap;
+
 use boing_node::node::BoingNode;
 use boing_primitives::{
-    AccessList, Account, AccountId, AccountState, SignedTransaction, Transaction, TransactionPayload,
+    AccessList, Account, AccountId, AccountState, SignedTransaction, Transaction,
+    TransactionPayload,
 };
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
@@ -16,7 +19,11 @@ fn node_with_proposer(signing_key: &SigningKey, balance: u128) -> BoingNode {
     let mut state = boing_state::StateStore::new();
     state.insert(Account {
         id: proposer,
-        state: AccountState { balance, nonce: 0, stake: 0 },
+        state: AccountState {
+            balance,
+            nonce: 0,
+            stake: 0,
+        },
     });
     BoingNode {
         chain,
@@ -32,6 +39,7 @@ fn node_with_proposer(signing_key: &SigningKey, balance: u128) -> BoingNode {
         intent_pool: boing_node::intent_pool::IntentPool::new(),
         qa_pool: boing_node::node::pending_qa_pool_default(),
         persistence: None,
+        receipts: HashMap::new(),
     }
 }
 
@@ -43,7 +51,11 @@ fn test_simulate_success() {
     let mut node = node_with_proposer(&key, 1_000_000);
     node.state.insert(Account {
         id: to,
-        state: AccountState { balance: 0, nonce: 0, stake: 0 },
+        state: AccountState {
+            balance: 0,
+            nonce: 0,
+            stake: 0,
+        },
     });
 
     let tx = Transaction {
@@ -57,7 +69,7 @@ fn test_simulate_success() {
     let vm = boing_execution::Vm::new();
     let result = vm.execute(&signed.tx, &mut state_copy);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 21_000);
+    assert_eq!(result.unwrap().gas_used, 21_000);
     assert_eq!(state_copy.get(&proposer).unwrap().balance, 999_900);
     assert_eq!(state_copy.get(&to).unwrap().balance, 100);
     assert_eq!(node.state.get(&proposer).unwrap().balance, 1_000_000); // original unchanged

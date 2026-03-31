@@ -1,12 +1,12 @@
 //! Multi-node testnet: 4 validators sync blocks via P2P.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use boing_p2p::BlockRequest;
 use boing_node::chain::ChainState;
 use boing_node::node::BoingNode;
-use rand::seq::SliceRandom;
+use boing_p2p::BlockRequest;
 use boing_primitives::{
     AccessList, Account, AccountId, AccountState, SignedTransaction, Transaction,
     TransactionPayload,
@@ -14,6 +14,7 @@ use boing_primitives::{
 use boing_tokenomics::BLOCK_TIME_SECS;
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
+use rand::seq::SliceRandom;
 use tokio::sync::RwLock;
 
 fn node_with_p2p_and_block_provider(
@@ -37,7 +38,11 @@ fn node_with_p2p_and_block_provider(
     let mut state = boing_state::StateStore::new();
     state.insert(Account {
         id: proposer,
-        state: AccountState { balance, nonce: 0, stake: 0 },
+        state: AccountState {
+            balance,
+            nonce: 0,
+            stake: 0,
+        },
     });
 
     let node = BoingNode {
@@ -54,6 +59,7 @@ fn node_with_p2p_and_block_provider(
         intent_pool: boing_node::intent_pool::IntentPool::new(),
         qa_pool: boing_node::node::pending_qa_pool_default(),
         persistence: None,
+        receipts: HashMap::new(),
     };
     (node, event_rx)
 }
@@ -85,13 +91,17 @@ async fn test_four_validators_sync() {
         nodes_and_rx.push((Arc::new(RwLock::new(node)), rx));
     }
 
-    let boot_addr = addrs[0].clone();
-    for (i, (node_ref, _rx)) in nodes_and_rx.iter().enumerate() {
-        if i > 0 {
-            node_ref.read().await.p2p.dial(&boot_addr).expect("dial");
+    // Full mesh dials so every peer can gossip / block-sync even if one uplink is slow (local testnet).
+    for i in 0..addrs.len() {
+        for j in 0..addrs.len() {
+            if i == j {
+                continue;
+            }
+            let _ = nodes_and_rx[i].0.read().await.p2p.dial(&addrs[j]);
         }
     }
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    // Give gossipsub time to mesh (Windows CI can be slow to propagate first block).
+    tokio::time::sleep(Duration::from_secs(4)).await;
 
     let node_refs: Vec<Arc<RwLock<BoingNode>>> =
         nodes_and_rx.iter().map(|(nr, _)| nr.clone()).collect();
@@ -101,8 +111,7 @@ async fn test_four_validators_sync() {
         if idx > 0 {
             let p2p = node_ref.read().await.p2p.clone();
             tokio::spawn(async move {
-                let mut interval =
-                    tokio::time::interval(Duration::from_secs(BLOCK_TIME_SECS));
+                let mut interval = tokio::time::interval(Duration::from_secs(BLOCK_TIME_SECS));
                 loop {
                     interval.tick().await;
                     let peers = p2p.connected_peers().await;
@@ -140,11 +149,16 @@ async fn test_four_validators_sync() {
         }
     });
 
-    tokio::time::sleep(Duration::from_secs(BLOCK_TIME_SECS * 8 + 5)).await;
-
-    let mut heights = Vec::new();
-    for nr in &node_refs {
-        heights.push(nr.read().await.chain.height());
+    // Poll until every node has imported height ≥ 1 (gossip + block-sync timing varies).
+    let mut heights = vec![0u64; 4];
+    for _ in 0..30 {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        for (i, nr) in node_refs.iter().enumerate() {
+            heights[i] = nr.read().await.chain.height();
+        }
+        if heights.iter().all(|&h| h >= 1) {
+            break;
+        }
     }
 
     assert!(

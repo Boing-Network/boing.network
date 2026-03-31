@@ -157,6 +157,7 @@ mod tests {
                 timestamp: 0,
                 proposer,
                 tx_root: Hash::ZERO,
+                receipts_root: Hash::ZERO,
                 state_root: Hash::ZERO,
             },
             transactions: vec![],

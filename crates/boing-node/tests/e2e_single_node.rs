@@ -1,8 +1,11 @@
 //! End-to-end test: single node produces blocks with transactions.
 
+use std::collections::HashMap;
+
 use boing_node::node::BoingNode;
 use boing_primitives::{
-    AccessList, Account, AccountId, AccountState, SignedTransaction, Transaction, TransactionPayload,
+    AccessList, Account, AccountId, AccountState, SignedTransaction, Transaction,
+    TransactionPayload,
 };
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
@@ -17,7 +20,11 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> BoingNode 
     let mut state = boing_state::StateStore::new();
     state.insert(Account {
         id: proposer,
-        state: AccountState { balance, nonce: 0, stake: 0 },
+        state: AccountState {
+            balance,
+            nonce: 0,
+            stake: 0,
+        },
     });
 
     BoingNode {
@@ -34,6 +41,7 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> BoingNode 
         intent_pool: boing_node::intent_pool::IntentPool::new(),
         qa_pool: boing_node::node::pending_qa_pool_default(),
         persistence: None,
+        receipts: HashMap::new(),
     }
 }
 

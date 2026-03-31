@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
 use boing_primitives::{AccountId, Hash, SignedTransaction};
-use boing_qa::{check_contract_deploy_full_with_metadata, RuleRegistry, QaReject, QaResult};
+use boing_qa::{check_contract_deploy_full_with_metadata, QaReject, QaResult, RuleRegistry};
 
 /// Default max pending transactions per sender (matches SECURITY-STANDARDS / RateLimitConfig).
 pub const DEFAULT_MAX_PENDING_PER_SENDER: usize = 16;
@@ -79,10 +79,18 @@ impl Mempool {
         self.insert_inner(signed, true)
     }
 
-    fn insert_inner(&self, signed: SignedTransaction, skip_deploy_qa: bool) -> Result<(), MempoolError> {
-        signed.verify().map_err(|_| MempoolError::InvalidSignature)?;
+    fn insert_inner(
+        &self,
+        signed: SignedTransaction,
+        skip_deploy_qa: bool,
+    ) -> Result<(), MempoolError> {
+        signed
+            .verify()
+            .map_err(|_| MempoolError::InvalidSignature)?;
         if !skip_deploy_qa {
-            if let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) = signed.tx.payload.as_contract_deploy() {
+            if let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) =
+                signed.tx.payload.as_contract_deploy()
+            {
                 let registry = &self.qa_registry;
                 match check_contract_deploy_full_with_metadata(
                     bytecode,
@@ -107,7 +115,11 @@ impl Mempool {
         }
         let sender = signed.tx.sender;
         let nonce = signed.tx.nonce;
-        let is_replacement = inner.by_sender.get(&sender).map(|m| m.contains_key(&nonce)).unwrap_or(false);
+        let is_replacement = inner
+            .by_sender
+            .get(&sender)
+            .map(|m| m.contains_key(&nonce))
+            .unwrap_or(false);
         if !is_replacement {
             let sender_count = inner.by_sender.get(&sender).map(|m| m.len()).unwrap_or(0);
             if sender_count >= self.max_pending_per_sender {
@@ -117,7 +129,11 @@ impl Mempool {
                 });
             }
         }
-        let prev = inner.by_sender.entry(sender).or_default().insert(nonce, signed);
+        let prev = inner
+            .by_sender
+            .entry(sender)
+            .or_default()
+            .insert(nonce, signed);
         if let Some(old_signed) = prev {
             inner.by_id.remove(&old_signed.tx.id());
         } else {
@@ -137,7 +153,7 @@ impl Mempool {
                 candidates.push((*sender, *nonce));
             }
         }
-        candidates.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.0.cmp(&b.0.0)));
+        candidates.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0 .0.cmp(&b.0 .0)));
         let mut out = Vec::with_capacity(max.min(candidates.len()));
         for (sender, nonce) in candidates.into_iter().take(max) {
             if let Some(by_nonce) = inner.by_sender.get_mut(&sender) {
@@ -216,6 +232,7 @@ mod tests {
                 description_hash: None,
                 asset_name: None,
                 asset_symbol: None,
+                create2_salt: None,
             },
             access_list: AccessList::default(),
         };

@@ -2,9 +2,12 @@
 
 use tracing::{info, warn};
 
-use boing_primitives::{tx_root, Account, AccountId, AccountState, Block, BlockHeader, Hash, Transaction};
 use boing_consensus::ConsensusEngine;
 use boing_execution::BlockExecutor;
+use boing_primitives::{
+    receipts_root, tx_root, Account, AccountId, AccountState, Block, BlockHeader, ExecutionReceipt,
+    Hash, Transaction,
+};
 use boing_state::StateStore;
 use boing_tokenomics::block_emission_validators;
 
@@ -30,7 +33,7 @@ impl BlockProducer {
         self
     }
 
-    /// Produce and commit a block. Returns the block hash if successful.
+    /// Produce and commit a block. Returns `(block_hash, receipts)` if successful.
     /// Only the round leader produces; other validators skip.
     pub fn produce_block(
         &self,
@@ -39,7 +42,7 @@ impl BlockProducer {
         state: &mut StateStore,
         executor: &BlockExecutor,
         consensus: &mut ConsensusEngine,
-    ) -> Option<Hash> {
+    ) -> Option<(Hash, Vec<ExecutionReceipt>)> {
         let next_height = chain.height() + 1;
         if consensus.leader(next_height) != self.proposer {
             return None; // Not our turn to propose
@@ -56,12 +59,15 @@ impl BlockProducer {
 
         // Execute transactions; revert on failure and re-insert txs so they can be retried
         let checkpoint = state.checkpoint();
-        if let Err(e) = executor.execute_block(&txs, state) {
-            warn!("Block execution failed: {}", e);
-            state.revert(checkpoint);
-            mempool.reinsert(signed_txs);
-            return None;
-        }
+        let receipts = match executor.execute_block(height, &txs, state) {
+            Ok((_gas, r)) => r,
+            Err(e) => {
+                warn!("Block execution failed: {}", e);
+                state.revert(checkpoint);
+                mempool.reinsert(signed_txs);
+                return None;
+            }
+        };
 
         // Credit block reward to proposer
         let reward = block_emission_validators(height);
@@ -71,13 +77,18 @@ impl BlockProducer {
                 None => {
                     state.insert(Account {
                         id: self.proposer,
-                        state: AccountState { balance: reward, nonce: 0, stake: 0 },
+                        state: AccountState {
+                            balance: reward,
+                            nonce: 0,
+                            stake: 0,
+                        },
                     });
                 }
             }
         }
 
         let state_root = state.state_root();
+        let rr = receipts_root(&receipts);
 
         let block = Block {
             header: BlockHeader {
@@ -89,6 +100,7 @@ impl BlockProducer {
                     .as_secs(),
                 proposer: self.proposer,
                 tx_root,
+                receipts_root: rr,
                 state_root,
             },
             transactions: txs,
@@ -103,7 +115,7 @@ impl BlockProducer {
                     return None;
                 }
                 info!("Block committed: height={} hash={:?}", height, hash);
-                Some(hash)
+                Some((hash, receipts))
             }
             Err(e) => {
                 warn!("Consensus failed: {}", e);

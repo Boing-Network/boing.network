@@ -358,6 +358,7 @@ mod tests {
             sender,
             payload: TransactionPayload::ContractDeploy {
                 bytecode: vec![0x00],
+                create2_salt: None,
             },
             access_list: AccessList::default(),
         };

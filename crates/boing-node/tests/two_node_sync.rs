@@ -1,5 +1,7 @@
 //! P2P smoke test: node with live P2P produces and broadcasts a block.
 
+use std::collections::HashMap;
+
 use boing_node::node::BoingNode;
 use boing_primitives::{
     AccessList, Account, AccountId, AccountState, SignedTransaction, Transaction,
@@ -8,7 +10,11 @@ use boing_primitives::{
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 
-fn node_with_p2p(signing_key: &SigningKey, balance: u128, p2p_listen: &str) -> (BoingNode, tokio::sync::mpsc::Receiver<boing_p2p::P2pEvent>) {
+fn node_with_p2p(
+    signing_key: &SigningKey,
+    balance: u128,
+    p2p_listen: &str,
+) -> (BoingNode, tokio::sync::mpsc::Receiver<boing_p2p::P2pEvent>) {
     let (p2p, event_rx) = boing_p2p::P2pNode::new(p2p_listen, None).expect("P2P init");
     let proposer = AccountId(signing_key.verifying_key().to_bytes());
     let genesis = boing_node::chain::ChainState::genesis(proposer);
@@ -19,7 +25,11 @@ fn node_with_p2p(signing_key: &SigningKey, balance: u128, p2p_listen: &str) -> (
     let mut state = boing_state::StateStore::new();
     state.insert(Account {
         id: proposer,
-        state: AccountState { balance, nonce: 0, stake: 0 },
+        state: AccountState {
+            balance,
+            nonce: 0,
+            stake: 0,
+        },
     });
 
     let node = BoingNode {
@@ -36,6 +46,7 @@ fn node_with_p2p(signing_key: &SigningKey, balance: u128, p2p_listen: &str) -> (
         intent_pool: boing_node::intent_pool::IntentPool::new(),
         qa_pool: boing_node::node::pending_qa_pool_default(),
         persistence: None,
+        receipts: HashMap::new(),
     };
     (node, event_rx)
 }

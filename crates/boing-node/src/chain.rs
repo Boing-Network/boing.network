@@ -30,6 +30,7 @@ impl ChainState {
                 timestamp: 0,
                 proposer,
                 tx_root: Hash::ZERO,
+                receipts_root: Hash::ZERO,
                 state_root: Hash::ZERO,
             },
             transactions: vec![],
@@ -80,7 +81,9 @@ impl ChainState {
             return Err(ChainError::InvalidHeight);
         }
         let hash = block.hash();
-        inner.blocks_by_height.insert(block.header.height, block.clone());
+        inner
+            .blocks_by_height
+            .insert(block.header.height, block.clone());
         inner.blocks_by_hash.insert(hash, block.clone());
         inner.height = block.header.height;
         inner.latest_hash = hash;
@@ -90,7 +93,12 @@ impl ChainState {
 
     /// Get block by height, if present.
     pub fn get_block_by_height(&self, height: u64) -> Option<Block> {
-        self.inner.read().unwrap().blocks_by_height.get(&height).cloned()
+        self.inner
+            .read()
+            .unwrap()
+            .blocks_by_height
+            .get(&height)
+            .cloned()
     }
 
     /// Get block by hash, if present.

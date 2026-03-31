@@ -2,7 +2,10 @@
 
 use boing_node::mempool::MempoolError;
 use boing_node::node::BoingNode;
-use boing_primitives::{AccessList, Account, AccountId, AccountState, SignedTransaction, Transaction, TransactionPayload};
+use boing_primitives::{
+    AccessList, Account, AccountId, AccountState, SignedTransaction, Transaction,
+    TransactionPayload,
+};
 use boing_qa::pool::{PoolError, QaPoolVote};
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
 use ed25519_dalek::SigningKey;
@@ -38,6 +41,7 @@ fn unsure_deploy_only_governance_admin_can_admit() {
             description_hash: None,
             asset_name: None,
             asset_symbol: None,
+            create2_salt: None,
         },
         access_list: AccessList::default(),
     };
@@ -55,7 +59,9 @@ fn unsure_deploy_only_governance_admin_can_admit() {
         Err(PoolError::NotAdministrator)
     ));
 
-    let r = node.qa_pool_vote(tx_hash, admin, QaPoolVote::Allow).unwrap();
+    let r = node
+        .qa_pool_vote(tx_hash, admin, QaPoolVote::Allow)
+        .unwrap();
     assert!(matches!(
         r,
         boing_node::node::QaPoolVoteResult::AllowedAdmitted
@@ -91,6 +97,7 @@ fn production_pool_config_rejects_enqueue_until_admins_set() {
             description_hash: None,
             asset_name: None,
             asset_symbol: None,
+            create2_salt: None,
         },
         access_list: AccessList::default(),
     };

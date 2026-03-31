@@ -61,6 +61,14 @@ impl StateStore {
         self.contract_code.get(account)
     }
 
+    /// One 32-byte storage slot for `contract` (Boing VM `SLOAD` semantics; missing → zero word).
+    pub fn get_contract_storage(&self, contract: &AccountId, key: &[u8; 32]) -> [u8; 32] {
+        self.contract_storage
+            .get(&(*contract, *key))
+            .copied()
+            .unwrap_or([0u8; 32])
+    }
+
     /// Compute state root from Sparse Merkle tree. Rebuilds tree from current
     /// accounts to include changes made via get_mut (e.g. by the VM).
     pub fn state_root(&mut self) -> Hash {
@@ -190,5 +198,16 @@ mod tests {
         assert_eq!(top.len(), 2);
         assert_eq!(top[0], b);
         assert_eq!(top[1], c);
+    }
+
+    #[test]
+    fn test_get_contract_storage() {
+        let mut state = StateStore::new();
+        let c = AccountId([9u8; 32]);
+        let k = [7u8; 32];
+        let v = [8u8; 32];
+        assert_eq!(state.get_contract_storage(&c, &k), [0u8; 32]);
+        state.merge_contract_storage(c, k, v);
+        assert_eq!(state.get_contract_storage(&c, &k), v);
     }
 }

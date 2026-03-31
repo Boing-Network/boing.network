@@ -18,7 +18,11 @@ fn test_persistence_roundtrip() {
     let mut state = StateStore::new();
     state.insert(Account {
         id: proposer,
-        state: AccountState { balance: 1_000_000, nonce: 0, stake: 0 },
+        state: AccountState {
+            balance: 1_000_000,
+            nonce: 0,
+            stake: 0,
+        },
     });
 
     let p = Persistence::new(&temp);
@@ -34,6 +38,7 @@ fn test_persistence_roundtrip() {
             timestamp: 1,
             proposer,
             tx_root: boing_primitives::Hash::ZERO,
+            receipts_root: boing_primitives::Hash::ZERO,
             state_root: boing_primitives::Hash::ZERO,
         },
         transactions: vec![],

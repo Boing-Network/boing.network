@@ -1,5 +1,7 @@
 //! Test boing_getAccountProof and boing_verifyAccountProof RPC.
 
+use std::collections::HashMap;
+
 use boing_node::node::BoingNode;
 use boing_primitives::{Account, AccountId, AccountState};
 use boing_state::StateStore;
@@ -18,11 +20,19 @@ fn node_with_accounts() -> BoingNode {
     let mut state = StateStore::new();
     state.insert(Account {
         id: proposer,
-        state: AccountState { balance: 1_000_000, nonce: 0, stake: 0 },
+        state: AccountState {
+            balance: 1_000_000,
+            nonce: 0,
+            stake: 0,
+        },
     });
     state.insert(Account {
         id: AccountId(k128),
-        state: AccountState { balance: 500, nonce: 1, stake: 0 },
+        state: AccountState {
+            balance: 500,
+            nonce: 1,
+            stake: 0,
+        },
     });
     BoingNode {
         chain,
@@ -38,6 +48,7 @@ fn node_with_accounts() -> BoingNode {
         intent_pool: boing_node::intent_pool::IntentPool::new(),
         qa_pool: boing_node::node::pending_qa_pool_default(),
         persistence: None,
+        receipts: HashMap::new(),
     }
 }
 

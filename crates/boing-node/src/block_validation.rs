@@ -1,19 +1,21 @@
 //! Block import and validation — validate blocks from peers.
 
-use boing_primitives::{tx_root, Account, AccountId, AccountState, Block, Hash};
 use boing_consensus::ConsensusEngine;
 use boing_execution::BlockExecutor;
+use boing_primitives::{
+    receipts_root, tx_root, Account, AccountId, AccountState, Block, ExecutionReceipt, Hash,
+};
 use boing_state::StateStore;
 use boing_tokenomics::block_emission_validators;
 
-/// Validate and execute a block. Returns updated state on success.
+/// Validate and execute a block. Returns updated state and per-tx receipts on success.
 /// Caller must ensure block chains to parent (parent_hash, height).
 pub fn validate_and_execute_block(
     block: &Block,
     parent_state: &StateStore,
     validator_set: &[AccountId],
     executor: &BlockExecutor,
-) -> Result<StateStore, BlockValidationError> {
+) -> Result<(StateStore, Vec<ExecutionReceipt>), BlockValidationError> {
     // 1. Tx root
     let expected_tx_root = tx_root(&block.transactions);
     if block.header.tx_root != expected_tx_root {
@@ -27,9 +29,9 @@ pub fn validate_and_execute_block(
 
     // 3. Execute on snapshot
     let mut state = parent_state.snapshot();
-    if let Err(e) = executor.execute_block(&block.transactions, &mut state) {
-        return Err(BlockValidationError::ExecutionFailed(e.to_string()));
-    }
+    let (_gas, receipts) = executor
+        .execute_block(block.header.height, &block.transactions, &mut state)
+        .map_err(|e| BlockValidationError::ExecutionFailed(e.to_string()))?;
 
     // 4. Block reward
     let reward = block_emission_validators(block.header.height);
@@ -39,13 +41,26 @@ pub fn validate_and_execute_block(
             None => {
                 state.insert(Account {
                     id: block.header.proposer,
-                    state: AccountState { balance: reward, nonce: 0, stake: 0 },
+                    state: AccountState {
+                        balance: reward,
+                        nonce: 0,
+                        stake: 0,
+                    },
                 });
             }
         }
     }
 
-    // 5. State root
+    // 5. Receipts root
+    let expected_receipts_root = receipts_root(&receipts);
+    if block.header.receipts_root != expected_receipts_root {
+        return Err(BlockValidationError::InvalidReceiptsRoot {
+            expected: block.header.receipts_root,
+            computed: expected_receipts_root,
+        });
+    }
+
+    // 6. State root
     let computed_root = state.state_root();
     if block.header.state_root != computed_root {
         return Err(BlockValidationError::InvalidStateRoot {
@@ -54,7 +69,7 @@ pub fn validate_and_execute_block(
         });
     }
 
-    Ok(state)
+    Ok((state, receipts))
 }
 
 /// Check that a block chains to our tip. Does not execute.
@@ -62,7 +77,7 @@ pub fn chains_to(block: &Block, our_latest_hash: Hash, our_height: u64) -> bool 
     block.header.parent_hash == our_latest_hash && block.header.height == our_height + 1
 }
 
-/// Full import: validate block and return new state if it chains and is valid.
+/// Full import: validate block and return new state + receipts if it chains and is valid.
 pub fn import_block(
     block: &Block,
     our_latest_hash: Hash,
@@ -70,7 +85,7 @@ pub fn import_block(
     parent_state: &StateStore,
     consensus: &ConsensusEngine,
     executor: &BlockExecutor,
-) -> Result<StateStore, BlockValidationError> {
+) -> Result<(StateStore, Vec<ExecutionReceipt>), BlockValidationError> {
     if !chains_to(block, our_latest_hash, our_height) {
         return Err(BlockValidationError::DoesNotChain);
     }
@@ -87,6 +102,8 @@ pub enum BlockValidationError {
     DoesNotChain,
     #[error("Invalid tx root")]
     InvalidTxRoot,
+    #[error("Invalid receipts root: expected {expected:?}, computed {computed:?}")]
+    InvalidReceiptsRoot { expected: Hash, computed: Hash },
     #[error("Invalid proposer")]
     InvalidProposer,
     #[error("Execution failed: {0}")]

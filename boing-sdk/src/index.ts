@@ -72,6 +72,11 @@ export {
   constantProductAmountOut,
 } from './nativeAmm.js';
 export {
+  buildNativeConstantProductPoolAccessList,
+  buildNativeConstantProductContractCallTx,
+  mergeNativePoolAccessListWithSimulation,
+} from './nativeAmmPool.js';
+export {
   SELECTOR_OWNER_OF,
   SELECTOR_TRANSFER_NFT,
   SELECTOR_SET_METADATA_HASH,

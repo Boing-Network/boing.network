@@ -5,6 +5,14 @@
 /** Chain height (block number). */
 export type ChainHeight = number;
 
+/** Result of `boing_getSyncState` — committed tip; `finalized_height` matches `head_height` until the node exposes pre-commit data. */
+export interface SyncState {
+  head_height: number;
+  finalized_height: number;
+  /** Tip block hash (32-byte hex with `0x`). */
+  latest_block_hash: string;
+}
+
 /** Balance and stake are u128 as decimal strings. */
 export interface AccountBalance {
   balance: string;
@@ -22,12 +30,56 @@ export interface BlockHeader {
   timestamp: number;
   proposer: string;
   tx_root: string;
+  /** Merkle root over serialized receipts (see protocol spec). */
+  receipts_root: string;
   state_root: string;
+}
+
+/** One log entry from contract execution (`LOG0`..`LOG4`). */
+export interface ExecutionLog {
+  topics: string[];
+  data: string;
+}
+
+/** Params for `boing_getLogs` — block numbers as JSON numbers or decimal / `0x` hex strings. */
+export interface GetLogsFilter {
+  fromBlock: number | string;
+  toBlock: number | string;
+  /** When set, only logs attributed to this contract (32-byte account id hex). */
+  address?: string;
+  /** Per-index topic matchers: `null` = wildcard (same as Ethereum `eth_getLogs`). Max 4 entries. */
+  topics?: (string | null)[];
+}
+
+/** One log row from `boing_getLogs` (flattened; includes block / tx placement). */
+export interface RpcLogEntry {
+  block_height: number;
+  tx_index: number;
+  tx_id: string;
+  log_index: number;
+  /** Emitting contract when the node can attribute it (`ContractCall` / deploy address). */
+  address: string | null;
+  topics: string[];
+  data: string;
+}
+
+/** On-chain execution result for an included transaction (`boing_getTransactionReceipt`). */
+export interface ExecutionReceipt {
+  tx_id: string;
+  block_height: number;
+  tx_index: number;
+  success: boolean;
+  gas_used: number;
+  return_data: string;
+  logs: ExecutionLog[];
+  error?: string | null;
 }
 
 export interface Block {
   header: BlockHeader;
   transactions: unknown[];
+  /** Present when fetched with `include_receipts: true` on `boing_getBlockByHeight`. */
+  receipts?: (ExecutionReceipt | null)[];
 }
 
 export interface AccountProof {
@@ -40,10 +92,29 @@ export interface VerifyProofResult {
   valid: boolean;
 }
 
+/** Shape of `suggested_access_list` on `boing_simulateTransaction`. */
+export interface AccessListJson {
+  read: string[];
+  write: string[];
+}
+
 export interface SimulateResult {
   gas_used: number;
   success: boolean;
+  /** Hex-encoded contract return buffer when `success` is true. */
+  return_data?: string;
+  /** Emitted logs when `success` is true (contract calls). */
+  logs?: ExecutionLog[];
   error?: string;
+  /** Heuristic minimum accounts for parallel scheduling (Track A). */
+  suggested_access_list?: AccessListJson;
+  /** Whether the simulated tx’s declared access list includes every suggested account. */
+  access_list_covers_suggestion?: boolean;
+}
+
+/** One 32-byte contract storage word (`boing_getContractStorage`). */
+export interface ContractStorageWord {
+  value: string;
 }
 
 export interface SubmitTransactionResult {

@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use boing_primitives::{AccountId, AccountState, Block, Hash};
+use boing_primitives::{AccountId, AccountState, Block, ExecutionReceipt, Hash};
 use boing_qa::pool_config::QaPoolGovernanceConfig;
 use boing_qa::RuleRegistry;
 use boing_state::{ContractStorageEntry, StateStore};
@@ -77,18 +77,54 @@ impl Persistence {
     /// Save a single block to disk (append).
     pub fn save_block(&self, block: &Block) -> Result<(), PersistenceError> {
         self.ensure_dirs()?;
-        let path = self.blocks_dir().join(format!("{}.bin", block.header.height));
-        let bytes = bincode::serialize(block).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let path = self
+            .blocks_dir()
+            .join(format!("{}.bin", block.header.height));
+        let bytes = bincode::serialize(block)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
         std::fs::write(path, bytes)?;
         Ok(())
+    }
+
+    /// Save execution receipts for a block height (`chain/blocks/receipts_{height}.bin`).
+    pub fn save_receipts(
+        &self,
+        height: u64,
+        receipts: &[ExecutionReceipt],
+    ) -> Result<(), PersistenceError> {
+        self.ensure_dirs()?;
+        let path = self.blocks_dir().join(format!("receipts_{}.bin", height));
+        let bytes = bincode::serialize(receipts)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        std::fs::write(path, bytes)?;
+        Ok(())
+    }
+
+    /// Load receipts for a height if present (older nodes may have no file).
+    pub fn load_receipts_for_height(
+        &self,
+        height: u64,
+    ) -> Result<Option<Vec<ExecutionReceipt>>, PersistenceError> {
+        let path = self.blocks_dir().join(format!("receipts_{}.bin", height));
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = std::fs::read(path)?;
+        let receipts: Vec<ExecutionReceipt> = bincode::deserialize(&bytes)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        Ok(Some(receipts))
     }
 
     /// Save chain metadata (height, latest_hash).
     pub fn save_chain_meta(&self, height: u64, latest_hash: Hash) -> Result<(), PersistenceError> {
         self.ensure_dirs()?;
-        let meta = ChainMeta { height, latest_hash };
+        let meta = ChainMeta {
+            height,
+            latest_hash,
+        };
         let path = self.chain_dir().join(CHAIN_META_FILE);
-        let bytes = bincode::serialize(&meta).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let bytes = bincode::serialize(&meta)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
         std::fs::write(path, bytes)?;
         Ok(())
     }
@@ -103,7 +139,8 @@ impl Persistence {
             contract_storage,
         };
         let path = self.state_dir().join(STATE_FILE);
-        let bytes = bincode::serialize(&persisted).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let bytes = bincode::serialize(&persisted)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
         std::fs::write(path, bytes)?;
         Ok(())
     }
@@ -115,7 +152,8 @@ impl Persistence {
             return Ok(None);
         }
         let meta_bytes = std::fs::read(&meta_path)?;
-        let meta: ChainMeta = bincode::deserialize(&meta_bytes).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let meta: ChainMeta = bincode::deserialize(&meta_bytes)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
 
         let blocks_dir = self.blocks_dir();
         if !blocks_dir.exists() {
@@ -128,18 +166,24 @@ impl Persistence {
         }
 
         let genesis_bytes = std::fs::read(&genesis_path)?;
-        let genesis: Block = bincode::deserialize(&genesis_bytes).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let genesis: Block = bincode::deserialize(&genesis_bytes)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
 
         let chain = ChainState::from_genesis(genesis.clone());
 
         for h in 1..=meta.height {
             let block_path = blocks_dir.join(format!("{}.bin", h));
             if !block_path.exists() {
-                return Err(PersistenceError::Serialization(format!("Missing block {h}")));
+                return Err(PersistenceError::Serialization(format!(
+                    "Missing block {h}"
+                )));
             }
             let block_bytes = std::fs::read(&block_path)?;
-            let block: Block = bincode::deserialize(&block_bytes).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
-            chain.append(block).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let block: Block = bincode::deserialize(&block_bytes)
+                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            chain
+                .append(block)
+                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
         }
 
         Ok(Some(chain))
@@ -152,7 +196,8 @@ impl Persistence {
             return Ok(None);
         }
         let bytes = std::fs::read(&path)?;
-        let persisted: PersistedState = bincode::deserialize(&bytes).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let persisted: PersistedState = bincode::deserialize(&bytes)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
 
         let state = StateStore::load_from_persistence(
             persisted.accounts,
@@ -178,7 +223,8 @@ impl Persistence {
     /// Save QA rule registry (JSON, governance shape). Same format as `qa_registry` proposal value.
     pub fn save_qa_registry(&self, registry: &RuleRegistry) -> Result<(), PersistenceError> {
         let path = self.qa_registry_path();
-        let json = serde_json::to_vec_pretty(registry).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let json = serde_json::to_vec_pretty(registry)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
         std::fs::write(path, json)?;
         Ok(())
     }
@@ -195,9 +241,13 @@ impl Persistence {
     }
 
     /// Save QA pool governance config (JSON). Same format as `qa_pool_config` proposal value.
-    pub fn save_qa_pool_config(&self, config: &QaPoolGovernanceConfig) -> Result<(), PersistenceError> {
+    pub fn save_qa_pool_config(
+        &self,
+        config: &QaPoolGovernanceConfig,
+    ) -> Result<(), PersistenceError> {
         let path = self.qa_pool_config_path();
-        let json = serde_json::to_vec_pretty(config).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let json = serde_json::to_vec_pretty(config)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
         std::fs::write(path, json)?;
         Ok(())
     }

@@ -20,7 +20,7 @@ This document combines **what is already in the boing-network repo versus what t
 
 - **The explorer app itself** — a separate frontend (e.g. Next.js, Remix, Astro, or Vite) that:
   - Uses the one-shot prompt in [§10. One-shot prompt you can paste](#10-one-shot-prompt-you-can-paste) (Part 2 below).
-  - Reads from the Boing JSON-RPC (e.g. testnet RPC URL from env): `boing_chainHeight`, `boing_getBlockByHeight`, `boing_getBlockByHash`, `boing_getBalance`, `boing_getAccount`, and for QA transparency: `boing_qaPoolList`, `boing_qaPoolConfig`, `boing_getQaRegistry` (see `/qa` on boing.observer).
+  - Reads from the Boing JSON-RPC (e.g. testnet RPC URL from env): `boing_chainHeight`, `boing_getBlockByHeight`, `boing_getBlockByHash`, `boing_getBalance`, `boing_getAccount`, optional `boing_getTransactionReceipt` / bounded `boing_getLogs` for tx/event views, and for QA transparency: `boing_qaPoolList`, `boing_qaPoolConfig`, `boing_getQaRegistry` (see `/qa` on boing.observer).
   - Implements: network selector (Testnet/Mainnet), home (chain height + latest blocks), block detail (by height/hash), account page (balance, nonce, stake), search (height / hash / address), and “Protocol QA Passed” for ContractDeploy + QA explainer in footer/About.
 - **Hosting:** Deploy the app and point **boing.observer** to it (e.g. Vercel, Cloudflare Pages). No backend required beyond calling the public RPC.
 
@@ -93,10 +93,12 @@ Use the **Boing JSON-RPC API** as the source of truth. Key methods:
 | Method | Params | Returns | Use in explorer |
 |--------|--------|--------|------------------|
 | `boing_chainHeight` | `[]` | `u64` | Latest block number, “chain tip” indicator. |
-| `boing_getBlockByHeight` | `[height]` (u64) | Block object or `null` | Block list/detail by height. |
+| `boing_getBlockByHeight` | `[height]` or `[height, include_receipts]` | Block object or `null`; optional **`receipts[]`** when `include_receipts` is `true` | Block list/detail; batch receipt ingest for indexers ([INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md)). |
 | `boing_getBlockByHash` | `[hex_block_hash]` (32 bytes hex) | Block object or `null` | Block detail by hash. |
 | `boing_getBalance` | `[hex_account_id]` | `{ balance: string }` (u128 as decimal string) | Account balance. |
 | `boing_getAccount` | `[hex_account_id]` | `{ balance, nonce, stake }` (strings/numbers) | Account page: balance, nonce, stake. |
+| `boing_getTransactionReceipt` | `[hex_tx_id]` | Receipt or `null` | Tx detail: success, gas, return data, **logs** (events). See [RPC-API-SPEC.md](RPC-API-SPEC.md). |
+| `boing_getLogs` | `[filter]` — `fromBlock`, `toBlock`, optional `address`, `topics` | Array of log rows (bounded span and result count) | Event-oriented views or indexers; prefer block+receipt replay for full history ([INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md)). |
 
 **Block object** (from RPC): The node returns a JSON object with at least:
 
@@ -220,7 +222,7 @@ I need to start a blockchain explorer for Boing Network at the domain boing.obse
 
 Context:
 - Boing is an L1 chain with a JSON-RPC API (HTTP POST, port 8545). Full method list and params are in docs/RPC-API-SPEC.md in the boing-network repo.
-- Key methods: boing_chainHeight, boing_getBlockByHeight, boing_getBlockByHash, boing_getBalance, boing_getAccount.
+- Key methods: boing_chainHeight, boing_getBlockByHeight, boing_getBlockByHash, boing_getBalance, boing_getAccount, boing_getTransactionReceipt, boing_getLogs (optional, bounded).
 - Addresses are 32-byte AccountIds as 64 hex chars; block hashes are 32-byte hex. Block object has header (parent_hash, height, timestamp, proposer, tx_root, state_root) and transactions array.
 - Transaction payloads: Transfer, Bond, Unbond, ContractCall, ContractDeploy. Balances are u128 in smallest units (e.g. 18 decimals for BOING).
 - Design: follow docs/BOING-DESIGN-SYSTEM.md (dark theme, Orbitron/Inter, glassmorphism). Domain is boing.observer; brand “Boing Observer”.

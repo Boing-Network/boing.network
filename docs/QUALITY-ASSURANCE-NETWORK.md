@@ -46,7 +46,8 @@
 17. [Appendix A: Deployer Checklist (How to Pass QA)](#appendix-a-deployer-checklist-how-to-pass-qa)
 18. [Appendix B: Canonical Definition of Malice](#appendix-b-canonical-definition-of-malice)
 19. [Appendix C: Governance-mutable QA rules](#appendix-c-governance-mutable-qa-rules)
-20. [Summary](#summary)
+20. [Appendix D: Upgrade / proxy patterns (QA context)](#appendix-d-upgrade--proxy-patterns-qa-context)
+21. [Summary](#summary)
 
 ---
 
@@ -117,7 +118,7 @@ These are the **attributes and rules** that deployments must satisfy. They are t
   - Maximum bytecode size (e.g. 24 KiB or 32 KiB). Prevents abuse and keeps state bounded.
 - **Opcodes**
   - Only opcodes defined in the Boing VM are allowed. Any byte that does not decode to a valid opcode (or valid PUSH immediate) → **reject**.
-  - Today: `Stop, Add, Sub, Mul, MLoad, MStore, SLoad, SStore, Push1..Push32, Jump, JumpI, Return` (see `boing-execution/src/bytecode.rs`).
+  - Today: `Stop, Add, Sub, Mul, Lt, Gt, Eq, IsZero, And, Or, Xor, Not, MLoad, MStore, SLoad, SStore, Push1..Push32, Jump, JumpI, Return` (see `boing-execution/src/bytecode.rs`).
 - **Well-formedness**
   - Valid instruction stream: PUSH immediates consumed (correct lengths), no jump targets to non-instruction boundaries, no truncated instructions at end of bytecode.
 - **Security and policy**
@@ -128,9 +129,9 @@ These are the **attributes and rules** that deployments must satisfy. They are t
 
 ### 5.2 Tokens and NFTs (when applicable)
 
-- **Token deployments** (if we add a first-class token primitive): compliance with Boing token standard (e.g. required interface, max supply, decimals), enforced by automated checks.
-- **NFT deployments**: same as contracts; optional metadata standard (e.g. URI format, schema) can be checked when we define it.
-- **Naming / metadata**: optional checks (e.g. no empty name, no reserved prefixes) to be defined with the standard.
+- **Fungible reference calldata** (off-chain convention): see [`BOING-REFERENCE-TOKEN.md`](BOING-REFERENCE-TOKEN.md). Deployments declaring **`token`** should align wallet/tooling with that layout where practical; bytecode QA remains opcode/size/well-formedness + purpose rules.
+- **NFT reference calldata** (off-chain convention): see [`BOING-REFERENCE-NFT.md`](BOING-REFERENCE-NFT.md) — `owner_of`, `transfer_nft`, optional `set_metadata_hash` selectors and 96-byte word layout. Deployments declaring **`NFT`** / **`nft`** should use that ABI for interoperability; optional on-chain metadata commitments are contract-defined.
+- **Naming / metadata**: optional checks (e.g. content policy on `asset_name` / `asset_symbol` in `ContractDeployWithPurposeAndMetadata`) apply when those fields are present; NFT URI schemas remain off-chain unless governance adds rules.
 
 ### 5.3 Purpose and legitimacy (no scams)
 
@@ -415,7 +416,7 @@ The Boing QA implementation is designed to meet **quality and industry standards
 | Standard | How Boing QA meets it |
 |----------|------------------------|
 | **Determinism & consensus** | All automated checks are **deterministic**: same (bytecode, purpose, rule set) → same Allow/Reject/Unsure on every node. No randomness, no external calls. Ensures consensus and replayability (see §6.1). |
-| **Single source of truth for opcodes** | The **opcode whitelist** in `boing-qa` is aligned with `boing-execution` bytecode: only Stop, Add, Sub, Mul, MLoad, MStore, SLoad, SStore, Jump, JumpI, Push1..Push32, Return. Any other byte → Reject. Prevents deployment of bytecode the VM cannot execute. |
+| **Single source of truth for opcodes** | The **opcode whitelist** in `boing-qa` is aligned with `boing-execution` Boing VM bytecode (arithmetic, compare/bitwise, memory, storage, control flow, push, return — see `TECHNICAL-SPECIFICATION.md` §7.2). Any other byte → Reject. Prevents deployment of bytecode the VM cannot execute. |
 | **Defense in depth** | QA runs at **mempool insert** (reject before broadcast) and again at **execution** (Vm::execute_contract_deploy). A bug or bypass in one layer does not allow bad bytecode into state. |
 | **Structured rejection** | Every Reject carries a **rule_id**, **message**, and optional **doc_url** (link to deployer checklist). Clients and wallets can show actionable feedback; RPC `boing_qaCheck` returns the same structure for pre-flight. |
 | **Bounded resource usage** | **Max bytecode size** (e.g. 32 KiB) limits state growth and DoS; **well-formedness** (no truncated PUSH, no trailing bytes) ensures a single linear pass. No unbounded loops or recursion in the checker. |
@@ -514,7 +515,7 @@ Result will be `allow`, `reject`, or `unsure`. If `reject`, the response include
 | Rule | Limit | Action |
 |------|-------|--------|
 | **Bytecode size** | ≤ 32 KiB | Shrink or split contract |
-| **Valid opcodes only** | Stop, Add, Sub, Mul, MLoad, MStore, SLoad, SStore, Jump, JumpI, Push1..Push32, Return | Remove invalid bytes |
+| **Valid opcodes only** | Boing VM opcode set in `boing-qa` / §7.2 (includes Div, Mod, AddMod, MulMod, compare, bitwise, etc.) | Remove invalid bytes |
 | **Well-formed** | No truncated PUSH, no trailing bytes | Fix bytecode stream |
 | **Not blocklisted** | Bytecode hash not in blocklist | Contact governance if wrongly blocked |
 | **Purpose (if provided)** | Must be valid category | Use one of the valid categories below |
@@ -688,6 +689,16 @@ If the deploy uses the legacy **ContractDeploy** or **ContractDeployWithPurpose*
 - **Content blocklist** is governance-mutable; add forbidden terms (vulgarity, offensiveness) via proposals.
 - **Full registry** (blocklist, scam patterns, always-review categories, max size) is replaceable by executing a governance proposal with key `qa_registry` and value = JSON `RuleRegistry`.
 - Deploy payload **ContractDeployWithPurposeAndMetadata** carries optional asset name/symbol; QA rejects if they contain any governance-forbidden term.
+
+---
+
+## Appendix D: Upgrade / proxy patterns (QA context)
+
+Boing does **not** use EVM `DELEGATECALL`. **Immutable bytecode per `AccountId`** is the default after a successful deploy.
+
+**Permitted product patterns** include a **fixed hub contract** that stores a pointer to the current implementation `AccountId` and **forwards** via `ContractCall`; each **new** implementation is a **separate deploy** that must **pass QA** again. See full guidance: [BOING-PATTERN-UPGRADE-PROXY.md](BOING-PATTERN-UPGRADE-PROXY.md).
+
+**Discouraged:** opaque or evasive patterns whose purpose is to **circumvent** protocol QA visibility into what users execute. Such bytecode may be evaluated under **scam-pattern** and **legitimacy** rules (§5, Appendix B).
 
 ---
 

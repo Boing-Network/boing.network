@@ -6,6 +6,37 @@
 
 ---
 
+## Frozen MVP scope (checklist Phase 0)
+
+| Item | Decision |
+|------|----------|
+| **Surface** | Single **constant-product pool** contract with **two in-storage reserves** (ledger units). No reference-token `CALL` in this bytecode revision. |
+| **Calldata** | Documented below (`swap` / `add_liquidity` / `remove_liquidity` selectors and 128-byte layouts). |
+| **Logs / events** | **None** in current pool bytecode — indexers cannot rely on `LOG` topics yet. When logs are added, define **topic0** + indexed fields here and in [BOING-PATTERN-AMM-LIQUIDITY.md](BOING-PATTERN-AMM-LIQUIDITY.md). |
+| **QA `purpose_category`** | Pool bytecode deploys (when not bare) should use categories accepted by `boing_qa` (e.g. **`dapp`** or **`tooling`**) per [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md). |
+| **Factory** | **Not in MVP** — one **configured pool `AccountId`** per environment (`nativeConstantProductPool` / env override on boing.finance). |
+
+---
+
+## Minimal access list by tx type (Phase 2)
+
+| Calldata / action | Accounts on **read** and **write** (MVP) | If pool adds token `CALL` |
+|-------------------|------------------------------------------|---------------------------|
+| `swap` (`0x10`) | Signer + pool | Add each token contract account touched |
+| `add_liquidity` (`0x11`) | Signer + pool | Add token contracts as above |
+| `remove_liquidity` (`0x12`) | Signer + pool (no-op today) | Same rule when implemented |
+
+Always validate with **`boing_simulateTransaction`**: when **`access_list_covers_suggestion`** is `false`, merge **`suggested_access_list`** into the declared list (see `boing-sdk` / boing.finance `mergeAccessListWithSimulation`).
+
+---
+
+## Slippage, deadline, upgrade policy
+
+- **Slippage:** On-chain enforcement uses **`min_out`** on `swap` (and `min_liquidity` / `min_a` / `min_b` on liquidity methods when active). The UI computes `min_out` from an off-chain quote and user slippage bps — **rounding** can still cause reverts if reserves move; there is **no block deadline** field in current calldata (client-only urgency if desired).
+- **Upgrades:** MVP pool bytecode is **immutable** once deployed; there is **no admin pause** in this revision — communicate that in product copy.
+
+---
+
 ## Word layout
 
 | Word index | Byte offset | Content |
@@ -54,13 +85,23 @@ If a **factory** contract deploys pools, define a separate selector table here (
 cargo run -p boing-execution --example dump_native_amm_pool
 ```
 
-Pipe into your deploy / `boing_qaCheck` flow; then set `VITE_BOING_NATIVE_AMM_POOL` on **boing.finance** to the deployed pool `AccountId` (see checklist Phase 5).
+Pipe into your deploy / **`boing_qaCheck`** flow (e.g. `purpose_category`: `dapp`). CI asserts bytecode passes **`boing_qa`** rules via `constant_product_pool_bytecode_passes_protocol_qa` in `boing-execution`. Then set **`REACT_APP_BOING_NATIVE_AMM_POOL`** (boing.finance) to the deployed pool `AccountId` (see checklist Phase 5).
 
 ---
 
 ## Access list (reminder)
 
-Each `swap` must include **read/write** entries for: **signer**, **pool contract**, and **both token contracts** (if reference-token transfers are invoked internally). Validate with simulation ([NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) Phase 2).
+**Pool-only MVP (current bytecode):** **read/write** = **signer** + **pool** (matches `suggested_parallel_access_list` and `boing-sdk` `buildNativeConstantProductPoolAccessList`). If the pool later **`CALL`s reference-token contracts**, widen the list to those accounts and merge with simulation (`mergeNativePoolAccessListWithSimulation`).
+
+---
+
+## Pool metadata without a separate HTTP API (checklist A3.3)
+
+MVP pools have **no logs** and **no factory registry** on-chain. Partners can treat **`pool_account_id` + JSON-RPC** as the lightweight “metadata API”:
+
+1. **Reserves** — `boing_getContractStorage(pool, reserve_a_key)` and `boing_getContractStorage(pool, reserve_b_key)` (keys: 32-byte hex from this doc / `boing_execution`; values: u128 in low 16 bytes of the word).
+2. **Optional batch** — HTTP clients may POST a JSON-RPC **batch** array with two `boing_getContractStorage` requests to reduce round-trips.
+3. **Future** — When the pool emits **`LOG`** topics or a factory exists, prefer **`boing_getLogs`** or an indexer for discovery; see [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md).
 
 ---
 
@@ -68,3 +109,4 @@ Each `swap` must include **read/write** entries for: **signer**, **pool contract
 
 - [x] **`boing_execution`:** `encode_swap_calldata`, `encode_add_liquidity_calldata`, `encode_remove_liquidity_calldata`, `constant_product_pool_bytecode`, `constant_product_amount_out`, `reserve_a_key` / `reserve_b_key`.
 - [x] **`boing-sdk`:** `encodeNativeAmmSwapCalldata`, `encodeNativeAmmAddLiquidityCalldata`, `encodeNativeAmmRemoveLiquidityCalldata`, `constantProductAmountOut`, hex helper for swap.
+- [x] **`boing-sdk` `nativeAmmPool`:** `buildNativeConstantProductPoolAccessList`, `buildNativeConstantProductContractCallTx`, `mergeNativePoolAccessListWithSimulation`.

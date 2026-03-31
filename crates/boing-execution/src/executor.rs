@@ -4,7 +4,7 @@
 
 use rayon::prelude::*;
 
-use boing_primitives::{Transaction, TransactionPayload};
+use boing_primitives::{ExecutionReceipt, Transaction, TransactionPayload};
 use boing_state::StateStore;
 
 use boing_qa::RuleRegistry;
@@ -35,16 +35,18 @@ impl BlockExecutor {
         }
     }
 
-    /// Execute all transactions. Returns total gas used and any error.
+    /// Execute all transactions. Returns total gas used and one receipt per tx (in block order).
     /// On error, state may be partially applied (caller should revert if needed).
     /// Transfer-only batches run in parallel; other batches run sequentially.
     pub fn execute_block(
         &self,
+        block_height: u64,
         txs: &[Transaction],
         state: &mut StateStore,
-    ) -> Result<u64, ExecutionError> {
+    ) -> Result<(u64, Vec<ExecutionReceipt>), ExecutionError> {
         let batches = self.scheduler.schedule(txs);
         let mut total_gas = 0u64;
+        let mut receipts: Vec<Option<ExecutionReceipt>> = vec![None; txs.len()];
 
         for batch in batches {
             let all_transfer = batch.iter().all(|&i| {
@@ -62,16 +64,19 @@ impl BlockExecutor {
                             .iter()
                             .filter_map(|id| state.get(id).map(|s| (*id, s.clone())))
                             .collect();
-                        (tx, snapshot)
+                        (idx, tx, snapshot)
                     })
                     .collect();
 
                 let batch_results: Result<Vec<_>, ExecutionError> = snapshots
                     .par_iter()
-                    .map(|(tx, snapshot)| {
+                    .map(|(idx, tx, snapshot)| {
                         let mut view = ExecutionView::from_snapshot(snapshot.clone());
-                        let gas = self.vm.execute_transfer(tx, &mut view).map_err(ExecutionError::Vm)?;
-                        Ok((view, gas))
+                        let out = self
+                            .vm
+                            .execute_transfer(tx, &mut view)
+                            .map_err(ExecutionError::Vm)?;
+                        Ok((*idx, view, out.gas_used))
                     })
                     .collect();
 
@@ -79,7 +84,7 @@ impl BlockExecutor {
                 // Sanity check: verify no conflicting writes (access lists should be disjoint)
                 let mut written: std::collections::HashSet<boing_primitives::AccountId> =
                     std::collections::HashSet::new();
-                for (view, _) in &batch_results {
+                for (_, view, _) in &batch_results {
                     for id in view.account_ids() {
                         if !written.insert(*id) {
                             return Err(ExecutionError::ConflictDetected(format!(
@@ -89,7 +94,17 @@ impl BlockExecutor {
                         }
                     }
                 }
-                for (view, gas) in batch_results {
+                for (idx, view, gas) in batch_results {
+                    receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
+                        &txs[idx],
+                        block_height,
+                        idx as u32,
+                        true,
+                        gas,
+                        Vec::new(),
+                        vec![],
+                        None,
+                    ));
                     view.merge_into(state);
                     total_gas = total_gas.saturating_add(gas);
                 }
@@ -97,12 +112,43 @@ impl BlockExecutor {
                 // Sequential path
                 for &idx in &batch {
                     let tx = &txs[idx];
-                    let gas = self.vm.execute(tx, state).map_err(ExecutionError::Vm)?;
-                    total_gas = total_gas.saturating_add(gas);
+                    match self.vm.execute(tx, state) {
+                        Ok(out) => {
+                            total_gas = total_gas.saturating_add(out.gas_used);
+                            receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
+                                tx,
+                                block_height,
+                                idx as u32,
+                                true,
+                                out.gas_used,
+                                out.return_data,
+                                out.logs,
+                                None,
+                            ));
+                        }
+                        Err(e) => {
+                            receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
+                                tx,
+                                block_height,
+                                idx as u32,
+                                false,
+                                0,
+                                Vec::new(),
+                                vec![],
+                                Some(format!("{}", e)),
+                            ));
+                            return Err(ExecutionError::Vm(e));
+                        }
+                    }
                 }
             }
         }
-        Ok(total_gas)
+        let receipts: Vec<ExecutionReceipt> = receipts
+            .into_iter()
+            .enumerate()
+            .map(|(i, r)| r.unwrap_or_else(|| panic!("internal error: missing receipt at index {i}")))
+            .collect();
+        Ok((total_gas, receipts))
     }
 }
 
@@ -141,8 +187,10 @@ mod tests {
             state: AccountState { balance: 0, nonce: 0, stake: 0 },
         });
         let txs = vec![tx(a, b, 0, 100)];
-        let gas = exec.execute_block(&txs, &mut state).unwrap();
+        let (gas, receipts) = exec.execute_block(1, &txs, &mut state).unwrap();
         assert_eq!(gas, super::super::vm::GAS_PER_TRANSFER);
+        assert_eq!(receipts.len(), 1);
+        assert!(receipts[0].success);
         assert_eq!(state.get(&a).unwrap().balance, 900);
         assert_eq!(state.get(&b).unwrap().balance, 100);
     }
@@ -164,7 +212,9 @@ mod tests {
             tx(a, b, 0, 100),
             tx(c, d, 0, 50),
         ];
-        let gas = exec.execute_block(&txs, &mut state).unwrap();
+        let (gas, receipts) = exec.execute_block(1, &txs, &mut state).unwrap();
+        assert_eq!(receipts.len(), 2);
+        assert!(receipts.iter().all(|r| r.success));
         assert_eq!(state.get(&a).unwrap().balance, 900);
         assert_eq!(state.get(&b).unwrap().balance, 100);
         assert_eq!(state.get(&c).unwrap().balance, 450);

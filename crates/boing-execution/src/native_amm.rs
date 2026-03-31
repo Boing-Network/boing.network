@@ -442,4 +442,52 @@ mod tests {
         assert_eq!(ra2, 110);
         assert_eq!(rb2, 220);
     }
+
+    /// Deploy-shaped bootstrap: empty pool → add liquidity → swap A→B; assert reserves.
+    #[test]
+    fn add_liquidity_then_swap_integration() {
+        let sender = AccountId([0x11u8; 32]);
+        let contract = AccountId([0x22u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: contract,
+            state: Default::default(),
+        });
+
+        let code = constant_product_pool_bytecode();
+
+        let add_calldata = encode_add_liquidity_calldata(1_000, 2_000, 0);
+        let mut it = Interpreter::new(code.clone(), 5_000_000);
+        it.run(sender, contract, &add_calldata, &mut state).unwrap();
+
+        let ra = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_a_key())[16..32].try_into().unwrap());
+        let rb = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_b_key())[16..32].try_into().unwrap());
+        assert_eq!(ra, 1_000);
+        assert_eq!(rb, 2_000);
+
+        let dx = 100u128;
+        let dy = constant_product_amount_out(1_000u64, 2_000u64, dx as u64);
+        let swap_calldata = encode_swap_calldata(0, dx, u128::from(dy));
+        let mut it2 = Interpreter::new(code, 5_000_000);
+        it2.run(sender, contract, &swap_calldata, &mut state).unwrap();
+
+        let ra2 = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_a_key())[16..32].try_into().unwrap());
+        let rb2 = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_b_key())[16..32].try_into().unwrap());
+        assert_eq!(ra2, 1_000 + dx);
+        assert_eq!(rb2, 2_000 - u128::from(dy));
+    }
+
+    /// `boing_qa` / `boing_qaCheck` must not reject canonical pool bytecode (checklist **A1.4**).
+    #[test]
+    fn constant_product_pool_bytecode_passes_protocol_qa() {
+        use boing_qa::{check_contract_deploy_full, QaResult, RuleRegistry};
+
+        let code = constant_product_pool_bytecode();
+        let registry = RuleRegistry::new();
+        let r = check_contract_deploy_full(&code, Some("dapp"), None, &registry);
+        assert!(
+            matches!(r, QaResult::Allow | QaResult::Unsure),
+            "expected Allow or Unsure for native CP pool bytecode, got {r:?}"
+        );
+    }
 }

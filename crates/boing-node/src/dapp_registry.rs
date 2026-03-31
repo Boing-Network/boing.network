@@ -32,7 +32,9 @@ impl DappRegistry {
         inner.contracts.insert(contract);
         // Replace existing registration for same contract
         inner.registrations.retain(|r| r.contract != contract);
-        inner.registrations.push(DappRegistration { contract, owner });
+        inner
+            .registrations
+            .push(DappRegistration { contract, owner });
         true
     }
 

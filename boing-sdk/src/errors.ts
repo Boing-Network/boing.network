@@ -63,3 +63,29 @@ export class BoingRpcError extends Error {
     return undefined;
   }
 }
+
+/**
+ * User-facing explanation for logging and UI (maps Boing JSON-RPC codes to short text).
+ * See `docs/BOING-RPC-ERROR-CODES-FOR-DAPPS.md` in the boing-network repo.
+ */
+export function explainBoingRpcError(e: unknown): string {
+  if (e instanceof BoingRpcError) {
+    if (e.isQaRejected) {
+      const q = e.qaData;
+      return q ? `QA rejected (${q.rule_id}): ${q.message}` : `QA rejected: ${e.message}`;
+    }
+    if (e.isQaPendingPool) {
+      const h = e.pendingPoolTxHash;
+      return h
+        ? `Deployment queued for QA pool (tx_hash ${h}). Vote via boing_qaPoolVote.`
+        : `Deployment queued for QA pool: ${e.message}`;
+    }
+    if (e.isQaPoolDisabled) return `QA pool is disabled by governance: ${e.message}`;
+    if (e.isQaPoolFull) return `QA pool is full (global cap): ${e.message}`;
+    if (e.isQaPoolDeployerCap) return `QA pool deployer cap reached: ${e.message}`;
+    if (e.code === -32057) return `Operator RPC authentication required: ${e.message}`;
+    return e.toString();
+  }
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
