@@ -75,6 +75,14 @@ export function encodeNativeAmmSwapCalldataHex(direction: bigint, amountIn: bigi
   return bytesToHex(encodeNativeAmmSwapCalldata(direction, amountIn, minOut));
 }
 
+export function encodeNativeAmmAddLiquidityCalldataHex(
+  amountA: bigint,
+  amountB: bigint,
+  minLiquidity: bigint = 0n
+): string {
+  return bytesToHex(encodeNativeAmmAddLiquidityCalldata(amountA, amountB, minLiquidity));
+}
+
 /** No-fee constant product: Δout = ⌊ r_out · Δin / (r_in + Δin) ⌋ (u64). */
 export function constantProductAmountOut(reserveIn: bigint, reserveOut: bigint, amountIn: bigint): bigint {
   if (reserveIn < 0n || reserveOut < 0n || amountIn < 0n) {

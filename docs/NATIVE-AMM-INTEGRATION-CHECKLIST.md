@@ -27,7 +27,7 @@ This is the **end-to-end** work list to go from “AMM as a pattern on paper” 
 ## Phase 2 — Access lists & simulation
 
 - [ ] **A2.1** — For each tx type (swap, mint LP, burn LP), define **minimal access list** (pool + tokens + sender); document in this repo or partner guide.
-- [ ] **A2.2** — Verify with **`boing_simulateTransaction`** and **`suggested_access_list`**; tighten until simulation matches execution on testnet.
+- [x] **A2.2** (pool-only) — **boing.finance** passes explicit **`access_list`** `{ read/write: [sender, pool] }` on native CP `contract_call` (matches `suggested_parallel_access_list`). **Still open:** simulate-merge retry loop in-app; extra accounts if pool adds `CALL` to tokens.
 - [ ] **A2.3** — Add **SDK helpers** (`boing-sdk`): build tx object for `contract_call` with merged access list (reuse `mergeAccessListWithSimulation` pattern if present).
 
 ---
@@ -52,7 +52,7 @@ This is the **end-to-end** work list to go from “AMM as a pattern on paper” 
 
 - [ ] **A5.1** — Extend **`frontend/src/config/contracts.js`**: for `BOING_NATIVE_L1_CHAIN_ID` (6913), set **`dexRouter`** / **`dexFactory`** (or new **`nativeAmmRouter`** / **`nativePool`**) to **deployed VM contract addresses** (not EVM ABI addresses unless you bridge semantics—prefer separate keys).
 - [x] **A5.2** (calldata) — **Rust + TS encoders** match [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). **Still open:** optional view-call ABI for reserves.
-- [x] **A5.3** (partial) — **boing.finance:** `REACT_APP_BOING_NATIVE_AMM_POOL`, `getFeatureSupport().swap === 'native_amm'`, `NativeAmmSwapPanel` + `boing_getContractStorage` reserves + Express `contract_call`. **Still open:** add-liquidity UI, hardcode pool id in `contracts.js` for public testnet.
+- [x] **A5.3** — **boing.finance:** env pool id, `NativeAmmSwapPanel` (swap + **add liquidity** `0x11`), `access_list` on submits, reserve reads via RPC. **Still open:** hardcode canonical testnet pool in `contracts.js` when stable; simulate-retry helper.
 - [ ] **A5.3** — Branch **`featureSupport.js`** (and Swap / CreatePool / Pools): when **router configured on 6913**, treat swap/pool as **supported**; otherwise keep **`NativeBoingL1IntegratedHub`** behavior.
 - [ ] **A5.4** — Implement **quote path**: constant-product off-chain estimate **or** `boing_call` / simulate read against pool state (match on-chain rounding).
 - [ ] **A5.5** — Swap UI: build **`contract_call`** (or multi-step) tx → **Boing Express** `boing_sendTransaction` when `walletType === 'boingExpress'` and chain 6913; keep MetaMask path on EVM chains only.

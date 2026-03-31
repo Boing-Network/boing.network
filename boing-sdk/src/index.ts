@@ -68,6 +68,7 @@ export {
   encodeNativeAmmAddLiquidityCalldata,
   encodeNativeAmmRemoveLiquidityCalldata,
   encodeNativeAmmSwapCalldataHex,
+  encodeNativeAmmAddLiquidityCalldataHex,
   constantProductAmountOut,
 } from './nativeAmm.js';
 export {

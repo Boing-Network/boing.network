@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   SELECTOR_NATIVE_AMM_SWAP,
+  SELECTOR_NATIVE_AMM_ADD_LIQUIDITY,
   encodeNativeAmmSwapCalldata,
+  encodeNativeAmmAddLiquidityCalldata,
   constantProductAmountOut,
 } from '../src/nativeAmm.js';
 
@@ -14,5 +16,11 @@ describe('nativeAmm', () => {
 
   it('constantProductAmountOut matches small pool', () => {
     expect(constantProductAmountOut(1000n, 2000n, 100n)).toBe(181n);
+  });
+
+  it('encodeNativeAmmAddLiquidityCalldata length and selector', () => {
+    const c = encodeNativeAmmAddLiquidityCalldata(10n, 20n, 0n);
+    expect(c.length).toBe(128);
+    expect(c[31]).toBe(SELECTOR_NATIVE_AMM_ADD_LIQUIDITY);
   });
 });
