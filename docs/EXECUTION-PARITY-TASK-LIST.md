@@ -128,6 +128,8 @@ Then: **R5** or **C** or **T1** depending on product priority.
 
 For **SDK, wallet, indexer, and dApp-facing parity** (not only crate work), see [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md).
 
+For **native AMM** (Boing VM pools → wallets → boing.finance), see [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md).
+
 | Area | Location |
 |------|----------|
 | Opcodes today | `crates/boing-execution/src/bytecode.rs` |
