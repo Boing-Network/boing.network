@@ -16,10 +16,15 @@ rand = "0.8"
 name = "execution"
 harness = false
 
+[[example]]
+name = "dump_native_amm_pool"
+path = "examples/dump_native_amm_pool.rs"
+
 [dependencies]
 boing-primitives = { path = "../boing-primitives" }
 boing-state = { path = "../boing-state" }
 boing-qa = { path = "../boing-qa" }
+num-bigint = "0.4"
 tracing = "0.1"
 async-trait = "0.1"
 thiserror = "1"

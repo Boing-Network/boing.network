@@ -48,6 +48,16 @@ If a **factory** contract deploys pools, define a separate selector table here (
 
 ---
 
+## Bytecode hex (local)
+
+```bash
+cargo run -p boing-execution --example dump_native_amm_pool
+```
+
+Pipe into your deploy / `boing_qaCheck` flow; then set `VITE_BOING_NATIVE_AMM_POOL` on **boing.finance** to the deployed pool `AccountId` (see checklist Phase 5).
+
+---
+
 ## Access list (reminder)
 
 Each `swap` must include **read/write** entries for: **signer**, **pool contract**, and **both token contracts** (if reference-token transfers are invoked internally). Validate with simulation ([NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) Phase 2).
