@@ -10,13 +10,13 @@ This is the **end-to-end** work list to go from “AMM as a pattern on paper” 
 - [ ] **A0.2** — Document **calldata layout** per method (`swap`, `add_liquidity`, `remove_liquidity`): selector/discriminator, argument order, endianness, max sizes (align with [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) 96-byte style or explicitly diverge and document).
 - [ ] **A0.3** — Document **event/log** payload for indexers (topic0 + indexed fields) so subgraph-style services can list pools and volumes.
 - [ ] **A0.4** — Pick **QA `purpose_category`** for factory/pool deploys (`dApp` / `tooling` per pattern doc); record in deploy metadata.
-- [ ] **A0.5** — Align [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) with the first pool bytecode PR (selectors, word counts); bump doc from **draft** to **v1** when merged.
+- [x] **A0.5** — Align [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) with the first pool bytecode PR (selectors, word counts); bump doc from **draft** to **v1** when merged.
 
 ---
 
 ## Phase 1 — On-chain artifacts (Boing VM)
 
-- [ ] **A1.1** — Implement **pool contract** bytecode: constant-product math with **checked** arithmetic, fee (e.g. 30 bps), rounding favors pool.
+- [x] **A1.1** (MVP) — **Reference pool bytecode** in `crates/boing-execution/src/native_amm.rs` (`constant_product_pool_bytecode`): no fee, u64-safe math, `swap` + `add_liquidity` + `remove` no-op. **Still open:** fees, LP shares, reference-token `CALL`, u128-full multiply if VM gains wide `MUL`.
 - [ ] **A1.2** — Implement **factory** (optional for MVP): deploy pool instances or register pool addresses; if skipped, use **fixed pool address(es)** in config for testnet.
 - [ ] **A1.3** — Integration tests against **local node** or CI harness: deploy → add liquidity → swap → remove; assert storage/reserves and receipts ([Track R](EXECUTION-PARITY-TASK-LIST.md)).
 - [ ] **A1.4** — Run **`boing_qaCheck`** on production bytecode before mainnet-class deploys; fix static rule hits in `boing-qa` if false positives.
@@ -51,7 +51,7 @@ This is the **end-to-end** work list to go from “AMM as a pattern on paper” 
 ## Phase 5 — boing.finance (frontend)
 
 - [ ] **A5.1** — Extend **`frontend/src/config/contracts.js`**: for `BOING_NATIVE_L1_CHAIN_ID` (6913), set **`dexRouter`** / **`dexFactory`** (or new **`nativeAmmRouter`** / **`nativePool`**) to **deployed VM contract addresses** (not EVM ABI addresses unless you bridge semantics—prefer separate keys).
-- [ ] **A5.2** — Add **native AMM ABI layer**: either minimal JSON ABI for **view** calls (if exposed as contract reads) or **raw calldata builders** matching Phase 0 layout.
+- [x] **A5.2** (calldata) — **Rust + TS encoders** match [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). **Still open:** boing.finance wiring + optional view-call ABI for reserves.
 - [ ] **A5.3** — Branch **`featureSupport.js`** (and Swap / CreatePool / Pools): when **router configured on 6913**, treat swap/pool as **supported**; otherwise keep **`NativeBoingL1IntegratedHub`** behavior.
 - [ ] **A5.4** — Implement **quote path**: constant-product off-chain estimate **or** `boing_call` / simulate read against pool state (match on-chain rounding).
 - [ ] **A5.5** — Swap UI: build **`contract_call`** (or multi-step) tx → **Boing Express** `boing_sendTransaction` when `walletType === 'boingExpress'` and chain 6913; keep MetaMask path on EVM chains only.

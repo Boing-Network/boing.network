@@ -4,10 +4,10 @@
  * Provides a typed RPC client for all node methods (chain height, balance, account,
  * blocks, proofs, simulation, submit, QA check, faucet, etc.) and hex utilities.
  *
- * For submitting transactions, the node expects hex-encoded bincode-serialized
- * SignedTransaction (from the Rust CLI or a future signing library). Use
- * `client.submitTransaction(hexSignedTx)` with a hex string produced by the CLI
- * or another signer.
+ * Submit txs with `client.submitTransaction(hexSignedTx)` where `hexSignedTx` is
+ * 0x + bincode(`SignedTransaction`). Build and sign in JS via `signTransactionInput` /
+ * `buildTransferTransaction` (see `transactionBuilder.ts`), or use Boing Express
+ * `boing_sendTransaction`, or the Rust CLI.
  */
 
 export const SDK_VERSION = '0.1.0';
@@ -15,7 +15,7 @@ export const SDK_VERSION = '0.1.0';
 import { BoingClient } from './client.js';
 export { BoingClient } from './client.js';
 export type { BoingClientConfig } from './client.js';
-export { BoingRpcError } from './errors.js';
+export { BoingRpcError, explainBoingRpcError } from './errors.js';
 export {
   ensureHex,
   bytesToHex,
@@ -27,9 +27,11 @@ export {
 export type {
   AccountBalance,
   AccountState,
+  AccountProof,
   Block,
   BlockHeader,
-  AccountProof,
+  ExecutionLog,
+  ExecutionReceipt,
   VerifyProofResult,
   SimulateResult,
   SubmitTransactionResult,
@@ -45,7 +47,94 @@ export type {
   QaRegistryResult,
   FaucetResult,
   JsonRpcResponse,
+  SyncState,
+  AccessListJson,
+  ContractStorageWord,
+  GetLogsFilter,
+  RpcLogEntry,
 } from './types.js';
+export {
+  SELECTOR_TRANSFER,
+  SELECTOR_MINT_FIRST,
+  encodeReferenceTransferCalldata,
+  encodeReferenceMintFirstCalldata,
+  encodeReferenceTransferCalldataHex,
+} from './referenceToken.js';
+export {
+  SELECTOR_NATIVE_AMM_SWAP,
+  SELECTOR_NATIVE_AMM_ADD_LIQUIDITY,
+  SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY,
+  encodeNativeAmmSwapCalldata,
+  encodeNativeAmmAddLiquidityCalldata,
+  encodeNativeAmmRemoveLiquidityCalldata,
+  encodeNativeAmmSwapCalldataHex,
+  constantProductAmountOut,
+} from './nativeAmm.js';
+export {
+  SELECTOR_OWNER_OF,
+  SELECTOR_TRANSFER_NFT,
+  SELECTOR_SET_METADATA_HASH,
+  encodeReferenceOwnerOfCalldata,
+  encodeReferenceTransferNftCalldata,
+  encodeReferenceSetMetadataHashCalldata,
+  encodeReferenceOwnerOfCalldataHex,
+} from './referenceNft.js';
+export {
+  accountsFromSuggestedAccessList,
+  mergeAccessListWithSimulation,
+  accessListFromSimulation,
+  simulationCoversSuggestedAccessList,
+} from './accessList.js';
+export {
+  normalizeTopicWord,
+  normalizeExecutionLog,
+  logTopic0,
+  iterReceiptLogs,
+  logMatchesTopicFilter,
+  filterReceiptLogsByTopic0,
+  iterBlockReceiptLogs,
+} from './receiptLogs.js';
+export type { ReceiptLogRef } from './receiptLogs.js';
+export {
+  PayloadVariant,
+  concatBytes,
+  writeU32Le,
+  writeU64Le,
+  writeU128Le,
+  encodeAccessList,
+  encodeByteVec,
+  encodeBincodeString,
+  encodeOptionFixed32,
+  encodeOptionByteVec,
+  encodeOptionString,
+  encodeTransactionPayload,
+  encodeTransaction,
+  encodeSignature,
+  encodeSignedTransaction,
+  signableTransactionHash,
+} from './bincode.js';
+export type { TransactionInput, TransactionPayloadInput } from './bincode.js';
+export {
+  buildTransferTransaction,
+  buildContractCallTransaction,
+  buildDeployWithPurposeTransaction,
+  fetchNextNonce,
+  senderHexFromSecretKey,
+  signTransactionInput,
+  signTransactionInputWithSigner,
+} from './transactionBuilder.js';
+export type { BuildTransferInput, BuildContractCallInput, BuildDeployWithPurposeInput, Ed25519SecretKey32 } from './transactionBuilder.js';
+export {
+  submitTransferWithSimulationRetry,
+  submitContractCallWithSimulationRetry,
+  submitDeployWithPurposeFlow,
+  SimulationFailedError,
+} from './submitFlow.js';
+export type {
+  SubmitTransferWithSimulationOptions,
+  SubmitContractCallWithSimulationOptions,
+  SubmitFlowResult,
+} from './submitFlow.js';
 
 /**
  * Create a Boing RPC client.

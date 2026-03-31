@@ -1,6 +1,6 @@
-# Native AMM calldata (draft v0)
+# Native AMM calldata (v1 — encoders + reference pool bytecode)
 
-**Status:** Draft for implementation. Bytecode must decode exactly this layout (or this doc must be revised in the same PR as the contract).
+**Status:** **Implemented** in `crates/boing-execution/src/native_amm.rs` (`constant_product_pool_bytecode`, calldata encoders) and `boing-sdk/src/nativeAmm.ts`. The on-chain program is a **ledger-only** MVP (no `CALL` to reference tokens); reserves and trade sizes must stay in **u64 range** for VM `Mul` parity (see module rustdoc).
 
 **Convention:** Extends the **96-byte reference call** style from [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md): word0 = selector in the **last byte** (offset 31); additional arguments follow in 32-byte words. Calls longer than 96 bytes use **contiguous 32-byte words** after the first 96 bytes.
 
@@ -56,5 +56,5 @@ Each `swap` must include **read/write** entries for: **signer**, **pool contract
 
 ## SDK / Rust
 
-- [ ] Add `encodeNativeAmmSwapCalldata`, `encodeNativeAmmAddLiquidityCalldata`, … in **`boing-sdk`** once selectors are frozen.
-- [ ] Add Rust test vectors in `boing-execution` or `boing-primitives` matching the examples above.
+- [x] **`boing_execution`:** `encode_swap_calldata`, `encode_add_liquidity_calldata`, `encode_remove_liquidity_calldata`, `constant_product_pool_bytecode`, `constant_product_amount_out`, `reserve_a_key` / `reserve_b_key`.
+- [x] **`boing-sdk`:** `encodeNativeAmmSwapCalldata`, `encodeNativeAmmAddLiquidityCalldata`, `encodeNativeAmmRemoveLiquidityCalldata`, `constantProductAmountOut`, hex helper for swap.
