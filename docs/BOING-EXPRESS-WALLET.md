@@ -71,6 +71,10 @@ Create a new project for a crypto wallet with the following specs.
 
 Use this when **preparing for production**: full Boing integration and Chrome Web Store packaging.
 
+### Part 2.0 — Open-source Boing Express (`boing.express`) status
+
+The extension in **[github.com/chiku524/boing.express](https://github.com/chiku524/boing.express)** implements the **technical** items below for testnet/mainnet RPC, encrypted wallet storage, MV3 service worker, `boing_requestAccounts` / `boing_signMessage` / transaction signing with per-request approval UI, session unlock, and BLAKE3+Ed25519 message signing. **Per-site connection modals** (explicit “Allow this origin?” before the first `boing_requestAccounts`) may still differ from the strict wording in Part 2.2 — track as a product gap if you require a prompt even for origins not yet in “connected sites.” **Chrome Web Store listing** tasks (Part 2.3–2.4) remain manual.
+
 ### Part 2.1 — Boing Network integration checklist
 
 - [ ] **Balance:** boing_getBalance or boing_getAccount; decimal strings for balance/stake; refresh on account/network switch.

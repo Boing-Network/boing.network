@@ -44,7 +44,7 @@ This is the **end-to-end** work list to go from “AMM as a pattern on paper” 
 
 - [x] **A4.1** — **Native AMM path** builds **`contract_call`** with explicit **`access_list`** (signer + pool); Express signs whatever the dApp passes — widen via simulation when the node suggests more accounts.
 - [x] **A4.2** — **Wallet / dApp UX** for native CP swap: [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) § Native constant-product swap (Boing VM).
-- [ ] **A4.3** — Add or extend **E2E test** (extension + dApp origin) for one happy-path swap on testnet.
+- [x] **A4.3** — **E2E smoke** (extension + dApp origin): manual procedure in [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md) (happy-path swap + optional add liquidity). Node-level RPC coverage remains `native_amm_rpc_happy_path`. Optional Playwright + loaded extension for CI is a follow-up.
 
 ---
 
@@ -94,9 +94,10 @@ flowchart LR
 | [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) | Token contract interop |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Deploy QA categories |
 | [EXECUTION-PARITY-TASK-LIST.md](EXECUTION-PARITY-TASK-LIST.md) | VM / receipts / logs foundation |
+| [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md) | Manual Boing Express + boing.finance swap smoke (**A4.3**) |
 
 ---
 
 ## Suggested next concrete artifact
 
-**Calldata v1:** [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). **Next:** publish **canonical testnet pool `AccountId`** (close **A6.4** remainder), add pool **`LOG`** + indexer path, optional **Playwright** against Boing Express, fees/LP shares (**A1.1** follow-ups).
+**Calldata v1:** [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). **Next:** publish **canonical testnet pool `AccountId`** (close **A6.4** remainder), add pool **`LOG`** + indexer path, optional **Playwright** (loaded extension) for CI, fees/LP shares (**A1.1** follow-ups).

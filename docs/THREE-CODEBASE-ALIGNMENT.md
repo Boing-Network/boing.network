@@ -87,11 +87,11 @@ When adding new pages or components, prefer the same tokens (e.g. `--accent-teal
 
 Use this to avoid drift after deployments.
 
-- [ ] **boing.network** footer: links to Explorer (boing.observer) and Wallet (boing.express).
-- [ ] **boing.network** Resources: tiles for “Block Explorer” and “Boing Wallet” pointing to boing.observer and boing.express.
-- [ ] **boing.observer** header: “Wallet” link to boing.express; “Get Testnet BOING” to boing.network/faucet.
-- [ ] **boing.observer** footer: boing.network and boing.express links.
-- [ ] **boing.express** (web + extension): explorer base URL = `https://boing.observer` for account/tx deep links; docs/faucet point to boing.network.
+- [x] **boing.network** footer: links to Explorer (boing.observer) and Wallet (boing.express). (`website/src/layouts/Layout.astro`)
+- [x] **boing.network** Resources: tiles for “Block Explorer” and “Boing Wallet” pointing to boing.observer and boing.express. (`website/src/pages/resources.astro`)
+- [x] **boing.observer** header: “Wallet” link to boing.express; “Get Testnet BOING” to boing.network/faucet. (`src/components/header.tsx`, `NETWORK_FAUCET_URL`)
+- [x] **boing.observer** footer: boing.network and boing.express links. (`src/app/layout.tsx`)
+- [x] **boing.express** (web + extension): explorer base URL = `https://boing.observer` for account/tx deep links; docs/faucet point to boing.network. (`src/networks/index.ts`, `src/screens/docs/docContent.tsx`)
 
 ---
 

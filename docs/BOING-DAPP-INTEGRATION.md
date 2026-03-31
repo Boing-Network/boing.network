@@ -42,6 +42,7 @@ For **chain 6913** swaps against the **in-ledger** constant-product pool (not EV
 - **Pre-flight:** either rely on **`boing_sendTransaction`** (wallet may simulate internally), or follow **boing.finance** / **`boing-sdk`** pattern: **`boing_signTransaction`** → **`boing_simulateTransaction`**; if **`access_list_covers_suggestion`** is `false`, merge **`suggested_access_list`** and **sign again** (users may see a second approval in the extension).
 - **Reserves:** read pool storage via **`boing_getContractStorage`** using keys from the native AMM spec, or your indexer once the pool emits logs.
 - **Regression reference:** `cargo test -p boing-node --test native_amm_rpc_happy_path` (deploy → add liquidity → swap over JSON-RPC).
+- **Browser smoke:** [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md) (Boing Express + boing.finance).
 
 ---
 
