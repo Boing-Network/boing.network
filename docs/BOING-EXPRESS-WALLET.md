@@ -370,6 +370,28 @@ Users should **not** have to enter their password every time they open the walle
 | boing_faucetRequest | [hex_account_id] | Testnet only |
 | boing_chainHeight | [] | Optional: chain height / sync |
 
+### EIP-6963 (optional multi-wallet discovery)
+
+[EIP-6963](https://eips.ethereum.org/EIPS/eip-6963) lets wallets announce themselves without clobbering `window.ethereum`. **Boing Express** should participate like any multi-chain wallet: dispatch `eip6963:announceProvider` with the standard `info` object (`uuid`, `name`, `icon`, `rdns`) and an [EIP-1193](https://eips.ethereum.org/EIPS/eip-1193)-shaped `provider` that implements Boing methods (`boing_chainHeight`, `boing_sendTransaction`, etc.).
+
+**Optional, non-breaking hint:** dApps may treat `rdns` (e.g. reverse-DNS for `boing.express`) as the stable identifier. If Express adds an **optional** vendor field, use a **single nested key** so standard EIP-6963 parsers ignore it safely, for example:
+
+```json
+{
+  "uuid": "...",
+  "name": "Boing Express",
+  "icon": "data:image/svg+xml;base64,...",
+  "rdns": "express.boing.network",
+  "boing": {
+    "chainFamily": "boing",
+    "nativeAccountIdBytes": 32,
+    "signing": "ed25519"
+  }
+}
+```
+
+The `boing` object is **not** part of the EIP-6963 core schema; it is a documented extension for capability UX (show “Connect with Boing” only when `rdns` / `boing` matches). Probing `provider.request({ method: 'boing_chainHeight', params: [] })` remains the definitive runtime check.
+
 ### Injected provider (dApp — Boing Express extension)
 
 | Method | Params | Returns / notes |
@@ -377,7 +399,9 @@ Users should **not** have to enter their password every time they open the walle
 | boing_signTransaction | `[txObject]` | `0x` + hex(bincode `SignedTransaction`). Requires connected origin. User approves in extension UI. `txObject.type`: `transfer`, `bond`, `unbond`, `contract_deploy_purpose`, `contract_deploy_meta`, `contract_call` (fields per **boing.express** `src/boing/dappTxRequest.ts`). **`contract_deploy` (bare) is rejected** — use a purpose-bearing deploy so declarations match protocol QA. `purpose_category` must be one of the categories accepted by **boing_qa** (e.g. `dapp`, `token`, `nft`, `meme`, `community`, `entertainment`, `tooling`, `other`). Omit `nonce` to use `boing_getAccount` on the wallet’s selected RPC. |
 | boing_sendTransaction | `[txObject]` | Sign, then `boing_simulateTransaction` when supported, then `boing_submitTransaction`; returns **tx hash** string from the node. Mempool **always** runs QA on contract deploy payloads before acceptance. |
 
-**Bincode note:** Wallet encoding must match **Rust** `boing-primitives` (serde/bincode 1.3): `TransactionPayload` enum uses **u32 LE** variant indices in this order: Transfer(0), ContractCall(1), ContractDeploy(2), ContractDeployWithPurpose(3), ContractDeployWithPurposeAndMetadata(4), Bond(5), Unbond(6).
+**Node JSON-RPC errors (W2):** When simulation or submit fails with a Boing node JSON-RPC error, the rejected promise from `window.boing.request` includes **`code`** and **`message`** from the node, and **`data.boingCode === 'BOING_NODE_JSONRPC'`** with **`data.rpc`** `{ code, message, data }` so dApps can read structured fields (e.g. QA **`rule_id`** / **`doc_url`** in `data.rpc.data`). Wallet-native failures still use other `data.boingCode` values. See [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md).
+
+**Bincode note:** Wallet encoding must match **Rust** `boing-primitives` (serde/bincode 1.3): `TransactionPayload` enum uses **u32 LE** variant indices in this order: Transfer(0), ContractCall(1), ContractDeploy(2), ContractDeployWithPurpose(3), ContractDeployWithPurposeAndMetadata(4), Bond(5), Unbond(6). All three deploy variants include a trailing `create2_salt: Option<[u8; 32]>` (`None` for legacy nonce-based addresses; `Some(salt)` for CREATE2-style — see `TECHNICAL-SPECIFICATION.md` §4.4). Full field layout and signable-hash rule: [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) (and `boing-sdk` golden tests).
 
 ---
 

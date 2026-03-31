@@ -89,6 +89,12 @@ cargo run -p boing-node -- --data-dir ./boing-data --rpc-port 8545
 | `boing_registerDappMetrics` | `[hex_contract, hex_owner]` | Register dApp for incentives |
 | `boing_submitIntent` | `[hex_signed_intent]` | Submit signed intent for solver fulfillment |
 | `boing_faucetRequest` | `[hex_account_id]` | Testnet only: request testnet BOING (node must be started with `--faucet-enable`) |
+| `boing_getLogs` | `[{ fromBlock, toBlock, address?, topics? }]` | Bounded log query (max **128** inclusive heights, **2048** rows per call); see [RPC-API-SPEC.md](RPC-API-SPEC.md) |
+
+### Public RPC operators and `boing_getLogs`
+
+- **`boing_getLogs` is more expensive than single-method reads** (scans up to 128 blocks per request). On **shared** or **rate-limited** endpoints, operators should **document** whether the method is enabled and any **extra limits** (e.g. lower QPS than `boing_chainHeight`).
+- If you need to protect the node, prefer **global RPC rate limits** (already supported) or a **reverse proxy** rule; disabling the method is a last resort and breaks indexers that rely on it—see [INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md).
 
 Example (curl):
 
