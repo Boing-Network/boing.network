@@ -132,7 +132,7 @@ impl BoingNode {
                     node.state = state;
                 }
                 let height = node.chain.height();
-                node.consensus.sync_round(height);
+                node.consensus.sync_round(height.saturating_add(1));
                 for h in 0..=height {
                     if let Some(list) = persistence.load_receipts_for_height(h)? {
                         for r in list {
@@ -241,7 +241,8 @@ impl BoingNode {
         self.chain
             .append(block.clone())
             .expect("block chains (validated by import_block)");
-        self.consensus.sync_round(block.header.height);
+        self.consensus
+            .sync_round(block.header.height.saturating_add(1));
         for r in &receipts {
             self.receipts.insert(r.tx_id, r.clone());
         }

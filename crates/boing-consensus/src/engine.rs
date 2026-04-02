@@ -117,9 +117,13 @@ impl ConsensusEngine {
         Ok(None)
     }
 
-    /// Sync consensus to a given height (e.g. after importing a block from the network).
-    pub fn sync_round(&mut self, height: u64) {
-        self.round = height;
+    /// Align consensus `round` with the next block to propose.
+    ///
+    /// [`Self::propose`] requires `block.header.height == self.round`. After the chain tip is at height
+    /// `H`, the next block has height `H + 1`, so pass **`H + 1`** (e.g. `chain.height() + 1` after load
+    /// or `block.header.height + 1` right after appending that block).
+    pub fn sync_round(&mut self, next_block_height: u64) {
+        self.round = next_block_height;
         self.pending_block = None;
         self.votes.clear();
     }
