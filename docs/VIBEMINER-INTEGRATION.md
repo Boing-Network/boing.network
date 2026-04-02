@@ -119,12 +119,12 @@ Boing exposes a small JSON list for node runners (used alongside `@vibeminer/sha
 
 ```bash
 cd website
-node scripts/network-listings-release-sql.mjs testnet-v0.1.6
+node scripts/network-listings-release-sql.mjs testnet-v0.1.7
 # Optional: apply (use CLOUDFLARE_API_TOKEN if OAuth fails on D1 import)
-node scripts/network-listings-release-sql.mjs testnet-v0.1.6 --apply
+node scripts/network-listings-release-sql.mjs testnet-v0.1.7 --apply
 ```
 
-Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.sql](../website/migrations/insert-boing-devnet-listing.sql). Latest tag refresh example: [website/migrations/2026-04-02-network-listings-boing-testnet-v0-1-6.sql](../website/migrations/2026-04-02-network-listings-boing-testnet-v0-1-6.sql).
+Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.sql](../website/migrations/insert-boing-devnet-listing.sql). Latest tag refresh example: [website/migrations/2026-04-03-network-listings-boing-testnet-v0-1-7.sql](../website/migrations/2026-04-03-network-listings-boing-testnet-v0-1-7.sql).
 
 ---
 
