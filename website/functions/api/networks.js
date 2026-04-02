@@ -35,16 +35,16 @@ function isAllowedDownloadUrl(urlString) {
 }
 
 /** Pinned testnet tag for official zips (keep in sync with VibeMiner `BOING_TESTNET_DEFAULT_DOWNLOAD_TAG`). */
-const BOING_TESTNET_DOWNLOAD_TAG = 'testnet-v0.1.5';
+const BOING_TESTNET_DOWNLOAD_TAG = 'testnet-v0.1.6';
 
 /** SHA-256 of each official zip for `BOING_TESTNET_DOWNLOAD_TAG`. */
 const BOING_ZIP_SHA = {
-  windows: '9d5f9abf5872721b9c435e69ccbe539ad3105e677dc6927f713f905cd00ae7bf',
-  linux: 'd502e00dc4c97a2e2223c868d8ec3c5ac087d4c17e2eaf20f0f9d21636090dfa',
-  macos: '2a7ce8f3df050dfbc336edd0b943c3a558a0be32ec8bd273b5ff66be899c399c',
+  windows: '05de30c7bcd256f13549fa66bacf6a4072362c53b300ce912b03bc8c34185d1e',
+  linux: '5c7587c7c38ed75bc7ed35736a8a4111bf927dd60f3f2b8eb59dcd8d8ebf8032',
+  macos: 'b9561483bfd26017302e3745072183e58536bdb9ef50b6ab5324f83fd9a3ed44',
 };
 
-const STALE_TESTNET_TAG_RE = /\/download\/(testnet-v0\.1\.(?:0|1|2|3|4))\//;
+const STALE_TESTNET_TAG_RE = /\/download\/(testnet-v0\.1\.(?:0|1|2|3|4|5))\//;
 
 /**
  * Upgrade older chiku524/boing.network testnet release URLs to `BOING_TESTNET_DOWNLOAD_TAG`
