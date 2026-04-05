@@ -84,6 +84,8 @@ export class BoingClient {
   private readonly retryBaseDelayMs: number;
   private readonly generateRequestId: boolean;
   private id = DEFAULT_RPC_ID;
+  /** From the last JSON-RPC **`POST /`** response header **`x-request-id`** (when present). */
+  private lastXRequestId: string | undefined;
 
   constructor(config: string | BoingClientConfig) {
     if (typeof config === 'string') {
@@ -108,6 +110,19 @@ export class BoingClient {
   /** Normalized RPC origin (no trailing slash). */
   getBaseUrl(): string {
     return this.baseUrl;
+  }
+
+  /**
+   * Correlation id from the most recent JSON-RPC **`POST /`** response (**`x-request-id`**).
+   * Useful for support UI when CORS exposes this header on the response.
+   */
+  getLastXRequestId(): string | undefined {
+    return this.lastXRequestId;
+  }
+
+  private recordRequestIdFromResponse(res: Response): void {
+    const v = res.headers.get('x-request-id')?.trim();
+    this.lastXRequestId = v && v.length > 0 ? v : undefined;
   }
 
   private rpcExtraHeaders(): Record<string, string> {
@@ -140,6 +155,7 @@ export class BoingClient {
         body: JSON.stringify(body),
         signal: controller?.signal,
       });
+      this.recordRequestIdFromResponse(res);
       if (!res.ok) {
         const retryAfterMs = parseRetryAfterMs(res.headers.get('retry-after'));
         let detail = (res.statusText ?? '').trim();
@@ -266,6 +282,7 @@ export class BoingClient {
         body: JSON.stringify(batchBody),
         signal: controller?.signal,
       });
+      this.recordRequestIdFromResponse(res);
       if (!res.ok) {
         const retryAfterMs = parseRetryAfterMs(res.headers.get('retry-after'));
         let detail = (res.statusText ?? '').trim();
@@ -499,6 +516,44 @@ export class BoingClient {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * **`GET {baseUrl}/openapi.json`** — same OpenAPI document as **`boing_getRpcOpenApi`**, without a JSON-RPC round-trip.
+   * Prefer this in browser devtools panels; throws **`BoingRpcError`** when the response is not OK or not JSON.
+   */
+  async fetchOpenApiViaHttp(): Promise<RpcOpenApiDocument> {
+    const res = await this.fetchImpl(`${this.baseUrl}/openapi.json`, {
+      method: 'GET',
+      headers: this.rpcExtraHeaders(),
+    });
+    if (!res.ok) {
+      throw new BoingRpcError(
+        -32000,
+        `HTTP ${res.status}: could not load OpenAPI from /openapi.json`,
+        undefined,
+        'GET /openapi.json',
+      );
+    }
+    const ct = res.headers.get('content-type') ?? '';
+    if (!ct.includes('application/json')) {
+      throw new BoingRpcError(
+        -32000,
+        'GET /openapi.json: expected application/json Content-Type',
+        undefined,
+        'GET /openapi.json',
+      );
+    }
+    const j: unknown = await res.json();
+    if (typeof j !== 'object' || j === null || !('openapi' in j)) {
+      throw new BoingRpcError(
+        -32000,
+        'GET /openapi.json: response is not a valid OpenAPI root object',
+        undefined,
+        'GET /openapi.json',
+      );
+    }
+    return j as RpcOpenApiDocument;
   }
 
   /** Current chain height (tip block number). */

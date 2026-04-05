@@ -39,6 +39,37 @@ export {
   type BoingRpcDoctorOptions,
   type BoingRpcDoctorResult,
 } from './rpcDoctor.js';
+export {
+  BoingRpcPreflightError,
+  assertBoingRpcEnvironment,
+  isBoingRpcPreflightError,
+} from './preflightGate.js';
+export {
+  displayChainTitle,
+  explorerBaseUrl,
+  faucetUrl,
+  explorerTxUrl,
+  explorerAccountUrl,
+  formatSupportHint,
+} from './dappUiHelpers.js';
+export {
+  mergeRpcSurface,
+  clampGetLogsBlockSpan,
+  suggestedReadSpacingMs,
+  describeGetLogsLimits,
+  websocketHasConnectionCap,
+} from './rpcSurfaceUi.js';
+export {
+  BoingConnectionMonitor,
+  type BoingConnectionSnapshot,
+  type BoingConnectionMonitorOptions,
+} from './connectionMonitor.js';
+export {
+  boingRpcWebSocketUrl,
+  BoingNewHeadsWs,
+  type BoingNewHeadsWsState,
+  type BoingNewHeadsWsOptions,
+} from './newHeadsWs.js';
 export { captureBoingNetworkProfile } from './networkProfile.js';
 export {
   ensureHex,
