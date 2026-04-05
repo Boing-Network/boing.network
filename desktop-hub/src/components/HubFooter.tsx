@@ -8,6 +8,7 @@ type Props = {
   showIntroNextLaunch: boolean;
   onShowIntroNextLaunchChange: (show: boolean) => void;
   onCheckForUpdates?: () => void;
+  onOpenRpcDiagnostics?: () => void;
 };
 
 export function HubFooter({
@@ -17,6 +18,7 @@ export function HubFooter({
   showIntroNextLaunch,
   onShowIntroNextLaunchChange,
   onCheckForUpdates,
+  onOpenRpcDiagnostics,
 }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -92,6 +94,19 @@ export function HubFooter({
                 />
                 <span>Show intro on next launch</span>
               </label>
+              {onOpenRpcDiagnostics && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="hub-footer-settings-item"
+                  onClick={() => {
+                    setSettingsOpen(false);
+                    onOpenRpcDiagnostics();
+                  }}
+                >
+                  RPC &amp; diagnostics
+                </button>
+              )}
               {onCheckForUpdates && (
                 <button
                   type="button"

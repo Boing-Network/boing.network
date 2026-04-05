@@ -1,42 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
-import {
-  BoingClient,
-  type BoingConnectionSnapshot,
-  describeGetLogsLimits,
-  displayChainTitle,
-  doctorBoingRpcEnvironment,
-  explainBoingRpcError,
-  formatBoingRpcDoctorReport,
-  formatSupportHint,
-  isBoingRpcPreflightError,
-} from "boing-sdk";
-import { useBoingHubRpcMonitor } from "../hooks/useBoingHubRpcMonitor";
+import { BoingClient, explainBoingRpcError, formatSupportHint, isBoingRpcPreflightError } from "boing-sdk";
+import { useHubRpcConfig } from "../lib/hubRpcConfig";
 
-const LS_RPC = "boing-hub-qa-rpc-url";
-const LS_TOKEN = "boing-hub-qa-operator-token";
 const LS_VOTER = "boing-hub-qa-voter-hex";
-
-const QA_DOCTOR_REQUIRED_METHODS = [
-  "boing_qaPoolList",
-  "boing_qaPoolConfig",
-  "boing_qaPoolVote",
-  "boing_operatorApplyQaPolicy",
-] as const;
 
 function rpcUiMessage(e: unknown, client: BoingClient): string {
   if (isBoingRpcPreflightError(e)) {
     return formatSupportHint(e.message, client.getLastXRequestId());
   }
   return formatSupportHint(explainBoingRpcError(e), client.getLastXRequestId());
-}
-
-function connectionHeadline(s: BoingConnectionSnapshot): string {
-  if (s.networkInfo != null) return displayChainTitle(s.networkInfo);
-  const name = s.health?.chain_name?.trim();
-  if (name) return name;
-  const id = s.health?.chain_id;
-  if (id != null) return `Boing chain ${id}`;
-  return "Boing RPC";
 }
 
 function loadStored(key: string, fallback: string): string {
@@ -48,17 +20,16 @@ function loadStored(key: string, fallback: string): string {
   }
 }
 
-function store(key: string, value: string): void {
+function storeVoter(value: string): void {
   try {
-    localStorage.setItem(key, value);
+    localStorage.setItem(LS_VOTER, value);
   } catch {
     /* ignore */
   }
 }
 
 export function QaOperatorView() {
-  const [rpcUrl, setRpcUrl] = useState(() => loadStored(LS_RPC, "http://127.0.0.1:8545"));
-  const [operatorToken, setOperatorToken] = useState(() => loadStored(LS_TOKEN, ""));
+  const { rpcUrl, setRpcUrl, operatorToken, setOperatorToken } = useHubRpcConfig();
   const [voterHex, setVoterHex] = useState(() => loadStored(LS_VOTER, ""));
   const [registryDraft, setRegistryDraft] = useState("");
   const [poolDraft, setPoolDraft] = useState("");
@@ -67,8 +38,6 @@ export function QaOperatorView() {
   const [loading, setLoading] = useState(false);
   const [configJson, setConfigJson] = useState<string | null>(null);
   const [itemsJson, setItemsJson] = useState<string | null>(null);
-  const [doctorReport, setDoctorReport] = useState<string | null>(null);
-  const [doctorLoading, setDoctorLoading] = useState(false);
 
   const client = useMemo(() => {
     const extra =
@@ -79,39 +48,15 @@ export function QaOperatorView() {
     });
   }, [rpcUrl, operatorToken]);
 
-  const rpcSnapshot = useBoingHubRpcMonitor(client, { pollIntervalMs: 20_000 });
-
-  const persistConnection = useCallback(() => {
-    store(LS_RPC, rpcUrl.trim());
-    store(LS_TOKEN, operatorToken);
-    store(LS_VOTER, voterHex.trim());
-  }, [rpcUrl, operatorToken, voterHex]);
-
-  const runDoctor = useCallback(async () => {
-    setDoctorLoading(true);
-    setDoctorReport(null);
-    setError(null);
-    persistConnection();
-    try {
-      const doctor = await doctorBoingRpcEnvironment(client, {
-        requiredMethods: [...QA_DOCTOR_REQUIRED_METHODS],
-      });
-      setDoctorReport(formatBoingRpcDoctorReport(doctor));
-      if (!doctor.ok) {
-        setError("RPC environment check reported issues — see Diagnose report below.");
-      }
-    } catch (e) {
-      setError(rpcUiMessage(e, client));
-    } finally {
-      setDoctorLoading(false);
-    }
-  }, [client, persistConnection]);
+  const persistVoter = useCallback(() => {
+    storeVoter(voterHex.trim());
+  }, [voterHex]);
 
   const refresh = useCallback(async () => {
     setError(null);
     setStatus(null);
     setLoading(true);
-    persistConnection();
+    persistVoter();
     try {
       const [cfg, list] = await Promise.all([client.qaPoolConfig(), client.qaPoolList()]);
       setConfigJson(JSON.stringify(cfg, null, 2));
@@ -124,7 +69,7 @@ export function QaOperatorView() {
     } finally {
       setLoading(false);
     }
-  }, [client, persistConnection]);
+  }, [client, persistVoter]);
 
   const vote = useCallback(
     async (txHash: string, vote: "allow" | "reject" | "abstain") => {
@@ -136,7 +81,7 @@ export function QaOperatorView() {
       setError(null);
       setStatus(null);
       setLoading(true);
-      persistConnection();
+      persistVoter();
       try {
         const res = await client.qaPoolVote(txHash, v, vote);
         setStatus(`Vote ${vote}: ${JSON.stringify(res)}`);
@@ -147,7 +92,7 @@ export function QaOperatorView() {
         setLoading(false);
       }
     },
-    [client, voterHex, persistConnection, refresh]
+    [client, voterHex, persistVoter, refresh],
   );
 
   const applyPolicy = useCallback(async () => {
@@ -158,7 +103,7 @@ export function QaOperatorView() {
       return;
     }
     setLoading(true);
-    persistConnection();
+    persistVoter();
     try {
       await client.operatorApplyQaPolicy(registryDraft.trim(), poolDraft.trim());
       setStatus("Applied QA policy on node.");
@@ -168,7 +113,7 @@ export function QaOperatorView() {
     } finally {
       setLoading(false);
     }
-  }, [client, registryDraft, poolDraft, persistConnection, refresh]);
+  }, [client, registryDraft, poolDraft, persistVoter, refresh]);
 
   let items: { tx_hash: string; allow_votes: number; reject_votes: number; age_secs: number }[] = [];
   try {
@@ -185,7 +130,8 @@ export function QaOperatorView() {
           This screen is the main place for day-to-day pool work: refresh the queue, inspect config, vote on pending deploys,
           and apply updated registry / pool JSON—no terminal required. When the node is configured with{" "}
           <code className="qa-operator__code">BOING_OPERATOR_RPC_TOKEN</code>, enter the same value here as the operator token
-          so requests include <code className="qa-operator__code">X-Boing-Operator</code>.
+          so requests include <code className="qa-operator__code">X-Boing-Operator</code>. For live chain health, request IDs,
+          and a full RPC environment check, use <strong>Settings → RPC &amp; diagnostics</strong> in the footer.
         </p>
       </header>
 
@@ -222,65 +168,12 @@ export function QaOperatorView() {
             />
           </label>
         </div>
-
-        <div className="qa-operator__rpc-live" aria-live="polite">
-          <h3 className="qa-operator__h3">Live RPC status</h3>
-          {rpcSnapshot == null ? (
-            <p className="qa-operator__muted">Starting RPC monitor…</p>
-          ) : rpcSnapshot.loading && rpcSnapshot.health == null ? (
-            <p className="qa-operator__muted">Fetching health and network info…</p>
-          ) : (
-            <>
-              <p className="qa-operator__rpc-title">
-                <strong>{connectionHeadline(rpcSnapshot)}</strong>
-              </p>
-              <ul className="qa-operator__rpc-list">
-                <li>Head height: {rpcSnapshot.headHeight ?? "—"}</li>
-                <li>
-                  Health:{" "}
-                  {rpcSnapshot.health?.ok === true ? "ok" : rpcSnapshot.health != null ? "not ok" : "—"}
-                </li>
-                {rpcSnapshot.lastRequestId != null && rpcSnapshot.lastRequestId.length > 0 ? (
-                  <li>
-                    Last JSON-RPC request ID:{" "}
-                    <code className="qa-operator__code">{rpcSnapshot.lastRequestId}</code>
-                  </li>
-                ) : null}
-              </ul>
-              <p className="qa-operator__muted qa-operator__rpc-hint">{describeGetLogsLimits(rpcSnapshot.rpcSurface)}</p>
-              {rpcSnapshot.lastError != null ? (
-                <p className="qa-operator__error qa-operator__error--compact" role="status">
-                  Status poll:{" "}
-                  {rpcSnapshot.lastError instanceof Error
-                    ? rpcSnapshot.lastError.message
-                    : String(rpcSnapshot.lastError)}
-                </p>
-              ) : null}
-            </>
-          )}
-        </div>
-
         <div className="qa-operator__actions">
           <button type="button" className="qa-operator__btn qa-operator__btn--primary" disabled={loading} onClick={() => void refresh()}>
             Refresh list &amp; config
           </button>
-          <button
-            type="button"
-            className="qa-operator__btn"
-            disabled={loading || doctorLoading}
-            onClick={() => void runDoctor()}
-          >
-            Diagnose RPC environment
-          </button>
         </div>
       </section>
-
-      {doctorReport != null && doctorReport.length > 0 ? (
-        <section className="qa-operator__panel" aria-label="RPC diagnose report">
-          <h2 className="qa-operator__h2">Diagnose report</h2>
-          <pre className="qa-operator__pre qa-operator__pre--doctor">{doctorReport}</pre>
-        </section>
-      ) : null}
 
       {status && <p className="qa-operator__status">{status}</p>}
       {error && <p className="qa-operator__error" role="alert">{error}</p>}

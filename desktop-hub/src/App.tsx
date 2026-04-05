@@ -17,6 +17,8 @@ import { AppIcon } from "./components/AppIcons";
 import { IntroView } from "./components/IntroView";
 import { UpdateOverlay } from "./components/UpdateOverlay";
 import { HubFooter } from "./components/HubFooter";
+import { RpcDiagnosticsModal } from "./components/RpcDiagnosticsModal";
+import { HubRpcConfigProvider } from "./lib/hubRpcConfig";
 import { useUpdateCheck } from "./hooks/useUpdateCheck";
 import { isTauri } from "./lib/tauri";
 import { HomeView } from "./views/HomeView";
@@ -64,6 +66,7 @@ function App() {
   const [showIntroNextLaunch, setShowIntroNextLaunchState] = useState(getShowIntro);
   const mainRef = useRef<HTMLElement>(null);
   const { status: updateStatus, runCheck, clearStatus } = useUpdateCheck();
+  const [rpcDiagnosticsOpen, setRpcDiagnosticsOpen] = useState(false);
 
   const enterApp = useCallback((mode: EntryMode) => {
     setWelcomeDismissed();
@@ -207,11 +210,13 @@ function App() {
 
   return (
     <div className="hub">
+      <HubRpcConfigProvider>
       <UpdateOverlay
         status={updateStatus}
         onDismissError={dismissUpdateFeedback}
         onRetryError={() => void runCheck({ persistError: true })}
       />
+      <RpcDiagnosticsModal open={rpcDiagnosticsOpen} onClose={() => setRpcDiagnosticsOpen(false)} />
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
@@ -256,6 +261,7 @@ function App() {
           showIntroNextLaunch={showIntroNextLaunch}
           onShowIntroNextLaunchChange={handleShowIntroNextLaunchChange}
           onCheckForUpdates={handleCheckForUpdates}
+          onOpenRpcDiagnostics={() => setRpcDiagnosticsOpen(true)}
         />
       </aside>
       <main
@@ -282,6 +288,7 @@ function App() {
           />
         )}
       </main>
+      </HubRpcConfigProvider>
     </div>
   );
 }
