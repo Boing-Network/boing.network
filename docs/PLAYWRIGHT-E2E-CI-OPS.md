@@ -51,7 +51,9 @@ Recommended default for **public** repos: run Playwright **locally** or on an **
 
 ### D. Scheduled headless public URL smoke (no extension)
 
-The package includes a second Playwright **project** **`public`** ([`public-swap-page-smoke.spec.ts`](../examples/native-boing-playwright/tests/public-swap-page-smoke.spec.ts)): **headless** Chromium loads **`BOING_E2E_SWAP_URL`** (default **`https://boing.finance/swap`**) and asserts a successful HTTP response and non-trivial document text. This does **not** unlock Boing Express or click **Refresh reserves**; it is a coarse uptime / deploy sanity check.
+The package includes a second Playwright **project** **`public`** ([`public-swap-page-smoke.spec.ts`](../examples/native-boing-playwright/tests/public-swap-page-smoke.spec.ts)): **headless** Chromium loads **`BOING_E2E_SWAP_URL`** (default **`https://boing.finance/swap`**) and, if that response is not OK (common: **403** from CDN/WAF for datacenter or automation traffic), tries **`BOING_E2E_SWAP_FALLBACK_URLS`** then built-in **`https://boing.network/`** / **`https://www.boing.network/`**. It asserts a successful HTTP response and non-trivial document text. This does **not** unlock Boing Express or click **Refresh reserves**; it is a coarse uptime / deploy sanity check.
+
+The **GitHub Actions** workflow sets **`BOING_E2E_SWAP_URL=https://boing.network/`** so CI does not depend on the finance app allowing GitHub runner IPs.
 
 - **Local:** `npm run test:e2e:public-smoke` in **`examples/native-boing-playwright`** (requires network).
 - **CI:** [`.github/workflows/native-boing-playwright-public-smoke.yml`](../.github/workflows/native-boing-playwright-public-smoke.yml) runs **`workflow_dispatch`** and **weekly** (Mondays 16:00 UTC). It is **not** wired into every PR, so a bad CDN hour does not block merges.
