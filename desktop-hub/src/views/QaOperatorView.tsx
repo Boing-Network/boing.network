@@ -1,9 +1,43 @@
 import { useCallback, useMemo, useState } from "react";
-import { BoingClient, BoingRpcError } from "boing-sdk";
+import {
+  BoingClient,
+  type BoingConnectionSnapshot,
+  describeGetLogsLimits,
+  displayChainTitle,
+  doctorBoingRpcEnvironment,
+  explainBoingRpcError,
+  formatBoingRpcDoctorReport,
+  formatSupportHint,
+  isBoingRpcPreflightError,
+} from "boing-sdk";
+import { useBoingHubRpcMonitor } from "../hooks/useBoingHubRpcMonitor";
 
 const LS_RPC = "boing-hub-qa-rpc-url";
 const LS_TOKEN = "boing-hub-qa-operator-token";
 const LS_VOTER = "boing-hub-qa-voter-hex";
+
+const QA_DOCTOR_REQUIRED_METHODS = [
+  "boing_qaPoolList",
+  "boing_qaPoolConfig",
+  "boing_qaPoolVote",
+  "boing_operatorApplyQaPolicy",
+] as const;
+
+function rpcUiMessage(e: unknown, client: BoingClient): string {
+  if (isBoingRpcPreflightError(e)) {
+    return formatSupportHint(e.message, client.getLastXRequestId());
+  }
+  return formatSupportHint(explainBoingRpcError(e), client.getLastXRequestId());
+}
+
+function connectionHeadline(s: BoingConnectionSnapshot): string {
+  if (s.networkInfo != null) return displayChainTitle(s.networkInfo);
+  const name = s.health?.chain_name?.trim();
+  if (name) return name;
+  const id = s.health?.chain_id;
+  if (id != null) return `Boing chain ${id}`;
+  return "Boing RPC";
+}
 
 function loadStored(key: string, fallback: string): string {
   try {
@@ -33,6 +67,8 @@ export function QaOperatorView() {
   const [loading, setLoading] = useState(false);
   const [configJson, setConfigJson] = useState<string | null>(null);
   const [itemsJson, setItemsJson] = useState<string | null>(null);
+  const [doctorReport, setDoctorReport] = useState<string | null>(null);
+  const [doctorLoading, setDoctorLoading] = useState(false);
 
   const client = useMemo(() => {
     const extra =
@@ -43,11 +79,33 @@ export function QaOperatorView() {
     });
   }, [rpcUrl, operatorToken]);
 
+  const rpcSnapshot = useBoingHubRpcMonitor(client, { pollIntervalMs: 20_000 });
+
   const persistConnection = useCallback(() => {
     store(LS_RPC, rpcUrl.trim());
     store(LS_TOKEN, operatorToken);
     store(LS_VOTER, voterHex.trim());
   }, [rpcUrl, operatorToken, voterHex]);
+
+  const runDoctor = useCallback(async () => {
+    setDoctorLoading(true);
+    setDoctorReport(null);
+    setError(null);
+    persistConnection();
+    try {
+      const doctor = await doctorBoingRpcEnvironment(client, {
+        requiredMethods: [...QA_DOCTOR_REQUIRED_METHODS],
+      });
+      setDoctorReport(formatBoingRpcDoctorReport(doctor));
+      if (!doctor.ok) {
+        setError("RPC environment check reported issues — see Diagnose report below.");
+      }
+    } catch (e) {
+      setError(rpcUiMessage(e, client));
+    } finally {
+      setDoctorLoading(false);
+    }
+  }, [client, persistConnection]);
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -60,13 +118,7 @@ export function QaOperatorView() {
       setItemsJson(JSON.stringify(list.items, null, 2));
       setStatus(`Loaded pool config and ${list.items.length} pending item(s).`);
     } catch (e) {
-      const msg =
-        e instanceof BoingRpcError
-          ? `${e.message} (code ${e.code})`
-          : e instanceof Error
-            ? e.message
-            : String(e);
-      setError(msg);
+      setError(rpcUiMessage(e, client));
       setConfigJson(null);
       setItemsJson(null);
     } finally {
@@ -90,13 +142,7 @@ export function QaOperatorView() {
         setStatus(`Vote ${vote}: ${JSON.stringify(res)}`);
         await refresh();
       } catch (e) {
-        const msg =
-          e instanceof BoingRpcError
-            ? `${e.message} (code ${e.code})`
-            : e instanceof Error
-              ? e.message
-              : String(e);
-        setError(msg);
+        setError(rpcUiMessage(e, client));
       } finally {
         setLoading(false);
       }
@@ -118,13 +164,7 @@ export function QaOperatorView() {
       setStatus("Applied QA policy on node.");
       await refresh();
     } catch (e) {
-      const msg =
-        e instanceof BoingRpcError
-          ? `${e.message} (code ${e.code})`
-          : e instanceof Error
-            ? e.message
-            : String(e);
-      setError(msg);
+      setError(rpcUiMessage(e, client));
     } finally {
       setLoading(false);
     }
@@ -182,12 +222,65 @@ export function QaOperatorView() {
             />
           </label>
         </div>
+
+        <div className="qa-operator__rpc-live" aria-live="polite">
+          <h3 className="qa-operator__h3">Live RPC status</h3>
+          {rpcSnapshot == null ? (
+            <p className="qa-operator__muted">Starting RPC monitor…</p>
+          ) : rpcSnapshot.loading && rpcSnapshot.health == null ? (
+            <p className="qa-operator__muted">Fetching health and network info…</p>
+          ) : (
+            <>
+              <p className="qa-operator__rpc-title">
+                <strong>{connectionHeadline(rpcSnapshot)}</strong>
+              </p>
+              <ul className="qa-operator__rpc-list">
+                <li>Head height: {rpcSnapshot.headHeight ?? "—"}</li>
+                <li>
+                  Health:{" "}
+                  {rpcSnapshot.health?.ok === true ? "ok" : rpcSnapshot.health != null ? "not ok" : "—"}
+                </li>
+                {rpcSnapshot.lastRequestId != null && rpcSnapshot.lastRequestId.length > 0 ? (
+                  <li>
+                    Last JSON-RPC request ID:{" "}
+                    <code className="qa-operator__code">{rpcSnapshot.lastRequestId}</code>
+                  </li>
+                ) : null}
+              </ul>
+              <p className="qa-operator__muted qa-operator__rpc-hint">{describeGetLogsLimits(rpcSnapshot.rpcSurface)}</p>
+              {rpcSnapshot.lastError != null ? (
+                <p className="qa-operator__error qa-operator__error--compact" role="status">
+                  Status poll:{" "}
+                  {rpcSnapshot.lastError instanceof Error
+                    ? rpcSnapshot.lastError.message
+                    : String(rpcSnapshot.lastError)}
+                </p>
+              ) : null}
+            </>
+          )}
+        </div>
+
         <div className="qa-operator__actions">
           <button type="button" className="qa-operator__btn qa-operator__btn--primary" disabled={loading} onClick={() => void refresh()}>
             Refresh list &amp; config
           </button>
+          <button
+            type="button"
+            className="qa-operator__btn"
+            disabled={loading || doctorLoading}
+            onClick={() => void runDoctor()}
+          >
+            Diagnose RPC environment
+          </button>
         </div>
       </section>
+
+      {doctorReport != null && doctorReport.length > 0 ? (
+        <section className="qa-operator__panel" aria-label="RPC diagnose report">
+          <h2 className="qa-operator__h2">Diagnose report</h2>
+          <pre className="qa-operator__pre qa-operator__pre--doctor">{doctorReport}</pre>
+        </section>
+      ) : null}
 
       {status && <p className="qa-operator__status">{status}</p>}
       {error && <p className="qa-operator__error" role="alert">{error}</p>}

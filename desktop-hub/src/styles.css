@@ -1635,6 +1635,48 @@ body,
   min-height: 120px;
 }
 
+.qa-operator__rpc-live {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.qa-operator__h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.qa-operator__rpc-title {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.qa-operator__rpc-list {
+  margin: 0 0 10px;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.qa-operator__rpc-hint {
+  margin-bottom: 0;
+  font-size: 0.8rem;
+}
+
+.qa-operator__error--compact {
+  margin-top: 10px;
+  margin-bottom: 0;
+  font-size: 0.82rem;
+}
+
+.qa-operator__pre--doctor {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
 .qa-operator__actions {
   margin-top: 14px;
   display: flex;
