@@ -13,15 +13,11 @@ Or from a parent repo (when published): `npm install boing-sdk`.
 
 ### Consuming via `file:` (e.g. [boing.finance](https://github.com/Boing-Network/boing.finance))
 
-The compiled output lives in **`dist/`**, which is **not committed** to `Boing-Network/boing.network` (see repo root `.gitignore`). After cloning the monorepo—or in CI after checking out `boing.network` as a sibling—you **must** compile before any app that depends on `"boing-sdk": "file:../boing.network/boing-sdk"` runs `vite build` or `tsc`:
+The compiled output lives in **`dist/`**, which is **committed** in `Boing-Network/boing.network` (repo root `.gitignore` ignores generic `dist/` but not `boing-sdk/dist/`). Clones and CI siblings therefore get a usable `dist/index.js` without a separate SDK build step.
 
-```bash
-cd boing.network/boing-sdk
-npm ci
-npm run build
-```
+When you change SDK **source** (`src/`), run `npm run build` in `boing-sdk` and commit the updated **`dist/`**. The **`boing-sdk`** workflow fails if `dist/` drifts from the TypeScript build output.
 
-**boing.finance** GitHub Actions run this step explicitly before `frontend/npm ci` so Rollup always resolves exports from a fresh `dist/index.js` (including hex helpers like **`isBoingNativeAccountIdHex`**). Local installs also run `frontend/scripts/postinstall-boing-sdk.mjs`, which builds the SDK when `dist/index.js` is missing and **fails the install** if that build does not succeed.
+**boing.finance** checks out `boing.network` only so the `file:` path resolves; it does not build the SDK first. **boing.finance**’s `frontend/scripts/postinstall-boing-sdk.mjs` only runs `npm run build` in the linked package when `dist/index.js` is missing (e.g. local SDK development or a broken checkout) and **fails the install** if that build does not succeed.
 
 ## Tests
 

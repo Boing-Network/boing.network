@@ -37,5 +37,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify committed dist/ matches TypeScript output
+        run: |
+          cd ..
+          git diff --exit-code -- boing-sdk/dist/ || {
+            echo "::error::boing-sdk dist/ is out of sync with src/. Run: cd boing-sdk && npm run build && git add dist && git commit"
+            exit 1
+          }
+
       - name: Test
         run: npm test

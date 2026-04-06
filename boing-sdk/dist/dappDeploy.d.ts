@@ -1,0 +1,63 @@
+/**
+ * dApp deploy helpers: QA preflight for **`contract_deploy_meta`** payloads (wizard “review” steps).
+ *
+ * See [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](../../docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md),
+ * [BOING-DAPP-INTEGRATION.md](../../docs/BOING-DAPP-INTEGRATION.md).
+ */
+import type { BoingClient } from './client.js';
+import type { BuildReferenceFungibleDeployMetaTxInput, BuildReferenceNftCollectionDeployMetaTxInput, ContractDeployMetaTxObject } from './canonicalDeployArtifacts.js';
+import type { QaCheckResponse, QaCheckResult } from './types.js';
+/**
+ * When **`boing_qaCheck`** needs **`asset_name` / `asset_symbol`** but the wizard has no description
+ * commitment yet, the RPC allows a **placeholder** 32-byte hash ([RPC-API-SPEC.md](../../docs/RPC-API-SPEC.md) § **boing_qaCheck**).
+ */
+export declare const BOING_QA_PLACEHOLDER_DESCRIPTION_HASH_HEX: `0x${string}`;
+/**
+ * Run **`boing_qaCheck`** using the same fields as a **`contract_deploy_meta`** tx object.
+ * Use on the **review** step of a deploy wizard so users see **allow / reject / unsure** before signing.
+ */
+export declare function preflightContractDeployMetaQa(client: BoingClient, tx: ContractDeployMetaTxObject): Promise<QaCheckResponse>;
+/** UI hints for a **`boing_qaCheck`** result (toasts, banners, review step). */
+export type DeployMetaQaUiOutcome = {
+    result: QaCheckResult;
+    /**
+     * Whether the primary action (“Sign” / “Deploy”) should stay enabled.
+     * For **`unsure`**, signing may still be valid (pool path); surface {@link DeployMetaQaUiOutcome.detail} first.
+     */
+    readyToSign: boolean;
+    /** Short line for banners / toasts. */
+    headline: string;
+    /** Longer copy for modals or inline help. */
+    detail: string;
+    /** Suggested semantic tone for styling. */
+    tone: 'positive' | 'neutral' | 'warning' | 'destructive';
+};
+/**
+ * Map a **`boing_qaCheck`** response to user-facing copy (preflight or post-error messaging).
+ * Use with **`preflightContractDeployMetaQa`** on the review step, or after submit failures parsed as QA.
+ */
+export declare function describeContractDeployMetaQaResponse(qa: QaCheckResponse): DeployMetaQaUiOutcome;
+export type PreflightContractDeployMetaWithUiResult = {
+    qa: QaCheckResponse;
+    ui: DeployMetaQaUiOutcome;
+};
+/**
+ * Run **`preflightContractDeployMetaQa`** and attach {@link describeContractDeployMetaQaResponse} for one-shot UI wiring.
+ */
+export declare function preflightContractDeployMetaWithUi(client: BoingClient, tx: ContractDeployMetaTxObject): Promise<PreflightContractDeployMetaWithUiResult>;
+export type BuildAndPreflightReferenceFungibleResult = PreflightContractDeployMetaWithUiResult & {
+    tx: ContractDeployMetaTxObject;
+};
+/**
+ * **Wizard shortcut:** build pinned fungible **`contract_deploy_meta`** and run QA preflight with UI copy.
+ * Use the returned **`tx`** with **`boing_sendTransaction`** only when **`ui.readyToSign`** fits your product rules for **`unsure`**.
+ */
+export declare function buildAndPreflightReferenceFungibleDeploy(client: BoingClient, input: BuildReferenceFungibleDeployMetaTxInput): Promise<BuildAndPreflightReferenceFungibleResult>;
+export type BuildAndPreflightReferenceNftCollectionResult = PreflightContractDeployMetaWithUiResult & {
+    tx: ContractDeployMetaTxObject;
+};
+/**
+ * Same as {@link buildAndPreflightReferenceFungibleDeploy} for the reference NFT collection template.
+ */
+export declare function buildAndPreflightReferenceNftCollectionDeployMeta(client: BoingClient, input: BuildReferenceNftCollectionDeployMetaTxInput): Promise<BuildAndPreflightReferenceNftCollectionResult>;
+//# sourceMappingURL=dappDeploy.d.ts.map

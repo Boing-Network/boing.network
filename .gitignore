@@ -1,8 +1,10 @@
 # Dependencies
 node_modules/
 
-# Build outputs
+# Build outputs (boing-sdk/dist is tracked so file:/npm consumers resolve dist/ on clone)
 dist/
+!boing-sdk/dist/
+!boing-sdk/dist/**
 website/dist/
 target/
 
