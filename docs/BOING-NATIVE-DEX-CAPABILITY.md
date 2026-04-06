@@ -15,6 +15,7 @@ This document answers whether a **usable DEX-style product** can run **only** on
 | Optional **vault + fungible LP share** (product path) | [NATIVE-AMM-LP-VAULT.md](./NATIVE-AMM-LP-VAULT.md), [NATIVE-LP-SHARE-TOKEN.md](./NATIVE-LP-SHARE-TOKEN.md) — not required for bare pool swaps |
 | Deterministic deploy addresses | CREATE2 ([TECHNICAL-SPECIFICATION.md](./TECHNICAL-SPECIFICATION.md)), salts in `native_amm` / factory / routers |
 | Access lists + SDK | `boing-sdk` encoders, simulation merge, factory scan helpers, swap2 / multihop calldata builders |
+| Off-chain quotes + path search | `boing-sdk` **`nativeDexRouting.ts`**: CP quotes, **`rankDirectCpPools`**, multi-hop **`findBestCpRoutes`** (≤ configurable hops), even-split aggregation heuristic, **`hydrateCpPoolVenuesFromRpc`**, **`fetchCpRoutingFromDirectoryLogs`** (logs → venues → routes) — execution still via your txs / multihop router calldata |
 
 Together, these are enough for **swaps**, **liquidity**, **registry**, **routing**, and **multi-hop (2–4 pools)** flows **if** the app builds calldata and deploys pools with separate **`ContractDeploy`** transactions.
 

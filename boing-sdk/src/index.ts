@@ -535,14 +535,32 @@ export {
   buildNativeCpPoolSwapExpressTx,
 } from './nativeDexSeamless.js';
 export {
+  quoteCpPoolSwap,
+  rankDirectCpPools,
+  findBestCpRoutes,
+  findBestCpRoute,
+  quoteCpEvenSplitAcrossDirectPools,
+  hydrateCpPoolVenuesFromRpc,
+  fetchCpRoutingFromDirectoryLogs,
+  type CpPoolVenue,
+  type CpQuoteResult,
+  type RouteHop,
+  type CpSwapRoute,
+  type PoolTokenRow,
+  type FetchCpRoutingFromDirectoryLogsOptions,
+} from './nativeDexRouting.js';
+export {
   getInjectedEip1193Provider,
   providerSupportsBoingNativeRpc,
   boingSendTransaction,
   requestAccounts,
   readChainIdHex,
+  connectInjectedBoingWallet,
+  mapInjectedProviderErrorToUiMessage,
   BOING_WALLET_RPC_METHODS_NATIVE_DAPP,
   explainEthSendTransactionInsufficientForBoingNativeCall,
   type Eip1193Requester,
+  type BoingInjectedWalletConnectResult,
 } from './walletProvider.js';
 
 /**

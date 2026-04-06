@@ -100,3 +100,49 @@ export async function readChainIdHex(provider: Eip1193Requester): Promise<string
   }
   return id.toLowerCase();
 }
+
+export type BoingInjectedWalletConnectResult = {
+  accounts: string[];
+  chainIdHex: string;
+  supportsBoingNativeRpc: boolean;
+};
+
+/**
+ * Single **`requestAccounts`** + **`readChainIdHex`** + **`providerSupportsBoingNativeRpc`** — typical “Connect wallet” success payload.
+ */
+export async function connectInjectedBoingWallet(
+  provider: Eip1193Requester
+): Promise<BoingInjectedWalletConnectResult> {
+  const [accounts, chainIdHex, supportsBoingNativeRpc] = await Promise.all([
+    requestAccounts(provider),
+    readChainIdHex(provider),
+    providerSupportsBoingNativeRpc(provider),
+  ]);
+  return { accounts, chainIdHex, supportsBoingNativeRpc };
+}
+
+/**
+ * Map common injected-wallet errors to short UI strings (MetaMask-style **`code`** when present).
+ */
+export function mapInjectedProviderErrorToUiMessage(err: unknown): string {
+  const o = err as { code?: number; message?: string; data?: unknown };
+  const code = typeof o?.code === 'number' ? o.code : undefined;
+  const msg = typeof o?.message === 'string' ? o.message : '';
+
+  if (code === 4001 || /user rejected|denied|rejected/i.test(msg)) {
+    return 'Request was cancelled in the wallet.';
+  }
+  if (code === -32603 || /internal error/i.test(msg)) {
+    return 'The wallet reported an internal error. Try again or switch networks.';
+  }
+  if (/method not found|not supported|does not exist/i.test(msg)) {
+    return 'This wallet may not support Boing RPC methods. Use Boing Express or sign with boing-sdk on the server.';
+  }
+  if (/network|chain/i.test(msg) && /wrong|invalid|mismatch/i.test(msg)) {
+    return 'Wrong network selected in the wallet. Switch to the Boing chain and retry.';
+  }
+  if (msg.trim().length > 0) {
+    return msg.length > 200 ? `${msg.slice(0, 197)}…` : msg;
+  }
+  return 'Wallet request failed. Try again or use a Boing-compatible wallet.';
+}

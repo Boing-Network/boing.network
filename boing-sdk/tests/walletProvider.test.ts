@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   BOING_WALLET_RPC_METHODS_NATIVE_DAPP,
   boingSendTransaction,
+  connectInjectedBoingWallet,
   explainEthSendTransactionInsufficientForBoingNativeCall,
+  mapInjectedProviderErrorToUiMessage,
   providerSupportsBoingNativeRpc,
   readChainIdHex,
   requestAccounts,
@@ -58,5 +60,27 @@ describe('walletProvider', () => {
         .mockResolvedValueOnce('0x1B01'),
     };
     await expect(readChainIdHex(provider)).resolves.toBe('0x1b01');
+  });
+
+  it('connectInjectedBoingWallet aggregates accounts, chain id, boing probe', async () => {
+    const provider: Eip1193Requester = {
+      request: vi.fn(async (args: { method: string }) => {
+        const m = args.method;
+        if (m === 'boing_chainId') return '0x1b01';
+        if (m === 'boing_requestAccounts') throw new Error('no');
+        if (m === 'eth_requestAccounts') return ['0x' + 'ee'.repeat(32)];
+        if (m === 'eth_chainId') return '0x1b01';
+        throw new Error(`unexpected ${m}`);
+      }),
+    };
+    const r = await connectInjectedBoingWallet(provider);
+    expect(r.chainIdHex).toBe('0x1b01');
+    expect(r.accounts.length).toBe(1);
+    expect(r.supportsBoingNativeRpc).toBe(true);
+  });
+
+  it('mapInjectedProviderErrorToUiMessage handles rejection and method not found', () => {
+    expect(mapInjectedProviderErrorToUiMessage({ code: 4001, message: 'user rejected' })).toContain('cancelled');
+    expect(mapInjectedProviderErrorToUiMessage({ message: 'method not found' })).toContain('Boing');
   });
 });

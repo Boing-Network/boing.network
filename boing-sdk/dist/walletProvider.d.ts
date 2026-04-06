@@ -30,4 +30,17 @@ export declare function boingSendTransaction(provider: Eip1193Requester, tx: Rec
 export declare function requestAccounts(provider: Eip1193Requester): Promise<string[]>;
 /** Read **`boing_chainId`** or **`eth_chainId`** (hex string). */
 export declare function readChainIdHex(provider: Eip1193Requester): Promise<string>;
+export type BoingInjectedWalletConnectResult = {
+    accounts: string[];
+    chainIdHex: string;
+    supportsBoingNativeRpc: boolean;
+};
+/**
+ * Single **`requestAccounts`** + **`readChainIdHex`** + **`providerSupportsBoingNativeRpc`** — typical “Connect wallet” success payload.
+ */
+export declare function connectInjectedBoingWallet(provider: Eip1193Requester): Promise<BoingInjectedWalletConnectResult>;
+/**
+ * Map common injected-wallet errors to short UI strings (MetaMask-style **`code`** when present).
+ */
+export declare function mapInjectedProviderErrorToUiMessage(err: unknown): string;
 //# sourceMappingURL=walletProvider.d.ts.map

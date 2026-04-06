@@ -55,7 +55,8 @@ export { BOING_QA_PLACEHOLDER_DESCRIPTION_HASH_HEX, preflightContractDeployMetaQ
 export { mergeNativeDexIntegrationDefaults, fetchNativeDexIntegrationDefaults, fetchNativeDexFactoryRegisterLogs, } from './dexIntegration.js';
 export { nativeDexPairKey, buildNativeDexRegisterLogPoolIndex, pickNativeDexPoolFromRegisterLogs, fetchNativeDexDirectorySnapshot, resolveNativeDexPoolForTokens, suggestNativeDexRegisterLogCatchUpRange, } from './nativeDexDirectory.js';
 export { BOING_NATIVE_DEX_NOT_EVM_TAGLINE, BOING_NATIVE_DEX_NOT_EVM_BULLETS, BOING_NATIVE_DEX_TOOLKIT_RPC_METHODS, formatBoingNativeDexNotEvmDisclaimer, describeNativeDexDefaultGaps, assertBoingNativeDexToolkitRpc, formatNativeDexToolkitPreflightForUi, buildNativeCpPoolSwapExpressTx, } from './nativeDexSeamless.js';
-export { getInjectedEip1193Provider, providerSupportsBoingNativeRpc, boingSendTransaction, requestAccounts, readChainIdHex, BOING_WALLET_RPC_METHODS_NATIVE_DAPP, explainEthSendTransactionInsufficientForBoingNativeCall, } from './walletProvider.js';
+export { quoteCpPoolSwap, rankDirectCpPools, findBestCpRoutes, findBestCpRoute, quoteCpEvenSplitAcrossDirectPools, hydrateCpPoolVenuesFromRpc, fetchCpRoutingFromDirectoryLogs, } from './nativeDexRouting.js';
+export { getInjectedEip1193Provider, providerSupportsBoingNativeRpc, boingSendTransaction, requestAccounts, readChainIdHex, connectInjectedBoingWallet, mapInjectedProviderErrorToUiMessage, BOING_WALLET_RPC_METHODS_NATIVE_DAPP, explainEthSendTransactionInsufficientForBoingNativeCall, } from './walletProvider.js';
 /**
  * Create a Boing RPC client.
  * @param config - Node URL string (e.g. "http://localhost:8545") or config object (baseUrl, fetch?, timeoutMs?, maxRetries?, …).
