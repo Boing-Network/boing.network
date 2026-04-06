@@ -1,6 +1,6 @@
 # Boing SDK
 
-TypeScript/JavaScript client for [Boing Network](https://github.com/chiku524/boing.network): typed RPC client, hex utilities, and structured errors (including QA rejection feedback).
+TypeScript/JavaScript client for [Boing Network](https://github.com/Boing-Network/boing.network): typed RPC client, hex utilities, and structured errors (including QA rejection feedback).
 
 ## Install
 

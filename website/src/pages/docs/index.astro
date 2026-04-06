@@ -60,8 +60,8 @@ const paramsObjectWrong = '{}';
           <li><strong>OS</strong> — Linux, macOS, or Windows (WSL recommended on Windows).</li>
         </ul>
         <h3>Clone and build</h3>
-        <p>From the <a href="https://github.com/chiku524/boing.network" target="_blank" rel="noopener">boing.network</a> repository:</p>
-        <pre><code>git clone https://github.com/chiku524/boing.network.git
+        <p>From the <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">boing.network</a> repository:</p>
+        <pre><code>git clone https://github.com/Boing-Network/boing.network.git
 cd boing.network
 cargo build --release</code></pre>
         <h3>Directory layout after build</h3>
@@ -158,7 +158,7 @@ cargo build --release</code></pre>
 
       <section id="rpc-api" class="doc-section">
         <h2>RPC API</h2>
-        <p>Boing nodes expose <strong>JSON-RPC 2.0</strong> over <strong>HTTP POST</strong> to <code>http://&lt;host&gt;:8545/</code> (default port). The authoritative reference is <a href="https://github.com/chiku524/boing.network/blob/main/docs/RPC-API-SPEC.md" target="_blank" rel="noopener"><code>docs/RPC-API-SPEC.md</code></a> in the repository (also <a href="/pdfs/RPC-API-SPEC.pdf" target="_blank" rel="noopener">RPC-API-SPEC PDF</a>). Same listener serves <code>GET /live</code>, <code>GET /ready</code>, <code>GET /openapi.json</code>, <code>GET /.well-known/boing-rpc</code>, and <code>GET /ws</code> (newHeads).</p>
+        <p>Boing nodes expose <strong>JSON-RPC 2.0</strong> over <strong>HTTP POST</strong> to <code>http://&lt;host&gt;:8545/</code> (default port). The authoritative reference is <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md" target="_blank" rel="noopener"><code>docs/RPC-API-SPEC.md</code></a> in the repository (also <a href="/pdfs/RPC-API-SPEC.pdf" target="_blank" rel="noopener">RPC-API-SPEC PDF</a>). Same listener serves <code>GET /live</code>, <code>GET /ready</code>, <code>GET /openapi.json</code>, <code>GET /.well-known/boing-rpc</code>, and <code>GET /ws</code> (newHeads).</p>
         <p>Rate limiting, batch limits, and body size are node-configurable; see the spec and <code>boing_health</code> / <code>boing_getNetworkInfo</code> field <code>rpc_surface</code>.</p>
         <h3>Request format</h3>
         <pre><code>{jsonRpcExample}</code></pre>
@@ -340,7 +340,7 @@ cargo build --release</code></pre>
           <li><a href="/community">Community</a> — GitHub, governance, grants.</li>
         </ul>
         <h3>Repository docs (PDF)</h3>
-        <p class="doc-section-desc">Source: <a href="https://github.com/chiku524/boing.network" target="_blank" rel="noopener">github.com/chiku524/boing.network</a>. Download any document as PDF:</p>
+        <p class="doc-section-desc">Source: <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">github.com/chiku524/boing.network</a>. Download any document as PDF:</p>
         <div class="resource-cards">
           <a href="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" target="_blank" rel="noopener" class="resource-card">
             <span class="resource-card-icon"><Icon name="book" size={28} /></span>

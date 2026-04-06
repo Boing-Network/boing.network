@@ -385,7 +385,7 @@ fn developer_api_document() -> &'static serde_json::Value {
 }
 
 /// Default for `boing_getNetworkInfo.developer.repository_url` when `BOING_DEVELOPER_REPOSITORY_URL` is unset.
-const DEFAULT_DEVELOPER_REPOSITORY_URL: &str = "https://github.com/chiku524/boing.network";
+const DEFAULT_DEVELOPER_REPOSITORY_URL: &str = "https://github.com/Boing-Network/boing.network";
 
 fn network_info_developer_hints() -> serde_json::Value {
     let repository_url = std::env::var("BOING_DEVELOPER_REPOSITORY_URL")

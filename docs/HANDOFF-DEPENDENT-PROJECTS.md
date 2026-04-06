@@ -6,7 +6,7 @@ This document complements **[THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNME
 
 ## 1. What this repo (`boing.network`) already provides
 
-Use this as the **upstream contract** for dependent projects.
+Use this as the **upstream contract** for dependent projects. **Canonical GitHub:** [`Boing-Network/boing.network`](https://github.com/Boing-Network/boing.network) (RPC `developer.repository_url` default, website links, **`GET /api/networks`** `meta` doc URLs; legacy `chiku524` release paths may still redirect but are normalized where the API merges listings).
 
 | Area | Location / artifact |
 |------|---------------------|

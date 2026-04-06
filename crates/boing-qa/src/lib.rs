@@ -3,7 +3,7 @@
 //! Modules:
 //! - `pool` — Community QA pool (pending queue, voting, resolution)
 //!
-//! See [QUALITY-ASSURANCE-NETWORK.md](https://github.com/chiku524/boing.network/blob/main/docs/QUALITY-ASSURANCE-NETWORK.md) for the full design.
+//! See [QUALITY-ASSURANCE-NETWORK.md](https://github.com/Boing-Network/boing.network/blob/main/docs/QUALITY-ASSURANCE-NETWORK.md) for the full design.
 //!
 //! This crate provides:
 //! - [QaResult]: Allow | Reject | Unsure
@@ -32,7 +32,7 @@ pub struct QaReject {
 }
 
 /// Doc URL for QA guidance (QUALITY-ASSURANCE-NETWORK Appendix A: Deployer checklist). Override with env or config in production.
-pub const QA_PASS_GUIDE_URL: &str = "https://github.com/chiku524/boing.network/blob/main/docs/QUALITY-ASSURANCE-NETWORK.md#appendix-a-deployer-checklist-how-to-pass-qa";
+pub const QA_PASS_GUIDE_URL: &str = "https://github.com/Boing-Network/boing.network/blob/main/docs/QUALITY-ASSURANCE-NETWORK.md#appendix-a-deployer-checklist-how-to-pass-qa";
 
 fn doc_url_for_rule(_rule_id: &str) -> Option<String> {
     Some(format!("{}#common-rejections-and-fixes", QA_PASS_GUIDE_URL))

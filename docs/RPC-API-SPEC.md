@@ -348,9 +348,9 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
     "as_of_height": 42
   },
   "developer": {
-    "repository_url": "https://github.com/chiku524/boing.network",
-    "rpc_spec_url": "https://github.com/chiku524/boing.network/blob/main/docs/RPC-API-SPEC.md",
-    "dapp_integration_doc_url": "https://github.com/chiku524/boing.network/blob/main/docs/BOING-DAPP-INTEGRATION.md",
+    "repository_url": "https://github.com/Boing-Network/boing.network",
+    "rpc_spec_url": "https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md",
+    "dapp_integration_doc_url": "https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-DAPP-INTEGRATION.md",
     "sdk_npm_package": "boing-sdk",
     "websocket": {
       "path": "/ws",

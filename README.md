@@ -44,7 +44,7 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 
 ## Docs
 
-All project documentation lives in **[docs/](docs/)**. **Canonical index:** [docs/README.md](docs/README.md) (full map of specs, runbooks, and checklists).
+All project documentation lives in **[docs/](docs/)**. **Canonical index:** [docs/README.md](docs/README.md) (full map of specs, runbooks, and checklists). **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md).
 
 | Doc | Description |
 |-----|-------------|

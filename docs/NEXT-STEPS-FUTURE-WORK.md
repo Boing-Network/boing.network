@@ -51,6 +51,7 @@ Use this table when the task is **ops**, **release**, or **pipeline** — not ap
 
 | Item | Location |
 |------|----------|
+| **Canonical GitHub org** **`Boing-Network/boing.network`** in RPC defaults, QA links, SDK doc URLs, website footers, **`GET /api/networks`** `meta`, release SQL generator — legacy **`chiku524`** normalized at API edge where applicable | `crates/boing-node/src/rpc.rs` **`DEFAULT_DEVELOPER_REPOSITORY_URL`**; [website/functions/api/networks.js](../website/functions/api/networks.js); [CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Block replay range over RPC | Tutorial script **`npm run fetch-blocks-range`** — [examples/native-boing-tutorial/scripts/fetch-blocks-range.mjs](../examples/native-boing-tutorial/scripts/fetch-blocks-range.mjs) (`fetchBlocksWithReceiptsForHeightRange`, optional **`BOING_CLAMP_TO_DURABLE`**) |
 | SDK ingestion pseudo-flow | [INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md) § **SDK-assisted ingestion tick (pseudo-flow)** — `getIndexerChainTips` → `clampIndexerHeightRange` → `fetchBlocksWithReceiptsForHeightRange` |
 | Chunked logs | `npm run fetch-logs-range` — [examples/native-boing-tutorial/scripts/fetch-logs-range.mjs](../examples/native-boing-tutorial/scripts/fetch-logs-range.mjs) |

@@ -1,8 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
-const GITHUB_RELEASES_BASE = 'https://github.com/chiku524/boing.network/releases';
-const GITHUB_API_RELEASES = 'https://api.github.com/repos/chiku524/boing.network/releases';
+const GITHUB_RELEASES_BASE = 'https://github.com/Boing-Network/boing.network/releases';
+const GITHUB_API_RELEASES = 'https://api.github.com/repos/Boing-Network/boing.network/releases';
 
 /** Fallback when API fails or no desktop-hub release exists yet (keep in sync with latest release) */
 const FALLBACK_TAG = 'desktop-hub/v0.1.11';
@@ -161,7 +161,7 @@ try {
       </div>
     </section>
   </article>
-  <script define:vars={{ GITHUB_API_RELEASES: 'https://api.github.com/repos/chiku524/boing.network/releases', GITHUB_RELEASES_BASE: 'https://github.com/chiku524/boing.network/releases' }}>
+  <script define:vars={{ GITHUB_API_RELEASES: 'https://api.github.com/repos/Boing-Network/boing.network/releases', GITHUB_RELEASES_BASE: 'https://github.com/Boing-Network/boing.network/releases' }}>
     (function () {
       const versionEl = document.getElementById('downloads-hub-version');
       const listEl = document.getElementById('downloads-hub-list');

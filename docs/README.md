@@ -1,6 +1,6 @@
 # Boing Network — Documentation Index
 
-Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the six pillars and design philosophy. This file is the **canonical map** of `docs/`; the repo root [README.md](../README.md) duplicates a short subset for quick navigation.
+Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the six pillars and design philosophy. This file is the **canonical map** of `docs/`; the repo root [README.md](../README.md) duplicates a short subset for quick navigation. Contributors: see root [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Core
 
@@ -70,6 +70,7 @@ Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the si
 
 | Doc | Description |
 |-----|-------------|
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | **Contributor guide:** build, SDK tests, docs map, PR expectations |
 | [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) | Boing Express: bootstrap, integration, Chrome Web Store; **Part 3:** portal connection, sign-in API, rollout & smoke test |
 | [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) | dApp checklist: native Boing provider, simulate, submit, auth (pairs with `boing-sdk`) |
 | [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) | bincode layout + signable hash; JS/Rust parity reference |

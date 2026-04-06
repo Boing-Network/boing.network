@@ -22,7 +22,7 @@
 
   var eip6963Providers = [];
 
-  /** @see https://github.com/chiku524/boing.network/blob/main/docs/THREE-CODEBASE-ALIGNMENT.md */
+  /** @see https://github.com/Boing-Network/boing.network/blob/main/docs/THREE-CODEBASE-ALIGNMENT.md */
   var WALLET_INSTALL_URL = 'https://boing.express';
   var EXPLORER_URL = 'https://boing.observer';
 

@@ -20,7 +20,7 @@ crate-type = ["cdylib", "rlib"]
 
 const TEMPLATE_README: &str = r#"# My Boing dApp
 
-Built with [Boing SDK](https://github.com/chiku524/boing.network).
+Built with [Boing SDK](https://github.com/Boing-Network/boing.network).
 
 ## Quick Start
 
