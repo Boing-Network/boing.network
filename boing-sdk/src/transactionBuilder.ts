@@ -146,5 +146,3 @@ export async function signTransactionInputWithSigner(
   if (sig.length !== 64) throw new Error('Ed25519 signature must be 64 bytes');
   return bytesToHex(encodeSignedTransaction(tx, sig));
 }
-
-export type { TransactionInput, TransactionPayloadInput };

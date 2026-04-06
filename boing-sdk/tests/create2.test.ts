@@ -4,10 +4,28 @@ import {
   NATIVE_CP_POOL_CREATE2_SALT_V2,
   NATIVE_CP_POOL_CREATE2_SALT_V3,
   NATIVE_CP_POOL_CREATE2_SALT_V4,
+  NATIVE_CP_POOL_CREATE2_SALT_V5,
+  NATIVE_DEX_FACTORY_CREATE2_SALT_V1,
+  NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V1,
+  NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V2,
+  NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V3,
+  NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1,
+  NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1,
+  NATIVE_DEX_SWAP2_ROUTER_CREATE2_SALT_V1,
+  NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1,
   nativeCpPoolCreate2SaltV1Hex,
   nativeCpPoolCreate2SaltV2Hex,
   nativeCpPoolCreate2SaltV3Hex,
   nativeCpPoolCreate2SaltV4Hex,
+  nativeCpPoolCreate2SaltV5Hex,
+  nativeDexFactoryCreate2SaltV1Hex,
+  nativeDexLedgerRouterCreate2SaltV1Hex,
+  nativeDexLedgerRouterCreate2SaltV2Hex,
+  nativeDexLedgerRouterCreate2SaltV3Hex,
+  nativeAmmLpVaultCreate2SaltV1Hex,
+  nativeDexMultihopSwapRouterCreate2SaltV1Hex,
+  nativeDexSwap2RouterCreate2SaltV1Hex,
+  nativeLpShareTokenCreate2SaltV1Hex,
   predictCreate2ContractAddress,
   predictNativeCpPoolCreate2Address,
 } from '../src/create2.js';
@@ -44,10 +62,11 @@ describe('create2', () => {
     }
   });
 
-  it('NATIVE_CP_POOL_CREATE2_SALT_V3 and V4 match Rust labels', () => {
+  it('NATIVE_CP_POOL_CREATE2_SALT_V3, V4, and V5 match Rust labels', () => {
     for (const [salt, label, hexFn] of [
       [NATIVE_CP_POOL_CREATE2_SALT_V3, 'BOING_NATIVECP_C2V3', nativeCpPoolCreate2SaltV3Hex],
       [NATIVE_CP_POOL_CREATE2_SALT_V4, 'BOING_NATIVECP_C2V4', nativeCpPoolCreate2SaltV4Hex],
+      [NATIVE_CP_POOL_CREATE2_SALT_V5, 'BOING_NATIVECP_C2V5', nativeCpPoolCreate2SaltV5Hex],
     ] as const) {
       const enc = new TextEncoder().encode(label);
       expect(salt.length).toBe(32);
@@ -65,6 +84,59 @@ describe('create2', () => {
     const b = predictNativeCpPoolCreate2Address(deployer, bc);
     expect(a).toBe(b);
     expect(a).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  it('NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1 matches Rust label and SWAP2 alias', () => {
+    const enc = new TextEncoder().encode('BOING_NATIVEDEX_MHOP_V1');
+    expect(NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1.length).toBe(32);
+    expect(nativeDexMultihopSwapRouterCreate2SaltV1Hex()).toMatch(/^0x[0-9a-f]{64}$/);
+    for (let i = 0; i < enc.length; i++) {
+      expect(NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1[i]).toBe(enc[i]);
+    }
+    expect(NATIVE_DEX_SWAP2_ROUTER_CREATE2_SALT_V1).toBe(NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1);
+    expect(nativeDexSwap2RouterCreate2SaltV1Hex()).toBe(nativeDexMultihopSwapRouterCreate2SaltV1Hex());
+  });
+
+  it('NATIVE_LP_SHARE_TOKEN and NATIVE_AMM_LP_VAULT salts match Rust labels', () => {
+    for (const [salt, label, hexFn] of [
+      [NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1, 'BOING_LP_SHARE_TOKEN_V1', nativeLpShareTokenCreate2SaltV1Hex],
+      [NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1, 'BOING_AMM_LP_VAULT_V1', nativeAmmLpVaultCreate2SaltV1Hex],
+    ] as const) {
+      const enc = new TextEncoder().encode(label);
+      expect(salt.length).toBe(32);
+      expect(hexFn()).toMatch(/^0x[0-9a-f]{64}$/);
+      for (let i = 0; i < enc.length; i++) {
+        expect(salt[i]).toBe(enc[i]);
+      }
+    }
+  });
+
+  it('NATIVE_DEX_FACTORY and LEDGER_ROUTER salts match Rust labels', () => {
+    for (const [salt, label, hexFn] of [
+      [NATIVE_DEX_FACTORY_CREATE2_SALT_V1, 'BOING_NATIVEDEX_FACTORY_V1', nativeDexFactoryCreate2SaltV1Hex],
+      [
+        NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V1,
+        'BOING_NATIVEDEX_LROUTER_V1',
+        nativeDexLedgerRouterCreate2SaltV1Hex,
+      ],
+      [
+        NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V2,
+        'BOING_NATIVEDEX_LROUTER_V2',
+        nativeDexLedgerRouterCreate2SaltV2Hex,
+      ],
+      [
+        NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V3,
+        'BOING_NATIVEDEX_LROUTER_V3',
+        nativeDexLedgerRouterCreate2SaltV3Hex,
+      ],
+    ] as const) {
+      const enc = new TextEncoder().encode(label);
+      expect(salt.length).toBe(32);
+      expect(hexFn()).toMatch(/^0x[0-9a-f]{64}$/);
+      for (let i = 0; i < enc.length; i++) {
+        expect(salt[i]).toBe(enc[i]);
+      }
+    }
   });
 });
 

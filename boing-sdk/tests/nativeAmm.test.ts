@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   SELECTOR_NATIVE_AMM_SWAP,
+  SELECTOR_NATIVE_AMM_SWAP_TO,
   SELECTOR_NATIVE_AMM_ADD_LIQUIDITY,
   SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY,
+  SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY_TO,
   SELECTOR_NATIVE_AMM_SET_SWAP_FEE_BPS,
   encodeNativeAmmSwapCalldata,
+  encodeNativeAmmSwapToCalldata,
   encodeNativeAmmAddLiquidityCalldata,
   encodeNativeAmmRemoveLiquidityCalldata,
+  encodeNativeAmmRemoveLiquidityToCalldata,
   encodeNativeAmmRemoveLiquidityCalldataHex,
   encodeNativeAmmSetSwapFeeBpsCalldata,
   constantProductAmountOut,
@@ -25,6 +29,14 @@ describe('nativeAmm', () => {
     const c = encodeNativeAmmSwapCalldata(0n, 1_000_000n, 900_000n);
     expect(c.length).toBe(128);
     expect(c[31]).toBe(SELECTOR_NATIVE_AMM_SWAP);
+  });
+
+  it('encodeNativeAmmSwapToCalldata is 160 bytes with selector 0x15 and recipient word', () => {
+    const recip = '0x' + '42'.repeat(32);
+    const c = encodeNativeAmmSwapToCalldata(0n, 1n, 1n, recip);
+    expect(c.length).toBe(160);
+    expect(c[31]).toBe(SELECTOR_NATIVE_AMM_SWAP_TO);
+    expect(bytesToHex(c.slice(128, 160))).toBe(recip);
   });
 
   it('constantProductAmountOutNoFee matches raw CP step', () => {
@@ -79,5 +91,15 @@ describe('nativeAmm', () => {
   it('encodeNativeAmmRemoveLiquidityCalldataHex matches bytes encoder', () => {
     const c = encodeNativeAmmRemoveLiquidityCalldata(5n, 1n, 2n);
     expect(encodeNativeAmmRemoveLiquidityCalldataHex(5n, 1n, 2n)).toBe(bytesToHex(c));
+  });
+
+  it('encodeNativeAmmRemoveLiquidityToCalldata is 192 bytes with selector 0x16', () => {
+    const a = '0x' + '11'.repeat(32);
+    const b = '0x' + '22'.repeat(32);
+    const c = encodeNativeAmmRemoveLiquidityToCalldata(500n, 0n, 0n, a, b);
+    expect(c.length).toBe(192);
+    expect(c[31]).toBe(SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY_TO);
+    expect(bytesToHex(c.slice(128, 160))).toBe(a);
+    expect(bytesToHex(c.slice(160, 192))).toBe(b);
   });
 });

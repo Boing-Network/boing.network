@@ -10,7 +10,9 @@
 //!
 //! **v1** [`constant_product_pool_bytecode`] is ledger-only. **v2** [`constant_product_pool_bytecode_v2`] adds
 //! one-time **`set_tokens`** plus optional reference-token **`CALL`** on swap output and remove-liquidity payouts
-//! (see `docs/NATIVE-AMM-CALLDATA.md` § v2). The VM **`Call` (`0xf1`)** semantics: `docs/TECHNICAL-SPECIFICATION.md` §7.2.
+//! (see `docs/NATIVE-AMM-CALLDATA.md` § v2). **v5** [`constant_product_pool_bytecode_v5`] is v4 plus **`swap_to` (`0x15`)**:
+//! 160-byte swap calldata with an explicit **output recipient** for token payouts (router-safe; still Boing VM only).
+//! The VM **`Call` (`0xf1`)** semantics: `docs/TECHNICAL-SPECIFICATION.md` §7.2.
 
 use boing_primitives::AccountId;
 
@@ -27,6 +29,10 @@ pub const SELECTOR_REMOVE_LIQUIDITY: u8 = 0x12;
 pub const SELECTOR_SET_TOKENS: u8 = 0x13;
 /// **v3/v4 only:** `set_swap_fee_bps(fee)` — **64-byte** calldata (selector + one amount word). **Only** when **total LP supply == 0**; **`fee`** must satisfy **1 ≤ fee ≤ 10_000**.
 pub const SELECTOR_SET_SWAP_FEE_BPS: u8 = 0x14;
+/// **v5 only (token-hook pools):** `swap_to` — same as [`SELECTOR_SWAP`] plus **word4** = output recipient `AccountId` (**160-byte** calldata). Reference-token `transfer` uses that account instead of [`Opcode::Caller`].
+pub const SELECTOR_SWAP_TO: u8 = 0x15;
+/// **v5 only:** `remove_liquidity_to` — same as [`SELECTOR_REMOVE_LIQUIDITY`] plus **word4** / **word5** = payout recipients for token A / B (**192-byte** calldata).
+pub const SELECTOR_REMOVE_LIQUIDITY_TO: u8 = 0x16;
 
 /// XOR mask for per-signer LP balance slot: `storage_key = caller_id ^ LP_BALANCE_STORAGE_XOR`.
 pub const LP_BALANCE_STORAGE_XOR: [u8; 32] = *b"BOING_NATIVEAMM_LPRV1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
@@ -49,6 +55,10 @@ pub const NATIVE_CP_POOL_CREATE2_SALT_V3: [u8; 32] =
 /// CREATE2 salt for **v4** — **v2** token hooks + configurable swap fee ([`constant_product_pool_bytecode_v4`]).
 pub const NATIVE_CP_POOL_CREATE2_SALT_V4: [u8; 32] =
     *b"BOING_NATIVECP_C2V4\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+
+/// CREATE2 salt for **v5** — v4 + [`SELECTOR_SWAP_TO`] ([`constant_product_pool_bytecode_v5`]).
+pub const NATIVE_CP_POOL_CREATE2_SALT_V5: [u8; 32] =
+    *b"BOING_NATIVECP_C2V5\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
 /// `Log2` **topic0** after a successful **`swap`** (data: direction, `amount_in`, `amount_out` words).
 pub const NATIVE_AMM_TOPIC_SWAP: [u8; 32] = *b"BOING_NATIVEAMM_SWAP_V1\x00\x00\x00\x00\x00\x00\x00\x00\x00";
@@ -143,6 +153,42 @@ pub fn encode_swap_calldata(direction: u128, amount_in: u128, min_out: u128) -> 
     v
 }
 
+/// **160 bytes:** `swap_to` calldata (v5 pool) — word4 = **`recipient`** for on-chain token output (`transfer` target).
+#[must_use]
+pub fn encode_swap_to_calldata(
+    direction: u128,
+    amount_in: u128,
+    min_out: u128,
+    recipient: &AccountId,
+) -> Vec<u8> {
+    let mut v = selector_word(SELECTOR_SWAP_TO).to_vec();
+    v.extend_from_slice(&amount_word(direction));
+    v.extend_from_slice(&amount_word(amount_in));
+    v.extend_from_slice(&amount_word(min_out));
+    v.extend_from_slice(&recipient.0);
+    debug_assert_eq!(v.len(), 160);
+    v
+}
+
+/// **192 bytes:** `remove_liquidity_to` (v5) — explicit **recipient A** and **recipient B** for reference-token payouts.
+#[must_use]
+pub fn encode_remove_liquidity_to_calldata(
+    liquidity_burn: u128,
+    min_a: u128,
+    min_b: u128,
+    recipient_a: &AccountId,
+    recipient_b: &AccountId,
+) -> Vec<u8> {
+    let mut v = selector_word(SELECTOR_REMOVE_LIQUIDITY_TO).to_vec();
+    v.extend_from_slice(&amount_word(liquidity_burn));
+    v.extend_from_slice(&amount_word(min_a));
+    v.extend_from_slice(&amount_word(min_b));
+    v.extend_from_slice(&recipient_a.0);
+    v.extend_from_slice(&recipient_b.0);
+    debug_assert_eq!(v.len(), 192);
+    v
+}
+
 /// 128 bytes: `add_liquidity`.
 #[must_use]
 pub fn encode_add_liquidity_calldata(amount_a: u128, amount_b: u128, min_liquidity: u128) -> Vec<u8> {
@@ -152,6 +198,19 @@ pub fn encode_add_liquidity_calldata(amount_a: u128, amount_b: u128, min_liquidi
     v.extend_from_slice(&amount_word(min_liquidity));
     debug_assert_eq!(v.len(), 128);
     v
+}
+
+/// Decode **32-byte** successful `add_liquidity` return data: **LP minted** this call (**u128** in the
+/// low **16** bytes, high **16** bytes must be zero — same layout as calldata amount words).
+#[must_use]
+pub fn decode_add_liquidity_return_lp_minted(return_data: &[u8]) -> Option<u128> {
+    if return_data.len() != 32 {
+        return None;
+    }
+    if return_data[0..16] != [0u8; 16] {
+        return None;
+    }
+    Some(u128::from_be_bytes(return_data[16..32].try_into().ok()?))
 }
 
 /// 128 bytes: `remove_liquidity` — `liquidity_burn`, `min_a`, `min_b` (slippage).
@@ -178,7 +237,7 @@ pub fn encode_set_tokens_calldata(token_a: &AccountId, token_b: &AccountId) -> V
 /// **v3/v4:** 64 bytes — `set_swap_fee_bps(fee)` with **1 ≤ fee ≤ 10_000** (only when **total LP == 0**).
 #[must_use]
 pub fn encode_set_swap_fee_bps_calldata(fee_bps: u128) -> Vec<u8> {
-    assert!(fee_bps >= 1 && fee_bps <= 10_000, "fee_bps must be in 1..=10_000");
+    assert!((1..=10_000).contains(&fee_bps), "fee_bps must be in 1..=10_000");
     let mut v = selector_word(SELECTOR_SET_SWAP_FEE_BPS).to_vec();
     v.extend_from_slice(&amount_word(fee_bps));
     debug_assert_eq!(v.len(), 64);
@@ -232,7 +291,7 @@ fn push32(code: &mut Vec<u8>, w: &[u8; 32]) {
     code.extend_from_slice(w);
 }
 
-fn patch_push32_dest(code: &mut Vec<u8>, push32_opcode_at: usize, dest: usize) {
+fn patch_push32_dest(code: &mut [u8], push32_opcode_at: usize, dest: usize) {
     code[push32_opcode_at + 1..push32_opcode_at + 33].copy_from_slice(&word_u64(dest as u64));
 }
 
@@ -246,8 +305,16 @@ fn append_mstore_word(code: &mut Vec<u8>, mem_off: u64, w: &[u8; 32]) {
     code.push(Opcode::MStore as u8);
 }
 
-/// **v2:** After swap math, `CALL` output reference token with `transfer(Caller, dy)` if configured.
-fn append_v2_swap_output_reference_call(code: &mut Vec<u8>, mem_dir: u64, mem_dy: u64, cd_base: u64, tmp_tok: u64) {
+/// **v2 / v5:** After swap math, `CALL` output reference token with `transfer(to, dy)` if configured.
+/// `recipient_mem`: **`Some(offset)`** — load 32-byte `to` from memory (v5 `swap_to`); **`None`** — use [`Opcode::Caller`] (legacy `swap`).
+fn append_v2_swap_output_reference_call(
+    code: &mut Vec<u8>,
+    mem_dir: u64,
+    mem_dy: u64,
+    cd_base: u64,
+    tmp_tok: u64,
+    recipient_mem: Option<u64>,
+) {
     // Pick token id: dir==1 (B→A) → token A, else → token B.
     push32(code, &word_u64(mem_dir));
     code.push(Opcode::MLoad as u8);
@@ -280,7 +347,15 @@ fn append_v2_swap_output_reference_call(code: &mut Vec<u8>, mem_dir: u64, mem_dy
     code.push(Opcode::JumpI as u8);
 
     append_mstore_word(code, cd_base, &selector_word(SELECTOR_TRANSFER));
-    code.push(Opcode::Caller as u8);
+    match recipient_mem {
+        Some(off) => {
+            push32(code, &word_u64(off));
+            code.push(Opcode::MLoad as u8);
+        }
+        None => {
+            code.push(Opcode::Caller as u8);
+        }
+    }
     push32(code, &word_u64(cd_base + 32));
     code.push(Opcode::MStore as u8);
     push32(code, &word_u64(mem_dy));
@@ -302,8 +377,16 @@ fn append_v2_swap_output_reference_call(code: &mut Vec<u8>, mem_dir: u64, mem_dy
     patch_push32_dest(code, fix_skip, off_skip);
 }
 
-/// **v2:** `CALL` `transfer(Caller, amount)` if `token_key` slot is non-zero.
-fn append_v2_payout_one_side(code: &mut Vec<u8>, token_key: &[u8; 32], amount_mem: u64, cd_base: u64, tmp_tok: u64) {
+/// **v2 / v5:** `CALL` `transfer(to, amount)` if `token_key` slot is non-zero.
+/// `recipient_mem`: **`Some(off)`** — load `to` from memory; **`None`** — [`Opcode::Caller`].
+fn append_v2_payout_one_side(
+    code: &mut Vec<u8>,
+    token_key: &[u8; 32],
+    amount_mem: u64,
+    cd_base: u64,
+    tmp_tok: u64,
+    recipient_mem: Option<u64>,
+) {
     push32(code, token_key);
     code.push(Opcode::SLoad as u8);
     push32(code, &word_u64(tmp_tok));
@@ -317,7 +400,15 @@ fn append_v2_payout_one_side(code: &mut Vec<u8>, token_key: &[u8; 32], amount_me
     code.push(Opcode::JumpI as u8);
 
     append_mstore_word(code, cd_base, &selector_word(SELECTOR_TRANSFER));
-    code.push(Opcode::Caller as u8);
+    match recipient_mem {
+        Some(off) => {
+            push32(code, &word_u64(off));
+            code.push(Opcode::MLoad as u8);
+        }
+        None => {
+            code.push(Opcode::Caller as u8);
+        }
+    }
     push32(code, &word_u64(cd_base + 32));
     code.push(Opcode::MStore as u8);
     push32(code, &word_u64(amount_mem));
@@ -730,7 +821,15 @@ fn append_add_liquidity_lp(c: &mut Vec<u8>, abort_pc: usize, storage_swap_fee: b
     const LIQ_LOG: u64 = 800;
     emit_log2_caller_three_words(c, &NATIVE_AMM_TOPIC_ADD_LIQUIDITY, DA, DB, LP, LIQ_LOG);
 
-    c.push(Opcode::Stop as u8);
+    // `Return` 32-byte word: LP minted this call (u128 in low 16 bytes, same layout as amount_word).
+    const MEM_RET_LP_MINT: u64 = 928;
+    push32(c, &word_u64(LP));
+    c.push(Opcode::MLoad as u8);
+    push32(c, &word_u64(MEM_RET_LP_MINT));
+    c.push(Opcode::MStore as u8);
+    push32(c, &word_u64(32));
+    push32(c, &word_u64(MEM_RET_LP_MINT));
+    c.push(Opcode::Return as u8);
 
     patch_push32_dest(c, fix_da0, abort_pc);
     patch_push32_dest(c, fix_db0, abort_pc);
@@ -739,8 +838,14 @@ fn append_add_liquidity_lp(c: &mut Vec<u8>, abort_pc: usize, storage_swap_fee: b
     patch_push32_dest(c, fix_lp0_ratio, abort_pc);
 }
 
-/// Remove-liquidity: pro-rata withdrawal + slippage (scratch `448..736`).
-fn append_remove_liquidity_lp(c: &mut Vec<u8>, abort_pc: usize, token_hooks: bool) {
+/// Remove-liquidity tail: pro-rata withdrawal + slippage (scratch `448..736`).
+/// `payout_recipient_slots`: **`Some((a,b))**` — memory words for `transfer` **to** on each token; **`None`** — [`Opcode::Caller`].
+fn append_remove_liquidity_tail(
+    c: &mut Vec<u8>,
+    abort_pc: usize,
+    token_hooks: bool,
+    payout_recipient_slots: Option<(u64, u64)>,
+) {
     const BURN: u64 = 448;
     const MINA: u64 = 480;
     const MINB: u64 = 512;
@@ -888,8 +993,26 @@ fn append_remove_liquidity_lp(c: &mut Vec<u8>, abort_pc: usize, token_hooks: boo
     const V2_RM_CALLDATA: u64 = 1248;
     const V2_RM_TMP: u64 = 1152;
     if token_hooks {
-        append_v2_payout_one_side(c, &token_a_key(), DAO, V2_RM_CALLDATA, V2_RM_TMP);
-        append_v2_payout_one_side(c, &token_b_key(), DBO, V2_RM_CALLDATA, V2_RM_TMP);
+        let (ra, rb) = match payout_recipient_slots {
+            Some((a, b)) => (Some(a), Some(b)),
+            None => (None, None),
+        };
+        append_v2_payout_one_side(
+            c,
+            &token_a_key(),
+            DAO,
+            V2_RM_CALLDATA,
+            V2_RM_TMP,
+            ra,
+        );
+        append_v2_payout_one_side(
+            c,
+            &token_b_key(),
+            DBO,
+            V2_RM_CALLDATA,
+            V2_RM_TMP,
+            rb,
+        );
     }
 
     const RM_LOG: u64 = 800;
@@ -908,6 +1031,8 @@ fn append_remove_liquidity_lp(c: &mut Vec<u8>, abort_pc: usize, token_hooks: boo
 struct CpPoolBuildOpts {
     token_hooks: bool,
     storage_swap_fee: bool,
+    /// v5: [`SELECTOR_SWAP_TO`] + scratch at offset **1088** for router-safe token payout.
+    swap_with_recipient: bool,
 }
 
 /// Assembled pool: dispatch + `add_liquidity` (LP mint) + `swap` + `remove_liquidity` (pro-rata).
@@ -915,9 +1040,11 @@ struct CpPoolBuildOpts {
 /// Scratch memory: swap `128..384`, swap log buffer `416..512`; add/remove `448..736`, liq log `800..896`.
 /// **v2** (`token_hooks`): `set_tokens` dispatch, `CALL` on swap out + remove payouts; scratch `1152`, `1248`.
 /// **v3/v4** (`storage_swap_fee`): [`swap_fee_bps_key`], scratch **`1024` / `1056`**, [`SELECTOR_SET_SWAP_FEE_BPS`].
+/// **v5** (`swap_with_recipient`): scratch **`1088`** + [`SELECTOR_SWAP_TO`].
 fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     let token_hooks = opts.token_hooks;
     let storage_swap_fee = opts.storage_swap_fee;
+    let swap_with_recipient = opts.swap_with_recipient;
     // Memory scratch (offsets ≥ 128 to stay past 128-byte calldata).
     const MEM_DIR: u64 = 128;
     const MEM_RA: u64 = 160;
@@ -928,6 +1055,8 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     const MEM_ROUT: u64 = 320;
     const MEM_RIN_P: u64 = 352;
     const MEM_DY: u64 = 384;
+    /// Output recipient for **`swap_to`** (v5); loaded into transfer calldata instead of `Caller`.
+    const MEM_SWAP_RECIP: u64 = 1088;
 
     let mut c: Vec<u8> = Vec::new();
 
@@ -940,6 +1069,19 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     let fix_j_swap = c.len();
     push32(&mut c, &[0u8; 32]);
     c.push(Opcode::JumpI as u8);
+
+    let fix_j_swap_to = if token_hooks && swap_with_recipient {
+        push32(&mut c, &word_u64(0));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &selector_word(SELECTOR_SWAP_TO));
+        c.push(Opcode::Eq as u8);
+        let at = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+        Some(at)
+    } else {
+        None
+    };
 
     // ADD_LIQ
     push32(&mut c, &word_u64(0));
@@ -958,6 +1100,19 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     let fix_j_rm = c.len();
     push32(&mut c, &[0u8; 32]);
     c.push(Opcode::JumpI as u8);
+
+    let fix_j_rm_liq_to = if token_hooks && swap_with_recipient {
+        push32(&mut c, &word_u64(0));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &selector_word(SELECTOR_REMOVE_LIQUIDITY_TO));
+        c.push(Opcode::Eq as u8);
+        let at = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+        Some(at)
+    } else {
+        None
+    };
 
     let fix_j_set = if token_hooks {
         push32(&mut c, &word_u64(0));
@@ -1006,13 +1161,76 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     append_add_liquidity_lp(&mut c, off_stop_unknown, storage_swap_fee);
 
     // --- remove_liquidity (pro-rata burn) ---
-    let off_rm = c.len();
-    patch_push32_dest(&mut c, fix_j_rm, off_rm);
-    append_remove_liquidity_lp(&mut c, off_stop_unknown, token_hooks);
+    const MEM_RM_RECIP_A: u64 = 960;
+    const MEM_RM_RECIP_B: u64 = 992;
+    if token_hooks && swap_with_recipient {
+        let off_rm_liq_to_entry = c.len();
+        if let Some(at) = fix_j_rm_liq_to {
+            patch_push32_dest(&mut c, at, off_rm_liq_to_entry);
+        }
+        push32(&mut c, &word_u64(128));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_RM_RECIP_A));
+        c.push(Opcode::MStore as u8);
+        push32(&mut c, &word_u64(160));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_RM_RECIP_B));
+        c.push(Opcode::MStore as u8);
+        let fix_jump_rm_to_common = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::Jump as u8);
+
+        let off_rm_legacy_entry = c.len();
+        patch_push32_dest(&mut c, fix_j_rm, off_rm_legacy_entry);
+
+        c.push(Opcode::Caller as u8);
+        push32(&mut c, &word_u64(MEM_RM_RECIP_A));
+        c.push(Opcode::MStore as u8);
+        c.push(Opcode::Caller as u8);
+        push32(&mut c, &word_u64(MEM_RM_RECIP_B));
+        c.push(Opcode::MStore as u8);
+
+        let off_rm_common = c.len();
+        patch_push32_dest(&mut c, fix_jump_rm_to_common, off_rm_common);
+        append_remove_liquidity_tail(
+            &mut c,
+            off_stop_unknown,
+            token_hooks,
+            Some((MEM_RM_RECIP_A, MEM_RM_RECIP_B)),
+        );
+    } else {
+        let off_rm = c.len();
+        patch_push32_dest(&mut c, fix_j_rm, off_rm);
+        append_remove_liquidity_tail(&mut c, off_stop_unknown, token_hooks, None);
+    }
 
     // --- swap ---
-    let off_swap = c.len();
-    patch_push32_dest(&mut c, fix_j_swap, off_swap);
+    if token_hooks && swap_with_recipient {
+        let off_swap_to_entry = c.len();
+        if let Some(at) = fix_j_swap_to {
+            patch_push32_dest(&mut c, at, off_swap_to_entry);
+        }
+        push32(&mut c, &word_u64(128));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_SWAP_RECIP));
+        c.push(Opcode::MStore as u8);
+        let fix_jump_swap_to_to_common = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::Jump as u8);
+
+        let off_swap_10_entry = c.len();
+        patch_push32_dest(&mut c, fix_j_swap, off_swap_10_entry);
+
+        c.push(Opcode::Caller as u8);
+        push32(&mut c, &word_u64(MEM_SWAP_RECIP));
+        c.push(Opcode::MStore as u8);
+
+        let off_swap_common = c.len();
+        patch_push32_dest(&mut c, fix_jump_swap_to_to_common, off_swap_common);
+    } else {
+        let off_swap_common = c.len();
+        patch_push32_dest(&mut c, fix_j_swap, off_swap_common);
+    }
 
     // Load ra, rb, dx, min; store scratch
     push32(&mut c, &reserve_a_key());
@@ -1190,7 +1408,18 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     const V2_SWAP_TMP: u64 = 1152;
     const V2_SWAP_CALLDATA: u64 = 1248;
     if token_hooks {
-        append_v2_swap_output_reference_call(&mut c, MEM_DIR, MEM_DY, V2_SWAP_CALLDATA, V2_SWAP_TMP);
+        append_v2_swap_output_reference_call(
+            &mut c,
+            MEM_DIR,
+            MEM_DY,
+            V2_SWAP_CALLDATA,
+            V2_SWAP_TMP,
+            if swap_with_recipient {
+                Some(MEM_SWAP_RECIP)
+            } else {
+                None
+            },
+        );
     }
 
     const MEM_SWAP_LOG: u64 = 416;
@@ -1220,6 +1449,7 @@ pub fn constant_product_pool_bytecode() -> Vec<u8> {
     build_cp_pool(CpPoolBuildOpts {
         token_hooks: false,
         storage_swap_fee: false,
+        swap_with_recipient: false,
     })
 }
 
@@ -1229,6 +1459,7 @@ pub fn constant_product_pool_bytecode_v2() -> Vec<u8> {
     build_cp_pool(CpPoolBuildOpts {
         token_hooks: true,
         storage_swap_fee: false,
+        swap_with_recipient: false,
     })
 }
 
@@ -1238,6 +1469,7 @@ pub fn constant_product_pool_bytecode_v3() -> Vec<u8> {
     build_cp_pool(CpPoolBuildOpts {
         token_hooks: false,
         storage_swap_fee: true,
+        swap_with_recipient: false,
     })
 }
 
@@ -1247,6 +1479,17 @@ pub fn constant_product_pool_bytecode_v4() -> Vec<u8> {
     build_cp_pool(CpPoolBuildOpts {
         token_hooks: true,
         storage_swap_fee: true,
+        swap_with_recipient: false,
+    })
+}
+
+/// Token hooks + configurable fee + **`swap_to`** (explicit swap output recipient). CREATE2: [`NATIVE_CP_POOL_CREATE2_SALT_V5`].
+#[must_use]
+pub fn constant_product_pool_bytecode_v5() -> Vec<u8> {
+    build_cp_pool(CpPoolBuildOpts {
+        token_hooks: true,
+        storage_swap_fee: true,
+        swap_with_recipient: true,
     })
 }
 
@@ -1263,6 +1506,15 @@ mod tests {
         let v = encode_swap_calldata(0, 1_000_000, 900_000);
         assert_eq!(v.len(), 128);
         assert_eq!(v[31], SELECTOR_SWAP);
+    }
+
+    #[test]
+    fn encode_swap_to_is_160_bytes_with_selector_0x15() {
+        let recip = AccountId([0x42u8; 32]);
+        let v = encode_swap_to_calldata(0, 1, 1, &recip);
+        assert_eq!(v.len(), 160);
+        assert_eq!(v[31], SELECTOR_SWAP_TO);
+        assert_eq!(&v[128..160], &recip.0);
     }
 
     #[test]
@@ -1364,6 +1616,18 @@ mod tests {
         let ulp = u128::from_be_bytes(state.get_contract_storage(&contract, &lp_key)[16..32].try_into().unwrap());
         assert_eq!(t, 10);
         assert_eq!(ulp, 10);
+        let ret = it.return_data.as_deref().expect("add_liquidity return data");
+        assert_eq!(decode_add_liquidity_return_lp_minted(ret), Some(10));
+    }
+
+    #[test]
+    fn decode_add_liquidity_return_lp_minted_accepts_only_canonical_words() {
+        assert_eq!(decode_add_liquidity_return_lp_minted(&[]), None);
+        assert_eq!(decode_add_liquidity_return_lp_minted(&[0u8; 31]), None);
+        let mut w = amount_word(42);
+        assert_eq!(decode_add_liquidity_return_lp_minted(&w), Some(42));
+        w[0] = 1;
+        assert_eq!(decode_add_liquidity_return_lp_minted(&w), None);
     }
 
     #[test]
@@ -1555,6 +1819,170 @@ mod tests {
             matches!(r, QaResult::Allow | QaResult::Unsure),
             "expected Allow or Unsure for native CP pool v4 bytecode, got {r:?}"
         );
+    }
+
+    #[test]
+    fn constant_product_pool_bytecode_v5_passes_protocol_qa() {
+        use boing_qa::{check_contract_deploy_full, QaResult, RuleRegistry};
+
+        let code = constant_product_pool_bytecode_v5();
+        let registry = RuleRegistry::new();
+        let r = check_contract_deploy_full(&code, Some("dapp"), None, &registry);
+        assert!(
+            matches!(r, QaResult::Allow | QaResult::Unsure),
+            "expected Allow or Unsure for native CP pool v5 bytecode, got {r:?}"
+        );
+    }
+
+    /// **v5:** `swap_to` pays reference output to **recipient** word, not the immediate caller (router pattern).
+    #[test]
+    fn v5_swap_to_routes_token_payout_to_recipient() {
+        use crate::reference_token::{
+            encode_mint_first_calldata, reference_fungible_template_bytecode, REF_FUNGIBLE_BALANCE_XOR,
+        };
+
+        fn ref_balance_key(holder: &AccountId) -> [u8; 32] {
+            let mut k = holder.0;
+            for i in 0..32 {
+                k[i] ^= REF_FUNGIBLE_BALANCE_XOR[i];
+            }
+            k
+        }
+        fn word128_tail(w: &[u8; 32]) -> u128 {
+            u128::from_be_bytes(w[16..32].try_into().unwrap())
+        }
+
+        let user = AccountId([0xabu8; 32]);
+        let router = AccountId([0xeeu8; 32]);
+        let pool = AccountId([0xcd; 32]);
+        let token_b = AccountId([0x77; 32]);
+        let token_a_zero = AccountId([0u8; 32]);
+
+        let mut state = StateStore::new();
+        for id in [user, router, pool, token_b] {
+            state.insert(Account {
+                id,
+                state: boing_primitives::AccountState::default(),
+            });
+        }
+        let tok_code = reference_fungible_template_bytecode();
+        state.set_contract_code(token_b, tok_code.clone());
+        state.set_contract_code(pool, constant_product_pool_bytecode_v5());
+        state.merge_contract_storage(pool, reserve_a_key(), amount_word(1_000));
+        state.merge_contract_storage(pool, reserve_b_key(), amount_word(2_000));
+
+        let mut it_mint = Interpreter::new(tok_code.clone(), 10_000_000);
+        it_mint
+            .run(
+                user,
+                token_b,
+                &encode_mint_first_calldata(&pool, 1_000_000),
+                &mut state,
+            )
+            .unwrap();
+
+        let pool_code = state.get_contract_code(&pool).unwrap().clone();
+        let set_cd = encode_set_tokens_calldata(&token_a_zero, &token_b);
+        let mut it = Interpreter::new(pool_code.clone(), 10_000_000);
+        it.run(user, pool, &set_cd, &mut state).unwrap();
+
+        let dx = 100u64;
+        let dy = constant_product_amount_out_after_fee(1_000, 2_000, dx);
+        assert_eq!(word128_tail(&state.get_contract_storage(&token_b, &ref_balance_key(&user))), 0);
+
+        let swap_cd = encode_swap_to_calldata(0, u128::from(dx), u128::from(dy), &user);
+        let mut it2 = Interpreter::new(pool_code, 10_000_000);
+        it2.run(router, pool, &swap_cd, &mut state).unwrap();
+
+        assert_eq!(
+            word128_tail(&state.get_contract_storage(&token_b, &ref_balance_key(&user))),
+            u128::from(dy),
+            "recipient must receive on-chain token B, not router"
+        );
+        assert_eq!(
+            word128_tail(&state.get_contract_storage(&token_b, &ref_balance_key(&router))),
+            0
+        );
+    }
+
+    /// **v5:** `remove_liquidity_to` sends reference token **B** to **recipient_b**, not the caller.
+    #[test]
+    fn v5_remove_liquidity_to_routes_token_b_payout_to_recipient() {
+        use crate::reference_token::{
+            encode_mint_first_calldata, reference_fungible_template_bytecode, REF_FUNGIBLE_BALANCE_XOR,
+        };
+
+        fn ref_balance_key(holder: &AccountId) -> [u8; 32] {
+            let mut k = holder.0;
+            for i in 0..32 {
+                k[i] ^= REF_FUNGIBLE_BALANCE_XOR[i];
+            }
+            k
+        }
+        fn word128_tail(w: &[u8; 32]) -> u128 {
+            u128::from_be_bytes(w[16..32].try_into().unwrap())
+        }
+
+        let user = AccountId([0xabu8; 32]);
+        let beneficiary = AccountId([0x22u8; 32]);
+        let pool = AccountId([0xcd; 32]);
+        let token_b = AccountId([0x77; 32]);
+        let token_a_zero = AccountId([0u8; 32]);
+
+        let mut state = StateStore::new();
+        for id in [user, beneficiary, pool, token_b] {
+            state.insert(Account {
+                id,
+                state: boing_primitives::AccountState::default(),
+            });
+        }
+        let tok_code = reference_fungible_template_bytecode();
+        state.set_contract_code(token_b, tok_code.clone());
+        state.set_contract_code(pool, constant_product_pool_bytecode_v5());
+
+        let mut it_mint = Interpreter::new(tok_code.clone(), 10_000_000);
+        it_mint
+            .run(
+                user,
+                token_b,
+                &encode_mint_first_calldata(&pool, 10_000_000),
+                &mut state,
+            )
+            .unwrap();
+
+        let pool_code = state.get_contract_code(&pool).unwrap().clone();
+        let set_cd = encode_set_tokens_calldata(&token_a_zero, &token_b);
+        let mut it = Interpreter::new(pool_code.clone(), 10_000_000);
+        it.run(user, pool, &set_cd, &mut state).unwrap();
+
+        let mut it_add = Interpreter::new(pool_code.clone(), 10_000_000);
+        it_add
+            .run(
+                user,
+                pool,
+                &encode_add_liquidity_calldata(1_000, 2_000, 0),
+                &mut state,
+            )
+            .unwrap();
+
+        let lp_total =
+            u128::from_be_bytes(state.get_contract_storage(&pool, &total_lp_supply_key())[16..32].try_into().unwrap());
+        assert_eq!(lp_total, 1_000);
+
+        let burn = 500u128;
+        let min_a = 0u128;
+        let min_b = 0u128;
+        let rm_cd = encode_remove_liquidity_to_calldata(burn, min_a, min_b, &user, &beneficiary);
+        let mut it_rm = Interpreter::new(pool_code, 10_000_000);
+        it_rm.run(user, pool, &rm_cd, &mut state).unwrap();
+
+        let exp_b_out = 1_000u128;
+        assert_eq!(
+            word128_tail(&state.get_contract_storage(&token_b, &ref_balance_key(&beneficiary))),
+            exp_b_out,
+            "recipient_b must receive on-chain token B"
+        );
+        assert_eq!(word128_tail(&state.get_contract_storage(&token_b, &ref_balance_key(&user))), 0);
     }
 
     /// **v3:** Storage [`swap_fee_bps_key`] + seeded reserves — swap uses on-chain **fee_bps** (here **100** = 1 %).

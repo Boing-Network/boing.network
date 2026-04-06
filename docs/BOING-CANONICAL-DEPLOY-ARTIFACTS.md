@@ -41,10 +41,13 @@ When bytecode changes, ops should:
 ### dApp wiring (today)
 
 1. **`boing-sdk`:** `buildContractDeployMetaTx`, `resolveReferenceFungibleTemplateBytecodeHex` — see package exports.
-2. **Build-time env (optional override):**  
+2. **Wizard shortcut (recommended):** **`buildReferenceFungibleDeployMetaTx({ assetName, assetSymbol })`** — single call for **pinned bytecode + `contract_deploy_meta`** (same shape **boing.finance** should use inside a multi-chain **Deploy token** wizard). Collections: **`buildReferenceNftCollectionDeployMetaTx`** (needs NFT template env or **`bytecodeHexOverride`**).
+3. **Chain picker:** **`isBoingTestnetChainId(chainId)`** / **`normalizeBoingChainIdHex`** — branch the wizard when the user selects Boing testnet (**6913**).
+4. **QA on the review step:** **`preflightContractDeployMetaQa(client, tx)`** wraps **`boing_qaCheck`** with the correct optional params (uses a **placeholder `description_hash`** when the wizard has not committed one yet — [RPC-API-SPEC.md](RPC-API-SPEC.md) § **boing_qaCheck**).
+5. **Build-time env (optional override):**  
    `BOING_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX` — `0x` + hex when you need a **non-default** ops-approved binary.
-3. **Browser:** inject the same via your bundler (`define` / `import.meta.env` pattern) and pass the string into `resolveReferenceFungibleTemplateBytecodeHex({ explicitHex: … })`.
-4. **Preflight:** `boing_qaCheck` / wallet flow — category **`token`** often yields **`unsure`** (community pool); handle like existing **boing.finance** “acknowledge pool” UX.
+6. **Browser:** inject the same via your bundler (`define` / `import.meta.env` pattern) and pass the string into `resolveReferenceFungibleTemplateBytecodeHex({ explicitHex: … })` or **`bytecodeHexOverride`** on the shortcut builders.
+7. **Preflight:** `boing_qaCheck` / wallet flow — category **`token`** often yields **`unsure`** (community pool); handle like existing **boing.finance** “acknowledge pool” UX.
 
 ---
 
@@ -87,10 +90,11 @@ Stdout: line **1** = smoke (not a token), line **2** = **fungible** template, li
 
 ## Handoff: boing.finance (and similar apps)
 
-1. **Default path:** If `resolveReferenceFungibleTemplateBytecodeHex()` returns a string, show **only** the same fields as EVM (name, symbol, supply/decimals **when the template supports them**), then **Deploy via Express** — **no bytecode textarea**.
-2. **Advanced:** Keep today’s **paste bytecode** + `description_hash` + QA buttons for power users.
-3. **Copy:** One line that native deploy uses **Boing Express**, not MetaMask; avoid “ERC-20 on Boing” misleading wording.
-4. **NFT page:** Use **`resolveReferenceNftCollectionTemplateBytecodeHex`** + **`buildContractDeployMetaTx`** with **`purpose_category: 'nft'`** (or **`NFT`**) for the collection template; keep “Advanced: paste bytecode” optional.
+1. **Token deploy UX:** **boing.finance** routes **Boing testnet + Boing Express** through the same **Launch Wizard** as EVM (**Token Basics → Network & Plan → Security & Info → Review & Deploy**). The final **Deploy** button submits **`contract_deploy_meta`** via Express; **Advanced** (bytecode override, `description_hash`, explicit QA) lives on the review step only.
+2. **Default path:** If `resolveReferenceFungibleTemplateBytecodeHex()` returns a string, users see **no bytecode** on the main path — same rhythm as EVM **form → approve in wallet**. Prefer **`buildReferenceFungibleDeployMetaTx({ assetName, assetSymbol })`** in code so the wizard does not manually pair **`resolve` + `buildContractDeployMetaTx`**.
+3. **Advanced:** Keep **paste bytecode** + `description_hash` + QA for power users.
+4. **Copy:** Native deploy uses **Boing Express**, not MetaMask; avoid implying an ERC-20 factory on L1.
+5. **NFT page:** The **Create NFT** wizard (collection → images → metadata → review) is shared; **on-chain native collection** deploy uses **Native VM** in the app with **`purpose_category: 'nft'`** when collection bytecode is configured (`resolveReferenceNftCollectionTemplateBytecodeHex` + `buildContractDeployMetaTx`). Export metadata JSON from the wizard for any toolchain.
 
 ---
 

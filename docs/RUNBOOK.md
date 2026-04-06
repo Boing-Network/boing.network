@@ -325,7 +325,7 @@ For full setup steps, see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md). If
 
 ### 8.6 “Smart contracts”, boing.finance, and Boing devnet
 
-**Boing L1 uses the Boing VM only.** Execution is the stack machine + opcodes in `crates/boing-execution`, with bytecode QA in `boing-qa`. Contracts are deployed with on-chain **`ContractDeploy`** / called with **`ContractCall`** payloads inside Boing `Transaction`s, submitted as `boing_submitTransaction` (see `docs/RPC-API-SPEC.md`). There is **no** generic factory/router dApp deployment on Boing testnet for **boing.finance** to reuse from other ecosystems; that app’s **chain 6913** entries in `contracts.js` are placeholders (`0x000…`).
+**Boing L1 uses the Boing VM only.** Execution is the stack machine + opcodes in `crates/boing-execution`, with bytecode QA in `boing-qa`. Contracts are deployed with on-chain **`ContractDeploy`** / called with **`ContractCall`** payloads inside Boing `Transaction`s, submitted as `boing_submitTransaction` (see `docs/RPC-API-SPEC.md`). **boing.finance** must not treat **chain 6913** as an EVM chain: its `contracts.js` entry uses **32-byte** `AccountId` fields (`nativeConstantProductPool`, optional `nativeVm.*` module ids from build env), not Solidity factory/router addresses.
 
 **To get on-chain programs on devnet:**
 
@@ -333,7 +333,7 @@ For full setup steps, see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md). If
 2. **Build and sign** a `ContractDeploy` transaction with the Boing signing model (BLAKE3 + Ed25519 + bincode), or use tooling that outputs `boing_submitTransaction`-compatible hex (CLI/SDK as they mature).
 3. **Run nodes** with the same genesis and peer connectivity so blocks (and deploy txs) propagate.
 
-**To make boing.finance Swap / Deploy Token / pools work “on Boing”** you would need either: **(a)** a **separate foreign chain** (or rollup) where factory/router contracts actually exist, wired into `contracts.js`, or **(b)** a **large product effort** to implement Boing-native DEX logic against Boing RPC and the Boing VM—not just filling `6913` with addresses on current Boing L1.
+**To extend boing.finance Swap / pools / lockers on Boing:** implement **Boing RPC + `ContractCall`** (and Express signing) against operator-published VM contracts; wire their **AccountIds** into env / `contracts.js` `nativeVm`. EVM-only code paths in that app intentionally skip chain **6913**.
 
 ---
 

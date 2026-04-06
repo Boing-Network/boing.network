@@ -11,6 +11,8 @@ on:
     branches: [main]
     paths:
       - "examples/native-boing-playwright/tests/public-swap-page-smoke.spec.ts"
+      - "examples/native-boing-playwright/tests/tutorial-readme-wiring.spec.ts"
+      - "examples/native-boing-tutorial/README.md"
       - "examples/native-boing-playwright/playwright.config.ts"
       - "examples/native-boing-playwright/package.json"
       - "examples/native-boing-playwright/package-lock.json"

@@ -70,6 +70,21 @@ pub struct AccessList {
     pub write: Vec<AccountId>,
 }
 
+fn suggested_access_list_for_contract_deploy(
+    sender: AccountId,
+    bytecode: &[u8],
+    create2_salt: Option<[u8; 32]>,
+) -> AccessList {
+    let mut read = vec![sender];
+    let mut write = vec![sender];
+    if let Some(salt) = create2_salt {
+        let addr = create2_contract_address(&sender, &salt, bytecode);
+        read.push(addr);
+        write.push(addr);
+    }
+    AccessList::new(read, write)
+}
+
 impl AccessList {
     pub fn new(read: Vec<AccountId>, write: Vec<AccountId>) -> Self {
         Self { read, write }
@@ -143,11 +158,20 @@ impl Transaction {
                 vec![self.sender, *contract],
                 vec![self.sender, *contract],
             ),
-            TransactionPayload::ContractDeploy { .. }
-            | TransactionPayload::ContractDeployWithPurpose { .. }
-            | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
-                AccessList::new(vec![self.sender], vec![self.sender])
-            }
+            TransactionPayload::ContractDeploy {
+                bytecode,
+                create2_salt,
+            } => suggested_access_list_for_contract_deploy(self.sender, bytecode, *create2_salt),
+            TransactionPayload::ContractDeployWithPurpose {
+                bytecode,
+                create2_salt,
+                ..
+            } => suggested_access_list_for_contract_deploy(self.sender, bytecode, *create2_salt),
+            TransactionPayload::ContractDeployWithPurposeAndMetadata {
+                bytecode,
+                create2_salt,
+                ..
+            } => suggested_access_list_for_contract_deploy(self.sender, bytecode, *create2_salt),
             TransactionPayload::Bond { .. } | TransactionPayload::Unbond { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }

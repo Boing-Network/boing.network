@@ -17,7 +17,7 @@ This is the **canonical pattern** for apps (e.g. **boing.finance**) that already
 
 ### Browser (Boing Express injected)
 
-1. Detect **native account**: `0x` + **64** hex chars ([`isBoingNativeAccountIdHex`](BOING-DAPP-INTEGRATION.md) / `boing-sdk` pattern).
+1. Detect **native account**: **`isBoingNativeAccountIdHex(addr)`** from **`boing-sdk`** (`hex.ts`) — `0x` + **64** hex chars ([BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) §1).
 2. For **deploy**: build a **tx object** accepted by the wallet (`contract_deploy_purpose` / `contract_deploy_meta` with valid **`purpose_category`** per [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md)).
 3. `await provider.request({ method: 'boing_sendTransaction', params: [txObject] })`.
 4. Map errors with [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md).
@@ -39,6 +39,7 @@ Tutorial repo: [examples/native-boing-tutorial](../examples/native-boing-tutoria
 - Pre-flight **`boing_qaCheck`** with category **`token`** when appropriate.
 - UI copy should distinguish **“Token on another network”** vs **“Native Boing token (VM)”** to avoid user confusion.
 - **Form parity:** pin bytecode + **`buildContractDeployMetaTx`** — [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md).
+- **Same wizard as EVM:** use **`buildReferenceFungibleDeployMetaTx`** + **`isBoingTestnetChainId`** + optional **`preflightContractDeployMetaQa`** so the Boing branch does not manually glue **`resolve` + `build`** ([BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) § **One wizard, two backends**).
 
 ---
 

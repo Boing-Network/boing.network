@@ -61,6 +61,7 @@ const SINGLE = new Map(
     JUMPI: 0x57,
     CALL: 0xf1,
     RETURN: 0xf3,
+    CREATE2: 0xf5,
   }).map(([k, v]) => [k.toUpperCase(), v])
 );
 

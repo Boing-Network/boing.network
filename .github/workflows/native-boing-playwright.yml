@@ -7,10 +7,14 @@ on:
     branches: [main]
     paths:
       - "examples/native-boing-playwright/**"
+      - "examples/native-boing-tutorial/README.md"
+      - "examples/native-boing-tutorial/package.json"
       - ".github/workflows/native-boing-playwright.yml"
   pull_request:
     paths:
       - "examples/native-boing-playwright/**"
+      - "examples/native-boing-tutorial/README.md"
+      - "examples/native-boing-tutorial/package.json"
       - ".github/workflows/native-boing-playwright.yml"
 
 jobs:
@@ -39,3 +43,6 @@ jobs:
 
       - name: Run Playwright (skipped without extension path)
         run: npm run test:e2e
+
+      - name: Tutorial README script wiring (offline)
+        run: npx playwright test tests/tutorial-readme-wiring.spec.ts --project=public

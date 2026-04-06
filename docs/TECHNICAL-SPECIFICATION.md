@@ -100,7 +100,7 @@ Declares accounts this transaction reads/writes. Enables parallel scheduling (tx
 | `Transfer` | `sender`, `to` | `sender`, `to` | Sender: nonce + balance; recipient: balance (or account creation). |
 | `Bond` / `Unbond` | `sender` | `sender` | Only sender stake/balance/nonce change. |
 | `ContractCall` | `sender`, `contract`, … | `sender`, `contract`, … | Minimum: `sender` (nonce) and `contract` (code + contract storage). The interpreter’s `SLOAD`/`SSTORE` use the callee’s storage only; the VM does **not** infer extra accounts from bytecode—list any others if future host hooks read additional state. |
-| `ContractDeploy` (variants) | Often empty or `sender` | At least `sender` | Nonce and balance update on `sender`; new contract account is created at a deterministic derived address—other txs in the same block must not assume that address is free unless their access lists reflect ordering. For scheduling, including `sender` in **write** is required whenever nonce/balance changes. |
+| `ContractDeploy` (variants) | At least `sender`; if `create2_salt` is set, also the **predicted** CREATE2 contract `AccountId` (`create2_contract_address(sender, salt, bytecode)` in `boing-primitives`) | Same | Nonce and balance update on `sender`; the new contract account is created at a deterministic address (nonce-derived or CREATE2). **Parallel scheduling:** when using CREATE2, the suggested list includes the predicted `AccountId` so another tx cannot be scheduled as if that account were still unused in the same batch. |
 
 **Mempool / signing:** The access list is part of the signed `Transaction` (hashed into `tx.id()`). Wallets should build lists consistent with the table above and any extra accounts the dApp knows the contract will touch.
 
@@ -297,6 +297,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | **Address** | `0x30` | 2 | Push this contract’s `AccountId` (32-byte word) |
 | **Caller** | `0x33` | 2 | Push the **immediate caller** `AccountId` (32-byte word): at **top-level** execution this is the transaction signer (`tx.sender`); after a nested **`Call`**, it is the **contract that performed `Call`** (the previous frame’s `Address`). |
 | **Call** | `0xf1` | 700 + callee gas | Nested contract call. Pops `ret_size`, `ret_offset`, `args_size`, `args_offset`, `target` (stack top = `ret_size`). Copies `memory[args_offset..args_offset+args_size)` as calldata. Callee runs with `caller_id` = current contract and `contract_id` = `target`. Merges callee logs into the current receipt. Writes return data to caller memory (zero-pad to `ret_size`). Pushes `1` on success. **`target` has no code** → success, empty return, `1` pushed. `args_size` / `ret_size` must not exceed **24 KiB** each. Max **64** nested depth. Callee **faults** (`OutOfGas`, `InvalidBytecode`, …) **propagate** and abort the whole transaction (no callee-state rollback). Remaining gas after the **700** base is the callee’s `gas_limit`. |
+| **Create2** | `0xf5` | 32,000 + 200×`size` + init gas | In-contract deploy (CREATE2-style). Pops `salt` (word), `size`, `offset` (stack top = `salt`). Reads `memory[offset..offset+size)` as the **full deploy payload** (same rules as `ContractDeploy` bytecode: optional `0xFD` init marker; QA uses category **`dapp`** for this path). Address is `create2_contract_address` with deployer = **current contract** (`ADDRESS`). Inserts the account, runs init with `CALLER` = deployer, merges init logs, stores runtime code. Pushes the new **contract address** (32-byte word). **Does not** increment the factory’s nonce. Init meters gas from the remaining budget after the opcode’s base + linear charge; `size` may not exceed the governance bytecode size cap (**32 KiB** default). |
 | **Dup1** | `0x80` | 3 | Duplicate top stack word |
 | **Log0** | `0xa0` | dynamic | Pop `offset`, `size`; append log with empty topics and `memory[offset..size)` as data (bounds + per-tx limits apply) |
 | **Log1** | `0xa1` | dynamic | Pop `offset`, `size`, one topic (32-byte words); same as Log0 with one indexed topic |
@@ -316,6 +317,8 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | **Return** | `0xf3` | 0 | Return memory slice |
 
 **`Call` stack layout:** Stack top is popped first: `ret_size`, `ret_offset`, `args_size`, `args_offset`, then `target` (32-byte word, big-endian `AccountId`).
+
+**`Create2` stack layout:** Stack top is popped first: `salt` (word), `size`, `offset` (push `offset`, then `size`, then `salt` so `salt` is on top before `0xf5`).
 
 **PUSH encoding:** For `0x60`..`0x7f`, immediate length = `byte - 0x5f` (PUSH1 = 1 byte, PUSH32 = 32 bytes).
 
@@ -383,7 +386,7 @@ Deployments must pass protocol QA before inclusion. See [QUALITY-ASSURANCE-NETWO
 
 ### 9.3 Pre-flight Check
 
-Use `boing_qaCheck([hex_bytecode]` or `boing_qaCheck([hex_bytecode, purpose_category, description_hash?])` before submit.
+Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, `description_hash`, `asset_name`, `asset_symbol` (same order as [RPC-API-SPEC.md](RPC-API-SPEC.md) § boing_qaCheck) before submit.
 
 ---
 
@@ -407,23 +410,38 @@ Use `boing_qaCheck([hex_bytecode]` or `boing_qaCheck([hex_bytecode, purpose_cate
 
 ### 11.2 Methods Summary
 
-| Method | Params | Result |
-|--------|--------|--------|
-| `boing_submitTransaction` | `[hex_signed_tx]` | — |
-| `boing_chainHeight` | `[]` | `u64` |
+**Source of truth:** method names and handlers in `crates/boing-node/src/rpc.rs` (`BOING_RPC_SUPPORTED_METHODS`). Full params and examples: [RPC-API-SPEC.md](RPC-API-SPEC.md).
+
+| Method | Params | Result (summary) |
+|--------|--------|-------------------|
+| `boing_chainHeight` | `[]` | `u64` — committed tip height |
+| `boing_clientVersion` | `[]` | string (e.g. `boing-node/0.1.0`) |
+| `boing_rpcSupportedMethods` | `[]` | string[] — sorted `boing_*` names |
+| `boing_health` | `[]` | `{ ok, client_version, chain_id?, chain_name?, head_height, rpc_surface, rpc_metrics }` |
 | `boing_getSyncState` | `[]` | `{ head_height, finalized_height, latest_block_hash }` |
+| `boing_getNetworkInfo` | `[]` | Chain metadata, tip, `chain_native`, `developer`, `rpc_surface`, `end_user`, `rpc.not_available`, … |
+| `boing_getRpcMethodCatalog` | `[]` | Embedded method catalog (JSON Schema–style hints) |
+| `boing_getRpcOpenApi` | `[]` | OpenAPI 3.1 root for `POST /`, `GET /ws`, probes |
 | `boing_getBalance` | `[hex_account_id]` | `{ balance: string }` |
 | `boing_getAccount` | `[hex_account_id]` | `{ balance, nonce, stake }` |
-| `boing_getBlockByHeight` | `[height]` | Block or `null` |
-| `boing_getBlockByHash` | `[hex_block_hash]` | Block or `null` |
+| `boing_getBlockByHeight` | `[height]` or `[height, include_receipts]` | Block or `null` |
+| `boing_getBlockByHash` | `[hex_block_hash]` or `[hex_block_hash, include_receipts]` | Block or `null` |
+| `boing_getTransactionReceipt` | `[hex_tx_id]` | Receipt or `null` |
+| `boing_getLogs` | `[filter]` | Log entry array (bounded span / cap) |
 | `boing_getAccountProof` | `[hex_account_id]` | `{ proof, root, value_hash }` |
 | `boing_verifyAccountProof` | `[hex_proof, hex_state_root]` | `{ valid: boolean }` |
-| `boing_getContractStorage` | `[hex_contract_id, hex_key]` | `{ value: hex }` |
+| `boing_getContractStorage` | `[hex_contract_id, hex_key_32]` | `{ value: string }` — 32-byte word hex |
 | `boing_simulateTransaction` | `[hex_signed_tx]` | `{ gas_used, success, return_data, logs?, error?, suggested_access_list, access_list_covers_suggestion }` |
-| `boing_registerDappMetrics` | `[hex_contract, hex_owner]` | `{ registered, contract, owner }` |
-| `boing_submitIntent` | `[hex_signed_intent]` | `{ intent_id }` |
-| `boing_qaCheck` | `[hex_bytecode]` or `[hex_bytecode, purpose, desc_hash?]` | `{ result, rule_id?, message? }` |
-| `boing_faucetRequest` | `[hex_account_id]` | `{ ok, amount, to, message }` (testnet only) |
+| `boing_submitTransaction` | `[hex_signed_tx]` | `{ tx_hash: string }` — on accept, current node uses literal `"ok"`; see [RPC-API-SPEC.md](RPC-API-SPEC.md) § boing_submitTransaction |
+| `boing_registerDappMetrics` | `[hex_contract, hex_owner]` | `{ registered: true, contract, owner }` |
+| `boing_submitIntent` | `[hex_signed_intent]` | `{ intent_id: string }` |
+| `boing_qaCheck` | `[hex_bytecode]` or `[hex_bytecode, purpose_category?, description_hash?, asset_name?, asset_symbol?]` | `{ result, rule_id?, message?, doc_url? }` |
+| `boing_qaPoolList` | `[]` | `{ items: [...] }` |
+| `boing_qaPoolConfig` | `[]` | Pool governance + queue snapshot |
+| `boing_getQaRegistry` | `[]` | Effective QA rule registry JSON |
+| `boing_qaPoolVote` | `[tx_hash_hex, voter_hex, vote]` | Vote outcome object |
+| `boing_operatorApplyQaPolicy` | `[qa_registry_json, qa_pool_config_json]` | `{ ok: true }` (operator auth when configured) |
+| `boing_faucetRequest` | `[hex_account_id]` | `{ ok: true, amount, to, message }` (only when `--faucet-enable`) |
 
 ### 11.3 Error Codes
 
@@ -436,6 +454,7 @@ Use `boing_qaCheck([hex_bytecode]` or `boing_qaCheck([hex_bytecode, purpose_cate
 | -32016 | Rate limit exceeded |
 | -32050 | QA: Deployment rejected |
 | -32051 | QA: Pending pool |
+| -32052 … -32057 | QA pool / operator RPC (see [RPC-API-SPEC.md](RPC-API-SPEC.md) § Error Codes) |
 
 **Reference:** [RPC-API-SPEC.md](RPC-API-SPEC.md) for full method and error details.
 

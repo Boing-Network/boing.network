@@ -105,7 +105,7 @@ cargo build --release</code></pre>
         <ul>
           <li><strong>Block time</strong> — ~2 seconds (target).</li>
           <li><strong>Consensus</strong> — Proof of Stake (PoS) with BFT-style consensus; validators stake BOING.</li>
-          <li><strong>State</strong> — Verkle trees for compact proofs and stateless-client support.</li>
+          <li><strong>State</strong> — Sparse Merkle tree commitments and proofs in current <code>boing-state</code> (see repository technical specification; Verkle remains a documented upgrade path in code comments).</li>
           <li><strong>RPC port</strong> — Default 8545 (HTTP JSON-RPC).</li>
         </ul>
       </section>
@@ -158,42 +158,62 @@ cargo build --release</code></pre>
 
       <section id="rpc-api" class="doc-section">
         <h2>RPC API</h2>
-        <p>Boing nodes expose a <strong>JSON-RPC 2.0</strong> interface over <strong>HTTP POST</strong>. <strong>Base URL:</strong> <code>http://&lt;host&gt;:8545/</code> (default port 8545). RPC is rate-limited per node configuration; see repository security standards for details.</p>
+        <p>Boing nodes expose <strong>JSON-RPC 2.0</strong> over <strong>HTTP POST</strong> to <code>http://&lt;host&gt;:8545/</code> (default port). The authoritative reference is <a href="https://github.com/chiku524/boing.network/blob/main/docs/RPC-API-SPEC.md" target="_blank" rel="noopener"><code>docs/RPC-API-SPEC.md</code></a> in the repository (also <a href="/pdfs/RPC-API-SPEC.pdf" target="_blank" rel="noopener">RPC-API-SPEC PDF</a>). Same listener serves <code>GET /live</code>, <code>GET /ready</code>, <code>GET /openapi.json</code>, <code>GET /.well-known/boing-rpc</code>, and <code>GET /ws</code> (newHeads).</p>
+        <p>Rate limiting, batch limits, and body size are node-configurable; see the spec and <code>boing_health</code> / <code>boing_getNetworkInfo</code> field <code>rpc_surface</code>.</p>
         <h3>Request format</h3>
         <pre><code>{jsonRpcExample}</code></pre>
         <h3>Response format</h3>
         <p><strong>Success:</strong> <code>{responseSuccessExample}</code>. <strong>Error:</strong> <code>{responseErrorExample}</code>.</p>
-        <h3>Methods</h3>
-        <dl class="rpc-methods">
-          <dt><code>boing_submitTransaction</code></dt>
-          <dd>Params: <code>[hex_signed_tx]</code>. Submit a signed transaction.</dd>
-          <dt><code>boing_chainHeight</code></dt>
-          <dd>Params: <code>[]</code>. Current chain height (u64).</dd>
-          <dt><code>boing_getBlockByHeight</code></dt>
-          <dd>Params: <code>[height]</code>. Block by height (u64).</dd>
-          <dt><code>boing_getBlockByHash</code></dt>
-          <dd>Params: <code>[hex_block_hash]</code>. Block by 32-byte hash (hex).</dd>
-          <dt><code>boing_getAccountProof</code></dt>
-          <dd>Params: <code>[hex_account_id]</code>. Merkle proof for account.</dd>
-          <dt><code>boing_verifyAccountProof</code></dt>
-          <dd>Params: <code>[hex_proof, hex_state_root]</code>. Verify Merkle proof.</dd>
-          <dt><code>boing_simulateTransaction</code></dt>
-          <dd>Params: <code>[hex_signed_tx]</code>. Simulate tx (gas, success).</dd>
-          <dt><code>boing_registerDappMetrics</code></dt>
-          <dd>Params: <code>[hex_contract, hex_owner]</code>. Register dApp for incentives.</dd>
-          <dt><code>boing_submitIntent</code></dt>
-          <dd>Params: <code>[hex_signed_intent]</code>. Submit signed intent for solver. Result: <code>intent_id</code>.</dd>
-        </dl>
-        <p><code>boing_getAccountProof</code> returns <code>proof</code>, <code>root</code>, <code>value_hash</code>. <code>boing_simulateTransaction</code> returns <code>gas_used</code>, <code>success</code>, and optional <code>error</code>.</p>
-        <h3>Error codes</h3>
+        <h3>Methods (current <code>boing-node</code>)</h3>
+        <p>Below matches <code>boing_rpcSupportedMethods</code> / <code>crates/boing-node/src/rpc.rs</code>. Params are JSON arrays; 32-byte ids use <code>0x</code> + 64 hex chars unless noted.</p>
+        <table class="doc-table rpc-method-table">
+          <thead><tr><th>Method</th><th>Params (summary)</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>boing_chainHeight</code></td><td><code>[]</code></td><td>Committed tip height (u64).</td></tr>
+            <tr><td><code>boing_clientVersion</code></td><td><code>[]</code></td><td>e.g. <code>boing-node/0.1.0</code></td></tr>
+            <tr><td><code>boing_rpcSupportedMethods</code></td><td><code>[]</code></td><td>Sorted list of <code>boing_*</code> names.</td></tr>
+            <tr><td><code>boing_health</code></td><td><code>[]</code></td><td>Liveness, <code>head_height</code>, optional <code>chain_id</code>, <code>rpc_surface</code>, <code>rpc_metrics</code>.</td></tr>
+            <tr><td><code>boing_getSyncState</code></td><td><code>[]</code></td><td><code>head_height</code>, <code>finalized_height</code>, <code>latest_block_hash</code>.</td></tr>
+            <tr><td><code>boing_getNetworkInfo</code></td><td><code>[]</code></td><td>Chain metadata, <code>chain_native</code>, <code>developer</code>, <code>end_user</code>, <code>rpc.not_available</code>, …</td></tr>
+            <tr><td><code>boing_getRpcMethodCatalog</code></td><td><code>[]</code></td><td>Embedded catalog for tooling.</td></tr>
+            <tr><td><code>boing_getRpcOpenApi</code></td><td><code>[]</code></td><td>OpenAPI 3.1 for HTTP surface.</td></tr>
+            <tr><td><code>boing_getBalance</code></td><td><code>[hex_account_id]</code></td><td>Result: <code>balance</code> (u128 decimal string).</td></tr>
+            <tr><td><code>boing_getAccount</code></td><td><code>[hex_account_id]</code></td><td><code>balance</code>, <code>nonce</code>, <code>stake</code>.</td></tr>
+            <tr><td><code>boing_getBlockByHeight</code></td><td><code>[height]</code> or <code>[height, include_receipts]</code></td><td>Block or <code>null</code>.</td></tr>
+            <tr><td><code>boing_getBlockByHash</code></td><td><code>[hex_hash]</code> or <code>[hex_hash, include_receipts]</code></td><td>Block or <code>null</code>.</td></tr>
+            <tr><td><code>boing_getTransactionReceipt</code></td><td><code>[hex_tx_id]</code></td><td>Receipt or <code>null</code>.</td></tr>
+            <tr><td><code>boing_getLogs</code></td><td><code>[filter]</code></td><td>Bounded block range + optional <code>address</code> / <code>topics</code>.</td></tr>
+            <tr><td><code>boing_getAccountProof</code></td><td><code>[hex_account_id]</code></td><td><code>proof</code>, <code>root</code>, <code>value_hash</code>.</td></tr>
+            <tr><td><code>boing_verifyAccountProof</code></td><td><code>[hex_proof, hex_state_root]</code></td><td>Result: <code>valid</code> boolean.</td></tr>
+            <tr><td><code>boing_getContractStorage</code></td><td><code>[hex_contract, hex_key]</code></td><td>Single 32-byte storage word.</td></tr>
+            <tr><td><code>boing_simulateTransaction</code></td><td><code>[hex_signed_tx]</code></td><td>Gas, success, <code>suggested_access_list</code>, …</td></tr>
+            <tr><td><code>boing_submitTransaction</code></td><td><code>[hex_signed_tx]</code></td><td>Success: <code>tx_hash</code> field — current node uses literal <code>"ok"</code> when accepted; track inclusion via receipt / nonce (see spec).</td></tr>
+            <tr><td><code>boing_registerDappMetrics</code></td><td><code>[hex_contract, hex_owner]</code></td><td>dApp incentive registration.</td></tr>
+            <tr><td><code>boing_submitIntent</code></td><td><code>[hex_signed_intent]</code></td><td>Returns <code>intent_id</code>.</td></tr>
+            <tr><td><code>boing_qaCheck</code></td><td><code>[hex_bytecode, …]</code></td><td>Optional: <code>purpose_category</code>, <code>description_hash</code>, <code>asset_name</code>, <code>asset_symbol</code>.</td></tr>
+            <tr><td><code>boing_qaPoolList</code></td><td><code>[]</code></td><td>Pending QA pool items.</td></tr>
+            <tr><td><code>boing_qaPoolConfig</code></td><td><code>[]</code></td><td>Pool governance + depth.</td></tr>
+            <tr><td><code>boing_getQaRegistry</code></td><td><code>[]</code></td><td>Effective QA rule registry.</td></tr>
+            <tr><td><code>boing_qaPoolVote</code></td><td><code>[tx_hash, voter, vote]</code></td><td>Operator header when <code>BOING_OPERATOR_RPC_TOKEN</code> set.</td></tr>
+            <tr><td><code>boing_operatorApplyQaPolicy</code></td><td><code>[registry_json, pool_json]</code></td><td>Operator-only when token set.</td></tr>
+            <tr><td><code>boing_faucetRequest</code></td><td><code>[hex_account_id]</code></td><td>Only if node started with faucet enabled (testnet).</td></tr>
+          </tbody>
+        </table>
+        <p><strong>TypeScript client:</strong> npm package <code>boing-sdk</code> (<code>createClient</code>) implements these methods with typed results and <code>explainBoingRpcError</code> for QA / pool errors.</p>
+        <h3>Error codes (selected)</h3>
         <table class="doc-table">
           <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
           <tbody>
             <tr><td>-32600</td><td>Invalid Request</td></tr>
             <tr><td>-32601</td><td>Method not found</td></tr>
             <tr><td>-32602</td><td>Invalid params</td></tr>
-            <tr><td>-32000</td><td>Server error</td></tr>
+            <tr><td>-32603</td><td>Internal error (e.g. <code>boing_getLogs</code> result cap)</td></tr>
+            <tr><td>-32000</td><td>Server / transport error</td></tr>
             <tr><td>-32016</td><td>Rate limit exceeded</td></tr>
+            <tr><td>-32050</td><td>QA: deployment rejected (<code>data.rule_id</code>, <code>data.message</code>)</td></tr>
+            <tr><td>-32051</td><td>QA: pending pool (<code>data.tx_hash</code>)</td></tr>
+            <tr><td>-32052 … -32056</td><td>QA pool state / caps (see spec)</td></tr>
+            <tr><td>-32057</td><td>Operator RPC auth required</td></tr>
           </tbody>
         </table>
       </section>
@@ -261,7 +281,7 @@ cargo build --release</code></pre>
         <ul>
           <li><strong>Consensus</strong> — BFT-style consensus; network tolerates up to 1/3 malicious validators. PoS and slashing for misbehavior.</li>
           <li><strong>Cryptography</strong> — Audited primitives (e.g. Ed25519, BLAKE3).</li>
-          <li><strong>State</strong> — Verkle trees for integrity and stateless clients.</li>
+          <li><strong>State</strong> — Sparse Merkle tree state roots and proofs today; aligns with open-source <code>boing-state</code>.</li>
         </ul>
         <h3>Network level</h3>
         <ul>
@@ -642,6 +662,12 @@ cargo build --release</code></pre>
   }
   .doc-table code {
     font-size: 0.85em;
+  }
+  .rpc-method-table {
+    font-size: 0.82rem;
+  }
+  .rpc-method-table td {
+    vertical-align: top;
   }
   .docs-site-links { margin: 0.5rem 0 1rem; padding-left: 1.5rem; }
   .doc-section-desc { margin-bottom: 1rem; }

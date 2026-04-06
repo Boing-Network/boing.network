@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildContractDeployMetaTx,
+  buildReferenceFungibleDeployMetaTx,
+  buildReferenceNftCollectionDeployMetaTx,
   ensure0xHex,
   REFERENCE_FUNGIBLE_TEMPLATE_VERSION,
   REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION,
@@ -51,5 +53,34 @@ describe('canonicalDeployArtifacts', () => {
 
   it('REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION is 1', () => {
     expect(REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION).toBe('1');
+  });
+
+  it('buildReferenceFungibleDeployMetaTx matches resolve + buildContractDeployMetaTx', () => {
+    const a = buildReferenceFungibleDeployMetaTx({ assetName: 'T', assetSymbol: 't' });
+    const b = buildContractDeployMetaTx({
+      bytecodeHex: resolveReferenceFungibleTemplateBytecodeHex(),
+      assetName: 'T',
+      assetSymbol: 't',
+    });
+    expect(a).toEqual(b);
+  });
+
+  it('buildReferenceNftCollectionDeployMetaTx throws without bytecode', () => {
+    expect(() =>
+      buildReferenceNftCollectionDeployMetaTx({ collectionName: 'C', collectionSymbol: 'c' }),
+    ).toThrow(/no collection bytecode/);
+  });
+
+  it('buildReferenceNftCollectionDeployMetaTx works with bytecodeHexOverride', () => {
+    const tx = buildReferenceNftCollectionDeployMetaTx({
+      collectionName: 'My Coll',
+      collectionSymbol: 'c',
+      bytecodeHexOverride: '0x6001',
+    });
+    expect(tx.type).toBe('contract_deploy_meta');
+    expect(tx.bytecode).toBe('0x6001');
+    expect(tx.asset_name).toBe('My Coll');
+    expect(tx.asset_symbol).toBe('C');
+    expect(tx.purpose_category).toBe('nft');
   });
 });

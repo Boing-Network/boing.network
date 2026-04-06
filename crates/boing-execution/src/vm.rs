@@ -5,7 +5,7 @@ use boing_primitives::{
     nonce_derived_contract_address, AccountId, AccountState, ExecutionLog, Transaction,
     TransactionPayload,
 };
-use boing_qa::{check_contract_deploy_full_with_metadata, QaResult, RuleRegistry};
+use boing_qa::{check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaResult, RuleRegistry};
 use boing_state::StateStore;
 
 use crate::gas::base;
@@ -271,7 +271,8 @@ impl Vm {
         let init_body = contract_deploy_init_body(bytecode);
         let (gas_used, logs, stored_code) = if uses_init {
             let mut interpreter = Interpreter::new(init_body.to_vec(), GAS_PER_CONTRACT_CALL);
-            let g_init = interpreter.run(tx.sender, contract_addr, &[], state)?;
+            let g_init =
+                interpreter.run_with_qa(tx.sender, contract_addr, &[], state, &self.qa_registry)?;
             let runtime = interpreter.return_data.take().unwrap_or_default();
             let logs = std::mem::take(&mut interpreter.logs);
             let gas = GAS_PER_CONTRACT_DEPLOY.saturating_add(g_init);
@@ -307,7 +308,8 @@ impl Vm {
 
         let code = state.get_contract_code(contract).ok_or(VmError::AccountNotFound)?.clone();
         let mut interpreter = Interpreter::new(code, GAS_PER_CONTRACT_CALL);
-        let gas_used = interpreter.run(tx.sender, *contract, calldata, state)?;
+        let gas_used =
+            interpreter.run_with_qa(tx.sender, *contract, calldata, state, &self.qa_registry)?;
         let return_data = interpreter.return_data.take().unwrap_or_default();
         let logs = std::mem::take(&mut interpreter.logs);
         Ok(VmExecutionResult {
@@ -632,6 +634,63 @@ mod tests {
         ));
         assert_eq!(state.get(&sender).unwrap().nonce, 1);
     }
+
+    #[test]
+    fn in_contract_create2_deploys_deterministic_child() {
+        use crate::bytecode::Opcode;
+
+        let vm = Vm::new();
+        let key = SigningKey::generate(&mut OsRng);
+        let sender = AccountId(key.verifying_key().to_bytes());
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: sender,
+            state: AccountState {
+                balance: 1_000_000,
+                nonce: 0,
+                stake: 0,
+            },
+        });
+
+        let salt = [1u8; 32];
+        // Factory: MSTORE 0,0 (runtime byte 0x00 at mem[0]); CREATE2 with offset 0 size 1.
+        let mut factory = Vec::new();
+        factory.extend([Opcode::Push1 as u8, 0x00, Opcode::Push1 as u8, 0x00, Opcode::MStore as u8]);
+        // Stack before CREATE2: offset (bottom), size, salt (top) — pops salt, size, offset.
+        factory.extend([Opcode::Push1 as u8, 0x00, Opcode::Push1 as u8, 0x01]);
+        factory.push(Opcode::Push32 as u8);
+        factory.extend_from_slice(&salt);
+        factory.extend([Opcode::Create2 as u8, Opcode::Stop as u8]);
+
+        let deploy_factory = Transaction {
+            nonce: 0,
+            sender,
+            payload: TransactionPayload::ContractDeploy {
+                bytecode: factory,
+                create2_salt: None,
+            },
+            access_list: AccessList::default(),
+        };
+        vm.execute(&deploy_factory, &mut state).unwrap();
+        let factory_addr = nonce_derived_contract_address(&sender, 0);
+        let expected_child = create2_contract_address(&factory_addr, &salt, &[0x00]);
+
+        let call = Transaction {
+            nonce: 1,
+            sender,
+            payload: TransactionPayload::ContractCall {
+                contract: factory_addr,
+                calldata: Vec::new(),
+            },
+            access_list: AccessList::default(),
+        };
+        vm.execute(&call, &mut state).unwrap();
+        assert_eq!(
+            state.get_contract_code(&expected_child).unwrap().as_slice(),
+            &[0x00]
+        );
+        assert_eq!(state.get(&factory_addr).unwrap().nonce, 0, "factory nonce unchanged");
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -666,4 +725,80 @@ pub enum VmError {
     CallBufferTooLarge,
     #[error("QA rejected: {rule_id} — {message}")]
     QaRejected { rule_id: String, message: String },
+    #[error("In-contract CREATE2 is not available for this storage backend")]
+    Create2NotSupported,
+    #[error("CREATE2 init code size is zero")]
+    Create2InitCodeEmpty,
+}
+
+/// Apply CREATE2-style deploy from inside a contract: QA, address derivation, account insert, optional init, runtime install.
+/// `deployer` is the **current contract** (`ADDRESS`); init runs with `CALLER` = `deployer` (factory semantics).
+/// `parent_call_depth` is the depth of the frame that executed `CREATE2` (constructor runs at `+1`).
+pub(crate) fn apply_in_tx_create2(
+    state: &mut StateStore,
+    qa_registry: &RuleRegistry,
+    deployer: AccountId,
+    salt: [u8; 32],
+    bytecode: Vec<u8>,
+    init_gas_limit: u64,
+    parent_logs: &mut Vec<ExecutionLog>,
+    parent_call_depth: u8,
+) -> Result<(AccountId, u64), VmError> {
+    if bytecode.is_empty() {
+        return Err(VmError::Create2InitCodeEmpty);
+    }
+
+    match check_contract_deploy_full(&bytecode, Some("dapp"), None, qa_registry) {
+        QaResult::Allow => {}
+        QaResult::Reject(r) => {
+            return Err(VmError::QaRejected {
+                rule_id: r.rule_id.0,
+                message: r.message,
+            });
+        }
+        QaResult::Unsure => {
+            boing_telemetry::component_debug(
+                "boing_execution::vm",
+                "execution",
+                "create2_qa_unsure_proceeding",
+                "in-tx CREATE2 QA Unsure at execution — proceeding",
+            );
+        }
+    }
+
+    let contract_addr = create2_contract_address(&deployer, &salt, &bytecode);
+    if state.get(&contract_addr).is_some() || state.get_contract_code(&contract_addr).is_some() {
+        return Err(VmError::DeploymentAddressInUse);
+    }
+
+    state.insert(boing_primitives::Account {
+        id: contract_addr,
+        state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0 },
+    });
+
+    let uses_init = contract_deploy_uses_init_code(&bytecode);
+    let init_body = contract_deploy_init_body(&bytecode);
+    let (stored_code, init_gas) = if uses_init {
+        let mut interpreter = Interpreter::new(init_body.to_vec(), init_gas_limit);
+        let init_depth = parent_call_depth.saturating_add(1);
+        if init_depth >= crate::interpreter::MAX_CALL_DEPTH {
+            return Err(VmError::CallDepthExceeded);
+        }
+        let g = interpreter.run_nested(
+            deployer,
+            contract_addr,
+            &[],
+            state,
+            qa_registry,
+            init_depth,
+        )?;
+        Interpreter::merge_child_logs(parent_logs, &interpreter)?;
+        let runtime = interpreter.return_data.take().unwrap_or_default();
+        (runtime, g)
+    } else {
+        (bytecode, 0)
+    };
+
+    state.set_contract_code(contract_addr, stored_code);
+    Ok((contract_addr, init_gas))
 }

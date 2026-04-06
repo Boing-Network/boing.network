@@ -1128,7 +1128,7 @@ async fn dispatch_jsonrpc_request(
             }
         }
         "boing_qaPoolVote" => {
-            if !state.operator_authorized(&headers) {
+            if !state.operator_authorized(headers) {
                 return (StatusCode::OK, rpc_error(
                         id,
                         -32057,
@@ -1197,7 +1197,7 @@ async fn dispatch_jsonrpc_request(
             }
         }
         "boing_operatorApplyQaPolicy" => {
-            if !state.operator_authorized(&headers) {
+            if !state.operator_authorized(headers) {
                 return (StatusCode::OK, rpc_error(
                         id,
                         -32057,

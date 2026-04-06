@@ -8,6 +8,7 @@ use boing_primitives::{
     AccountId, ExecutionLog, MAX_EXECUTION_LOG_DATA_BYTES, MAX_EXECUTION_LOGS_PER_TX,
     MAX_EXECUTION_LOG_TOPICS, MAX_RECEIPT_RETURN_DATA_BYTES,
 };
+use boing_qa::RuleRegistry;
 use boing_state::StateStore;
 use num_bigint::{BigInt, BigUint, Sign};
 
@@ -84,12 +85,26 @@ pub struct Interpreter {
     contract_id: AccountId,
 }
 
-/// Storage interface for SLOAD/SSTORE and nested [`Opcode::Call`].
+/// Storage interface for SLOAD/SSTORE, nested [`Opcode::Call`], and [`Opcode::Create2`].
 pub trait StorageAccess {
     fn sload(&self, contract: AccountId, key: [u8; 32]) -> [u8; 32];
     fn sstore(&mut self, contract: AccountId, key: [u8; 32], value: [u8; 32]);
     /// Contract bytecode at `contract`. `None` or empty → `CALL` succeeds with empty return (no execution).
     fn get_contract_code(&self, contract: AccountId) -> Option<Vec<u8>>;
+
+    /// In-contract CREATE2 (opcode `0xf5`). Default: unsupported (custom [`StorageAccess`] impls).
+    fn create2_deploy(
+        &mut self,
+        _qa_registry: &RuleRegistry,
+        _deployer: AccountId,
+        _salt: [u8; 32],
+        _bytecode: Vec<u8>,
+        _init_gas_limit: u64,
+        _parent_logs: &mut Vec<ExecutionLog>,
+        _parent_call_depth: u8,
+    ) -> Result<(AccountId, u64), VmError> {
+        Err(VmError::Create2NotSupported)
+    }
 }
 
 impl Interpreter {
@@ -259,15 +274,29 @@ impl Interpreter {
         calldata: &[u8],
         storage: &mut S,
     ) -> Result<u64, VmError> {
-        self.run_nested(caller_id, contract_id, calldata, storage, 0)
+        let default_reg = RuleRegistry::new();
+        self.run_nested(caller_id, contract_id, calldata, storage, &default_reg, 0)
     }
 
-    fn run_nested<S: StorageAccess>(
+    /// Same as [`Self::run`], but uses `qa_registry` for in-contract [`Opcode::Create2`] (must match mempool / block executor policy).
+    pub fn run_with_qa<S: StorageAccess>(
         &mut self,
         caller_id: AccountId,
         contract_id: AccountId,
         calldata: &[u8],
         storage: &mut S,
+        qa_registry: &RuleRegistry,
+    ) -> Result<u64, VmError> {
+        self.run_nested(caller_id, contract_id, calldata, storage, qa_registry, 0)
+    }
+
+    pub(crate) fn run_nested<S: StorageAccess>(
+        &mut self,
+        caller_id: AccountId,
+        contract_id: AccountId,
+        calldata: &[u8],
+        storage: &mut S,
+        qa_registry: &RuleRegistry,
         call_depth: u8,
     ) -> Result<u64, VmError> {
         self.caller_id = caller_id;
@@ -461,7 +490,7 @@ impl Interpreter {
                     let value = self.pop()?;
                     let s = effective_shift_count(&shift_w);
                     let i = BigInt::from_signed_bytes_be(&value[..]);
-                    let shifted = i >> (s as u32);
+                    let shifted = i >> s;
                     self.push(signed_bigint_to_i256_word(&shifted));
                 }
                 Opcode::MLoad => {
@@ -564,6 +593,7 @@ impl Interpreter {
                         target,
                         calldata_slice,
                         storage,
+                        qa_registry,
                         call_depth.saturating_add(1),
                     )?;
                     self.gas_used = self.gas_used.saturating_add(child.gas_used);
@@ -575,6 +605,41 @@ impl Interpreter {
                         self.memory[ret_offset + n..ret_offset + ret_size].fill(0);
                     }
                     self.push(Self::word_one());
+                }
+                Opcode::Create2 => {
+                    // Constructor runs as an extra frame (depth + 1), like contract creation in EVM.
+                    if call_depth.saturating_add(1) >= MAX_CALL_DEPTH {
+                        return Err(VmError::CallDepthExceeded);
+                    }
+                    // Stack top first, matching EVM CREATE2: salt, size, offset.
+                    let salt_w = self.pop()?;
+                    let size = Self::u256_to_usize(&self.pop()?);
+                    let offset = Self::u256_to_usize(&self.pop()?);
+                    if size == 0 {
+                        return Err(VmError::Create2InitCodeEmpty);
+                    }
+                    if size > boing_qa::DEFAULT_MAX_BYTECODE_SIZE {
+                        return Err(VmError::CallBufferTooLarge);
+                    }
+                    let linear = gas::CREATE2_PER_INIT_BYTE.saturating_mul(size as u64);
+                    self.spend_gas(gas::CREATE2.saturating_add(linear))?;
+                    self.ensure_memory(offset, size);
+                    let bytecode = self.memory[offset..offset + size].to_vec();
+                    let deployer = self.contract_id;
+                    let remaining = self.gas_limit.saturating_sub(self.gas_used);
+                    let mut salt = [0u8; 32];
+                    salt.copy_from_slice(&salt_w);
+                    let (addr, g_init) = storage.create2_deploy(
+                        qa_registry,
+                        deployer,
+                        salt,
+                        bytecode,
+                        remaining,
+                        &mut self.logs,
+                        call_depth,
+                    )?;
+                    self.gas_used = self.gas_used.saturating_add(g_init);
+                    self.push(addr.0);
                 }
                 Opcode::Return => {
                     self.spend_gas(gas::RETURN)?;
@@ -594,7 +659,7 @@ impl Interpreter {
     }
 
     /// Append child logs without re-charging log gas (already accounted in `child.gas_used`).
-    fn merge_child_logs(parent: &mut Vec<ExecutionLog>, child: &Interpreter) -> Result<(), VmError> {
+    pub(crate) fn merge_child_logs(parent: &mut Vec<ExecutionLog>, child: &Interpreter) -> Result<(), VmError> {
         if parent.len() + child.logs.len() > MAX_EXECUTION_LOGS_PER_TX {
             return Err(VmError::InvalidLog("too many logs"));
         }
@@ -625,6 +690,28 @@ impl StorageAccess for StateStore {
 
     fn get_contract_code(&self, contract: AccountId) -> Option<Vec<u8>> {
         self.get_contract_code(&contract).cloned()
+    }
+
+    fn create2_deploy(
+        &mut self,
+        qa_registry: &RuleRegistry,
+        deployer: AccountId,
+        salt: [u8; 32],
+        bytecode: Vec<u8>,
+        init_gas_limit: u64,
+        parent_logs: &mut Vec<ExecutionLog>,
+        parent_call_depth: u8,
+    ) -> Result<(AccountId, u64), VmError> {
+        crate::vm::apply_in_tx_create2(
+            self,
+            qa_registry,
+            deployer,
+            salt,
+            bytecode,
+            init_gas_limit,
+            parent_logs,
+            parent_call_depth,
+        )
     }
 }
 

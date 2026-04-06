@@ -10,7 +10,7 @@ Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the si
 | [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md) | Boing VM only — no foreign chain bytecode engines in protocol |
 | [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md) | Architecture, tokenomics, design decisions |
 | [RUNBOOK.md](RUNBOOK.md) | Node setup, RPC, CLI, monitoring, incidents |
-| [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC API reference (§ Native constant-product AMM = canonical testnet pool id) |
+| [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC API reference — **Method index** lists every `boing_*` RPC on current `boing-node`; § Native constant-product AMM = canonical testnet pool id |
 
 ## Readiness & Launch
 
@@ -44,6 +44,17 @@ Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the si
 | [BUILD-ROADMAP.md](BUILD-ROADMAP.md) | Implementation phases |
 | [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md) | **Full-stack capability plan:** native Boing VM, SDK, wallet, indexer (pairs with [EXECUTION-PARITY-TASK-LIST.md](EXECUTION-PARITY-TASK-LIST.md); comparisons in-doc are non-normative) |
 | [BOING-L1-DEX-ENGINEERING.md](BOING-L1-DEX-ENGINEERING.md) | **DEX on L1 (non-EVM):** Boing VM bytecode for factory/router/locker vs Solidity reference; QA/deploy checklist; pairs with **boing.finance** `docs/boing-l1-*.md` |
+| [BOING-NATIVE-DEX-CAPABILITY.md](BOING-NATIVE-DEX-CAPABILITY.md) | **What ships today:** CP pools + pair directory + single-/multi-hop routers + SDK; limitations vs EVM DEX stacks |
+| [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) | **Pair directory** VM program: `register_pair` / `pairs_count` / `get_pair_at` + `Log3` (pools deployed separately; no in-VM `CREATE`) |
+| [NATIVE-DEX-LEDGER-ROUTER.md](NATIVE-DEX-LEDGER-ROUTER.md) | **Ledger router:** `Call` forwarder (**v1** 128-byte; **v2** 160-byte; **v3** 192-byte); **v1** ledger-only pools |
+| [NATIVE-DEX-SWAP2-ROUTER.md](NATIVE-DEX-SWAP2-ROUTER.md) | **Two-hop** swap router (one tx, two pools) |
+| [NATIVE-DEX-MULTIHOP-SWAP-ROUTER.md](NATIVE-DEX-MULTIHOP-SWAP-ROUTER.md) | **Multihop** swap router (**2–4** pools per tx) |
+| [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) | Native **constant-product pool** selectors, storage keys, **`Log2`**, access lists, CREATE2 salts |
+| [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) | End-to-end checklist: VM → SDK → wallet → boing.finance (+ optional LP vault / share token) |
+| [NATIVE-AMM-LP-VAULT.md](NATIVE-AMM-LP-VAULT.md) | Optional **LP vault** (`configure` / `deposit_add`) |
+| [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md) | Optional **LP share** fungible (`mint` / `transfer` / `set_minter_once`) |
+| [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md) | Manual Boing Express + dApp smoke (swap / liquidity) |
+| [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) | Published **canonical testnet** native CP pool id (**OPS-1**) |
 | [BOING-PATTERN-AMM-LIQUIDITY.md](BOING-PATTERN-AMM-LIQUIDITY.md) | Constant-product AMM pattern (VM contracts, access lists, QA) |
 | [BOING-PATTERN-ORACLE-PRICE-FEEDS.md](BOING-PATTERN-ORACLE-PRICE-FEEDS.md) | Oracle / price feeds (app layer, TWAP, multisig) |
 | [BOING-PATTERN-UPGRADE-PROXY.md](BOING-PATTERN-UPGRADE-PROXY.md) | Upgradeable / hub-pointer patterns vs QA |

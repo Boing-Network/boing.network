@@ -22,8 +22,17 @@ import {
 import {
   SELECTOR_NATIVE_AMM_ADD_LIQUIDITY,
   SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY,
+  SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY_TO,
   SELECTOR_NATIVE_AMM_SWAP,
 } from './nativeAmm.js';
+import {
+  SELECTOR_NATIVE_AMM_LP_VAULT_CONFIGURE,
+} from './nativeAmmLpVault.js';
+import {
+  SELECTOR_LP_SHARE_MINT,
+  SELECTOR_LP_SHARE_SET_MINTER_ONCE,
+  SELECTOR_LP_SHARE_TRANSFER,
+} from './nativeLpShareToken.js';
 
 /** Supported 32-byte word kinds for schema-driven encoding. */
 export type BoingAbiParamKind = 'u128' | 'account' | 'bytes32' | 'bool';
@@ -164,6 +173,35 @@ export const BoingReferenceCallDescriptors = {
     remove_liquidity: {
       selector: SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY,
       params: ['u128', 'u128', 'u128'] as const satisfies readonly BoingAbiParamKind[],
+    },
+    remove_liquidity_to: {
+      selector: SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY_TO,
+      params: ['u128', 'u128', 'u128', 'account', 'account'] as const satisfies readonly BoingAbiParamKind[],
+    },
+  },
+  /**
+   * Native LP share token (`docs/NATIVE-LP-SHARE-TOKEN.md`) — same word layout as reference fungible
+   * for `transfer` / `mint`; `set_minter_once` is one account word.
+   */
+  lpShare: {
+    transfer: {
+      selector: SELECTOR_LP_SHARE_TRANSFER,
+      params: ['account', 'u128'] as const satisfies readonly BoingAbiParamKind[],
+    },
+    mint: {
+      selector: SELECTOR_LP_SHARE_MINT,
+      params: ['account', 'u128'] as const satisfies readonly BoingAbiParamKind[],
+    },
+    set_minter_once: {
+      selector: SELECTOR_LP_SHARE_SET_MINTER_ONCE,
+      params: ['account'] as const satisfies readonly BoingAbiParamKind[],
+    },
+  },
+  /** LP vault `configure` only (`docs/NATIVE-AMM-LP-VAULT.md`). Use `encodeNativeAmmLpVaultDepositAddCalldata` for `deposit_add`. */
+  nativeAmmLpVault: {
+    configure: {
+      selector: SELECTOR_NATIVE_AMM_LP_VAULT_CONFIGURE,
+      params: ['account', 'account'] as const satisfies readonly BoingAbiParamKind[],
     },
   },
 } as const;

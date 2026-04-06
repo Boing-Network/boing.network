@@ -161,6 +161,27 @@ export function decodeBoingStorageWordU128(valueHex: string): bigint {
 }
 
 /**
+ * Decode successful native pool **`add_liquidity`** contract return data: **exactly 32 bytes** (64 hex
+ * chars), **u128** LP minted in the **low 16 bytes**; high 16 bytes must be zero (canonical amount word).
+ */
+export function decodeNativeAmmAddLiquidityReturnLpMinted(returnDataHex: string): bigint {
+  const raw = ensureHex(returnDataHex).slice(2).toLowerCase();
+  if (raw.length % 2 !== 0) {
+    throw new Error('add_liquidity return: hex length must be even');
+  }
+  if (raw.length !== 64) {
+    throw new Error('add_liquidity return: expected exactly 32 bytes (64 hex chars)');
+  }
+  if (!HEX_RE.test(raw)) {
+    throw new Error('add_liquidity return: invalid hex');
+  }
+  if (!raw.slice(0, 32).match(/^0+$/)) {
+    throw new Error('add_liquidity return: high 16 bytes must be zero');
+  }
+  return decodeBoingStorageWordU128(`0x${raw}`);
+}
+
+/**
  * Decode native AMM `Log2` **data** (96 bytes): three u128 words (low 16 bytes of each 32-byte word), per `NATIVE-AMM-CALLDATA.md` § Logs.
  */
 export function decodeNativeAmmLogDataU128Triple(dataHex: string): readonly [bigint, bigint, bigint] {

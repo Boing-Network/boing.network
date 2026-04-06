@@ -41,6 +41,76 @@ export const NATIVE_CP_POOL_CREATE2_SALT_V4 = (() => {
   return out;
 })();
 
+/** Same bytes as `boing_execution::native_amm::NATIVE_CP_POOL_CREATE2_SALT_V5` (v4 + `swap_to` recipient). */
+export const NATIVE_CP_POOL_CREATE2_SALT_V5 = (() => {
+  const label = new TextEncoder().encode('BOING_NATIVECP_C2V5');
+  const out = new Uint8Array(32);
+  out.set(label);
+  return out;
+})();
+
+/** Same bytes as `native_dex_factory::NATIVE_DEX_FACTORY_CREATE2_SALT_V1`. */
+export const NATIVE_DEX_FACTORY_CREATE2_SALT_V1 = (() => {
+  const label = new TextEncoder().encode('BOING_NATIVEDEX_FACTORY_V1');
+  const out = new Uint8Array(32);
+  out.set(label);
+  return out;
+})();
+
+/** Same bytes as `native_dex_ledger_router::NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V1`. */
+export const NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V1 = (() => {
+  const label = new TextEncoder().encode('BOING_NATIVEDEX_LROUTER_V1');
+  const out = new Uint8Array(32);
+  out.set(label);
+  return out;
+})();
+
+/** Same bytes as `native_dex_ledger_router::NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V2`. */
+export const NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V2 = (() => {
+  const label = new TextEncoder().encode('BOING_NATIVEDEX_LROUTER_V2');
+  const out = new Uint8Array(32);
+  out.set(label);
+  return out;
+})();
+
+/** Same bytes as `native_dex_ledger_router::NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V3`. */
+export const NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V3 = (() => {
+  const label = new TextEncoder().encode('BOING_NATIVEDEX_LROUTER_V3');
+  const out = new Uint8Array(32);
+  out.set(label);
+  return out;
+})();
+
+/** Same bytes as `native_dex_multihop_swap_router::NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1`. */
+export const NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1 = (() => {
+  const label = new TextEncoder().encode('BOING_NATIVEDEX_MHOP_V1');
+  const out = new Uint8Array(32);
+  out.set(label);
+  return out;
+})();
+
+/**
+ * @deprecated Same bytes as {@link NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1} (Rust
+ * `NATIVE_DEX_SWAP2_ROUTER_CREATE2_SALT_V1` alias).
+ */
+export const NATIVE_DEX_SWAP2_ROUTER_CREATE2_SALT_V1 = NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1;
+
+/** Same bytes as `native_lp_share_token::NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1`. */
+export const NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1 = (() => {
+  const label = new TextEncoder().encode('BOING_LP_SHARE_TOKEN_V1');
+  const out = new Uint8Array(32);
+  out.set(label);
+  return out;
+})();
+
+/** Same bytes as `native_amm_lp_vault::NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1`. */
+export const NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1 = (() => {
+  const label = new TextEncoder().encode('BOING_AMM_LP_VAULT_V1');
+  const out = new Uint8Array(32);
+  out.set(label);
+  return out;
+})();
+
 /** `0x` + 64 hex for {@link NATIVE_CP_POOL_CREATE2_SALT_V1}. */
 export function nativeCpPoolCreate2SaltV1Hex(): string {
   return validateHex32(bytesToHex(NATIVE_CP_POOL_CREATE2_SALT_V1));
@@ -59,6 +129,11 @@ export function nativeCpPoolCreate2SaltV3Hex(): string {
 /** `0x` + 64 hex for {@link NATIVE_CP_POOL_CREATE2_SALT_V4}. */
 export function nativeCpPoolCreate2SaltV4Hex(): string {
   return validateHex32(bytesToHex(NATIVE_CP_POOL_CREATE2_SALT_V4));
+}
+
+/** `0x` + 64 hex for {@link NATIVE_CP_POOL_CREATE2_SALT_V5}. */
+export function nativeCpPoolCreate2SaltV5Hex(): string {
+  return validateHex32(bytesToHex(NATIVE_CP_POOL_CREATE2_SALT_V5));
 }
 
 /**
@@ -96,4 +171,92 @@ export function predictNativeCpPoolV3Create2Address(deployerHex: string, poolByt
 /** **v4** pool (v2 hooks + configurable fee) + documented v4 salt. */
 export function predictNativeCpPoolV4Create2Address(deployerHex: string, poolBytecodeV4: Uint8Array): string {
   return predictCreate2ContractAddress(deployerHex, NATIVE_CP_POOL_CREATE2_SALT_V4, poolBytecodeV4);
+}
+
+/** **v5** pool (v4 + explicit swap output recipient) + documented v5 salt. */
+export function predictNativeCpPoolV5Create2Address(deployerHex: string, poolBytecodeV5: Uint8Array): string {
+  return predictCreate2ContractAddress(deployerHex, NATIVE_CP_POOL_CREATE2_SALT_V5, poolBytecodeV5);
+}
+
+/** Pair-directory contract (`native_dex_factory_bytecode`) + documented salt. */
+export function predictNativeDexFactoryCreate2Address(deployerHex: string, factoryBytecode: Uint8Array): string {
+  return predictCreate2ContractAddress(deployerHex, NATIVE_DEX_FACTORY_CREATE2_SALT_V1, factoryBytecode);
+}
+
+/** Ledger router (`native_dex_ledger_router_bytecode`) + documented salt. */
+export function predictNativeDexLedgerRouterCreate2Address(deployerHex: string, routerBytecode: Uint8Array): string {
+  return predictCreate2ContractAddress(deployerHex, NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V1, routerBytecode);
+}
+
+/** Ledger router v2 (`native_dex_ledger_router_bytecode_v2`) + documented salt. */
+export function predictNativeDexLedgerRouterV2Create2Address(deployerHex: string, routerBytecodeV2: Uint8Array): string {
+  return predictCreate2ContractAddress(deployerHex, NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V2, routerBytecodeV2);
+}
+
+/** Ledger router v3 (`native_dex_ledger_router_bytecode_v3`) + documented salt. */
+export function predictNativeDexLedgerRouterV3Create2Address(deployerHex: string, routerBytecodeV3: Uint8Array): string {
+  return predictCreate2ContractAddress(deployerHex, NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V3, routerBytecodeV3);
+}
+
+/** Multihop swap router (`native_dex_multihop_swap_router_bytecode`) + documented salt. */
+export function predictNativeDexMultihopSwapRouterCreate2Address(
+  deployerHex: string,
+  routerBytecode: Uint8Array
+): string {
+  return predictCreate2ContractAddress(deployerHex, NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1, routerBytecode);
+}
+
+/** @deprecated Use {@link predictNativeDexMultihopSwapRouterCreate2Address}. */
+export function predictNativeDexSwap2RouterCreate2Address(deployerHex: string, swap2RouterBytecode: Uint8Array): string {
+  return predictNativeDexMultihopSwapRouterCreate2Address(deployerHex, swap2RouterBytecode);
+}
+
+/** LP share token (`lp_share_token_bytecode`) + documented salt. */
+export function predictNativeLpShareTokenCreate2Address(deployerHex: string, bytecode: Uint8Array): string {
+  return predictCreate2ContractAddress(deployerHex, NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1, bytecode);
+}
+
+/** Native AMM LP vault (`native_amm_lp_vault_bytecode`) + documented salt. */
+export function predictNativeAmmLpVaultCreate2Address(deployerHex: string, bytecode: Uint8Array): string {
+  return predictCreate2ContractAddress(deployerHex, NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1, bytecode);
+}
+
+/** `0x` + 64 hex for {@link NATIVE_DEX_FACTORY_CREATE2_SALT_V1}. */
+export function nativeDexFactoryCreate2SaltV1Hex(): string {
+  return validateHex32(bytesToHex(NATIVE_DEX_FACTORY_CREATE2_SALT_V1));
+}
+
+/** `0x` + 64 hex for {@link NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V1}. */
+export function nativeDexLedgerRouterCreate2SaltV1Hex(): string {
+  return validateHex32(bytesToHex(NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V1));
+}
+
+/** `0x` + 64 hex for {@link NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V2}. */
+export function nativeDexLedgerRouterCreate2SaltV2Hex(): string {
+  return validateHex32(bytesToHex(NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V2));
+}
+
+/** `0x` + 64 hex for {@link NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V3}. */
+export function nativeDexLedgerRouterCreate2SaltV3Hex(): string {
+  return validateHex32(bytesToHex(NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V3));
+}
+
+/** `0x` + 64 hex for {@link NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1}. */
+export function nativeDexMultihopSwapRouterCreate2SaltV1Hex(): string {
+  return validateHex32(bytesToHex(NATIVE_DEX_MULTIHOP_SWAP_ROUTER_CREATE2_SALT_V1));
+}
+
+/** @deprecated Alias for {@link nativeDexMultihopSwapRouterCreate2SaltV1Hex}. */
+export function nativeDexSwap2RouterCreate2SaltV1Hex(): string {
+  return nativeDexMultihopSwapRouterCreate2SaltV1Hex();
+}
+
+/** `0x` + 64 hex for {@link NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1}. */
+export function nativeLpShareTokenCreate2SaltV1Hex(): string {
+  return validateHex32(bytesToHex(NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1));
+}
+
+/** `0x` + 64 hex for {@link NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1}. */
+export function nativeAmmLpVaultCreate2SaltV1Hex(): string {
+  return validateHex32(bytesToHex(NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1));
 }

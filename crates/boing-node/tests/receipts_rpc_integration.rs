@@ -61,7 +61,7 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
 /// Runtime code: return 32-byte word with low byte `0x42`.
 fn return_42_runtime_bytecode() -> Vec<u8> {
     let mut code = vec![0x7f];
-    code.extend(std::iter::repeat(0u8).take(31));
+    code.extend(std::iter::repeat_n(0u8, 31));
     code.push(0x42);
     code.extend([
         0x60, 0x00, 0x52, // MSTORE
@@ -803,12 +803,12 @@ async fn rpc_simulate_includes_access_list_hints_and_contract_storage_rpc() {
 /// `LOG1` with one topic (31 zero bytes + `topic_tail`), empty data, then `STOP`.
 fn log1_deploy_bytecode(topic_tail: u8) -> Vec<u8> {
     let mut v = vec![0x7f];
-    v.extend(std::iter::repeat(0u8).take(31));
+    v.extend(std::iter::repeat_n(0u8, 31));
     v.push(topic_tail);
     v.push(0x7f);
-    v.extend(std::iter::repeat(0u8).take(32));
+    v.extend(std::iter::repeat_n(0u8, 32));
     v.push(0x7f);
-    v.extend(std::iter::repeat(0u8).take(32));
+    v.extend(std::iter::repeat_n(0u8, 32));
     v.push(0xa1);
     v.push(0x00);
     v

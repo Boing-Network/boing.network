@@ -42,6 +42,16 @@ export function validateHex32(hex: string): string {
   return normalized;
 }
 
+/** True if **`hex`** is a valid **32-byte** Boing **`AccountId`** (`0x` + 64 hex). Use to branch wizards away from 20-byte EVM addresses. */
+export function isBoingNativeAccountIdHex(hex: string): boolean {
+  try {
+    validateHex32(hex);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Assert 32-byte buffer; return as hex. */
 export function accountIdToHex(bytes: Uint8Array): string {
   if (bytes.length !== 32) throw new Error('AccountId must be 32 bytes');

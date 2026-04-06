@@ -114,6 +114,16 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 
 ## Methods
 
+### Method index (`boing_rpcSupportedMethods`)
+
+Current `boing-node` implements these JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
+
+`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractStorage`, `boing_getLogs`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_rpcSupportedMethods`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitTransaction`, `boing_verifyAccountProof`.
+
+**Implementation:** `BOING_RPC_SUPPORTED_METHODS` in `crates/boing-node/src/rpc.rs` — keep this list, the router match arms, and this spec in sync when adding a method.
+
+---
+
 ### boing_submitTransaction
 
 Submit a signed transaction to the mempool.
@@ -255,13 +265,25 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
     "jsonrpc_batch_max": 32,
     "websocket_max_connections": 0,
     "http_rate_limit_requests_per_sec": 100,
-    "ready_min_peers": null
+    "ready_min_peers": null,
+    "http_max_body_megabytes": 8,
+    "get_logs_max_block_range": 128,
+    "get_logs_max_results": 2048,
+    "max_log_topic_filters": 4
+  },
+  "rpc_metrics": {
+    "rate_limited_total": 0,
+    "json_parse_errors_total": 0,
+    "batch_too_large_total": 0,
+    "method_not_found_total": 0,
+    "websocket_cap_rejects_total": 0
   }
 }
 ```
 
 - **`chain_id` / `chain_name`:** **`null`** when the corresponding env var is unset or invalid (same as **`boing_getNetworkInfo`**).
-- **`rpc_surface`:** Operator-facing snapshot of limits (same sources as env vars **`BOING_RPC_MAX_BATCH`**, **`BOING_RPC_WS_MAX_CONNECTIONS`**, node **`RateLimitConfig.requests_per_sec`**, **`BOING_RPC_READY_MIN_PEERS`**). **`ready_min_peers`** is **`null`** when no minimum is configured.
+- **`rpc_surface`:** Operator-facing snapshot of limits (same sources as env vars **`BOING_RPC_MAX_BATCH`**, **`BOING_RPC_WS_MAX_CONNECTIONS`**, **`BOING_RPC_MAX_BODY_MB`**, node **`RateLimitConfig.requests_per_sec`**, **`BOING_RPC_READY_MIN_PEERS`**, plus fixed **`boing_getLogs`** bounds). **`ready_min_peers`** is **`null`** when no minimum is configured.
+- **`rpc_metrics`:** Cumulative counters since process start (best-effort diagnostics).
 
 ---
 
@@ -573,6 +595,19 @@ Wallets and dApps still **configure** the pool **`AccountId`** in their own env 
 | **Automated regression** | Repository test: `cargo test -p boing-node --test native_amm_rpc_happy_path` (deploy → add liquidity → swap; asserts reserves via `boing_getContractStorage`). |
 
 Publish checklist (for **future** pool rotations): [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md). Integration checklist **A6.4** / **A1.5** are satisfied for the current canonical hex; keep **boing.finance** and **`boing-sdk`** mirrors in sync when the table above changes.
+
+---
+
+### Native DEX directory + ledger router (integration note)
+
+Multi-pair flows use **generic** JSON-RPC (`contract_call`, `getContractStorage`, `getLogs`, `simulateTransaction`) — no new method names. Specs and bytecode live in the node repo:
+
+| Artifact | Doc | Notes |
+|----------|-----|--------|
+| **Pair directory** | [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) | `register_pair` / `pairs_count` / `get_pair_at`; count key + `Log3` indexing |
+| **Ledger router** | [NATIVE-DEX-LEDGER-ROUTER.md](NATIVE-DEX-LEDGER-ROUTER.md) | Forwards **128-byte** pool calldata via nested `Call` — **v1/v3 pools only** |
+| **SDK** | `boing-sdk` | `nativeDexFactory*`, `nativeDexLedgerRouter`, `create2` prediction helpers |
+| **Regression** | `cargo test -p boing-node --test native_dex_factory_rpc_happy_path` | Deploy pool + directory → `register_pair` → `pairs_count` / `get_pair_at` receipts |
 
 ---
 

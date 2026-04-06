@@ -4,6 +4,7 @@ import {
   buildNativeConstantProductContractCallTx,
   mergeNativePoolAccessListWithSimulation,
   decodeBoingStorageWordU128,
+  decodeNativeAmmAddLiquidityReturnLpMinted,
   decodeNativeAmmLogDataU128Triple,
   fetchNativeAmmSignerLpBalance,
   fetchNativeConstantProductPoolSnapshot,
@@ -118,6 +119,14 @@ describe('nativeAmmPool', () => {
       'ff'.repeat(16);
     expect(decodeBoingStorageWordU128(word)).toBe(BigInt('0x' + 'ff'.repeat(16)));
     expect(decodeBoingStorageWordU128('0x')).toBe(0n);
+  });
+
+  it('decodeNativeAmmAddLiquidityReturnLpMinted parses canonical 32-byte return', () => {
+    const word = '0x' + '00'.repeat(16) + '00'.repeat(14) + '162e';
+    expect(decodeNativeAmmAddLiquidityReturnLpMinted(word)).toBe(5678n);
+    expect(() => decodeNativeAmmAddLiquidityReturnLpMinted('0x')).toThrow(/64 hex/);
+    expect(() => decodeNativeAmmAddLiquidityReturnLpMinted('0x' + '00'.repeat(63))).toThrow(/64 hex/);
+    expect(() => decodeNativeAmmAddLiquidityReturnLpMinted('0x' + '01' + '00'.repeat(31))).toThrow(/high 16/);
   });
 
   it('fetchNativeConstantProductReserves', async () => {

@@ -33,8 +33,8 @@ export const isTestnetLive =
 
 /**
  * Canonical **native constant-product AMM** pool `AccountId` on public testnet (chain **6913**).
- * Keep in sync with [docs/RPC-API-SPEC.md](../../../docs/RPC-API-SPEC.md) § Native constant-product AMM,
- * `boing-sdk` **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**, and **boing.finance** config.
+ * Keep in sync with [docs/RPC-API-SPEC.md](../../../docs/RPC-API-SPEC.md) § Native constant-product AMM
+ * and `boing-sdk` **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**. **boing.finance** (separate app) should use the same hex in its env / `contracts.js` — not generated from this file.
  */
 export const CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX =
   '0xffaa1290614441902ba813bf3bd8bf057624e0bd4f16160a9d32cd65d3f4d0c2' as const;

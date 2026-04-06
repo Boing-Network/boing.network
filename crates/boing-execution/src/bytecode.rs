@@ -81,6 +81,8 @@ pub enum Opcode {
     Return = 0xf3,
     /// Nested contract call (0xf1). Pops `ret_size`, `ret_offset`, `args_size`, `args_offset`, `target` (32-byte account id, stack top = `ret_size`). Runs callee with **caller** = current contract and **address** = `target`; merges callee logs; copies return data into caller memory (zero-pad). Pushes **`1`** on success. Uses remaining gas budget (minus `CALL` base). **`None` / empty code** → success, empty return. Errors from callee **propagate** (no partial snapshot rollback).
     Call = 0xf1,
+    /// In-contract CREATE2 (0xf5). Pops `salt`, `size`, `offset` (stack top = `salt`, 32-byte word; then `size`, then `offset`). Deploys `memory[offset..offset+size)` as init/runtime bytecode with [`boing_primitives::create2_contract_address`]`(ADDRESS, salt, bytecode)`; init runs with `CALLER` = `ADDRESS`. Pushes new contract **address** word. Charges base + per-byte gas; init execution meters against **remaining** gas after that charge. Same QA path as in-tx deploy (`dapp` category). **Does not** increment any account nonce.
+    Create2 = 0xf5,
 }
 
 impl Opcode {
@@ -123,6 +125,7 @@ impl Opcode {
             0x7f => Some(Self::Push32),
             0xf1 => Some(Self::Call),
             0xf3 => Some(Self::Return),
+            0xf5 => Some(Self::Create2),
             _ => None,
         }
     }
@@ -162,6 +165,10 @@ pub mod gas {
     pub const RETURN: u64 = 0;
     /// Base gas before nested execution; child uses remaining `gas_limit - gas_used`.
     pub const CALL: u64 = 700;
+    /// EIP-1014-style CREATE2 base (before init-code byte linear term and init execution).
+    pub const CREATE2: u64 = 32_000;
+    /// Per byte of init code read from memory (EIP-1014 `200` tier, simplified).
+    pub const CREATE2_PER_INIT_BYTE: u64 = 200;
     pub const DUP1: u64 = 3;
     pub const ADDRESS: u64 = 2;
     pub const CALLER: u64 = 2;

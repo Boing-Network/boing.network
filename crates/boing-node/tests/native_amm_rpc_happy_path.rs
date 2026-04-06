@@ -11,9 +11,9 @@ use axum::{
     http::{Request, StatusCode},
 };
 use boing_execution::{
-    constant_product_amount_out_after_fee, constant_product_pool_bytecode, encode_add_liquidity_calldata,
-    encode_remove_liquidity_calldata, encode_swap_calldata, reserve_a_key, reserve_b_key,
-    total_lp_supply_key, NATIVE_AMM_TOPIC_ADD_LIQUIDITY, NATIVE_AMM_TOPIC_REMOVE_LIQUIDITY,
+    constant_product_amount_out_after_fee, constant_product_pool_bytecode, decode_add_liquidity_return_lp_minted,
+    encode_add_liquidity_calldata, encode_remove_liquidity_calldata, encode_swap_calldata, reserve_a_key,
+    reserve_b_key, total_lp_supply_key, NATIVE_AMM_TOPIC_ADD_LIQUIDITY, NATIVE_AMM_TOPIC_REMOVE_LIQUIDITY,
     NATIVE_AMM_TOPIC_SWAP, NATIVE_CP_POOL_CREATE2_SALT_V1,
 };
 use boing_execution::reference_token::amount_word;
@@ -103,7 +103,7 @@ fn tx_id_hex(tx: &Transaction) -> String {
     format!("0x{}", hex::encode(tx.id().0))
 }
 
-fn receipt_logs<'a>(rpc: &'a serde_json::Value) -> &'a Vec<serde_json::Value> {
+fn receipt_logs(rpc: &serde_json::Value) -> &Vec<serde_json::Value> {
     rpc.get("result")
         .and_then(|r| r.get("logs"))
         .and_then(|l| l.as_array())
@@ -136,6 +136,20 @@ fn assert_native_amm_log2(
     assert_eq!(raw[16..32], amount_word(word0)[16..32]);
     assert_eq!(raw[48..64], amount_word(word1)[16..32]);
     assert_eq!(raw[80..96], amount_word(word2)[16..32]);
+}
+
+fn assert_receipt_add_liquidity_return_lp(rpc: &serde_json::Value, expected_lp_minted: u128) {
+    let rd = rpc
+        .get("result")
+        .and_then(|r| r.get("return_data"))
+        .and_then(|x| x.as_str())
+        .expect("transaction receipt return_data");
+    let bytes = hex::decode(rd.trim_start_matches("0x")).expect("return_data hex");
+    assert_eq!(
+        decode_add_liquidity_return_lp_minted(&bytes),
+        Some(expected_lp_minted),
+        "add_liquidity return_data should be 32-byte LP minted word"
+    );
 }
 
 #[tokio::test]
@@ -220,6 +234,7 @@ async fn native_amm_deploy_add_liquidity_swap_via_rpc() {
         2_000,
         1_000,
     );
+    assert_receipt_add_liquidity_return_lp(&r_add, 1_000);
 
     let dx: u128 = 100;
     let dy = u128::from(constant_product_amount_out_after_fee(1_000u64, 2_000u64, dx as u64));
@@ -296,8 +311,8 @@ async fn native_amm_deploy_add_liquidity_swap_via_rpc() {
     assert_eq!(ra_u, 1_000 + dx);
     assert_eq!(rb_u, 2_000 - dy);
 
-    let da_out = 1u128 * ra_u / 1_000u128;
-    let db_out = 1u128 * rb_u / 1_000u128;
+    let da_out = ra_u / 1_000u128;
+    let db_out = rb_u / 1_000u128;
 
     let remove_calldata = encode_remove_liquidity_calldata(1, 0, 0);
     let remove_tx = Transaction {
@@ -480,6 +495,14 @@ async fn native_amm_create2_deploy_add_swap_via_rpc() {
         let mut n = node.write().await;
         n.produce_block_if_ready().expect("block with add_liquidity");
     }
+
+    let r_add = rpc_call(
+        &mut app,
+        "boing_getTransactionReceipt",
+        serde_json::json!([tx_id_hex(&signed_add.tx)]),
+    )
+    .await;
+    assert_receipt_add_liquidity_return_lp(&r_add, 500);
 
     let dx: u128 = 50;
     let dy = u128::from(constant_product_amount_out_after_fee(500u64, 800u64, dx as u64));

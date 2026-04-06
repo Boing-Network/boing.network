@@ -4,7 +4,7 @@ Optional **headed** automation for [NATIVE-AMM-E2E-SMOKE.md](../../docs/NATIVE-A
 
 **CI / ops:** Default GitHub Actions validates install + **extension** project tests (**skipped** without **`BOING_EXPRESS_EXTENSION_PATH`**). Headed extension E2E on shared runners is not supported without a display — see [PLAYWRIGHT-E2E-CI-OPS.md](../../docs/PLAYWRIGHT-E2E-CI-OPS.md) and [TESTNET-OPS-RUNBOOK.md](../../docs/TESTNET-OPS-RUNBOOK.md) §4.
 
-A separate **headless** **public** project loads the swap URL over the network (no extension): run locally with **`npm run test:e2e:public-smoke`**. A **weekly + manual** workflow runs that project — see **§ D** in [PLAYWRIGHT-E2E-CI-OPS.md](../../docs/PLAYWRIGHT-E2E-CI-OPS.md).
+A separate **headless** **public** project runs **`public-swap-page-smoke`** (network URL load) plus **`tutorial-readme-wiring`** (offline README string checks for LP vault / LP share scripts). Run locally with **`npm run test:e2e:public-smoke`**. A **weekly + manual** workflow runs that project — see **§ D** in [PLAYWRIGHT-E2E-CI-OPS.md](../../docs/PLAYWRIGHT-E2E-CI-OPS.md).
 
 This complements the Rust integration test `native_amm_rpc_happy_path` (RPC only, no browser).
 

@@ -143,4 +143,26 @@ mod tests {
         };
         assert!(t_call.access_list_covers_parallel_suggestion());
     }
+
+    #[test]
+    fn test_suggested_parallel_access_list_create2_includes_predicted_contract() {
+        let sender = AccountId::from_bytes([7u8; 32]);
+        let salt = [9u8; 32];
+        let bytecode = vec![0x60u8, 0x00];
+        let predicted = create2_contract_address(&sender, &salt, &bytecode);
+        let t = Transaction {
+            nonce: 0,
+            sender,
+            payload: TransactionPayload::ContractDeploy {
+                bytecode: bytecode.clone(),
+                create2_salt: Some(salt),
+            },
+            access_list: AccessList::default(),
+        };
+        let sug = t.suggested_parallel_access_list();
+        assert!(sug.read.contains(&sender));
+        assert!(sug.read.contains(&predicted));
+        assert!(sug.write.contains(&sender));
+        assert!(sug.write.contains(&predicted));
+    }
 }

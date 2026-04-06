@@ -74,6 +74,12 @@ cargo build -p boing-node
 cargo run -p boing-execution --example dump_native_amm_pool > pool.hex
 ```
 
+**Native DEX pair-directory bytecode dump** (for `deploy-native-dex-directory`):
+
+```bash
+cargo run -p boing-execution --example dump_native_dex_factory > dex-factory.hex
+```
+
 ---
 
 ## 3. Repo `scripts/` (bootnodes, tunnel, probes)
@@ -94,20 +100,21 @@ Overview: [scripts/README.md](../scripts/README.md). Full infra: [INFRASTRUCTURE
 
 ## 4. Monorepo root (`package.json` scripts)
 
-From repo root (no **`npm install`** at root required for these delegates; **`examples/native-boing-tutorial`** and **`boing-sdk`** need their own **`npm install`** / **`npm ci`** when you run there).
+From repo root, **`npm install` at the root is not required** for these wrappers. **`boing-sdk`** and **`examples/native-boing-tutorial`** each need **`npm install`** / **`npm ci`** (and **`boing-sdk`** **`npm run build`** where scripts import **`dist/`**) before running tutorial flows.
+
+**Tutorial parity:** every script name in **`examples/native-boing-tutorial/package.json`** is also defined at the **repository root** with the same name. Most delegate with **`npm run <script> --prefix examples/native-boing-tutorial`**. **`probe-rpc`** at the root is **`node boing-sdk/scripts/probe-rpc.mjs`** (the same file the tutorial **`probe-rpc`** runs). Examples: **`transfer`**, **`deploy-native-amm-pool`**, **`deploy-native-dex-directory`**, **`fetch-native-amm-reserves`**, **`native-amm-submit-contract-call`**, **`fetch-blocks-range`**, … — authoritative list: that package’s **`package.json`**. Per-script env tables: [examples/native-boing-tutorial/README.md](../examples/native-boing-tutorial/README.md).
 
 | Command | What it runs |
 |--------|----------------|
-| `npm run check-testnet-rpc` | Tutorial **`check-testnet-rpc`** — set **`BOING_RPC_URL`** |
-| `npm run preflight-rpc` | Tutorial **`preflight-rpc`** — **`check-testnet-rpc`** then **`observer-chain-tip-poll`** once (**`BOING_POLL_ONCE`**) |
-| `npm run probe-rpc` | `node boing-sdk/scripts/probe-rpc.mjs` (build **`boing-sdk`** first) |
-| `npm run rpc-endpoint-check` | `node scripts/rpc-endpoint-check.mjs` |
-| `npm run indexer-ingest-tick` | Tutorial indexer tick (plan-only unless **`BOING_FETCH=1`**; **`BOING_OMIT_MISSING=1`** → **`onMissingBlock: 'omit'`** when fetching) |
-| `npm run native-amm-print-contract-call-tx` | Tutorial **`native-amm-print-contract-call-tx`** |
-| `npm run observer-chain-tip-poll` | Tutorial **`observer-chain-tip-poll`** (looping poll; use **`BOING_POLL_ONCE=1`** for one sample) |
-| `npm run observer-ingest-ref-tick` | **`examples/observer-ingest-reference`** JSON cursor + gaps (`npm install` there first) |
-| `npm run observer-ingest-sqlite-tick` | Same package, **`ingest-sqlite-tick`** — set **`BOING_SQLITE_PATH`** (Node 22+ **`node:sqlite`**) |
+| **`npm run <tutorial-script>`** | Same as **`cd examples/native-boing-tutorial && npm run <tutorial-script>`** (see §5 and tutorial README) |
+| `npm run probe-rpc` | `node boing-sdk/scripts/probe-rpc.mjs` — build **`boing-sdk`** first |
+| `npm run rpc-endpoint-check` | `node scripts/rpc-endpoint-check.mjs` — raw JSON-RPC matrix without **`boing-sdk`** |
+| `npm run check-canonical-pool` | **`scripts/check-canonical-native-amm-pool.mjs`** — canonical pool reserve probe |
+| `npm run check-observer-readiness` | **`scripts/check-observer-readiness.mjs`** — deployed observer worker readiness |
+| `npm run observer-ingest-ref-tick` | **`examples/observer-ingest-reference`** **`ingest-tick`** (`npm install` there first) |
+| `npm run observer-ingest-sqlite-tick` | Same package, **`ingest-sqlite-tick`** — **`BOING_SQLITE_PATH`** (Node 22+ **`node:sqlite`**) |
 | `npm run native-amm-e2e` | Playwright package (§7) |
+| `npm run boing:smoke` | **`scripts/boing-smoke.mjs`** |
 
 **Full probe after preflight:** `BOING_PROBE_FULL=1 npm run preflight-rpc` (first step honors **`BOING_PROBE_FULL`** via **`check-testnet-rpc`**).
 
@@ -133,7 +140,13 @@ cd ../examples/native-boing-tutorial && npm install
 | `npm run contract-call` | Reference token; needs **`BOING_CONTRACT_HEX`** |
 | `npm run deploy-minimal` | Minimal contract deploy; **`BOING_SECRET_HEX`** |
 | `npm run deploy-native-amm-pool` | Pool deploy; bytecode file/hex + **`BOING_SECRET_HEX`** |
+| `npm run deploy-native-dex-directory` | Native **pair directory** deploy (+ optional second tx: **`register_pair`** when **`BOING_DEX_POOL_HEX`** + token ids set); [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) |
 | `npm run native-amm-print-contract-call-tx` | Print **`contract_call`** JSON (swap/add/remove); optional **`BOING_TOKEN_A_HEX`** / **`BOING_TOKEN_B_HEX`** |
+| `npm run native-amm-submit-contract-call` | Submit pool **`contract_call`** (seed liquidity / scripted swap); **`BOING_SECRET_HEX`** + same action env as print |
+| `npm run native-amm-lp-vault-print-contract-call-tx` | LP vault configure / deposit-add JSON — [NATIVE-AMM-LP-VAULT.md](NATIVE-AMM-LP-VAULT.md) |
+| `npm run native-amm-lp-vault-submit-contract-call` | Submit LP vault **`contract_call`** |
+| `npm run native-lp-share-print-contract-call-tx` | LP share token print — [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md) |
+| `npm run native-lp-share-submit-contract-call` | Submit LP share **`contract_call`** |
 | `npm run fetch-logs-range` | **`BOING_FROM_BLOCK`**, **`BOING_TO_BLOCK`** |
 | `npm run fetch-blocks-range` | **`BOING_FROM_HEIGHT`**, **`BOING_TO_HEIGHT`** |
 | `npm run indexer-chain-tips` | Sync / durable tips |

@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 /**
  * - **extension**: headed persistent context in spec (Boing Express).
- * - **public**: headless load of the public swap URL (no extension).
+ * - **public**: headless load of the public swap URL (no extension) + offline tutorial README wiring check.
  */
 export default defineConfig({
   testDir: './tests',
@@ -18,7 +18,7 @@ export default defineConfig({
     },
     {
       name: 'public',
-      testMatch: /public-swap-page-smoke\.spec\.ts$/,
+      testMatch: /(public-swap-page-smoke|tutorial-readme-wiring)\.spec\.ts$/,
       timeout: 90_000,
       retries: 2,
       use: {

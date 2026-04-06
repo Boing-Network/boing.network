@@ -101,6 +101,20 @@ Then **`fetch-native-amm-reserves`** again — reserves should match your seed (
 
 ---
 
+## 5b. LP vault + LP share (optional)
+
+If you deploy [NATIVE-AMM-LP-VAULT.md](NATIVE-AMM-LP-VAULT.md) and [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md) on the same devnet, use the same **`examples/native-boing-tutorial`** package:
+
+| Goal | Command | Key env vars |
+|------|---------|----------------|
+| **`set_minter_once`** (vault → minter) | `npm run native-lp-share-submit-contract-call` | `BOING_LP_SHARE_ACTION=set_minter_once`, `BOING_MINTER_HEX`, `BOING_LP_SHARE_HEX` |
+| **Vault `configure`** | `npm run native-amm-lp-vault-submit-contract-call` | `BOING_LP_VAULT_ACTION=configure`, `BOING_VAULT_HEX`, `BOING_POOL_HEX`, `BOING_SHARE_HEX` |
+| **Vault `deposit_add`** | `npm run native-amm-lp-vault-submit-contract-call` | `BOING_LP_VAULT_ACTION=deposit`, `BOING_AMOUNT_A` / `BOING_AMOUNT_B`, … |
+
+Full env tables: [examples/native-boing-tutorial/README.md](../examples/native-boing-tutorial/README.md) §7f–§7i.
+
+---
+
 ## 6. Point Boing Express + boing.finance at your RPC and pool
 
 **On your side (not in this repo):**

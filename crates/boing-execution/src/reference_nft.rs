@@ -82,7 +82,7 @@ fn word_u64(n: u64) -> [u8; 32] {
     w
 }
 
-fn patch_push32_dest(code: &mut Vec<u8>, push32_opcode_at: usize, dest: usize) {
+fn patch_push32_dest(code: &mut [u8], push32_opcode_at: usize, dest: usize) {
     code[push32_opcode_at + 1..push32_opcode_at + 33].copy_from_slice(&word_u64(dest as u64));
 }
 

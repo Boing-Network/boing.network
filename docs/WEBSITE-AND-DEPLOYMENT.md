@@ -56,7 +56,7 @@ boing.network/
 | /about | Design Plan §1–5, Innovation table | Philosophy, unique features |
 | /docs/getting-started | docs/BUILD-ROADMAP.md Quick Start, README | `cargo build`, `cargo run -p boing-node` |
 | /docs/architecture | Design Plan (Tech Stack, Full Stack Architecture) | Mermaid diagrams, layer breakdown |
-| /docs/rpc-api | docs/RPC-API-SPEC.md | Full RPC spec, methods, error codes |
+| /docs#rpc-api (and redirect `/docs/rpc-api`) | docs/RPC-API-SPEC.md | On-site: full method table + error codes aligned with `boing-node`; canonical prose + examples remain in the repo spec (also PDF in `/pdfs/`) |
 | /docs/runbook | docs/RUNBOOK.md | Operator procedures |
 | /docs/security | docs/SECURITY-STANDARDS.md | DDoS, rate limits, incident response |
 | /developers/quickstart | README, docs/BUILD-ROADMAP.md | Crates, CLI, local dev |

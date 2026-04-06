@@ -7,7 +7,7 @@ Short checklist for web apps that want **Boing L1** behavior without assuming a 
 ## 1. Discover the provider
 
 - Prefer `window.boing` or EIP-6963 providers whose name/rdns contains Boing ([BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md)).
-- `eth_requestAccounts` / `boing_requestAccounts` return **32-byte** account ids (`0x` + 64 hex chars).
+- `eth_requestAccounts` / `boing_requestAccounts` return **32-byte** account ids (`0x` + 64 hex chars). **`boing-sdk`:** **`isBoingNativeAccountIdHex(addr)`** returns true only for valid 32-byte ids — use in multi-wallet UIs to pick the **native Boing** deploy path vs **20-byte** EVM addresses.
 
 ---
 
@@ -65,6 +65,47 @@ Contract deploys from dApps must use **purpose-bearing** deploy types (`contract
 ### Form parity with EVM deploy UIs
 
 To avoid asking end users for **raw bytecode**, pin **ops-approved** native programs (fungible + NFT) and only expose **name / symbol / supply** (and similar) in the main flow. Use **`boing-sdk`** **`buildContractDeployMetaTx`** and **`resolveReferenceFungibleTemplateBytecodeHex`** (embedded default; optional env override `BOING_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX`, `VITE_…`, `REACT_APP_…`). Full checklist: [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md).
+
+### One wizard, two backends (EVM vs native Boing)
+
+Multi-chain launchers (same steps: **basics → network → review → deploy**) should **branch only at submit**:
+
+| Wizard step | EVM (MetaMask-style) | Native Boing (Boing Express) |
+|-------------|----------------------|------------------------------|
+| **Network** | `eth_chainId` / CAIP id | `boing_chainId` or `eth_chainId`; **`isBoingTestnetChainId(...)`** in **`boing-sdk`** (`chainIds.ts`) matches **6913** / **`0x1b01`** ([TESTNET.md](TESTNET.md)). Prefer **`boing_getNetworkInfo`**.`chain_id` when you already use JSON-RPC. |
+| **Token form** | Name, symbol, supply → factory/constructor | **Same visible fields** (no supply in pinned template’s first tx — admin **`mint_first`** after deploy per [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md)). |
+| **Build deploy payload** | ABI-encoded constructor + factory | **One call:** **`buildReferenceFungibleDeployMetaTx({ assetName, assetSymbol })`** — bundles **`resolveReferenceFungibleTemplateBytecodeHex`** + **`buildContractDeployMetaTx`**. NFT collections: **`buildReferenceNftCollectionDeployMetaTx`** (requires env or **`bytecodeHexOverride`**). |
+| **Review / QA** | Simulation / gas | **`preflightContractDeployMetaWithUi(client, tx)`** or **`buildAndPreflightReferenceFungibleDeploy(client, { assetName, assetSymbol })`** — runs **`boing_qaCheck`** and returns **`{ qa, ui }`** with **`ui.headline`**, **`ui.detail`**, **`ui.readyToSign`**, **`ui.tone`** for banners and primary-button state. Lower-level: **`preflightContractDeployMetaQa`** + **`describeContractDeployMetaQaResponse(qa)`**. Handle **`unsure`** like pool acknowledgement ([QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md)). |
+| **Submit** | `eth_sendTransaction` | **`boing_sendTransaction`** with the **`contract_deploy_meta`** object (no bincode in the browser). |
+
+**Minimal browser sequence (fungible):**
+
+```ts
+import {
+  buildAndPreflightReferenceFungibleDeploy,
+  createClient,
+} from 'boing-sdk';
+
+const client = createClient(rpcUrl);
+const { tx, ui } = await buildAndPreflightReferenceFungibleDeploy(client, {
+  assetName: values.name,
+  assetSymbol: values.symbol,
+});
+
+if (!ui.readyToSign) {
+  // reject: show ui.headline + ui.detail (includes rule / message when present)
+  return;
+}
+if (ui.tone === 'warning') {
+  // unsure: explain community QA pool (ui.detail) before sign
+}
+
+await provider.request({ method: 'boing_sendTransaction', params: [tx] });
+```
+
+**Equivalent (manual build + preflight):** `buildReferenceFungibleDeployMetaTx` → `preflightContractDeployMetaWithUi(client, tx)` or `preflightContractDeployMetaQa` + `describeContractDeployMetaQaResponse`.
+
+Keep **paste bytecode** / **description_hash** under **Advanced** only — same mental model as EVM “custom bytecode” toggles.
 
 ---
 

@@ -22,6 +22,34 @@ name = "dump_native_amm_pool"
 path = "examples/dump_native_amm_pool.rs"
 
 [[example]]
+name = "dump_native_dex_factory"
+path = "examples/dump_native_dex_factory.rs"
+
+[[example]]
+name = "dump_native_dex_ledger_router"
+path = "examples/dump_native_dex_ledger_router.rs"
+
+[[example]]
+name = "dump_native_dex_ledger_router_v2"
+path = "examples/dump_native_dex_ledger_router_v2.rs"
+
+[[example]]
+name = "dump_native_dex_ledger_router_v3"
+path = "examples/dump_native_dex_ledger_router_v3.rs"
+
+[[example]]
+name = "dump_native_dex_swap2_router"
+path = "examples/dump_native_dex_swap2_router.rs"
+
+[[example]]
+name = "dump_native_amm_lp_vault"
+path = "examples/dump_native_amm_lp_vault.rs"
+
+[[example]]
+name = "dump_native_lp_share_token"
+path = "examples/dump_native_lp_share_token.rs"
+
+[[example]]
 name = "dump_reference_token_artifacts"
 path = "examples/dump_reference_token_artifacts.rs"
 

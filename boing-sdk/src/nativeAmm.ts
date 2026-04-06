@@ -15,6 +15,10 @@ export const SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY = 0x12;
 export const SELECTOR_NATIVE_AMM_SET_TOKENS = 0x13;
 /** **v3/v4 pool:** `set_swap_fee_bps(fee)` — **64-byte** calldata; only when **total LP == 0**; **`1 ≤ fee ≤ 10_000`**. */
 export const SELECTOR_NATIVE_AMM_SET_SWAP_FEE_BPS = 0x14;
+/** **v5 pool:** `swap_to` — like `swap` plus **word4** = output recipient (**160-byte** calldata). */
+export const SELECTOR_NATIVE_AMM_SWAP_TO = 0x15;
+/** **v5 pool:** `remove_liquidity_to` — like `remove_liquidity` plus **recipient_a** / **recipient_b** (**192-byte** calldata). */
+export const SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY_TO = 0x16;
 
 /** Swap fee in basis points on **output** (matches `native_amm::NATIVE_CP_SWAP_FEE_BPS`). */
 export const NATIVE_CP_SWAP_FEE_BPS = 30;
@@ -72,7 +76,26 @@ export function encodeNativeAmmSwapCalldata(direction: bigint, amountIn: bigint,
   return out;
 }
 
-/** 128-byte `add_liquidity` calldata. */
+/** **160-byte** `swap_to` calldata (v5 pool): explicit **output recipient** for token `transfer`. */
+export function encodeNativeAmmSwapToCalldata(
+  direction: bigint,
+  amountIn: bigint,
+  minOut: bigint,
+  recipientHex32: string
+): Uint8Array {
+  const out = new Uint8Array(160);
+  out.set(selectorWord(SELECTOR_NATIVE_AMM_SWAP_TO), 0);
+  out.set(amountWord(direction), 32);
+  out.set(amountWord(amountIn), 64);
+  out.set(amountWord(minOut), 96);
+  out.set(hexToBytes(validateHex32(recipientHex32)), 128);
+  return out;
+}
+
+/**
+ * 128-byte `add_liquidity` calldata. On success the pool **returns** **32** bytes: LP minted in this
+ * call as **u128** in the **low 16 bytes** of the word (big-endian word; value in bytes 16..32).
+ */
 export function encodeNativeAmmAddLiquidityCalldata(
   amountA: bigint,
   amountB: bigint,
@@ -100,6 +123,24 @@ export function encodeNativeAmmRemoveLiquidityCalldata(
   return out;
 }
 
+/** **192-byte** `remove_liquidity_to` (v5 pool): explicit **recipient_a** / **recipient_b** for reference-token `transfer`. */
+export function encodeNativeAmmRemoveLiquidityToCalldata(
+  liquidityBurn: bigint,
+  minA: bigint,
+  minB: bigint,
+  recipientAHex32: string,
+  recipientBHex32: string
+): Uint8Array {
+  const out = new Uint8Array(192);
+  out.set(selectorWord(SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY_TO), 0);
+  out.set(amountWord(liquidityBurn), 32);
+  out.set(amountWord(minA), 64);
+  out.set(amountWord(minB), 96);
+  out.set(hexToBytes(validateHex32(recipientAHex32)), 128);
+  out.set(hexToBytes(validateHex32(recipientBHex32)), 160);
+  return out;
+}
+
 /** **v2:** 96-byte `set_tokens` — each id is 32-byte account hex (`0x` + 64 hex). Use `0x` + 64 zeros for “no token” on that side. */
 export function encodeNativeAmmSetTokensCalldata(tokenAHex32: string, tokenBHex32: string): Uint8Array {
   const out = new Uint8Array(96);
@@ -124,6 +165,15 @@ export function encodeNativeAmmSwapCalldataHex(direction: bigint, amountIn: bigi
   return bytesToHex(encodeNativeAmmSwapCalldata(direction, amountIn, minOut));
 }
 
+export function encodeNativeAmmSwapToCalldataHex(
+  direction: bigint,
+  amountIn: bigint,
+  minOut: bigint,
+  recipientHex32: string
+): string {
+  return bytesToHex(encodeNativeAmmSwapToCalldata(direction, amountIn, minOut, recipientHex32));
+}
+
 export function encodeNativeAmmAddLiquidityCalldataHex(
   amountA: bigint,
   amountB: bigint,
@@ -138,6 +188,18 @@ export function encodeNativeAmmRemoveLiquidityCalldataHex(
   minB: bigint
 ): string {
   return bytesToHex(encodeNativeAmmRemoveLiquidityCalldata(liquidityBurn, minA, minB));
+}
+
+export function encodeNativeAmmRemoveLiquidityToCalldataHex(
+  liquidityBurn: bigint,
+  minA: bigint,
+  minB: bigint,
+  recipientAHex32: string,
+  recipientBHex32: string
+): string {
+  return bytesToHex(
+    encodeNativeAmmRemoveLiquidityToCalldata(liquidityBurn, minA, minB, recipientAHex32, recipientBHex32)
+  );
 }
 
 export function encodeNativeAmmSetTokensCalldataHex(tokenAHex32: string, tokenBHex32: string): string {

@@ -47,6 +47,7 @@ const ZERO_ARG = {
   jump: 0x56,
   jumpi: 0x57,
   call: 0xf1,
+  create2: 0xf5,
   return: 0xf3,
 };
 

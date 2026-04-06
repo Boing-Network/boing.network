@@ -151,3 +151,65 @@ export function buildContractDeployMetaTx(input: {
   }
   return out;
 }
+
+export type BuildReferenceFungibleDeployMetaTxInput = {
+  assetName: string;
+  assetSymbol: string;
+  purposeCategory?: string;
+  descriptionHashHex?: string;
+  /** Override pinned template (advanced); default uses {@link resolveReferenceFungibleTemplateBytecodeHex}. */
+  bytecodeHexOverride?: string;
+  extraEnvKeys?: readonly string[];
+};
+
+/**
+ * **One call** for wizard-style **Deploy token** on Boing: resolve pinned fungible bytecode + build **`contract_deploy_meta`**.
+ * Pass the result to **`boing_sendTransaction`** / **`boing_signTransaction`** (Boing Express).
+ */
+export function buildReferenceFungibleDeployMetaTx(
+  input: BuildReferenceFungibleDeployMetaTxInput,
+): ContractDeployMetaTxObject {
+  const bytecodeHex = input.bytecodeHexOverride?.trim()
+    ? ensure0xHex(input.bytecodeHexOverride)
+    : resolveReferenceFungibleTemplateBytecodeHex({ extraEnvKeys: input.extraEnvKeys });
+  return buildContractDeployMetaTx({
+    bytecodeHex,
+    assetName: input.assetName,
+    assetSymbol: input.assetSymbol,
+    purposeCategory: input.purposeCategory,
+    descriptionHashHex: input.descriptionHashHex,
+  });
+}
+
+export type BuildReferenceNftCollectionDeployMetaTxInput = {
+  collectionName: string;
+  collectionSymbol: string;
+  purposeCategory?: string;
+  descriptionHashHex?: string;
+  bytecodeHexOverride?: string;
+  extraEnvKeys?: readonly string[];
+};
+
+/**
+ * **One call** for **native NFT collection** deploy meta tx. Requires pinned collection bytecode
+ * (env or **`bytecodeHexOverride`**); throws a clear error if unresolved — same constraint as manual **`resolve` + `build`**.
+ */
+export function buildReferenceNftCollectionDeployMetaTx(
+  input: BuildReferenceNftCollectionDeployMetaTxInput,
+): ContractDeployMetaTxObject {
+  const bytecodeHex = input.bytecodeHexOverride?.trim()
+    ? ensure0xHex(input.bytecodeHexOverride)
+    : resolveReferenceNftCollectionTemplateBytecodeHex({ extraEnvKeys: input.extraEnvKeys });
+  if (!bytecodeHex) {
+    throw new Error(
+      'buildReferenceNftCollectionDeployMetaTx: no collection bytecode — set BOING_REFERENCE_NFT_COLLECTION_TEMPLATE_BYTECODE_HEX (or VITE_/REACT_APP_ variant), or pass bytecodeHexOverride',
+    );
+  }
+  return buildContractDeployMetaTx({
+    bytecodeHex,
+    assetName: input.collectionName,
+    assetSymbol: input.collectionSymbol,
+    purposeCategory: input.purposeCategory ?? 'nft',
+    descriptionHashHex: input.descriptionHashHex,
+  });
+}

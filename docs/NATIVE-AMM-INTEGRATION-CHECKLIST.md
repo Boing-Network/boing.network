@@ -17,7 +17,7 @@ This is the **end-to-end** work list to go from “AMM as a pattern on paper” 
 ## Phase 1 — On-chain artifacts (Boing VM)
 
 - [x] **A1.1** — **Reference pool bytecode** in `crates/boing-execution/src/native_amm.rs` (`constant_product_pool_bytecode`): u64 reserve / amount ledger, `swap` (with **30 bps output-side fee** — [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) § Swap fee), `add_liquidity` / `remove_liquidity` with **LP share** accounting (`total_lp_supply_key`, per-signer XOR key). **VM:** **`Mul` (`0x03`)** is **256×256 → 256** (low limb; `TECHNICAL-SPECIFICATION.md` §7.2); nested **`Call` (`0xf1`)** for arbitrary contracts. **v2** pool wires reference-token **`CALL`**. **Still open:** optional fee governance / adjustable **bps** in a future pool revision.
-- [x] **A1.2** — **Factory skipped for MVP:** fixed pool **`AccountId`** via config / env (see [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) § Frozen MVP scope).
+- [x] **A1.2** — **Factory skipped for single-pool MVP:** fixed pool **`AccountId`** via config / env (see [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) § Frozen MVP scope). **Optional in-repo:** native **pair directory** + SDK discovery helpers ([NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md), [BOING-NATIVE-DEX-CAPABILITY.md](BOING-NATIVE-DEX-CAPABILITY.md); tutorial **`deploy-native-dex-directory`**) — does not replace the canonical configured pool path for **boing.finance** until product wires directory ids.
 - [x] **A1.3** — VM integration in `boing-execution` + **node RPC** test `native_amm_rpc_happy_path` (deploy → add → swap → remove; **`boing_getTransactionReceipt`** `logs` + **`boing_getLogs`** topic filter; reserves + **total LP**).
 - [x] **A1.4** — **CI:** `constant_product_pool_bytecode_passes_protocol_qa` and v2 twin in `boing-execution`. Operators run **`boing_qaCheck`** against the **v1 or v2 line from `dump_native_amm_pool`** before production deploys.
 - [x] **A1.5** — **Procedure:** pool id is **operator-published**; dApps set **`boingCanonicalTestnetPool.js`** / **`REACT_APP_BOING_NATIVE_AMM_POOL`** / `nativeConstantProductPool`. **OPS-1:** Canonical testnet hex **`0xffaa1290614441902ba813bf3bd8bf057624e0bd4f16160a9d32cd65d3f4d0c2`** is in [RPC-API-SPEC.md](RPC-API-SPEC.md) + [TESTNET.md](TESTNET.md) §5.3 ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published, **2026-04-03**). Align **boing.finance** env.
@@ -36,7 +36,7 @@ This is the **end-to-end** work list to go from “AMM as a pattern on paper” 
 
 - [x] **A3.1** — **`boing_getTransactionReceipt`:** `success`, `error`, `return_data`, `logs` per [RPC-API-SPEC.md](RPC-API-SPEC.md) — sufficient for failed swap diagnostics.
 - [x] **A3.2** — **Canonical MVP path:** **configured pool id** + **`boing_getContractStorage`** for reserves (and optionally **total LP** / signer **LP balance** — [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) § Contract storage). **Events:** filter **`boing_getLogs`** / tx receipts by pool address + **`NATIVE_AMM_TOPIC_*`** ([NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) § Logs; [Track R10](EXECUTION-PARITY-TASK-LIST.md)).
-- [x] **A3.3** — **Documented default:** no separate HTTP service — use **`boing_getContractStorage`** (×2 for reserves) or JSON-RPC batch; see [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) § Pool metadata without a separate HTTP API. **Still open:** optional subgraph / REST if product needs multi-pool discovery.
+- [x] **A3.3** — **Documented default:** no separate HTTP service — use **`boing_getContractStorage`** (×2 for reserves) or JSON-RPC batch; see [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) § Pool metadata without a separate HTTP API. **In-repo:** pair directory + **`findNativeDexFactoryPoolByTokens`** / **`Log3`** ([NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md)). **Still optional at scale:** subgraph / REST / observer catalog if product needs discovery without RPC scans.
 
 ---
 
@@ -69,6 +69,17 @@ This is the **end-to-end** work list to go from “AMM as a pattern on paper” 
 
 ---
 
+## Phase 7 — LP share token + LP vault (optional product path)
+
+Vault + share bytecode live in **`boing-execution`**; not required for bare CP pool swaps. Use when integrators want **transferable vault shares** instead of raw pool LP keys.
+
+- [x] **A7.1** — **Spec:** [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md), [NATIVE-AMM-LP-VAULT.md](NATIVE-AMM-LP-VAULT.md) (selectors, access lists, CREATE2 dump commands).
+- [x] **A7.2** — **`boing-sdk`:** `nativeLpShareToken.ts` encoders + **`buildLpShareTokenAccessList`** / **`buildLpShareTokenContractCallTx`** / **`mergeLpShareTokenAccessListWithSimulation`**; `nativeAmmLpVault.ts` configure / `deposit_add` + merge helpers; **`BoingReferenceCallDescriptors`** entries in `callAbi.ts`.
+- [x] **A7.3** — **Tutorial CLI:** [examples/native-boing-tutorial/README.md](../examples/native-boing-tutorial/README.md) §7f–§7i (`native-amm-lp-vault-*`, `native-lp-share-*` **`npm run`** scripts).
+- [ ] **A7.4** — **boing.finance / partner UI:** surface vault **`deposit_add`** + share **`transfer`** only if product ships that flow (pool-only MVP unchanged). **Tracked in partner repos** (e.g. **boing.finance**), not in **boing.network**.
+
+---
+
 ## Quick dependency graph
 
 ```mermaid
@@ -81,6 +92,8 @@ flowchart LR
   A4 --> A5
   A3 --> A5
   A5 --> A6[Phase 6 hardening]
+  A1 --> A7[Phase 7 vault + share]
+  A2 --> A7
 ```
 
 ---
@@ -96,9 +109,13 @@ flowchart LR
 | [EXECUTION-PARITY-TASK-LIST.md](EXECUTION-PARITY-TASK-LIST.md) | VM / receipts / logs foundation |
 | [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md) | Manual Boing Express + boing.finance swap smoke (**A4.3**) |
 | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) | **OPS-1** published (**2026-04-03**); checklist for **future** pool rotations |
+| [NATIVE-AMM-LP-VAULT.md](NATIVE-AMM-LP-VAULT.md) | Vault **`configure`** / **`deposit_add`**; tutorial §7f–§7g |
+| [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md) | Share **`mint`** / **`transfer`** / **`set_minter_once`**; tutorial §7h–§7i |
+| [BOING-NATIVE-DEX-CAPABILITY.md](BOING-NATIVE-DEX-CAPABILITY.md) | Native DEX surface (directory, routers, multihop) vs EVM |
+| [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) | Pair directory; tutorial **`deploy-native-dex-directory`** (§7c2) |
 
 ---
 
 ## Suggested next concrete artifact
 
-**Calldata + bytecode:** [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). **Done in-repo:** **NAMM-1**–**3** (LP, fee, **`Log2`**) + **NAMM-4** (**v2** token `CALL`s, **`set_tokens`**, **`NATIVE_CP_POOL_CREATE2_SALT_V2`**). **Next:** **OPS-1** hex is live (**v1** pool **`0xffaa…d0c2`**); keep **boing.finance** in sync. **E2E-1:** [examples/native-boing-playwright](../examples/native-boing-playwright/). Indexers: **`nativeAmmLogs`** + **`boing_getLogs`**. RPC coverage: `native_amm_rpc_happy_path`.
+**Calldata + bytecode:** [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). **Done in-repo:** **NAMM-1**–**3** (LP, fee, **`Log2`**) + **NAMM-4** (**v2** token `CALL`s, **`set_tokens`**, **`NATIVE_CP_POOL_CREATE2_SALT_V2`**) + **Phase 7** SDK + tutorial (**A7.1**–**A7.3**). **OPS-1:** canonical pool **`0xffaa…d0c2`** is in [RPC-API-SPEC.md](RPC-API-SPEC.md), [TESTNET.md](TESTNET.md), **`boing-sdk`** **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**, and **`website/src/config/testnet.ts`** — verify **boing.finance** env separately (**A7.4**). **E2E-1:** [examples/native-boing-playwright](../examples/native-boing-playwright/) (public project includes tutorial README wiring check). Indexers: **`nativeAmmLogs`** + **`boing_getLogs`**. RPC coverage: `native_amm_rpc_happy_path` (add_liquidity **`return_data`** decode).

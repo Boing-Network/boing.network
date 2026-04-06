@@ -14,7 +14,6 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use boing_node::{faucet, logging, node, rpc, security};
 use boing_primitives::{Account, AccountState};
-use boing_qa;
 use boing_tokenomics::BLOCK_TIME_SECS;
 
 const SYNC_INTERVAL_SECS: u64 = 2;

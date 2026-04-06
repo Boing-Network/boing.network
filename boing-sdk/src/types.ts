@@ -2,9 +2,6 @@
  * Types for Boing RPC results and params.
  */
 
-/** Chain height (block number). */
-export type ChainHeight = number;
-
 /** Effective limits advertised in `boing_health` / `boing_getNetworkInfo.rpc_surface` (mirrors node env / config). */
 export interface BoingHealthRpcSurface {
   /** Max JSON-RPC batch length (`BOING_RPC_MAX_BATCH`, capped). */
