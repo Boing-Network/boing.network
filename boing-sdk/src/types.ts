@@ -133,6 +133,10 @@ export interface NetworkEndUserHints {
   chain_display_name: string | null;
   explorer_url: string | null;
   faucet_url: string | null;
+  /** Set on the node via **`BOING_CANONICAL_NATIVE_CP_POOL`** — canonical native CP pool `AccountId` (32-byte hex). */
+  canonical_native_cp_pool?: string | null;
+  /** Set on the node via **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** — pair-directory contract `AccountId`. */
+  canonical_native_dex_factory?: string | null;
 }
 
 /** Serializable snapshot for pinning “this is network X” in CI or local dev. */

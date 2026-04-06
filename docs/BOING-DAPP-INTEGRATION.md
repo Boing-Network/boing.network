@@ -39,12 +39,19 @@ Short checklist for web apps that want **Boing L1** behavior without assuming a 
 For **chain 6913** swaps against the **in-ledger** constant-product pool (not a foreign-chain router/factory deployment):
 
 - **Accounts are 32-byte** Boing `AccountId`s (`0x` + 64 hex). Do not treat them as 20-byte contract addresses or feed them into tooling that assumes that shape.
-- **Pool id** is **not** fixed in the RPC layer — configure the deployed pool address in your app (see [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM). **Public testnet** canonical pool: **`0xffaa1290614441902ba813bf3bd8bf057624e0bd4f16160a9d32cd65d3f4d0c2`** ([TESTNET.md](TESTNET.md) §5.3). Optional: **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** from **`boing-sdk`**. Pool rotations: [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md).
+- **Pool id:** Prefer **`fetchNativeDexIntegrationDefaults(client)`** from **`boing-sdk`** — it uses **`end_user.canonical_native_cp_pool`** from the node when set (**`BOING_CANONICAL_NATIVE_CP_POOL`**), else the embedded **6913** mirror **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**, else your overrides. See [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM and [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) for rotations.
 - Build **`contract_call`** with **`calldata`** per [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) and an explicit **`access_list`** (`read` / `write`: signer + pool for the current MVP bytecode).
 - **Pre-flight:** either rely on **`boing_sendTransaction`** (wallet may simulate internally), or follow **boing.finance** / **`boing-sdk`** pattern: **`boing_signTransaction`** → **`boing_simulateTransaction`**; if **`access_list_covers_suggestion`** is `false`, merge **`suggested_access_list`** and **sign again** (users may see a second approval in the extension).
 - **Reserves:** read pool storage via **`boing_getContractStorage`** using keys from the native AMM spec (`boing-sdk`: **`fetchNativeConstantProductReserves`**, **`NATIVE_CONSTANT_PRODUCT_RESERVE_A_KEY_HEX`**, **`NATIVE_CONSTANT_PRODUCT_RESERVE_B_KEY_HEX`**), or your indexer once the pool emits logs.
 - **Regression reference:** `cargo test -p boing-node --test native_amm_rpc_happy_path` (deploy → add liquidity → swap over JSON-RPC).
 - **Browser smoke:** [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md) (Boing Express + boing.finance).
+
+### Native DEX: defaults, directory logs, injected wallet
+
+- **RPC-published addresses:** Operators can set **`BOING_CANONICAL_NATIVE_CP_POOL`** and **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** so **`boing_getNetworkInfo`**.**`end_user`** carries **`canonical_native_cp_pool`** / **`canonical_native_dex_factory`** — clients stop hardcoding pool/factory hex when pointed at that RPC ([RPC-API-SPEC.md](RPC-API-SPEC.md), [RUNBOOK.md](RUNBOOK.md)).
+- **One SDK merge:** **`mergeNativeDexIntegrationDefaults(networkInfo, overrides?)`** or **`fetchNativeDexIntegrationDefaults(client, overrides?)`** returns **`nativeCpPoolAccountHex`**, **`nativeDexFactoryAccountHex`**, and **`poolSource` / `factorySource`** (`rpc_end_user` | `sdk_testnet_embedded` | `override` | `none`) for UI badges and calldata builders.
+- **Indexer-style `register_pair` scan:** **`fetchNativeDexFactoryRegisterLogs(client, { factoryAccountHex, fromBlock, toBlock })`** wraps chunked **`boing_getLogs`** + **`tryParseNativeDexFactoryRegisterRpcLogEntry`** ([NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md)).
+- **Injected provider glue:** **`getInjectedEip1193Provider()`** (prefers **`window.boing`**, then **`window.ethereum`**), **`providerSupportsBoingNativeRpc`**, **`boingSendTransaction`**, **`requestAccounts`**, **`readChainIdHex`** — thin wrappers over **`boing_*`** / **`eth_*`** methods so multi-wallet UIs stay small.
 
 ---
 

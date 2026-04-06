@@ -52,6 +52,8 @@ export { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX } from './defaultRefer
 export { REFERENCE_FUNGIBLE_TEMPLATE_ARTIFACT_ID, REFERENCE_FUNGIBLE_TEMPLATE_VERSION, REFERENCE_NFT_COLLECTION_TEMPLATE_ARTIFACT_ID, REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION, ensure0xHex, resolveReferenceFungibleTemplateBytecodeHex, resolveReferenceNftCollectionTemplateBytecodeHex, buildContractDeployMetaTx, buildReferenceFungibleDeployMetaTx, buildReferenceNftCollectionDeployMetaTx, } from './canonicalDeployArtifacts.js';
 export { BOING_TESTNET_CHAIN_ID_DECIMAL, BOING_TESTNET_CHAIN_ID_HEX, normalizeBoingChainIdHex, isBoingTestnetChainId, } from './chainIds.js';
 export { BOING_QA_PLACEHOLDER_DESCRIPTION_HASH_HEX, preflightContractDeployMetaQa, describeContractDeployMetaQaResponse, preflightContractDeployMetaWithUi, buildAndPreflightReferenceFungibleDeploy, buildAndPreflightReferenceNftCollectionDeployMeta, } from './dappDeploy.js';
+export { mergeNativeDexIntegrationDefaults, fetchNativeDexIntegrationDefaults, fetchNativeDexFactoryRegisterLogs, } from './dexIntegration.js';
+export { getInjectedEip1193Provider, providerSupportsBoingNativeRpc, boingSendTransaction, requestAccounts, readChainIdHex, } from './walletProvider.js';
 /**
  * Create a Boing RPC client.
  * @param config - Node URL string (e.g. "http://localhost:8545") or config object (baseUrl, fetch?, timeoutMs?, maxRetries?, …).

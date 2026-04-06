@@ -602,6 +602,31 @@ fn well_known_boing_rpc_document() -> serde_json::Value {
     })
 }
 
+/// Optional 32-byte `AccountId` from env for **`boing_getNetworkInfo.end_user`** (lowercase `0x` + 64 hex).
+/// Malformed values are logged and ignored so a typo does not break JSON-RPC.
+fn env_optional_account_id_hex(var: &'static str) -> Option<String> {
+    let Ok(raw) = std::env::var(var) else {
+        return None;
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let body = trimmed
+        .strip_prefix("0x")
+        .or_else(|| trimmed.strip_prefix("0X"))
+        .unwrap_or(trimmed);
+    if body.len() != 64 || !body.chars().all(|c| c.is_ascii_hexdigit()) {
+        tracing::warn!(
+            %var,
+            value = %trimmed,
+            "invalid 32-byte hex AccountId for network hints; expected 64 hex chars (optional 0x prefix)"
+        );
+        return None;
+    }
+    Some(format!("0x{}", body.to_ascii_lowercase()))
+}
+
 fn end_user_network_hints() -> serde_json::Value {
     let chain_display_name = std::env::var("BOING_CHAIN_DISPLAY_NAME")
         .ok()
@@ -619,6 +644,8 @@ fn end_user_network_hints() -> serde_json::Value {
         "chain_display_name": chain_display_name,
         "explorer_url": explorer_url,
         "faucet_url": faucet_url,
+        "canonical_native_cp_pool": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_CP_POOL"),
+        "canonical_native_dex_factory": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_DEX_FACTORY"),
     })
 }
 

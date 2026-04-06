@@ -504,6 +504,22 @@ export {
   type BuildAndPreflightReferenceFungibleResult,
   type BuildAndPreflightReferenceNftCollectionResult,
 } from './dappDeploy.js';
+export {
+  mergeNativeDexIntegrationDefaults,
+  fetchNativeDexIntegrationDefaults,
+  fetchNativeDexFactoryRegisterLogs,
+  type NativeDexIntegrationDefaults,
+  type NativeDexIntegrationOverrides,
+  type NativeDexDefaultSource,
+} from './dexIntegration.js';
+export {
+  getInjectedEip1193Provider,
+  providerSupportsBoingNativeRpc,
+  boingSendTransaction,
+  requestAccounts,
+  readChainIdHex,
+  type Eip1193Requester,
+} from './walletProvider.js';
 
 /**
  * Create a Boing RPC client.

@@ -106,6 +106,8 @@ If **`boing_chainHeight`** works but other **`boing_*`** calls return **`-32601`
 
 **Public RPC — chain id for dApps:** Set environment **`BOING_CHAIN_ID=6913`** and **`BOING_CHAIN_NAME=Boing Testnet`** on the **`boing-node`** process so **`boing_getNetworkInfo`** returns them (matches wallet **`boing_chainId`** **`0x1b01`**). Copy-paste template: [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example). Wallets can still use a fixed chain id from app config when the field is **`null`**.
 
+**Canonical native DEX addresses (optional, recommended for public RPC):** Set **`BOING_CANONICAL_NATIVE_CP_POOL`** and **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** to the **32-byte `AccountId` hex** (64 hex chars, optional **`0x`**) for the operator’s canonical constant-product pool and pair-directory contract. They appear under **`boing_getNetworkInfo`**.**`end_user`** so dApps can call **`fetchNativeDexIntegrationDefaults`** without shipping pool/factory constants ([RPC-API-SPEC.md](RPC-API-SPEC.md), [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md)).
+
 ---
 
 ## 3. RPC Endpoints

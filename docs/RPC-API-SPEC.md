@@ -73,6 +73,8 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 | **`BOING_CHAIN_DISPLAY_NAME`** | Optional wallet-facing display string in **`end_user.chain_display_name`** (does not replace **`chain_name`**). |
 | **`BOING_EXPLORER_URL`** | Optional block explorer base URL in **`end_user.explorer_url`**. |
 | **`BOING_FAUCET_URL`** | Optional faucet URL in **`end_user.faucet_url`**. |
+| **`BOING_CANONICAL_NATIVE_CP_POOL`** | Optional 32-byte **`AccountId`** hex (with or without **`0x`**) in **`end_user.canonical_native_cp_pool`** — public RPC operators publish the canonical native constant-product pool so dApps need not hardcode it ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md)). Invalid values are ignored with a warning in node logs. |
+| **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** | Optional pair-directory contract **`AccountId`** in **`end_user.canonical_native_dex_factory`** for default **`boing_getContractStorage`** / **`boing_getLogs`** wiring. |
 
 **`rpc_surface` on `boing_getNetworkInfo`:** mirrors **`boing_health.rpc_surface`** (batch cap, body limit, **`boing_getLogs`** bounds, WS cap, rate limit, ready peer gate).
 
@@ -367,6 +369,13 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
       "response_header_rpc_version": "x-boing-rpc-version"
     }
   },
+  "end_user": {
+    "chain_display_name": "Boing Testnet",
+    "explorer_url": null,
+    "faucet_url": null,
+    "canonical_native_cp_pool": "0xffaa1290614441902ba813bf3bd8bf057624e0bd4f16160a9d32cd65d3f4d0c2",
+    "canonical_native_dex_factory": null
+  },
   "rpc": {
     "not_available": ["staking_apy"],
     "not_available_note": "…"
@@ -374,6 +383,7 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
 }
 ```
 
+- **`end_user`:** Wallet-facing strings and optional **`canonical_native_cp_pool`** / **`canonical_native_dex_factory`** (32-byte hex) when operators set **`BOING_CANONICAL_NATIVE_CP_POOL`** / **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** — lets dApps default swap and pair-directory wiring without hardcoding ([dApp network discovery](#dapp-network-discovery)).
 - **`chain_id` / `chain_name`:** From **`BOING_CHAIN_ID`** / **`BOING_CHAIN_NAME`** when set on the node process; **`chain_id`** is **`null`** when not configured.
 - **`validator_count`:** Size of this node’s in-process validator set (HotStuff BFT); not a network-wide discovery endpoint for all operators.
 - **`native_currency.decimals`:** Display hint for integrators; balances on **`boing_getBalance`** / **`boing_getAccount`** are still whole-unit u128 strings per those methods.
