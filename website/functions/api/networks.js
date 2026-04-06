@@ -34,6 +34,9 @@ function isAllowedDownloadUrl(urlString) {
   }
 }
 
+/** Canonical GitHub org/repo for protocol releases and docs (align with VibeMiner `patchBlockchainNetworkJsonForBoing`). */
+const CANONICAL_GH_REPO = 'Boing-Network/boing.network';
+
 /** Pinned testnet tag for official zips (keep in sync with VibeMiner `BOING_TESTNET_DEFAULT_DOWNLOAD_TAG`). */
 const BOING_TESTNET_DOWNLOAD_TAG = 'testnet-v0.1.7';
 
@@ -46,15 +49,41 @@ const BOING_ZIP_SHA = {
 
 const STALE_TESTNET_TAG_RE = /\/download\/(testnet-v0\.1\.(?:0|1|2|3|4|5|6))\//;
 
+function githubBlobMain(docPath) {
+  return `https://github.com/${CANONICAL_GH_REPO}/blob/main/${docPath}`;
+}
+
 /**
- * Upgrade older chiku524/boing.network testnet release URLs to `BOING_TESTNET_DOWNLOAD_TAG`
+ * Normalize legacy **`chiku524/boing.network`** (or mixed-case **`Boing-Network`**) GitHub URLs to **`CANONICAL_GH_REPO`**.
+ * Only touches **`github.com`** paths whose repo segment is **`boing.network`** and owner is a known official alias.
+ */
+function canonicalizeOfficialBoingGithubUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  try {
+    const u = new URL(url.trim());
+    if (u.protocol !== 'https:' || u.hostname.toLowerCase() !== 'github.com') return url;
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length < 2) return url;
+    const [owner, repo, ...rest] = parts;
+    if (repo.toLowerCase() !== 'boing.network') return url;
+    if (!/^chiku524$/i.test(owner) && !/^boing-network$/i.test(owner)) return url;
+    u.pathname = `/${['Boing-Network', 'boing.network', ...rest].join('/')}`;
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Upgrade older official testnet release URLs (any normalized owner) to `BOING_TESTNET_DOWNLOAD_TAG`
  * (keeps SHA256 in sync when rewriting).
  */
 function maybeUpgradeStaleOfficialBoingZipUrl(url) {
   if (!url || typeof url !== 'string') return null;
-  if (!url.includes('github.com/chiku524/boing.network/releases/download/')) return null;
-  if (!STALE_TESTNET_TAG_RE.test(url)) return null;
-  const next = url.replace(STALE_TESTNET_TAG_RE, `/download/${BOING_TESTNET_DOWNLOAD_TAG}/`);
+  const canonical = canonicalizeOfficialBoingGithubUrl(url);
+  if (!canonical.includes('github.com/Boing-Network/boing.network/releases/download/')) return null;
+  if (!STALE_TESTNET_TAG_RE.test(canonical)) return null;
+  const next = canonical.replace(STALE_TESTNET_TAG_RE, `/download/${BOING_TESTNET_DOWNLOAD_TAG}/`);
   let sha256 = BOING_ZIP_SHA.windows;
   if (next.includes('release-linux-x86_64')) sha256 = BOING_ZIP_SHA.linux;
   else if (next.includes('release-macos-aarch64')) sha256 = BOING_ZIP_SHA.macos;
@@ -90,18 +119,13 @@ function buildNetworksMeta() {
       wallet_url: 'https://boing.express',
       explorer_url: 'https://boing.observer',
       website_url: DEVNET_BASE.website,
-      wallet_docs:
-        'https://github.com/chiku524/boing.network/blob/main/docs/BOING-EXPRESS-WALLET.md',
-      explorer_and_wallet_spec:
-        'https://github.com/chiku524/boing.network/blob/main/docs/BOING-OBSERVER-AND-EXPRESS.md',
-      three_codebase_alignment:
-        'https://github.com/chiku524/boing.network/blob/main/docs/THREE-CODEBASE-ALIGNMENT.md',
+      wallet_docs: githubBlobMain('docs/BOING-EXPRESS-WALLET.md'),
+      explorer_and_wallet_spec: githubBlobMain('docs/BOING-OBSERVER-AND-EXPRESS.md'),
+      three_codebase_alignment: githubBlobMain('docs/THREE-CODEBASE-ALIGNMENT.md'),
     },
     docs: {
-      vibeminer_integration:
-        'https://github.com/chiku524/boing.network/blob/main/docs/VIBEMINER-INTEGRATION.md',
-      pre_vibeminer_commands:
-        'https://github.com/chiku524/boing.network/blob/main/docs/PRE-VIBEMINER-NODE-COMMANDS.md',
+      vibeminer_integration: githubBlobMain('docs/VIBEMINER-INTEGRATION.md'),
+      pre_vibeminer_commands: githubBlobMain('docs/PRE-VIBEMINER-NODE-COMMANDS.md'),
     },
   };
 }
@@ -140,6 +164,8 @@ function mergeListing(base, row) {
   if (upgraded) {
     url = upgraded.url;
     sha = upgraded.sha256;
+  } else {
+    url = canonicalizeOfficialBoingGithubUrl(url);
   }
 
   if (url && isAllowedDownloadUrl(url)) {

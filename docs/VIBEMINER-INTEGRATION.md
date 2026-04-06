@@ -114,6 +114,8 @@ Boing exposes a small JSON list for node runners (used alongside `@vibeminer/sha
 | **`docs`** | URLs to this file and [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md). |
 | **`ecosystem`** | Canonical **`wallet_url`** (boing.express), **`explorer_url`** (boing.observer), **`website_url`**, and GitHub links for [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md), [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md), [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md). Clients may surface these for “Get wallet” / “View explorer” without hard-coding domains. |
 
+**Canonical GitHub org in JSON:** [website/functions/api/networks.js](../website/functions/api/networks.js) normalizes official **`boing.network`** repo URLs in **`meta`** and in **`node_download_url`** (when D1 still stores legacy **`chiku524/boing.network`**) to **`Boing-Network/boing.network`**, so the live payload matches the canonical org without relying only on VibeMiner’s merge-time **`patchBlockchainNetworkJsonForBoing`**.
+
 **Maintainer sync:** Step-by-step checklist for the **VibeMiner** desktop repo is in **§6** below.
 
 **Refresh D1** after a new `boing-node` GitHub release tag (replace the tag with the one you published):

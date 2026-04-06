@@ -27,7 +27,8 @@ import { dirname, join } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEBSITE_ROOT = join(__dirname, '..');
 
-const OWNER_REPO = 'chiku524/boing.network';
+/** Canonical org/repo for GitHub API + download URLs (align with `functions/api/networks.js`). */
+const OWNER_REPO = 'Boing-Network/boing.network';
 /** Match `website/src/config/testnet.ts` default (duplicate multiaddr = intentional fallback). */
 const BOOTNODES_CLI = '/ip4/73.84.106.121/tcp/4001,/ip4/73.84.106.121/tcp/4001';
 const CMD_SUFFIX = `--data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes ${BOOTNODES_CLI} --rpc-port 8545 --faucet-enable`;
