@@ -513,6 +513,17 @@ export {
   type NativeDexDefaultSource,
 } from './dexIntegration.js';
 export {
+  nativeDexPairKey,
+  buildNativeDexRegisterLogPoolIndex,
+  pickNativeDexPoolFromRegisterLogs,
+  fetchNativeDexDirectorySnapshot,
+  resolveNativeDexPoolForTokens,
+  type NativeDexDirectorySnapshot,
+  type FetchNativeDexDirectorySnapshotOptions,
+  type ResolveNativeDexPoolForTokensResult,
+  type ResolveNativeDexPoolForTokensOptions,
+} from './nativeDexDirectory.js';
+export {
   getInjectedEip1193Provider,
   providerSupportsBoingNativeRpc,
   boingSendTransaction,

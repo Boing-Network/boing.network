@@ -53,6 +53,7 @@ export { REFERENCE_FUNGIBLE_TEMPLATE_ARTIFACT_ID, REFERENCE_FUNGIBLE_TEMPLATE_VE
 export { BOING_TESTNET_CHAIN_ID_DECIMAL, BOING_TESTNET_CHAIN_ID_HEX, normalizeBoingChainIdHex, isBoingTestnetChainId, } from './chainIds.js';
 export { BOING_QA_PLACEHOLDER_DESCRIPTION_HASH_HEX, preflightContractDeployMetaQa, describeContractDeployMetaQaResponse, preflightContractDeployMetaWithUi, buildAndPreflightReferenceFungibleDeploy, buildAndPreflightReferenceNftCollectionDeployMeta, } from './dappDeploy.js';
 export { mergeNativeDexIntegrationDefaults, fetchNativeDexIntegrationDefaults, fetchNativeDexFactoryRegisterLogs, } from './dexIntegration.js';
+export { nativeDexPairKey, buildNativeDexRegisterLogPoolIndex, pickNativeDexPoolFromRegisterLogs, fetchNativeDexDirectorySnapshot, resolveNativeDexPoolForTokens, } from './nativeDexDirectory.js';
 export { getInjectedEip1193Provider, providerSupportsBoingNativeRpc, boingSendTransaction, requestAccounts, readChainIdHex, } from './walletProvider.js';
 /**
  * Create a Boing RPC client.

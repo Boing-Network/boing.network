@@ -59,6 +59,7 @@ export { REFERENCE_FUNGIBLE_TEMPLATE_ARTIFACT_ID, REFERENCE_FUNGIBLE_TEMPLATE_VE
 export { BOING_TESTNET_CHAIN_ID_DECIMAL, BOING_TESTNET_CHAIN_ID_HEX, normalizeBoingChainIdHex, isBoingTestnetChainId, } from './chainIds.js';
 export { BOING_QA_PLACEHOLDER_DESCRIPTION_HASH_HEX, preflightContractDeployMetaQa, describeContractDeployMetaQaResponse, preflightContractDeployMetaWithUi, buildAndPreflightReferenceFungibleDeploy, buildAndPreflightReferenceNftCollectionDeployMeta, type DeployMetaQaUiOutcome, type PreflightContractDeployMetaWithUiResult, type BuildAndPreflightReferenceFungibleResult, type BuildAndPreflightReferenceNftCollectionResult, } from './dappDeploy.js';
 export { mergeNativeDexIntegrationDefaults, fetchNativeDexIntegrationDefaults, fetchNativeDexFactoryRegisterLogs, type NativeDexIntegrationDefaults, type NativeDexIntegrationOverrides, type NativeDexDefaultSource, } from './dexIntegration.js';
+export { nativeDexPairKey, buildNativeDexRegisterLogPoolIndex, pickNativeDexPoolFromRegisterLogs, fetchNativeDexDirectorySnapshot, resolveNativeDexPoolForTokens, type NativeDexDirectorySnapshot, type FetchNativeDexDirectorySnapshotOptions, type ResolveNativeDexPoolForTokensResult, type ResolveNativeDexPoolForTokensOptions, } from './nativeDexDirectory.js';
 export { getInjectedEip1193Provider, providerSupportsBoingNativeRpc, boingSendTransaction, requestAccounts, readChainIdHex, type Eip1193Requester, } from './walletProvider.js';
 /**
  * Create a Boing RPC client.
