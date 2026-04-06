@@ -11,6 +11,18 @@ npm run build
 
 Or from a parent repo (when published): `npm install boing-sdk`.
 
+### Consuming via `file:` (e.g. [boing.finance](https://github.com/Boing-Network/boing.finance))
+
+The compiled output lives in **`dist/`**, which is **not committed** to `Boing-Network/boing.network` (see repo root `.gitignore`). After cloning the monorepo—or in CI after checking out `boing.network` as a sibling—you **must** compile before any app that depends on `"boing-sdk": "file:../boing.network/boing-sdk"` runs `vite build` or `tsc`:
+
+```bash
+cd boing.network/boing-sdk
+npm ci
+npm run build
+```
+
+**boing.finance** GitHub Actions run this step explicitly before `frontend/npm ci` so Rollup always resolves exports from a fresh `dist/index.js` (including hex helpers like **`isBoingNativeAccountIdHex`**). Local installs also run `frontend/scripts/postinstall-boing-sdk.mjs`, which builds the SDK when `dist/index.js` is missing and **fails the install** if that build does not succeed.
+
 ## Tests
 
 - **Unit / offline:** `npm test` — Vitest; does not require a running Boing node.
