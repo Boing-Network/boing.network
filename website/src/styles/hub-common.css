@@ -302,7 +302,7 @@
   }
 }
 .hub-metric-card {
-  background: linear-gradient(180deg, #0A1E2E 0%, #0D2E42 100%);
+  background: linear-gradient(168deg, var(--stone-deep, #06080c) 0%, var(--stone-mid, #0c1018) 100%);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1rem;
@@ -707,7 +707,7 @@
   margin: 1.25rem 0;
 }
 .testnet-glance__card {
-  background: linear-gradient(180deg, #0A1E2E 0%, #0D2E42 100%);
+  background: linear-gradient(168deg, var(--stone-deep, #06080c) 0%, var(--stone-mid, #0c1018) 100%);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1.25rem;

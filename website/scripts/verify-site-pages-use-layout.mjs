@@ -1,5 +1,5 @@
 /**
- * Ensures every Astro page under src/pages imports the main Layout (canvas + stone engraving + chrome).
+ * Ensures every Astro page under src/pages imports the main Layout (stone engraved BG + site chrome).
  * Run: node scripts/verify-site-pages-use-layout.mjs
  */
 import fs from 'node:fs';

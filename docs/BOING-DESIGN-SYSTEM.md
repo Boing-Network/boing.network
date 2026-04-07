@@ -23,7 +23,7 @@ This document is the single source of truth for the Boing design system across *
 
 ## 1. Overview
 
-- **Shared base:** Dark backgrounds, Orbitron display type, Inter body type, glassmorphism cards, aquatic-space aesthetic.
+- **Shared base:** Dark backgrounds, Orbitron display type, Inter body type, glassmorphism cards. **boing.network** uses a charcoal stone slab with engraved vein SVG and soft neon accents (no canvas engine or aquatic photo background).
 - **Per site:** Distinct accent palette, motion language, and background character.
 - **This repo:** Implements the **boing.network** variant (“Cosmic Foundation”). Theme tokens live in `website/src/styles/`; reference prototype (full HTML) is in the design-themes package (see [Reference](#10-reference)).
 
@@ -230,34 +230,22 @@ All sites use a layered background:
 ```
 website/
   src/
-    lib/
-      boing-bg-engine.js       # Canvas aquatic-space background engine (ES module)
     styles/
       boing-theme.css          # Base theme (shared + network)
       design-tokens-cosmic.css # Cosmic Foundation tokens (network) — loaded after base
       motion-config.css        # Motion variables
     components/
       BoingMascot.astro
-      BoingCanvasBackground.astro   # Canvas bg using boing-bg-engine (replaces static .webp)
+      StoneEngravingOverlay.astro   # Site-wide stone slab + engraved vein + neon field (CSS/SVG)
   src/layouts/
-    Layout.astro               # Imports boing-theme.css, design-tokens-cosmic.css; uses BoingCanvasBackground
+    Layout.astro               # Imports boing-theme.css, design-tokens-cosmic.css; uses StoneEngravingOverlay
 docs/
   BOING-DESIGN-SYSTEM.md       # This document
 ```
 
 The live site applies the Cosmic Foundation palette by importing `design-tokens-cosmic.css` after `boing-theme.css` in `Layout.astro`. To revert to the pre-Cosmic teal/cyan look, remove the `design-tokens-cosmic.css` import.
 
-**Animated background:** The site uses the Canvas-based **boing-bg-engine** on every page (see `website/src/lib/boing-bg-engine.js` and `BoingCanvasBackground.astro`). Configs are from `BOING_BG_CONFIGS.network` with this route → config mapping (each page gets its own background variant):
-
-| Route | Config key | Variant |
-|-------|------------|--------|
-| `/` | landing | Full Cosmic (nebula, stars, jellyfish, coral, waterline, etc.) |
-| `/about` | pillars | Violet-dominant cosmic |
-| `/community`, `/status` | landing | Full Cosmic |
-| `/docs/*`, `/developers/*` | developers | Minimal (stars + nebula + grid) |
-| `/testnet/join`, `/faucet`, `/bootnodes`, `/single-vs-multi` | developers | Minimal (focused app feel) |
-
-When `prefers-reduced-motion: reduce` is set or the engine fails to load, the fallback is **boing-aquatic-space-bg.webp** with a dark overlay. The layout also adds a body class per route (e.g. `route-index`, `route-about`, `route-docs-getting-started`) so per-page color or style overrides can be applied in CSS if needed.
+**Page background:** The site shell uses **`StoneEngravingOverlay.astro`** on every route (cool charcoal stone, micro-grain, SVG “carved” vein network, soft colored neon accents). There is no Canvas/WebGL layer and no aquatic still-image fallback. The layout also adds a body class per route (e.g. `route-index`, `route-about`, `route-docs-getting-started`) so per-page overrides can be applied in CSS if needed. Optional `pageClass="page-landing"` / `page-app` on `Layout` add a light body tint or hex grid; the primary art remains the overlay.
 
 ### 9.2 CSS Architecture
 

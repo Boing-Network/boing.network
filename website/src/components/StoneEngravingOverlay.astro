@@ -1,292 +1,398 @@
 ---
 /**
- * Stone-like engraved graphic layer: texture, carved groove paths, neon accents.
- * Sits above the canvas background, below main content (z-index 0, after canvas in DOM).
+ * Full-viewport background aligned with Colosseum hackathon reference:
+ * cool stone slab, micro-grain, engraved vein SVG, soft neon orbs/arcs (no canvas).
  */
 ---
 
-<div class="site-stone-engrave" aria-hidden="true">
-  <div class="site-stone-engrave__texture"></div>
+<div class="site-engrave-bg" aria-hidden="true">
+  <div class="site-engrave-stone"></div>
+  <div class="site-engrave-grain"></div>
   <svg
-    class="site-stone-engrave__svg"
+    class="site-engrave-vein"
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 320 1200"
-    preserveAspectRatio="xMidYMin meet"
+    viewBox="0 0 100 280"
+    preserveAspectRatio="none"
     focusable="false"
   >
     <defs>
-      <filter id="stone-engrave-neon" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b" />
+      <linearGradient id="site-engrave-line" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#8a9aaf" stop-opacity="0.14" />
+        <stop offset="35%" stop-color="#c5d0e0" stop-opacity="0.22" />
+        <stop offset="70%" stop-color="#6a7688" stop-opacity="0.12" />
+        <stop offset="100%" stop-color="#9aa8bc" stop-opacity="0.16" />
+      </linearGradient>
+      <filter id="site-engrave-soft" x="-5%" y="-5%" width="110%" height="110%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="0.25" result="b" />
         <feMerge>
           <feMergeNode in="b" />
           <feMergeNode in="SourceGraphic" />
         </feMerge>
       </filter>
-      <filter id="stone-engrave-soft-glow" x="-100%" y="-100%" width="300%" height="300%">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="g" />
-        <feMerge>
-          <feMergeNode in="g" />
-          <feMergeNode in="g" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-      <linearGradient id="stone-engrave-edge" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="rgba(0,0,0,0.55)" />
-        <stop offset="45%" stop-color="rgba(255,255,255,0.12)" />
-        <stop offset="100%" stop-color="rgba(0,0,0,0.45)" />
-      </linearGradient>
     </defs>
-
-    <!-- Carved channels (read as recessed stone) -->
-    <g class="site-stone-engrave__grooves" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <!-- Outer dark rim -->
-      <path
-        class="site-stone-engrave__groove-shadow"
-        d="M 168 0 L 168 72 C 168 108 124 124 98 152 C 72 180 210 196 188 236 C 166 276 118 292 142 332 C 166 372 228 388 204 432 C 180 476 96 492 124 540 C 152 588 248 604 220 656 C 192 708 88 724 118 780 C 148 836 262 852 232 912 C 202 972 76 988 108 1050 C 140 1112 188 1136 160 1200"
-        stroke="rgba(0,0,0,0.5)"
-        stroke-width="5"
-      />
-      <!-- Highlight bevel -->
-      <path
-        class="site-stone-engrave__groove-light"
-        d="M 168 0 L 168 72 C 168 108 124 124 98 152 C 72 180 210 196 188 236 C 166 276 118 292 142 332 C 166 372 228 388 204 432 C 180 476 96 492 124 540 C 152 588 248 604 220 656 C 192 708 88 724 118 780 C 148 836 262 852 232 912 C 202 972 76 988 108 1050 C 140 1112 188 1136 160 1200"
-        stroke="url(#stone-engrave-edge)"
-        stroke-width="2.2"
-        opacity="0.9"
-      />
-      <!-- Branch network (all connected to main spine) -->
-      <path
-        class="site-stone-engrave__groove-shadow"
-        d="M 168 72 L 236 88 C 268 96 284 128 270 164 C 256 200 220 212 196 228"
-        stroke="rgba(0,0,0,0.45)"
-        stroke-width="4"
-      />
-      <path
-        class="site-stone-engrave__groove-light"
-        d="M 168 72 L 236 88 C 268 96 284 128 270 164 C 256 200 220 212 196 228"
-        stroke="url(#stone-engrave-edge)"
-        stroke-width="1.8"
-        opacity="0.85"
-      />
-      <path
-        class="site-stone-engrave__groove-shadow"
-        d="M 98 152 L 44 168 C 12 178 -4 210 18 244 C 40 278 86 286 118 292"
-        stroke="rgba(0,0,0,0.45)"
-        stroke-width="4"
-      />
-      <path
-        class="site-stone-engrave__groove-light"
-        d="M 98 152 L 44 168 C 12 178 -4 210 18 244 C 40 278 86 286 118 292"
-        stroke="url(#stone-engrave-edge)"
-        stroke-width="1.8"
-        opacity="0.85"
-      />
-      <path
-        class="site-stone-engrave__groove-shadow"
-        d="M 142 332 L 76 348 C 38 358 22 402 52 438 C 82 474 124 468 152 456"
-        stroke="rgba(0,0,0,0.45)"
-        stroke-width="4"
-      />
-      <path
-        class="site-stone-engrave__groove-light"
-        d="M 142 332 L 76 348 C 38 358 22 402 52 438 C 82 474 124 468 152 456"
-        stroke="url(#stone-engrave-edge)"
-        stroke-width="1.8"
-        opacity="0.85"
-      />
-      <path
-        class="site-stone-engrave__groove-shadow"
-        d="M 124 540 L 288 556 C 312 560 328 596 308 628 C 288 660 248 668 220 656"
-        stroke="rgba(0,0,0,0.45)"
-        stroke-width="4"
-      />
-      <path
-        class="site-stone-engrave__groove-light"
-        d="M 124 540 L 288 556 C 312 560 328 596 308 628 C 288 660 248 668 220 656"
-        stroke="url(#stone-engrave-edge)"
-        stroke-width="1.8"
-        opacity="0.85"
-      />
-      <path
-        class="site-stone-engrave__groove-shadow"
-        d="M 118 780 L 32 804 C 4 812 -8 848 14 882 C 36 916 78 920 108 918"
-        stroke="rgba(0,0,0,0.45)"
-        stroke-width="4"
-      />
-      <path
-        class="site-stone-engrave__groove-light"
-        d="M 118 780 L 32 804 C 4 812 -8 848 14 882 C 36 916 78 920 108 918"
-        stroke="url(#stone-engrave-edge)"
-        stroke-width="1.8"
-        opacity="0.85"
-      />
+    <path
+      class="site-engrave-vein__shadow"
+      fill="none"
+      stroke="rgba(0, 0, 0, 0.45)"
+      stroke-width="0.85"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      d="M 8 0 C 22 38 42 18 52 52 C 62 86 28 98 68 128 C 92 148 36 168 88 188 C 98 208 48 222 78 242 C 88 258 32 268 12 280"
+    />
+    <path
+      class="site-engrave-vein__line"
+      fill="none"
+      stroke="url(#site-engrave-line)"
+      stroke-width="0.45"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      filter="url(#site-engrave-soft)"
+      d="M 8 0 C 22 38 42 18 52 52 C 62 86 28 98 68 128 C 92 148 36 168 88 188 C 98 208 48 222 78 242 C 88 258 32 268 12 280"
+    />
+    <g class="site-engrave-nodes" fill="none" stroke-linecap="round">
+      <circle cx="8" cy="0" r="2.2" stroke="rgba(0,0,0,0.5)" stroke-width="0.5" />
+      <circle cx="8" cy="0" r="2.2" stroke="rgba(255,255,255,0.07)" stroke-width="0.25" transform="translate(-0.12 -0.12)" />
+      <circle cx="52" cy="52" r="1.8" stroke="rgba(0,0,0,0.45)" stroke-width="0.45" />
+      <circle cx="52" cy="52" r="1.8" stroke="rgba(255,255,255,0.06)" stroke-width="0.2" transform="translate(-0.1 -0.1)" />
+      <circle cx="68" cy="128" r="2" stroke="rgba(0,0,0,0.48)" stroke-width="0.48" />
+      <circle cx="68" cy="128" r="2" stroke="rgba(255,255,255,0.07)" stroke-width="0.22" transform="translate(-0.1 -0.1)" />
+      <circle cx="88" cy="188" r="1.6" stroke="rgba(0,0,0,0.42)" stroke-width="0.42" />
+      <circle cx="88" cy="188" r="1.6" stroke="rgba(255,255,255,0.05)" stroke-width="0.18" transform="translate(-0.08 -0.08)" />
+      <circle cx="78" cy="242" r="1.7" stroke="rgba(0,0,0,0.44)" stroke-width="0.44" />
+      <circle cx="78" cy="242" r="1.7" stroke="rgba(255,255,255,0.06)" stroke-width="0.2" transform="translate(-0.09 -0.09)" />
+      <circle cx="12" cy="280" r="2.1" stroke="rgba(0,0,0,0.5)" stroke-width="0.5" />
+      <circle cx="12" cy="280" r="2.1" stroke="rgba(255,255,255,0.07)" stroke-width="0.24" transform="translate(-0.11 -0.11)" />
     </g>
-
-    <!-- Neon accents along the network -->
-    <g class="site-stone-engrave__neon" filter="url(#stone-engrave-neon)">
-      <path
-        d="M 168 0 L 168 72 C 168 108 124 124 98 152 C 72 180 210 196 188 236 C 166 276 118 292 142 332 C 166 372 228 388 204 432 C 180 476 96 492 124 540 C 152 588 248 604 220 656 C 192 708 88 724 118 780 C 148 836 262 852 232 912 C 202 972 76 988 108 1050 C 140 1112 188 1136 160 1200"
-        fill="none"
-        stroke="rgba(0, 217, 255, 0.35)"
-        stroke-width="2"
-        stroke-linecap="round"
-        class="site-stone-engrave__neon-line"
-      />
-      <path
-        d="M 168 72 L 236 88 C 268 96 284 128 270 164 C 256 200 220 212 196 228"
-        fill="none"
-        stroke="rgba(0, 153, 255, 0.28)"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        class="site-stone-engrave__neon-line site-stone-engrave__neon-line--delay"
-      />
-      <path
-        d="M 98 152 L 44 168 C 12 178 -4 210 18 244 C 40 278 86 286 118 292"
-        fill="none"
-        stroke="rgba(139, 92, 246, 0.22)"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        class="site-stone-engrave__neon-line site-stone-engrave__neon-line--delay2"
-      />
-      <path
-        d="M 124 540 L 288 556 C 312 560 328 596 308 628 C 288 660 248 668 220 656"
-        fill="none"
-        stroke="rgba(0, 217, 255, 0.25)"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        class="site-stone-engrave__neon-line site-stone-engrave__neon-line--delay3"
-      />
-    </g>
-
-    <!-- Node glows (junctions) -->
-    <g class="site-stone-engrave__nodes" filter="url(#stone-engrave-soft-glow)">
-      <circle cx="168" cy="72" r="5" fill="rgba(0, 217, 255, 0.45)" class="site-stone-engrave__node" />
-      <circle cx="98" cy="152" r="4.5" fill="rgba(0, 153, 255, 0.4)" class="site-stone-engrave__node site-stone-engrave__node--delay" />
-      <circle cx="142" cy="332" r="4.5" fill="rgba(167, 139, 250, 0.35)" class="site-stone-engrave__node site-stone-engrave__node--delay2" />
-      <circle cx="124" cy="540" r="5" fill="rgba(0, 217, 255, 0.4)" class="site-stone-engrave__node site-stone-engrave__node--delay3" />
-      <circle cx="118" cy="780" r="4.5" fill="rgba(0, 153, 255, 0.38)" class="site-stone-engrave__node" />
-      <circle cx="108" cy="1050" r="5" fill="rgba(0, 217, 255, 0.42)" class="site-stone-engrave__node site-stone-engrave__node--delay" />
-    </g>
+    <path
+      class="site-engrave-vein__shadow site-engrave-vein__branch"
+      fill="none"
+      stroke="rgba(0, 0, 0, 0.35)"
+      stroke-width="0.65"
+      stroke-linecap="round"
+      d="M 52 52 C 72 58 82 72 94 68 M 68 128 C 58 142 52 162 44 178 M 88 188 C 72 198 58 212 48 228"
+    />
+    <path
+      class="site-engrave-vein__line site-engrave-vein__branch"
+      fill="none"
+      stroke="url(#site-engrave-line)"
+      stroke-width="0.35"
+      stroke-linecap="round"
+      opacity="0.85"
+      d="M 52 52 C 72 58 82 72 94 68 M 68 128 C 58 142 52 162 44 178 M 88 188 C 72 198 58 212 48 228"
+    />
+    <circle cx="94" cy="68" r="1.35" fill="none" stroke="rgba(0,0,0,0.4)" stroke-width="0.4" />
+    <circle cx="94" cy="68" r="1.35" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.16" transform="translate(-0.06 -0.06)" />
+    <circle cx="44" cy="178" r="1.25" fill="none" stroke="rgba(0,0,0,0.38)" stroke-width="0.38" />
+    <circle cx="44" cy="178" r="1.25" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.15" transform="translate(-0.06 -0.06)" />
+    <circle cx="48" cy="228" r="1.2" fill="none" stroke="rgba(0,0,0,0.36)" stroke-width="0.36" />
+    <circle cx="48" cy="228" r="1.2" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="0.14" transform="translate(-0.05 -0.05)" />
   </svg>
+  <div class="site-neon-layer">
+    <span class="site-neon site-neon--orb site-neon--a"></span>
+    <span class="site-neon site-neon--orb site-neon--b"></span>
+    <span class="site-neon site-neon--orb site-neon--c"></span>
+    <span class="site-neon site-neon--arc site-neon--d"></span>
+    <span class="site-neon site-neon--arc site-neon--e"></span>
+    <span class="site-neon site-neon--dash site-neon--f"></span>
+    <span class="site-neon site-neon--dash site-neon--g"></span>
+    <span class="site-neon site-neon--dot site-neon--h"></span>
+    <span class="site-neon site-neon--dot site-neon--i"></span>
+  </div>
 </div>
 
 <style>
-  .site-stone-engrave {
+  .site-engrave-bg {
     position: absolute;
     top: 0;
-    left: 0;
     right: 0;
     bottom: 0;
-    /* Above canvas (0) and body pseudo-layers like .page-landing::before (0); main/footer use same layer but come later in DOM */
+    left: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .site-engrave-stone {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 100% 55% at 15% -5%, rgba(55, 68, 88, 0.22), transparent 52%),
+      radial-gradient(ellipse 80% 50% at 92% 12%, rgba(40, 48, 62, 0.18), transparent 48%),
+      radial-gradient(ellipse 70% 45% at 8% 88%, rgba(35, 42, 54, 0.2), transparent 50%),
+      radial-gradient(ellipse 90% 60% at 78% 96%, rgba(48, 58, 72, 0.15), transparent 55%),
+      linear-gradient(168deg, var(--stone-deep, #06080c) 0%, var(--stone-mid, #0c1018) 42%, var(--stone-vein, #121a24) 100%);
+  }
+
+  .site-engrave-stone::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.35;
+    background-image: repeating-linear-gradient(
+      -18deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.045) 2px,
+      rgba(0, 0, 0, 0.045) 3px
+    );
+    mix-blend-mode: multiply;
+  }
+
+  .site-engrave-grain {
+    position: absolute;
+    inset: 0;
+    opacity: 0.07;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+
+  .site-engrave-vein {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.55;
+  }
+
+  .site-engrave-vein__shadow {
+    transform: translate(0.18%, 0.12%);
+  }
+
+  .site-engrave-vein__branch {
+    opacity: 0.92;
+  }
+
+  .site-neon-layer {
+    position: absolute;
+    inset: 0;
     z-index: 1;
     pointer-events: none;
     overflow: hidden;
   }
 
-  .site-stone-engrave__texture {
+  .site-neon {
     position: absolute;
-    inset: 0;
-    /* Chiseled stone read: cool slate, uneven light, fine grain */
-    background-color: rgba(6, 18, 30, 0.42);
-    background-image:
-      url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E"),
-      radial-gradient(ellipse 130% 55% at 50% -15%, rgba(255, 255, 255, 0.06), transparent 52%),
-      radial-gradient(ellipse 90% 50% at 92% 72%, rgba(0, 120, 140, 0.12), transparent 48%),
-      radial-gradient(ellipse 70% 45% at 8% 45%, rgba(0, 40, 60, 0.2), transparent 50%),
-      linear-gradient(
-        168deg,
-        rgba(12, 32, 48, 0.55) 0%,
-        rgba(8, 22, 36, 0.62) 42%,
-        rgba(6, 16, 28, 0.58) 100%
-      );
-    background-blend-mode: overlay, normal, normal, normal, normal;
-    mix-blend-mode: multiply;
-    opacity: 0.92;
+    will-change: transform, opacity;
   }
 
-  .site-stone-engrave__svg {
-    position: absolute;
-    left: 50%;
-    top: 0;
-    width: min(52vw, 520px);
-    height: 100%;
-    min-height: 100%;
-    transform: translateX(-50%);
-    opacity: 0.88;
+  .site-neon--orb {
+    border-radius: 50%;
+    width: min(28vw, 220px);
+    height: min(28vw, 220px);
+    background: radial-gradient(
+      circle at 35% 35%,
+      color-mix(in srgb, var(--neon-c) 22%, transparent) 0%,
+      color-mix(in srgb, var(--neon-c) 6%, transparent) 42%,
+      transparent 68%
+    );
+    box-shadow:
+      0 0 28px 12px color-mix(in srgb, var(--neon-c) 14%, transparent),
+      0 0 56px 28px color-mix(in srgb, var(--neon-c) 7%, transparent),
+      inset 0 0 22px color-mix(in srgb, var(--neon-c) 8%, transparent);
+    opacity: var(--neon-base-o, 0.55);
+    animation: site-neon-pulse var(--neon-dur, 7s) ease-in-out infinite;
+    animation-delay: var(--neon-delay, 0s);
   }
 
-  @media (min-width: 1200px) {
-    .site-stone-engrave__svg {
-      width: min(44vw, 580px);
-    }
+  .site-neon--a {
+    --neon-c: #4a9fe8;
+    left: 8%;
+    top: 6%;
+    --neon-dur: 8s;
+    --neon-delay: 0s;
+    --neon-base-o: 0.45;
   }
 
-  @media (max-width: 640px) {
-    .site-stone-engrave__svg {
-      width: 78vw;
-      opacity: 0.75;
-    }
-    .site-stone-engrave__texture {
-      opacity: 0.88;
-    }
+  .site-neon--b {
+    --neon-c: #7c6cf0;
+    right: 4%;
+    top: 22%;
+    width: min(22vw, 160px);
+    height: min(22vw, 160px);
+    --neon-dur: 9.5s;
+    --neon-delay: -2s;
+    --neon-base-o: 0.38;
   }
 
-  .site-stone-engrave__neon-line {
-    animation: stone-engrave-neon-pulse 5.5s ease-in-out infinite;
-  }
-  .site-stone-engrave__neon-line--delay {
-    animation-delay: 1.1s;
-  }
-  .site-stone-engrave__neon-line--delay2 {
-    animation-delay: 2.2s;
-  }
-  .site-stone-engrave__neon-line--delay3 {
-    animation-delay: 3.1s;
+  .site-neon--c {
+    --neon-c: #5ecf9a;
+    left: 2%;
+    bottom: 12%;
+    width: min(32vw, 240px);
+    height: min(32vw, 240px);
+    --neon-dur: 10s;
+    --neon-delay: -4.5s;
+    --neon-base-o: 0.32;
   }
 
-  .site-stone-engrave__node {
-    animation: stone-engrave-node-pulse 4.2s ease-in-out infinite;
-  }
-  .site-stone-engrave__node--delay {
-    animation-delay: 0.9s;
-  }
-  .site-stone-engrave__node--delay2 {
-    animation-delay: 1.8s;
-  }
-  .site-stone-engrave__node--delay3 {
-    animation-delay: 2.7s;
+  .site-neon--arc {
+    width: min(42vw, 320px);
+    height: min(42vw, 320px);
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, var(--neon-c) 28%, transparent);
+    background: transparent;
+    box-shadow:
+      0 0 14px 2px color-mix(in srgb, var(--neon-c) 12%, transparent),
+      0 0 32px 8px color-mix(in srgb, var(--neon-c) 6%, transparent),
+      inset 0 0 12px color-mix(in srgb, var(--neon-c) 5%, transparent);
+    opacity: 0.4;
+    animation: site-neon-drift var(--neon-dur, 14s) ease-in-out infinite;
+    animation-delay: var(--neon-delay, 0s);
   }
 
-  @keyframes stone-engrave-neon-pulse {
+  .site-neon--d {
+    --neon-c: #5ab0ff;
+    right: -8%;
+    top: 38%;
+    clip-path: inset(0 48% 48% 0);
+    --neon-dur: 16s;
+    --neon-delay: -1s;
+  }
+
+  .site-neon--e {
+    --neon-c: #b894f5;
+    left: -12%;
+    bottom: 18%;
+    clip-path: inset(48% 0 0 42%);
+    width: min(48vw, 360px);
+    height: min(48vw, 360px);
+    --neon-dur: 18s;
+    --neon-delay: -7s;
+    opacity: 0.32;
+  }
+
+  .site-neon--dash {
+    height: 2px;
+    width: min(36vw, 280px);
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--neon-c) 55%, transparent) 22%,
+      color-mix(in srgb, var(--neon-c) 35%, transparent) 78%,
+      transparent
+    );
+    box-shadow:
+      0 0 10px 3px color-mix(in srgb, var(--neon-c) 18%, transparent),
+      0 0 24px 8px color-mix(in srgb, var(--neon-c) 8%, transparent);
+    opacity: 0.5;
+    animation: site-neon-shimmer var(--neon-dur, 6s) ease-in-out infinite;
+    animation-delay: var(--neon-delay, 0s);
+  }
+
+  .site-neon--f {
+    --neon-c: #4a9fe8;
+    left: 18%;
+    top: 52%;
+    transform: rotate(-18deg);
+    --neon-dur: 5.5s;
+    --neon-delay: -0.8s;
+  }
+
+  .site-neon--g {
+    --neon-c: #6ee0c0;
+    right: 12%;
+    bottom: 28%;
+    width: min(28vw, 200px);
+    transform: rotate(24deg);
+    --neon-dur: 7s;
+    --neon-delay: -3.2s;
+    opacity: 0.42;
+  }
+
+  .site-neon--dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--neon-c) 75%, white);
+    box-shadow:
+      0 0 8px 3px color-mix(in srgb, var(--neon-c) 35%, transparent),
+      0 0 20px 6px color-mix(in srgb, var(--neon-c) 15%, transparent);
+    opacity: 0.65;
+    animation: site-neon-blink var(--neon-dur, 3.2s) ease-in-out infinite;
+    animation-delay: var(--neon-delay, 0s);
+  }
+
+  .site-neon--h {
+    --neon-c: #7eb8ff;
+    left: 72%;
+    top: 14%;
+    --neon-dur: 4s;
+    --neon-delay: -1.5s;
+  }
+
+  .site-neon--i {
+    --neon-c: #9f8fff;
+    left: 42%;
+    bottom: 8%;
+    --neon-dur: 3.6s;
+    --neon-delay: -2.2s;
+  }
+
+  @keyframes site-neon-pulse {
     0%,
     100% {
-      stroke-opacity: 0.22;
+      opacity: var(--neon-base-o, 0.5);
+      transform: scale(1) translate(0);
     }
     50% {
-      stroke-opacity: 0.55;
+      opacity: calc(var(--neon-base-o, 0.5) * 1.35);
+      transform: scale(1.06) translate(1%, -0.8%);
     }
   }
 
-  @keyframes stone-engrave-node-pulse {
+  @keyframes site-neon-drift {
     0%,
     100% {
-      opacity: 0.45;
+      opacity: 0.28;
+      transform: rotate(0) scale(1);
     }
     50% {
-      opacity: 0.95;
+      opacity: 0.48;
+      transform: rotate(6deg) scale(1.03);
+    }
+  }
+
+  @keyframes site-neon-shimmer {
+    0%,
+    100% {
+      opacity: 0.35;
+      filter: brightness(0.92);
+    }
+    50% {
+      opacity: 0.62;
+      filter: brightness(1.08);
+    }
+  }
+
+  @keyframes site-neon-blink {
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    45%,
+    55% {
+      opacity: 0.85;
+      transform: scale(1.15);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .site-stone-engrave__neon-line,
-    .site-stone-engrave__node {
-      animation: none;
+    .site-neon-layer .site-neon {
+      animation: none !important;
     }
-    .site-stone-engrave__neon-line {
-      stroke-opacity: 0.38;
+    .site-neon--orb {
+      opacity: calc(var(--neon-base-o, 0.5) * 0.85);
     }
-    .site-stone-engrave__node {
-      opacity: 0.7;
+    .site-neon--arc {
+      opacity: 0.32;
+    }
+    .site-neon--dash {
+      opacity: 0.42;
+    }
+    .site-neon--dot {
+      opacity: 0.55;
     }
   }
 </style>

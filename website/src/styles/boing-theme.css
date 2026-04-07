@@ -9,11 +9,11 @@
 
 /* Step 2: Design Token Foundation (overridden by design-tokens-cosmic.css for Boing Design Kit) */
 :root {
-  /* === BACKGROUNDS === */
-  --bg-primary: #0A1E2E;
-  --bg-secondary: #0D2E42;
-  --bg-tertiary: #122a3d;
-  --bg-card: rgba(13, 46, 66, 0.6);
+  /* === BACKGROUNDS (overridden by design-tokens-cosmic.css) === */
+  --bg-primary: #070a0e;
+  --bg-secondary: #0c1018;
+  --bg-tertiary: #151c24;
+  --bg-card: rgba(21, 28, 36, 0.72);
 
   /* === TEXT === */
   --text-primary: #F0F4F8;
@@ -29,8 +29,8 @@
   --mascot-yellow: #FFE000;
 
   /* === BORDERS === */
-  --border-color: rgba(0, 217, 255, 0.2);
-  --border-hover: rgba(0, 217, 255, 0.45);
+  --border-color: rgba(36, 48, 66, 0.85);
+  --border-hover: rgba(0, 217, 255, 0.35);
 
   /* === GLOWS === */
   --glow-cyan: rgba(0, 217, 255, 0.5);
@@ -311,12 +311,9 @@ textarea::placeholder {
 
 /* ========== Step 6: Background Styles ========== */
 
-/* Landing Pages — Aquatic-Space background */
+/* Optional body class: extra slab tint only (global art is StoneEngravingOverlay in Layout) */
 .page-landing {
-  background-image: url('/assets/boing-aquatic-space-bg.png');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background-color: var(--bg-primary);
   min-height: 100vh;
 }
 
@@ -325,15 +322,16 @@ textarea::placeholder {
   position: fixed;
   inset: 0;
   background: linear-gradient(
-    to bottom,
-    rgba(10, 14, 26, 0.3) 0%,
-    rgba(10, 14, 26, 0.6) 100%
+    168deg,
+    rgba(6, 8, 12, 0.35) 0%,
+    transparent 45%,
+    rgba(18, 26, 36, 0.2) 100%
   );
   z-index: 0;
   pointer-events: none;
 }
 
-/* Application / Dashboard Pages — Hexagonal grid */
+/* Application / Dashboard Pages — hex grid over stone tokens (full slab + vein lives in Layout overlay) */
 .page-app {
   background-color: var(--bg-primary);
   background-image: url('/assets/hex-grid.svg');
@@ -494,11 +492,8 @@ textarea::placeholder {
     scroll-snap-type: none !important;
   }
   /* Hide decorative elements */
-  .boing-canvas-bg,
-  .site-stone-engrave,
-  .mascot-wrap,
-  .boing-canvas-bg canvas,
-  .boing-canvas-bg-fallback {
+  .site-engrave-bg,
+  .mascot-wrap {
     display: none !important;
   }
   /* Simplify layout for print */

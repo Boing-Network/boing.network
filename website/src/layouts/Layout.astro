@@ -3,19 +3,18 @@ import '../styles/boing-design-kit.css';
 import '../styles/boing-theme.css';
 import '../styles/design-tokens-cosmic.css';
 import '../styles/boing-loader.css';
-import BoingCanvasBackground from '../components/BoingCanvasBackground.astro';
 import StoneEngravingOverlay from '../components/StoneEngravingOverlay.astro';
 import BoingMascot from '../components/BoingMascot.astro';
 
 /**
- * Default document shell for boing.network: shared nav, BoingCanvasBackground, StoneEngravingOverlay, mascot, footers.
- * Every route under src/pages should import this layout so the graphic layer is never skipped (see verify-site-pages-use-layout.mjs).
+ * Default document shell: shared nav, stone engraved background + neon field, mascot, footers.
+ * Every route under src/pages should import this layout (see verify-site-pages-use-layout.mjs).
  */
 interface Props {
   title?: string;
   description?: string;
   canonical?: string;
-  /** Design takeover: 'page-landing' = Aquatic-Space bg, 'page-app' = hex grid. Omit = default (animated bg). */
+  /** Optional body class: 'page-landing' = subtle slab tint; 'page-app' = hex grid on body. Primary art is StoneEngravingOverlay. */
   pageClass?: 'page-landing' | 'page-app';
 }
 
@@ -72,7 +71,7 @@ const noindex = isAuthPage;
     <meta name="twitter:image:alt" content="Boing Network — The DeFi that always bounces back!" />
 
     <!-- Additional SEO -->
-    <meta name="theme-color" content="#0A1E2E" />
+    <meta name="theme-color" content="#070a0e" />
     <meta name="keywords" content="Boing, Boing Network, blockchain, DeFi, L1, cryptocurrency, boing.finance, decentralized finance" />
 
     <script type="application/ld+json" set:html={JSON.stringify({
@@ -88,10 +87,9 @@ const noindex = isAuthPage;
   </head>
   <body class:list={[pageClass, `route-${(path || '/').replace(/^\//, '').replace(/\//g, '-') || 'index'}`, isTestnetApp && 'testnet-app']}>
     <a href="#main-content" class="skip-link">Skip to main content</a>
-    <BoingCanvasBackground path={path} />
     <StoneEngravingOverlay />
     <BoingMascot />
-    <header class="site-header bg-ocean-blue/95 backdrop-blur-md border-b border-cyan-transparent shadow-md">
+    <header class="site-header site-header--bar backdrop-blur-md border-b border-[var(--border-color)] shadow-md">
       <a href="/" class="logo flex items-center gap-2 no-underline">
         <img src="/logo.svg" alt="Boing" width="40" height="40" class="logo-icon flex-shrink-0" />
         <span class="font-display font-extrabold text-xl text-neon-cyan">Boing Network</span>
@@ -271,18 +269,16 @@ const noindex = isAuthPage;
     outline-offset: 4px;
   }
 
-  /* Homepage: hide live BG until Genesis Block intro completes (intro script sets opacity) */
-  html.page-home .boing-canvas-bg {
-    opacity: 0;
+  /* Homepage: hide engraved BG until Genesis Block intro completes (intro script sets opacity on .site-engrave-bg) */
+  html.page-home .site-engrave-bg {
     transition: opacity 1s ease;
+  }
+  html.page-home:not(.intro-complete) .site-engrave-bg {
+    opacity: 0;
   }
 
-  /* Stone engraving layer: same reveal as canvas after Genesis intro */
-  html.page-home .site-stone-engrave {
-    transition: opacity 1s ease;
-  }
-  html.page-home:not(.intro-complete) .site-stone-engrave {
-    opacity: 0;
+  .site-header--bar {
+    background: color-mix(in srgb, var(--surface, #0f1419) 88%, transparent);
   }
 
   a {
@@ -454,7 +450,7 @@ const noindex = isAuthPage;
     border-radius: 8px;
     font-weight: 600;
     font-family: var(--font-display);
-    color: #0A1E2E;
+    color: var(--stone-deep, #06080c);
     background: var(--accent-teal);
     border: none;
     box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
@@ -462,14 +458,14 @@ const noindex = isAuthPage;
   }
 
   .site-header nav a.nav-cta:hover {
-    color: #0A1E2E;
+    color: var(--stone-deep, #06080c);
     transform: translateY(-2px);
     box-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
   }
 
   /* Shared Join Testnet / primary CTA (hero, banners) — Design Kit */
   .btn-testnet {
-    color: #0A1E2E !important;
+    color: var(--stone-deep, #06080c) !important;
     background: var(--accent-teal) !important;
     border: none !important;
     font-weight: 600;
@@ -478,7 +474,7 @@ const noindex = isAuthPage;
     transition: all 0.2s ease;
   }
   .btn-testnet:hover {
-    color: #0A1E2E !important;
+    color: var(--stone-deep, #06080c) !important;
     transform: translateY(-2px);
     box-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
   }
@@ -516,8 +512,7 @@ const noindex = isAuthPage;
 
   @media print {
     .skip-link,
-    .boing-canvas-bg,
-    .site-stone-engrave,
+    .site-engrave-bg,
     .boing-mascot {
       display: none !important;
     }

@@ -6,8 +6,6 @@ Place the following assets in this directory (`/public/assets/`) so they resolve
 
 | Filename | Used for |
 |----------|----------|
-| **boing-aquatic-space-bg.png** | Legacy/optional. Same scene as .webp. |
-| **boing-aquatic-space-bg.webp** | Fallback background when Canvas engine is unavailable (reduced-motion or engine error). Used by `BoingCanvasBackground.astro`. |
 | **icon-only-transparent.png** | Boing icon/logo (transparent). Used in header nav and hero. Single asset for all contexts. |
 | **mascot-default.png** | Corner mascot (fixed bottom-right). Default pose. |
 | **mascot-excited.png** | Hero section mascot. Energetic pose. |

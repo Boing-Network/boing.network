@@ -1,15 +1,24 @@
 /* ============================================================
-   BOING NETWORK — Design Kit Tokens (New Official Palette)
-   Ocean Blue · Neon Cyan · Electric Blue
+   BOING NETWORK — Design Kit Tokens
+   Stone / charcoal base (Colosseum-style reference) · Boing neon accents
    Import after boing-theme.css / boing-design-kit.css
    ============================================================ */
 
 :root {
-  /* Backgrounds — Design Kit */
-  --bg-primary: #0A1E2E;
-  --bg-secondary: #0D2E42;
-  --bg-tertiary: #122a3d;
-  --bg-card: rgba(13, 46, 66, 0.6);
+  color-scheme: dark;
+
+  /* Stone slab (page chrome + engraved BG component) */
+  --stone-deep: #06080c;
+  --stone-mid: #0c1018;
+  --stone-vein: #121a24;
+  --surface: #0f1419;
+  --surface-2: #151c24;
+
+  /* Backgrounds — aligned to stone stack */
+  --bg-primary: #070a0e;
+  --bg-secondary: var(--stone-mid);
+  --bg-tertiary: var(--surface-2);
+  --bg-card: rgba(21, 28, 36, 0.72);
 
   /* Text */
   --text-primary: #F0F4F8;
@@ -25,9 +34,9 @@
   --accent-gold: #FFB800;
   --accent-gold-dim: #e5a600;
 
-  /* Borders */
-  --border-color: rgba(0, 217, 255, 0.2);
-  --border-hover: rgba(0, 217, 255, 0.45);
+  /* Borders — cool slate + hint of brand cyan */
+  --border-color: rgba(36, 48, 66, 0.85);
+  --border-hover: rgba(0, 217, 255, 0.35);
 
   /* Glows */
   --glow-cyan: rgba(0, 217, 255, 0.5);
@@ -43,7 +52,6 @@
   --success-color: #00FF88;
   --warning-color: #FFB800;
   --error-color: #FF4444;
-  --surface: var(--bg-tertiary);
   --border: var(--border-color);
 
   /* Typography — Design Kit */

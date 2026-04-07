@@ -8,7 +8,7 @@ export default {
     extend: {
       colors: {
         // Primary Colors
-        'ocean-blue': '#0A1E2E',
+        'ocean-blue': '#0f1419',
         'neon-cyan': '#00D9FF',
         'electric-blue': '#0099FF',
         'cosmic-purple': '#6B21A8',
@@ -67,7 +67,7 @@ export default {
         'glow-blue-lg': '0 0 30px rgba(0, 153, 255, 0.8)',
       },
       backgroundImage: {
-        'gradient-ocean': 'linear-gradient(180deg, #0A1E2E 0%, #0D2E42 100%)',
+        'gradient-ocean': 'linear-gradient(168deg, #06080c 0%, #0c1018 45%, #121a24 100%)',
         'gradient-neon': 'linear-gradient(135deg, #0099FF 0%, #00D9FF 50%, #6B21A8 100%)',
         'gradient-bio': 'linear-gradient(90deg, #00D9FF 0%, #00FF88 100%)',
       },
