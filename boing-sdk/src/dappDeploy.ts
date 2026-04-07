@@ -9,12 +9,14 @@ import type { BoingClient } from './client.js';
 import type {
   BuildNativeConstantProductPoolDeployMetaTxInput,
   BuildReferenceFungibleDeployMetaTxInput,
+  BuildReferenceFungibleSecuredDeployMetaTxInput,
   BuildReferenceNftCollectionDeployMetaTxInput,
   ContractDeployMetaTxObject,
 } from './canonicalDeployArtifacts.js';
 import {
   buildNativeConstantProductPoolDeployMetaTx,
   buildReferenceFungibleDeployMetaTx,
+  buildReferenceFungibleSecuredDeployMetaTx,
   buildReferenceNftCollectionDeployMetaTx,
 } from './canonicalDeployArtifacts.js';
 import type { QaCheckResponse, QaCheckResult } from './types.js';
@@ -164,7 +166,7 @@ export type BoingDeployIntegrationKind = 'token' | 'nft' | 'liquidity_pool';
  * resulting **`contract_deploy_meta`** automatically (placeholder `description_hash` when omitted).
  */
 export type BoingIntegrationDeployInput =
-  | ({ kind: 'token' } & BuildReferenceFungibleDeployMetaTxInput)
+  | ({ kind: 'token' } & BuildReferenceFungibleSecuredDeployMetaTxInput)
   | ({ kind: 'nft' } & BuildReferenceNftCollectionDeployMetaTxInput)
   | ({ kind: 'liquidity_pool' } & BuildNativeConstantProductPoolDeployMetaTxInput);
 
@@ -190,8 +192,10 @@ export function defaultPurposeCategoryForBoingDeployKind(kind: BoingDeployIntegr
  */
 export function buildBoingIntegrationDeployMetaTx(input: BoingIntegrationDeployInput): ContractDeployMetaTxObject {
   switch (input.kind) {
-    case 'token':
-      return buildReferenceFungibleDeployMetaTx(input);
+    case 'token': {
+      const { kind: _k, ...tokenFields } = input;
+      return buildReferenceFungibleSecuredDeployMetaTx(tokenFields);
+    }
     case 'nft':
       return buildReferenceNftCollectionDeployMetaTx(input);
     case 'liquidity_pool':

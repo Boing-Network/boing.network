@@ -5,7 +5,7 @@
  * [BOING-DAPP-INTEGRATION.md](../../docs/BOING-DAPP-INTEGRATION.md).
  */
 import type { BoingClient } from './client.js';
-import type { BuildNativeConstantProductPoolDeployMetaTxInput, BuildReferenceFungibleDeployMetaTxInput, BuildReferenceNftCollectionDeployMetaTxInput, ContractDeployMetaTxObject } from './canonicalDeployArtifacts.js';
+import type { BuildNativeConstantProductPoolDeployMetaTxInput, BuildReferenceFungibleDeployMetaTxInput, BuildReferenceFungibleSecuredDeployMetaTxInput, BuildReferenceNftCollectionDeployMetaTxInput, ContractDeployMetaTxObject } from './canonicalDeployArtifacts.js';
 import type { QaCheckResponse, QaCheckResult } from './types.js';
 /**
  * When **`boing_qaCheck`** needs **`asset_name` / `asset_symbol`** but the wizard has no description
@@ -68,7 +68,7 @@ export type BoingDeployIntegrationKind = 'token' | 'nft' | 'liquidity_pool';
  */
 export type BoingIntegrationDeployInput = ({
     kind: 'token';
-} & BuildReferenceFungibleDeployMetaTxInput) | ({
+} & BuildReferenceFungibleSecuredDeployMetaTxInput) | ({
     kind: 'nft';
 } & BuildReferenceNftCollectionDeployMetaTxInput) | ({
     kind: 'liquidity_pool';

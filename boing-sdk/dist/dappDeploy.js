@@ -4,7 +4,7 @@
  * See [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](../../docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md),
  * [BOING-DAPP-INTEGRATION.md](../../docs/BOING-DAPP-INTEGRATION.md).
  */
-import { buildNativeConstantProductPoolDeployMetaTx, buildReferenceFungibleDeployMetaTx, buildReferenceNftCollectionDeployMetaTx, } from './canonicalDeployArtifacts.js';
+import { buildNativeConstantProductPoolDeployMetaTx, buildReferenceFungibleDeployMetaTx, buildReferenceFungibleSecuredDeployMetaTx, buildReferenceNftCollectionDeployMetaTx, } from './canonicalDeployArtifacts.js';
 /**
  * When **`boing_qaCheck`** needs **`asset_name` / `asset_symbol`** but the wizard has no description
  * commitment yet, the RPC allows a **placeholder** 32-byte hash ([RPC-API-SPEC.md](../../docs/RPC-API-SPEC.md) § **boing_qaCheck**).
@@ -107,8 +107,10 @@ export function defaultPurposeCategoryForBoingDeployKind(kind) {
  */
 export function buildBoingIntegrationDeployMetaTx(input) {
     switch (input.kind) {
-        case 'token':
-            return buildReferenceFungibleDeployMetaTx(input);
+        case 'token': {
+            const { kind: _k, ...tokenFields } = input;
+            return buildReferenceFungibleSecuredDeployMetaTx(tokenFields);
+        }
         case 'nft':
             return buildReferenceNftCollectionDeployMetaTx(input);
         case 'liquidity_pool':
