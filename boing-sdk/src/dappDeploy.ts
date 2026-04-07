@@ -7,11 +7,13 @@
 
 import type { BoingClient } from './client.js';
 import type {
+  BuildNativeConstantProductPoolDeployMetaTxInput,
   BuildReferenceFungibleDeployMetaTxInput,
   BuildReferenceNftCollectionDeployMetaTxInput,
   ContractDeployMetaTxObject,
 } from './canonicalDeployArtifacts.js';
 import {
+  buildNativeConstantProductPoolDeployMetaTx,
   buildReferenceFungibleDeployMetaTx,
   buildReferenceNftCollectionDeployMetaTx,
 } from './canonicalDeployArtifacts.js';
@@ -152,4 +154,85 @@ export async function buildAndPreflightReferenceNftCollectionDeployMeta(
   const tx = buildReferenceNftCollectionDeployMetaTx(input);
   const { qa, ui } = await preflightContractDeployMetaWithUi(client, tx);
   return { tx, qa, ui };
+}
+
+/** Which Boing deploy wizard / integration path is in use (drives bytecode + default `purpose_category`). */
+export type BoingDeployIntegrationKind = 'token' | 'nft' | 'liquidity_pool';
+
+/**
+ * Single input shape for dApps: pick **`kind`** and the fields for that path; QA preflight uses the
+ * resulting **`contract_deploy_meta`** automatically (placeholder `description_hash` when omitted).
+ */
+export type BoingIntegrationDeployInput =
+  | ({ kind: 'token' } & BuildReferenceFungibleDeployMetaTxInput)
+  | ({ kind: 'nft' } & BuildReferenceNftCollectionDeployMetaTxInput)
+  | ({ kind: 'liquidity_pool' } & BuildNativeConstantProductPoolDeployMetaTxInput);
+
+/** Default mempool QA **`purpose_category`** per integration kind (pool → **`dapp`** per native AMM docs). */
+export function defaultPurposeCategoryForBoingDeployKind(kind: BoingDeployIntegrationKind): string {
+  switch (kind) {
+    case 'token':
+      return 'token';
+    case 'nft':
+      return 'nft';
+    case 'liquidity_pool':
+      return 'dapp';
+    default: {
+      const _exhaustive: never = kind;
+      return _exhaustive;
+    }
+  }
+}
+
+/**
+ * Build **`contract_deploy_meta`** for token, NFT collection, or native CP pool — correct bytecode
+ * resolution and **`purpose_category`** for each **`kind`**.
+ */
+export function buildBoingIntegrationDeployMetaTx(input: BoingIntegrationDeployInput): ContractDeployMetaTxObject {
+  switch (input.kind) {
+    case 'token':
+      return buildReferenceFungibleDeployMetaTx(input);
+    case 'nft':
+      return buildReferenceNftCollectionDeployMetaTx(input);
+    case 'liquidity_pool':
+      return buildNativeConstantProductPoolDeployMetaTx(input);
+    default: {
+      const _exhaustive: never = input;
+      return _exhaustive;
+    }
+  }
+}
+
+export type PreflightBoingIntegrationDeployResult = PreflightContractDeployMetaWithUiResult & {
+  tx: ContractDeployMetaTxObject;
+};
+
+/**
+ * **One call:** build the meta tx for the chosen **`kind`**, run **`boing_qaCheck`**, return **`{ tx, qa, ui }`**
+ * (same as {@link preflightContractDeployMetaWithUi} plus the signed-ready payload).
+ */
+export async function preflightBoingIntegrationDeploy(
+  client: BoingClient,
+  input: BoingIntegrationDeployInput,
+): Promise<PreflightBoingIntegrationDeployResult> {
+  const tx = buildBoingIntegrationDeployMetaTx(input);
+  const { qa, ui } = await preflightContractDeployMetaWithUi(client, tx);
+  return { tx, qa, ui };
+}
+
+/** Alias of {@link preflightBoingIntegrationDeploy} — same “build + QA UI” one-shot naming as token/NFT helpers. */
+export const buildAndPreflightBoingIntegrationDeploy = preflightBoingIntegrationDeploy;
+
+export type BuildAndPreflightNativeConstantProductPoolResult = PreflightContractDeployMetaWithUiResult & {
+  tx: ContractDeployMetaTxObject;
+};
+
+/**
+ * **Wizard shortcut** for native CP pool: build meta tx (default **`purpose_category: dapp`**) + QA preflight.
+ */
+export async function buildAndPreflightNativeConstantProductPoolDeploy(
+  client: BoingClient,
+  input: BuildNativeConstantProductPoolDeployMetaTxInput,
+): Promise<BuildAndPreflightNativeConstantProductPoolResult> {
+  return preflightBoingIntegrationDeploy(client, { kind: 'liquidity_pool', ...input });
 }

@@ -482,9 +482,12 @@ export {
   buildContractDeployMetaTx,
   buildReferenceFungibleDeployMetaTx,
   buildReferenceNftCollectionDeployMetaTx,
+  resolveNativeConstantProductPoolBytecodeHex,
+  buildNativeConstantProductPoolDeployMetaTx,
   type ContractDeployMetaTxObject,
   type BuildReferenceFungibleDeployMetaTxInput,
   type BuildReferenceNftCollectionDeployMetaTxInput,
+  type BuildNativeConstantProductPoolDeployMetaTxInput,
 } from './canonicalDeployArtifacts.js';
 export {
   BOING_TESTNET_CHAIN_ID_DECIMAL,
@@ -499,10 +502,19 @@ export {
   preflightContractDeployMetaWithUi,
   buildAndPreflightReferenceFungibleDeploy,
   buildAndPreflightReferenceNftCollectionDeployMeta,
+  buildAndPreflightNativeConstantProductPoolDeploy,
+  buildAndPreflightBoingIntegrationDeploy,
+  type BoingDeployIntegrationKind,
+  defaultPurposeCategoryForBoingDeployKind,
+  buildBoingIntegrationDeployMetaTx,
+  preflightBoingIntegrationDeploy,
   type DeployMetaQaUiOutcome,
   type PreflightContractDeployMetaWithUiResult,
   type BuildAndPreflightReferenceFungibleResult,
   type BuildAndPreflightReferenceNftCollectionResult,
+  type BoingIntegrationDeployInput,
+  type PreflightBoingIntegrationDeployResult,
+  type BuildAndPreflightNativeConstantProductPoolResult,
 } from './dappDeploy.js';
 export {
   mergeNativeDexIntegrationDefaults,

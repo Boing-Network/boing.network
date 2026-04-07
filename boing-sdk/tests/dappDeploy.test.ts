@@ -3,7 +3,10 @@ import { buildContractDeployMetaTx } from '../src/canonicalDeployArtifacts.js';
 import {
   BOING_QA_PLACEHOLDER_DESCRIPTION_HASH_HEX,
   buildAndPreflightReferenceFungibleDeploy,
+  buildBoingIntegrationDeployMetaTx,
+  defaultPurposeCategoryForBoingDeployKind,
   describeContractDeployMetaQaResponse,
+  preflightBoingIntegrationDeploy,
   preflightContractDeployMetaQa,
   preflightContractDeployMetaWithUi,
 } from '../src/dappDeploy.js';
@@ -92,5 +95,42 @@ describe('dappDeploy', () => {
     expect(r.tx.asset_symbol).toBe('TK');
     expect(r.qa.result).toBe('allow');
     expect(qaCheck).toHaveBeenCalledTimes(1);
+  });
+
+  it('defaultPurposeCategoryForBoingDeployKind maps pool to dapp', () => {
+    expect(defaultPurposeCategoryForBoingDeployKind('token')).toBe('token');
+    expect(defaultPurposeCategoryForBoingDeployKind('nft')).toBe('nft');
+    expect(defaultPurposeCategoryForBoingDeployKind('liquidity_pool')).toBe('dapp');
+  });
+
+  it('buildBoingIntegrationDeployMetaTx sets purpose for liquidity_pool', () => {
+    const tx = buildBoingIntegrationDeployMetaTx({
+      kind: 'liquidity_pool',
+      bytecodeHexOverride: '0xab',
+    });
+    expect(tx.purpose_category).toBe('dapp');
+    expect(tx.asset_name).toBe('Native CP Pool');
+    expect(tx.asset_symbol).toBe('POOL');
+  });
+
+  it('preflightBoingIntegrationDeploy runs qa with pool bytecode and dapp category', async () => {
+    const qaCheck = vi.fn().mockResolvedValue({ result: 'allow' } satisfies QaCheckResponse);
+    const client = { qaCheck } as unknown as BoingClient;
+    const r = await preflightBoingIntegrationDeploy(client, {
+      kind: 'liquidity_pool',
+      bytecodeHexOverride: '0xcd',
+      poolLabel: 'My Pool',
+      poolSymbol: 'mpl',
+    });
+    expect(r.tx.purpose_category).toBe('dapp');
+    expect(r.tx.asset_name).toBe('My Pool');
+    expect(r.tx.asset_symbol).toBe('MPL');
+    expect(qaCheck).toHaveBeenCalledWith(
+      r.tx.bytecode,
+      'dapp',
+      BOING_QA_PLACEHOLDER_DESCRIPTION_HASH_HEX,
+      'My Pool',
+      'MPL',
+    );
   });
 });

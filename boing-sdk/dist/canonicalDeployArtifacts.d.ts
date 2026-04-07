@@ -80,4 +80,31 @@ export type BuildReferenceNftCollectionDeployMetaTxInput = {
  * (env or **`bytecodeHexOverride`**); throws a clear error if unresolved — same constraint as manual **`resolve` + `build`**.
  */
 export declare function buildReferenceNftCollectionDeployMetaTx(input: BuildReferenceNftCollectionDeployMetaTxInput): ContractDeployMetaTxObject;
+/**
+ * Resolve **native constant-product pool** bytecode from override or env (same keys as
+ * [examples/native-boing-tutorial](../examples/native-boing-tutorial/) **`BOING_NATIVE_AMM_BYTECODE_HEX`**).
+ */
+export declare function resolveNativeConstantProductPoolBytecodeHex(opts?: {
+    explicitHex?: string | undefined;
+    extraEnvKeys?: readonly string[];
+}): `0x${string}` | undefined;
+export type BuildNativeConstantProductPoolDeployMetaTxInput = {
+    /** QA / wallet display name (default: `Native CP Pool`). */
+    poolLabel?: string;
+    /** QA / wallet symbol (default: `POOL`). */
+    poolSymbol?: string;
+    /**
+     * Mempool QA category for pool bytecode ([NATIVE-AMM-CALLDATA.md](../../docs/NATIVE-AMM-CALLDATA.md)).
+     * Default **`dapp`** matches canonical testnet pool deploys.
+     */
+    purposeCategory?: string;
+    descriptionHashHex?: string;
+    bytecodeHexOverride?: string;
+    extraEnvKeys?: readonly string[];
+};
+/**
+ * **One call** for **native CP pool** **`contract_deploy_meta`**: pinned bytecode from env or override,
+ * **`purpose_category`** default **`dapp`**, then the same Express shape as token/NFT deploys.
+ */
+export declare function buildNativeConstantProductPoolDeployMetaTx(input: BuildNativeConstantProductPoolDeployMetaTxInput): ContractDeployMetaTxObject;
 //# sourceMappingURL=canonicalDeployArtifacts.d.ts.map

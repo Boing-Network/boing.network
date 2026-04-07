@@ -153,3 +153,57 @@ export function buildReferenceNftCollectionDeployMetaTx(input) {
         descriptionHashHex: input.descriptionHashHex,
     });
 }
+const DEFAULT_NATIVE_AMM_POOL_ENV_KEYS = [
+    'BOING_NATIVE_AMM_BYTECODE_HEX',
+    'VITE_BOING_NATIVE_AMM_BYTECODE_HEX',
+    'REACT_APP_BOING_NATIVE_AMM_BYTECODE_HEX',
+];
+/**
+ * Resolve **native constant-product pool** bytecode from override or env (same keys as
+ * [examples/native-boing-tutorial](../examples/native-boing-tutorial/) **`BOING_NATIVE_AMM_BYTECODE_HEX`**).
+ */
+export function resolveNativeConstantProductPoolBytecodeHex(opts) {
+    if (opts?.explicitHex?.trim()) {
+        return ensure0xHex(opts.explicitHex);
+    }
+    for (const k of DEFAULT_NATIVE_AMM_POOL_ENV_KEYS) {
+        const v = readProcessEnv(k);
+        if (v)
+            return ensure0xHex(v);
+    }
+    if (opts?.extraEnvKeys) {
+        for (const k of opts.extraEnvKeys) {
+            const v = readProcessEnv(k);
+            if (v)
+                return ensure0xHex(v);
+        }
+    }
+    return undefined;
+}
+/**
+ * **One call** for **native CP pool** **`contract_deploy_meta`**: pinned bytecode from env or override,
+ * **`purpose_category`** default **`dapp`**, then the same Express shape as token/NFT deploys.
+ */
+export function buildNativeConstantProductPoolDeployMetaTx(input) {
+    const bytecodeHex = input.bytecodeHexOverride?.trim()
+        ? ensure0xHex(input.bytecodeHexOverride)
+        : resolveNativeConstantProductPoolBytecodeHex({ extraEnvKeys: input.extraEnvKeys });
+    if (!bytecodeHex) {
+        throw new Error('buildNativeConstantProductPoolDeployMetaTx: no pool bytecode — set BOING_NATIVE_AMM_BYTECODE_HEX (or VITE_/REACT_APP_ variant), or pass bytecodeHexOverride');
+    }
+    const name = (input.poolLabel ?? 'Native CP Pool').trim();
+    const sym = (input.poolSymbol ?? 'POOL').trim().toUpperCase();
+    if (!name) {
+        throw new Error('buildNativeConstantProductPoolDeployMetaTx: poolLabel required when set to empty');
+    }
+    if (!sym) {
+        throw new Error('buildNativeConstantProductPoolDeployMetaTx: poolSymbol required when set to empty');
+    }
+    return buildContractDeployMetaTx({
+        bytecodeHex,
+        assetName: name,
+        assetSymbol: sym,
+        purposeCategory: input.purposeCategory ?? 'dapp',
+        descriptionHashHex: input.descriptionHashHex,
+    });
+}
