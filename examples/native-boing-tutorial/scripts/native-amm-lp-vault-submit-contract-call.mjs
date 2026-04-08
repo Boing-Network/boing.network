@@ -6,7 +6,11 @@
  *   BOING_RPC_URL, BOING_SECRET_HEX — required
  *   BOING_VAULT_HEX, BOING_POOL_HEX, BOING_SHARE_HEX — required
  *   BOING_LP_VAULT_ACTION — configure | deposit (default configure)
+ *   BOING_LP_VAULT_SKIP_READINESS — set `1` to skip on-chain readiness probe before **deposit** / **deposit_add**
  *   (per-action vars identical to print script)
+ *
+ * Before **`deposit` / `deposit_add`**, unless skipped, runs **`fetchNativeAmmLpVaultProductReadiness`**
+ * (`configure` + share **`set_minter_once`** with vault as minter). See NATIVE-AMM-LP-VAULT.md.
  */
 import {
   buildNativeAmmLpVaultConfigureAccessList,
@@ -16,6 +20,7 @@ import {
   encodeNativeAmmLpVaultConfigureCalldataHex,
   encodeNativeAmmLpVaultDepositAddCalldataHex,
   explainBoingRpcError,
+  fetchNativeAmmLpVaultProductReadiness,
   hexToBytes,
   senderHexFromSecretKey,
   submitContractCallWithSimulationRetry,
@@ -84,6 +89,37 @@ async function main() {
   const secret = hexToBytes(secretHex);
   const client = createClient(rpc);
   const senderHex = await senderHexFromSecretKey(secret);
+
+  const skipReadiness =
+    process.env.BOING_LP_VAULT_SKIP_READINESS === '1' || process.env.BOING_LP_VAULT_SKIP_READINESS === 'true';
+  if ((action === 'deposit' || action === 'deposit_add') && !skipReadiness) {
+    const readiness = await fetchNativeAmmLpVaultProductReadiness(client, {
+      vaultHex32: vault,
+      shareHex32: share,
+      expectedPoolHex32: pool,
+    });
+    if (!readiness.depositAddReady) {
+      console.error(
+        JSON.stringify(
+          {
+            ok: false,
+            phase: 'lp_vault_product_readiness',
+            depositAddReady: false,
+            blockingReasons: readiness.blockingReasons,
+            vaultRpcOk: readiness.vaultRpcOk,
+            vault: readiness.vault,
+            shareMinterHex: readiness.shareMinterHex,
+            hint:
+              'Complete share set_minter_once (vault as minter) and vault configure(pool, share), or set BOING_LP_VAULT_SKIP_READINESS=1 to force submit.',
+          },
+          null,
+          2
+        )
+      );
+      process.exit(1);
+    }
+  }
+
   if (action === 'configure') {
     accessList = buildNativeAmmLpVaultConfigureAccessList(senderHex, vault);
   } else {

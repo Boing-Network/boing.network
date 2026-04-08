@@ -369,7 +369,10 @@ Same env as **§7f**, plus **`BOING_RPC_URL`** and **`BOING_SECRET_HEX`**. Runs 
 | `BOING_SECRET_HEX` | yes |
 | `BOING_VAULT_HEX`, `BOING_POOL_HEX`, `BOING_SHARE_HEX` | yes |
 | `BOING_RPC_URL` | no — default `http://127.0.0.1:8545` |
+| `BOING_LP_VAULT_SKIP_READINESS` | no — set **`1`** / **`true`** to skip the on-chain probe before **`deposit`** / **`deposit_add`** |
 | (same action / amount vars as §7f) | per action |
+
+For **`deposit`** / **`deposit_add`**, the script calls **`fetchNativeAmmLpVaultProductReadiness`** (vault **`configure`** + share **`set_minter_once`** with the vault as minter). If **`depositAddReady`** is false, it prints **`blockingReasons`** and exits **1** — complete §7c2 wiring first, or set **`BOING_LP_VAULT_SKIP_READINESS=1`** to force submit (advanced).
 
 ### 7h. Print LP share `contract_call` JSON (`npm run native-lp-share-print-contract-call-tx`)
 
