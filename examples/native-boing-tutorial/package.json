@@ -18,6 +18,8 @@
     "deploy-native-dex-directory": "node scripts/deploy-native-dex-directory.mjs",
     "dump-native-bytecodes": "node scripts/dump-native-bytecodes.mjs",
     "bootstrap-native-pool-and-dex": "node scripts/bootstrap-native-pool-and-dex.mjs",
+    "deploy-native-purpose-contract": "node scripts/deploy-native-purpose-contract.mjs",
+    "print-native-dex-deploy-salts": "node scripts/print-native-dex-deploy-salts.mjs",
     "check-testnet-rpc": "node scripts/check-testnet-rpc.mjs",
     "preflight-rpc": "node scripts/preflight-rpc.mjs",
     "native-amm-print-contract-call-tx": "node scripts/native-amm-print-contract-call-tx.mjs",

@@ -199,7 +199,9 @@ After a successful submit, seed liquidity with **`npm run native-amm-submit-cont
 
 | Script | Purpose |
 |--------|---------|
-| **`dump-native-bytecodes`** | Runs **`dump_native_amm_pool`** and **`dump_native_dex_factory`** via **`cargo`** from the repo root; writes **`artifacts/pool-lines.hex`**, **`artifacts/pool-dump-meta.txt`**, **`artifacts/native-dex-factory.hex`** (all gitignored). No keys, no RPC. |
+| **`dump-native-bytecodes`** | Runs **`cargo`** dump examples for pool lines, pair directory, **ledger routers v1–v3**, **swap2 router**, **LP vault**, **LP share token** → under **`artifacts/`** (gitignored). No keys, no RPC. |
+| **`print-native-dex-deploy-salts`** | JSON map of canonical **CREATE2** salt hex for each native DEX / LP helper (from **`boing-sdk`**); needs **`boing-sdk`** built. |
+| **`deploy-native-purpose-contract`** | Generic **`ContractDeployWithPurpose`** for any **`artifacts/*.hex`** line + matching **`BOING_CREATE2_SALT_HEX`** (or **`BOING_USE_CREATE2=0`**). See §7c2b. |
 | **`bootstrap-native-pool-and-dex`** | Optionally runs the dumper (skip with **`BOING_SKIP_DUMP=1`**), then **`deploy-native-amm-pool`** + **`deploy-native-dex-directory`**. After the pool step it **polls `boing_getAccount` until the sender nonce advances** (committed state) so the factory deploy uses the correct nonce — **`BOING_BOOTSTRAP_POOL_COMMIT_WAIT_MS`** (default **120000**). Set **`BOING_BOOTSTRAP_REGISTER_PAIR=1`** for **`register_pair`**. CREATE2 collision → auto-retry with **`BOING_USE_CREATE2=0`** unless **`BOING_BOOTSTRAP_NO_AUTO_NONCE=1`**. |
 
 ### 7c2. Deploy native DEX pair directory (`npm run deploy-native-dex-directory`)
@@ -216,6 +218,25 @@ Deploys the **pair directory** VM program (CREATE2 by default), then optionally 
 | `BOING_EXPECT_SENDER_HEX` | no |
 | **Optional `register_pair` second tx** | Set all of: **`BOING_DEX_POOL_HEX`**, **`BOING_DEX_TOKEN_A_HEX`**, **`BOING_DEX_TOKEN_B_HEX`**; **`BOING_DEX_FACTORY_HEX`** defaults to predicted directory address |
 | **`BOING_DEX_REGISTER_POLL_MS`** / **`BOING_DEX_REGISTER_WAIT_MS`** | When **`register_pair`** runs right after factory deploy, simulation uses **committed** state — if the factory is not executable yet, the script retries until **`Account not found`** clears (defaults **750** ms poll, **180000** ms max). |
+
+### 7c2b. Deploy other native VM contracts (`npm run deploy-native-purpose-contract`)
+
+After **`npm run dump-native-bytecodes`**, you can deploy **ledger routers**, **swap2 router**, **LP vault**, or **LP share token** with the same purpose-deploy flow as the pool/factory, using the matching **CREATE2** salt from the protocol (must match the bytecode you deploy).
+
+1. `npm run print-native-dex-deploy-salts` — copy the **`create2SaltsHex32`** entry for your contract (e.g. **`native_dex_ledger_router_v1`**).
+2. Set **`BOING_NATIVE_BYTECODE_FILE=artifacts/<file>.hex`** and **`BOING_CREATE2_SALT_HEX=<that salt>`** (and **`BOING_SECRET_HEX`**). Default **`BOING_USE_CREATE2=1`**.
+3. On address collision (e.g. public testnet), use **`BOING_USE_CREATE2=0`** for a nonce-derived id (same pattern as bootstrap).
+
+| Artifact file | Salt key in `print-native-dex-deploy-salts` output |
+|---------------|---------------------------------------------------|
+| `artifacts/native-dex-ledger-router-v1.hex` | `native_dex_ledger_router_v1` |
+| `artifacts/native-dex-ledger-router-v2.hex` | `native_dex_ledger_router_v2` |
+| `artifacts/native-dex-ledger-router-v3.hex` | `native_dex_ledger_router_v3` |
+| `artifacts/native-dex-swap2-router.hex` | `native_dex_swap2_router` |
+| `artifacts/native-amm-lp-vault.hex` | `native_amm_lp_vault_v1` |
+| `artifacts/native-lp-share-token.hex` | `native_lp_share_token_v1` |
+
+Specs: [NATIVE-DEX-LEDGER-ROUTER.md](../../docs/NATIVE-DEX-LEDGER-ROUTER.md), [NATIVE-DEX-SWAP2-ROUTER.md](../../docs/NATIVE-DEX-SWAP2-ROUTER.md), [NATIVE-AMM-LP-VAULT.md](../../docs/NATIVE-AMM-LP-VAULT.md), [NATIVE-LP-SHARE-TOKEN.md](../../docs/NATIVE-LP-SHARE-TOKEN.md).
 
 ### 7c3. Print native DEX routes (`npm run print-native-dex-routes`)
 
