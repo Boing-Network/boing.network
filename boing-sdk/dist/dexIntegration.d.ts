@@ -14,6 +14,8 @@ export type NativeDexIntegrationDefaults = {
     nativeDexFactoryAccountHex: `0x${string}` | null;
     poolSource: NativeDexDefaultSource;
     factorySource: NativeDexDefaultSource;
+    /** From `boing_getNetworkInfo.end_user.explorer_url` when set (https URL). */
+    endUserExplorerUrl: string | null;
 };
 export type NativeDexIntegrationOverrides = {
     nativeCpPoolAccountHex?: string;

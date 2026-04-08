@@ -63,6 +63,7 @@ describe('dexIntegration', () => {
     expect(d.nativeCpPoolAccountHex).toBe(CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX);
     expect(d.poolSource).toBe('sdk_testnet_embedded');
     expect(d.nativeDexFactoryAccountHex).toBeNull();
+    expect(d.endUserExplorerUrl).toBeNull();
   });
 
   it('mergeNativeDexIntegrationDefaults prefers RPC end_user pool over embedded', () => {
@@ -81,6 +82,19 @@ describe('dexIntegration', () => {
     );
     expect(d.nativeCpPoolAccountHex).toBe(pool);
     expect(d.poolSource).toBe('rpc_end_user');
+  });
+
+  it('mergeNativeDexIntegrationDefaults copies end_user explorer_url when https', () => {
+    const d = mergeNativeDexIntegrationDefaults(
+      baseInfo({
+        end_user: {
+          chain_display_name: null,
+          explorer_url: 'https://custom.observer/',
+          faucet_url: null,
+        },
+      }),
+    );
+    expect(d.endUserExplorerUrl).toBe('https://custom.observer');
   });
 
   it('mergeNativeDexIntegrationDefaults override wins', () => {

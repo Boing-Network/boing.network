@@ -36,6 +36,8 @@ export type NativeDexIntegrationDefaults = {
   nativeDexFactoryAccountHex: `0x${string}` | null;
   poolSource: NativeDexDefaultSource;
   factorySource: NativeDexDefaultSource;
+  /** From `boing_getNetworkInfo.end_user.explorer_url` when set (https URL). */
+  endUserExplorerUrl: string | null;
 };
 
 export type NativeDexIntegrationOverrides = {
@@ -94,11 +96,21 @@ export function mergeNativeDexIntegrationDefaults(
     }
   }
 
+  let endUserExplorerUrl: string | null = null;
+  const ex = eu?.explorer_url;
+  if (typeof ex === 'string') {
+    const t = ex.trim();
+    if (t && /^https?:\/\//i.test(t)) {
+      endUserExplorerUrl = t.replace(/\/+$/, '');
+    }
+  }
+
   return {
     nativeCpPoolAccountHex,
     nativeDexFactoryAccountHex,
     poolSource,
     factorySource,
+    endUserExplorerUrl,
   };
 }
 

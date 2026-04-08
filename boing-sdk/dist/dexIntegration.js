@@ -72,11 +72,20 @@ export function mergeNativeDexIntegrationDefaults(info, overrides) {
             factorySource = 'rpc_end_user';
         }
     }
+    let endUserExplorerUrl = null;
+    const ex = eu?.explorer_url;
+    if (typeof ex === 'string') {
+        const t = ex.trim();
+        if (t && /^https?:\/\//i.test(t)) {
+            endUserExplorerUrl = t.replace(/\/+$/, '');
+        }
+    }
     return {
         nativeCpPoolAccountHex,
         nativeDexFactoryAccountHex,
         poolSource,
         factorySource,
+        endUserExplorerUrl,
     };
 }
 /** Fetch **`boing_getNetworkInfo`** and {@link mergeNativeDexIntegrationDefaults}. */
