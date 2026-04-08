@@ -202,6 +202,7 @@ After a successful submit, seed liquidity with **`npm run native-amm-submit-cont
 | **`dump-native-bytecodes`** | Runs **`cargo`** dump examples for pool lines, pair directory, **ledger routers v1–v3**, **swap2 router**, **LP vault**, **LP share token** → under **`artifacts/`** (gitignored). No keys, no RPC. |
 | **`print-native-dex-deploy-salts`** | JSON map of canonical **CREATE2** salt hex for each native DEX / LP helper (from **`boing-sdk`**); needs **`boing-sdk`** built. |
 | **`deploy-native-purpose-contract`** | Generic **`ContractDeployWithPurpose`** for any **`artifacts/*.hex`** line + matching **`BOING_CREATE2_SALT_HEX`** (or **`BOING_USE_CREATE2=0`**). See §7c2b. |
+| **`deploy-native-dex-aux-contracts`** | Deploys **multihop (swap2) router** + **ledger routers v2–v3** (optional **v1**); waits for committed nonce between steps. See §7c2c. |
 | **`bootstrap-native-pool-and-dex`** | Optionally runs the dumper (skip with **`BOING_SKIP_DUMP=1`**), then **`deploy-native-amm-pool`** + **`deploy-native-dex-directory`**. After the pool step it **polls `boing_getAccount` until the sender nonce advances** (committed state) so the factory deploy uses the correct nonce — **`BOING_BOOTSTRAP_POOL_COMMIT_WAIT_MS`** (default **120000**). Set **`BOING_BOOTSTRAP_REGISTER_PAIR=1`** for **`register_pair`**. CREATE2 collision → auto-retry with **`BOING_USE_CREATE2=0`** unless **`BOING_BOOTSTRAP_NO_AUTO_NONCE=1`**. |
 
 ### 7c2. Deploy native DEX pair directory (`npm run deploy-native-dex-directory`)
@@ -239,6 +240,30 @@ After **`npm run dump-native-bytecodes`**, you can deploy **ledger routers**, **
 | `artifacts/native-lp-share-token.hex` | `native_lp_share_token_v1` |
 
 Specs: [NATIVE-DEX-LEDGER-ROUTER.md](../../docs/NATIVE-DEX-LEDGER-ROUTER.md), [NATIVE-DEX-SWAP2-ROUTER.md](../../docs/NATIVE-DEX-SWAP2-ROUTER.md), [NATIVE-AMM-LP-VAULT.md](../../docs/NATIVE-AMM-LP-VAULT.md), [NATIVE-LP-SHARE-TOKEN.md](../../docs/NATIVE-LP-SHARE-TOKEN.md).
+
+### 7c2c. Full DEX stack: what to deploy (checklist)
+
+Per [BOING-NATIVE-DEX-CAPABILITY.md](../../docs/BOING-NATIVE-DEX-CAPABILITY.md):
+
+| Piece | Role | Typical command |
+|-------|------|-----------------|
+| Native CP **pool** | Swaps + LP | `deploy-native-amm-pool` / **`bootstrap-native-pool-and-dex`** |
+| **Pair directory** | `register_pair`, indexer discovery | `deploy-native-dex-directory` / bootstrap |
+| **Ledger router v1** | Single-hop `Call` forward (128-byte inner calldata; safe with **v1** ledger pools) | `deploy-native-purpose-contract` + `artifacts/native-dex-ledger-router-v1.hex` |
+| **Multihop (swap2) router** | **2–4** pool hops in **one** tx | **`npm run deploy-native-dex-aux-contracts`** (below) or purpose-contract + `native-dex-swap2-router.hex` |
+| **Ledger router v2 / v3** | Forward **160** / **192**-byte inner calldata (e.g. **v5** `swap_to` / `remove_liquidity_to`) | Same aux script or individual purpose deploys |
+| **LP vault + LP share token** | Optional product path (wrapped LP / share token); **not** required for bare pool trading | [NATIVE-AMM-LP-VAULT.md](../../docs/NATIVE-AMM-LP-VAULT.md), **`native-amm-lp-vault-*`** / **`native-lp-share-*`** scripts |
+
+**One-shot (swap2 + ledger v2 + v3):** after **`boing-sdk`** build and **`BOING_SECRET_HEX`** set:
+
+```bash
+cd examples/native-boing-tutorial
+export BOING_RPC_URL=https://testnet-rpc.boing.network
+export BOING_SKIP_DUMP=1   # if artifacts/ already populated
+npm run deploy-native-dex-aux-contracts
+```
+
+Skips: **`BOING_AUX_SKIP_SWAP2=1`**, **`BOING_AUX_SKIP_LEDGER_V2=1`**, **`BOING_AUX_SKIP_LEDGER_V3=1`**. To redeploy **ledger v1** on a fresh key: **`BOING_AUX_INCLUDE_LEDGER_V1=1`**. CREATE2 collision → auto nonce retry (same as bootstrap) unless **`BOING_BOOTSTRAP_NO_AUTO_NONCE=1`**.
 
 ### 7c3. Print native DEX routes (`npm run print-native-dex-routes`)
 
