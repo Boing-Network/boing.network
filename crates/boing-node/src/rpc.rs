@@ -646,6 +646,11 @@ fn end_user_network_hints() -> serde_json::Value {
         "faucet_url": faucet_url,
         "canonical_native_cp_pool": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_CP_POOL"),
         "canonical_native_dex_factory": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_DEX_FACTORY"),
+        "canonical_native_dex_multihop_swap_router": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_DEX_MULTIHOP_SWAP_ROUTER"),
+        "canonical_native_dex_ledger_router_v2": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_DEX_LEDGER_ROUTER_V2"),
+        "canonical_native_dex_ledger_router_v3": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_DEX_LEDGER_ROUTER_V3"),
+        "canonical_native_amm_lp_vault": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_AMM_LP_VAULT"),
+        "canonical_native_lp_share_token": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_LP_SHARE_TOKEN"),
     })
 }
 

@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from '../src/canonicalTestnet.js';
-import { CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX } from '../src/canonicalTestnetDex.js';
 import {
+  CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX,
+  CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX,
+  CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V2_HEX,
+  CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V3_HEX,
+  CANONICAL_BOING_TESTNET_NATIVE_DEX_MULTIHOP_SWAP_ROUTER_HEX,
+  CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX,
+} from '../src/canonicalTestnetDex.js';
+import {
+  buildNativeDexIntegrationOverridesFromProcessEnv,
   fetchNativeDexIntegrationDefaults,
   mergeNativeDexIntegrationDefaults,
 } from '../src/dexIntegration.js';
@@ -65,6 +73,12 @@ describe('dexIntegration', () => {
     expect(d.poolSource).toBe('sdk_testnet_embedded');
     expect(d.nativeDexFactoryAccountHex).toBe(CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX);
     expect(d.factorySource).toBe('sdk_testnet_embedded');
+    expect(d.nativeDexMultihopSwapRouterAccountHex).toBe(CANONICAL_BOING_TESTNET_NATIVE_DEX_MULTIHOP_SWAP_ROUTER_HEX);
+    expect(d.nativeDexMultihopSwapRouterSource).toBe('sdk_testnet_embedded');
+    expect(d.nativeDexLedgerRouterV2AccountHex).toBe(CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V2_HEX);
+    expect(d.nativeDexLedgerRouterV3AccountHex).toBe(CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V3_HEX);
+    expect(d.nativeAmmLpVaultAccountHex).toBe(CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX);
+    expect(d.nativeLpShareTokenAccountHex).toBe(CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX);
     expect(d.endUserExplorerUrl).toBeNull();
   });
 
@@ -116,6 +130,38 @@ describe('dexIntegration', () => {
     );
     expect(d.nativeCpPoolAccountHex).toBe(o);
     expect(d.poolSource).toBe('override');
+  });
+
+  it('mergeNativeDexIntegrationDefaults prefers RPC end_user multihop over embedded', () => {
+    const hop =
+      '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as `0x${string}`;
+    const d = mergeNativeDexIntegrationDefaults(
+      baseInfo({
+        chain_id: 6913,
+        end_user: {
+          chain_display_name: null,
+          explorer_url: null,
+          faucet_url: null,
+          canonical_native_dex_multihop_swap_router: hop,
+        },
+      })
+    );
+    expect(d.nativeDexMultihopSwapRouterAccountHex).toBe(hop);
+    expect(d.nativeDexMultihopSwapRouterSource).toBe('rpc_end_user');
+  });
+
+  it('buildNativeDexIntegrationOverridesFromProcessEnv reads swap router env', () => {
+    const key = 'REACT_APP_BOING_NATIVE_VM_SWAP_ROUTER';
+    const prev = process.env[key];
+    const hop = '0x' + 'cc'.repeat(32);
+    process.env[key] = hop;
+    try {
+      const o = buildNativeDexIntegrationOverridesFromProcessEnv();
+      expect(o.nativeDexMultihopSwapRouterAccountHex?.toLowerCase()).toBe(hop);
+    } finally {
+      if (prev === undefined) delete process.env[key];
+      else process.env[key] = prev;
+    }
   });
 
   it('fetchNativeDexIntegrationDefaults calls getNetworkInfo', async () => {

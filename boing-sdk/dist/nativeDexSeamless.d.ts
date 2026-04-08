@@ -9,7 +9,7 @@ import { type BoingRpcPreflightError } from './preflightGate.js';
 /** Short line for tooltips / footers. */
 export declare const BOING_NATIVE_DEX_NOT_EVM_TAGLINE = "Boing native DEX uses 32-byte account ids, explicit access lists, and VM-specific calldata\u2014not a paste-any-Uniswap-address router.";
 /** Bullet list for onboarding modals or docs snippets. */
-export declare const BOING_NATIVE_DEX_NOT_EVM_BULLETS: readonly ["Accounts are 32-byte Boing AccountIds (64 hex chars), not 20-byte Ethereum contract addresses.", "Each `contract_call` needs calldata per NATIVE-AMM / NATIVE-DEX specs plus explicit `access_list` read/write sets.", "Pool, factory, and router ids are app or operator config (RPC `end_user` hints, overrides, or CREATE2 prediction)—there is no universal router ABI."];
+export declare const BOING_NATIVE_DEX_NOT_EVM_BULLETS: readonly ["Accounts are 32-byte Boing AccountIds (64 hex chars), not 20-byte Ethereum contract addresses.", "Each `contract_call` needs calldata per NATIVE-AMM / NATIVE-DEX specs plus explicit `access_list` read/write sets.", "Pool, factory, multihop router, ledger forwarders, and LP vault/share ids resolve via RPC `end_user` hints, `fetchNativeDexIntegrationDefaults`, env overrides, or CREATE2 prediction—there is no universal router ABI."];
 export declare function formatBoingNativeDexNotEvmDisclaimer(): string;
 /**
  * Surfaces missing operator hints so UIs can link to ops runbooks instead of failing silently.

@@ -8,23 +8,43 @@ import type { BoingClient } from './client.js';
 import { type NativeDexFactoryRegisterRpcParsed } from './nativeDexFactoryLogs.js';
 import type { NetworkInfo } from './types.js';
 export type NativeDexDefaultSource = 'rpc_end_user' | 'sdk_testnet_embedded' | 'override' | 'none';
-/** Resolved pool / factory accounts for native DEX UIs and calldata builders. */
+/** Resolved pool / factory / router / LP helper accounts for native DEX UIs and calldata builders. */
 export type NativeDexIntegrationDefaults = {
     nativeCpPoolAccountHex: `0x${string}` | null;
     nativeDexFactoryAccountHex: `0x${string}` | null;
     poolSource: NativeDexDefaultSource;
     factorySource: NativeDexDefaultSource;
+    nativeDexMultihopSwapRouterAccountHex: `0x${string}` | null;
+    nativeDexMultihopSwapRouterSource: NativeDexDefaultSource;
+    nativeDexLedgerRouterV2AccountHex: `0x${string}` | null;
+    nativeDexLedgerRouterV2Source: NativeDexDefaultSource;
+    nativeDexLedgerRouterV3AccountHex: `0x${string}` | null;
+    nativeDexLedgerRouterV3Source: NativeDexDefaultSource;
+    nativeAmmLpVaultAccountHex: `0x${string}` | null;
+    nativeAmmLpVaultSource: NativeDexDefaultSource;
+    nativeLpShareTokenAccountHex: `0x${string}` | null;
+    nativeLpShareTokenSource: NativeDexDefaultSource;
     /** From `boing_getNetworkInfo.end_user.explorer_url` when set (https URL). */
     endUserExplorerUrl: string | null;
 };
 export type NativeDexIntegrationOverrides = {
     nativeCpPoolAccountHex?: string;
     nativeDexFactoryAccountHex?: string;
+    nativeDexMultihopSwapRouterAccountHex?: string;
+    nativeDexLedgerRouterV2AccountHex?: string;
+    nativeDexLedgerRouterV3AccountHex?: string;
+    nativeAmmLpVaultAccountHex?: string;
+    nativeLpShareTokenAccountHex?: string;
 };
 /**
+ * Build {@link NativeDexIntegrationOverrides} from **`process.env`** (Node / Vite / CRA).
+ * First non-empty value wins per key group. Safe to call from browser bundles if env is injected at build time.
+ */
+export declare function buildNativeDexIntegrationOverridesFromProcessEnv(): NativeDexIntegrationOverrides;
+/**
  * Merge RPC **`end_user`** canonical addresses, optional app overrides, and embedded **6913** fallbacks
- * (pool + predicted CREATE2 factory — see [`canonicalTestnetDex.ts`](./canonicalTestnetDex.ts)).
- * Order: overrides → node hints → testnet embedded pool / factory.
+ * (see [`canonicalTestnetDex.ts`](./canonicalTestnetDex.ts)).
+ * Order per field: overrides → node hints → testnet embedded constants.
  */
 export declare function mergeNativeDexIntegrationDefaults(info: NetworkInfo | null | undefined, overrides?: NativeDexIntegrationOverrides): NativeDexIntegrationDefaults;
 /** Fetch **`boing_getNetworkInfo`** and {@link mergeNativeDexIntegrationDefaults}. */

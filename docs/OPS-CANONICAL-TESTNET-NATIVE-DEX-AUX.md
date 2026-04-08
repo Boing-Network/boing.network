@@ -45,9 +45,14 @@ cargo run -p boing-execution --example print_canonical_testnet_dex_create2_addre
 
 ## Node configuration (optional but nice)
 
-When the factory is deployed at the predicted address, set on **RPC nodes** that should advertise it (see [RPC-API-SPEC.md](RPC-API-SPEC.md)):
+When aux contracts are deployed at the predicted addresses, set on **RPC nodes** that should advertise them (see [RPC-API-SPEC.md](RPC-API-SPEC.md) **`end_user`** table):
 
-- **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** — factory `AccountId` hex (should match table above, e.g. `0x12dff97625620a1f10c05cd66cd72878288e8fea70d4150e9815bd38983b2890` for the canonical deployer + CREATE2 path).
+- **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** — pair directory (merge table above, e.g. `0x12dff97625620a1f10c05cd66cd72878288e8fea70d4150e9815bd38983b2890` when using canonical CREATE2).
+- **`BOING_CANONICAL_NATIVE_DEX_MULTIHOP_SWAP_ROUTER`** — multihop / swap2 router.
+- **`BOING_CANONICAL_NATIVE_DEX_LEDGER_ROUTER_V2`** / **`BOING_CANONICAL_NATIVE_DEX_LEDGER_ROUTER_V3`** — ledger forwarders for **160** / **192**-byte inner calldata (v5 `swap_to` / `remove_liquidity_to`).
+- **`BOING_CANONICAL_NATIVE_AMM_LP_VAULT`** / **`BOING_CANONICAL_NATIVE_LP_SHARE_TOKEN`** — LP product path contracts.
+
+Also keep **`BOING_CANONICAL_NATIVE_CP_POOL`** in sync when operators want RPC to publish the live pool id ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md)).
 
 **Operator deploy order (typical):** pool + directory → `npm run deploy-native-dex-aux-contracts` (routers) → optional `npm run deploy-native-dex-lp-aux-contracts` (LP vault + share token at predicted CREATE2 ids). After factory is live at the predicted id, restart or configure nodes with **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** so `boing_getNetworkInfo` can surface **`canonical_native_dex_factory`** to wallets and indexers.
 

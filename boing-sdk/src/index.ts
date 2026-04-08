@@ -568,6 +568,7 @@ export {
   mergeNativeDexIntegrationDefaults,
   fetchNativeDexIntegrationDefaults,
   fetchNativeDexFactoryRegisterLogs,
+  buildNativeDexIntegrationOverridesFromProcessEnv,
   type NativeDexIntegrationDefaults,
   type NativeDexIntegrationOverrides,
   type NativeDexDefaultSource,

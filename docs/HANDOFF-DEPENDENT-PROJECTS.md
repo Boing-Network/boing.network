@@ -12,7 +12,7 @@ Use this as the **upstream contract** for dependent projects. **Canonical GitHub
 |------|---------------------|
 | **Protocol** | `crates/boing-node`, `crates/boing-execution` — VM programs (native CP pool, DEX factory, ledger / swap2 / multihop routers), JSON-RPC |
 | **TypeScript SDK** | `boing-sdk/` — RPC client, calldata + access-list builders, directory snapshot (`fetchNativeDexDirectorySnapshot`), routing (`nativeDexRouting.ts`: quotes, `findBestCpRoutes`, `fetchCpRoutingFromDirectoryLogs`), wallet helpers (`connectInjectedBoingWallet`, `mapInjectedProviderErrorToUiMessage`), preflight (`assertBoingNativeDexToolkitRpc`) |
-| **Operator docs** | `docs/RUNBOOK.md`, `docs/RPC-API-SPEC.md`, `tools/boing-node-public-testnet.env.example` — `BOING_CANONICAL_NATIVE_CP_POOL`, `BOING_CANONICAL_NATIVE_DEX_FACTORY` for `boing_getNetworkInfo.end_user` |
+| **Operator docs** | `docs/RUNBOOK.md`, `docs/RPC-API-SPEC.md`, `tools/boing-node-public-testnet.env.example` — `BOING_CANONICAL_NATIVE_*` (`CP_POOL`, `DEX_FACTORY`, multihop router, ledger v2/v3, LP vault, share) for `boing_getNetworkInfo.end_user` |
 | **Integration specs** | `docs/BOING-DAPP-INTEGRATION.md`, `docs/BOING-NATIVE-DEX-CAPABILITY.md`, `docs/BOING-EXPRESS-WALLET.md`, `docs/BOING-OBSERVER-AND-EXPRESS.md` |
 | **Tutorial CLI** | `examples/native-boing-tutorial/scripts/` — including **`print-native-dex-routes`** (off-chain route dump over public RPC) |
 | **Website / portal** | `website/` — testnet portal, docs PDFs, links to Explorer / Wallet per alignment doc |
@@ -56,7 +56,7 @@ Dependent apps should **pin or track** published `boing-sdk` versions (npm or `f
 | Priority | Item | Notes |
 |----------|------|--------|
 | **P0** | **Canonical pool / factory** | Keep on-chain ids and env mirrors in sync with [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) and **`end_user`** hints when users use public RPC. |
-| **P1** | **Prefer SDK defaults** | **`fetchNativeDexIntegrationDefaults`** / **`mergeNativeDexIntegrationDefaults`** to reduce hardcoded hex when the node publishes **`canonical_native_*`**. |
+| **P1** | **Prefer SDK defaults** | **`fetchNativeDexIntegrationDefaults`** / **`mergeNativeDexIntegrationDefaults`** (pool, factory, multihop router, ledger v2/v3, LP vault, share) + optional **`buildNativeDexIntegrationOverridesFromProcessEnv`** when the node publishes **`end_user.canonical_native_*`**. |
 | **P1** | **Routing** | Use **`nativeDexRouting`** for quotes; build execution calldata with existing multihop / pool encoders in **`boing-sdk`**. |
 | **P2** | **Wallet** | Detect **`providerSupportsBoingNativeRpc`**; guide users to Boing Express if `false`. |
 

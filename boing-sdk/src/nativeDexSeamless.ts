@@ -21,7 +21,7 @@ export const BOING_NATIVE_DEX_NOT_EVM_TAGLINE =
 export const BOING_NATIVE_DEX_NOT_EVM_BULLETS = [
   'Accounts are 32-byte Boing AccountIds (64 hex chars), not 20-byte Ethereum contract addresses.',
   'Each `contract_call` needs calldata per NATIVE-AMM / NATIVE-DEX specs plus explicit `access_list` read/write sets.',
-  'Pool, factory, and router ids are app or operator config (RPC `end_user` hints, overrides, or CREATE2 prediction)—there is no universal router ABI.',
+  'Pool, factory, multihop router, ledger forwarders, and LP vault/share ids resolve via RPC `end_user` hints, `fetchNativeDexIntegrationDefaults`, env overrides, or CREATE2 prediction—there is no universal router ABI.',
 ] as const;
 
 export function formatBoingNativeDexNotEvmDisclaimer(): string {

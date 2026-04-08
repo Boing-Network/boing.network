@@ -75,6 +75,11 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 | **`BOING_FAUCET_URL`** | Optional faucet URL in **`end_user.faucet_url`**. |
 | **`BOING_CANONICAL_NATIVE_CP_POOL`** | Optional 32-byte **`AccountId`** hex (with or without **`0x`**) in **`end_user.canonical_native_cp_pool`** — public RPC operators publish the canonical native constant-product pool so dApps need not hardcode it ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md)). Invalid values are ignored with a warning in node logs. |
 | **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** | Optional pair-directory contract **`AccountId`** in **`end_user.canonical_native_dex_factory`** for default **`boing_getContractStorage`** / **`boing_getLogs`** wiring. |
+| **`BOING_CANONICAL_NATIVE_DEX_MULTIHOP_SWAP_ROUTER`** | Optional multihop (2–4 pool) swap router **`AccountId`** in **`end_user.canonical_native_dex_multihop_swap_router`**. |
+| **`BOING_CANONICAL_NATIVE_DEX_LEDGER_ROUTER_V2`** | Optional ledger forwarder **`AccountId`** (**160**-byte inner calldata) in **`end_user.canonical_native_dex_ledger_router_v2`**. |
+| **`BOING_CANONICAL_NATIVE_DEX_LEDGER_ROUTER_V3`** | Optional ledger forwarder **`AccountId`** (**192**-byte inner calldata) in **`end_user.canonical_native_dex_ledger_router_v3`**. |
+| **`BOING_CANONICAL_NATIVE_AMM_LP_VAULT`** | Optional LP vault **`AccountId`** in **`end_user.canonical_native_amm_lp_vault`**. |
+| **`BOING_CANONICAL_NATIVE_LP_SHARE_TOKEN`** | Optional LP share token **`AccountId`** in **`end_user.canonical_native_lp_share_token`**. |
 
 **`rpc_surface` on `boing_getNetworkInfo`:** mirrors **`boing_health.rpc_surface`** (batch cap, body limit, **`boing_getLogs`** bounds, WS cap, rate limit, ready peer gate).
 
@@ -374,7 +379,12 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
     "explorer_url": null,
     "faucet_url": null,
     "canonical_native_cp_pool": "0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d",
-    "canonical_native_dex_factory": null
+    "canonical_native_dex_factory": null,
+    "canonical_native_dex_multihop_swap_router": null,
+    "canonical_native_dex_ledger_router_v2": null,
+    "canonical_native_dex_ledger_router_v3": null,
+    "canonical_native_amm_lp_vault": null,
+    "canonical_native_lp_share_token": null
   },
   "rpc": {
     "not_available": ["staking_apy"],
@@ -383,7 +393,7 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
 }
 ```
 
-- **`end_user`:** Wallet-facing strings and optional **`canonical_native_cp_pool`** / **`canonical_native_dex_factory`** (32-byte hex) when operators set **`BOING_CANONICAL_NATIVE_CP_POOL`** / **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** — lets dApps default swap and pair-directory wiring without hardcoding ([dApp network discovery](#dapp-network-discovery)). **LP vault** and **LP share token** ids are not separate RPC hints today; integrators use the canonical CREATE2 predictions in [`scripts/canonical-testnet-dex-predicted.json`](https://github.com/Boing-Network/boing.network/blob/main/scripts/canonical-testnet-dex-predicted.json) / **`boing-sdk`** **`CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX`** and **`CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX`** ([NATIVE-AMM-LP-VAULT.md](NATIVE-AMM-LP-VAULT.md), [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md)).
+- **`end_user`:** Wallet-facing strings and optional **32-byte hex** hints when operators set the matching **`BOING_CANONICAL_NATIVE_*`** env vars on the node: **`canonical_native_cp_pool`**, **`canonical_native_dex_factory`**, **`canonical_native_dex_multihop_swap_router`**, **`canonical_native_dex_ledger_router_v2`**, **`canonical_native_dex_ledger_router_v3`**, **`canonical_native_amm_lp_vault`**, **`canonical_native_lp_share_token`**. Omitted keys are JSON **`null`**. **`boing-sdk`** **`mergeNativeDexIntegrationDefaults`** merges these with app overrides and embedded **6913** fallbacks ([BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md), [dApp network discovery](#dapp-network-discovery)).
 - **`chain_id` / `chain_name`:** From **`BOING_CHAIN_ID`** / **`BOING_CHAIN_NAME`** when set on the node process; **`chain_id`** is **`null`** when not configured.
 - **`validator_count`:** Size of this node’s in-process validator set (HotStuff BFT); not a network-wide discovery endpoint for all operators.
 - **`native_currency.decimals`:** Display hint for integrators; balances on **`boing_getBalance`** / **`boing_getAccount`** are still whole-unit u128 strings per those methods.

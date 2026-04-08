@@ -53,7 +53,7 @@ Use **real** reference-token ids for production; synthetic `0xaa…` / `0xbb…`
 | `BOING_POOL_HEX` | Native CP pool |
 | `BOING_DEX_FACTORY_HEX` | Pair directory (merge override when RPC omits hint) |
 | `TOKEN_IN` / `TOKEN_OUT` | For `print-native-dex-routes` |
-| Node **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** | Optional RPC advertisement — see [OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md](OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md) |
+| Node **`BOING_CANONICAL_NATIVE_*`** | Optional RPC **`end_user`** hints — factory, multihop router, ledger v2/v3, LP vault, share (see [RPC-API-SPEC.md](RPC-API-SPEC.md) env table) — [OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md](OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md) |
 | **`BOING_VAULT_HEX`** | AMM LP vault `AccountId` — canonical CREATE2 (6913): `0x2b195b93a57b632ca3c1cf58cb7578542a6d58998116cddb8a6a50f1bd652f48` when matching [predicted JSON](../scripts/canonical-testnet-dex-predicted.json) |
 | **`BOING_SHARE_HEX`** / CLI **`BOING_LP_SHARE_HEX`** | LP share token — canonical: `0x0618b4a6a30bc31822a0cdcf253ed2bcf642a6cecf26346ba655b63fccbde03c` (same source) |
 | **`REACT_APP_BOING_NATIVE_AMM_LP_VAULT`** / **`REACT_APP_BOING_NATIVE_AMM_LP_SHARE_TOKEN`** | Same **0x + 64 hex** as vault / share for [boing.finance](https://boing.finance) native VM panel ([tutorial README §7i2](../examples/native-boing-tutorial/README.md)) |

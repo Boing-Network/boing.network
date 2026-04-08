@@ -158,7 +158,17 @@ async function main() {
     probes: {
       boing_chainHeight: h.ok ? { ok: true, height: h.result } : { ok: false, error: h.error },
       boing_getNetworkInfo: ni.ok
-        ? { ok: true, has_end_user_factory_hint: Boolean(ni.result?.end_user?.canonical_native_dex_factory) }
+        ? {
+            ok: true,
+            has_end_user_factory_hint: Boolean(ni.result?.end_user?.canonical_native_dex_factory),
+            end_user_aux_hints: {
+              multihop_router: Boolean(ni.result?.end_user?.canonical_native_dex_multihop_swap_router),
+              ledger_router_v2: Boolean(ni.result?.end_user?.canonical_native_dex_ledger_router_v2),
+              ledger_router_v3: Boolean(ni.result?.end_user?.canonical_native_dex_ledger_router_v3),
+              lp_vault: Boolean(ni.result?.end_user?.canonical_native_amm_lp_vault),
+              lp_share_token: Boolean(ni.result?.end_user?.canonical_native_lp_share_token),
+            },
+          }
         : { ok: false, error: ni.error },
       canonical_pool: {
         account: CANONICAL_POOL,
