@@ -223,8 +223,10 @@ Deploys the **pair directory** VM program (CREATE2 by default), then optionally 
 
 After **`npm run dump-native-bytecodes`**, you can deploy **ledger routers**, **swap2 router**, **LP vault**, or **LP share token** with the same purpose-deploy flow as the pool/factory, using the matching **CREATE2** salt from the protocol (must match the bytecode you deploy).
 
-1. `npm run print-native-dex-deploy-salts` — copy the **`create2SaltsHex32`** entry for your contract (e.g. **`native_dex_ledger_router_v1`**).
-2. Set **`BOING_NATIVE_BYTECODE_FILE=artifacts/<file>.hex`** and **`BOING_CREATE2_SALT_HEX=<that salt>`** (and **`BOING_SECRET_HEX`**). Default **`BOING_USE_CREATE2=1`**.
+1. Print the salt (pick one): full JSON with `npm run print-native-dex-deploy-salts`, **or** a **single line** for shell export (works on **Git Bash / Windows**):  
+   `export BOING_CREATE2_SALT_HEX=$(npm run -s print-native-dex-deploy-salts -- native_dex_ledger_router_v1)`  
+   Same via Node: `node scripts/print-native-dex-deploy-salts.mjs native_dex_ledger_router_v1`
+2. Set **`BOING_NATIVE_BYTECODE_FILE=artifacts/<file>.hex`** and ensure **`BOING_CREATE2_SALT_HEX`** is set (and **`BOING_SECRET_HEX`**). Default **`BOING_USE_CREATE2=1`**.
 3. On address collision (e.g. public testnet), use **`BOING_USE_CREATE2=0`** for a nonce-derived id (same pattern as bootstrap).
 
 | Artifact file | Salt key in `print-native-dex-deploy-salts` output |

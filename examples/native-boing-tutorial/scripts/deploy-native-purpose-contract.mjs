@@ -8,7 +8,7 @@
  *   BOING_NATIVE_BYTECODE_FILE  — path to one-line 0x… hex file, or
  *   BOING_NATIVE_BYTECODE_HEX   — inline single-line 0x…
  *   BOING_USE_CREATE2           — default 1; set 0 for nonce-derived address
- *   BOING_CREATE2_SALT_HEX      — required when CREATE2: 0x + 64 hex (32-byte salt). Print values: `npm run print-native-dex-deploy-salts`
+ *   BOING_CREATE2_SALT_HEX      — required when CREATE2: 0x + 64 hex (32-byte salt). One-liner: `export BOING_CREATE2_SALT_HEX=$(npm run -s print-native-dex-deploy-salts -- native_dex_ledger_router_v1)`
  *   BOING_RPC_URL               — default https://testnet-rpc.boing.network
  *   BOING_PURPOSE               — default dapp
  *   BOING_EXPECT_SENDER_HEX     — optional sanity check
