@@ -4,7 +4,7 @@
    Design Takeover: Steps 2–7
    ============================================================ */
 
-/* Fonts imported in boing-design-kit.css (Poppins, Inter, JetBrains Mono) */
+/* Fonts imported in boing-design-kit.css (Comfortaa) */
 @import './motion-config.css';
 
 /* Step 2: Design Token Foundation (overridden by design-tokens-cosmic.css for Boing Design Kit) */
@@ -43,10 +43,10 @@
   --shadow-hover: rgba(0, 0, 0, 0.45);
 
   /* === TYPOGRAPHY (Boing Design Kit) === */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Poppins', sans-serif;
-  --font-display-serif: 'Poppins', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Comfortaa', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Comfortaa', sans-serif;
+  --font-display-serif: 'Comfortaa', sans-serif;
+  --font-mono: 'Comfortaa', sans-serif;
 
   /* === MOTION === */
   --motion-float-duration: 9s;

@@ -1,7 +1,7 @@
 /* Boing Network Design Kit - Global CSS Variables & Utilities
    Use with Tailwind (tailwind.config.mjs) for full design system. */
 
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap');
 
 :root {
   /* Primary Colors */
@@ -23,9 +23,9 @@
   --color-white-transparent-dark: rgba(240, 244, 248, 0.5);
 
   /* Typography */
-  --font-display: 'Poppins', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Comfortaa', sans-serif;
+  --font-body: 'Comfortaa', sans-serif;
+  --font-mono: 'Comfortaa', sans-serif;
 
   /* Spacing */
   --spacing-xs: 4px;

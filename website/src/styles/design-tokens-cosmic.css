@@ -55,7 +55,8 @@
   --border: var(--border-color);
 
   /* Typography — Design Kit */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Poppins', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Comfortaa', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Comfortaa', sans-serif;
+  --font-display-serif: 'Comfortaa', sans-serif;
+  --font-mono: 'Comfortaa', sans-serif;
 }

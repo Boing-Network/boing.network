@@ -28,9 +28,10 @@ export default {
         'red-transparent': 'rgba(255, 68, 68, 0.15)',
       },
       fontFamily: {
-        display: ['Poppins', 'sans-serif'],
-        body: ['Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['Comfortaa', 'sans-serif'],
+        display: ['Comfortaa', 'sans-serif'],
+        body: ['Comfortaa', 'sans-serif'],
+        mono: ['Comfortaa', 'sans-serif'],
       },
       fontSize: {
         'display-xl': ['3.5rem', { lineHeight: '1.2', letterSpacing: '-0.02em' }],
