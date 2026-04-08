@@ -21,6 +21,7 @@
     "deploy-native-purpose-contract": "npm run deploy-native-purpose-contract --prefix examples/native-boing-tutorial",
     "print-native-dex-deploy-salts": "npm run print-native-dex-deploy-salts --prefix examples/native-boing-tutorial",
     "deploy-native-dex-aux-contracts": "npm run deploy-native-dex-aux-contracts --prefix examples/native-boing-tutorial",
+    "deploy-native-dex-lp-aux-contracts": "npm run deploy-native-dex-lp-aux-contracts --prefix examples/native-boing-tutorial",
     "fetch-blocks-range": "npm run fetch-blocks-range --prefix examples/native-boing-tutorial",
     "fetch-logs-range": "npm run fetch-logs-range --prefix examples/native-boing-tutorial",
     "fetch-native-amm-logs": "npm run fetch-native-amm-logs --prefix examples/native-boing-tutorial",

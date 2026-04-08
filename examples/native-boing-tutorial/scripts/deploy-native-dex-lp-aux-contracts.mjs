@@ -1,25 +1,22 @@
 #!/usr/bin/env node
 /**
- * Deploy remaining native DEX VM contracts for a full on-chain routing stack (after pool + directory + ledger v1).
+ * Deploy native AMM LP vault + LP share token at canonical CREATE2 addresses (same deployer + salts as
+ * [scripts/canonical-testnet-dex-predicted.json](../../../../scripts/canonical-testnet-dex-predicted.json)).
  *
- * Deploys (default — each can be skipped with env):
- *   1. Multihop / swap2 router — 2–4 pool hops in one tx ([NATIVE-DEX-SWAP2-ROUTER.md](../../../docs/NATIVE-DEX-SWAP2-ROUTER.md))
- *   2. Ledger router v2 — forward 160-byte inner calldata (e.g. v5 swap_to) ([NATIVE-DEX-LEDGER-ROUTER.md](../../../docs/NATIVE-DEX-LEDGER-ROUTER.md))
- *   3. Ledger router v3 — forward 192-byte inner calldata (e.g. v5 remove_liquidity_to)
- *
- * Optional: ledger v1 if you need CREATE2 at canonical address on a fresh key (`BOING_AUX_INCLUDE_LEDGER_V1=1`).
+ * Run after pool + directory (+ optional router deploys). See [NATIVE-AMM-LP-VAULT.md](../../../docs/NATIVE-AMM-LP-VAULT.md),
+ * [NATIVE-LP-SHARE-TOKEN.md](../../../docs/NATIVE-LP-SHARE-TOKEN.md).
  *
  * Prerequisites:
- *   - `npm run dump-native-bytecodes` (or `BOING_SKIP_DUMP=1` with `artifacts/*.hex` present)
+ *   - `npm run dump-native-bytecodes` (or `BOING_SKIP_DUMP=1` with `artifacts/native-amm-lp-vault.hex` + `native-lp-share-token.hex`)
  *   - `boing-sdk` built; `BOING_SECRET_HEX`
  *
  * Env:
  *   BOING_SECRET_HEX, BOING_RPC_URL — required / forwarded
- *   BOING_SKIP_DUMP — `1` to skip running dump-native-bytecodes.mjs first
- *   BOING_AUX_SKIP_SWAP2, BOING_AUX_SKIP_LEDGER_V2, BOING_AUX_SKIP_LEDGER_V3 — `1` to skip that deploy
- *   BOING_AUX_INCLUDE_LEDGER_V1 — `1` to also deploy ledger v1 (default off; you may already have it)
+ *   BOING_SKIP_DUMP — `1` to skip dump-native-bytecodes.mjs first
+ *   BOING_LP_AUX_SKIP_VAULT — `1` to skip LP vault deploy
+ *   BOING_LP_AUX_SKIP_SHARE — `1` to skip LP share token deploy
  *   BOING_BOOTSTRAP_NO_AUTO_NONCE — `1` to disable CREATE2-collision → nonce retry
- *   BOING_AUX_COMMIT_WAIT_MS — max ms to wait for sender nonce after each tx (default 120000)
+ *   BOING_AUX_COMMIT_WAIT_MS / BOING_LP_AUX_COMMIT_WAIT_MS — nonce wait after each tx (default 120000; LP prefers BOING_LP_AUX if set)
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -57,7 +54,9 @@ const rpc = process.env.BOING_RPC_URL ?? 'https://testnet-rpc.boing.network';
 const noAutoNonce =
   process.env.BOING_BOOTSTRAP_NO_AUTO_NONCE === '1' || process.env.BOING_BOOTSTRAP_NO_AUTO_NONCE === 'true';
 const userCreate2Off = process.env.BOING_USE_CREATE2 === '0' || process.env.BOING_USE_CREATE2 === 'false';
-const commitWaitMs = Number(process.env.BOING_AUX_COMMIT_WAIT_MS ?? 120_000);
+const commitWaitMs = Number(
+  process.env.BOING_LP_AUX_COMMIT_WAIT_MS ?? process.env.BOING_AUX_COMMIT_WAIT_MS ?? 120_000
+);
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -103,7 +102,7 @@ async function waitNonceAfter(client, senderHex, nonceBefore, label) {
         ok: false,
         error: `Timeout waiting for nonce to advance after ${label}`,
         phase: 'wait_nonce',
-        hint: 'Ensure blocks are produced; increase BOING_AUX_COMMIT_WAIT_MS',
+        hint: 'Ensure blocks are produced; increase BOING_LP_AUX_COMMIT_WAIT_MS or BOING_AUX_COMMIT_WAIT_MS',
       },
       null,
       2
@@ -144,35 +143,20 @@ async function main() {
   const senderHexForWait = await senderHexFromSecretKey(secret);
 
   /** @type {{ skipEnv: string; artifact: string; saltKey: string; id: string }[]} */
-  const steps = [];
-  if (process.env.BOING_AUX_INCLUDE_LEDGER_V1 === '1' || process.env.BOING_AUX_INCLUDE_LEDGER_V1 === 'true') {
-    steps.push({
-      skipEnv: 'BOING_AUX_SKIP_LEDGER_V1',
-      artifact: 'native-dex-ledger-router-v1.hex',
-      saltKey: 'native_dex_ledger_router_v1',
-      id: 'ledgerRouterV1',
-    });
-  }
-  steps.push(
+  const steps = [
     {
-      skipEnv: 'BOING_AUX_SKIP_SWAP2',
-      artifact: 'native-dex-swap2-router.hex',
-      saltKey: 'native_dex_swap2_router',
-      id: 'swap2MultihopRouter',
+      skipEnv: 'BOING_LP_AUX_SKIP_VAULT',
+      artifact: 'native-amm-lp-vault.hex',
+      saltKey: 'native_amm_lp_vault_v1',
+      id: 'ammLpVault',
     },
     {
-      skipEnv: 'BOING_AUX_SKIP_LEDGER_V2',
-      artifact: 'native-dex-ledger-router-v2.hex',
-      saltKey: 'native_dex_ledger_router_v2',
-      id: 'ledgerRouterV2',
+      skipEnv: 'BOING_LP_AUX_SKIP_SHARE',
+      artifact: 'native-lp-share-token.hex',
+      saltKey: 'native_lp_share_token_v1',
+      id: 'lpShareToken',
     },
-    {
-      skipEnv: 'BOING_AUX_SKIP_LEDGER_V3',
-      artifact: 'native-dex-ledger-router-v3.hex',
-      saltKey: 'native_dex_ledger_router_v3',
-      id: 'ledgerRouterV3',
-    }
-  );
+  ];
 
   /** @type {Record<string, unknown>} */
   const results = {};
@@ -212,11 +196,11 @@ async function main() {
       BOING_CREATE2_SALT_HEX: salt,
     };
 
-    console.warn(`[deploy-native-dex-aux] ${step.id} (CREATE2)…`);
+    console.warn(`[deploy-native-dex-lp-aux] ${step.id} (CREATE2)…`);
     let out = runNodeScript('deploy-native-purpose-contract.mjs', [], baseEnv);
     let retriedNonce = false;
     if (!out.ok && !userCreate2Off && !noAutoNonce && isCreate2Collision(out)) {
-      console.warn(`[deploy-native-dex-aux] ${step.id}: CREATE2 occupied — retry with BOING_USE_CREATE2=0`);
+      console.warn(`[deploy-native-dex-lp-aux] ${step.id}: CREATE2 occupied — retry with BOING_USE_CREATE2=0`);
       out = runNodeScript('deploy-native-purpose-contract.mjs', [], { ...baseEnv, BOING_USE_CREATE2: '0' });
       retriedNonce = true;
     }

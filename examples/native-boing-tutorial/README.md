@@ -203,6 +203,7 @@ After a successful submit, seed liquidity with **`npm run native-amm-submit-cont
 | **`print-native-dex-deploy-salts`** | JSON map of canonical **CREATE2** salt hex for each native DEX / LP helper (from **`boing-sdk`**); needs **`boing-sdk`** built. |
 | **`deploy-native-purpose-contract`** | Generic **`ContractDeployWithPurpose`** for any **`artifacts/*.hex`** line + matching **`BOING_CREATE2_SALT_HEX`** (or **`BOING_USE_CREATE2=0`**). See §7c2b. |
 | **`deploy-native-dex-aux-contracts`** | Deploys **multihop (swap2) router** + **ledger routers v2–v3** (optional **v1**); waits for committed nonce between steps. See §7c2c. |
+| **`deploy-native-dex-lp-aux-contracts`** | Deploys **AMM LP vault** + **LP share token** at canonical CREATE2 ids (predicted in **`scripts/canonical-testnet-dex-predicted.json`**). See §7c2c. |
 | **`bootstrap-native-pool-and-dex`** | Optionally runs the dumper (skip with **`BOING_SKIP_DUMP=1`**), then **`deploy-native-amm-pool`** + **`deploy-native-dex-directory`**. After the pool step it **polls `boing_getAccount` until the sender nonce advances** (committed state) so the factory deploy uses the correct nonce — **`BOING_BOOTSTRAP_POOL_COMMIT_WAIT_MS`** (default **120000**). Set **`BOING_BOOTSTRAP_REGISTER_PAIR=1`** for **`register_pair`**. CREATE2 collision → auto-retry with **`BOING_USE_CREATE2=0`** unless **`BOING_BOOTSTRAP_NO_AUTO_NONCE=1`**. |
 
 ### 7c2. Deploy native DEX pair directory (`npm run deploy-native-dex-directory`)
@@ -252,7 +253,7 @@ Per [BOING-NATIVE-DEX-CAPABILITY.md](../../docs/BOING-NATIVE-DEX-CAPABILITY.md):
 | **Ledger router v1** | Single-hop `Call` forward (128-byte inner calldata; safe with **v1** ledger pools) | `deploy-native-purpose-contract` + `artifacts/native-dex-ledger-router-v1.hex` |
 | **Multihop (swap2) router** | **2–4** pool hops in **one** tx | **`npm run deploy-native-dex-aux-contracts`** (below) or purpose-contract + `native-dex-swap2-router.hex` |
 | **Ledger router v2 / v3** | Forward **160** / **192**-byte inner calldata (e.g. **v5** `swap_to` / `remove_liquidity_to`) | Same aux script or individual purpose deploys |
-| **LP vault + LP share token** | Optional product path (wrapped LP / share token); **not** required for bare pool trading | [NATIVE-AMM-LP-VAULT.md](../../docs/NATIVE-AMM-LP-VAULT.md), **`native-amm-lp-vault-*`** / **`native-lp-share-*`** scripts |
+| **LP vault + LP share token** | Optional product path (wrapped LP / share token); **not** required for bare pool trading | **`npm run deploy-native-dex-lp-aux-contracts`** (CREATE2 batch) or §7c2b purpose deploys + [NATIVE-AMM-LP-VAULT.md](../../docs/NATIVE-AMM-LP-VAULT.md) / **`native-amm-lp-vault-*`** / **`native-lp-share-*`** |
 
 **One-shot (swap2 + ledger v2 + v3):** after **`boing-sdk`** build and **`BOING_SECRET_HEX`** set:
 
@@ -264,6 +265,17 @@ npm run deploy-native-dex-aux-contracts
 ```
 
 Skips: **`BOING_AUX_SKIP_SWAP2=1`**, **`BOING_AUX_SKIP_LEDGER_V2=1`**, **`BOING_AUX_SKIP_LEDGER_V3=1`**. To redeploy **ledger v1** on a fresh key: **`BOING_AUX_INCLUDE_LEDGER_V1=1`**. CREATE2 collision → auto nonce retry (same as bootstrap) unless **`BOING_BOOTSTRAP_NO_AUTO_NONCE=1`**.
+
+**LP vault + LP share (canonical CREATE2):** same prerequisites; predicted ids are **`native_amm_lp_vault`** / **`native_lp_share_token`** in [`scripts/canonical-testnet-dex-predicted.json`](../../scripts/canonical-testnet-dex-predicted.json).
+
+```bash
+cd examples/native-boing-tutorial
+export BOING_RPC_URL=https://testnet-rpc.boing.network
+export BOING_SKIP_DUMP=1
+npm run deploy-native-dex-lp-aux-contracts
+```
+
+Skips: **`BOING_LP_AUX_SKIP_VAULT=1`**, **`BOING_LP_AUX_SKIP_SHARE=1`**. Nonce wait: **`BOING_LP_AUX_COMMIT_WAIT_MS`** or **`BOING_AUX_COMMIT_WAIT_MS`** (default **120000**). RPC errors use deferred **`process.exit`** (mitigates Windows **`UV_HANDLE_CLOSING`** after failed **`boing_getAccount`**), same as **`deploy-native-dex-aux-contracts`**.
 
 **Record addresses:** [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](../../docs/NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md) (template + env cheat sheet + example snapshot). Copy **`DEPLOYMENT-ADDRESSES.example.md`** → **`DEPLOYMENT-ADDRESSES.local.md`** (gitignored) for your own table.
 

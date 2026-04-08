@@ -78,6 +78,8 @@ Use **real** reference-token ids for production; synthetic `0xaa…` / `0xbb…`
 
 **Canonical JSON differs for pool/factory** (those rows assume CREATE2 with no collision): pool `0xce4f8193…`, factory `0x12dff976…` in `canonical-testnet-dex-predicted.json`.
 
+**LP product path (optional):** deploy vault + share at predicted CREATE2 ids with `npm run deploy-native-dex-lp-aux-contracts` (from repo root or `examples/native-boing-tutorial`). Matches JSON keys **`native_amm_lp_vault`** (`0x2b195b93…`) and **`native_lp_share_token`** (`0x0618b4a6…`) when using the same deployer and bytecode as [`scripts/canonical-testnet-dex-predicted.json`](../scripts/canonical-testnet-dex-predicted.json).
+
 **Demo `register_pair` token placeholders:** `0x` + 64× `aa` and 64× `bb` (not production assets).
 
 **Example reserves (ledger units):** reserve A `1000`, reserve B `2000`, total LP `1000` after seeding.

@@ -17,6 +17,6 @@ Copy to **`DEPLOYMENT-ADDRESSES.local.md`** (gitignored) and fill in. Do **not**
 
 **`register_pair`:** token_a | token_b | pool
 
-**Scripts used:** `bootstrap-native-pool-and-dex`, `deploy-native-purpose-contract`, `deploy-native-dex-aux-contracts`, `dump-native-bytecodes`.
+**Scripts used:** `bootstrap-native-pool-and-dex`, `deploy-native-purpose-contract`, `deploy-native-dex-aux-contracts`, `deploy-native-dex-lp-aux-contracts`, `dump-native-bytecodes`.
 
 **Reference:** [docs/NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](../../docs/NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md)

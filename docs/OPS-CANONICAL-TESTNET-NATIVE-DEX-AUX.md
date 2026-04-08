@@ -47,7 +47,11 @@ cargo run -p boing-execution --example print_canonical_testnet_dex_create2_addre
 
 When the factory is deployed at the predicted address, set on **RPC nodes** that should advertise it (see [RPC-API-SPEC.md](RPC-API-SPEC.md)):
 
-- **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** — factory `AccountId` hex (should match table above).
+- **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** — factory `AccountId` hex (should match table above, e.g. `0x12dff97625620a1f10c05cd66cd72878288e8fea70d4150e9815bd38983b2890` for the canonical deployer + CREATE2 path).
+
+**Operator deploy order (typical):** pool + directory → `npm run deploy-native-dex-aux-contracts` (routers) → optional `npm run deploy-native-dex-lp-aux-contracts` (LP vault + share token at predicted CREATE2 ids). After factory is live at the predicted id, restart or configure nodes with **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** so `boing_getNetworkInfo` can surface **`canonical_native_dex_factory`** to wallets and indexers.
+
+Tutorial: [examples/native-boing-tutorial/README.md](../examples/native-boing-tutorial/README.md) §7c2c.
 
 ## Verification
 
