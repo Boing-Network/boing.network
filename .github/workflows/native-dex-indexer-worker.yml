@@ -28,7 +28,15 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: workers/native-dex-indexer/package-lock.json
+          cache-dependency-path: |
+            boing-sdk/package-lock.json
+            workers/native-dex-indexer/package-lock.json
+
+      # Wrangler bundles `boing-sdk/dist/*.js`; Node resolves `@noble/*` from `boing-sdk/dist/` upward,
+      # so `boing-sdk/node_modules` must exist (Worker `node_modules` alone is not on that path).
+      - name: Install boing-sdk dependencies
+        run: npm ci
+        working-directory: boing-sdk
 
       - name: Install and deploy
         run: npm ci && npx wrangler deploy

@@ -10,7 +10,7 @@ Serves JSON compatible with `REACT_APP_BOING_NATIVE_DEX_INDEXER_STATS_URL` on th
 
 
 
-1. From this directory: `npm install` — **`@noble/hashes`** / **`@noble/ed25519`** are listed here too so Wrangler can bundle **`boing-sdk`** in CI (the **`file:`** link does not hoist those deps into this package’s `node_modules` by itself).
+1. From this directory: `npm install`. **Wrangler** resolves **`@noble/*`** imports from paths under **`boing-sdk/dist/`**, so **`boing-sdk/node_modules`** must exist: run **`npm ci`** (or `npm install`) in **`../../boing-sdk`** before **`wrangler deploy`** (the GitHub Action does both). The Worker **`file:`** link does not install into **`boing-sdk/`** for you.
 
 2. **KV:** `wrangler.toml` binds `NATIVE_DEX_INDEXER_KV` (production + `preview_id` for `wrangler dev`). For another Cloudflare account, create namespaces and paste `id` / `preview_id`.
 
