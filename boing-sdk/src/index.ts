@@ -516,6 +516,7 @@ export {
 } from './indexerGaps.js';
 export { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX } from './defaultReferenceFungibleTemplateBytecodeHex.js';
 export { DEFAULT_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX } from './defaultReferenceFungibleSecuredTemplateBytecodeHex.js';
+export { DEFAULT_REFERENCE_NFT_COLLECTION_TEMPLATE_BYTECODE_HEX } from './defaultReferenceNftCollectionTemplateBytecodeHex.js';
 export {
   REFERENCE_FUNGIBLE_TEMPLATE_ARTIFACT_ID,
   REFERENCE_FUNGIBLE_TEMPLATE_VERSION,

@@ -1,13 +1,13 @@
 /**
  * Versioning + tx-object helpers for **pinned** native Boing deploys (form-parity with EVM apps).
  *
- * See `docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md`. Full **fungible / NFT collection** bytecode
- * ships from `boing-execution` for **NFT collections** (`REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION`);
- * the **fungible** template ships a pinned default (`DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX`).
+ * See `docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md`. **Fungible** and **NFT collection** templates ship a
+ * pinned default in this package (`DEFAULT_REFERENCE_*`); env vars still override when set.
  */
 
 import { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX } from './defaultReferenceFungibleTemplateBytecodeHex.js';
 import { DEFAULT_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX } from './defaultReferenceFungibleSecuredTemplateBytecodeHex.js';
+import { DEFAULT_REFERENCE_NFT_COLLECTION_TEMPLATE_BYTECODE_HEX } from './defaultReferenceNftCollectionTemplateBytecodeHex.js';
 import {
   descriptionHashHexFromNativeTokenSecurity,
   type NativeTokenSecurityFeaturesInput,
@@ -136,12 +136,13 @@ export function resolveReferenceFungibleSecuredTemplateBytecodeHex(opts?: {
 }
 
 /**
- * Resolve pinned **reference NFT collection** template bytecode (same pattern as fungible).
+ * Resolve pinned **reference NFT collection** template bytecode (explicit → env → embedded default,
+ * same pattern as {@link resolveReferenceFungibleTemplateBytecodeHex}).
  */
 export function resolveReferenceNftCollectionTemplateBytecodeHex(opts?: {
   explicitHex?: string | undefined;
   extraEnvKeys?: readonly string[];
-}): `0x${string}` | undefined {
+}): `0x${string}` {
   if (opts?.explicitHex?.trim()) {
     return ensure0xHex(opts.explicitHex);
   }
@@ -155,7 +156,7 @@ export function resolveReferenceNftCollectionTemplateBytecodeHex(opts?: {
       if (v) return ensure0xHex(v);
     }
   }
-  return undefined;
+  return ensure0xHex(DEFAULT_REFERENCE_NFT_COLLECTION_TEMPLATE_BYTECODE_HEX);
 }
 
 /**
@@ -295,8 +296,8 @@ export type BuildReferenceNftCollectionDeployMetaTxInput = {
 };
 
 /**
- * **One call** for **native NFT collection** deploy meta tx. Requires pinned collection bytecode
- * (env or **`bytecodeHexOverride`**); throws a clear error if unresolved — same constraint as manual **`resolve` + `build`**.
+ * **One call** for **native NFT collection** deploy meta tx. Bytecode: **`bytecodeHexOverride`** if set,
+ * else env keys (see {@link resolveReferenceNftCollectionTemplateBytecodeHex}), else the SDK embedded default.
  */
 export function buildReferenceNftCollectionDeployMetaTx(
   input: BuildReferenceNftCollectionDeployMetaTxInput,
@@ -304,11 +305,6 @@ export function buildReferenceNftCollectionDeployMetaTx(
   const bytecodeHex = input.bytecodeHexOverride?.trim()
     ? ensure0xHex(input.bytecodeHexOverride)
     : resolveReferenceNftCollectionTemplateBytecodeHex({ extraEnvKeys: input.extraEnvKeys });
-  if (!bytecodeHex) {
-    throw new Error(
-      'buildReferenceNftCollectionDeployMetaTx: no collection bytecode — set BOING_REFERENCE_NFT_COLLECTION_TEMPLATE_BYTECODE_HEX (or VITE_/REACT_APP_ variant), or pass bytecodeHexOverride',
-    );
-  }
   return buildContractDeployMetaTx({
     bytecodeHex,
     assetName: input.collectionName,

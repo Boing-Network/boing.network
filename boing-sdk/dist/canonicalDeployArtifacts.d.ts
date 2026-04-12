@@ -1,9 +1,8 @@
 /**
  * Versioning + tx-object helpers for **pinned** native Boing deploys (form-parity with EVM apps).
  *
- * See `docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md`. Full **fungible / NFT collection** bytecode
- * ships from `boing-execution` for **NFT collections** (`REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION`);
- * the **fungible** template ships a pinned default (`DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX`).
+ * See `docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md`. **Fungible** and **NFT collection** templates ship a
+ * pinned default in this package (`DEFAULT_REFERENCE_*`); env vars still override when set.
  */
 import { type NativeTokenSecurityFeaturesInput } from './nativeTokenSecurity.js';
 /** Logical id for the fungible template line item (docs + telemetry). */
@@ -48,12 +47,13 @@ export declare function resolveReferenceFungibleSecuredTemplateBytecodeHex(opts?
     extraEnvKeys?: readonly string[];
 }): `0x${string}`;
 /**
- * Resolve pinned **reference NFT collection** template bytecode (same pattern as fungible).
+ * Resolve pinned **reference NFT collection** template bytecode (explicit → env → embedded default,
+ * same pattern as {@link resolveReferenceFungibleTemplateBytecodeHex}).
  */
 export declare function resolveReferenceNftCollectionTemplateBytecodeHex(opts?: {
     explicitHex?: string | undefined;
     extraEnvKeys?: readonly string[];
-}): `0x${string}` | undefined;
+}): `0x${string}`;
 /**
  * Build a **`contract_deploy_meta`** object for `boing_sendTransaction` / `boing_signTransaction`.
  */
@@ -120,8 +120,8 @@ export type BuildReferenceNftCollectionDeployMetaTxInput = {
     extraEnvKeys?: readonly string[];
 };
 /**
- * **One call** for **native NFT collection** deploy meta tx. Requires pinned collection bytecode
- * (env or **`bytecodeHexOverride`**); throws a clear error if unresolved — same constraint as manual **`resolve` + `build`**.
+ * **One call** for **native NFT collection** deploy meta tx. Bytecode: **`bytecodeHexOverride`** if set,
+ * else env keys (see {@link resolveReferenceNftCollectionTemplateBytecodeHex}), else the SDK embedded default.
  */
 export declare function buildReferenceNftCollectionDeployMetaTx(input: BuildReferenceNftCollectionDeployMetaTxInput): ContractDeployMetaTxObject;
 /**
