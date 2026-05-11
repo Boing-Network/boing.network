@@ -47,9 +47,9 @@ const paramsObjectWrong = '{}';
         <h3>The six pillars</h3>
         <p>In order: <strong>Security</strong> (safety over speed) → <strong>Scalability</strong> (throughput, efficiency) → <strong>Decentralization</strong> (permissionless at every layer) → <strong>Authenticity</strong> (unique architecture) → <strong>Transparency</strong> (100% openness; trust through verifiability) → <strong>True quality assurance</strong> (protocol-enforced QA: only assets that meet rules and security bar; automation + community pool for edge cases; leniency for meme culture; no malice). See <a href="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" target="_blank" rel="noopener">BOING-NETWORK-ESSENTIALS (PDF)</a> and <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a> for full detail.</p>
         <h3>Recent enhancements &amp; optimizations</h3>
-        <p>Network-wide improvements include: re-insert of failed txs into mempool, RPC methods <code>boing_qaCheck</code> and QA error codes, <code>boing_getBalance</code> / <code>boing_getAccount</code>, six-pillars and essentials documentation, Protocol QA phase in the roadmap. QA pillar enhancements (pre-flight checks, structured errors, public metrics, versioned rule sets, appeal path) are documented in <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a>. For the full list of implemented and planned enhancements, see <a href="/pdfs/DEVELOPMENT-AND-ENHANCEMENTS.pdf" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS (PDF)</a>.</p>
+        <p>Network-wide improvements include: re-insert of failed txs into mempool, RPC methods <code>boing_qaCheck</code> and QA error codes, <code>boing_getBalance</code> / <code>boing_getAccount</code>, <strong>native DEX discovery</strong> on-chain (<code>boing_listDexPools</code>, <code>boing_listDexTokens</code>, <code>boing_getDexToken</code>; capability names also appear under <code>boing_getNetworkInfo.developer.dex_discovery_methods</code>), unsigned <code>boing_simulateContractCall</code> for calldata dry-runs, six-pillars and essentials documentation, Protocol QA phase in the roadmap. QA pillar enhancements (pre-flight checks, structured errors, public metrics, versioned rule sets, appeal path) are documented in <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a>. For the full list of implemented and planned enhancements, see <a href="/pdfs/DEVELOPMENT-AND-ENHANCEMENTS.pdf" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS (PDF)</a>.</p>
         <h3>What this documentation covers</h3>
-        <p><strong>Getting Started</strong> — Prerequisites, build, run a node (full or validator), first transaction. <strong>Network Overview</strong> — Block time, consensus, key facts. <strong>Tokenomics</strong> — Supply model, fees, staking, waves. <strong>Architecture & Features</strong> — Native AA, adaptive gas, cross-chain, slashing, governance. <strong>RPC API</strong> — All JSON-RPC methods, params, and error codes. <strong>Operations</strong> — CLI, monitoring, troubleshooting, incident response. <strong>Roadmap</strong> — Phased build status. <strong>Testnet</strong> — How to join testnet when available. <strong>Security</strong> — Protocol, network, and operational security. <strong>Governance & Transparency</strong> — How decisions and parameters are visible and verifiable. <strong>Resources</strong> — Links to repo, landing page, and other pages.</p>
+        <p><strong>Getting Started</strong> — Prerequisites, build, run a node (full or validator), first transaction. <strong>Network Overview</strong> — Block time, consensus, key facts. <strong>Tokenomics</strong> — Supply model, fees, staking, waves. <strong>Architecture & Features</strong> — Native AA, adaptive gas, cross-chain, slashing, governance. <strong>RPC API</strong> — All JSON-RPC methods, params, and error codes. <strong>Operations</strong> — CLI, monitoring, troubleshooting, incident response. <strong>Roadmap</strong> — Phased build status. <strong>Testnet</strong> — Join the live testnet (bootnodes, faucet, portal). <strong>Security</strong> — Protocol, network, and operational security. <strong>Governance & Transparency</strong> — How decisions and parameters are visible and verifiable. <strong>Resources</strong> — Links to repo, landing page, and other pages.</p>
       </section>
 
       <section id="getting-started" class="doc-section">
@@ -159,7 +159,7 @@ cargo build --release</code></pre>
       <section id="rpc-api" class="doc-section">
         <h2>RPC API</h2>
         <p>Boing nodes expose <strong>JSON-RPC 2.0</strong> over <strong>HTTP POST</strong> to <code>http://&lt;host&gt;:8545/</code> (default port). The authoritative reference is <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md" target="_blank" rel="noopener"><code>docs/RPC-API-SPEC.md</code></a> in the repository (also <a href="/pdfs/RPC-API-SPEC.pdf" target="_blank" rel="noopener">RPC-API-SPEC PDF</a>). Same listener serves <code>GET /live</code>, <code>GET /ready</code>, <code>GET /openapi.json</code>, <code>GET /.well-known/boing-rpc</code>, and <code>GET /ws</code> (newHeads).</p>
-        <p>Rate limiting, batch limits, and body size are node-configurable; see the spec and <code>boing_health</code> / <code>boing_getNetworkInfo</code> field <code>rpc_surface</code>.</p>
+        <p>Rate limiting, batch limits, and body size are node-configurable; see the spec and <code>boing_health</code> / <code>boing_getNetworkInfo</code> fields <code>rpc_surface</code> and <code>developer.dex_discovery_methods</code> (stable names for the L1 DEX directory RPC trio).</p>
         <h3>Request format</h3>
         <pre><code>{jsonRpcExample}</code></pre>
         <h3>Response format</h3>
@@ -186,7 +186,11 @@ cargo build --release</code></pre>
             <tr><td><code>boing_getAccountProof</code></td><td><code>[hex_account_id]</code></td><td><code>proof</code>, <code>root</code>, <code>value_hash</code>.</td></tr>
             <tr><td><code>boing_verifyAccountProof</code></td><td><code>[hex_proof, hex_state_root]</code></td><td>Result: <code>valid</code> boolean.</td></tr>
             <tr><td><code>boing_getContractStorage</code></td><td><code>[hex_contract, hex_key]</code></td><td>Single 32-byte storage word.</td></tr>
+            <tr><td><code>boing_listDexPools</code></td><td><code>[object]</code></td><td>Paginated CP pools from the on-chain pair directory + reserves (needs factory via env or <code>factory</code> field). See spec.</td></tr>
+            <tr><td><code>boing_listDexTokens</code></td><td><code>[object]</code></td><td>Paginated tokens derived from registered pools + optional deploy metadata scans.</td></tr>
+            <tr><td><code>boing_getDexToken</code></td><td><code>[object]</code></td><td>Single token row by <code>id</code>, or <code>null</code>.</td></tr>
             <tr><td><code>boing_simulateTransaction</code></td><td><code>[hex_signed_tx]</code></td><td>Gas, success, <code>suggested_access_list</code>, …</td></tr>
+            <tr><td><code>boing_simulateContractCall</code></td><td><code>[hex_contract, hex_calldata, sender?, at_block?]</code></td><td>Unsigned calldata dry-run; same result shape as simulate (see spec).</td></tr>
             <tr><td><code>boing_submitTransaction</code></td><td><code>[hex_signed_tx]</code></td><td>Success: <code>tx_hash</code> field — current node uses literal <code>"ok"</code> when accepted; track inclusion via receipt / nonce (see spec).</td></tr>
             <tr><td><code>boing_registerDappMetrics</code></td><td><code>[hex_contract, hex_owner]</code></td><td>dApp incentive registration.</td></tr>
             <tr><td><code>boing_submitIntent</code></td><td><code>[hex_signed_intent]</code></td><td>Returns <code>intent_id</code>.</td></tr>
@@ -244,7 +248,7 @@ cargo build --release</code></pre>
         <ul>
           <li><strong>Node won't start</strong> — Ensure RPC port is free; run with <code>RUST_LOG=debug</code>; on Windows try WSL or check firewall.</li>
           <li><strong>Transaction not included</strong> — Validator mode must be on for block production; simulate with <code>boing_simulateTransaction</code> first; check mempool and nonce order.</li>
-          <li><strong>Method not found</strong> — Method names are case-sensitive; <code>params</code> must be a JSON array (e.g. <code>{paramsArrayExample}</code> not <code>{paramsObjectWrong}</code>).</li>
+          <li><strong>Method not found</strong> — Method names are case-sensitive; most methods expect <code>params</code> as a JSON array (e.g. <code>{paramsArrayExample}</code> not <code>{paramsObjectWrong}</code>). <strong>Exception:</strong> <code>boing_listDexPools</code>, <code>boing_listDexTokens</code>, and <code>boing_getDexToken</code> accept a single JSON object or <code>[object]</code> — see <code>docs/RPC-API-SPEC.md</code>.</li>
           <li><strong>Build fails</strong> — Try <code>cargo clean</code> then <code>cargo build</code>.</li>
         </ul>
       </section>
@@ -259,20 +263,21 @@ cargo build --release</code></pre>
           <li><strong>PoS &amp; Production</strong> — In progress.</li>
           <li><strong>UX &amp; Automation</strong> — In progress.</li>
           <li><strong>Cross-chain</strong> — Planned.</li>
-          <li><strong>Testnet &amp; Mainnet</strong> — Planned.</li>
+          <li><strong>Testnet</strong> — Live (see <a href="/testnet/join">Join Testnet</a>; iterate toward mainnet).</li>
+          <li><strong>Mainnet</strong> — Planned.</li>
         </ul>
         <p>See the <a href="/#roadmap">landing page roadmap</a> and the repository BUILD-ROADMAP for details.</p>
       </section>
 
       <section id="testnet" class="doc-section">
         <h2>Testnet</h2>
-        <p>Testnet will provide a public network for validators and developers before mainnet. When available you can expect:</p>
+        <p>The public Boing testnet is live for validators and developers ahead of mainnet. Use this site’s <a href="/testnet/join">Join Testnet</a>, <a href="/bootnodes">Bootnodes</a>, <a href="/faucet">Faucet</a>, and <a href="/testnet">portal</a> for onboarding; detailed operator flows and release artifacts are in the repository <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET.md" target="_blank" rel="noopener"><code>docs/TESTNET.md</code></a>.</p>
         <ul>
-          <li><strong>Bootnodes</strong> — Public endpoints to join the testnet.</li>
-          <li><strong>Faucet</strong> — Test tokens for development and validation.</li>
-          <li><strong>Incentives</strong> — Testnet token or NFT programs for early validators and bug hunters (non-dilutive for mainnet).</li>
+          <li><strong>Bootnodes</strong> — Public endpoints to peer with the network.</li>
+          <li><strong>Faucet</strong> — Test BOING for gas and experimentation (rate-limited per account).</li>
+          <li><strong>Incentives</strong> — Portal quests, operator dashboards, and programs documented in <code>TESTNET.md</code> (non-dilutive positioning vs mainnet).</li>
         </ul>
-        <p>Check the repository and <a href="/status">network status</a> for testnet announcements and configuration.</p>
+        <p>Monitor <a href="/status">network status</a> and repository release tags when upgrading <code>boing-node</code>.</p>
       </section>
 
       <section id="security" class="doc-section">
@@ -340,7 +345,7 @@ cargo build --release</code></pre>
           <li><a href="/community">Community</a> — GitHub, governance, grants.</li>
         </ul>
         <h3>Repository docs (PDF)</h3>
-        <p class="doc-section-desc">Source: <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">github.com/chiku524/boing.network</a>. Download any document as PDF:</p>
+        <p class="doc-section-desc">Source: <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">github.com/Boing-Network/boing.network</a>. Download any document as PDF:</p>
         <div class="resource-cards">
           <a href="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" target="_blank" rel="noopener" class="resource-card">
             <span class="resource-card-icon"><Icon name="book" size={28} /></span>

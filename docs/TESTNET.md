@@ -450,8 +450,8 @@ Use this draft to promote the incentivized testnet on Reddit. Fill in **[PLACEHO
 - Website: https://boing.network
 - Join testnet: https://boing.network/testnet/join
 - Faucet: https://boing.network/faucet
-- GitHub: https://github.com/chiku524/boing.network
-- Testnet doc: https://github.com/chiku524/boing.network/blob/main/docs/TESTNET.md
+- GitHub: https://github.com/Boing-Network/boing.network
+- Testnet doc: https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET.md
 
 ### Subreddit tips
 

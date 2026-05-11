@@ -34,9 +34,12 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 |-------|-------------|
 | `boing-primitives` | Types, hashing (BLAKE3), cryptography |
 | `boing-consensus` | PoS + HotStuff BFT |
-| `boing-state` | State store (Verkle tree target) |
+| `boing-state` | State store (sparse Merkle commitments today; Verkle documented as an upgrade path) |
 | `boing-execution` | VM + parallel transaction scheduler |
+| `boing-tokenomics` | Emission and block-timing constants shared by node/consensus |
 | `boing-automation` | Scheduler, triggers, executor incentives |
+| `boing-governance` | Governance types and helpers used by the protocol stack |
+| `boing-telemetry` | Structured logging and RPC telemetry helpers |
 | `boing-qa` | Protocol QA: Allow/Reject/Unsure checks for deployment (see [QUALITY-ASSURANCE-NETWORK.md](docs/QUALITY-ASSURANCE-NETWORK.md)) |
 | `boing-cli` | `boing init`, `boing dev`, `boing deploy` |
 | `boing-p2p` | libp2p networking |
@@ -62,7 +65,7 @@ All project documentation lives in **[docs/](docs/)**. **Canonical index:** [doc
 | [QUALITY-ASSURANCE-NETWORK.md](docs/QUALITY-ASSURANCE-NETWORK.md) | Protocol-enforced QA: automation + community pool; Appendices A–C (deployer checklist, malice definition, governance-mutable rules) |
 | [BUILD-ROADMAP.md](docs/BUILD-ROADMAP.md) | Implementation tasks and phases |
 | [NETWORK-COST-ESTIMATE.md](docs/NETWORK-COST-ESTIMATE.md) | Cost overview and economic parameters |
-| [RPC-API-SPEC.md](docs/RPC-API-SPEC.md) | JSON-RPC API reference |
+| [RPC-API-SPEC.md](docs/RPC-API-SPEC.md) | JSON-RPC API reference (includes **DEX discovery**: `boing_listDexPools` / `boing_listDexTokens` / `boing_getDexToken`; see [HANDOFF_Boing_Network_Global_Token_Discovery.md](docs/HANDOFF_Boing_Network_Global_Token_Discovery.md)) |
 | [**HANDOFF_Universal_Contract_Deploy_Indexer.md**](docs/HANDOFF_Universal_Contract_Deploy_Indexer.md) | **Universal contract deploy registry** — SDK extractors + optional Worker (D1, HTTP, SSE) for all `ContractDeploy*` txs |
 | [TESTNET-RPC-INFRA.md](docs/TESTNET-RPC-INFRA.md) | One map: testnet ops, public RPC, and infra (routing + env matrix) |
 | [INFRASTRUCTURE-SETUP.md](docs/INFRASTRUCTURE-SETUP.md) | Testnet bootnodes, Cloudflare tunnel, deploy config |

@@ -131,7 +131,7 @@
 
 | Channel | Use |
 |---------|-----|
-| **Security advisories** | [GitHub Security Advisories](https://github.com/chiku524/boing.network/security/advisories/new) — for responsible disclosure of vulnerabilities |
+| **Security advisories** | [GitHub Security Advisories](https://github.com/Boing-Network/boing.network/security/advisories/new) — for responsible disclosure of vulnerabilities |
 | **Bug bounty** | *TBD — program to be announced with incentivized testnet* |
 | **Incident response** | See [RUNBOOK.md](RUNBOOK.md) §6; severity-driven communication |
 

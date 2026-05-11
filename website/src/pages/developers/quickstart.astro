@@ -22,9 +22,13 @@ import Icon from '../../components/Icon.astro';
         <tbody>
           <tr><td><code>boing-primitives</code></td><td>Types, hashing (BLAKE3), cryptography</td></tr>
           <tr><td><code>boing-consensus</code></td><td>PoS + HotStuff BFT</td></tr>
-          <tr><td><code>boing-state</code></td><td>State store (Verkle tree)</td></tr>
+          <tr><td><code>boing-state</code></td><td>State store (sparse Merkle commitments; Verkle upgrade path in specs)</td></tr>
           <tr><td><code>boing-execution</code></td><td>VM + parallel scheduler</td></tr>
+          <tr><td><code>boing-tokenomics</code></td><td>Emission and block-timing constants</td></tr>
           <tr><td><code>boing-automation</code></td><td>Scheduler, triggers, executor incentives</td></tr>
+          <tr><td><code>boing-governance</code></td><td>Governance helpers for the protocol stack</td></tr>
+          <tr><td><code>boing-telemetry</code></td><td>Logging and RPC telemetry helpers</td></tr>
+          <tr><td><code>boing-qa</code></td><td>Deploy-time QA rules used by execution</td></tr>
           <tr><td><code>boing-cli</code></td><td><code>boing init</code>, <code>boing dev</code>, <code>boing deploy</code></td></tr>
           <tr><td><code>boing-p2p</code></td><td>libp2p networking</td></tr>
           <tr><td><code>boing-node</code></td><td>Node binary</td></tr>
@@ -43,7 +47,7 @@ import Icon from '../../components/Icon.astro';
 
     <section class="section-reveal delay-3">
       <h2><Icon name="node" size={22} class="section-icon" /> RPC</h2>
-      <p>Default port: <code>8545</code>. Full method list and error codes: <a href="/docs#rpc-api">Documentation → RPC API</a> (mirrors repository <code>docs/RPC-API-SPEC.md</code>). Use <code>boing_health</code> or <code>boing_getNetworkInfo</code> for chain id and limits.</p>
+      <p>Default port: <code>8545</code>. Full method list and error codes: <a href="/docs#rpc-api">Documentation → RPC API</a> (mirrors repository <code>docs/RPC-API-SPEC.md</code>). Use <code>boing_health</code> or <code>boing_getNetworkInfo</code> for chain id, limits, and <code>developer.dex_discovery_methods</code>. TypeScript: in-repo <code>boing-sdk/</code> (see repo <code>boing-sdk/README.md</code>).</p>
     </section>
     </div>
   </article>

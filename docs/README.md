@@ -10,7 +10,7 @@ Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the si
 | [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md) | Boing VM only — no foreign chain bytecode engines in protocol |
 | [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md) | Architecture, tokenomics, design decisions |
 | [RUNBOOK.md](RUNBOOK.md) | Node setup, RPC, CLI, monitoring, incidents |
-| [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC API reference — **Method index** lists every `boing_*` RPC on current `boing-node`; § Native constant-product AMM = canonical testnet pool id |
+| [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC API reference — **Method index** lists every `boing_*` RPC on current `boing-node`; § Native constant-product AMM = canonical testnet pool id; § **DEX discovery** = `boing_listDexPools` / `boing_listDexTokens` / `boing_getDexToken` (names also in `boing_getNetworkInfo.developer.dex_discovery_methods`) |
 
 ## Readiness & Launch
 
@@ -84,6 +84,8 @@ Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the si
 | [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md) | JSON-RPC / QA / pool codes + `explainBoingRpcError`; Express alignment contract |
 | [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md) | **Part 1:** what’s in repo vs what to build for boing.observer and boing.express; **Part 2:** full boing.observer explorer spec and one-shot prompt |
 | [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) | **Sync checklist** for boing.network, boing.express, boing.observer (URLs, RPC, chain IDs, cross-links) |
+| [HANDOFF_Boing_Network_Global_Token_Discovery.md](HANDOFF_Boing_Network_Global_Token_Discovery.md) | **L1 DEX discovery RPC:** paginated pools/tokens, token detail, env knobs; pairs with `boing_getNetworkInfo.developer.dex_discovery_methods` |
+| [HANDOFF_DexDiscovery_Consumer_Repos.md](HANDOFF_DexDiscovery_Consumer_Repos.md) | **Consumer handoff** for wallet, explorer, and partner apps merging L1 discovery with indexer JSON |
 | [HANDOFF-DEPENDENT-PROJECTS.md](HANDOFF-DEPENDENT-PROJECTS.md) | **Cross-repo handoff:** what ships in this monorepo vs recommended work for **boing.express**, **boing.observer**, partner dApps |
 | [HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md](HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md) | **Native DEX directory Worker** (D1 + KV), optional R2 from **boing.finance** CI, protocol RPC/indexer follow-ups; **`npm run verify-native-dex-directory-worker`** |
 | [HANDOFF_BOING_FINANCE_NATIVE_DEX_AND_DIRECTORY.md](HANDOFF_BOING_FINANCE_NATIVE_DEX_AND_DIRECTORY.md) | **boing.finance handoff:** directory API env, SDK pagination, merge with indexer stats, pointers to protocol roadmap |

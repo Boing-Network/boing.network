@@ -75,7 +75,7 @@
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEzRDM3QTMzNTA1RjM3RTUKUldUbE4xOVFNM3JURTVPNS9PVTRPNEkzNzFxdlZYUll0WXBBR3NTL3J2QmRHWkdVcFZSbUtQWU4K",
       "endpoints": [
         "https://boing.network/hub-updater/latest.json",
-        "https://github.com/chiku524/boing.network/releases/latest/download/latest.json"
+        "https://github.com/Boing-Network/boing.network/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

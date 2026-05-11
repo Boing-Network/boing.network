@@ -28,7 +28,7 @@ No separate "miner" binary: **validating** is done by running `boing-node --vali
 
 2. **Binary**  
    - Either: bundle or download `boing-node` for the user's OS (Windows, macOS, Linux).  
-   - Or: prompt user to install from [releases](https://github.com/chiku524/boing.network/releases) and detect `boing-node` in PATH.  
+   - Or: prompt user to install from [releases](https://github.com/Boing-Network/boing.network/releases) and detect `boing-node` in PATH.  
    - **Windows:** Build with `cargo build --release -p boing-node --no-default-features` to disable mDNS (avoids EADDRINUSE). Bootnodes use explicit `--bootnodes`, so mDNS is not needed. See [docs/INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md).
 
 3. **One-click "Start node"**  
