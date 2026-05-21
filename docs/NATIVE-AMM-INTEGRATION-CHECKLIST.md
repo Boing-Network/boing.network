@@ -44,7 +44,7 @@ This is the **end-to-end** work list to go from “AMM as a pattern on paper” 
 
 - [x] **A4.1** — **Native AMM path** builds **`contract_call`** with explicit **`access_list`** (signer + pool); Express signs whatever the dApp passes — widen via simulation when the node suggests more accounts.
 - [x] **A4.2** — **Wallet / dApp UX** for native CP swap: [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) § Native constant-product swap (Boing VM).
-- [x] **A4.3** — **E2E smoke** (extension + dApp origin): manual procedure in [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md) (happy-path swap + optional add liquidity). Node-level RPC coverage remains `native_amm_rpc_happy_path`. **Optional automation:** [examples/native-boing-playwright](../examples/native-boing-playwright/) (Playwright + `BOING_EXPRESS_EXTENSION_PATH`; skips when unset). Unattended extension CI remains a follow-up if product wants it.
+- [x] **A4.3** — **E2E smoke** (extension + dApp origin): manual procedure in [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) § Manual E2E smoke. Node-level RPC: `native_amm_rpc_happy_path`. Optional: [examples/native-boing-playwright](../examples/native-boing-playwright/).
 
 ---
 
@@ -98,6 +98,22 @@ flowchart LR
 
 ---
 
+---
+
+## Manual E2E smoke (Boing Express + boing.finance)
+
+Use after wallet, RPC, or dApp changes. Complements node test `native_amm_rpc_happy_path`.
+
+**Preconditions:** Pool **`0x7247ddc3…`** for chain **6913** ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md)); Boing Express with testnet BOING; public RPC CORS for boing.finance ([THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) §2).
+
+**Happy path — swap:** Load boing.finance `/swap` → connect Express on **6913** → confirm native AMM panel → refresh reserves → small integer swap → approve signing → confirm toast / [boing.observer](https://boing.observer) lookup.
+
+**Optional — liquidity:** Expand add-liquidity section; submit via Express.
+
+**Automated:** [examples/native-boing-playwright](../examples/native-boing-playwright/README.md) with **`BOING_EXPRESS_EXTENSION_PATH`** (headed; manual unlock). CI install-only without extension: [PLAYWRIGHT-E2E-CI-OPS.md](PLAYWRIGHT-E2E-CI-OPS.md).
+
+---
+
 ## Related docs
 
 | Doc | Role |
@@ -107,7 +123,7 @@ flowchart LR
 | [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) | Token contract interop |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Deploy QA categories |
 | [EXECUTION-PARITY-TASK-LIST.md](EXECUTION-PARITY-TASK-LIST.md) | VM / receipts / logs foundation |
-| [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md) | Manual Boing Express + boing.finance swap smoke (**A4.3**) |
+| [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) | dApp checklist (see § Manual E2E smoke above) |
 | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) | **OPS-1** published (**2026-05-21**); checklist for **future** pool rotations |
 | [NATIVE-AMM-LP-VAULT.md](NATIVE-AMM-LP-VAULT.md) | Vault **`configure`** / **`deposit_add`**; tutorial §7f–§7g |
 | [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md) | Share **`mint`** / **`transfer`** / **`set_minter_once`**; tutorial §7h–§7i |

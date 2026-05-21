@@ -1,8 +1,6 @@
 /**
  * Testnet configuration — single source for RPC URL and bootnodes.
- * Update before incentivized testnet launch. For production deploy, set
- * PUBLIC_TESTNET_RPC_URL (and optionally PUBLIC_BOOTNODES as comma-separated multiaddrs)
- * in your build environment so the faucet and testnet pages show the live URLs.
+ * Override at build time with PUBLIC_TESTNET_RPC_URL and PUBLIC_BOOTNODES when ops changes endpoints.
  */
 
 const fromEnv = typeof import.meta !== 'undefined' && import.meta.env;
@@ -22,7 +20,7 @@ export const BOOTNODES: string[] =
     ? env.PUBLIC_BOOTNODES.split(',').map((s) => s.trim()).filter(Boolean)
     : [
         '/ip4/73.84.106.121/tcp/4001', // Primary (faucet + RPC via testnet-rpc.boing.network)
-        '/ip4/73.84.106.121/tcp/4001', // Secondary bootnode
+        '/ip4/73.84.106.121/tcp/4001', // Same host today; duplicate entry for VibeMiner comma-separated bootnodes until a second IP is published
       ];
 
 /** Whether the testnet is "live" (we have at least one bootnode and a non-local RPC). */

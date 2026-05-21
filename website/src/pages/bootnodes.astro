@@ -1,7 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Icon from '../components/Icon.astro';
-import { BOOTNODES, isTestnetLive } from '../config/testnet';
+import { BOOTNODES, isTestnetLive, TESTNET_RPC_URL } from '../config/testnet';
+
+const exampleBootnodes =
+  isTestnetLive && BOOTNODES.length > 0
+    ? BOOTNODES.join(',')
+    : '/ip4/127.0.0.1/tcp/4001';
 ---
 
 <Layout
@@ -28,31 +33,40 @@ import { BOOTNODES, isTestnetLive } from '../config/testnet';
     <section class="section">
       <h2>Format</h2>
       <p>A bootnode address is a <strong>multiaddr</strong>, for example:</p>
-      <pre class="code-block"><code>/ip4/1.2.3.4/tcp/4001</code></pre>
+      <pre class="code-block"><code>/ip4/73.84.106.121/tcp/4001</code></pre>
       <p>You pass one or more bootnodes to your node with <code>--bootnodes</code> (comma-separated).</p>
     </section>
 
     <section class="section">
       <h2>How to use</h2>
-      <p>When the testnet is live, the official bootnode list will be published here and on the <a href="/testnet/join">Join Testnet</a> page. Example:</p>
-      <pre class="code-block"><code>./boing-node --p2p-listen /ip4/0.0.0.0/tcp/4001 \
-  --bootnodes /ip4/testnet.boing.network/tcp/4001 \
-  --validator --rpc-port 8545</code></pre>
-      <p>Until then, you can run a <strong>local</strong> multi-node setup: start one node with <code>--p2p-listen /ip4/127.0.0.1/tcp/4001</code>, then start a second node with <code>--bootnodes /ip4/127.0.0.1/tcp/4001</code> so it connects to the first.</p>
+      {isTestnetLive ? (
+        <>
+          <p>Public testnet RPC is at <code>{TESTNET_RPC_URL}</code>. Use the official bootnode list below (also on <a href="/testnet/join">Join Testnet</a>):</p>
+          <pre class="code-block"><code>{`./boing-node --p2p-listen /ip4/0.0.0.0/tcp/4001 \\
+  --bootnodes ${exampleBootnodes} \\
+  --validator --rpc-port 8545 --faucet-enable`}</code></pre>
+          <p>For local dev only, run a <strong>local</strong> multi-node setup: start one node with <code>--p2p-listen /ip4/127.0.0.1/tcp/4001</code>, then start a second node with <code>--bootnodes /ip4/127.0.0.1/tcp/4001</code>.</p>
+        </>
+      ) : (
+        <>
+          <p>When public bootnodes are published, they will appear in this section and on <a href="/testnet/join">Join Testnet</a>. For local dev:</p>
+          <pre class="code-block"><code>{`./boing-node --p2p-listen /ip4/127.0.0.1/tcp/4001 \\
+  --bootnodes /ip4/127.0.0.1/tcp/4001 \\
+  --validator --rpc-port 8545`}</code></pre>
+        </>
+      )}
     </section>
 
     <section class="section">
       <h2>Official testnet bootnodes</h2>
       {isTestnetLive && BOOTNODES.length > 0 ? (
         <>
-          <p>Use these multiaddrs with <code>--bootnodes</code> (comma-separated). Also in <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a>.</p>
+          <p>Use these multiaddrs with <code>--bootnodes</code> (comma-separated). Also in <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a> and <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET.md" target="_blank" rel="noopener">docs/TESTNET.md</a>.</p>
+          <p class="muted small-print">Today both entries point at the same host; a second geographic bootnode will be listed when ops adds one.</p>
           <pre class="code-block"><code>{BOOTNODES.join('\n')}</code></pre>
         </>
       ) : (
-        <>
-          <p>When the testnet launches, the canonical list will appear in this section and in <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a>.</p>
-          <p><em>Placeholder: bootnode addresses will be added at testnet launch.</em></p>
-        </>
+        <p>Bootnode multiaddrs will be published here when the public testnet endpoints are configured.</p>
       )}
     </section>
 
@@ -76,6 +90,7 @@ import { BOOTNODES, isTestnetLive } from '../config/testnet';
   .section code { background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
   .code-block { background: rgba(0,0,0,0.3); border: 1px solid rgba(34,211,238,0.2); border-radius: 8px; padding: 1rem; overflow-x: auto; }
   .code-block code { background: none; padding: 0; font-size: 0.9rem; }
+  .muted { color: var(--text-secondary); font-size: 0.9rem; }
   .nav-links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
   .nav-links a { color: var(--accent-teal); font-weight: 500; }
   @media (max-width: 640px) {

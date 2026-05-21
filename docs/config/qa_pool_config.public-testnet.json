@@ -1,0 +1,11 @@
+{
+  "administrators": [],
+  "max_pending_items": 256,
+  "max_pending_per_deployer": 16,
+  "review_window_secs": 604800,
+  "quorum_fraction": 0.5,
+  "allow_threshold_fraction": 0.6666666666666666,
+  "reject_threshold_fraction": 0.6666666666666666,
+  "default_on_expiry": "reject",
+  "dev_open_voting": true
+}

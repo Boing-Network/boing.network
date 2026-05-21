@@ -10,7 +10,7 @@
 - Most JSON-RPC scripts use **`BOING_RPC_URL`** (trailing slash optional). Examples:
   - Local: `http://127.0.0.1:8545`
   - Public: `https://testnet-rpc.boing.network` (or your tunnel URL)
-- **Go-live order** (genesis → bootnodes → block production → RPC → verify): [NETWORK-GO-LIVE-CHECKLIST.md](NETWORK-GO-LIVE-CHECKLIST.md). **Broader ops** (website env, VibeMiner, AMM **OPS-1**, monitoring): [TESTNET-OPS-RUNBOOK.md](TESTNET-OPS-RUNBOOK.md). **Self-hosted RPC + deploy pool + liquidity:** [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md). **Public RPC node upgrades:** [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
+- **Go-live order** (genesis → bootnodes → block production → RPC → verify): [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3. **Self-hosted RPC + deploy pool:** [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md). **Public RPC upgrades:** [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
 - **Per-script env tables** (secrets, block ranges, pool hex): [examples/native-boing-tutorial/README.md](../examples/native-boing-tutorial/README.md).
 - **Piping JSON stdout:** Prefer **`node scripts/<name>.mjs`** from the tutorial directory (or full path from repo root). **`npm run`** can print lifecycle lines that break **`JSON.parse`** on stdout.
 
@@ -161,7 +161,7 @@ cd ../examples/native-boing-tutorial && npm install
 | `npm run fetch-blocks-range` | **`BOING_FROM_HEIGHT`**, **`BOING_TO_HEIGHT`** |
 | `npm run indexer-chain-tips` | Sync / durable tips |
 | `npm run indexer-ingest-tick` | Plan catch-up; **`BOING_FETCH=1`** to fetch; optional **`BOING_OMIT_MISSING=1`** (pruned RPC) |
-| `npm run observer-chain-tip-poll` | JSON-RPC poll: height + **`boing_getSyncState`**; **`BOING_POLL_ONCE=1`** for one sample (exit **1** on error) — [TESTNET-OPS-RUNBOOK.md](TESTNET-OPS-RUNBOOK.md) §3 |
+| `npm run observer-chain-tip-poll` | JSON-RPC poll: height + **`boing_getSyncState`**; **`BOING_POLL_ONCE=1`** for one sample (exit **1** on error) — [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 |
 | `npm run fetch-native-amm-reserves` | Needs **`BOING_POOL_HEX`** |
 | `npm run fetch-native-amm-logs` | Needs **`BOING_POOL_HEX`** |
 | `npm run print-native-dex-routes` | Off-chain CP routes: **`TOKEN_IN`**, **`TOKEN_OUT`**, optional **`AMOUNT_IN`**, **`BOING_FROM_BLOCK`**, **`BOING_TO_BLOCK`**, factory/pool overrides — [HANDOFF-DEPENDENT-PROJECTS.md](HANDOFF-DEPENDENT-PROJECTS.md); tutorial README §7c3 |
@@ -264,13 +264,12 @@ Use the RPC integration flow as a **local smoke** before publishing a new **`boi
 | [READINESS.md](READINESS.md) | Beta / launch checklist |
 | [RUNBOOK.md](RUNBOOK.md) | Node flags, tunnel, HTTP 530 / 1033, monitoring §8.4 |
 | [TESTNET.md](TESTNET.md) | Bootnodes, faucet, URLs |
-| [NETWORK-GO-LIVE-CHECKLIST.md](NETWORK-GO-LIVE-CHECKLIST.md) | Operator sequence before announcing testnet |
-| [TESTNET-OPS-RUNBOOK.md](TESTNET-OPS-RUNBOOK.md) | Umbrella: website env, **OPS-1**, monitoring, Playwright ops |
+| [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) | Operator hub: go-live, env, monitoring, QA apply |
 | [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) | Upgrading the node behind public JSON-RPC |
 | [PLAYWRIGHT-E2E-CI-OPS.md](PLAYWRIGHT-E2E-CI-OPS.md) | Extension E2E vs default CI |
 | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) | Canonical testnet pool id (**published** — § Published); **`boing-sdk`** **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** |
 | **`npm run check-canonical-pool`** (repo root) | No SDK build: **`boing_getContractStorage`** on canonical pool reserve A — default **`BOING_RPC_URL=https://testnet-rpc.boing.network/`**; override **`BOING_POOL_HEX`** if needed. **`BOING_REQUIRE_NONZERO_RESERVE=1`** fails if reserve A is zero (CI: **`.github/workflows/canonical-pool-public-rpc.yml`**) |
-| **`npm run check-observer-readiness -- <worker-origin>`** | **`GET /api/readiness`** on a deployed **`observer-d1-worker`** — pass/fail exit code; **`BOING_OBSERVER_USE_HEAD=1`** for **HEAD** only. See [OBSERVER-HOSTED-SERVICE.md](OBSERVER-HOSTED-SERVICE.md) §8.1, [TESTNET-OPS-RUNBOOK.md](TESTNET-OPS-RUNBOOK.md) §3 |
+| **`npm run check-observer-readiness -- <worker-origin>`** | **`GET /api/readiness`** on a deployed **`observer-d1-worker`** — pass/fail exit code; **`BOING_OBSERVER_USE_HEAD=1`** for **HEAD** only. See [OBSERVER-HOSTED-SERVICE.md](OBSERVER-HOSTED-SERVICE.md) §8.1, [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §7 |
 | [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) | Larger backlog items |
 | [EXECUTION-PARITY-TASK-LIST.md](EXECUTION-PARITY-TASK-LIST.md) | VM / receipts / RPC task history |
 

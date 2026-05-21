@@ -4,7 +4,7 @@
 
 **This is not** `boing_listDexTokens` or the native DEX directory Worker (DEX-scoped pools/tokens). It is a **chain-wide deploy feed** backed by an **indexer** that reads full **`transactions`** from **`boing_getBlockByHeight`**.
 
-**Related:** [HANDOFF_DexDiscovery_Consumer_Repos.md](HANDOFF_DexDiscovery_Consumer_Repos.md) (DEX discovery consumers; pin **`boing-sdk@^0.3.1`**). Node RPC reference: [RPC-API-SPEC.md](RPC-API-SPEC.md) (`boing_getBlockByHeight`). Receipt/log indexers: [INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md).
+**Related:** [HANDOFF_Boing_Network_Global_Token_Discovery.md](HANDOFF_Boing_Network_Global_Token_Discovery.md) (DEX discovery consumers; pin **`boing-sdk@^0.3.1`**). Node RPC reference: [RPC-API-SPEC.md](RPC-API-SPEC.md) (`boing_getBlockByHeight`). Receipt/log indexers: [INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md).
 
 ---
 

@@ -204,9 +204,51 @@ GitHub Actions builds **`release-{linux-x86_64,macos-aarch64,windows-x86_64}.zip
    # or: cd website && node scripts/network-listings-release-sql.mjs testnet-v0.1.8 [--apply]
    ```
 
-6. Bump **`BOING_TESTNET_DOWNLOAD_TAG`** in **`website/functions/api/networks.js`** (and **`BOING_ZIP_SHA`** if you use URL rewrite helpers) so **`GET /api/networks`** returns the new **`meta.boing_testnet_download_tag`**. Deploy **boing.network**. Then align **VibeMiner** defaults with **`meta`** — [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §6. Full ordering: [TESTNET-NODE-RELEASE-CHECKLIST.md](TESTNET-NODE-RELEASE-CHECKLIST.md).
+6. Bump **`BOING_TESTNET_DOWNLOAD_TAG`** in **`website/functions/api/networks.js`** (and **`BOING_ZIP_SHA`** if you use URL rewrite helpers) so **`GET /api/networks`** returns the new **`meta.boing_testnet_download_tag`**. Deploy **boing.network**. Then align **VibeMiner** defaults with **`meta`** — [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §6.
 
-**Also:** [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md) (D1 / listings), [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) before pointing users at a new RPC surface.
+### 9.1 Release checklist (ordered)
+
+Use when shipping a new **`testnet-v0.1.x`** so **VibeMiner** downloads, **`GET /api/networks`**, and D1 listings stay aligned.
+
+**0. CI permissions** — If **Release binaries** builds zips but the release job fails with **HTTP 403**, ensure [`.github/workflows/release.yml`](../.github/workflows/release.yml) has **`permissions: contents: write`**. One-off recovery: `gh release create <tag> release-*.zip` from failed run artifacts.
+
+**1. Tag and wait for assets**
+
+1. Ensure `main` contains the code you want in the zips.
+2. Push an annotated tag (example **`testnet-v0.1.8`**):
+
+   ```bash
+   git checkout main && git pull
+   git tag -a testnet-v0.1.8 -m "Testnet node: describe changes"
+   git push origin testnet-v0.1.8
+   ```
+
+3. Wait for **Release binaries** to finish. Confirm each asset returns **200**:
+   - `release-windows-x86_64.zip`
+   - `release-linux-x86_64.zip`
+   - `release-macos-aarch64.zip`
+
+**2. Pin SHA256 (Boing repo)**
+
+```bash
+node scripts/network-listings-release-sql.mjs testnet-v0.1.8
+# optional: --apply
+```
+
+Paste the three zip hashes into **`website/functions/api/networks.js`** — `BOING_ZIP_SHA` — and **`packages/shared/src/boing-testnet-node.ts`** in **VibeMiner** (`BOING_TESTNET_ZIP_SHA256_*`). Empty or non-64-hex values skip integrity verification.
+
+**3. D1 / listings**
+
+- **boing.network:** apply generated SQL (e.g. **`website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql`**) on **`boing-network-db`**.
+- **VibeMiner:** apply matching migration on **`vibeminer-db`** so listings upgrade from older tags.
+
+**4. Deploy** — Deploy **boing.network** (Workers / Pages) and **VibeMiner** web/API so **`/api/networks`** and app defaults match.
+
+**5. Public RPC (separate)** — Updating listing URLs does **not** upgrade **`https://testnet-rpc.boing.network`**. Deploy the same **`boing-node`** build behind public RPC per [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
+
+**6. Local binary (optional)** — **`VIBEMINER_BOING_NODE_EXE`** bypasses zip download (see VibeMiner **`docs/NODE_RUNNING.md`**).
+
+**Also:** [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md).
 
 ---
 
@@ -365,7 +407,7 @@ Readiness, promotion, and mainnet migration for an incentivized testnet where va
 
 ### Current Status
 
-VibeMiner shows "no nodes" until bootnodes and public RPC are live. Complete the [Launch-Blocking Checklist](READINESS.md#3-launch-blocking-checklist-critical-path) in READINESS.md before announcing the incentivized testnet.
+VibeMiner shows "no nodes" until bootnodes and public RPC are live. Complete [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 and [READINESS.md](READINESS.md) §3 before announcing the incentivized testnet.
 
 ### Duration
 

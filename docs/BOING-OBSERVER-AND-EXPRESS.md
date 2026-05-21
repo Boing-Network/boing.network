@@ -26,7 +26,7 @@ This document combines **what is already in the boing-network repo versus what t
 
 **Nothing else is required in the boing-network repo** for the explorer to work once the app is built and testnet RPC is live.
 
-**Before the explorer is deployed:** operators can still **monitor** the chain tip over JSON-RPC — see [TESTNET-OPS-RUNBOOK.md](TESTNET-OPS-RUNBOOK.md) §3 (`npm run observer-chain-tip-poll`, probes, indexer scripts). That is **not** a substitute for **boing.observer** UX or durable indexing.
+**Before the explorer is deployed:** operators can still **monitor** the chain tip over JSON-RPC — see [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 (`npm run observer-chain-tip-poll`, probes, indexer scripts). That is **not** a substitute for **boing.observer** UX or durable indexing.
 
 **Durable backend (OBS-1):** When the explorer needs **indexed search**, stable pagination, and **reorg-safe** history without overloading the public RPC, implement the **hosted observer / indexer service** described in [OBSERVER-HOSTED-SERVICE.md](OBSERVER-HOSTED-SERVICE.md) (ingestion worker, SQL store, read API). The explorer frontend may stay in a separate repo; this repo holds the **protocol and integration specs**.
 

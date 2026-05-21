@@ -47,7 +47,7 @@ You still need a **display** (e.g. **Xvfb**) and likely **manual unlock** unless
 
 ### C. Keep E2E manual
 
-Recommended default for **public** repos: run Playwright **locally** or on an **ops workstation** per [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md).
+Recommended default for **public** repos: run Playwright **locally** or on an **ops workstation** per [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md).
 
 ### D. Scheduled headless public URL smoke (no extension)
 
@@ -65,5 +65,5 @@ Default PR workflow [`.github/workflows/native-boing-playwright.yml`](../.github
 
 ## Related
 
-- [TESTNET-OPS-RUNBOOK.md](TESTNET-OPS-RUNBOOK.md) §4  
+- [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §4  
 - [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) **A4.3**

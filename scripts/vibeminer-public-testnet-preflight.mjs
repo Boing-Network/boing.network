@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Automated checks for VibeMiner-style public testnet nodes (see docs/VIBEMINER-PUBLIC-TESTNET-TWO-NODE.md).
+ * Automated checks for VibeMiner-style public testnet nodes (see docs/VIBEMINER-INTEGRATION.md).
  *
  *   npm run vibeminer-public-testnet-preflight
  *
@@ -233,7 +233,7 @@ async function main() {
     report.ok = false;
     report.steps.chain_tip.reason = 'local_too_far_behind';
     report.hints.push(
-      'See docs/VIBEMINER-PUBLIC-TESTNET-TWO-NODE.md § Manual follow-ups — bootnodes, binary tag, P2P reachability.'
+      'See docs/VIBEMINER-INTEGRATION.md § Manual follow-ups — bootnodes, binary tag, P2P reachability.'
     );
     console.error(JSON.stringify(report, null, 2));
     scheduleExit(2);

@@ -52,7 +52,7 @@ use boing_primitives::{
 use boing_qa::pool::{PoolError, QaPoolVote};
 use boing_qa::{
     check_contract_deploy_full_with_metadata, qa_pool_config_from_json, rule_registry_from_json,
-    QaPoolExpiryPolicy, QaResult, RuleRegistry,
+    QaPoolExpiryPolicy, QaResult,
 };
 use boing_tokenomics::BLOCK_TIME_SECS;
 
@@ -2289,7 +2289,9 @@ async fn dispatch_jsonrpc_request(
                 .and_then(|v| v.get(4))
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
-            let registry = RuleRegistry::new();
+            let n = node.read().await;
+            let registry = n.mempool.qa_registry().clone();
+            drop(n);
             let result = check_contract_deploy_full_with_metadata(
                 &bytecode,
                 purpose.as_deref(),

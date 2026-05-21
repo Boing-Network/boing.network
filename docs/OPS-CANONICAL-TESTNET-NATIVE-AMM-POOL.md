@@ -4,7 +4,7 @@
 
 **Lost signing seed / chain reset:** [OPS-FRESH-TESTNET-BOOTSTRAP.md](OPS-FRESH-TESTNET-BOOTSTRAP.md) — new `BOING_SECRET_HEX`, CREATE2 manifest, repo sync, redeploy.
 
-**Context:** See [TESTNET-OPS-RUNBOOK.md](TESTNET-OPS-RUNBOOK.md) for how this step fits bootnodes, RPC, and website configuration. **VibeMiner** users run **`boing-node`** locally for JSON-RPC but do not set the pool id in the app — see [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §5.2.
+**Context:** See [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md). **VibeMiner** users run **`boing-node`** locally for JSON-RPC but do not set the pool id in the app — see [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §5.2.
 
 ## Published (canonical public testnet)
 
@@ -146,5 +146,5 @@ curl -s -X POST "$RPC" -H "Content-Type: application/json" \
 | Doc | Role |
 |-----|------|
 | [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) | Calldata, storage keys, logs |
-| [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md) | Manual wallet + dApp smoke |
+| [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) | Manual wallet + dApp smoke |
 | [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) | Native CP swap integration |

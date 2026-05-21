@@ -641,11 +641,11 @@ The `target_value` is a JSON object with the same shape as `RuleRegistry`:
 }
 ```
 
-- **content_blocklist:** List of forbidden substrings. Deployment metadata (asset_name, asset_symbol) is checked case-insensitively; if any string in the list appears as a substring, the deploy is **Reject**ed with `CONTENT_POLICY_VIOLATION`.
+- **content_blocklist:** Forbidden terms in **`asset_name`** / **`asset_symbol`**. Alphanumeric terms match whole tokens or embedded substrings when length ≥ 4; phrases with spaces use substring match. Match → **Reject** with **`CONTENT_POLICY_VIOLATION`**.
 - **blocklist:** In Rust `RuleRegistry` this is `Vec<[u8; 32]>`. In JSON you can use an array of hex strings (64 chars) or base64.
 - **scam_patterns:** In Rust `Vec<Vec<u8>>`. In JSON use an array of hex or base64 strings.
 
-Governance should maintain a **content_blocklist** of terms that the network does not allow in asset names or symbols (vulgarity, slurs, offensiveness). Add or remove terms by proposing a new full `RuleRegistry` JSON with the updated list.
+Governance should maintain a **content_blocklist** of terms that the network does not allow in asset names or symbols (vulgarity, slurs, offensiveness). **Public testnet operators:** edit [`docs/config/qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json) and run **`npm run apply-public-testnet-qa-policy`** (see [`config/CANONICAL-QA-REGISTRY.md`](config/CANONICAL-QA-REGISTRY.md)). Governance can also replace the full `RuleRegistry` JSON via proposal or **`boing_operatorApplyQaPolicy`**.
 
 ### C.3.1 QA pool governance (`qa_pool_config`)
 

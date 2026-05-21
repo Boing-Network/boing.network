@@ -269,7 +269,8 @@ pub fn check_contract_deploy_full_with_metadata(
 }
 
 /// Check asset name/symbol against governance content blocklist (forbidden substrings).
-/// Case-insensitive. Returns Some(QaReject) if any forbidden term is contained.
+/// Case-insensitive. Alphanumeric terms match whole tokens or embedded substrings when len ≥ 4.
+/// Terms with spaces or punctuation use substring match. Returns Some(QaReject) if matched.
 fn check_content_policy(
     asset_name: Option<&str>,
     asset_symbol: Option<&str>,
@@ -281,7 +282,10 @@ fn check_content_policy(
     let check = |s: &str| {
         let lower = s.trim().to_lowercase();
         for term in forbidden_terms {
-            if !term.is_empty() && lower.contains(&term.to_lowercase()) {
+            if term.is_empty() {
+                continue;
+            }
+            if content_term_matches(&lower, term) {
                 return Some(QaReject::new(
                     RuleId(RuleId::CONTENT_POLICY_VIOLATION.to_string()),
                     "Deployment metadata contains governance-forbidden content (vulgarity/offensiveness policy)"
@@ -302,6 +306,24 @@ fn check_content_policy(
         }
     }
     None
+}
+
+/// Whether `text` (already lowercased) matches forbidden `term`.
+fn content_term_matches(text: &str, term: &str) -> bool {
+    let t = term.trim().to_lowercase();
+    if t.is_empty() {
+        return false;
+    }
+    let alphanumeric_only = t.chars().all(|c| c.is_ascii_alphanumeric());
+    if !alphanumeric_only {
+        return text.contains(&t);
+    }
+    if t.len() >= 4 && text.contains(&t) {
+        return true;
+    }
+    text.split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .any(|word| word == t)
 }
 
 /// Same as [check_contract_deploy] but with an optional blocklist of bytecode hashes (e.g. known scams).
@@ -663,5 +685,33 @@ mod tests {
             &reg,
         );
         assert!(matches!(r, QaResult::Allow));
+    }
+
+    #[test]
+    fn content_policy_allows_classic_without_ass_substring_false_positive() {
+        let reg = RuleRegistry::new().with_content_blocklist(vec!["ass".to_string()]);
+        let r = check_contract_deploy_full_with_metadata(
+            &[0x00],
+            Some("token"),
+            None,
+            Some("Classic Token"),
+            Some("CLASS"),
+            &reg,
+        );
+        assert!(matches!(r, QaResult::Allow));
+    }
+
+    #[test]
+    fn content_policy_rejects_shitcoin_embedded_shit() {
+        let reg = RuleRegistry::new().with_content_blocklist(vec!["shit".to_string()]);
+        let r = check_contract_deploy_full_with_metadata(
+            &[0x00],
+            Some("token"),
+            None,
+            Some("ShitCoin"),
+            None,
+            &reg,
+        );
+        assert!(matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::CONTENT_POLICY_VIOLATION));
     }
 }

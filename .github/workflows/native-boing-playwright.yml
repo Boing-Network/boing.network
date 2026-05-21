@@ -1,7 +1,7 @@
 name: native-boing-playwright
 
 # Validates the Playwright package (install + test run). Tests skip without BOING_EXPRESS_EXTENSION_PATH (exit 0).
-# Real headed + extension E2E needs a display and manual unlock — see docs/PLAYWRIGHT-E2E-CI-OPS.md and docs/TESTNET-OPS-RUNBOOK.md §4.
+# Real headed + extension E2E needs a display and manual unlock — see docs/PLAYWRIGHT-E2E-CI-OPS.md and docs/TESTNET-RPC-INFRA.md §4.
 on:
   push:
     branches: [main]

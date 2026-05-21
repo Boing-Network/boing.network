@@ -66,7 +66,7 @@ Complete these **before** running bootnodes. See [BOING-NETWORK-ESSENTIALS.md](B
 
 ## 3. Launch-Blocking Checklist (Critical Path)
 
-**Operator go-live order** (RPC tunnel, verification script, faucet): [NETWORK-GO-LIVE-CHECKLIST.md](NETWORK-GO-LIVE-CHECKLIST.md). **Full ops map** (VibeMiner, website env, AMM **OPS-1**, monitoring): [TESTNET-OPS-RUNBOOK.md](TESTNET-OPS-RUNBOOK.md).
+**Operator go-live order** (RPC tunnel, verification, faucet, QA policy): [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3.
 
 **Why VibeMiner shows "no nodes":** Bootnodes and public RPC must be running. Until then, VibeMiner, terminal validators, and boing.observer cannot use the testnet.
 
@@ -105,7 +105,7 @@ After steps 1–3:
 - **Faucet** — [boing.network/faucet](https://boing.network/faucet) succeeds
 - **boing.observer** — [boing.observer](https://boing.observer) shows blocks when RPC is synced; `/qa` shows live registry
 - **Terminal** — `boing-node --bootnodes <LIST> --validator` syncs
-- **Ops smoke** — `npm run preflight-rpc`, `npm run verify-public-testnet-rpc`, `npm run verify-qa-alignment`, `npm run check-canonical-pool`
+- **Ops smoke** — `npm run preflight-rpc`, `npm run verify-public-testnet-rpc`, `npm run verify-qa-alignment`, `npm run check-canonical-pool`, `npm run apply-public-testnet-qa-policy` (after editing content blocklist)
 
 ---
 

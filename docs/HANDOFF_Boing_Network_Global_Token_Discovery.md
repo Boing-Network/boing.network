@@ -157,4 +157,44 @@ Until L1 RPC exists end-to-end:
 - **Decimals override:** env **`BOING_DEX_TOKEN_DECIMALS_JSON`** — JSON object of **`"0x" + 64 hex` → number** for **`boing_listDexPools`** (**`tokenADecimals`** / **`tokenBDecimals`** per leg), **`boing_listDexTokens`**, and **`boing_getDexToken`** (default **18** when omitted).
 - **Indexer / SDK:** **`buildNativeDexIndexerStatsForClient`** merges **`createdAtHeight`**, **`tokenADecimals`**, and **`tokenBDecimals`** from **`boing_listDexPools`** per canonical factory when RPC supports it.
 
-**Cross-repo handoff** for **`boing.finance`**, **`boing.observer`**, **`boing.express`**: [HANDOFF_DexDiscovery_Consumer_Repos.md](HANDOFF_DexDiscovery_Consumer_Repos.md).
+**Cross-repo handoff** for **`boing.finance`**, **`boing.observer`**, **`boing.express`**: § **Consumer apps** below.
+
+---
+
+## Consumer apps (`boing.finance`, `boing.observer`, `boing.express`)
+
+**SDK:** **`boing-sdk@^0.3.1`** — `listDexPoolsPage`, `listDexTokensPage`, `getDexToken`.
+
+### Integration checklist (all three)
+
+1. **Node / RPC** — Target JSON-RPC implements **`boing_listDexPools`**, **`boing_listDexTokens`**, **`boing_getDexToken`**. Operators set **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** (live testnet: **`0x58112627…`**) or clients pass **`params.factory`**.
+2. **Pagination** — Treat **`nextCursor`** as opaque.
+3. **Fast path** — **`light: true`** when you only need directory + reserves.
+4. **Trust UX** — Discovery = existence, not endorsement; use **`minReserveProduct`** / **`minLiquidityWei`** where appropriate.
+
+### boing.finance
+
+- Merge **`listDexTokensPage`** / **`listDexPoolsPage`** with indexer JSON by **`poolHex`**.
+- Use per-leg **`tokenADecimals`** from pool rows; **`decimals`** on token rows.
+- Probe **`boing_rpcSupportedMethods`** / **`preflightRpc`** for graceful degradation.
+
+### boing.observer
+
+- **`/dex/pools`**, **`/dex/tokens`**: factory from **`boing_getNetworkInfo.end_user.canonical_native_dex_factory`**.
+- Account page: optional “In DEX universe” badge via **`boing_getDexToken`**.
+- **`includeDiagnostics: true`** for ops dashboards only.
+
+### boing.express
+
+- Forward discovery JSON-RPC unchanged; document in OpenAPI / partner docs.
+- Cache keys include **`factory` + cursor + limit + light`**; respect node rate limits.
+
+### Quick reference
+
+| Method | Role |
+|--------|------|
+| **`boing_listDexPools`** | Paginated pools + reserves + **`createdAtHeight`**. |
+| **`boing_listDexTokens`** | DEX-derived token set (tokens in any listed pool). |
+| **`boing_getDexToken`** | Single-row lookup or **`null`**. |
+
+**Verify:** `cargo test -p boing-node --test native_dex_factory_rpc_happy_path`; **`npm test`** in **`boing-sdk/`**.

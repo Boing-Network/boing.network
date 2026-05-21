@@ -9,7 +9,7 @@
 | [`boing-node-public-testnet.docker-compose.yml`](./boing-node-public-testnet.docker-compose.yml) | **Docker Compose** (Linux **`network_mode: host`**) + **`env_file: ./.env`**. |
 | [`boing-node-public-testnet.kubernetes.example.yaml`](./boing-node-public-testnet.kubernetes.example.yaml) | **Kubernetes** `ConfigMap` + **`Deployment`** with **`envFrom`**. |
 
-**VibeMiner / public testnet checks (repo root `package.json`):** **`npm run vibeminer-public-testnet-preflight`**, **`npm run compare-local-public-tip`** — see [docs/VIBEMINER-PUBLIC-TESTNET-TWO-NODE.md](../docs/VIBEMINER-PUBLIC-TESTNET-TWO-NODE.md).
+**VibeMiner / public testnet checks (repo root `package.json`):** **`npm run vibeminer-public-testnet-preflight`**, **`npm run compare-local-public-tip`** — see [docs/VIBEMINER-INTEGRATION.md](../docs/VIBEMINER-INTEGRATION.md).
 
 Docs: [docs/PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](../docs/PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md), [docs/RUNBOOK.md](../docs/RUNBOOK.md) § public RPC.
 

@@ -22,13 +22,14 @@ import { TESTNET_RPC_URL } from '../config/testnet';
         <li><a href="https://boing.observer/qa">QA transparency</a></li>
         <li><a href="https://boing.observer/tools/node-health">Node health (RPC probe)</a></li>
         <li><a href="/testnet/join">Join testnet</a> · <a href="/faucet">Faucet</a></li>
-        <li><a href="/docs">Documentation</a></li>
+        <li><a href="/docs">Documentation</a> · <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET-RPC-INFRA.md" target="_blank" rel="noopener">Operator hub (TESTNET-RPC-INFRA)</a></li>
       </ul>
       <p class="status-note">
         Operator smoke from the monorepo: <code>npm run preflight-rpc</code>,
         <code>npm run verify-public-testnet-rpc</code>, <code>npm run verify-qa-alignment</code>,
-        <code>npm run check-canonical-pool</code>.
+        <code>npm run check-canonical-pool</code>, <code>npm run apply-public-testnet-qa-policy</code> (QA content blocklist).
       </p>
+      <p class="status-note">Live chain metrics: <a href="https://boing.observer">boing.observer</a> (blocks, accounts, QA registry) and <a href="https://boing.observer/tools/node-health">node health</a>.</p>
     </div>
   </article>
 </Layout>

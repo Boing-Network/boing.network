@@ -1,8 +1,8 @@
 # Native Boing — Playwright smoke (Boing Express + boing.finance)
 
-Optional **headed** automation for [NATIVE-AMM-E2E-SMOKE.md](../../docs/NATIVE-AMM-E2E-SMOKE.md): Chrome loads an **unpacked Boing Express** build, opens the swap page, waits for you to **unlock the wallet and connect** on **Boing testnet (6913)**, then asserts the native AMM panel and clicks **Refresh reserves**.
+Optional **headed** automation for [NATIVE-AMM-INTEGRATION-CHECKLIST.md](../../docs/NATIVE-AMM-INTEGRATION-CHECKLIST.md): Chrome loads an **unpacked Boing Express** build, opens the swap page, waits for you to **unlock the wallet and connect** on **Boing testnet (6913)**, then asserts the native AMM panel and clicks **Refresh reserves**.
 
-**CI / ops:** Default GitHub Actions validates install + **extension** project tests (**skipped** without **`BOING_EXPRESS_EXTENSION_PATH`**). Headed extension E2E on shared runners is not supported without a display — see [PLAYWRIGHT-E2E-CI-OPS.md](../../docs/PLAYWRIGHT-E2E-CI-OPS.md) and [TESTNET-OPS-RUNBOOK.md](../../docs/TESTNET-OPS-RUNBOOK.md) §4.
+**CI / ops:** Default GitHub Actions validates install + **extension** project tests (**skipped** without **`BOING_EXPRESS_EXTENSION_PATH`**). Headed extension E2E on shared runners is not supported without a display — see [PLAYWRIGHT-E2E-CI-OPS.md](../../docs/PLAYWRIGHT-E2E-CI-OPS.md) and [TESTNET-RPC-INFRA.md](../../docs/TESTNET-RPC-INFRA.md) §4.
 
 A separate **headless** **public** project runs **`public-swap-page-smoke`** (network URL load) plus **`tutorial-readme-wiring`** (offline README string checks for LP vault / LP share scripts). Run locally with **`npm run test:e2e:public-smoke`**. A **weekly + manual** workflow runs that project — see **§ D** in [PLAYWRIGHT-E2E-CI-OPS.md](../../docs/PLAYWRIGHT-E2E-CI-OPS.md).
 
@@ -13,7 +13,7 @@ This complements the Rust integration test `native_amm_rpc_happy_path` (RPC only
 1. **Node 18+** and npm.
 2. **Playwright Chromium** — after `npm install`, run **`npm run install:browsers`** (or `npx playwright install chromium`).
 3. **Unpacked Boing Express** directory (contains `manifest.json`). Find Chrome’s unpacked or packed extension folder, or extract a build zip to e.g. `~/boing-express-unpacked`.
-4. **Pool + RPC:** Same as [NATIVE-AMM-E2E-SMOKE.md](../../docs/NATIVE-AMM-E2E-SMOKE.md) — **boing.finance** must be built with the canonical testnet pool (`boingCanonicalTestnetPool.js` / **`REACT_APP_BOING_NATIVE_AMM_POOL`** if used). Public testnet pool id: [RPC-API-SPEC.md](../../docs/RPC-API-SPEC.md) § Native AMM; repo health check: **`npm run check-canonical-pool`** (root).
+4. **Pool + RPC:** Same as [NATIVE-AMM-INTEGRATION-CHECKLIST.md](../../docs/NATIVE-AMM-INTEGRATION-CHECKLIST.md) — **boing.finance** must be built with the canonical testnet pool (`boingCanonicalTestnetPool.js` / **`REACT_APP_BOING_NATIVE_AMM_POOL`** if used). Public testnet pool id: [RPC-API-SPEC.md](../../docs/RPC-API-SPEC.md) § Native AMM; repo health check: **`npm run check-canonical-pool`** (root).
 
 ## Setup
 

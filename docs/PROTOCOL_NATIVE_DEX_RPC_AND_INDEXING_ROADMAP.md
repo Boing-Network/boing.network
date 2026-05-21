@@ -9,7 +9,7 @@
 | **§3** | Subgraph-class history, D1 Worker scope, pipelines, reorgs |
 | **§4** | How to update specs and handoffs when something **ships** |
 
-**Related:** [RPC-API-SPEC.md](RPC-API-SPEC.md), [HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md](HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md) §3, [HANDOFF_BOING_FINANCE_NATIVE_DEX_AND_DIRECTORY.md](HANDOFF_BOING_FINANCE_NATIVE_DEX_AND_DIRECTORY.md), [INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md), [OBSERVER-HOSTED-SERVICE.md](OBSERVER-HOSTED-SERVICE.md).
+**Related:** [RPC-API-SPEC.md](RPC-API-SPEC.md), [HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md](HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md) §3, [HANDOFF-DEPENDENT-PROJECTS.md](HANDOFF-DEPENDENT-PROJECTS.md), [INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md), [OBSERVER-HOSTED-SERVICE.md](OBSERVER-HOSTED-SERVICE.md).
 
 **Reference implementation today:** `boing_simulateTransaction` builds a **`SignedTransaction`**, snapshots state, runs **`vm.execute_with_context`**, returns JSON with **`gas_used`**, **`success`**, **`return_data`**, **`logs`**, **`suggested_access_list`**, **`access_list_covers_suggestion`** — see `crates/boing-node/src/rpc.rs` (`"boing_simulateTransaction"` arm). **`boing-sdk`** **`SimulateResult`** — `types.ts`.
 
@@ -343,7 +343,7 @@ When **§1**, **§2**, or **§3** capabilities move from draft to **released**:
 | **OpenAPI / catalog** | Regenerate or edit so **`boing_getRpcOpenApi`** and **`GET /openapi.json`** match. |
 | **This file** | Add a **“Shipped”** subsection under the relevant § with **`boing-node` version** (or indexer **API version**) and link to **CHANGELOG / release notes**; strike or archive conflicting draft text. |
 | [HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md](HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md) §3 | Shorten “still open” bullets; link to stable spec. |
-| [HANDOFF_BOING_FINANCE_NATIVE_DEX_AND_DIRECTORY.md](HANDOFF_BOING_FINANCE_NATIVE_DEX_AND_DIRECTORY.md) §3 | Update env vars and “when ready” table. |
+| [HANDOFF-DEPENDENT-PROJECTS.md](HANDOFF-DEPENDENT-PROJECTS.md) §3 | Update env vars and “when ready” table. |
 | [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) | Remove “future only” caveats for shipped RPCs; add integration pointers. |
 
 ### 4.2 Cross-repo / consumers

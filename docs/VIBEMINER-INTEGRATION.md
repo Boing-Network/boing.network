@@ -127,7 +127,7 @@ node scripts/network-listings-release-sql.mjs testnet-v0.1.9
 node scripts/network-listings-release-sql.mjs testnet-v0.1.9 --apply
 ```
 
-Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.sql](../website/migrations/insert-boing-devnet-listing.sql). Example tag refresh migration: [website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql](../website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql). For **`testnet-v0.1.9`**, regenerate with **`node scripts/network-listings-release-sql.mjs testnet-v0.1.9`** (see [TESTNET-NODE-RELEASE-CHECKLIST.md](TESTNET-NODE-RELEASE-CHECKLIST.md)).
+Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.sql](../website/migrations/insert-boing-devnet-listing.sql). Example tag refresh migration: [website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql](../website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql). For new tags, regenerate with **`node scripts/network-listings-release-sql.mjs testnet-v0.1.9`** (see [TESTNET.md](TESTNET.md) §9.1).
 
 ---
 
@@ -157,7 +157,7 @@ No separate miner binary; no custom daemon protocol—just the node binary and J
 
 ### 5.1 Public testnet — validator + full node (two Windows PCs)
 
-For **joined public testnet** with **one validator** and **one full node** via VibeMiner, see **[VIBEMINER-PUBLIC-TESTNET-TWO-NODE.md](VIBEMINER-PUBLIC-TESTNET-TWO-NODE.md)** — automated **`npm run vibeminer-public-testnet-preflight`** (bootnode TCP, official zip tag, tip / **`chain_id`**) plus manual firewall / key hygiene; lighter **`npm run compare-local-public-tip`** for tip-only.
+For **joined public testnet** with **one validator** and **one full node** via VibeMiner, see **[Appendix A](#appendix-a--public-testnet-on-windows-validator--full-node)** — **`npm run vibeminer-public-testnet-preflight`** plus manual firewall / key hygiene.
 
 ### 5.2 Native constant-product AMM pool — what VibeMiner does and does not do
 
@@ -208,7 +208,7 @@ Use these values to list **Boing Network** in the VibeMiner request listing form
 
 | Field | Value |
 |-------|--------|
-| **Node download URL (HTTPS)** | `https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.9/release-windows-x86_64.zip` (Linux/macOS: `release-linux-x86_64.zip` / `release-macos-aarch64.zip`; see [TESTNET-NODE-RELEASE-CHECKLIST.md](TESTNET-NODE-RELEASE-CHECKLIST.md)) |
+| **Node download URL (HTTPS)** | `https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.9/release-windows-x86_64.zip` (Linux/macOS: `release-linux-x86_64.zip` / `release-macos-aarch64.zip`; see [TESTNET.md](TESTNET.md) §9.1) |
 | **Command template** | `boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/73.84.106.121/tcp/4001,/ip4/73.84.106.121/tcp/4001 --rpc-port 8545 --faucet-enable` (add `--validator` for validator preset; Linux/macOS use `boing-node-linux-x86_64` / `boing-node-macos-aarch64`) |
 | **Disk (GB)** | 10 |
 | **RAM (MB)** | 2048 |
@@ -238,6 +238,36 @@ When **registering a network** in your application, these requirements can impro
 4. **Description** — Keep **required**; short (1–2 paragraphs).
 5. **Validation** — Optionally require a working RPC or chain ID (e.g. `boing_chainHeight`). For multi-node networks, consider requiring at least one bootnode or discovery URL.
 6. **Listing type** — Clearly separate “mineable (PoW)” vs “validator / full node (PoS or other)” in the UI.
+
+---
+
+## Appendix A — Public testnet on Windows (validator + full node)
+
+**Goal:** One **validator** and one **full node** on separate Windows PCs, both joined to public testnet.
+
+| Need | VibeMiner + official listing |
+|------|------------------------------|
+| Correct **`boing-node` build** | Zips from **`GET https://boing.network/api/networks`** |
+| **Bootnodes + P2P** | Presets pass **`--bootnodes`** and **`--p2p-listen`** |
+| **Validator** | One machine with **`--validator`** and staked account |
+| **Full node** | Second machine **without** **`--validator`** — local RPC for tools |
+
+**Automated preflight (from `boing.network` clone):**
+
+```bash
+npm run vibeminer-public-testnet-preflight
+# lighter: npm run compare-local-public-tip
+```
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| **`BOING_LOCAL_RPC_URL`** | `http://127.0.0.1:8545` | Local node JSON-RPC |
+| **`BOING_PUBLIC_RPC_URL`** | `https://testnet-rpc.boing.network` | Reference tip + `chain_id` |
+| **`BOING_SYNC_MAX_LAG`** | `256` | Max blocks local may trail public |
+
+**Manual checklist:** outbound/inbound TCP **4001**; **one** validator process per staked identity; same network entry on both PCs; public tunnel only if **you** publish RPC to others.
+
+See also [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md).
 
 ---
 

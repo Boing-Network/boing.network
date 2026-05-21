@@ -2,7 +2,7 @@
 
 **Routing:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) — where this checklist sits relative to **infra** and **testnet** guides.
 
-Use this when you are about to **replace or restart** the `boing-node` process behind **public testnet JSON-RPC** (direct or Cloudflare Tunnel). It complements [NETWORK-GO-LIVE-CHECKLIST.md](NETWORK-GO-LIVE-CHECKLIST.md) and [TESTNET-OPS-RUNBOOK.md](TESTNET-OPS-RUNBOOK.md).
+Use this when you are about to **replace or restart** the `boing-node` process behind **public testnet JSON-RPC** (direct or Cloudflare Tunnel). It complements [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) and [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md).
 
 ---
 

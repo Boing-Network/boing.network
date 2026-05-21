@@ -1,6 +1,6 @@
 # Devnet / self-hosted RPC — deploy native AMM pool and seed liquidity
 
-Use this when you run your own **validator + full node** (e.g. **VibeMiner**) with a **public JSON-RPC URL**, you have **devnet BOING** (native balance for fees), and **nothing is deployed yet**. It complements [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) (canonical **public** testnet) and [NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md) (browser path).
+Use this when you run your own **validator + full node** (e.g. **VibeMiner**) with a **public JSON-RPC URL**, you have **devnet BOING** (native balance for fees), and **nothing is deployed yet**. It complements [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) (canonical **public** testnet) and [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) (browser path).
 
 ---
 
@@ -114,7 +114,7 @@ export BOING_AMOUNT_B=2000000
 npm run native-amm-submit-contract-call
 ```
 
-**Browser:** configure **boing.finance** with your pool id and RPC (below), then use **Add liquidity** in the native AMM panel ([NATIVE-AMM-E2E-SMOKE.md](NATIVE-AMM-E2E-SMOKE.md)).
+**Browser:** configure **boing.finance** with your pool id and RPC (below), then use **Add liquidity** in the native AMM panel ([NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md)).
 
 Then **`fetch-native-amm-reserves`** again — reserves should match your seed (plus any later trades).
 
