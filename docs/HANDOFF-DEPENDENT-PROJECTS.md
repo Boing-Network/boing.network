@@ -11,7 +11,7 @@ Use this as the **upstream contract** for dependent projects. **Canonical GitHub
 | Area | Location / artifact |
 |------|---------------------|
 | **Protocol** | `crates/boing-node`, `crates/boing-execution` — VM programs (native CP pool, DEX factory, ledger / swap2 / multihop routers), JSON-RPC |
-| **TypeScript SDK** | `boing-sdk/` — RPC client, calldata + access-list builders, directory snapshot (`fetchNativeDexDirectorySnapshot`), routing (`nativeDexRouting.ts`: quotes, `findBestCpRoutes`, `fetchCpRoutingFromDirectoryLogs`), wallet helpers (`connectInjectedBoingWallet`, `mapInjectedProviderErrorToUiMessage`), preflight (`assertBoingNativeDexToolkitRpc`), universal deploy extractors (`universalContractDeployIndex.ts`; **npm `boing-sdk@0.3.1+`**) |
+| **TypeScript SDK** | `boing-sdk/` — RPC client, calldata + access-list builders, directory snapshot (`fetchNativeDexDirectorySnapshot`), routing (`nativeDexRouting.ts`), **`metadataMedia`** + reference NFT storage keys, wallet helpers, preflight (`assertBoingNativeDexToolkitRpc`) |
 | **Universal deploy registry (optional Worker)** | `workers/deploy-registry-indexer/` — D1 + cron + HTTP/SSE for every **`ContractDeploy*`** on a chain; not DEX-scoped discovery — [HANDOFF_Universal_Contract_Deploy_Indexer.md](HANDOFF_Universal_Contract_Deploy_Indexer.md) |
 | **Operator docs** | `docs/RUNBOOK.md`, `docs/RPC-API-SPEC.md`, `tools/boing-node-public-testnet.env.example` — `BOING_CANONICAL_NATIVE_*` (`CP_POOL`, `DEX_FACTORY`, multihop router, ledger v2/v3, LP vault, share) for `boing_getNetworkInfo.end_user` |
 | **Integration specs** | `docs/BOING-DAPP-INTEGRATION.md`, `docs/BOING-NATIVE-DEX-CAPABILITY.md`, `docs/BOING-EXPRESS-WALLET.md`, `docs/BOING-OBSERVER-AND-EXPRESS.md` |
@@ -46,6 +46,7 @@ Dependent apps should **pin or track** published `boing-sdk` versions (npm or `f
 | Priority | Item | Notes |
 |----------|------|--------|
 | **P0** | **RPC** config | `NEXT_PUBLIC_TESTNET_RPC` (and mainnet when live) — same URL semantics as alignment doc §2. |
+| **P1** | **Token / NFT metadata** | **Shipped:** `/asset/:address` metadata scan, `/tokens` index with thumbnails, reference NFT storage probes — use **`boing-sdk`** **`metadataMedia`** helpers for off-chain JSON/IPFS when extending. |
 | **P1** | **Optional “Pools / DEX directory”** | Read-only: use **`fetchNativeDexDirectorySnapshot`** + bounded **`registerLogs`** or durable index ([BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md) §4.3). Avoid full-chain log scans on every page load. |
 | **P1** | **Account / tx** views | 32-byte Boing `AccountId` display (no 20-byte assumption); link format per alignment doc. |
 | **P2** | **Route / quote** pages | If product wants “best path” UX, depend on **`boing-sdk`** `findBestCpRoutes` / `fetchCpRoutingFromDirectoryLogs` with cached venue list from your indexer. |

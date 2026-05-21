@@ -8,6 +8,21 @@ This page **links** the detailed docs; it does not duplicate every command. For 
 
 ---
 
+## Current status snapshot (2026-05-21)
+
+| Surface | Status | Verify |
+|---------|--------|--------|
+| **Public RPC** | **Live** — `https://testnet-rpc.boing.network/` | `npm run preflight-rpc` |
+| **QA transparency RPC** | **Live** — registry + pool config | `npm run verify-public-testnet-rpc` |
+| **Canonical CP pool** | **`0x7247ddc3…`** (reserve A readable) | `BOING_REQUIRE_NONZERO_RESERVE=1 npm run check-canonical-pool` |
+| **QA registry vs docs** | **Matches** canonical JSON | `npm run verify-qa-alignment` |
+| **Explorer** | **Live** — [boing.observer](https://boing.observer) | `/qa`, `/tokens`, `/asset/:address` |
+| **Chain tip** | Operator-dependent (may reset after redeploy) | `npm run observer-chain-tip-poll` |
+
+**Note:** After a chain reset, **`head_height`** may be **0** while native DEX contracts from a prior bootstrap remain readable. Treat **`boing_getNetworkInfo.end_user`** as the live contract hint source.
+
+---
+
 ## 1. Go-live sequence (order matters)
 
 | Phase | Doc | What to verify |
@@ -20,7 +35,7 @@ This page **links** the detailed docs; it does not duplicate every command. For 
 | Faucet | [TESTNET.md](TESTNET.md), [RUNBOOK.md](RUNBOOK.md) | `boing-node --faucet-enable`; test `boing_faucetRequest` |
 | Website / portal env | [READINESS.md](READINESS.md) §3.3, [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md) | `PUBLIC_BOOTNODES`, `PUBLIC_TESTNET_RPC_URL` (or product-specific names) |
 | VibeMiner | [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) | App sees bootnodes after above |
-| Optional: canonical AMM pool | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published | **OPS-1** done (**2026-04-03**); future rotations use same checklist |
+| Optional: canonical AMM pool | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published | **2026-05-21** live pool **`0x7247ddc3…`**; CI: **`check-canonical-pool`** |
 
 ---
 
@@ -32,11 +47,11 @@ Consolidated matrix (website, boing.finance, tutorials, node flags): [TESTNET-RP
 |----------|--------------|--------|
 | **Website / portal** | Public bootnode list, public RPC URL | [READINESS.md](READINESS.md) §3.3 |
 | **boing.finance** | `boingCanonicalTestnetPool.js`, **`REACT_APP_BOING_NATIVE_AMM_POOL`**, chain **6913** pool in `contracts.js` | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) §3; self-hosted RPC: [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md) |
-| **Tutorial / scripts** | `BOING_RPC_URL`, `BOING_POOL_HEX` when using AMM helpers | No canonical hex in git until **OPS-1** |
+| **Tutorial / scripts** | `BOING_RPC_URL`, `BOING_POOL_HEX` when using AMM helpers | Default pool: **`0x7247ddc3…`** via **`boing-sdk`** |
 | **`boing-node` (relaxed testnet)** | `BOING_RATE_PROFILE=dev` or `--dev-rate-limits` | [RUNBOOK.md](RUNBOOK.md) § Dev rate-limit profile |
 | **`boing-node` (public testnet RPC)** | **`BOING_CHAIN_ID=6913`**, **`BOING_CHAIN_NAME=Boing Testnet`** for **`boing_getNetworkInfo`** — [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example) | [RUNBOOK.md](RUNBOOK.md) §8.2, [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) |
 
-Canonical pool **`AccountId`** is **`0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d`** ([RPC-API-SPEC.md](RPC-API-SPEC.md), [TESTNET.md](TESTNET.md) §5.3, [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published). **OPS-1** doc/repo updates: done; confirm **boing.finance** env matches.
+Canonical pool **`AccountId`** is **`0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3`** ([RPC-API-SPEC.md](RPC-API-SPEC.md), [TESTNET.md](TESTNET.md) §5.3, [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published, **2026-05-21**). Confirm **boing.finance** env matches; daily CI runs **`check-canonical-pool`** + QA RPC probes.
 
 ---
 

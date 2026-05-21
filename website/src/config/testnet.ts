@@ -37,15 +37,15 @@ export const isTestnetLive =
  * and `boing-sdk` **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**. **boing.finance** (separate app) should use the same hex in its env / `contracts.js` — not generated from this file.
  */
 export const CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX =
-  '0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d' as const as const;
+  '0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3' as const;
 
 /**
- * Native AMM **LP vault** + **LP share token** (CREATE2 at canonical deployer). Matches
- * `scripts/canonical-testnet-dex-predicted.json` / `boing-sdk` `CANONICAL_BOING_TESTNET_NATIVE_*`.
- * Wire **`configure`** / **`set_minter_once`** on-chain before user deposits; see docs/NATIVE-AMM-LP-VAULT.md.
+ * Native AMM **LP vault** + **LP share token** (live public testnet full-stack deploy). Matches
+ * `boing_getNetworkInfo.end_user` and `boing-sdk` `CANONICAL_BOING_TESTNET_NATIVE_*`.
+ * See docs/NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md Appendix B.
  */
 export const CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX =
-  '0x2b195b93a57b632ca3c1cf58cb7578542a6d58998116cddb8a6a50f1bd652f48' as const;
+  '0x937d09ee8e4dcc521c812566ad4930792e74ad004ecb3ae2cc73dc015813aa8d' as const;
 
 export const CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX =
-  '0x0618b4a6a30bc31822a0cdcf253ed2bcf642a6cecf26346ba655b63fccbde03c' as const;
+  '0x101201403f573e5b1d6d5c6b93d52d12c68957f4a228d5dad76e78c747044421' as const;

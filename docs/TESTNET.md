@@ -131,31 +131,32 @@ The in-ledger **MVP constant-product pool** is a normal **32-byte contract `Acco
 
 | | |
 |--|--|
-| **Canonical public testnet pool `AccountId`** | **`0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d`** — same as [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM (operator-published id; CREATE2 drift vs current sources: **`verify_canonical_cp_pool_create2_drift`** example). Also on the website [Join Testnet](https://boing.network/testnet/join#native-amm-pool) page (`website/src/config/testnet.ts`). |
+| **Canonical public testnet pool `AccountId`** | **`0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3`** — same as [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM (operator-published **2026-05-21**; superseded **`0xce4f8193…`**). Also on the website [Join Testnet](https://boing.network/testnet/join#native-amm-pool) page (`website/src/config/testnet.ts`) and **`boing-sdk`** **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**. |
 
 Storage keys and calldata: [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). SDK examples: **`BOING_POOL_HEX`** in [examples/native-boing-tutorial](../examples/native-boing-tutorial/).
 
 ## 6. Bootnode list (testnet)
 
-When the testnet is live, the canonical list will be kept at:
+Public testnet connectivity (as of **2026-05-21**):
 
-- **Website:** [boing.network/testnet/join](https://boing.network/testnet/join) and [Bootnodes](https://boing.network/bootnodes) (driven by `website/src/config/testnet.ts` or env `PUBLIC_BOOTNODES`)
-- **This repo:** Below (update before testnet launch)
-- **Infrastructure setup:** [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)
+- **Website:** [boing.network/testnet/join](https://boing.network/testnet/join) and [Bootnodes](https://boing.network/bootnodes) (`website/src/config/testnet.ts` or env **`PUBLIC_BOOTNODES`**)
+- **Networks API:** `GET https://boing.network/api/networks` — VibeMiner sync
+- **RPC:** `https://testnet-rpc.boing.network/` — smoke: **`npm run preflight-rpc`**, **`npm run verify-public-testnet-rpc`**, **`npm run verify-qa-alignment`**
+- **Explorer:** [boing.observer](https://boing.observer) — token/NFT metadata on `/asset/:address` and `/tokens`
 
 | Bootnode | Multiaddr | Notes |
 |----------|-----------|-------|
 | Primary | `/ip4/73.84.106.121/tcp/4001` | Faucet + RPC via testnet-rpc.boing.network (Cloudflare tunnel) |
-| Secondary | `/ip4/73.84.106.121/tcp/4001` | Run via `scripts/start-bootnode-2` |
+| Secondary | `/ip4/73.84.106.121/tcp/4001` | Same host today; add a second IP when ops scales out |
 
-**Launch checklist (to open testnet):**
+**Operator maintenance:**
 
-1. **Bootnodes:** Run at least 2 nodes with stable IPs and `--p2p-listen /ip4/0.0.0.0/tcp/4001`. Add their multiaddrs to the table above and to `website/src/config/testnet.ts` (or set `PUBLIC_BOOTNODES` when building the website).
-2. **Public RPC:** Run a node with `--faucet-enable` behind a public URL (e.g. `https://testnet-rpc.boing.network/`). Set `PUBLIC_TESTNET_RPC_URL` when building the website so the [faucet page](https://boing.network/faucet) defaults to it.
-3. **Genesis:** All nodes must use the same genesis so the faucet account has 10M testnet BOING.
-4. **Docs:** For the full pre-launch checklist and incentive program see [Part 3 — Incentivized Testnet](#part-3--incentivized-testnet) below. For the critical path (bootnodes → RPC → VibeMiner / boing.observer), see [READINESS.md](READINESS.md) §3.
+1. **Bootnodes:** Keep at least one stable P2P listener on **4001**; update the table when adding a second IP.
+2. **Public RPC:** Node with **`--faucet-enable`**, tunnel to **`https://testnet-rpc.boing.network/`**, publish **`BOING_CANONICAL_NATIVE_*`** per [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example).
+3. **Genesis:** All validators must share genesis so the faucet account holds testnet BOING.
+4. **Docs:** Incentive program — [Part 3](#part-3--incentivized-testnet). Critical path — [READINESS.md](READINESS.md) §3.
 
-Until then, you can run a multi-node testnet locally by starting two nodes and having the second dial the first:
+**Local multi-node dev** (no public bootnodes required):
 
 **Terminal 1 (first node):**
 

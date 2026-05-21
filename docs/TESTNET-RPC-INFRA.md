@@ -38,7 +38,7 @@ Values must stay consistent across **website build**, **scripts**, and **downstr
 
 ## 3. Canonical native AMM pool (integration contract)
 
-1. **Source of truth for the hex:** [RPC-API-SPEC.md](RPC-API-SPEC.md) § **Native constant-product AMM** and [TESTNET.md](TESTNET.md) §5.3 — **`0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d`** (published **2026-04-03**, [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published).
+1. **Source of truth for the hex:** [RPC-API-SPEC.md](RPC-API-SPEC.md) § **Native constant-product AMM** and [TESTNET.md](TESTNET.md) §5.3 — **`0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3`** (published **2026-05-21**, [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published). **`boing_getNetworkInfo.end_user`** on public RPC should match.
 2. **Procedure to publish:** [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md).
 3. **Optional npm package:** use monorepo **`boing-sdk`** for RPC client helpers / `explainBoingRpcError` instead of duplicating formatters in app code ([BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md)).
 

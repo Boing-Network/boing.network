@@ -74,9 +74,9 @@ Complete these **before** running bootnodes. See [BOING-NETWORK-ESSENTIALS.md](B
 
 | Step | Action | Done |
 |------|--------|------|
-| 1.1 | Run at least **2** `boing-node` with stable public IPs, P2P enabled | ☐ |
-| 1.2 | Open TCP 4001 (P2P) and optionally 8545 (RPC) | ☐ |
-| 1.3 | Record multiaddrs (e.g. `/ip4/1.2.3.4/tcp/4001`) | ☐ |
+| 1.1 | Run at least **2** `boing-node` with stable public IPs, P2P enabled | ☑ (single host `/ip4/73.84.106.121/tcp/4001` today) |
+| 1.2 | Open TCP 4001 (P2P) and optionally 8545 (RPC) | ☐ verify firewall on operator host |
+| 1.3 | Record multiaddrs (e.g. `/ip4/1.2.3.4/tcp/4001`) | ☑ listed in [TESTNET.md](TESTNET.md) §6 |
 
 **Scripts:** [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md). Use `scripts/start-bootnode-1.bat` / `start-bootnode-2.bat` (or `.sh`).
 
@@ -84,27 +84,28 @@ Complete these **before** running bootnodes. See [BOING-NETWORK-ESSENTIALS.md](B
 
 | Step | Action | Done |
 |------|--------|------|
-| 2.1 | Run node with `--faucet-enable` and `--bootnodes` | ☐ |
-| 2.2 | Expose at `https://testnet-rpc.boing.network/` (Cloudflare tunnel) | ☐ |
-| 2.3 | Confirm `boing_faucetRequest` works | ☐ |
+| 2.1 | Run node with `--faucet-enable` and `--bootnodes` | ☑ |
+| 2.2 | Expose at `https://testnet-rpc.boing.network/` (Cloudflare tunnel) | ☑ |
+| 2.3 | Confirm `boing_faucetRequest` works | ☐ verify via [boing.network/faucet](https://boing.network/faucet) |
 
 ### 3.3 Update Config and Docs
 
 | Step | Action | Done |
 |------|--------|------|
-| 3.1 | Set `PUBLIC_BOOTNODES` in deploy env or `website/.env` | ☐ |
-| 3.2 | Set `PUBLIC_TESTNET_RPC_URL` to public faucet RPC | ☐ |
-| 3.3 | Update [TESTNET.md](TESTNET.md) §6 bootnode table | ☐ |
-| 3.4 | Rebuild and deploy website | ☐ |
+| 3.1 | Set `PUBLIC_BOOTNODES` in deploy env or `website/.env` | ☑ defaults in `website/src/config/testnet.ts` |
+| 3.2 | Set `PUBLIC_TESTNET_RPC_URL` to public faucet RPC | ☑ |
+| 3.3 | Update [TESTNET.md](TESTNET.md) §6 bootnode table | ☑ |
+| 3.4 | Rebuild and deploy website | ☐ on doc/config changes |
 
 ### 3.4 Verification
 
 After steps 1–3:
 
-- **VibeMiner** — Should connect to bootnodes and sync
+- **VibeMiner** — Should connect to bootnodes and sync (`GET https://boing.network/api/networks`)
 - **Faucet** — [boing.network/faucet](https://boing.network/faucet) succeeds
-- **boing.observer** — With testnet RPC configured, shows blocks
+- **boing.observer** — [boing.observer](https://boing.observer) shows blocks when RPC is synced; `/qa` shows live registry
 - **Terminal** — `boing-node --bootnodes <LIST> --validator` syncs
+- **Ops smoke** — `npm run preflight-rpc`, `npm run verify-public-testnet-rpc`, `npm run verify-qa-alignment`, `npm run check-canonical-pool`
 
 ---
 

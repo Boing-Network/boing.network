@@ -70,11 +70,13 @@ For wallet connection and dApp integration (e.g. portal sign-in, chain switching
 | Item | Value |
 |------|--------|
 | **Chain** | **6913** (testnet) |
-| **Canonical pool `AccountId`** | `0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d` |
+| **Canonical pool `AccountId`** | `0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3` |
+| **Canonical DEX factory** | `0x58112627fc84618a27b82e9af82bc9a51761c6d3cca1260c93d56d22b6c481a1` |
+| **Multihop router** | `0xf801cd1aa5ec402f89a2f394b49e6b0c136264d8945b16a4a6a81a188b18acc1` |
 
-- **Docs:** [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM, [TESTNET.md](TESTNET.md) §5.3.
-- **boing.finance:** `boingCanonicalTestnetPool.js` / `contracts.js` (6913) / env — must match; redeploy after changes.
-- **boing-sdk (optional):** `CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX` — mirror for TS apps; bump when the canonical on-chain pool changes.
+- **Docs:** [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM, [TESTNET.md](TESTNET.md) §5.3, [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md) Appendix B.
+- **Live RPC:** `boing_getNetworkInfo.end_user` on `https://testnet-rpc.boing.network/`.
+- **boing.finance / boing-sdk / website:** must match; **`npm run check-canonical-pool`** is the public smoke test.
 
 ---
 

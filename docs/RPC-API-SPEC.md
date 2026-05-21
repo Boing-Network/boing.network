@@ -383,13 +383,13 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
     "chain_display_name": "Boing Testnet",
     "explorer_url": null,
     "faucet_url": null,
-    "canonical_native_cp_pool": "0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d",
-    "canonical_native_dex_factory": null,
-    "canonical_native_dex_multihop_swap_router": null,
-    "canonical_native_dex_ledger_router_v2": null,
-    "canonical_native_dex_ledger_router_v3": null,
-    "canonical_native_amm_lp_vault": null,
-    "canonical_native_lp_share_token": null
+    "canonical_native_cp_pool": "0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3",
+    "canonical_native_dex_factory": "0x58112627fc84618a27b82e9af82bc9a51761c6d3cca1260c93d56d22b6c481a1",
+    "canonical_native_dex_multihop_swap_router": "0xf801cd1aa5ec402f89a2f394b49e6b0c136264d8945b16a4a6a81a188b18acc1",
+    "canonical_native_dex_ledger_router_v2": "0x33334ff73c44c93335ac5e69938a52ea65fa77b062d1961ed22c131adaa31e0f",
+    "canonical_native_dex_ledger_router_v3": "0x2c90ffcddeb2683219b4b8143a91d7b93f249bcb0d9523c8b4f2111de668b79a",
+    "canonical_native_amm_lp_vault": "0x937d09ee8e4dcc521c812566ad4930792e74ad004ecb3ae2cc73dc015813aa8d",
+    "canonical_native_lp_share_token": "0x101201403f573e5b1d6d5c6b93d52d12c68957f4a228d5dad76e78c747044421"
   },
   "rpc": {
     "not_available": ["staking_apy"],
@@ -637,7 +637,7 @@ Wallets and dApps still **configure** the pool **`AccountId`** in their own env 
 
 | | |
 |--|--|
-| **Canonical public testnet pool `AccountId`** | **`0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d`** — operator-published **2026-04-03** ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published). Documented deployer **`0x0xc063512f42868f1278c59a1f61ec0944785c304dbc48dec7e4c41f70f666733f`**. **CREATE2 note:** current-tree **`constant_product_pool_bytecode()`** + **`NATIVE_CP_POOL_CREATE2_SALT_V1`** predicts **`0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d`** (drift vs published until ops rotates or bytecode matches the frozen deployment) — run **`cargo run -p boing-execution --example verify_canonical_cp_pool_create2_drift`**. |
+| **Canonical public testnet pool `AccountId`** | **`0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3`** — operator-published **2026-05-21** ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published). Documented deployer **`0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29`**. Live values also appear in **`boing_getNetworkInfo.end_user`**. **CREATE2 note:** deployer **`0xc063512f…`** + current-tree bytecode predicts **`0xce4f8193…`** — not the live pool; run **`cargo run -p boing-execution --example verify_canonical_cp_pool_create2_drift`**. |
 | **boing.finance (separate repo)** | **Source constant:** `frontend/src/config/boingCanonicalTestnetPool.js` → **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**. **Cloudflare Pages / CI build:** **`REACT_APP_BOING_NATIVE_AMM_POOL`** (same 64-hex `AccountId`). Also wire **`nativeConstantProductPool`** (or equivalent in `contracts.js`) for chain **6913**. Redeploy the app after any change to this hex. Optional: depend on npm **`boing-sdk`** and import **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** (mirror of this table — see row below) plus shared RPC helpers / `explainBoingRpcError`. |
 | **boing-sdk** | **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** — exported from [`boing-sdk/src/canonicalTestnet.ts`](../boing-sdk/src/canonicalTestnet.ts); convenience for tutorials and TS apps. **Authoritative** values remain **this spec** and [TESTNET.md](TESTNET.md) §5.3. |
 

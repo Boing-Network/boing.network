@@ -7,6 +7,7 @@ Use this doc to **track what you actually deployed** on a given network. It comp
 
 **Why two kinds of addresses?**
 
+- **Live public RPC (`https://testnet-rpc.boing.network/`):** **Appendix B** below is **normative** — matches **`boing_getNetworkInfo.end_user`** and [`scripts/canonical-testnet-published.manifest.json`](../scripts/canonical-testnet-published.manifest.json).
 - **CREATE2** deploys land at **predictable** ids (same deployer + salt + bytecode ⇒ same address everywhere). If the slot was **already taken**, tutorial scripts may fall back to **nonce-derived** ids — those differ per chain history and are **not** in the canonical JSON.
 - Your **pair directory** and **pool** may be CREATE2 or nonce-derived depending on collisions and flags (`BOING_USE_CREATE2`, bootstrap auto-retry).
 
@@ -93,7 +94,7 @@ Use **real** reference-token ids for production; synthetic `0xaa…` / `0xbb…`
 
 ## Appendix B — Public testnet snapshot (`deploy-native-dex-full-stack`, operator `0x3b6a27…`)
 
-**Recorded:** 2026-04-05. **Source:** `examples/native-boing-tutorial` → `npm run deploy-native-dex-full-stack` JSON (`ok: true` end-to-end).
+**Normative for public RPC `end_user` hints.** Recorded: 2026-04-05 deploy; republished in docs **2026-05-21** after live RPC verification.
 
 **Not normative for the monorepo canonical JSON.** This is a **concrete deploy** on **`https://testnet-rpc.boing.network`** with deployer / `senderHex` **`0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29`**. Script phases reported **`create2: true`** for every contract below (no nonce fallback in this run).
 

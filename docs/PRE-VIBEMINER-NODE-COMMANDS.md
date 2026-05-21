@@ -92,6 +92,7 @@ cargo run -p boing-execution --example dump_native_dex_factory > dex-factory.hex
 | `scripts/start-cloudflare-tunnel.bat` | Tunnel helper for public RPC hostname |
 | `node scripts/check-cloudflared-alignment.mjs` | Verify `~/.cloudflared/config.yml` routes **`testnet-rpc.boing.network`** → local **8545** (optional **`CLOUDFLARED_CONFIG=...`**) |
 | `node scripts/verify-public-testnet-rpc.mjs` | HTTPS probe: `boing_chainHeight`, `boing_getQaRegistry`, `boing_qaPoolConfig` (default URL or **`TESTNET_RPC_URL=...`**) |
+| `npm run verify-qa-alignment` | Compare live **`boing_getQaRegistry`** / **`boing_qaPoolConfig`** to **`docs/config/*.canonical.json`** |
 | `BOING_RPC_URL=http://127.0.0.1:8545 node scripts/rpc-endpoint-check.mjs` | Raw JSON-RPC matrix **without** building `boing-sdk` |
 
 Overview: [scripts/README.md](../scripts/README.md). Full infra: [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md).
@@ -110,6 +111,8 @@ From repo root, **`npm install` at the root is not required** for these wrappers
 | `npm run probe-rpc` | `node boing-sdk/scripts/probe-rpc.mjs` — build **`boing-sdk`** first |
 | `npm run rpc-endpoint-check` | `node scripts/rpc-endpoint-check.mjs` — raw JSON-RPC matrix without **`boing-sdk`** |
 | `npm run check-canonical-pool` | **`scripts/check-canonical-native-amm-pool.mjs`** — canonical pool reserve probe |
+| `npm run verify-public-testnet-rpc` | **`scripts/verify-public-testnet-rpc.mjs`** — QA transparency on public URL |
+| `npm run verify-qa-alignment` | **`scripts/verify-qa-registry-alignment.mjs`** — live vs canonical QA JSON |
 | `npm run check-observer-readiness` | **`scripts/check-observer-readiness.mjs`** — deployed observer worker readiness |
 | `npm run observer-ingest-ref-tick` | **`examples/observer-ingest-reference`** **`ingest-tick`** (`npm install` there first) |
 | `npm run observer-ingest-sqlite-tick` | Same package, **`ingest-sqlite-tick`** — **`BOING_SQLITE_PATH`** (Node 22+ **`node:sqlite`**) |

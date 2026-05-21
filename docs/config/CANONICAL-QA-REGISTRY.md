@@ -20,6 +20,8 @@ Anyone can read the **effective** rule registry from a node with no authenticati
 
 Pool parameters are already exposed as **`boing_qaPoolConfig`** (summary fields). The full pool governance JSON file shape matches [`qa_pool_config.canonical.json`](qa_pool_config.canonical.json) when defaults apply.
 
+**Smoke (public RPC):** `npm run verify-public-testnet-rpc` and `npm run verify-qa-alignment` from the monorepo root (also in daily CI — `.github/workflows/canonical-pool-public-rpc.yml`).
+
 ## Links
 
 - [RPC-API-SPEC.md](../RPC-API-SPEC.md) — `boing_getQaRegistry`, pool methods, error codes.

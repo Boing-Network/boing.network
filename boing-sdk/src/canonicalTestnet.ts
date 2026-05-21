@@ -2,9 +2,9 @@
  * Well-known **public Boing testnet** (chain id **6913**) identifiers.
  *
  * **Normative source of truth** for the canonical native CP pool address is
- * [RPC-API-SPEC.md](https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md) § Native constant-product AMM
- * and [TESTNET.md](https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET.md) §5.3.
- * This constant is a **convenience mirror** for TypeScript apps and tutorials; it may lag a doc-only update — verify on docs if unsure.
+ * [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](https://github.com/Boing-Network/boing.network/blob/main/docs/OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published,
+ * [RPC-API-SPEC.md](https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md) § Native constant-product AMM,
+ * and live **`boing_getNetworkInfo.end_user.canonical_native_cp_pool`** on public RPC.
  */
 
 import { validateHex32 } from './hex.js';

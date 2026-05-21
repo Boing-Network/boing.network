@@ -10,22 +10,31 @@
 
 | Field | Value |
 |-------|--------|
-| **Pool `AccountId`** | `0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d` |
-| **Bytecode** | **v1** lineage (ledger-only CP pool; evolved in-tree since freeze) |
-| **Deploy** | Operator-published id above — **use this hex** for RPC reads and dApp defaults. |
-| **Deployer (documented)** | `0x0xc063512f42868f1278c59a1f61ec0944785c304dbc48dec7e4c41f70f666733f` |
-| **Date** | **2026-04-03** |
-| **Verification** | Reserves / LP via **`npm run fetch-native-amm-reserves`** with **`BOING_POOL_HEX`** set ([examples/native-boing-tutorial](../examples/native-boing-tutorial/README.md)); on success **`boing_submitTransaction`** returns **`{ "tx_hash": "ok" }`** — see [RPC-API-SPEC.md](RPC-API-SPEC.md) § **`boing_submitTransaction`**. |
+| **Pool `AccountId`** | `0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3` |
+| **Bytecode** | **v1** constant-product pool (full-stack deploy on public RPC) |
+| **Deploy** | Operator-published id above — **use this hex** for RPC reads, dApp defaults, and **`npm run check-canonical-pool`**. |
+| **Deployer (documented)** | `0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29` |
+| **Date** | **2026-05-21** (matches live `boing_getNetworkInfo.end_user` on `https://testnet-rpc.boing.network/`) |
+| **Verification** | **`npm run check-canonical-pool`** with **`BOING_REQUIRE_NONZERO_RESERVE=1`**; reserves via **`npm run fetch-native-amm-reserves`** with **`BOING_POOL_HEX`**. Deploy record: [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md) **Appendix B**. |
 
-**CREATE2 prediction (current `main`):** A **fresh** deploy using **`constant_product_pool_bytecode()`** + **`NATIVE_CP_POOL_CREATE2_SALT_V1`** + the deployer above lands at **`0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d`** — **not** the same as the published pool row when bytecode has changed since the freeze. New deploys should use **`predictedPoolHex`** from **`npm run deploy-native-amm-pool`** (or the JSON from the drift tool below). **Do not** assume the published id matches CREATE2 of today’s sources without checking.
+**Related live contracts (same deploy):** factory `0x58112627…`, multihop router `0xf801cd1a…`, ledger v2/v3, LP vault, LP share — see **`boing-sdk`** `canonicalTestnetDex.ts` and [`scripts/canonical-testnet-published.manifest.json`](../scripts/canonical-testnet-published.manifest.json).
+
+**CREATE2 prediction (deployer `0xc063512f…`):** A **fresh** deploy using **`constant_product_pool_bytecode()`** + **`NATIVE_CP_POOL_CREATE2_SALT_V1`** lands at **`0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d`** in today's tree — that is **not** the live public pool id. New deploys should use **`predictedPoolHex`** from **`npm run deploy-native-amm-pool`**. Run:
 
 ```bash
 cargo run -p boing-execution --example verify_canonical_cp_pool_create2_drift
-# Optional CI gate (fails when prediction ≠ published):
-BOING_STRICT_CP_POOL_CREATE2=1 cargo run -p boing-execution --example verify_canonical_cp_pool_create2_drift
 ```
 
-**Downstream:** Set the same hex in **boing.finance** (`boingCanonicalTestnetPool.js` / env / `contracts.js` for chain **6913**) and redeploy that app.
+**Downstream:** Set the same pool hex in **boing.finance** (`boingCanonicalTestnetPool.js` / **`REACT_APP_BOING_NATIVE_AMM_POOL`**) and **`website/src/config/testnet.ts`**.
+
+### Superseded publication (2026-04-03)
+
+| Field | Value |
+|-------|--------|
+| **Pool `AccountId`** | `0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d` |
+| **Deployer** | `0xc063512f42868f1278c59a1f61ec0944785c304dbc48dec7e4c41f70f666733f` |
+
+Replaced by the **2026-05-21** row above after **`deploy-native-dex-full-stack`** on public RPC. Do **not** point new integrators at the superseded hex.
 
 ---
 
@@ -100,13 +109,13 @@ curl -s -X POST "$RPC" -H "Content-Type: application/json" \
 
 ## 2. Update this repository (`boing.network`)
 
-**Current publish (2026-04-03):** rows **1–5** below are **Done**. For a **future** canonical pool replacement, repeat in one PR.
+**Current publish (2026-05-21):** rows **1–5** below are **Done**. For a **future** canonical pool replacement, repeat in one PR.
 
 | # | Location | Action |
 |---|----------|--------|
 | 1 | [RPC-API-SPEC.md](RPC-API-SPEC.md) — § **Native constant-product AMM** | **Done** — canonical hex in table (§ Published above). |
 | 2 | [TESTNET.md](TESTNET.md) — § **5.3** | **Done** — same hex as RPC spec. |
-| 3 | [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) | **Done** — **A1.5** / **A5.3** / **A6.4** updated for published hex (**2026-04-03**). |
+| 3 | [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) | **Done** — **A1.5** / **A5.3** / **A6.4** updated for published hex (**2026-05-21**). |
 | 4 | [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) | **Done** — **OPS-1** marked complete in scoped passes + backlog text. |
 | 5 | This file + **`boing-sdk`** | **Done** — § Published below; **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** in [`boing-sdk/src/canonicalTestnet.ts`](../boing-sdk/src/canonicalTestnet.ts) (mirror of spec — bump when the on-chain canonical pool changes). |
 
