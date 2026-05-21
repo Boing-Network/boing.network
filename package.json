@@ -10,6 +10,8 @@
     "sync-canonical-testnet-manifest": "node scripts/sync-canonical-testnet-from-manifest.mjs",
     "boing:smoke": "node scripts/boing-smoke.mjs",
     "check-canonical-pool": "node scripts/check-canonical-native-amm-pool.mjs",
+    "verify-qa-alignment": "node scripts/verify-qa-registry-alignment.mjs",
+    "verify-public-testnet-rpc": "node scripts/verify-public-testnet-rpc.mjs",
     "check-observer-readiness": "node scripts/check-observer-readiness.mjs",
     "check-testnet-rpc": "npm run check-testnet-rpc --prefix examples/native-boing-tutorial",
     "compare-local-public-tip": "node scripts/compare-local-vs-public-testnet-tip.mjs",

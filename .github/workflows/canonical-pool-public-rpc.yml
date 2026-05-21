@@ -12,10 +12,14 @@ on:
     branches: [main]
     paths:
       - "scripts/check-canonical-native-amm-pool.mjs"
+      - "scripts/verify-public-testnet-rpc.mjs"
+      - "scripts/verify-qa-registry-alignment.mjs"
       - ".github/workflows/canonical-pool-public-rpc.yml"
   pull_request:
     paths:
       - "scripts/check-canonical-native-amm-pool.mjs"
+      - "scripts/verify-public-testnet-rpc.mjs"
+      - "scripts/verify-qa-registry-alignment.mjs"
       - ".github/workflows/canonical-pool-public-rpc.yml"
 
 concurrency:
@@ -43,3 +47,11 @@ jobs:
           BOING_REQUIRE_NONZERO_RESERVE: "1"
           BOING_RPC_RETRIES: "6"
           BOING_RPC_RETRY_MS: "4000"
+
+      - name: Public testnet QA transparency RPC
+        run: |
+          node scripts/verify-public-testnet-rpc.mjs
+          node scripts/verify-qa-registry-alignment.mjs
+        env:
+          TESTNET_RPC_URL: https://testnet-rpc.boing.network/
+          BOING_RPC_RETRIES: "6"

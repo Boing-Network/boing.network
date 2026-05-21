@@ -43,7 +43,8 @@ export { materializeNativeAmmPoolEvent, collectNativeDexPoolEventsForPools, hydr
 export { ERC721_TRANSFER_TOPIC0_HEX, tryParseErc721TransferRpcLog, filterMapErc721TransferRpcLogs, } from './erc721Logs.js';
 export { collectNftOwnersFromErc721Transfers, } from './nativeDexNftIndexer.js';
 export { collectArchivedReceiptLogRows, } from './nativeDexReceiptArchive.js';
-export { SELECTOR_OWNER_OF, SELECTOR_TRANSFER_NFT, SELECTOR_SET_METADATA_HASH, encodeReferenceOwnerOfCalldata, encodeReferenceTransferNftCalldata, encodeReferenceSetMetadataHashCalldata, encodeReferenceOwnerOfCalldataHex, } from './referenceNft.js';
+export { SELECTOR_OWNER_OF, SELECTOR_TRANSFER_NFT, SELECTOR_SET_METADATA_HASH, REF_NFT_OWNER_STORAGE_XOR_HEX, REF_NFT_METADATA_STORAGE_XOR_HEX, referenceNftOwnerStorageKey, referenceNftMetadataStorageKey, referenceNftTokenIdWordFromU64, encodeReferenceOwnerOfCalldata, encodeReferenceTransferNftCalldata, encodeReferenceSetMetadataHashCalldata, encodeReferenceOwnerOfCalldataHex, } from './referenceNft.js';
+export { ipfsUriToGatewayUrl, extractHttpOrIpfsUrl, resolveImageUrlFromMetadataJson, resolveImageUrlFromSources, metadataHashWordToFetchUrls, fetchMetadataJsonFromUrl, fetchFirstMetadataJson, } from './metadataMedia.js';
 export { accountsFromSuggestedAccessList, mergeAccessListWithSimulation, accessListFromSimulation, simulationCoversSuggestedAccessList, } from './accessList.js';
 export { normalizeTopicWord, normalizeExecutionLog, logTopic0, iterReceiptLogs, logMatchesTopicFilter, filterReceiptLogsByTopic0, iterBlockReceiptLogs, } from './receiptLogs.js';
 export { PayloadVariant, concatBytes, writeU32Le, writeU64Le, writeU128Le, encodeAccessList, encodeByteVec, encodeBincodeString, encodeOptionFixed32, encodeOptionByteVec, encodeOptionString, encodeTransactionPayload, encodeTransaction, encodeSignature, encodeSignedTransaction, signableTransactionHash, transactionIdFromSignedTransactionHex, } from './bincode.js';

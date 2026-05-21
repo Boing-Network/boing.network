@@ -374,11 +374,26 @@ export {
   SELECTOR_OWNER_OF,
   SELECTOR_TRANSFER_NFT,
   SELECTOR_SET_METADATA_HASH,
+  REF_NFT_OWNER_STORAGE_XOR_HEX,
+  REF_NFT_METADATA_STORAGE_XOR_HEX,
+  referenceNftOwnerStorageKey,
+  referenceNftMetadataStorageKey,
+  referenceNftTokenIdWordFromU64,
   encodeReferenceOwnerOfCalldata,
   encodeReferenceTransferNftCalldata,
   encodeReferenceSetMetadataHashCalldata,
   encodeReferenceOwnerOfCalldataHex,
 } from './referenceNft.js';
+export {
+  ipfsUriToGatewayUrl,
+  extractHttpOrIpfsUrl,
+  resolveImageUrlFromMetadataJson,
+  resolveImageUrlFromSources,
+  metadataHashWordToFetchUrls,
+  fetchMetadataJsonFromUrl,
+  fetchFirstMetadataJson,
+  type FetchMetadataJsonResult,
+} from './metadataMedia.js';
 export {
   accountsFromSuggestedAccessList,
   mergeAccessListWithSimulation,
