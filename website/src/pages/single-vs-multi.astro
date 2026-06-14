@@ -78,4 +78,16 @@ import Layout from '../layouts/Layout.astro';
   .compare-table code { background: rgba(255,255,255,0.06); padding: 0.1rem 0.3rem; border-radius: 4px; }
   .nav-links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
   .nav-links a { color: var(--accent-teal); font-weight: 500; }
+  .comparison {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    min-width: 0;
+  }
+  @media (max-width: 640px) {
+    .single-multi-content { padding-bottom: 2rem; }
+    .compare-table { font-size: 0.85rem; }
+    .compare-table th,
+    .compare-table td { padding: 0.45rem 0.5rem; }
+    .code-block { font-size: 0.8rem; }
+  }
 </style>

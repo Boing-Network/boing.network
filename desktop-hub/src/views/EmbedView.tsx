@@ -99,7 +99,7 @@ export function EmbedView({ url, title, appId }: Props) {
               <polyline points="15 3 21 3 21 9" />
               <line x1="10" y1="14" x2="21" y2="3" />
             </svg>
-            <span>Open in browser</span>
+            <span className="app-title-bar-btn-label">Open in browser</span>
           </button>
         </div>
       </header>

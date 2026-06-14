@@ -31,4 +31,9 @@ import Icon from '../components/Icon.astro';
   .community-links li { margin-bottom: 0.75rem; color: var(--text-secondary); }
   .community-links a { color: var(--accent-teal); font-weight: 500; }
   .community-links a:hover { color: var(--accent-cyan); }
+  .community-title { flex-wrap: wrap; justify-content: center; text-align: center; }
+  @media (max-width: 640px) {
+    .community-content { padding-bottom: 2rem; }
+    .community-title { font-size: clamp(1.5rem, 6vw, 2rem); }
+  }
 </style>

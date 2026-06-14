@@ -40,5 +40,11 @@ import { TESTNET_RPC_URL } from '../config/testnet';
   .status-content a { color: var(--accent-teal); }
   .status-links { list-style: none; padding: 0; margin: 0 0 1.5rem; display: grid; gap: 0.75rem; }
   .status-note { font-size: 0.9rem; }
-  .page-hero-full .lead code { background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
+  .page-hero-full .lead code { background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; word-break: break-all; }
+  .status-content { min-width: 0; }
+  .status-note code { word-break: break-word; }
+  @media (max-width: 640px) {
+    .status-content { padding: 1.5rem 0 2.5rem; }
+    .page-hero-full .lead { font-size: 1rem; }
+  }
 </style>

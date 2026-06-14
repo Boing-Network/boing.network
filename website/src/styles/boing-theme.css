@@ -656,6 +656,12 @@ article.docs-page {
   .code-block {
     max-width: 100%;
   }
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-outline {
+    padding: 0.65rem 1.15rem;
+  }
 }
 
 /* ============================================================

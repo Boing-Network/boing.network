@@ -1750,3 +1750,147 @@ body,
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* ========== Responsive shell (min window 800×600 per tauri.conf.json) ========== */
+html {
+  overflow-x: hidden;
+}
+
+@media (max-width: 960px) {
+  :root {
+    --sidebar-width: 176px;
+  }
+
+  .hub-brand {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .hub-title {
+    font-size: 0.85rem;
+  }
+
+  .hub-nav-item {
+    font-size: 0.8125rem;
+    padding: 8px 10px;
+    align-items: flex-start;
+  }
+
+  .hub-nav-label {
+    line-height: 1.25;
+    white-space: normal;
+  }
+
+  .hub-footer {
+    padding: 8px 10px;
+  }
+
+  .hub-footer-text {
+    display: none;
+  }
+
+  .hub-footer-link,
+  .hub-footer-auth,
+  .hub-footer-version {
+    font-size: 0.65rem;
+  }
+
+  .app-window {
+    margin: 8px;
+  }
+
+  .app-title-bar {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .app-title-bar-btn-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .app-title-bar-btn {
+    padding: 4px 8px;
+  }
+
+  .qa-operator {
+    padding: 16px 18px 32px;
+  }
+
+  .welcome-view {
+    padding: 20px 16px;
+  }
+
+  .welcome-view__card {
+    padding: 24px 20px;
+  }
+
+  .desktop-update-overlay__card {
+    padding: 1.75rem 1.5rem;
+    margin: 0 12px;
+    max-width: calc(100vw - 24px);
+  }
+
+  .update-overlay__card {
+    padding: 1.5rem 1.25rem;
+    margin: 0 12px;
+    max-width: calc(100vw - 24px);
+  }
+}
+
+@media (max-width: 860px) {
+  :root {
+    --sidebar-width: 152px;
+  }
+
+  .hub-logo {
+    width: 24px;
+    height: 24px;
+  }
+
+  .hub-nav-item {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .hub-footer-links {
+    gap: 4px 8px;
+  }
+}
+
+@media (max-height: 700px) {
+  .hub-nav {
+    padding: 8px 6px;
+  }
+
+  .hub-nav-item {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .home-root {
+    padding: 12px;
+    align-items: flex-start;
+  }
+
+  .intro-view__content {
+    padding: 1.25rem;
+  }
+
+  .welcome-view {
+    padding: 16px;
+    justify-content: flex-start;
+  }
+
+  .welcome-view__card {
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+}

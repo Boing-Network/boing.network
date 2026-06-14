@@ -87,4 +87,26 @@ import Icon from '../components/Icon.astro';
   .error-links .btn:hover {
     opacity: 1;
   }
+  @media (max-width: 640px) {
+    .page-404 {
+      padding: 3rem 1.25rem;
+    }
+    .page-404 h1 {
+      font-size: 1.5rem;
+    }
+  }
+  @media (max-width: 375px) {
+    .page-404 {
+      padding: 2.5rem 1rem;
+    }
+    .error-links {
+      flex-direction: column;
+      width: 100%;
+      max-width: 280px;
+    }
+    .error-links .btn {
+      width: 100%;
+      text-align: center;
+    }
+  }
 </style>

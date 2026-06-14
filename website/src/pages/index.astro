@@ -237,7 +237,7 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
   /* Section-by-section scroll (homepage). Smooth scroll, no mandatory snap. */
   :global(html.page-home) { scroll-snap-type: y proximity; scroll-behavior: smooth; }
   :global(html.page-home) .hero,
-  :global(html.page-home) .section { scroll-snap-align: start; min-height: 100vh; scroll-margin-top: 4.5rem; }
+  :global(html.page-home) .section { scroll-snap-align: start; min-height: 100vh; scroll-margin-top: clamp(4.5rem, 12vw, 6rem); }
   /* Allow browser to skip layout/paint for off-screen sections (scroll perf) */
   :global(html.page-home) .section { content-visibility: auto; contain-intrinsic-size: auto 80vh; }
 
