@@ -77,3 +77,26 @@ fn test_qa_config_json_roundtrip() {
     let pool2 = p.load_qa_pool_config().unwrap().expect("pool");
     assert_eq!(pool2.max_pending_items, 99);
 }
+
+#[test]
+fn test_slash_registry_json_roundtrip() {
+    let temp = std::env::temp_dir().join("boing-slash-persist-test");
+    let _ = std::fs::remove_dir_all(&temp);
+    let p = Persistence::new(&temp);
+    p.ensure_dirs().unwrap();
+
+    let mut reg = boing_governance::SlashRegistry::new();
+    let id = reg.record_slash(
+        [7u8; 32],
+        500,
+        boing_governance::SlashReason::Equivocation,
+        3,
+        1000,
+    );
+    let _ = reg.submit_appeal(id, b"evidence".to_vec(), 3).unwrap();
+    p.save_slash_registry(&reg).unwrap();
+    let back = p.load_slash_registry().unwrap().expect("slash registry");
+    assert_eq!(back.list_slashes().len(), 1);
+    assert_eq!(back.list_appeals().len(), 1);
+    assert_eq!(back.get_slash(id).unwrap().amount, 500);
+}

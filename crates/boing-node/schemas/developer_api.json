@@ -241,8 +241,20 @@
       },
       {
         "name": "boing_listSlashRecords",
-        "summary": "Read-only in-memory slash/appeal registry (equivocation + liveness). Not persisted across restarts; persisted=false in result.",
+        "summary": "Read-only slash/appeal registry (equivocation + liveness). persisted=true when the node has a data directory and writes slash_registry.json.",
         "params": { "type": "array", "maxItems": 0 },
+        "result": { "type": "object" }
+      },
+      {
+        "name": "boing_submitSlashAppeal",
+        "summary": "Submit an appeal for a slash (operator auth when BOING_OPERATOR_RPC_TOKEN is set). Params: [slash_id, evidence_hex] or {slash_id, evidence}.",
+        "params": { "type": "array", "minItems": 2 },
+        "result": { "type": "object" }
+      },
+      {
+        "name": "boing_resolveSlashAppeal",
+        "summary": "Resolve a pending slash appeal (operator auth when BOING_OPERATOR_RPC_TOKEN is set). Params: [appeal_id, approved] or {appeal_id, approved}. Approved restores stake from the burn sink.",
+        "params": { "type": "array", "minItems": 2 },
         "result": { "type": "object" }
       },
       {

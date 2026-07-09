@@ -661,6 +661,8 @@ name = "boing-governance"
 version = "0.1.0"
 dependencies = [
  "boing-telemetry",
+ "serde",
+ "serde_json",
  "thiserror 1.0.69",
 ]
 

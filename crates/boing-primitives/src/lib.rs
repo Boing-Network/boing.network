@@ -31,7 +31,9 @@ pub use types::{
 };
 pub use types::{Account, AccountState};
 pub use intent::{Intent, IntentKind, SignedIntent};
-pub use randomness::{dummy_vrf_output, leader_from_vrf, VdfOutput, VrfOutput};
+pub use randomness::{
+    dummy_vrf_output, leader_from_vrf, verify_vrf_output, vrf_round_seed, VdfOutput, VrfOutput,
+};
 pub use paymaster::{PaymasterConfig, SponsoredTransaction};
 pub use recovery::{Guardian, RecoveryRequest};
 pub use hd::HdPath;

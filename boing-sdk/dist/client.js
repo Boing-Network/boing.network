@@ -608,9 +608,23 @@ export class BoingClient {
     async qaPoolList() {
         return this.request('boing_qaPoolList', []);
     }
-    /** Read-only: in-memory slash/appeal registry (equivocation + liveness). */
+    /** Read-only: slash/appeal registry (equivocation + liveness). */
     async listSlashRecords() {
         return this.request('boing_listSlashRecords', []);
+    }
+    /**
+     * Submit a slash appeal. Requires operator header when the node sets `BOING_OPERATOR_RPC_TOKEN`.
+     * `evidenceHex` is optional hex (with or without `0x`); empty string = empty evidence.
+     */
+    async submitSlashAppeal(slashId, evidenceHex = '') {
+        return this.request('boing_submitSlashAppeal', [slashId, evidenceHex]);
+    }
+    /**
+     * Resolve a pending slash appeal. Requires operator header when the node sets `BOING_OPERATOR_RPC_TOKEN`.
+     * Approved appeals restore burned stake from the fee burn sink.
+     */
+    async resolveSlashAppeal(appealId, approved) {
+        return this.request('boing_resolveSlashAppeal', [appealId, approved]);
     }
     /** Read effective QA pool governance config and `pending_count`. */
     async qaPoolConfig() {

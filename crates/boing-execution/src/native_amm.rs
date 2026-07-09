@@ -312,6 +312,47 @@ pub const fn constant_product_amount_out_after_fee_with_bps(
     ((dy as u128 * keep as u128) / 10_000u128) as u64
 }
 
+/// Uniswap-style **fee-on-input** quote (off-chain / SDK helper; **not** used by current pool bytecode).
+///
+/// \( \Delta_{in}' = \lfloor \Delta_{in} \cdot (10^4 - \text{fee}) / 10^4 \rfloor \), then
+/// \( \Delta_{out} = \lfloor r_{out} \cdot \Delta_{in}' / (r_{in} + \Delta_{in}') \rfloor \).
+/// Uses **u128** intermediates so large reserves do not truncate. **`fee_bps`** must be **0..=10_000**.
+#[must_use]
+pub const fn constant_product_amount_out_fee_on_input_with_bps(
+    reserve_in: u64,
+    reserve_out: u64,
+    amount_in: u64,
+    fee_bps: u16,
+) -> u64 {
+    let keep = 10_000u128 - fee_bps as u128;
+    let amount_in_after_fee = (amount_in as u128).saturating_mul(keep) / 10_000u128;
+    if amount_in_after_fee == 0 {
+        return 0;
+    }
+    let rin = reserve_in as u128;
+    let rout = reserve_out as u128;
+    let denom = rin.saturating_add(amount_in_after_fee);
+    if denom == 0 {
+        return 0;
+    }
+    ((rout.saturating_mul(amount_in_after_fee)) / denom) as u64
+}
+
+/// Fee-on-input quote with default [`NATIVE_CP_SWAP_FEE_BPS`].
+#[must_use]
+pub const fn constant_product_amount_out_fee_on_input(
+    reserve_in: u64,
+    reserve_out: u64,
+    amount_in: u64,
+) -> u64 {
+    constant_product_amount_out_fee_on_input_with_bps(
+        reserve_in,
+        reserve_out,
+        amount_in,
+        NATIVE_CP_SWAP_FEE_BPS,
+    )
+}
+
 fn push32(code: &mut Vec<u8>, w: &[u8; 32]) {
     code.push(Opcode::Push32 as u8);
     code.extend_from_slice(w);
@@ -1636,6 +1677,11 @@ mod tests {
         assert_eq!(constant_product_amount_out(ra, rb, dx), 181);
         let dy = constant_product_amount_out_after_fee(ra, rb, dx);
         assert_eq!(dy, 180);
+        // Fee-on-input helper (off-chain); diverges from output-side at higher bps.
+        assert_eq!(constant_product_amount_out_fee_on_input(ra, rb, dx), 180);
+        let out_hi = constant_product_amount_out_after_fee_with_bps(ra, rb, dx, 2_000);
+        let in_hi = constant_product_amount_out_fee_on_input_with_bps(ra, rb, dx, 2_000);
+        assert_ne!(out_hi, in_hi);
 
         let sender = AccountId([0xabu8; 32]);
         let contract = AccountId([0xcd; 32]);

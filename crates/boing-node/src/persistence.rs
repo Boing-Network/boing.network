@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use boing_primitives::{AccountId, AccountState, Block, ExecutionReceipt, Hash};
 use boing_qa::pool_config::QaPoolGovernanceConfig;
 use boing_qa::RuleRegistry;
+use boing_governance::SlashRegistry;
 use boing_state::{ContractStorageEntry, StateStore};
 
 use crate::chain::ChainState;
@@ -19,6 +20,7 @@ const STATE_DIR: &str = "state";
 const STATE_FILE: &str = "accounts.bin";
 const QA_REGISTRY_FILE: &str = "qa_registry.json";
 const QA_POOL_CONFIG_FILE: &str = "qa_pool_config.json";
+const SLASH_REGISTRY_FILE: &str = "slash_registry.json";
 
 /// Chain metadata stored on disk.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -254,6 +256,30 @@ impl Persistence {
 
     pub fn load_qa_pool_config(&self) -> Result<Option<QaPoolGovernanceConfig>, PersistenceError> {
         let path = self.qa_pool_config_path();
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = std::fs::read(&path)?;
+        serde_json::from_slice(&bytes)
+            .map(Some)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))
+    }
+
+    fn slash_registry_path(&self) -> std::path::PathBuf {
+        self.base.join(SLASH_REGISTRY_FILE)
+    }
+
+    /// Save slash / appeal registry (JSON).
+    pub fn save_slash_registry(&self, registry: &SlashRegistry) -> Result<(), PersistenceError> {
+        let path = self.slash_registry_path();
+        let json = serde_json::to_vec_pretty(registry)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        std::fs::write(path, json)?;
+        Ok(())
+    }
+
+    pub fn load_slash_registry(&self) -> Result<Option<SlashRegistry>, PersistenceError> {
+        let path = self.slash_registry_path();
         if !path.exists() {
             return Ok(None);
         }

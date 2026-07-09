@@ -18,6 +18,8 @@ import {
   constantProductAmountOut,
   constantProductAmountOutNoFee,
   constantProductAmountOutWithFeeBps,
+  constantProductAmountOutFeeOnInput,
+  constantProductAmountOutFeeOnInputWithFeeBps,
   NATIVE_CP_SWAP_FEE_BPS,
   NATIVE_AMM_TOPIC_SWAP_HEX,
   NATIVE_AMM_TOPIC_ADD_LIQUIDITY_HEX,
@@ -55,6 +57,14 @@ describe('nativeAmm', () => {
     const dy = constantProductAmountOutNoFee(1000n, 2000n, 100n);
     expect(dy).toBe(181n);
     expect(constantProductAmountOutWithFeeBps(1000n, 2000n, 100n, 100n)).toBe((dy * 9900n) / 10000n);
+  });
+
+  it('constantProductAmountOutFeeOnInput applies fee before CP step', () => {
+    // amount_in' = floor(100 * 9970 / 10000) = 99; out = floor(2000 * 99 / (1000+99)) = 180
+    expect(constantProductAmountOutFeeOnInput(1000n, 2000n, 100n)).toBe(180n);
+    expect(constantProductAmountOutFeeOnInputWithFeeBps(1000n, 2000n, 100n, 0n)).toBe(
+      constantProductAmountOutNoFee(1000n, 2000n, 100n)
+    );
   });
 
   it('encodeNativeAmmSetSwapFeeBpsCalldata is 64 bytes with selector 0x14', () => {

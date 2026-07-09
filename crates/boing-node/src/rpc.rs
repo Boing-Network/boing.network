@@ -409,10 +409,12 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_qaPoolList",
     "boing_qaPoolVote",
     "boing_registerDappMetrics",
+    "boing_resolveSlashAppeal",
     "boing_rpcSupportedMethods",
     "boing_simulateContractCall",
     "boing_simulateTransaction",
     "boing_submitIntent",
+    "boing_submitSlashAppeal",
     "boing_submitTransaction",
     "boing_verifyAccountProof",
 ];
@@ -1199,14 +1201,143 @@ async fn dispatch_jsonrpc_request(
                 })
                 .collect();
             appeals.sort_by_key(|v| v.get("id").and_then(|x| x.as_u64()).unwrap_or(0));
+            let persisted = n.persistence.is_some();
             rpc_ok(
                 id,
                 serde_json::json!({
                     "slashes": slashes,
                     "appeals": appeals,
-                    "persisted": false,
+                    "persisted": persisted,
                 }),
             )
+        }
+        "boing_submitSlashAppeal" => {
+            if !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            let params = req.params.unwrap_or(serde_json::Value::Null);
+            let (slash_id, evidence_hex) = match &params {
+                serde_json::Value::Array(arr) if arr.len() >= 2 => {
+                    let sid = arr[0].as_u64().or_else(|| arr[0].as_str().and_then(|s| s.parse().ok()));
+                    let ev = arr[1].as_str().unwrap_or("").to_string();
+                    (sid, ev)
+                }
+                serde_json::Value::Object(map) => {
+                    let sid = map
+                        .get("slash_id")
+                        .and_then(|v| v.as_u64().or_else(|| v.as_str().and_then(|s| s.parse().ok())));
+                    let ev = map
+                        .get("evidence")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    (sid, ev)
+                }
+                _ => (None, String::new()),
+            };
+            let Some(slash_id) = slash_id else {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32602,
+                        "Invalid params: expected [slash_id, evidence_hex] or {slash_id, evidence}"
+                            .into(),
+                    ),
+                );
+            };
+            let evidence = if evidence_hex.is_empty() {
+                Vec::new()
+            } else {
+                match hex::decode(evidence_hex.trim_start_matches("0x")) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        return (
+                            StatusCode::OK,
+                            rpc_error(id, -32602, format!("Invalid evidence hex: {e}")),
+                        );
+                    }
+                }
+            };
+            let mut n = node.write().await;
+            match n.submit_slash_appeal(slash_id, evidence) {
+                Ok(appeal_id) => rpc_ok(
+                    id,
+                    serde_json::json!({ "appeal_id": appeal_id, "slash_id": slash_id }),
+                ),
+                Err(e) => rpc_error(id, -32060, e.to_string()),
+            }
+        }
+        "boing_resolveSlashAppeal" => {
+            if !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            let params = req.params.unwrap_or(serde_json::Value::Null);
+            let (appeal_id, approved) = match &params {
+                serde_json::Value::Array(arr) if arr.len() >= 2 => {
+                    let aid = arr[0].as_u64().or_else(|| arr[0].as_str().and_then(|s| s.parse().ok()));
+                    let ap = arr[1].as_bool().or_else(|| {
+                        arr[1].as_str().map(|s| matches!(s.to_ascii_lowercase().as_str(), "true" | "approve" | "approved" | "1"))
+                    });
+                    (aid, ap)
+                }
+                serde_json::Value::Object(map) => {
+                    let aid = map
+                        .get("appeal_id")
+                        .and_then(|v| v.as_u64().or_else(|| v.as_str().and_then(|s| s.parse().ok())));
+                    let ap = map.get("approved").and_then(|v| {
+                        v.as_bool().or_else(|| {
+                            v.as_str().map(|s| {
+                                matches!(
+                                    s.to_ascii_lowercase().as_str(),
+                                    "true" | "approve" | "approved" | "1"
+                                )
+                            })
+                        })
+                    });
+                    (aid, ap)
+                }
+                _ => (None, None),
+            };
+            let (Some(appeal_id), Some(approved)) = (appeal_id, approved) else {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32602,
+                        "Invalid params: expected [appeal_id, approved] or {appeal_id, approved}"
+                            .into(),
+                    ),
+                );
+            };
+            let mut n = node.write().await;
+            match n.resolve_slash_appeal(appeal_id, approved) {
+                Ok(restored) => rpc_ok(
+                    id,
+                    serde_json::json!({
+                        "appeal_id": appeal_id,
+                        "approved": approved,
+                        "restored": restored.to_string(),
+                    }),
+                ),
+                Err(e) => rpc_error(id, -32061, e.to_string()),
+            }
         }
         "boing_qaPoolConfig" => {
             let n = node.read().await;

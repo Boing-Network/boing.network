@@ -46,7 +46,8 @@ pub use reference_fungible_secured::{
 };
 pub use native_amm::{
     constant_product_amount_out, constant_product_amount_out_after_fee,
-    constant_product_amount_out_after_fee_with_bps, constant_product_pool_bytecode,
+    constant_product_amount_out_after_fee_with_bps, constant_product_amount_out_fee_on_input,
+    constant_product_amount_out_fee_on_input_with_bps, constant_product_pool_bytecode,
     constant_product_pool_bytecode_v2, constant_product_pool_bytecode_v3, constant_product_pool_bytecode_v4,
     constant_product_pool_bytecode_v5, constant_product_pool_bytecode_v6,
     decode_add_liquidity_return_lp_minted,

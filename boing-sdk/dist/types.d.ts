@@ -413,8 +413,20 @@ export interface SlashAppealSummary {
 export interface ListSlashRecordsResult {
     slashes: SlashRecordSummary[];
     appeals: SlashAppealSummary[];
-    /** Always `false` until the registry is persisted. */
+    /** `true` when the node has a data directory and persists `slash_registry.json`. */
     persisted: boolean;
+}
+/** Result of `boing_submitSlashAppeal`. */
+export interface SubmitSlashAppealResult {
+    appeal_id: number;
+    slash_id: number;
+}
+/** Result of `boing_resolveSlashAppeal`. */
+export interface ResolveSlashAppealResult {
+    appeal_id: number;
+    approved: boolean;
+    /** Decimal string of stake restored from the burn sink (0 if rejected). */
+    restored: string;
 }
 /** Result of `boing_qaPoolConfig`. */
 export interface QaPoolConfigResult {

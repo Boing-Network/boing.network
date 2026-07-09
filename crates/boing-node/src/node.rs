@@ -257,20 +257,46 @@ impl BoingNode {
 
             node.persistence = Some(persistence);
 
-            if let Some(ref p) = node.persistence {
-                let load_reg = p.load_qa_registry()?;
-                let load_pool = p.load_qa_pool_config()?;
-                if load_reg.is_some() || load_pool.is_some() {
-                    let reg = load_reg.unwrap_or_else(|| node.mempool.qa_registry().clone());
-                    let pool =
-                        load_pool.unwrap_or_else(QaPoolGovernanceConfig::development_default);
-                    node.apply_qa_policy_without_persist(reg, pool);
-                }
+            let (load_reg, load_pool, load_slash) = {
+                let p = node.persistence.as_ref().expect("just set");
+                (
+                    p.load_qa_registry()?,
+                    p.load_qa_pool_config()?,
+                    p.load_slash_registry()?,
+                )
+            };
+            if load_reg.is_some() || load_pool.is_some() {
+                let reg = load_reg.unwrap_or_else(|| node.mempool.qa_registry().clone());
+                let pool = load_pool.unwrap_or_else(QaPoolGovernanceConfig::development_default);
+                node.apply_qa_policy_without_persist(reg, pool);
+            }
+            if let Some(slash_reg) = load_slash {
+                node.slash_registry = slash_reg;
+                node.rebuild_slashed_equivocations_from_registry();
             }
         }
 
         node.refresh_native_aggregates();
         Ok(node)
+    }
+
+    /// Rebuild `(validator, round) → slash_id` dedupe map from persisted equivocation records.
+    fn rebuild_slashed_equivocations_from_registry(&mut self) {
+        self.slashed_equivocations.clear();
+        for slash in self.slash_registry.list_slashes() {
+            if matches!(slash.reason, SlashReason::Equivocation) {
+                self.slashed_equivocations
+                    .insert((AccountId(slash.validator), slash.block_height), slash.id);
+            }
+        }
+    }
+
+    fn persist_slash_registry(&self) {
+        if let Some(ref p) = self.persistence {
+            if let Err(e) = p.save_slash_registry(&self.slash_registry) {
+                logging::log_persistence_warn("save_slash_registry", &e);
+            }
+        }
     }
 
     /// Apply QA registry + pool config without writing disk (used when loading from persistence).
@@ -558,6 +584,7 @@ impl BoingNode {
             boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS,
         );
         self.slashed_equivocations.insert(key, slash_id);
+        self.persist_slash_registry();
         if burned > 0 {
             self.refresh_native_aggregates();
             info!(
@@ -585,8 +612,11 @@ impl BoingNode {
         slash_id: u64,
         evidence: Vec<u8>,
     ) -> Result<u64, SlashingError> {
-        self.slash_registry
-            .submit_appeal(slash_id, evidence, self.chain.height())
+        let id = self
+            .slash_registry
+            .submit_appeal(slash_id, evidence, self.chain.height())?;
+        self.persist_slash_registry();
+        Ok(id)
     }
 
     /// Resolve a pending appeal. If approved, restores burned stake from the fee burn sink.
@@ -597,6 +627,7 @@ impl BoingNode {
         approved: bool,
     ) -> Result<u128, SlashingError> {
         self.slash_registry.resolve_appeal(appeal_id, approved)?;
+        self.persist_slash_registry();
         if !approved {
             return Ok(0);
         }
@@ -845,6 +876,7 @@ impl BoingNode {
             next_height,
             boing_tokenomics::LIVENESS_APPEAL_WINDOW_BLOCKS,
         );
+        self.persist_slash_registry();
         if burned > 0 {
             self.refresh_native_aggregates();
             info!(

@@ -6,4 +6,8 @@ description = "Phased governance with time locks for Boing blockchain"
 
 [dependencies]
 boing-telemetry = { path = "../boing-telemetry" }
+serde = { version = "1", features = ["derive"] }
 thiserror = "1"
+
+[dev-dependencies]
+serde_json = "1"

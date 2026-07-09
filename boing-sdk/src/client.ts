@@ -18,6 +18,8 @@ import type {
   QaPoolListResult,
   QaPoolVoteResult,
   ListSlashRecordsResult,
+  SubmitSlashAppealResult,
+  ResolveSlashAppealResult,
   RegisterDappResult,
   SimulateResult,
   SubmitIntentResult,
@@ -808,9 +810,25 @@ export class BoingClient {
     return this.request<QaPoolListResult>('boing_qaPoolList', []);
   }
 
-  /** Read-only: in-memory slash/appeal registry (equivocation + liveness). */
+  /** Read-only: slash/appeal registry (equivocation + liveness). */
   async listSlashRecords(): Promise<ListSlashRecordsResult> {
     return this.request<ListSlashRecordsResult>('boing_listSlashRecords', []);
+  }
+
+  /**
+   * Submit a slash appeal. Requires operator header when the node sets `BOING_OPERATOR_RPC_TOKEN`.
+   * `evidenceHex` is optional hex (with or without `0x`); empty string = empty evidence.
+   */
+  async submitSlashAppeal(slashId: number, evidenceHex: string = ''): Promise<SubmitSlashAppealResult> {
+    return this.request<SubmitSlashAppealResult>('boing_submitSlashAppeal', [slashId, evidenceHex]);
+  }
+
+  /**
+   * Resolve a pending slash appeal. Requires operator header when the node sets `BOING_OPERATOR_RPC_TOKEN`.
+   * Approved appeals restore burned stake from the fee burn sink.
+   */
+  async resolveSlashAppeal(appealId: number, approved: boolean): Promise<ResolveSlashAppealResult> {
+    return this.request<ResolveSlashAppealResult>('boing_resolveSlashAppeal', [appealId, approved]);
   }
 
   /** Read effective QA pool governance config and `pending_count`. */

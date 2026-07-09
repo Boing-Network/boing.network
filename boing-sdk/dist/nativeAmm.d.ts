@@ -63,6 +63,13 @@ export declare function constantProductAmountOutNoFee(reserveIn: bigint, reserve
  */
 export declare function constantProductAmountOutWithFeeBps(reserveIn: bigint, reserveOut: bigint, amountIn: bigint, feeBps: bigint): bigint;
 /**
+ * Uniswap-style **fee-on-input** quote (off-chain helper; current pool bytecode uses **output-side** fee).
+ * Matches `native_amm::constant_product_amount_out_fee_on_input_with_bps`.
+ */
+export declare function constantProductAmountOutFeeOnInputWithFeeBps(reserveIn: bigint, reserveOut: bigint, amountIn: bigint, feeBps: bigint): bigint;
+/** Fee-on-input quote with default **`NATIVE_CP_SWAP_FEE_BPS`**. */
+export declare function constantProductAmountOutFeeOnInput(reserveIn: bigint, reserveOut: bigint, amountIn: bigint): bigint;
+/**
  * Amount out after pool swap fee (output-side): same as **`constantProductAmountOutWithFeeBps`** with **`NATIVE_CP_SWAP_FEE_BPS`**.
  */
 export declare function constantProductAmountOut(reserveIn: bigint, reserveOut: bigint, amountIn: bigint): bigint;

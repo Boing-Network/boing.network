@@ -5,8 +5,10 @@
 
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 /// Reason for a slash (auditable, transparent).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SlashReason {
     /// Equivocation in consensus (double-sign, conflicting votes).
     Equivocation,
@@ -19,7 +21,7 @@ pub enum SlashReason {
 }
 
 /// Record of a slashing event — transparent and auditable.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SlashRecord {
     pub id: u64,
     /// Validator account that was slashed.
@@ -32,7 +34,7 @@ pub struct SlashRecord {
 }
 
 /// Status of an appeal.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AppealStatus {
     Pending,
     Approved,
@@ -40,7 +42,7 @@ pub enum AppealStatus {
 }
 
 /// An appeal against a slash — validator contests with evidence.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SlashingAppeal {
     pub id: u64,
     pub slash_id: u64,
@@ -50,6 +52,7 @@ pub struct SlashingAppeal {
 }
 
 /// Registry of slashes and appeals — transparent, auditable.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SlashRegistry {
     slashes: HashMap<u64, SlashRecord>,
     appeals: HashMap<u64, SlashingAppeal>,
@@ -239,6 +242,17 @@ mod tests {
             Err(SlashingError::AppealWindowClosed)
         ));
         assert!(reg.submit_appeal(slash_id, vec![], 15).is_ok());
+    }
+
+    #[test]
+    fn serde_roundtrip() {
+        let mut reg = SlashRegistry::new();
+        let id = reg.record_slash([9u8; 32], 42, SlashReason::Liveness, 1, 10);
+        let _ = reg.submit_appeal(id, b"x".to_vec(), 1).unwrap();
+        let json = serde_json::to_string(&reg).unwrap();
+        let back: SlashRegistry = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.list_slashes().len(), 1);
+        assert_eq!(back.list_appeals().len(), 1);
     }
 }
 

@@ -53,6 +53,7 @@ The pool applies a **swap fee on the output** of the no-fee constant-product ste
 - **On-chain bounds:** If stored fee **`> 10_000`**, swap **aborts**.
 - **Formula:** Let `dy_raw = ⌊ r_out · Δ_in / (r_in + Δ_in) ⌋`. Then **`dy = ⌊ dy_raw · (10_000 - fee_bps) / 10_000 ⌋`**. If `dy == 0` after the fee step, the swap **aborts** (no state change).
 - **Quotes:** **v1/v2:** **`constant_product_amount_out_after_fee`** (Rust) or **`constantProductAmountOut`** (TS). **v3/v4/v6:** read storage (or assume default before first mint); if raw word is **`0`**, quote with **`NATIVE_CP_SWAP_FEE_BPS`**; else use **`constant_product_amount_out_after_fee_with_bps`** / **`constantProductAmountOutWithFeeBps`**. Raw CP step only: **`constant_product_amount_out`** / **`constantProductAmountOutNoFee`**.
+- **Fee-on-input (off-chain helper only):** Uniswap-style \( \Delta_{in}' = \lfloor \Delta_{in} \cdot (10^4 - fee) / 10^4 \rfloor \) then CP on \( \Delta_{in}' \) — Rust **`constant_product_amount_out_fee_on_input*`**, TS **`constantProductAmountOutFeeOnInput*`**. Current pool bytecode still uses **output-side** fee; a future revision would be required to match on-chain.
 
 The fee accrues to LPs implicitly (traders receive less `out` token per swap).
 

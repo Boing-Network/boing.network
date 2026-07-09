@@ -125,7 +125,7 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 
 Current `boing-node` implements these JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
 
-`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitTransaction`, `boing_verifyAccountProof`.
+`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_resolveSlashAppeal`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`.
 
 **Implementation:** `BOING_RPC_SUPPORTED_METHODS` in `crates/boing-node/src/rpc.rs` — keep this list, the router match arms, and this spec in sync when adding a method.
 
@@ -191,7 +191,37 @@ Read-only view of the node’s in-memory **`SlashRegistry`** (equivocation and l
 }
 ```
 
-**Notes:** Registry is **not** written to disk yet (`persisted: false`). Appeal submit/resolve remain in-process node APIs (`submit_slash_appeal` / `resolve_slash_appeal`), not public JSON-RPC write methods. See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3.
+**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth when **`BOING_OPERATOR_RPC_TOKEN`** is set). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3.
+
+---
+
+### boing_submitSlashAppeal
+
+Submit an appeal against a recorded slash (within the appeal window).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[slash_id, evidence_hex]` or `{ "slash_id", "evidence" }` | `slash_id` number; `evidence` hex (optional `0x`, may be empty) |
+| Auth | Operator | Same as **`boing_qaPoolVote`** when **`BOING_OPERATOR_RPC_TOKEN`** is set |
+
+**Result:** `{ "appeal_id": N, "slash_id": N }`
+
+**Errors:** `-32060` with registry error message (not found, window closed, duplicate, …).
+
+---
+
+### boing_resolveSlashAppeal
+
+Approve or reject a pending appeal. Approval restores burned stake from the fee burn sink.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[appeal_id, approved]` or `{ "appeal_id", "approved" }` | `approved` bool (or string `true`/`approve`/`1`) |
+| Auth | Operator | Same as **`boing_qaPoolVote`** when **`BOING_OPERATOR_RPC_TOKEN`** is set |
+
+**Result:** `{ "appeal_id": N, "approved": bool, "restored": "<u128 decimal>" }`
+
+**Errors:** `-32061` with registry error message.
 
 ---
 

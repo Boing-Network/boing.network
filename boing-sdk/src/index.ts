@@ -112,6 +112,8 @@ export type {
   ListSlashRecordsResult,
   SlashAppealSummary,
   SlashRecordSummary,
+  SubmitSlashAppealResult,
+  ResolveSlashAppealResult,
   OperatorApplyQaPolicyResult,
   QaRegistryResult,
   FaucetResult,
@@ -208,6 +210,8 @@ export {
   constantProductAmountOut,
   constantProductAmountOutNoFee,
   constantProductAmountOutWithFeeBps,
+  constantProductAmountOutFeeOnInput,
+  constantProductAmountOutFeeOnInputWithFeeBps,
 } from './nativeAmm.js';
 export {
   SELECTOR_NATIVE_DEX_REGISTER_PAIR,

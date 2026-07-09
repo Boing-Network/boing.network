@@ -425,9 +425,13 @@ mod tests {
             .collect();
         let mut engine = ConsensusEngine::new(validators.clone());
         engine.set_leader_election(LeaderElection::Vrf);
-        // dummy_vrf_output(1) → first 8 LE bytes encode 1 → index 1.
-        assert_eq!(engine.leader(1), validators[1]);
-        assert_eq!(engine.leader(0), validators[0]);
+        let vrf1 = boing_primitives::dummy_vrf_output(1);
+        let expected1 = boing_primitives::leader_from_vrf(&validators, &vrf1).unwrap();
+        assert_eq!(engine.leader(1), expected1);
+        let vrf0 = boing_primitives::dummy_vrf_output(0);
+        let expected0 = boing_primitives::leader_from_vrf(&validators, &vrf0).unwrap();
+        assert_eq!(engine.leader(0), expected0);
+        assert!(boing_primitives::verify_vrf_output(1, &vrf1));
     }
 }
 
