@@ -122,12 +122,12 @@ Boing exposes a small JSON list for node runners (used alongside `@vibeminer/sha
 
 ```bash
 cd website
-node scripts/network-listings-release-sql.mjs testnet-v0.1.9
+node scripts/network-listings-release-sql.mjs testnet-v0.1.10
 # Optional: apply (use CLOUDFLARE_API_TOKEN if OAuth fails on D1 import)
-node scripts/network-listings-release-sql.mjs testnet-v0.1.9 --apply
+node scripts/network-listings-release-sql.mjs testnet-v0.1.10 --apply
 ```
 
-Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.sql](../website/migrations/insert-boing-devnet-listing.sql). Example tag refresh migration: [website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql](../website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql). For new tags, regenerate with **`node scripts/network-listings-release-sql.mjs testnet-v0.1.9`** (see [TESTNET.md](TESTNET.md) §9.1).
+Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.sql](../website/migrations/insert-boing-devnet-listing.sql). Example tag refresh migration: [website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql](../website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql). For new tags, regenerate with **`node scripts/network-listings-release-sql.mjs testnet-v0.1.10`** (see [TESTNET.md](TESTNET.md) §9.1).
 
 ---
 
@@ -208,7 +208,7 @@ Use these values to list **Boing Network** in the VibeMiner request listing form
 
 | Field | Value |
 |-------|--------|
-| **Node download URL (HTTPS)** | `https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.9/release-windows-x86_64.zip` (Linux/macOS: `release-linux-x86_64.zip` / `release-macos-aarch64.zip`; see [TESTNET.md](TESTNET.md) §9.1) |
+| **Node download URL (HTTPS)** | `https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.10/release-windows-x86_64.zip` (Linux/macOS: `release-linux-x86_64.zip` / `release-macos-aarch64.zip`; see [TESTNET.md](TESTNET.md) §9.1) |
 | **Command template** | `boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/73.84.106.121/tcp/4001,/ip4/73.84.106.121/tcp/4001 --rpc-port 8545 --faucet-enable` (add `--validator` for validator preset; Linux/macOS use `boing-node-linux-x86_64` / `boing-node-macos-aarch64`) |
 | **Disk (GB)** | 10 |
 | **RAM (MB)** | 2048 |

@@ -38,16 +38,16 @@ function isAllowedDownloadUrl(urlString) {
 const CANONICAL_GH_REPO = 'Boing-Network/boing.network';
 
 /** Pinned testnet tag for official zips (keep in sync with VibeMiner `BOING_TESTNET_DEFAULT_DOWNLOAD_TAG`). */
-const BOING_TESTNET_DOWNLOAD_TAG = 'testnet-v0.1.9';
+const BOING_TESTNET_DOWNLOAD_TAG = 'testnet-v0.1.10';
 
 /** SHA-256 of each official zip for `BOING_TESTNET_DOWNLOAD_TAG` (refresh via `network-listings-release-sql.mjs`). */
 const BOING_ZIP_SHA = {
-  windows: '0e5c9d42a603dbaf4471feb4ea367f89146bd21b11dde4b5b70cc430997fff37',
-  linux: '037807bd7cf57b1049d82739f764567f1ea55bb6852b6680917e833c865e6514',
-  macos: 'a5830f7d492917cb830a7d7a69e254fff382c038fa6a97cb26d60ed67ea1dc8b',
+  windows: '76c89f0e25069bb4462244778291c673590b818547f637af9205b1efa2ffce8e',
+  linux: 'b576df6288d9ead28dd9ba380850e97738b7f9cf058ab95ed925293162409561',
+  macos: '5ddd479223be9a195dd6b33f60cd1001836af754720bde5766f44e0e8d7b984f',
 };
 
-const STALE_TESTNET_TAG_RE = /\/download\/(testnet-v0\.1\.(?:0|1|2|3|4|5|6|7|8))\//;
+const STALE_TESTNET_TAG_RE = /\/download\/(testnet-v0\.1\.(?:0|1|2|3|4|5|6|7|8|9))\//;
 
 function githubBlobMain(docPath) {
   return `https://github.com/${CANONICAL_GH_REPO}/blob/main/${docPath}`;
