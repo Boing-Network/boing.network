@@ -52,6 +52,10 @@ fn node_with_accounts() -> BoingNode {
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
+    validator_signing_key: None,
+    pending_commit: None,
+        early_votes: HashMap::new(),
+        stake_validator_set: None,
     }
 }
 

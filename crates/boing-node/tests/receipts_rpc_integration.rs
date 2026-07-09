@@ -55,7 +55,11 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
-    }
+    validator_signing_key: None,
+    pending_commit: None,
+        early_votes: HashMap::new(),
+        stake_validator_set: None,
+}
 }
 
 /// Runtime code: return 32-byte word with low byte `0x42`.

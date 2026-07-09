@@ -12,7 +12,7 @@ use rand::seq::SliceRandom;
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use boing_node::{faucet, logging, node, rpc, security};
+use boing_node::{faucet, logging, node, rpc, security, validator_config};
 use boing_primitives::{Account, AccountState};
 use boing_tokenomics::BLOCK_TIME_SECS;
 
@@ -97,6 +97,26 @@ struct Args {
     /// Relaxed HTTP + mempool defaults for local or busy testnet (`RateLimitConfig::default_devnet`: higher RPS, connections, **64** pending/sender). Equivalent to **`BOING_RATE_PROFILE=dev`**. **`BOING_RATE_PROFILE=mainnet`** forces the strict profile even if this flag is set.
     #[arg(long)]
     dev_rate_limits: bool,
+
+    /// Comma-separated validator AccountIds (32-byte hex, optional `0x`). Overrides **`BOING_VALIDATORS`**. When unset with no env, uses single-validator local default.
+    #[arg(long)]
+    validators: Option<String>,
+
+    /// This node's Ed25519 secret key (32-byte hex) for signing consensus votes. Overrides **`BOING_VALIDATOR_KEY`**. Public key must appear in `--validators` / **`BOING_VALIDATORS`**.
+    #[arg(long)]
+    validator_key: Option<String>,
+
+    /// Validator set mode: `static` (default, CLI/env list) or `stake` (refresh from top stakers each epoch). Overrides **`BOING_VALIDATOR_SET`**.
+    #[arg(long)]
+    validator_set: Option<String>,
+
+    /// When `--validator-set stake`, how many top stakers form the set (default 21). Overrides **`BOING_STAKE_VALIDATOR_TOP_N`**.
+    #[arg(long)]
+    stake_validator_top_n: Option<usize>,
+
+    /// When `--validator-set stake`, refresh every N committed blocks (default 100). Overrides **`BOING_STAKE_VALIDATOR_EPOCH_LEN`**.
+    #[arg(long)]
+    stake_validator_epoch_len: Option<u64>,
 }
 
 #[tokio::main]
@@ -109,6 +129,28 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let args = Args::parse();
+    let (validators, local_validator, validator_key) =
+        validator_config::resolve_validator_config(
+            args.validators.as_deref(),
+            args.validator_key.as_deref(),
+        )
+        .map_err(|e| anyhow::anyhow!("validator config: {e}"))?;
+    let stake_set = validator_config::resolve_stake_validator_set_config(
+        args.validator_set.as_deref(),
+        args.stake_validator_top_n,
+        args.stake_validator_epoch_len,
+    )
+    .map_err(|e| anyhow::anyhow!("validator-set config: {e}"))?;
+    tracing::info!(
+        "Consensus validators={} local={} stake_set={}",
+        validators.len(),
+        hex::encode(local_validator.0),
+        stake_set
+            .as_ref()
+            .map(|c| format!("top_n={} epoch_len={}", c.top_n, c.epoch_len))
+            .unwrap_or_else(|| "off".into())
+    );
+
     let mut rate_limit = rate_limit_config_from_args(args.dev_rate_limits);
     if let Some(n) = args.pending_txs_per_sender {
         rate_limit.pending_txs_per_sender = n.max(1);
@@ -119,12 +161,21 @@ async fn main() -> anyhow::Result<()> {
 
     let node = match &args.p2p_listen {
         Some(addr) => {
-            let (n, mut p2p_rx) = node::BoingNode::with_p2p(
+            let (mut n, mut p2p_rx) = node::BoingNode::with_p2p_and_validators(
                 addr,
                 Some(&args.data_dir),
                 rate_limit.connections_per_ip,
+                validators.clone(),
+                local_validator,
+                validator_key.clone(),
             )
-                .map_err(|e| anyhow::anyhow!("P2P init: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("P2P init: {}", e))?;
+            if let Some(cfg) = &stake_set {
+                n.stake_validator_set = Some(node::StakeValidatorSetConfig {
+                    top_n: cfg.top_n,
+                    epoch_len: cfg.epoch_len,
+                });
+            }
             if rate_limit.connections_per_ip > 0 {
                 tracing::info!(
                     "P2P: max simultaneous connections per remote IP = {}",
@@ -164,16 +215,36 @@ async fn main() -> anyhow::Result<()> {
             tokio::spawn(async move {
                 while let Some(ev) = p2p_rx.recv().await {
                     match ev {
-                        boing_p2p::P2pEvent::BlockReceived(block)
-                        | boing_p2p::P2pEvent::BlockFetched(block) => {
+                        boing_p2p::P2pEvent::BlockReceived(block) => {
                             let mut n = node_clone.write().await;
-                            if let Err(e) = n.import_network_block(&block) {
-                                logging::log_p2p_event_warn("block_import", &e);
+                            match n.handle_network_block(&block) {
+                                Ok(Some(h)) => tracing::info!(
+                                    "P2P: committed gossip block height={} hash={:?}",
+                                    block.header.height,
+                                    h
+                                ),
+                                Ok(None) => tracing::debug!(
+                                    "P2P: accepted proposal height={} (awaiting quorum)",
+                                    block.header.height
+                                ),
+                                Err(e) => logging::log_p2p_event_warn("block_import", &e),
+                            }
+                        }
+                        boing_p2p::P2pEvent::BlockFetched(block) => {
+                            let mut n = node_clone.write().await;
+                            if let Err(e) = n.import_network_block_catchup(&block) {
+                                logging::log_p2p_event_warn("block_catchup", &e);
                             } else {
                                 tracing::info!(
-                                    "P2P: imported block height={}",
+                                    "P2P: catch-up imported block height={}",
                                     block.header.height
                                 );
+                            }
+                        }
+                        boing_p2p::P2pEvent::VoteReceived(vote) => {
+                            let mut n = node_clone.write().await;
+                            if let Some(h) = n.on_consensus_vote(vote) {
+                                tracing::info!("P2P: quorum reached via vote, committed {:?}", h);
                             }
                         }
                         boing_p2p::P2pEvent::TransactionReceived(signed) => {
@@ -184,7 +255,9 @@ async fn main() -> anyhow::Result<()> {
                             let n = node_clone.write().await;
                             match n.submit_transaction(signed) {
                                 Ok(()) => tracing::debug!("P2P: gossip tx admitted to mempool"),
-                                Err(e) => logging::log_p2p_event_warn("gossip_tx_mempool_reject", &e),
+                                Err(e) => {
+                                    logging::log_p2p_event_warn("gossip_tx_mempool_reject", &e)
+                                }
                             }
                         }
                     }
@@ -212,9 +285,22 @@ async fn main() -> anyhow::Result<()> {
             });
             node
         }
-        None => Arc::new(RwLock::new(
-            node::BoingNode::with_data_dir(Some(&args.data_dir)).expect("node init"),
-        )),
+        None => {
+            let mut n = node::BoingNode::with_data_dir_and_validators(
+                Some(&args.data_dir),
+                validators,
+                local_validator,
+                validator_key,
+            )
+            .expect("node init");
+            if let Some(cfg) = &stake_set {
+                n.stake_validator_set = Some(node::StakeValidatorSetConfig {
+                    top_n: cfg.top_n,
+                    epoch_len: cfg.epoch_len,
+                });
+            }
+            Arc::new(RwLock::new(n))
+        }
     };
 
     {

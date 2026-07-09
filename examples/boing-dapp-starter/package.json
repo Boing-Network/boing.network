@@ -1,0 +1,20 @@
+{
+  "name": "boing-dapp-starter",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Minimal TypeScript starter: boing-sdk client + native DEX discovery + RPC preflight",
+  "scripts": {
+    "build": "tsc",
+    "start": "node --import tsx src/main.ts",
+    "preflight": "node --import tsx src/main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "boing-sdk": "file:../../boing-sdk"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.3.0"
+  }
+}

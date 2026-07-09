@@ -4,7 +4,9 @@ use std::collections::HashMap;
 
 use boing_primitives::{Account, AccountId, AccountState, Hash};
 
-use crate::sparse_merkle::SparseMerkleTree;
+use crate::sparse_merkle::{
+    hash_account_leaf, hash_contract_code, SparseMerkleTree,
+};
 
 /// Type alias for persisted contract storage entries: ((contract, key), value).
 pub type ContractStorageEntry = ((AccountId, [u8; 32]), [u8; 32]);
@@ -62,8 +64,8 @@ impl StateStore {
     }
 
     pub fn insert(&mut self, account: Account) {
-        self.tree.insert(account.id, &account.state);
         self.accounts.insert(account.id, account.state);
+        // Tree is rebuilt on `state_root()` so code/storage commitments stay consistent.
     }
 
     pub fn set_contract_code(&mut self, account: AccountId, bytecode: Vec<u8>) {
@@ -82,12 +84,58 @@ impl StateStore {
             .unwrap_or([0u8; 32])
     }
 
+    /// Per-contract storage SMT root (`Hash::ZERO` if the contract has no slots).
+    pub fn storage_root_of(&self, contract: &AccountId) -> Hash {
+        let mut tree = SparseMerkleTree::new();
+        let mut any = false;
+        for ((c, key), value) in &self.contract_storage {
+            if c == contract {
+                any = true;
+                tree.insert_storage_slot(*key, value);
+            }
+        }
+        if any {
+            tree.root()
+        } else {
+            Hash::ZERO
+        }
+    }
+
+    /// Code hash for an account (`Hash::ZERO` if undeployed / empty).
+    pub fn code_hash_of(&self, account: &AccountId) -> Hash {
+        match self.contract_code.get(account) {
+            Some(code) => hash_contract_code(code),
+            None => Hash::ZERO,
+        }
+    }
+
     /// Compute state root from Sparse Merkle tree. Rebuilds tree from current
-    /// accounts to include changes made via get_mut (e.g. by the VM).
+    /// accounts; each leaf commits to balance/nonce/stake **and** code_hash + storage_root.
+    /// Also includes accounts that have code or storage but no balance entry yet.
     pub fn state_root(&mut self) -> Hash {
         self.tree = SparseMerkleTree::new();
-        for (id, state) in &self.accounts {
-            self.tree.insert(*id, state);
+        let mut ids: std::collections::HashSet<AccountId> =
+            self.accounts.keys().copied().collect();
+        for id in self.contract_code.keys() {
+            ids.insert(*id);
+        }
+        for ((c, _), _) in &self.contract_storage {
+            ids.insert(*c);
+        }
+        for id in ids {
+            let state = self
+                .accounts
+                .get(&id)
+                .cloned()
+                .unwrap_or(AccountState {
+                    balance: 0,
+                    nonce: 0,
+                    stake: 0,
+                });
+            let code_hash = self.code_hash_of(&id);
+            let storage_root = self.storage_root_of(&id);
+            let leaf = hash_account_leaf(&state, &code_hash, &storage_root);
+            self.tree.insert_leaf_hash(id.0, leaf);
         }
         self.tree.root()
     }
@@ -102,7 +150,7 @@ impl StateStore {
         self.contract_storage.insert((contract, key), value);
     }
 
-    /// Snapshot current state for simulation (does not include contract storage).
+    /// Snapshot current state for simulation (includes contract code and storage).
     pub fn snapshot(&self) -> StateStore {
         let mut out = StateStore::new();
         for (id, st) in &self.accounts {
@@ -138,15 +186,32 @@ impl StateStore {
         self.contract_code = cp.contract_code;
         self.contract_storage = cp.contract_storage;
         self.tree = SparseMerkleTree::new();
-        for (id, st) in &self.accounts {
-            self.tree.insert(*id, st);
-        }
+        let _ = self.state_root();
     }
 
-    /// Generate Merkle proof for an account. Ensures tree is synced with accounts.
+    /// Generate Merkle proof for an account. Ensures tree is synced (includes code/storage).
     pub fn prove_account(&mut self, id: &AccountId) -> Option<crate::MerkleProof> {
-        self.state_root(); // sync tree with accounts
+        self.state_root(); // sync tree with accounts + code/storage commitments
         self.tree.prove(id)
+    }
+
+    /// Merkle proof for a single contract storage slot against the contract's storage SMT.
+    /// Returns `None` if the slot is absent (zero) or the contract has no storage.
+    pub fn prove_storage(
+        &self,
+        contract: &AccountId,
+        slot: &[u8; 32],
+    ) -> Option<crate::MerkleProof> {
+        if !self.contract_storage.contains_key(&(*contract, *slot)) {
+            return None;
+        }
+        let mut tree = SparseMerkleTree::new();
+        for ((c, key), value) in &self.contract_storage {
+            if c == contract {
+                tree.insert_storage_slot(*key, value);
+            }
+        }
+        tree.prove(&AccountId(*slot))
     }
 
     /// Export state for disk persistence.
@@ -247,6 +312,37 @@ mod tests {
         assert_eq!(state.get_contract_storage(&c, &k), [0u8; 32]);
         state.merge_contract_storage(c, k, v);
         assert_eq!(state.get_contract_storage(&c, &k), v);
+    }
+
+    #[test]
+    fn state_root_includes_code_and_storage() {
+        let mut state = StateStore::new();
+        let c = AccountId([9u8; 32]);
+        state.insert(Account {
+            id: c,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 0,
+            },
+        });
+        let root_empty = state.state_root();
+
+        state.set_contract_code(c, vec![0x60, 0x00]);
+        let root_with_code = state.state_root();
+        assert_ne!(root_empty, root_with_code);
+
+        state.merge_contract_storage(c, [1u8; 32], [2u8; 32]);
+        let root_with_storage = state.state_root();
+        assert_ne!(root_with_code, root_with_storage);
+
+        // Account proof verifies against the inclusive root.
+        let proof = state.prove_account(&c).unwrap();
+        assert!(proof.verify());
+        assert_eq!(proof.root, root_with_storage);
+
+        let slot_proof = state.prove_storage(&c, &[1u8; 32]).unwrap();
+        assert!(slot_proof.verify());
     }
 
     #[test]

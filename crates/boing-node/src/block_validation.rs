@@ -14,6 +14,7 @@ pub fn validate_and_execute_block(
     block: &Block,
     parent_state: &StateStore,
     validator_set: &[AccountId],
+    expected_leader: AccountId,
     executor: &BlockExecutor,
 ) -> Result<(StateStore, Vec<ExecutionReceipt>), BlockValidationError> {
     // 1. Tx root
@@ -22,9 +23,15 @@ pub fn validate_and_execute_block(
         return Err(BlockValidationError::InvalidTxRoot);
     }
 
-    // 2. Proposer in validator set
+    // 2. Proposer in validator set and is the round leader for this height
     if !validator_set.contains(&block.header.proposer) {
         return Err(BlockValidationError::InvalidProposer);
+    }
+    if block.header.proposer != expected_leader {
+        return Err(BlockValidationError::NotRoundLeader {
+            proposer: block.header.proposer,
+            expected_leader,
+        });
     }
 
     // 3. Execute on snapshot
@@ -35,6 +42,7 @@ pub fn validate_and_execute_block(
             block.header.timestamp,
             &block.transactions,
             &mut state,
+            block.header.proposer,
         )
         .map_err(|e| BlockValidationError::ExecutionFailed(e.to_string()))?;
 
@@ -98,7 +106,14 @@ pub fn import_block(
     if validator_set.is_empty() {
         return Err(BlockValidationError::NoValidators);
     }
-    validate_and_execute_block(block, parent_state, validator_set, executor)
+    let expected_leader = consensus.leader(block.header.height);
+    validate_and_execute_block(
+        block,
+        parent_state,
+        validator_set,
+        expected_leader,
+        executor,
+    )
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -111,6 +126,11 @@ pub enum BlockValidationError {
     InvalidReceiptsRoot { expected: Hash, computed: Hash },
     #[error("Invalid proposer")]
     InvalidProposer,
+    #[error("Proposer {proposer:?} is not round leader {expected_leader:?}")]
+    NotRoundLeader {
+        proposer: AccountId,
+        expected_leader: AccountId,
+    },
     #[error("Execution failed: {0}")]
     ExecutionFailed(String),
     #[error("Invalid state root: expected {expected:?}, computed {computed:?}")]

@@ -19,8 +19,9 @@ fn hash_pair(left: &Hash, right: &Hash) -> Hash {
     Hash(out)
 }
 
-/// Sparse Merkle tree for account state.
-/// Key = AccountId (32 bytes), Value = AccountState (serialized).
+/// Sparse Merkle tree over 32-byte keys → 32-byte leaf value hashes.
+///
+/// Used for the global account tree and per-contract storage trees.
 #[derive(Default)]
 pub struct SparseMerkleTree {
     leaves: HashMap<[u8; 32], [u8; 32]>,
@@ -32,14 +33,25 @@ impl SparseMerkleTree {
         Self::default()
     }
 
-    pub fn insert(&mut self, key: AccountId, value: &AccountState) {
-        let value_hash = Self::hash_value(value);
-        self.leaves.insert(key.0, value_hash.0);
+    /// Insert a pre-hashed leaf value under `key`.
+    pub fn insert_leaf_hash(&mut self, key: [u8; 32], value_hash: Hash) {
+        self.leaves.insert(key, value_hash.0);
         self.root_cache = None;
+    }
+
+    /// Insert an account leaf with **no** code/storage commitment (tests / legacy).
+    /// Production [`crate::StateStore::state_root`] uses [`hash_account_leaf`] instead.
+    pub fn insert(&mut self, key: AccountId, value: &AccountState) {
+        let value_hash = hash_account_leaf(value, &Hash::ZERO, &Hash::ZERO);
+        self.insert_leaf_hash(key.0, value_hash);
     }
 
     pub fn get(&self, key: &AccountId) -> Option<&[u8; 32]> {
         self.leaves.get(&key.0)
+    }
+
+    pub fn get_raw(&self, key: &[u8; 32]) -> Option<&[u8; 32]> {
+        self.leaves.get(key)
     }
 
     pub fn delete(&mut self, key: &AccountId) {
@@ -47,15 +59,56 @@ impl SparseMerkleTree {
         self.root_cache = None;
     }
 
-    fn hash_value(v: &AccountState) -> Hash {
+    pub fn delete_raw(&mut self, key: &[u8; 32]) {
+        self.leaves.remove(key);
+        self.root_cache = None;
+    }
+
+    /// BLAKE3 of a 32-byte storage word (storage SMT leaf value).
+    pub fn hash_storage_value(value: &[u8; 32]) -> Hash {
         let mut h = hasher();
-        h.update(&v.balance.to_le_bytes());
-        h.update(&v.nonce.to_le_bytes());
-        h.update(&v.stake.to_le_bytes());
+        h.update(value);
         let mut out = [0u8; 32];
         out.copy_from_slice(h.finalize().as_bytes());
         Hash(out)
     }
+
+    /// Insert a contract storage slot into this tree (key = slot, leaf = BLAKE3(value)).
+    pub fn insert_storage_slot(&mut self, slot: [u8; 32], value: &[u8; 32]) {
+        self.insert_leaf_hash(slot, Self::hash_storage_value(value));
+    }
+}
+
+/// Account leaf commitment included in the global state SMT:
+/// `BLAKE3(balance_le || nonce_le || stake_le || code_hash || storage_root)`.
+///
+/// - `code_hash`: [`Hash::ZERO`] if the account has no bytecode; otherwise `BLAKE3(bytecode)`.
+/// - `storage_root`: root of the per-contract storage SMT, or [`Hash::ZERO`] if empty.
+pub fn hash_account_leaf(v: &AccountState, code_hash: &Hash, storage_root: &Hash) -> Hash {
+    let mut h = hasher();
+    h.update(&v.balance.to_le_bytes());
+    h.update(&v.nonce.to_le_bytes());
+    h.update(&v.stake.to_le_bytes());
+    h.update(code_hash.as_bytes());
+    h.update(storage_root.as_bytes());
+    let mut out = [0u8; 32];
+    out.copy_from_slice(h.finalize().as_bytes());
+    Hash(out)
+}
+
+/// `BLAKE3(bytecode)` for deployed code; [`Hash::ZERO`] when `bytecode` is empty / absent.
+pub fn hash_contract_code(bytecode: &[u8]) -> Hash {
+    if bytecode.is_empty() {
+        return Hash::ZERO;
+    }
+    let mut h = hasher();
+    h.update(bytecode);
+    let mut out = [0u8; 32];
+    out.copy_from_slice(h.finalize().as_bytes());
+    Hash(out)
+}
+
+impl SparseMerkleTree {
 
     /// Compute root hash. Cached for repeated calls.
     pub fn root(&mut self) -> Hash {

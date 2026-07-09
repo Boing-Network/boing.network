@@ -45,6 +45,10 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> BoingNode 
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
+    validator_signing_key: None,
+    pending_commit: None,
+        early_votes: HashMap::new(),
+        stake_validator_set: None,
     }
 }
 
@@ -72,6 +76,13 @@ fn test_single_node_produces_block_with_transfer() {
 
     assert_eq!(node.mempool.len(), 0);
     assert_eq!(node.chain.height(), 1);
-    assert!(node.state.get(&proposer).unwrap().balance >= 999_900); // 999_900 after transfer + block reward
+    let fee = boing_tokenomics::fee_for_gas(21_000);
+    let (v_share, _, _) = boing_tokenomics::split_fee(fee);
+    let reward = boing_tokenomics::block_emission_validators(1);
+    // Sender is also proposer: pays amount+fee, receives validator fee share + block reward.
+    assert_eq!(
+        node.state.get(&proposer).unwrap().balance,
+        1_000_000 - 100 - fee + v_share + reward
+    );
     assert_eq!(node.state.get(&to).unwrap().balance, 100);
 }

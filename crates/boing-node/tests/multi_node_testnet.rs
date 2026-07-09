@@ -64,6 +64,10 @@ fn node_with_p2p_and_block_provider(
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
+        validator_signing_key: None,
+        pending_commit: None,
+        early_votes: HashMap::new(),
+        stake_validator_set: None,
     };
     (node, event_rx)
 }
@@ -129,14 +133,19 @@ async fn test_four_validators_sync() {
         tokio::spawn(async move {
             while let Some(ev) = rx.recv().await {
                 match ev {
-                    boing_p2p::P2pEvent::BlockReceived(block)
-                    | boing_p2p::P2pEvent::BlockFetched(block) => {
+                    boing_p2p::P2pEvent::BlockReceived(block) => {
                         let mut n = node_ref.write().await;
-                        if n.import_network_block(&block).is_ok() {
-                            tracing::debug!("imported block height={}", block.header.height);
-                        }
+                        let _ = n.handle_network_block(&block);
                     }
-                    _ => {}
+                    boing_p2p::P2pEvent::BlockFetched(block) => {
+                        let mut n = node_ref.write().await;
+                        let _ = n.import_network_block_catchup(&block);
+                    }
+                    boing_p2p::P2pEvent::VoteReceived(vote) => {
+                        let mut n = node_ref.write().await;
+                        let _ = n.on_consensus_vote(vote);
+                    }
+                    boing_p2p::P2pEvent::TransactionReceived(_) => {}
                 }
             }
         });

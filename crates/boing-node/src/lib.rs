@@ -17,3 +17,4 @@ pub mod node;
 pub mod rpc;
 pub mod rpc_ws;
 pub mod security;
+pub mod validator_config;

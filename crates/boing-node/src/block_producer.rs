@@ -1,4 +1,4 @@
-//! Block production — build blocks from mempool and consensus.
+//! Block production — build blocks from mempool (consensus commit is handled by the node).
 
 use tracing::info;
 
@@ -6,7 +6,7 @@ use boing_consensus::ConsensusEngine;
 use boing_execution::BlockExecutor;
 use boing_primitives::{
     receipts_root, tx_root, Account, AccountId, AccountState, Block, BlockHeader, ExecutionReceipt,
-    Hash, Transaction,
+    Transaction,
 };
 use boing_state::StateStore;
 use boing_tokenomics::block_emission_validators;
@@ -14,7 +14,15 @@ use boing_tokenomics::block_emission_validators;
 use crate::chain::ChainState;
 use crate::mempool::Mempool;
 
-/// Block producer — drains mempool, executes, builds block, proposes to consensus.
+/// A locally produced block proposal: executed state is returned separately so the live tip
+/// can stay unchanged until consensus quorum commits.
+pub struct ProducedProposal {
+    pub block: Block,
+    pub receipts: Vec<ExecutionReceipt>,
+    pub new_state: StateStore,
+}
+
+/// Block producer — drains mempool, executes, builds block. Does not append to the chain.
 pub struct BlockProducer {
     proposer: AccountId,
     max_txs_per_block: usize,
@@ -28,21 +36,28 @@ impl BlockProducer {
         }
     }
 
+    pub fn proposer(&self) -> AccountId {
+        self.proposer
+    }
+
     pub fn with_max_txs(mut self, max: usize) -> Self {
         self.max_txs_per_block = max;
         self
     }
 
-    /// Produce and commit a block. Returns `(block_hash, receipts)` if successful.
-    /// Only the round leader produces; other validators skip.
-    pub fn produce_block(
+    /// Build a block proposal if this node is the round leader and the mempool is non-empty.
+    ///
+    /// Mutates `state` only transiently: on success the tip is restored and the post-execution
+    /// state is returned in [`ProducedProposal::new_state`]. On execution failure, txs are
+    /// re-inserted into the mempool.
+    pub fn produce_proposal(
         &self,
         chain: &ChainState,
         mempool: &Mempool,
         state: &mut StateStore,
         executor: &BlockExecutor,
-        consensus: &mut ConsensusEngine,
-    ) -> Option<(Hash, Vec<ExecutionReceipt>)> {
+        consensus: &ConsensusEngine,
+    ) -> Option<ProducedProposal> {
         let next_height = chain.height() + 1;
         if consensus.leader(next_height) != self.proposer {
             return None; // Not our turn to propose
@@ -61,9 +76,14 @@ impl BlockProducer {
             .as_secs();
         let tx_root = tx_root(&txs);
 
-        // Execute transactions; revert on failure and re-insert txs so they can be retried
         let checkpoint = state.checkpoint();
-        let receipts = match executor.execute_block(height, block_timestamp, &txs, state) {
+        let receipts = match executor.execute_block(
+            height,
+            block_timestamp,
+            &txs,
+            state,
+            self.proposer,
+        ) {
             Ok((_gas, r)) => r,
             Err(e) => {
                 boing_telemetry::component_warn(
@@ -112,33 +132,17 @@ impl BlockProducer {
             transactions: txs,
         };
 
-        match consensus.propose_and_commit(block.clone()) {
-            Ok(hash) => {
-                if let Err(e) = chain.append(block) {
-                    boing_telemetry::component_warn(
-                        "boing_node::block_producer",
-                        "block_producer",
-                        "chain_append_failed",
-                        e,
-                    );
-                    state.revert(checkpoint);
-                    mempool.reinsert(signed_txs);
-                    return None;
-                }
-                info!("Block committed: height={} hash={:?}", height, hash);
-                Some((hash, receipts))
-            }
-            Err(e) => {
-                boing_telemetry::component_warn(
-                    "boing_node::block_producer",
-                    "block_producer",
-                    "consensus_failed",
-                    e,
-                );
-                state.revert(checkpoint);
-                mempool.reinsert(signed_txs);
-                None
-            }
-        }
+        let new_state = state.snapshot();
+        state.revert(checkpoint);
+        info!(
+            "Block proposed: height={} hash={:?}",
+            height,
+            block.hash()
+        );
+        Some(ProducedProposal {
+            block,
+            receipts,
+            new_state,
+        })
     }
 }

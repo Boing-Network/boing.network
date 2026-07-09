@@ -70,6 +70,7 @@ export { BOING_NATIVE_DEX_NOT_EVM_TAGLINE, BOING_NATIVE_DEX_NOT_EVM_BULLETS, BOI
 export { quoteCpPoolSwap, rankDirectCpPools, findBestCpRoutes, findBestCpRoute, quoteCpEvenSplitAcrossDirectPools, hydrateCpPoolVenuesFromRpc, fetchCpRoutingFromDirectoryLogs, } from './nativeDexRouting.js';
 export { parseNativeDexIndexerPersistedDoc, appendVenuesToHistoryDoc, buildDexOverridesFromPlainEnv, buildNativeDexIndexerStatsForClient, } from './nativeDexIndexerStats.js';
 export { NATIVE_DEX_DIRECTORY_API_ID, NATIVE_DEX_DIRECTORY_SCHEMA_VERSION, NativeDexDirectoryHttpError, normalizeNativeDexDirectoryWorkerBaseUrl, parseNativeDexDirectoryMetaResponse, parseNativeDexDirectoryPoolsPageResponse, parseNativeDexDirectoryPoolEventsPageResponse, parseNativeDexDirectoryUserEventsPageResponse, fetchNativeDexDirectoryMeta, fetchNativeDexDirectoryPoolsPage, fetchNativeDexDirectoryPoolEventsPage, fetchNativeDexDirectoryUserEventsPage, collectAllNativeDexDirectoryPools, } from './nativeDexDirectoryApi.js';
+export { createNativeDexDiscovery, readNativeDexDirectoryBaseUrlFromProcessEnv, } from './nativeDexDiscovery.js';
 export { getInjectedEip1193Provider, providerSupportsBoingNativeRpc, boingSendTransaction, requestAccounts, readChainIdHex, connectInjectedBoingWallet, mapInjectedProviderErrorToUiMessage, BOING_WALLET_RPC_METHODS_NATIVE_DAPP, explainEthSendTransactionInsufficientForBoingNativeCall, } from './walletProvider.js';
 /**
  * Create a Boing RPC client.

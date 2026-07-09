@@ -46,6 +46,21 @@ impl ConsensusEngine {
         &self.validators
     }
 
+    /// Replace the validator set (e.g. stake-derived epoch refresh).
+    ///
+    /// Clears any pending proposal/votes so a mid-round set change cannot mix voters.
+    /// Caller must ensure `new_validators` is non-empty and that the local node identity
+    /// (if any) remains a member when continuing to produce/vote.
+    pub fn set_validators(&mut self, new_validators: Vec<AccountId>) {
+        assert!(
+            !new_validators.is_empty(),
+            "Consensus requires at least 1 validator"
+        );
+        self.validators = new_validators;
+        self.pending_block = None;
+        self.votes.clear();
+    }
+
     /// Max faulty replicas (f). HotStuff tolerates f failures with n = 3f+1.
     fn f(&self) -> usize {
         (self.validators.len().saturating_sub(1)) / 3
@@ -62,8 +77,8 @@ impl ConsensusEngine {
         self.validators[(round as usize) % n]
     }
 
-    /// Propose a block. Enters voting phase. Only the round leader may propose.
-    pub fn propose(&mut self, block: Block) -> Result<(), ConsensusError> {
+    /// Shared proposal checks: height, round-leader proposer, validator membership.
+    fn validate_proposal(&self, block: &Block) -> Result<(), ConsensusError> {
         if block.header.height != self.round {
             return Err(ConsensusError::InvalidBlock(format!(
                 "Block height {} != expected round {}",
@@ -80,11 +95,55 @@ impl ConsensusEngine {
         if !self.validators.contains(&block.header.proposer) {
             return Err(ConsensusError::InvalidBlock("Proposer not in validator set".into()));
         }
+        Ok(())
+    }
 
+    fn enter_voting_phase(&mut self, block: Block) {
         self.pending_block = Some(block.clone());
         self.votes.clear();
         info!("Consensus: round {} propose block {}", self.round, block.hash());
+    }
+
+    /// Propose a block. Enters voting phase. Only the round leader may propose.
+    pub fn propose(&mut self, block: Block) -> Result<(), ConsensusError> {
+        self.validate_proposal(&block)?;
+        self.enter_voting_phase(block);
         Ok(())
+    }
+
+    /// Accept a proposal from the round leader (follower path).
+    ///
+    /// Same height / proposer-in-set / round-leader checks as [`Self::propose`], but intended for
+    /// non-leader validators that received a block over the network and need to enter the voting
+    /// phase without being the proposer.
+    pub fn accept_proposal(&mut self, block: Block) -> Result<(), ConsensusError> {
+        self.validate_proposal(&block)?;
+        // If we already have this pending block, keep existing votes (idempotent re-gossip).
+        if let Some(pending) = &self.pending_block {
+            if pending.hash() == block.hash() {
+                return Ok(());
+            }
+            return Err(ConsensusError::InvalidBlock(
+                "Different pending block already in voting phase".into(),
+            ));
+        }
+        self.enter_voting_phase(block);
+        Ok(())
+    }
+
+    /// Pending block awaiting quorum (if any).
+    pub fn pending_block(&self) -> Option<&Block> {
+        self.pending_block.as_ref()
+    }
+
+    /// Current consensus round (equals next block height to propose).
+    pub fn round(&self) -> u64 {
+        self.round
+    }
+
+    /// Quorum size (2f+1). Exposed for tests and operator diagnostics.
+    pub fn quorum_size(&self) -> usize {
+        self.quorum()
     }
 
     /// Submit a vote from a validator. Returns Some(block_hash) when committed.
@@ -260,6 +319,61 @@ mod tests {
         assert!(engine.vote(block_hash, v2).unwrap().is_none());
         let committed = engine.vote(block_hash, v3).unwrap();
         assert_eq!(committed, Some(block_hash), "3 honest nodes should commit despite 1 Byzantine");
+    }
+
+    /// Follower accepts leader proposal, then three votes commit (n=4, quorum=3).
+    #[test]
+    fn test_accept_proposal_follower_then_quorum() {
+        let v1 = AccountId::from_bytes([1u8; 32]);
+        let v2 = AccountId::from_bytes([2u8; 32]);
+        let v3 = AccountId::from_bytes([3u8; 32]);
+        let v4 = AccountId::from_bytes([4u8; 32]);
+        let validators = vec![v1, v2, v3, v4];
+        let mut engine = ConsensusEngine::new(validators);
+        let block = mk_block(0, v1, Hash::ZERO);
+        engine.accept_proposal(block.clone()).unwrap();
+        assert_eq!(engine.pending_block().map(|b| b.hash()), Some(block.hash()));
+        let block_hash = block.hash();
+        assert!(engine.vote(block_hash, v2).unwrap().is_none());
+        assert!(engine.vote(block_hash, v3).unwrap().is_none());
+        let committed = engine.vote(block_hash, v4).unwrap();
+        assert_eq!(committed, Some(block_hash));
+        assert!(engine.pending_block().is_none());
+    }
+
+    #[test]
+    fn test_accept_proposal_rejects_non_leader() {
+        let v1 = AccountId::from_bytes([1u8; 32]);
+        let v2 = AccountId::from_bytes([2u8; 32]);
+        let validators = vec![v1, v2];
+        let mut engine = ConsensusEngine::new(validators);
+        let block = mk_block(0, v2, Hash::ZERO); // v1 is leader for round 0
+        let result = engine.accept_proposal(block);
+        assert!(matches!(result, Err(ConsensusError::InvalidBlock(_))));
+    }
+
+    #[test]
+    fn test_accept_proposal_idempotent_same_block() {
+        let v1 = AccountId::from_bytes([1u8; 32]);
+        let mut engine = ConsensusEngine::single_validator(v1);
+        let block = mk_block(0, v1, Hash::ZERO);
+        engine.accept_proposal(block.clone()).unwrap();
+        engine.accept_proposal(block).unwrap(); // same hash — ok
+    }
+
+    #[test]
+    fn test_set_validators_clears_pending() {
+        let v1 = AccountId::from_bytes([1u8; 32]);
+        let v2 = AccountId::from_bytes([2u8; 32]);
+        let v3 = AccountId::from_bytes([3u8; 32]);
+        let mut engine = ConsensusEngine::new(vec![v1, v2]);
+        let block = mk_block(0, v1, Hash::ZERO);
+        engine.propose(block.clone()).unwrap();
+        assert!(engine.pending_block().is_some());
+        engine.set_validators(vec![v1, v2, v3]);
+        assert!(engine.pending_block().is_none());
+        assert_eq!(engine.num_validators(), 3);
+        assert_eq!(engine.leader(0), v1);
     }
 }
 

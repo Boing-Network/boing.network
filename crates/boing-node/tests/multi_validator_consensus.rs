@@ -1,0 +1,237 @@
+//! Multi-validator HotStuff MVP: distinct keys, vote gossip, quorum commit.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
+
+use boing_node::chain::ChainState;
+use boing_node::node::BoingNode;
+use boing_p2p::BlockRequest;
+use boing_primitives::{
+    AccessList, Account, AccountId, AccountState, Block, SignedTransaction, Transaction,
+    TransactionPayload,
+};
+use boing_tokenomics::BLOCK_TIME_SECS;
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
+use rand::seq::SliceRandom;
+use tokio::sync::RwLock;
+
+fn multi_validator_node(
+    keys: &[SigningKey],
+    local_idx: usize,
+    balance: u128,
+    p2p_listen: &str,
+    shared_genesis: &Block,
+) -> (BoingNode, tokio::sync::mpsc::UnboundedReceiver<boing_p2p::P2pEvent>) {
+    let validators: Vec<AccountId> = keys
+        .iter()
+        .map(|k| AccountId(k.verifying_key().to_bytes()))
+        .collect();
+    let local_key = keys[local_idx].clone();
+    let local = validators[local_idx];
+
+    let chain = ChainState::from_genesis(shared_genesis.clone());
+    let chain_for_provider = chain.clone();
+    let (p2p, event_rx) = boing_p2p::P2pNode::new(
+        p2p_listen,
+        Some(Arc::new(boing_node::ChainBlockProvider(chain_for_provider))),
+        0,
+    )
+    .expect("P2P init");
+
+    let mut consensus = boing_consensus::ConsensusEngine::new(validators.clone());
+    let _ = consensus.propose_and_commit(shared_genesis.clone());
+
+    let mut state = boing_state::StateStore::new();
+    for id in &validators {
+        state.insert(Account {
+            id: *id,
+            state: AccountState {
+                balance,
+                nonce: 0,
+                stake: 0,
+            },
+        });
+    }
+
+    let native_aggregates = state.compute_native_aggregates();
+    let node = BoingNode {
+        chain,
+        consensus,
+        state,
+        executor: boing_execution::BlockExecutor::new(),
+        producer: boing_node::block_producer::BlockProducer::new(local).with_max_txs(100),
+        vm: boing_execution::Vm::new(),
+        scheduler: boing_execution::TransactionScheduler::new(),
+        mempool: boing_node::mempool::Mempool::new(),
+        p2p,
+        dapp_registry: boing_node::dapp_registry::DappRegistry::new(),
+        intent_pool: boing_node::intent_pool::IntentPool::new(),
+        qa_pool: boing_node::node::pending_qa_pool_default(),
+        persistence: None,
+        receipts: HashMap::new(),
+        native_aggregates,
+        head_broadcast: None,
+        validator_signing_key: Some(local_key),
+        pending_commit: None,
+        early_votes: HashMap::new(),
+        stake_validator_set: None,
+    };
+    (node, event_rx)
+}
+
+fn spawn_handlers(
+    node_ref: Arc<RwLock<BoingNode>>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<boing_p2p::P2pEvent>,
+) {
+    tokio::spawn(async move {
+        while let Some(ev) = rx.recv().await {
+            match ev {
+                boing_p2p::P2pEvent::BlockReceived(block) => {
+                    let mut n = node_ref.write().await;
+                    let _ = n.handle_network_block(&block);
+                }
+                boing_p2p::P2pEvent::BlockFetched(block) => {
+                    let mut n = node_ref.write().await;
+                    let _ = n.import_network_block_catchup(&block);
+                }
+                boing_p2p::P2pEvent::VoteReceived(vote) => {
+                    let mut n = node_ref.write().await;
+                    let _ = n.on_consensus_vote(vote);
+                }
+                boing_p2p::P2pEvent::TransactionReceived(_) => {}
+            }
+        }
+    });
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn four_validators_quorum_commit_via_votes() {
+    let keys: Vec<SigningKey> = (0..4).map(|_| SigningKey::generate(&mut OsRng)).collect();
+    let validators: Vec<AccountId> = keys
+        .iter()
+        .map(|k| AccountId(k.verifying_key().to_bytes()))
+        .collect();
+    let to = AccountId([0xee; 32]);
+    // Shared genesis so all nodes share the same parent hash / tip.
+    let shared_genesis = ChainState::genesis(validators[0]);
+
+    let base_port = 34111u16;
+    let addrs: Vec<String> = (0..4)
+        .map(|i| format!("/ip4/127.0.0.1/tcp/{}", base_port + i))
+        .collect();
+
+    let mut nodes_and_rx = Vec::new();
+    for (i, addr) in addrs.iter().enumerate() {
+        let (node, rx) = multi_validator_node(&keys, i, 1_000_000, addr, &shared_genesis);
+        nodes_and_rx.push((Arc::new(RwLock::new(node)), rx));
+    }
+
+    // Round 1 leader is validators[1] (height 1 → index 1 % 4).
+    let leader_idx = 1usize;
+    {
+        let leader_id = validators[leader_idx];
+        let tx = Transaction {
+            nonce: 0,
+            sender: leader_id,
+            payload: TransactionPayload::Transfer { to, amount: 50 },
+            access_list: AccessList::new(vec![leader_id, to], vec![leader_id, to]),
+        };
+        let signed = SignedTransaction::new(tx, &keys[leader_idx]);
+        nodes_and_rx[leader_idx]
+            .0
+            .read()
+            .await
+            .submit_transaction(signed)
+            .unwrap();
+    }
+
+    for i in 0..addrs.len() {
+        for j in 0..addrs.len() {
+            if i == j {
+                continue;
+            }
+            let _ = nodes_and_rx[i].0.read().await.p2p.dial(&addrs[j]);
+        }
+    }
+    tokio::time::sleep(Duration::from_secs(4)).await;
+
+    let node_refs: Vec<Arc<RwLock<BoingNode>>> =
+        nodes_and_rx.iter().map(|(nr, _)| nr.clone()).collect();
+
+    for (node_ref, rx) in nodes_and_rx {
+        let sync_ref = node_ref.clone();
+        let p2p = node_ref.read().await.p2p.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(BLOCK_TIME_SECS));
+            loop {
+                interval.tick().await;
+                let peers = p2p.connected_peers().await;
+                if let Some(peer) = peers.choose(&mut rand::rngs::OsRng) {
+                    let h = sync_ref.read().await.chain.height();
+                    let _ = p2p.request_block(*peer, BlockRequest::ByHeight(h + 1));
+                }
+            }
+        });
+        spawn_handlers(node_ref, rx);
+    }
+
+    for (i, nr) in node_refs.iter().enumerate() {
+        let mut n = nr.write().await;
+        let produced = n.produce_block_if_ready();
+        if i != leader_idx {
+            assert!(
+                produced.is_none(),
+                "non-leader index {i} must not produce a block"
+            );
+        }
+    }
+
+    let mut heights = vec![0u64; 4];
+    for _ in 0..40 {
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        for nr in &node_refs {
+            let mut n = nr.write().await;
+            let _ = n.produce_block_if_ready();
+        }
+        for (i, nr) in node_refs.iter().enumerate() {
+            heights[i] = nr.read().await.chain.height();
+        }
+        if heights.iter().all(|&h| h >= 1) {
+            break;
+        }
+    }
+
+    assert!(
+        heights.iter().all(|&h| h >= 1),
+        "all validators should commit height >= 1 after quorum votes: {:?}",
+        heights
+    );
+
+    let victim = &node_refs[0];
+    let tip_before = victim.read().await.chain.height();
+    let next_h = tip_before + 1;
+    let real_leader = validators[(next_h as usize) % 4];
+    let wrong = validators
+        .iter()
+        .copied()
+        .find(|v| *v != real_leader)
+        .unwrap();
+    let parent = victim.read().await.chain.latest_hash();
+    let forged = boing_primitives::Block {
+        header: boing_primitives::BlockHeader {
+            parent_hash: parent,
+            height: next_h,
+            timestamp: 1,
+            proposer: wrong,
+            tx_root: boing_primitives::Hash::ZERO,
+            receipts_root: boing_primitives::Hash::ZERO,
+            state_root: boing_primitives::Hash::ZERO,
+        },
+        transactions: vec![],
+    };
+    let err = victim.write().await.handle_network_block(&forged);
+    assert!(err.is_err(), "non-leader proposal must be rejected");
+    assert_eq!(victim.read().await.chain.height(), tip_before);
+}

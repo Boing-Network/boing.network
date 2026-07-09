@@ -220,7 +220,7 @@ For security incidents and vulnerabilities:
 
 - **Block time:** ~2 seconds (configurable via tokenomics)
 - **Throughput:** Parallel transfer batches; access-list batching reduces conflicts
-- **Gas:** Fixed per tx type (Transfer, Bond, Unbond, ContractCall, ContractDeploy)
+- **Gas:** Fixed per tx type (Transfer, Bond, Unbond, ContractCall, ContractDeploy); **fee market v0** charges `gas_used × GAS_PRICE` (1 BOING/gas) and splits 70% / 20% / 10% to proposer / treasury / burn (see [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §8.4)
 - **Batching:** Scheduler groups non-conflicting txs; transfers with disjoint access lists run in parallel
 
 ## 6c. Decentralization Design
@@ -280,6 +280,33 @@ A **bootnode** is a node with a stable, publicly reachable address that other no
 4. **Recommendation:** Run at least **two** bootnodes on different hosts for redundancy.
 5. **P2P transaction gossip:** After a successful **`boing_submitTransaction`** or **`boing_faucetRequest`**, the node gossips the **signed** transaction on `boing/transactions`. Peers verify the signature and apply the same mempool + QA rules as RPC submissions (duplicates and rejects are dropped at debug log level). **Regression:** `cargo test -p boing-node --test p2p_tx_gossip_rpc` (four-node full mesh: RPC submit on one peer → another peer’s mempool contains the same tx id). **Note:** libp2p gossipsub’s default mesh size means **two peers alone** may not propagate topic messages reliably; production testnets should run enough connected peers (or tune gossipsub — see `boing-p2p`).
 6. **Connections per IP:** The active rate-limit profile caps simultaneous P2P connections from the same remote IPv4/IPv6 address (mainnet profile **50**, dev profile **100**). Override with **`--max-connections-per-ip N`**; use **`0`** for unlimited (not recommended on public listeners).
+7. **Multi-validator consensus (optional):** By default the node is **single-validator** (local AccountId `[1u8; 32]`). For a multi-validator testnet, set a shared static set and this node’s signing key:
+
+   ```bash
+   cargo run -p boing-node -- \
+     --p2p-listen /ip4/0.0.0.0/tcp/4001 \
+     --validator \
+     --validators <HEX32>,<HEX32>,<HEX32>,<HEX32> \
+     --validator-key <HEX32_SECRET> \
+     --rpc-port 8545 --data-dir ./data
+   ```
+
+   Env equivalents: **`BOING_VALIDATORS`**, **`BOING_VALIDATOR_KEY`**. Round-robin leader proposes; followers vote on `boing/votes`; tip advances at **2f+1** quorum. **Regression:** `cargo test -p boing-node --test multi_validator_consensus`.
+
+8. **Stake-derived validator set (optional):** After a static bootstrap set is configured, enable epoch refresh from top stakers:
+
+   ```bash
+   cargo run -p boing-node -- \
+     --validator \
+     --validator-set stake \
+     --stake-validator-top-n 21 \
+     --stake-validator-epoch-len 100 \
+     --validators <HEX32>,... \
+     --validator-key <HEX32_SECRET> \
+     --rpc-port 8545 --data-dir ./data
+   ```
+
+   Env: **`BOING_VALIDATOR_SET=stake`**, **`BOING_STAKE_VALIDATOR_TOP_N`** (default **21**), **`BOING_STAKE_VALIDATOR_EPOCH_LEN`** (default **100**). On each commit where `height % epoch_len == 0` (and `height ≥ epoch_len`), the node replaces the consensus set with accounts that have **positive stake** from `StateStore::top_stakers`, and **always retains the local validator** so this process can still vote. Zero-stake accounts are ignored; if nobody has stake yet, the current set is kept. **Regression:** `cargo test -p boing-node --test stake_validator_epochs`. Remaining gaps (min stake threshold, unbonding delay, VRF leader election, on-chain slashing) are tracked in [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md).
 
 ### 8.2 Running the faucet node
 

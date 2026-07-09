@@ -68,6 +68,10 @@ fn node_with_p2p_only(
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
+        validator_signing_key: None,
+        pending_commit: None,
+        early_votes: HashMap::new(),
+        stake_validator_set: None,
     };
     (node, event_rx)
 }
@@ -102,10 +106,17 @@ fn spawn_p2p_ingest(
     tokio::spawn(async move {
         while let Some(ev) = rx.recv().await {
             match ev {
-                boing_p2p::P2pEvent::BlockReceived(block)
-                | boing_p2p::P2pEvent::BlockFetched(block) => {
+                boing_p2p::P2pEvent::BlockReceived(block) => {
                     let mut n = node.write().await;
-                    let _ = n.import_network_block(&block);
+                    let _ = n.handle_network_block(&block);
+                }
+                boing_p2p::P2pEvent::BlockFetched(block) => {
+                    let mut n = node.write().await;
+                    let _ = n.import_network_block_catchup(&block);
+                }
+                boing_p2p::P2pEvent::VoteReceived(vote) => {
+                    let mut n = node.write().await;
+                    let _ = n.on_consensus_vote(vote);
                 }
                 boing_p2p::P2pEvent::TransactionReceived(signed) => {
                     if signed.verify().is_err() {

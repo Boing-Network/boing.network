@@ -7,19 +7,22 @@ use boing_consensus::ConsensusEngine;
 use boing_execution::{BlockExecutor, TransactionScheduler, Vm};
 use boing_p2p::{P2pEvent, P2pNode};
 use boing_primitives::{
-    Account, AccountId, AccountState, Block, ExecutionReceipt, Hash, SignedTransaction,
+    Account, AccountId, AccountState, Block, ConsensusVote, ExecutionReceipt, Hash,
+    SignedTransaction,
 };
 use boing_qa::pool::{PendingQaQueue, PoolError, PoolResolution, QaPoolVote};
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
 use boing_state::{ChainNativeAggregates, StateStore};
+use ed25519_dalek::SigningKey;
 use tokio::sync::{broadcast, mpsc};
+use tracing::info;
 
 use crate::block_producer::BlockProducer;
-use crate::block_validation::import_block;
+use crate::block_validation::{import_block, BlockValidationError};
 use crate::chain::ChainState;
-use crate::logging;
 use crate::dapp_registry::DappRegistry;
 use crate::intent_pool::IntentPool;
+use crate::logging;
 use crate::mempool::{Mempool, MempoolError};
 use crate::persistence::{Persistence, PersistenceError};
 
@@ -33,6 +36,13 @@ impl boing_p2p::BlockProvider for ChainBlockProvider {
     fn get_block_by_height(&self, height: u64) -> Option<Block> {
         self.0.get_block_by_height(height)
     }
+}
+
+/// Executed proposal awaiting consensus quorum before chain append.
+pub struct PendingCommit {
+    pub block: Block,
+    pub receipts: Vec<ExecutionReceipt>,
+    pub new_state: StateStore,
 }
 
 /// Full Boing node.
@@ -59,6 +69,15 @@ pub struct BoingNode {
     pub native_aggregates: ChainNativeAggregates,
     /// Optional broadcast of committed tip updates for WebSocket **`newHeads`** subscribers (`/ws`).
     pub head_broadcast: Option<Arc<broadcast::Sender<serde_json::Value>>>,
+    /// Optional Ed25519 key for signing consensus votes (multi-validator). Local single-validator
+    /// mode can omit this and still self-vote by AccountId.
+    pub validator_signing_key: Option<SigningKey>,
+    /// Block + post-execution state waiting for quorum.
+    pub pending_commit: Option<PendingCommit>,
+    /// Votes that arrived before the matching proposal (round, block_hash) → voters.
+    pub early_votes: HashMap<(u64, Hash), Vec<AccountId>>,
+    /// When set, refresh the consensus validator set from `top_stakers(n)` every `epoch_len` blocks.
+    pub stake_validator_set: Option<StakeValidatorSetConfig>,
 }
 
 /// Result of recording a vote and resolving the pool item when possible.
@@ -79,18 +98,48 @@ pub fn pending_qa_pool_default() -> PendingQaQueue {
     PendingQaQueue::from_governance_config(QaPoolGovernanceConfig::development_default())
 }
 
+/// Opt-in stake-derived validator set (epoch refresh from `StateStore::top_stakers`).
+#[derive(Clone, Debug)]
+pub struct StakeValidatorSetConfig {
+    /// How many top stakers form the set (at least 1).
+    pub top_n: usize,
+    /// Refresh when `height % epoch_len == 0` after a commit (height ≥ epoch_len).
+    pub epoch_len: u64,
+}
+
 impl BoingNode {
-    /// Create a node with inert P2P (for tests).
+    /// Create a node with inert P2P (for tests). Single-validator default.
     pub fn new() -> Self {
-        let proposer = AccountId([1u8; 32]);
-        let genesis = ChainState::genesis(proposer);
+        Self::with_validators(vec![AccountId([1u8; 32])], AccountId([1u8; 32]), None)
+    }
+
+    /// Create a node with a static validator set and local proposer identity.
+    pub fn with_validators(
+        validators: Vec<AccountId>,
+        local_validator: AccountId,
+        signing_key: Option<SigningKey>,
+    ) -> Self {
+        assert!(!validators.is_empty(), "validator set must be non-empty");
+        assert!(
+            validators.contains(&local_validator),
+            "local validator must be in the validator set"
+        );
+        if let Some(ref key) = signing_key {
+            let derived = AccountId(key.verifying_key().to_bytes());
+            assert_eq!(
+                derived, local_validator,
+                "validator signing key must match local_validator AccountId"
+            );
+        }
+
+        let genesis = ChainState::genesis(local_validator);
         let chain = ChainState::from_genesis(genesis.clone());
-        let mut consensus = ConsensusEngine::single_validator(proposer);
+        let mut consensus = ConsensusEngine::new(validators);
         let _ = consensus.propose_and_commit(genesis);
 
         let mut state = StateStore::new();
         state.insert(Account {
-            id: proposer,
+            id: local_validator,
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
@@ -99,7 +148,6 @@ impl BoingNode {
         });
         let native_aggregates = state.compute_native_aggregates();
 
-        // Keep mempool, BlockExecutor, and Vm in sync: all use this registry for deploy QA.
         let qa_registry = RuleRegistry::new();
 
         Self {
@@ -107,7 +155,7 @@ impl BoingNode {
             consensus,
             state,
             executor: BlockExecutor::with_qa_registry(qa_registry.clone()),
-            producer: BlockProducer::new(proposer).with_max_txs(100),
+            producer: BlockProducer::new(local_validator).with_max_txs(100),
             vm: Vm::with_qa_registry(qa_registry.clone()),
             scheduler: TransactionScheduler::new(),
             mempool: Mempool::new().with_qa_registry(qa_registry),
@@ -119,6 +167,10 @@ impl BoingNode {
             receipts: HashMap::new(),
             native_aggregates,
             head_broadcast: None,
+            validator_signing_key: signing_key,
+            pending_commit: None,
+            early_votes: HashMap::new(),
+            stake_validator_set: None,
         }
     }
 
@@ -146,7 +198,22 @@ impl BoingNode {
     pub fn with_data_dir(
         data_dir: Option<impl AsRef<std::path::Path>>,
     ) -> Result<Self, PersistenceError> {
-        let mut node = Self::new();
+        Self::with_data_dir_and_validators(
+            data_dir,
+            vec![AccountId([1u8; 32])],
+            AccountId([1u8; 32]),
+            None,
+        )
+    }
+
+    /// Like [`Self::with_data_dir`] with an explicit validator set / local identity.
+    pub fn with_data_dir_and_validators(
+        data_dir: Option<impl AsRef<std::path::Path>>,
+        validators: Vec<AccountId>,
+        local_validator: AccountId,
+        signing_key: Option<SigningKey>,
+    ) -> Result<Self, PersistenceError> {
+        let mut node = Self::with_validators(validators, local_validator, signing_key);
 
         if let Some(ref path) = data_dir {
             let path = path.as_ref();
@@ -213,16 +280,34 @@ impl BoingNode {
         }
     }
 
-    /// Create a node with live P2P. Returns the node and a receiver for incoming blocks/txs.
-    /// Enables block request/response so peers can fetch blocks from us.
-    /// When data_dir is Some, enables disk persistence.
+    /// Create a node with live P2P. Returns the node and a receiver for incoming blocks/txs/votes.
     pub fn with_p2p(
         p2p_listen: &str,
         data_dir: Option<impl AsRef<std::path::Path>>,
         max_connections_per_ip: u32,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>), boing_p2p::P2pError> {
-        let mut node = Self::with_data_dir(data_dir)
-            .map_err(|e| boing_p2p::P2pError::Network(e.to_string()))?;
+        Self::with_p2p_and_validators(
+            p2p_listen,
+            data_dir,
+            max_connections_per_ip,
+            vec![AccountId([1u8; 32])],
+            AccountId([1u8; 32]),
+            None,
+        )
+    }
+
+    /// Like [`Self::with_p2p`] with an explicit validator set.
+    pub fn with_p2p_and_validators(
+        p2p_listen: &str,
+        data_dir: Option<impl AsRef<std::path::Path>>,
+        max_connections_per_ip: u32,
+        validators: Vec<AccountId>,
+        local_validator: AccountId,
+        signing_key: Option<SigningKey>,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>), boing_p2p::P2pError> {
+        let mut node =
+            Self::with_data_dir_and_validators(data_dir, validators, local_validator, signing_key)
+                .map_err(|e| boing_p2p::P2pError::Network(e.to_string()))?;
         let chain = node.chain.clone();
         let (p2p, event_rx) = P2pNode::new(
             p2p_listen,
@@ -254,11 +339,212 @@ impl BoingNode {
         }
     }
 
-    /// Import a block from the network if it chains to our tip.
-    pub fn import_network_block(
+    /// Append a quorum-committed block: update tip state, receipts, persistence, and round.
+    fn commit_pending(&mut self, pending: PendingCommit) -> Hash {
+        let hash = pending.block.hash();
+        let height = pending.block.header.height;
+        self.state = pending.new_state;
+        self.chain
+            .append(pending.block.clone())
+            .expect("pending block must chain to tip");
+        for r in &pending.receipts {
+            self.receipts.insert(r.tx_id, r.clone());
+        }
+        self.persist_block_and_state(&pending.block, &pending.receipts);
+        self.pending_commit = None;
+        self.early_votes
+            .retain(|(r, _), _| *r >= height.saturating_add(1));
+        self.refresh_native_aggregates();
+        self.emit_head_subscriber_event();
+        self.maybe_refresh_stake_validators(height);
+        info!("Block committed: height={} hash={:?}", height, hash);
+        hash
+    }
+
+    /// Refresh consensus validators from top stakers when configured and at an epoch boundary.
+    fn maybe_refresh_stake_validators(&mut self, committed_height: u64) {
+        let Some(cfg) = self.stake_validator_set.clone() else {
+            return;
+        };
+        if cfg.epoch_len == 0 || cfg.top_n == 0 {
+            return;
+        }
+        if committed_height < cfg.epoch_len || committed_height % cfg.epoch_len != 0 {
+            return;
+        }
+        let mut next: Vec<AccountId> = self
+            .state
+            .top_stakers(cfg.top_n.saturating_mul(4).max(cfg.top_n))
+            .into_iter()
+            .filter(|id| self.state.get(id).map(|a| a.stake > 0).unwrap_or(false))
+            .take(cfg.top_n)
+            .collect();
+        if next.is_empty() {
+            // No positive stake yet — keep current set.
+            return;
+        }
+        // Ensure local identity remains in the set so this node can still vote/produce.
+        let local = self.producer.proposer();
+        if !next.contains(&local) {
+            next.push(local);
+        }
+        if next.as_slice() == self.consensus.validators() {
+            return;
+        }
+        info!(
+            "Stake validator set refresh at height={}: n={}",
+            committed_height,
+            next.len()
+        );
+        self.consensus.set_validators(next);
+    }
+
+    /// Apply any buffered votes for the current pending proposal; returns commit hash if quorum hit.
+    fn drain_early_votes_for_pending(&mut self, block_hash: Hash) -> Option<Hash> {
+        let round = self.consensus.round();
+        let voters = self
+            .early_votes
+            .remove(&(round, block_hash))
+            .unwrap_or_default();
+        for voter in voters {
+            match self.consensus.vote(block_hash, voter) {
+                Ok(Some(h)) => {
+                    if let Some(pending) = self.pending_commit.take() {
+                        if pending.block.hash() == h {
+                            return Some(self.commit_pending(pending));
+                        }
+                        self.pending_commit = Some(pending);
+                    }
+                    return None;
+                }
+                Ok(None) => {}
+                Err(_) => {}
+            }
+        }
+        None
+    }
+
+    /// Cast a local vote for the pending block; broadcast a signed vote when a key is configured.
+    /// Returns the committed hash when quorum is reached.
+    fn vote_locally_and_maybe_broadcast(&mut self, block_hash: Hash) -> Option<Hash> {
+        let voter = self.producer.proposer();
+        let round = self.consensus.round();
+        match self.consensus.vote(block_hash, voter) {
+            Ok(committed) => {
+                if let Some(ref key) = self.validator_signing_key {
+                    let vote = ConsensusVote::sign(round, block_hash, key);
+                    let _ = self.p2p.broadcast_vote(&vote);
+                }
+                if let Some(h) = committed {
+                    if let Some(pending) = self.pending_commit.take() {
+                        if pending.block.hash() == h {
+                            return Some(self.commit_pending(pending));
+                        }
+                        // Hash mismatch — restore pending (should not happen).
+                        self.pending_commit = Some(pending);
+                    }
+                }
+                None
+            }
+            Err(e) => {
+                boing_telemetry::component_warn(
+                    "boing_node::node",
+                    "consensus",
+                    "local_vote_failed",
+                    e,
+                );
+                None
+            }
+        }
+    }
+
+    /// Apply a verified consensus vote from the network. Commits when quorum is reached.
+    pub fn on_consensus_vote(&mut self, vote: ConsensusVote) -> Option<Hash> {
+        if vote.verify().is_err() {
+            return None;
+        }
+        if !self.consensus.validators().contains(&vote.validator) {
+            return None;
+        }
+        // Buffer votes that arrive before we have a matching pending proposal.
+        let have_pending = self
+            .pending_commit
+            .as_ref()
+            .map(|p| p.block.hash() == vote.block_hash)
+            .unwrap_or(false);
+        if !have_pending || self.consensus.round() != vote.round {
+            if self.consensus.round() == vote.round
+                || self.consensus.pending_block().is_none()
+            {
+                self.early_votes
+                    .entry((vote.round, vote.block_hash))
+                    .or_default()
+                    .push(vote.validator);
+            }
+            return None;
+        }
+        match self.consensus.vote(vote.block_hash, vote.validator) {
+            Ok(Some(h)) => {
+                if let Some(pending) = self.pending_commit.take() {
+                    if pending.block.hash() == h {
+                        return Some(self.commit_pending(pending));
+                    }
+                    self.pending_commit = Some(pending);
+                }
+                None
+            }
+            Ok(None) => None,
+            Err(e) => {
+                boing_telemetry::component_warn(
+                    "boing_node::node",
+                    "consensus",
+                    "peer_vote_failed",
+                    e,
+                );
+                None
+            }
+        }
+    }
+
+    /// Validate a network block, enter voting, self-vote, and commit on quorum.
+    /// Does **not** append until consensus quorum (unlike the former immediate-import path).
+    pub fn handle_network_block(
         &mut self,
         block: &boing_primitives::Block,
-    ) -> Result<(), crate::block_validation::BlockValidationError> {
+    ) -> Result<Option<Hash>, BlockValidationError> {
+        let (latest_hash, height) = (self.chain.latest_hash(), self.chain.height());
+        let (new_state, receipts) = import_block(
+            block,
+            latest_hash,
+            height,
+            &self.state,
+            &self.consensus,
+            &self.executor,
+        )?;
+
+        if let Err(e) = self.consensus.accept_proposal(block.clone()) {
+            return Err(BlockValidationError::ExecutionFailed(e.to_string()));
+        }
+
+        self.pending_commit = Some(PendingCommit {
+            block: block.clone(),
+            receipts,
+            new_state,
+        });
+
+        let block_hash = block.hash();
+        if let Some(h) = self.vote_locally_and_maybe_broadcast(block_hash) {
+            return Ok(Some(h));
+        }
+        Ok(self.drain_early_votes_for_pending(block_hash))
+    }
+
+    /// Catch-up import for blocks fetched via block-sync (votes for that round may already be gone).
+    /// Validates and appends immediately, then aligns the consensus round.
+    pub fn import_network_block_catchup(
+        &mut self,
+        block: &boing_primitives::Block,
+    ) -> Result<(), BlockValidationError> {
         let (latest_hash, height) = (self.chain.latest_hash(), self.chain.height());
         let (new_state, receipts) = import_block(
             block,
@@ -274,13 +560,23 @@ impl BoingNode {
             .expect("block chains (validated by import_block)");
         self.consensus
             .sync_round(block.header.height.saturating_add(1));
+        self.pending_commit = None;
         for r in &receipts {
             self.receipts.insert(r.tx_id, r.clone());
         }
         self.persist_block_and_state(block, &receipts);
         self.refresh_native_aggregates();
         self.emit_head_subscriber_event();
+        self.maybe_refresh_stake_validators(block.header.height);
         Ok(())
+    }
+
+    /// Import a gossiped block via the quorum path ([`Self::handle_network_block`]).
+    pub fn import_network_block(
+        &mut self,
+        block: &boing_primitives::Block,
+    ) -> Result<(), BlockValidationError> {
+        self.handle_network_block(block).map(|_| ())
     }
 
     /// Submit a signed intent for solver fulfillment.
@@ -346,27 +642,46 @@ impl BoingNode {
         }
     }
 
-    /// Produce one block from mempool if there are pending txs.
-    /// Broadcasts the block via P2P on success.
+    /// Produce one block from mempool if there are pending txs and this node is the round leader.
+    /// Broadcasts the proposal and self-votes; appends only when quorum is reached (immediate for
+    /// single-validator).
     pub fn produce_block_if_ready(&mut self) -> Option<boing_primitives::Hash> {
         self.apply_qa_pool_expirations();
-        let (hash, receipts) = self.producer.produce_block(
+        // Do not start a new proposal while one is pending votes.
+        if self.pending_commit.is_some() {
+            return None;
+        }
+
+        let proposal = self.producer.produce_proposal(
             &self.chain,
             &self.mempool,
             &mut self.state,
             &self.executor,
-            &mut self.consensus,
+            &self.consensus,
         )?;
-        if let Some(block) = self.chain.get_block_by_hash(&hash) {
-            for r in &receipts {
-                self.receipts.insert(r.tx_id, r.clone());
-            }
-            self.persist_block_and_state(&block, &receipts);
-            let _ = self.p2p.broadcast_block(&block);
+
+        if let Err(e) = self.consensus.propose(proposal.block.clone()) {
+            boing_telemetry::component_warn(
+                "boing_node::node",
+                "block_producer",
+                "consensus_propose_failed",
+                e,
+            );
+            return None;
         }
-        self.refresh_native_aggregates();
-        self.emit_head_subscriber_event();
-        Some(hash)
+
+        let block_hash = proposal.block.hash();
+        let _ = self.p2p.broadcast_block(&proposal.block);
+        self.pending_commit = Some(PendingCommit {
+            block: proposal.block,
+            receipts: proposal.receipts,
+            new_state: proposal.new_state,
+        });
+
+        if let Some(h) = self.vote_locally_and_maybe_broadcast(block_hash) {
+            return Some(h);
+        }
+        self.drain_early_votes_for_pending(block_hash)
     }
 }
 

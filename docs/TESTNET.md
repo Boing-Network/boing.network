@@ -22,7 +22,7 @@ Run nodes on the testnet, get testnet BOING from the faucet, and join as a valid
 | Mode | Use case | How to run |
 |------|----------|------------|
 | **Single node** | Local dev, trying the chain alone, no P2P | Run `boing-node` **without** `--p2p-listen`. The node runs in isolation: it produces blocks if `--validator`, and serves RPC. No other peers. |
-| **Multi-node testnet** | Public testnet: many nodes syncing and validating together | Run `boing-node` **with** `--p2p-listen` and `--bootnodes`. Your node joins the P2P network, syncs blocks from peers, and (if `--validator`) can produce blocks when it's the leader. |
+| **Multi-node testnet** | Public testnet: many nodes syncing and validating together | Run `boing-node` **with** `--p2p-listen` and `--bootnodes`. Your node joins the P2P network, syncs blocks from peers, and (if `--validator`) can produce blocks when it's the leader. For **multi-validator BFT** (votes over P2P), also set `--validators` / `BOING_VALIDATORS` and `--validator-key` / `BOING_VALIDATOR_KEY` (see [RUNBOOK.md](RUNBOOK.md) §8.1). Default without those flags remains single-validator. |
 
 **Summary:**  
 - **Single node** = one machine, one chain, no peer discovery. Good for "run a chain on my laptop."  
@@ -76,7 +76,7 @@ RPC: `http://127.0.0.1:8545/`. No bootnodes needed.
 
 3. **Get testnet BOING** from the [Faucet](https://boing.network/faucet) (see §5).
 
-4. **Stake** by submitting a `Bond` transaction via RPC so you can participate as a validator (validator set is derived from top stakers).
+4. **Stake** by submitting a `Bond` transaction via RPC (stake accounting is live). **Validator set for consensus:** static list via `--validators` / `BOING_VALIDATORS` by default; opt-in stake epochs with `--validator-set stake` / **`BOING_VALIDATOR_SET=stake`** (see [RUNBOOK.md](RUNBOOK.md) §8.1). Min stake / unbonding delay remain follow-ups — [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md).
 
 ## 5. Faucet (testnet BOING)
 

@@ -6,3 +6,5 @@ description = "BOING tokenomics — sustainable value design"
 
 [dependencies]
 boing-primitives = { path = "../boing-primitives" }
+boing-state = { path = "../boing-state" }
+thiserror = "1"

@@ -22,17 +22,20 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::info;
 
 use crate::block_sync::{BlockRequest, BlockResponse};
-use boing_primitives::{Block, Hash, SignedTransaction};
+use boing_primitives::{Block, ConsensusVote, Hash, SignedTransaction};
 
 const BLOCKS_TOPIC: &str = "boing/blocks";
 const TRANSACTIONS_TOPIC: &str = "boing/transactions";
+const VOTES_TOPIC: &str = "boing/votes";
 
-/// P2P events (incoming blocks/transactions and block fetch responses).
+/// P2P events (incoming blocks/transactions/votes and block fetch responses).
 #[derive(Debug)]
 pub enum P2pEvent {
     BlockReceived(Block),
     /// Gossiped signed transaction from a peer (verify before mempool insert).
     TransactionReceived(SignedTransaction),
+    /// Gossiped consensus vote (signature verified at the P2P edge).
+    VoteReceived(ConsensusVote),
     /// Response from request_block (by hash or height).
     BlockFetched(Block),
 }
@@ -40,6 +43,7 @@ pub enum P2pEvent {
 enum BroadcastMsg {
     Block(Block),
     SignedTransaction(SignedTransaction),
+    Vote(ConsensusVote),
 }
 
 enum Command {
@@ -163,6 +167,7 @@ impl P2pNode {
 
         let blocks_topic = IdentTopic::new(BLOCKS_TOPIC);
         let txs_topic = IdentTopic::new(TRANSACTIONS_TOPIC);
+        let votes_topic = IdentTopic::new(VOTES_TOPIC);
         let listen_addr = listen_addr.to_string();
         let block_provider = block_provider;
 
@@ -177,6 +182,7 @@ impl P2pNode {
             );
             swarm.behaviour_mut().gossipsub.subscribe(&blocks_topic).expect("subscribe blocks");
             swarm.behaviour_mut().gossipsub.subscribe(&txs_topic).expect("subscribe txs");
+            swarm.behaviour_mut().gossipsub.subscribe(&votes_topic).expect("subscribe votes");
 
             info!("P2P: listening on {} peer_id={:?}", listen_addr, swarm.local_peer_id());
 
@@ -285,6 +291,46 @@ impl P2pNode {
                                     }
                                 }
                             }
+                            Some(BroadcastMsg::Vote(vote)) => {
+                                match bincode::serialize(&vote) {
+                                    Ok(bytes) => {
+                                        if let Err(e) = swarm
+                                            .behaviour_mut()
+                                            .gossipsub
+                                            .publish(votes_topic.clone(), bytes)
+                                        {
+                                            if matches!(e, PublishError::NoPeersSubscribedToTopic) {
+                                                boing_telemetry::component_debug(
+                                                    "boing_p2p::swarm",
+                                                    "p2p",
+                                                    "gossip_vote_no_subscribed_peers",
+                                                    "vote not gossip-published yet (no subscribed peers)",
+                                                );
+                                            } else {
+                                                boing_telemetry::component_warn(
+                                                    "boing_p2p::swarm",
+                                                    "p2p",
+                                                    "gossip_vote_publish_failed",
+                                                    e,
+                                                );
+                                            }
+                                        } else {
+                                            info!(
+                                                "P2P: broadcast vote round={} validator={:?}",
+                                                vote.round, vote.validator
+                                            );
+                                        }
+                                    }
+                                    Err(e) => {
+                                        boing_telemetry::component_warn(
+                                            "boing_p2p::swarm",
+                                            "p2p",
+                                            "vote_serialize_failed",
+                                            e,
+                                        );
+                                    }
+                                }
+                            }
                             None => break,
                         }
                     }
@@ -301,6 +347,19 @@ impl P2pNode {
                                 if let Ok(signed) = bincode::deserialize::<SignedTransaction>(&message.data)
                                 {
                                     let _ = event_tx.send(P2pEvent::TransactionReceived(signed));
+                                }
+                            } else if topic == VOTES_TOPIC {
+                                if let Ok(vote) = bincode::deserialize::<ConsensusVote>(&message.data) {
+                                    if vote.verify().is_ok() {
+                                        let _ = event_tx.send(P2pEvent::VoteReceived(vote));
+                                    } else {
+                                        boing_telemetry::component_warn(
+                                            "boing_p2p::swarm",
+                                            "p2p",
+                                            "gossip_vote_bad_signature",
+                                            format!("round={} validator={:?}", vote.round, vote.validator),
+                                        );
+                                    }
                                 }
                             }
                         } else if let SwarmEvent::ConnectionEstablished {
@@ -446,6 +505,15 @@ impl P2pNode {
     pub fn broadcast_signed_transaction(&self, signed: &SignedTransaction) -> Result<(), P2pError> {
         if let Some(ref ch) = self.broadcast_tx {
             ch.try_send(BroadcastMsg::SignedTransaction(signed.clone()))
+                .map_err(|e| P2pError::Network(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    /// Gossip a signed consensus vote to subscribed peers.
+    pub fn broadcast_vote(&self, vote: &ConsensusVote) -> Result<(), P2pError> {
+        if let Some(ref ch) = self.broadcast_tx {
+            ch.try_send(BroadcastMsg::Vote(vote.clone()))
                 .map_err(|e| P2pError::Network(e.to_string()))?;
         }
         Ok(())

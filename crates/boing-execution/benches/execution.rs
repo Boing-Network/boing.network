@@ -65,7 +65,7 @@ fn bench_parallel(c: &mut Criterion) {
             let exec = BlockExecutor::new();
             b.iter(|| {
                 let mut s = state.snapshot();
-                exec.execute_block(1, 0, black_box(&txs), &mut s).unwrap();
+                exec.execute_block(1, 0, black_box(&txs), &mut s, AccountId([0xff; 32])).unwrap();
             });
         });
     }
@@ -80,7 +80,7 @@ fn bench_sequential(c: &mut Criterion) {
             let exec = BlockExecutor::new();
             b.iter(|| {
                 let mut s = state.snapshot();
-                exec.execute_block(1, 0, black_box(&txs), &mut s).unwrap();
+                exec.execute_block(1, 0, black_box(&txs), &mut s, AccountId([0xff; 32])).unwrap();
             });
         });
     }

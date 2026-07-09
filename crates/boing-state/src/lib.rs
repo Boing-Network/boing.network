@@ -5,6 +5,8 @@
 mod sparse_merkle;
 mod store;
 
-pub use sparse_merkle::{MerkleProof, ProofStep, SparseMerkleTree};
+pub use sparse_merkle::{
+    hash_account_leaf, hash_contract_code, MerkleProof, ProofStep, SparseMerkleTree,
+};
 pub use store::{ChainNativeAggregates, ContractStorageEntry, StateCheckpoint, StateStore};
 pub use boing_primitives::{Account, AccountId, AccountState, Hash};

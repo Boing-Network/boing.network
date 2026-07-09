@@ -15,4 +15,4 @@ pub use webrtc::{
     StunTurnRegistryEntry, StunTurnReputation,
 };
 pub use node::{BlockProvider, P2pError, P2pEvent, P2pNode};
-pub use boing_primitives::{Block, SignedTransaction, Transaction};
+pub use boing_primitives::{Block, ConsensusVote, SignedTransaction, Transaction};

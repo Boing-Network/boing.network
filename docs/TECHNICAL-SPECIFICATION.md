@@ -166,6 +166,17 @@ AccountState = {
 - **nonce:** Sequence number for replay protection
 - **stake:** Bonded stake (for validation)
 
+**State commitment (account leaf):** The global Sparse Merkle tree leaf for an account is
+
+```text
+BLAKE3(balance_le || nonce_le || stake_le || code_hash || storage_root)
+```
+
+- **`code_hash`:** `BLAKE3(bytecode)` if the account has deployed code; otherwise `Hash::ZERO`.
+- **`storage_root`:** Root of a per-contract Sparse Merkle tree over storage slots (`slot_key` → `BLAKE3(value)`); `Hash::ZERO` if the contract has no slots.
+
+Contract code and storage therefore affect `BlockHeader.state_root` (not only the account balance table).
+
 ### 4.6 Account
 
 ```text
@@ -365,7 +376,23 @@ See [§7.2 Opcodes](#72-opcodes). Contract execution adds opcode costs to base `
 - Max multiplier: 2.0 (under congestion)
 - Configurable via `GasConfig.multiplier_e4` (e.g. 10000 = 1.0, 15000 = 1.5)
 
----
+### 8.4 Fee market v0 (charged)
+
+After a successful transaction, the executor charges:
+
+```text
+fee = gas_used × GAS_PRICE   // GAS_PRICE = 1 BOING per gas unit (boing-tokenomics)
+```
+
+The fee is deducted from the sender and split:
+
+| Share | BPS | Destination |
+|-------|-----|-------------|
+| Validators | 7000 (70%) | Block proposer (`fee_recipient`) |
+| Treasury | 2000 (20%) | `PROTOCOL_TREASURY` |
+| Burn | 1000 (10%) | `FEE_BURN_SINK` (protocol burn account) |
+
+Integer remainders from the BPS split are added to the validator share so parts always sum to `fee`. Failed transactions do not charge fees. There is no per-tx `gas_price` field yet (fixed network price).
 
 ## 9. Protocol QA Rules
 
@@ -397,7 +424,7 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 - **Chain:** Linear chain of blocks
 - **Block hash:** BLAKE3 of bincode-serialized `BlockHeader`
 - **Tx root:** Merkle root of transaction IDs (binary tree)
-- **State root:** Root of Sparse Merkle tree (or equivalent)
+- **State root:** Root of the global Sparse Merkle tree over account leaves that commit to balance/nonce/stake **and** `code_hash` + per-contract `storage_root` (see §4.5).
 
 ---
 
@@ -478,12 +505,17 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 - Bootstrap lists
 - **Target:** DHT (Kademlia) + gossip-first overlay; bootnode rotation (see [DECENTRALIZATION-AND-NETWORKING.md](DECENTRALIZATION-AND-NETWORKING.md))
 
-### 12.3 Gossip topics (blocks and transactions)
+### 12.3 Gossip topics (blocks, transactions, and votes)
 
 | Topic | Payload | Notes |
 |-------|---------|--------|
 | `boing/blocks` | `bincode(Block)` | Block fan-out; peers still sync via request/response (`/boing/block-sync/1`) if gossip is slow. |
 | `boing/transactions` | `bincode(SignedTransaction)` | After a successful **`boing_submitTransaction`** / **`boing_faucetRequest`**, the node gossips the **signed** tx; peers verify the Ed25519 signature and run the same mempool + QA admission as RPC. |
+| `boing/votes` | `bincode(ConsensusVote)` | HotStuff-style votes: Ed25519 over `BLAKE3("boing.consensus.vote.v1\\0" \|\| round_le \|\| block_hash)`. Peers verify the signature at the P2P edge before emitting `VoteReceived`. |
+
+**Distributed consensus MVP (dev/testnet):** With a multi-validator set (`--validators` / `BOING_VALIDATORS` and `--validator-key` / `BOING_VALIDATOR_KEY`), the round leader proposes a block, gossips it, and self-votes; followers validate, `accept_proposal`, self-vote, and gossip votes. The tip advances only when **2f+1** votes are collected. Single-validator (default) still commits on the leader’s self-vote alone. Lagging nodes may catch up via block-sync without replaying live votes. Regression: `cargo test -p boing-node --test multi_validator_consensus`.
+
+**Stake-derived set (opt-in):** `--validator-set stake` / **`BOING_VALIDATOR_SET=stake`** refreshes the consensus validator list from positive-stake `StateStore::top_stakers(n)` every epoch (`BOING_STAKE_VALIDATOR_EPOCH_LEN`, default 100). The local validator identity is always retained. Regression: `cargo test -p boing-node --test stake_validator_epochs`.
 
 **Mesh sizing:** libp2p gossipsub uses default mesh parameters (see upstream `mesh_n` / `mesh_n_low`). Very small graphs (e.g. two TCP peers) may not form a reliable topic mesh; production testnets should run **enough interconnected peers** or tune gossipsub in `boing-p2p`. Regression: `cargo test -p boing-node --test p2p_tx_gossip_rpc` (four-node full mesh).
 

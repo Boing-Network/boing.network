@@ -72,6 +72,7 @@ boing-primitives = { path = "../boing-primitives" }
 boing-state = { path = "../boing-state" }
 boing-qa = { path = "../boing-qa" }
 boing-telemetry = { path = "../boing-telemetry" }
+boing-tokenomics = { path = "../boing-tokenomics" }
 num-bigint = "0.4"
 tracing = "0.1"
 async-trait = "0.1"

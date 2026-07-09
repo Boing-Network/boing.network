@@ -702,6 +702,13 @@ export {
   type CollectNativeDexDirectoryPoolsOptions,
 } from './nativeDexDirectoryApi.js';
 export {
+  createNativeDexDiscovery,
+  readNativeDexDirectoryBaseUrlFromProcessEnv,
+  type CreateNativeDexDiscoveryOptions,
+  type NativeDexDiscovery,
+  type NativeDexDiscoveryPoolSource,
+} from './nativeDexDiscovery.js';
+export {
   getInjectedEip1193Provider,
   providerSupportsBoingNativeRpc,
   boingSendTransaction,

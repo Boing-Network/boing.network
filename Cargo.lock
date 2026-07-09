@@ -643,6 +643,7 @@ dependencies = [
  "boing-qa",
  "boing-state",
  "boing-telemetry",
+ "boing-tokenomics",
  "criterion",
  "ed25519-dalek",
  "hex",
@@ -786,6 +787,8 @@ name = "boing-tokenomics"
 version = "0.1.0"
 dependencies = [
  "boing-primitives",
+ "boing-state",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

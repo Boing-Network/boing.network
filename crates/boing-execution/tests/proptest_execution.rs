@@ -48,9 +48,21 @@ proptest! {
         let max_id = (count * 2) as u8;
         let total_before = total_balance(&state, max_id);
         let exec = BlockExecutor::new();
-        exec.execute_block(1, 0, &txs, &mut state).unwrap();
-        let total_after = total_balance(&state, max_id);
-        prop_assert_eq!(total_before, total_after, "total balance must be preserved");
+        exec.execute_block(1, 0, &txs, &mut state, AccountId([0xff; 32])).unwrap();
+        let total_after = total_balance(&state, max_id)
+            + state
+                .get(&AccountId([0xff; 32]))
+                .map(|s| s.balance)
+                .unwrap_or(0)
+            + state
+                .get(&boing_tokenomics::PROTOCOL_TREASURY)
+                .map(|s| s.balance)
+                .unwrap_or(0)
+            + state
+                .get(&boing_tokenomics::FEE_BURN_SINK)
+                .map(|s| s.balance)
+                .unwrap_or(0);
+        prop_assert_eq!(total_before, total_after, "total balance must be preserved (incl. fee sinks)");
     }
 
     /// Parallel and sequential execution of same independent transfers yield identical state.
@@ -59,12 +71,13 @@ proptest! {
         let (txs, state) = mk_parallel_transfers(count, amount);
         let exec = BlockExecutor::new();
         let max_id = (count * 2) as u8;
+        let proposer = AccountId([0xff; 32]);
 
         let mut s1 = state.snapshot();
-        exec.execute_block(1, 0, &txs, &mut s1).unwrap();
+        exec.execute_block(1, 0, &txs, &mut s1, proposer).unwrap();
 
         let mut s2 = state.snapshot();
-        exec.execute_block(1, 0, &txs, &mut s2).unwrap();
+        exec.execute_block(1, 0, &txs, &mut s2, proposer).unwrap();
 
         for i in 0..=max_id {
             let id = AccountId({ let mut a = [0u8; 32]; a[0] = i; a });

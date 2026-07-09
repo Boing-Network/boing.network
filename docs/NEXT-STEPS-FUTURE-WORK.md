@@ -119,6 +119,20 @@ Rough sizing for **in-repo** work after the current SDK / indexer / RPC CI slice
 
 ---
 
+## Consensus / economics (Phase 1 follow-ups)
+
+| Follow-up | Notes |
+|-----------|--------|
+| **Distributed HotStuff MVP** | **Done (dev/testnet):** `accept_proposal`, `boing/votes` + `ConsensusVote`, quorum commit in `boing-node`, `--validators` / `--validator-key`, `cargo test -p boing-node --test multi_validator_consensus`. Default remains single-validator. |
+| **State root includes code/storage** | **Done:** account leaf = `BLAKE3(balance\|\|nonce\|\|stake\|\|code_hash\|\|storage_root)`; per-contract storage SMT; `prove_storage` helper. See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §4.5. |
+| **Stake-derived validator epochs** | **Done (opt-in):** `--validator-set stake` / **`BOING_VALIDATOR_SET=stake`** refreshes from positive-stake `top_stakers(n)` every **`BOING_STAKE_VALIDATOR_EPOCH_LEN`** blocks (default 100); local validator always retained. **Still open:** min stake threshold, unbonding delay. Regression: `cargo test -p boing-node --test stake_validator_epochs`. |
+| **VRF leader election** | Replace round-robin with `leader_from_vrf` (stub in `boing-primitives`). |
+| **On-chain slashing** | Propagate equivocation evidence; enforce penalties (today: local detection only). |
+| **Fee market v0** | **Done:** fixed `GAS_PRICE` × `gas_used`; split via `FEE_*_BPS` to proposer / `PROTOCOL_TREASURY` / burn sink in `BlockExecutor`. No EIP-1559 / tip auctions yet. |
+| **Builder DX (Phase 2 remainder)** | **Done:** SDK **`createNativeDexDiscovery`**; starter [examples/boing-dapp-starter](../examples/boing-dapp-starter/); root **`npm run seed-native-dex`** → full-stack deploy ([DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md)). |
+
+---
+
 ## Native AMM (checklist **still open** items)
 
 | Follow-up | Notes |

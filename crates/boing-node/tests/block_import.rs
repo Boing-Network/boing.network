@@ -47,7 +47,7 @@ fn test_validate_and_execute_block() {
     parent.insert(Account {
         id: proposer,
         state: AccountState {
-            balance: 1000,
+            balance: 1_000_000,
             nonce: 0,
             stake: 0,
         },
@@ -65,7 +65,9 @@ fn test_validate_and_execute_block() {
     let txs = vec![tx.clone()];
     let exec = BlockExecutor::new();
     let mut state = parent.snapshot();
-    let (_g, exec_receipts) = exec.execute_block(1, 0, &txs, &mut state).unwrap();
+    let (_g, exec_receipts) = exec
+        .execute_block(1, 0, &txs, &mut state, proposer)
+        .unwrap();
     let reward = boing_tokenomics::block_emission_validators(1);
     state.get_mut(&proposer).unwrap().balance =
         state.get(&proposer).unwrap().balance.saturating_add(reward);
@@ -86,14 +88,17 @@ fn test_validate_and_execute_block() {
     };
 
     let validators = vec![proposer];
-    let result = validate_and_execute_block(&block, &parent, &validators, &exec);
+    let result = validate_and_execute_block(&block, &parent, &validators, proposer, &exec);
     assert!(result.is_ok());
     let (new_state, receipts) = result.unwrap();
     assert_eq!(receipts.len(), 1);
     assert!(receipts[0].success);
+    let fee = boing_tokenomics::fee_for_gas(receipts[0].gas_used);
+    let (v, _, _) = boing_tokenomics::split_fee(fee);
+    // Proposer is also sender: pays amount+fee, then receives validator fee share + block reward.
     assert_eq!(
         new_state.get(&proposer).unwrap().balance,
-        1000 - 100 + reward
+        1_000_000 - 100 - fee + v + reward
     );
     assert_eq!(new_state.get(&to).unwrap().balance, 100);
 }
@@ -129,7 +134,9 @@ fn test_import_block() {
     let txs = vec![tx];
     let exec = BlockExecutor::new();
     let mut state = parent.snapshot();
-    let (_g, exec_receipts) = exec.execute_block(1, 0, &txs, &mut state).unwrap();
+    let (_g, exec_receipts) = exec
+        .execute_block(1, 0, &txs, &mut state, proposer)
+        .unwrap();
     let reward = boing_tokenomics::block_emission_validators(1);
     state.get_mut(&proposer).unwrap().balance =
         state.get(&proposer).unwrap().balance.saturating_add(reward);

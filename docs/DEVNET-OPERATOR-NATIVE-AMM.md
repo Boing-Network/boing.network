@@ -36,7 +36,14 @@ cp .env.example .env   # then edit: BOING_RPC_URL, BOING_SECRET_HEX; optional BO
 npm run deploy-native-dex-full-stack
 ```
 
-**Not run by the node binary** — this is an operator script against **`BOING_RPC_URL`**. Output shape and env defaults: [NATIVE-DEX-FULL-STACK-OUTPUT.md](NATIVE-DEX-FULL-STACK-OUTPUT.md), **`.env.example`** in the tutorial package. For **real** pairs, set **`BOING_DEX_TOKEN_A_HEX` / `BOING_DEX_TOKEN_B_HEX`** before running. Optional **ledger v1** in the same run: **`BOING_FULL_STACK_INCLUDE_LEDGER_V1=1`**.
+From the **repo root**, the same orchestrator is also available as:
+
+```bash
+npm run seed-native-dex
+# alias of: npm run deploy-native-dex-full-stack
+```
+
+**Not run by the node binary** — this is an operator script against **`BOING_RPC_URL`**. Output shape and env defaults: [NATIVE-DEX-FULL-STACK-OUTPUT.md](NATIVE-DEX-FULL-STACK-OUTPUT.md), **`.env.example`** in the tutorial package. For **real** pairs, set **`BOING_DEX_TOKEN_A_HEX` / `BOING_DEX_TOKEN_B_HEX`** before running. Optional **ledger v1** in the same run: **`BOING_FULL_STACK_INCLUDE_LEDGER_V1=1`**. Skip liquidity seed with **`BOING_FULL_STACK_SKIP_SEED=1`**.
 
 Sections **3–5** below are the **step-by-step** equivalent (pool only, then liquidity CLI, etc.) if you prefer granular control.
 
