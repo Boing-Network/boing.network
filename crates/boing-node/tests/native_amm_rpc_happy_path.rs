@@ -68,6 +68,8 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
     pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
+        slashed_equivocations: HashMap::new(),
+        observed_votes: HashMap::new(),
 }
 }
 

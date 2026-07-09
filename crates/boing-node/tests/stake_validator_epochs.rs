@@ -64,6 +64,8 @@ fn node_with_accounts(
             epoch_len: 2,
             min_stake: 100,
         }),
+        slashed_equivocations: HashMap::new(),
+        observed_votes: HashMap::new(),
     }
 }
 

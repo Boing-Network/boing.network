@@ -7,8 +7,8 @@ use boing_consensus::ConsensusEngine;
 use boing_execution::{BlockExecutor, TransactionScheduler, Vm};
 use boing_p2p::{P2pEvent, P2pNode};
 use boing_primitives::{
-    Account, AccountId, AccountState, Block, ConsensusVote, ExecutionReceipt, Hash,
-    SignedTransaction,
+    Account, AccountId, AccountState, Block, ConsensusVote, EquivocationEvidence, ExecutionReceipt,
+    Hash, SignedTransaction,
 };
 use boing_qa::pool::{PendingQaQueue, PoolError, PoolResolution, QaPoolVote};
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
@@ -78,6 +78,10 @@ pub struct BoingNode {
     pub early_votes: HashMap<(u64, Hash), Vec<AccountId>>,
     /// When set, refresh the consensus validator set from `top_stakers(n)` every `epoch_len` blocks.
     pub stake_validator_set: Option<StakeValidatorSetConfig>,
+    /// Rounds already slashed for a validator (dedupe local + gossiped evidence).
+    pub slashed_equivocations: HashMap<(AccountId, u64), ()>,
+    /// Last accepted signed vote per (round, validator) — used to build gossip evidence on conflict.
+    pub observed_votes: HashMap<(u64, AccountId), ConsensusVote>,
 }
 
 /// Result of recording a vote and resolving the pool item when possible.
@@ -172,6 +176,8 @@ impl BoingNode {
             pending_commit: None,
             early_votes: HashMap::new(),
             stake_validator_set: None,
+            slashed_equivocations: HashMap::new(),
+            observed_votes: HashMap::new(),
         }
     }
 
@@ -439,6 +445,7 @@ impl BoingNode {
             Ok(committed) => {
                 if let Some(ref key) = self.validator_signing_key {
                     let vote = ConsensusVote::sign(round, block_hash, key);
+                    self.note_signed_vote_and_maybe_slash(&vote);
                     let _ = self.p2p.broadcast_vote(&vote);
                 }
                 if let Some(h) = committed {
@@ -472,6 +479,9 @@ impl BoingNode {
         if !self.consensus.validators().contains(&vote.validator) {
             return None;
         }
+        // Detect conflicting signed votes even before / without a matching pending proposal.
+        self.note_signed_vote_and_maybe_slash(&vote);
+
         // Buffer votes that arrive before we have a matching pending proposal.
         let have_pending = self
             .pending_commit
@@ -501,7 +511,8 @@ impl BoingNode {
             }
             Ok(None) => None,
             Err(boing_consensus::ConsensusError::Equivocation { validator, round }) => {
-                self.apply_equivocation_slash(validator, round);
+                // Slash already attempted via note_signed_vote; ensure local path still fires.
+                let _ = self.apply_equivocation_slash(validator, round);
                 None
             }
             Err(e) => {
@@ -516,9 +527,14 @@ impl BoingNode {
         }
     }
 
-    /// Burn a fraction of the offender's active stake (local evidence path; not yet gossiped).
-    fn apply_equivocation_slash(&mut self, validator: AccountId, round: u64) {
+    /// Burn a fraction of the offender's active stake (local + gossiped evidence; deduped per round).
+    fn apply_equivocation_slash(&mut self, validator: AccountId, round: u64) -> bool {
+        let key = (validator, round);
+        if self.slashed_equivocations.contains_key(&key) {
+            return false;
+        }
         let burned = boing_tokenomics::slash_equivocation_stake(&mut self.state, &validator);
+        self.slashed_equivocations.insert(key, ());
         if burned > 0 {
             self.refresh_native_aggregates();
             info!(
@@ -527,6 +543,7 @@ impl BoingNode {
                 round,
                 burned
             );
+            true
         } else {
             boing_telemetry::component_warn(
                 "boing_node::node",
@@ -534,7 +551,41 @@ impl BoingNode {
                 "equivocation_no_stake",
                 format!("validator={:?} round={round}", validator),
             );
+            true // still mark as processed so we do not retry forever
         }
+    }
+
+    /// Apply verified gossiped equivocation evidence (slash + optional rebroadcast).
+    pub fn on_equivocation_evidence(&mut self, evidence: EquivocationEvidence) -> bool {
+        if evidence.verify().is_err() {
+            return false;
+        }
+        if !self.consensus.validators().contains(&evidence.validator()) {
+            return false;
+        }
+        let applied = self.apply_equivocation_slash(evidence.validator(), evidence.round());
+        if applied {
+            let _ = self.p2p.broadcast_equivocation(&evidence);
+        }
+        applied
+    }
+
+    /// Remember a signed vote; if it conflicts with a prior vote, slash and gossip evidence.
+    fn note_signed_vote_and_maybe_slash(&mut self, vote: &ConsensusVote) {
+        let key = (vote.round, vote.validator);
+        if let Some(prev) = self.observed_votes.get(&key) {
+            if prev.block_hash != vote.block_hash {
+                if let Ok(ev) =
+                    EquivocationEvidence::try_from_votes(prev.clone(), vote.clone())
+                {
+                    if self.apply_equivocation_slash(ev.validator(), ev.round()) {
+                        let _ = self.p2p.broadcast_equivocation(&ev);
+                    }
+                }
+            }
+            return;
+        }
+        self.observed_votes.insert(key, vote.clone());
     }
 
     /// Validate a network block, enter voting, self-vote, and commit on quorum.

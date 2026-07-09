@@ -512,6 +512,7 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 | `boing/blocks` | `bincode(Block)` | Block fan-out; peers still sync via request/response (`/boing/block-sync/1`) if gossip is slow. |
 | `boing/transactions` | `bincode(SignedTransaction)` | After a successful **`boing_submitTransaction`** / **`boing_faucetRequest`**, the node gossips the **signed** tx; peers verify the Ed25519 signature and run the same mempool + QA admission as RPC. |
 | `boing/votes` | `bincode(ConsensusVote)` | HotStuff-style votes: Ed25519 over `BLAKE3("boing.consensus.vote.v1\\0" \|\| round_le \|\| block_hash)`. Peers verify the signature at the P2P edge before emitting `VoteReceived`. |
+| `boing/equivocation` | `bincode(EquivocationEvidence)` | Two conflicting signed votes (same validator+round, different `block_hash`). Peers verify both signatures, slash once per `(validator, round)`, and may rebroadcast. |
 
 **Distributed consensus MVP (dev/testnet):** With a multi-validator set (`--validators` / `BOING_VALIDATORS` and `--validator-key` / `BOING_VALIDATOR_KEY`), the round leader proposes a block, gossips it, and self-votes; followers validate, `accept_proposal`, self-vote, and gossip votes. The tip advances only when **2f+1** votes are collected. Single-validator (default) still commits on the leader’s self-vote alone. Lagging nodes may catch up via block-sync without replaying live votes. Regression: `cargo test -p boing-node --test multi_validator_consensus`.
 

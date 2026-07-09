@@ -67,6 +67,8 @@ fn node_with_p2p_and_block_provider(
         pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
+        slashed_equivocations: HashMap::new(),
+        observed_votes: HashMap::new(),
     };
     (node, event_rx)
 }
@@ -143,6 +145,10 @@ async fn test_four_validators_sync() {
                     boing_p2p::P2pEvent::VoteReceived(vote) => {
                         let mut n = node_ref.write().await;
                         let _ = n.on_consensus_vote(vote);
+                    }
+                    boing_p2p::P2pEvent::EquivocationReceived(ev) => {
+                        let mut n = node_ref.write().await;
+                        let _ = n.on_equivocation_evidence(ev);
                     }
                     boing_p2p::P2pEvent::TransactionReceived(_) => {}
                 }

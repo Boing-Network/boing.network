@@ -264,6 +264,12 @@ async fn main() -> anyhow::Result<()> {
                                 tracing::info!("P2P: quorum reached via vote, committed {:?}", h);
                             }
                         }
+                        boing_p2p::P2pEvent::EquivocationReceived(ev) => {
+                            let mut n = node_clone.write().await;
+                            if n.on_equivocation_evidence(ev) {
+                                tracing::warn!("P2P: applied gossiped equivocation slash");
+                            }
+                        }
                         boing_p2p::P2pEvent::TransactionReceived(signed) => {
                             if let Err(e) = signed.verify() {
                                 logging::log_p2p_event_warn("gossip_tx_bad_signature", &e);

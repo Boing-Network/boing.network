@@ -3,6 +3,7 @@
 //! Types, hashing, signatures, and shared data structures.
 
 pub mod consensus_vote;
+pub mod equivocation;
 pub mod hash;
 pub mod hd;
 pub mod intent;
@@ -15,6 +16,7 @@ pub mod types;
 pub use consensus_vote::{
     consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN,
 };
+pub use equivocation::{EquivocationError, EquivocationEvidence};
 pub use hash::{Hash, hasher};
 pub use signature::{
     sign_transaction, signable_transaction_hash, verify_signature, Signature, SignatureError,

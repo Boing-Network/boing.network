@@ -54,6 +54,8 @@ fn node_with_accounts() -> BoingNode {
     pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
+        slashed_equivocations: HashMap::new(),
+        observed_votes: HashMap::new(),
     }
 }
 

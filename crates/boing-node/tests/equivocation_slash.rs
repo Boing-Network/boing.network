@@ -3,7 +3,11 @@
 use std::collections::HashMap;
 
 use boing_node::node::BoingNode;
-use boing_primitives::{Account, AccountId, AccountState, Block, BlockHeader, Hash};
+use boing_primitives::{
+    Account, AccountId, AccountState, Block, BlockHeader, ConsensusVote, EquivocationEvidence, Hash,
+};
+use ed25519_dalek::SigningKey;
+use rand::rngs::OsRng;
 
 fn node_with_validators(validators: Vec<AccountId>, stakes: &[(AccountId, u128)]) -> BoingNode {
     let local = validators[0];
@@ -55,6 +59,8 @@ fn node_with_validators(validators: Vec<AccountId>, stakes: &[(AccountId, u128)]
         pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
+        slashed_equivocations: HashMap::new(),
+        observed_votes: HashMap::new(),
     }
 }
 
@@ -64,15 +70,11 @@ fn equivocation_slash_burns_half_active_stake() {
     let v2 = AccountId([2u8; 32]);
     let v3 = AccountId([3u8; 32]);
     let v4 = AccountId([4u8; 32]);
-    let mut node = node_with_validators(
-        vec![v1, v2, v3, v4],
-        &[(v2, 10_000)],
-    );
+    let mut node = node_with_validators(vec![v1, v2, v3, v4], &[(v2, 10_000)]);
 
     let parent = node.chain.latest_hash();
     let height = node.chain.height() + 1;
     node.consensus.sync_round(height);
-    // Round-robin: leader for height is validators[height % 4].
     let leader = node.consensus.leader(height);
     let block = Block {
         header: BlockHeader {
@@ -88,7 +90,6 @@ fn equivocation_slash_burns_half_active_stake() {
     };
     node.consensus.propose(block.clone()).unwrap();
     let good = block.hash();
-    // One vote does not reach quorum (n=4 → quorum=3).
     assert!(node.consensus.vote(good, v2).unwrap().is_none());
 
     let bad = Hash([0xABu8; 32]);
@@ -110,4 +111,42 @@ fn equivocation_slash_burns_half_active_stake() {
         }
         other => panic!("expected Equivocation, got {other:?}"),
     }
+}
+
+#[test]
+fn gossiped_equivocation_evidence_slashes_once() {
+    let v1 = AccountId([1u8; 32]);
+    let v3 = AccountId([3u8; 32]);
+    let v4 = AccountId([4u8; 32]);
+    let key = SigningKey::generate(&mut OsRng);
+    let offender = AccountId(key.verifying_key().to_bytes());
+    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
+
+    let a = ConsensusVote::sign(9, Hash([1u8; 32]), &key);
+    let b = ConsensusVote::sign(9, Hash([2u8; 32]), &key);
+    let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
+
+    assert!(node.on_equivocation_evidence(ev.clone()));
+    assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
+    assert!(!node.on_equivocation_evidence(ev));
+    assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
+}
+
+#[test]
+fn conflicting_observed_votes_slash_via_on_consensus_vote() {
+    let v1 = AccountId([1u8; 32]);
+    let v3 = AccountId([3u8; 32]);
+    let v4 = AccountId([4u8; 32]);
+    let key = SigningKey::generate(&mut OsRng);
+    let offender = AccountId(key.verifying_key().to_bytes());
+    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 8_000)]);
+
+    let a = ConsensusVote::sign(3, Hash([9u8; 32]), &key);
+    let b = ConsensusVote::sign(3, Hash([8u8; 32]), &key);
+    assert!(node.on_consensus_vote(a).is_none());
+    assert!(node.on_consensus_vote(b).is_none());
+    assert_eq!(node.state.get(&offender).unwrap().stake, 4_000);
+    assert!(node
+        .slashed_equivocations
+        .contains_key(&(offender, 3)));
 }
