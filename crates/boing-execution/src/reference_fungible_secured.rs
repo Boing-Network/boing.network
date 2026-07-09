@@ -855,8 +855,7 @@ mod tests {
             state: boing_primitives::AccountState {
                 balance: 10_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
 
         let deploy_bc = reference_fungible_secured_pinned_default_deploy_bytecode();
@@ -928,8 +927,7 @@ mod tests {
             state: boing_primitives::AccountState {
                 balance: 10_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
 
         let vm = Vm::new();
@@ -1027,8 +1025,7 @@ mod tests {
             state: boing_primitives::AccountState {
                 balance: 10_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
 
         let vm = Vm::new();

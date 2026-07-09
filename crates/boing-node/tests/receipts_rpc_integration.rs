@@ -33,8 +33,7 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         state: AccountState {
             balance,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
 
     let native_aggregates = state.compute_native_aggregates();

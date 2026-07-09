@@ -49,6 +49,12 @@ pub const EMISSION_FLOOR_BPS: u16 = 100;
 pub const VALIDATOR_COMMISSION_MIN_BPS: u16 = 500; // 5%
 pub const VALIDATOR_COMMISSION_MAX_BPS: u16 = 1_000; // 10%
 
+/// Minimum active stake to enter the stake-derived validator set (BOING units).
+pub const MIN_VALIDATOR_STAKE: u128 = 10_000;
+
+/// Blocks after `Unbond` before `ClaimUnbond` may move funds back to balance.
+pub const UNBONDING_DELAY_BLOCKS: u64 = 100;
+
 /// dApp incentive cap per epoch (governance parameter; placeholder).
 pub const DAPP_CAP_PER_EPOCH: u128 = 50_000;
 
@@ -84,6 +90,7 @@ fn credit_account(state: &mut StateStore, id: AccountId, amount: u128) {
                     balance: amount,
                     nonce: 0,
                     stake: 0,
+                    ..Default::default()
                 },
             });
         }
@@ -175,6 +182,7 @@ mod tests {
                 balance: 100_000,
                 nonce: 0,
                 stake: 0,
+                ..Default::default()
             },
         });
         let fee = fee_for_gas(21_000);

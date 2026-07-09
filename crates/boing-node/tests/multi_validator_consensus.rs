@@ -50,8 +50,7 @@ fn multi_validator_node(
             state: AccountState {
                 balance,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
     }
 

@@ -117,6 +117,14 @@ struct Args {
     /// When `--validator-set stake`, refresh every N committed blocks (default 100). Overrides **`BOING_STAKE_VALIDATOR_EPOCH_LEN`**.
     #[arg(long)]
     stake_validator_epoch_len: Option<u64>,
+
+    /// When `--validator-set stake`, minimum active stake to enter the set (default 10000). Overrides **`BOING_STAKE_VALIDATOR_MIN_STAKE`**.
+    #[arg(long)]
+    stake_validator_min_stake: Option<u128>,
+
+    /// Leader election: `round_robin` (default) or `vrf` (deterministic `leader_from_vrf` from round). Overrides **`BOING_LEADER_ELECTION`**.
+    #[arg(long)]
+    leader_election: Option<String>,
 }
 
 #[tokio::main]
@@ -139,16 +147,23 @@ async fn main() -> anyhow::Result<()> {
         args.validator_set.as_deref(),
         args.stake_validator_top_n,
         args.stake_validator_epoch_len,
+        args.stake_validator_min_stake,
     )
     .map_err(|e| anyhow::anyhow!("validator-set config: {e}"))?;
+    let leader_election = validator_config::resolve_leader_election(args.leader_election.as_deref())
+        .map_err(|e| anyhow::anyhow!("leader-election config: {e}"))?;
     tracing::info!(
-        "Consensus validators={} local={} stake_set={}",
+        "Consensus validators={} local={} stake_set={} leader_election={:?}",
         validators.len(),
         hex::encode(local_validator.0),
         stake_set
             .as_ref()
-            .map(|c| format!("top_n={} epoch_len={}", c.top_n, c.epoch_len))
-            .unwrap_or_else(|| "off".into())
+            .map(|c| format!(
+                "top_n={} epoch_len={} min_stake={}",
+                c.top_n, c.epoch_len, c.min_stake
+            ))
+            .unwrap_or_else(|| "off".into()),
+        leader_election
     );
 
     let mut rate_limit = rate_limit_config_from_args(args.dev_rate_limits);
@@ -174,8 +189,10 @@ async fn main() -> anyhow::Result<()> {
                 n.stake_validator_set = Some(node::StakeValidatorSetConfig {
                     top_n: cfg.top_n,
                     epoch_len: cfg.epoch_len,
+                    min_stake: cfg.min_stake,
                 });
             }
+            n.consensus.set_leader_election(leader_election);
             if rate_limit.connections_per_ip > 0 {
                 tracing::info!(
                     "P2P: max simultaneous connections per remote IP = {}",
@@ -297,8 +314,10 @@ async fn main() -> anyhow::Result<()> {
                 n.stake_validator_set = Some(node::StakeValidatorSetConfig {
                     top_n: cfg.top_n,
                     epoch_len: cfg.epoch_len,
+                    min_stake: cfg.min_stake,
                 });
             }
+            n.consensus.set_leader_election(leader_election);
             Arc::new(RwLock::new(n))
         }
     };
@@ -346,8 +365,7 @@ async fn main() -> anyhow::Result<()> {
                 state: AccountState {
                     balance: faucet::FAUCET_INITIAL_BALANCE,
                     nonce: 0,
-                    stake: 0,
-                },
+                    stake: 0, ..Default::default() },
             });
             n.refresh_native_aggregates();
             tracing::info!(

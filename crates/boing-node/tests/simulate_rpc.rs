@@ -22,8 +22,7 @@ fn node_with_proposer(signing_key: &SigningKey, balance: u128) -> BoingNode {
         state: AccountState {
             balance,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
     let native_aggregates = state.compute_native_aggregates();
     BoingNode {
@@ -61,8 +60,7 @@ fn test_simulate_success() {
         state: AccountState {
             balance: 0,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
 
     let tx = Transaction {

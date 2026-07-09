@@ -21,8 +21,7 @@ fn test_persistence_roundtrip() {
         state: AccountState {
             balance: 1_000_000,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
 
     let p = Persistence::new(&temp);

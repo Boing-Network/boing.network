@@ -9,6 +9,7 @@ pub mod base {
     pub const CONTRACT_DEPLOY: u64 = 200_000;
     pub const BOND: u64 = 21_000;
     pub const UNBOND: u64 = 21_000;
+    pub const CLAIM_UNBOND: u64 = 21_000;
 }
 
 /// Maximum gas multiplier (e.g. 2x under heavy load).

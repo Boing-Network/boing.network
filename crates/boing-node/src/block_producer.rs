@@ -109,8 +109,7 @@ impl BlockProducer {
                         state: AccountState {
                             balance: reward,
                             nonce: 0,
-                            stake: 0,
-                        },
+                            stake: 0, ..Default::default() },
                     });
                 }
             }

@@ -499,9 +499,9 @@ Get full account state (balance, nonce, stake). **Recommended for wallets** to b
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[hex_account_id]` | 32-byte AccountId (hex) |
-| Result | `{ balance: string, nonce: number, stake: string }` | balance and stake are u128 as decimal strings; nonce is u64. If account does not exist, returns balance "0", nonce 0, stake "0". |
+| Result | `{ balance: string, nonce: number, stake: string, pending_unbond: string, unbond_unlock_height: number }` | balance, stake, and pending_unbond are u128 as decimal strings; nonce and unbond_unlock_height are u64. If account does not exist, returns zeros. `pending_unbond` is stake waiting for the unbonding delay; claim with `ClaimUnbond` after `unbond_unlock_height`. |
 
-**Example:** `{"jsonrpc":"2.0","id":1,"method":"boing_getAccount","params":["0x..."]}` → `{"jsonrpc":"2.0","id":1,"result":{"balance":"1000000","nonce":5,"stake":"0"}}`
+**Example:** `{"jsonrpc":"2.0","id":1,"method":"boing_getAccount","params":["0x..."]}` → `{"jsonrpc":"2.0","id":1,"result":{"balance":"1000000","nonce":5,"stake":"0","pending_unbond":"0","unbond_unlock_height":0}}`
 
 ---
 

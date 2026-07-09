@@ -121,6 +121,7 @@ impl Transaction {
             }
             TransactionPayload::Bond { amount } => format!("Bond {} stake", amount),
             TransactionPayload::Unbond { amount } => format!("Unbond {} stake", amount),
+            TransactionPayload::ClaimUnbond => "Claim unbonded stake".into(),
             TransactionPayload::ContractCall { contract, .. } => {
                 format!("Call contract {}", hex::encode(&contract.0[..8]))
             }
@@ -172,7 +173,9 @@ impl Transaction {
                 create2_salt,
                 ..
             } => suggested_access_list_for_contract_deploy(self.sender, bytecode, *create2_salt),
-            TransactionPayload::Bond { .. } | TransactionPayload::Unbond { .. } => {
+            TransactionPayload::Bond { .. }
+            | TransactionPayload::Unbond { .. }
+            | TransactionPayload::ClaimUnbond => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
         }
@@ -219,10 +222,12 @@ pub enum TransactionPayload {
         #[serde(default)]
         create2_salt: Option<[u8; 32]>,
     },
-    /// Bond stake to become/l remain a validator.
+    /// Bond stake to become/remain a validator.
     Bond { amount: u128 },
-    /// Unbond stake (with optional unbonding period).
+    /// Begin unbonding: move `amount` from `stake` into `pending_unbond` (unlock after delay).
     Unbond { amount: u128 },
+    /// Claim matured `pending_unbond` into `balance` once `unbond_unlock_height` is reached.
+    ClaimUnbond,
 }
 
 /// Borrowed fields exposed by [`TransactionPayload::as_contract_deploy`].
@@ -292,8 +297,14 @@ impl TransactionPayload {
 pub struct AccountState {
     pub balance: u128,
     pub nonce: u64,
-    /// Staked balance (bonded for validation).
+    /// Staked balance (bonded for validation / active in the stake set).
     pub stake: u128,
+    /// Stake waiting for the unbonding delay before returning to `balance`.
+    #[serde(default)]
+    pub pending_unbond: u128,
+    /// Block height at which `pending_unbond` may be claimed (0 = none).
+    #[serde(default)]
+    pub unbond_unlock_height: u64,
 }
 
 /// Full account (id + state).

@@ -59,6 +59,7 @@ pub fn parse_validator_signing_key(s: &str) -> Result<SigningKey, String> {
 pub struct StakeValidatorSetCli {
     pub top_n: usize,
     pub epoch_len: u64,
+    pub min_stake: u128,
 }
 
 /// Parse `--validator-set` / `BOING_VALIDATOR_SET`: `static` (default) or `stake`.
@@ -75,11 +76,13 @@ pub fn parse_validator_set_mode(s: &str) -> Result<&'static str, String> {
 /// Resolve stake-set options from CLI / env. Returns `None` unless mode is `stake`.
 ///
 /// Env: `BOING_VALIDATOR_SET=stake`, `BOING_STAKE_VALIDATOR_TOP_N` (default 21),
-/// `BOING_STAKE_VALIDATOR_EPOCH_LEN` (default 100).
+/// `BOING_STAKE_VALIDATOR_EPOCH_LEN` (default 100), `BOING_STAKE_VALIDATOR_MIN_STAKE`
+/// (default [`boing_tokenomics::MIN_VALIDATOR_STAKE`]).
 pub fn resolve_stake_validator_set_config(
     validator_set_cli: Option<&str>,
     top_n_cli: Option<usize>,
     epoch_len_cli: Option<u64>,
+    min_stake_cli: Option<u128>,
 ) -> Result<Option<StakeValidatorSetCli>, String> {
     let mode_str = validator_set_cli
         .map(|s| s.to_string())
@@ -103,6 +106,13 @@ pub fn resolve_stake_validator_set_config(
                 .and_then(|s| s.parse().ok())
         })
         .unwrap_or(100);
+    let min_stake = min_stake_cli
+        .or_else(|| {
+            std::env::var("BOING_STAKE_VALIDATOR_MIN_STAKE")
+                .ok()
+                .and_then(|s| s.parse().ok())
+        })
+        .unwrap_or(boing_tokenomics::MIN_VALIDATOR_STAKE);
 
     if top_n == 0 {
         return Err("stake validator top_n must be >= 1".into());
@@ -110,8 +120,34 @@ pub fn resolve_stake_validator_set_config(
     if epoch_len == 0 {
         return Err("stake validator epoch_len must be >= 1".into());
     }
+    if min_stake == 0 {
+        return Err("stake validator min_stake must be >= 1".into());
+    }
 
-    Ok(Some(StakeValidatorSetCli { top_n, epoch_len }))
+    Ok(Some(StakeValidatorSetCli {
+        top_n,
+        epoch_len,
+        min_stake,
+    }))
+}
+
+/// Parse `--leader-election` / `BOING_LEADER_ELECTION`: `round_robin` (default) or `vrf`.
+pub fn resolve_leader_election(
+    leader_election_cli: Option<&str>,
+) -> Result<boing_consensus::LeaderElection, String> {
+    let s = leader_election_cli
+        .map(|s| s.to_string())
+        .or_else(|| std::env::var("BOING_LEADER_ELECTION").ok())
+        .unwrap_or_else(|| "round_robin".into());
+    match s.trim().to_ascii_lowercase().as_str() {
+        "round_robin" | "round-robin" | "rr" | "" => {
+            Ok(boing_consensus::LeaderElection::RoundRobin)
+        }
+        "vrf" => Ok(boing_consensus::LeaderElection::Vrf),
+        other => Err(format!(
+            "unknown leader-election mode '{other}' (expected round_robin|vrf)"
+        )),
+    }
 }
 
 /// Resolve validator set + local identity from CLI flags and env.
@@ -180,18 +216,33 @@ mod tests {
 
     #[test]
     fn stake_mode_defaults() {
-        assert!(resolve_stake_validator_set_config(Some("static"), None, None)
+        assert!(resolve_stake_validator_set_config(Some("static"), None, None, None)
             .unwrap()
             .is_none());
-        let cfg = resolve_stake_validator_set_config(Some("stake"), None, None)
+        let cfg = resolve_stake_validator_set_config(Some("stake"), None, None, None)
             .unwrap()
             .expect("stake mode");
         assert_eq!(cfg.top_n, 21);
         assert_eq!(cfg.epoch_len, 100);
-        let cfg2 = resolve_stake_validator_set_config(Some("stake"), Some(5), Some(10))
-            .unwrap()
-            .unwrap();
+        assert_eq!(cfg.min_stake, boing_tokenomics::MIN_VALIDATOR_STAKE);
+        let cfg2 =
+            resolve_stake_validator_set_config(Some("stake"), Some(5), Some(10), Some(1_000))
+                .unwrap()
+                .unwrap();
         assert_eq!(cfg2.top_n, 5);
         assert_eq!(cfg2.epoch_len, 10);
+        assert_eq!(cfg2.min_stake, 1_000);
+    }
+
+    #[test]
+    fn leader_election_parse() {
+        assert_eq!(
+            resolve_leader_election(Some("round_robin")).unwrap(),
+            boing_consensus::LeaderElection::RoundRobin
+        );
+        assert_eq!(
+            resolve_leader_election(Some("vrf")).unwrap(),
+            boing_consensus::LeaderElection::Vrf
+        );
     }
 }

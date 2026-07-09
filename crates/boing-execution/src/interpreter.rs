@@ -978,7 +978,7 @@ mod tests {
         let contract = AccountId([1u8; 32]);
         state.insert(boing_primitives::Account {
             id: contract,
-            state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0 },
+            state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() },
         });
         let bytecode = vec![
             0x60, 0x02, // PUSH1 2

@@ -267,6 +267,10 @@ export interface AccountState {
     balance: string;
     nonce: number;
     stake: string;
+    /** Stake waiting for unbonding delay (decimal string). */
+    pending_unbond?: string;
+    /** Height when pending_unbond may be claimed. */
+    unbond_unlock_height?: number;
 }
 export interface BlockHeader {
     parent_hash: string;

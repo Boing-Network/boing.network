@@ -167,6 +167,8 @@ export function rpcTransactionJsonToTransactionInput(txJson: unknown): Transacti
     const u = p.Unbond as Record<string, unknown>;
     const a = u.amount;
     payloadInput = { kind: 'unbond', amount: typeof a === 'bigint' ? a : BigInt(String(a)) };
+  } else if ('ClaimUnbond' in p) {
+    payloadInput = { kind: 'claimUnbond' };
   } else {
     throw new Error('Unsupported or missing transaction payload variant');
   }

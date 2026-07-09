@@ -57,8 +57,7 @@ pub fn validate_and_execute_block(
                     state: AccountState {
                         balance: reward,
                         nonce: 0,
-                        stake: 0,
-                    },
+                        stake: 0, ..Default::default() },
                 });
             }
         }

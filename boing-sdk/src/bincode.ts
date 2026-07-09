@@ -16,6 +16,7 @@ export const PayloadVariant = {
   ContractDeployWithPurposeAndMetadata: 4,
   Bond: 5,
   Unbond: 6,
+  ClaimUnbond: 7,
 } as const;
 
 export function concatBytes(...parts: Uint8Array[]): Uint8Array {
@@ -116,7 +117,8 @@ export type TransactionPayloadInput =
       create2Salt?: Uint8Array | null;
     }
   | { kind: 'bond'; amount: bigint }
-  | { kind: 'unbond'; amount: bigint };
+  | { kind: 'unbond'; amount: bigint }
+  | { kind: 'claimUnbond' };
 
 export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array {
   switch (payload.kind) {
@@ -160,6 +162,8 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
       return concatBytes(writeU32Le(PayloadVariant.Bond), writeU128Le(payload.amount));
     case 'unbond':
       return concatBytes(writeU32Le(PayloadVariant.Unbond), writeU128Le(payload.amount));
+    case 'claimUnbond':
+      return writeU32Le(PayloadVariant.ClaimUnbond);
     default: {
       const _x: never = payload;
       return _x;

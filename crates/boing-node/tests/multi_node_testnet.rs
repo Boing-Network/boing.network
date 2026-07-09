@@ -42,8 +42,7 @@ fn node_with_p2p_and_block_provider(
         state: AccountState {
             balance,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
 
     let native_aggregates = state.compute_native_aggregates();

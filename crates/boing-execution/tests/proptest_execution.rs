@@ -12,7 +12,7 @@ fn mk_parallel_transfers(n: usize, amt: u128) -> (Vec<Transaction>, StateStore) 
         let id = AccountId({ let mut a = [0u8; 32]; a[0] = i as u8; a });
         state.insert(Account {
             id,
-            state: AccountState { balance: 1_000_000, nonce: 0, stake: 0 },
+            state: AccountState { balance: 1_000_000, nonce: 0, stake: 0, ..Default::default() },
         });
     }
     let txs: Vec<Transaction> = (0..n)

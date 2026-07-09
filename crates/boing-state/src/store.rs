@@ -130,8 +130,7 @@ impl StateStore {
                 .unwrap_or(AccountState {
                     balance: 0,
                     nonce: 0,
-                    stake: 0,
-                });
+                    stake: 0, ..Default::default() });
             let code_hash = self.code_hash_of(&id);
             let storage_root = self.storage_root_of(&id);
             let leaf = hash_account_leaf(&state, &code_hash, &storage_root);
@@ -277,11 +276,11 @@ mod tests {
         let mut state = StateStore::new();
         let a = AccountId([1u8; 32]);
         let b = AccountId([2u8; 32]);
-        state.insert(Account { id: a, state: AccountState { balance: 100, nonce: 0, stake: 0 } });
-        state.insert(Account { id: b, state: AccountState { balance: 50, nonce: 0, stake: 0 } });
+        state.insert(Account { id: a, state: AccountState { balance: 100, nonce: 0, stake: 0, ..Default::default() } });
+        state.insert(Account { id: b, state: AccountState { balance: 50, nonce: 0, stake: 0, ..Default::default() } });
         let cp = state.checkpoint();
         state.get_mut(&a).unwrap().balance = 90;
-        state.insert(Account { id: AccountId([3u8; 32]), state: AccountState { balance: 10, nonce: 0, stake: 0 } });
+        state.insert(Account { id: AccountId([3u8; 32]), state: AccountState { balance: 10, nonce: 0, stake: 0, ..Default::default() } });
         assert_eq!(state.get(&a).unwrap().balance, 90);
         state.revert(cp);
         assert_eq!(state.get(&a).unwrap().balance, 100);
@@ -294,9 +293,9 @@ mod tests {
         let a = AccountId([1u8; 32]);
         let b = AccountId([2u8; 32]);
         let c = AccountId([3u8; 32]);
-        state.insert(Account { id: a, state: AccountState { balance: 0, nonce: 0, stake: 100 } });
-        state.insert(Account { id: b, state: AccountState { balance: 0, nonce: 0, stake: 500 } });
-        state.insert(Account { id: c, state: AccountState { balance: 0, nonce: 0, stake: 200 } });
+        state.insert(Account { id: a, state: AccountState { balance: 0, nonce: 0, stake: 100, ..Default::default() } });
+        state.insert(Account { id: b, state: AccountState { balance: 0, nonce: 0, stake: 500, ..Default::default() } });
+        state.insert(Account { id: c, state: AccountState { balance: 0, nonce: 0, stake: 200, ..Default::default() } });
         let top = state.top_stakers(2);
         assert_eq!(top.len(), 2);
         assert_eq!(top[0], b);
@@ -323,8 +322,7 @@ mod tests {
             state: AccountState {
                 balance: 0,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
         let root_empty = state.state_root();
 
@@ -355,16 +353,14 @@ mod tests {
             state: AccountState {
                 balance: 100,
                 nonce: 0,
-                stake: 50,
-            },
+                stake: 50, ..Default::default() },
         });
         state.insert(Account {
             id: b,
             state: AccountState {
                 balance: 25,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
         let agg = state.compute_native_aggregates();
         assert_eq!(agg.account_count, 2);

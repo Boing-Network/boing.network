@@ -14,6 +14,7 @@ export const PayloadVariant = {
     ContractDeployWithPurposeAndMetadata: 4,
     Bond: 5,
     Unbond: 6,
+    ClaimUnbond: 7,
 };
 export function concatBytes(...parts) {
     const n = parts.reduce((a, p) => a + p.length, 0);
@@ -102,6 +103,8 @@ export function encodeTransactionPayload(payload) {
             return concatBytes(writeU32Le(PayloadVariant.Bond), writeU128Le(payload.amount));
         case 'unbond':
             return concatBytes(writeU32Le(PayloadVariant.Unbond), writeU128Le(payload.amount));
+        case 'claimUnbond':
+            return writeU32Le(PayloadVariant.ClaimUnbond);
         default: {
             const _x = payload;
             return _x;

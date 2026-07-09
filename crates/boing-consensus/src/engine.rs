@@ -6,7 +6,17 @@ use std::collections::HashMap;
 
 use tracing::{debug, info};
 
-use boing_primitives::{AccountId, Block, Hash};
+use boing_primitives::{AccountId, Block, Hash, dummy_vrf_output, leader_from_vrf};
+
+/// How the round leader is chosen.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LeaderElection {
+    /// `validators[round % n]` (default).
+    #[default]
+    RoundRobin,
+    /// Deterministic selection via [`leader_from_vrf`] + [`dummy_vrf_output`] (dev/testnet stub).
+    Vrf,
+}
 
 /// Consensus engine — orchestrates BFT consensus rounds.
 pub struct ConsensusEngine {
@@ -18,6 +28,8 @@ pub struct ConsensusEngine {
     pending_block: Option<Block>,
     /// Votes for pending block: validator → block_hash (to detect equivocation).
     votes: HashMap<AccountId, Hash>,
+    /// Leader selection policy.
+    leader_election: LeaderElection,
 }
 
 impl ConsensusEngine {
@@ -28,6 +40,7 @@ impl ConsensusEngine {
             round: 0,
             pending_block: None,
             votes: HashMap::new(),
+            leader_election: LeaderElection::RoundRobin,
         }
     }
 
@@ -44,6 +57,14 @@ impl ConsensusEngine {
     /// Validator set (for block import validation).
     pub fn validators(&self) -> &[AccountId] {
         &self.validators
+    }
+
+    pub fn leader_election(&self) -> LeaderElection {
+        self.leader_election
+    }
+
+    pub fn set_leader_election(&mut self, mode: LeaderElection) {
+        self.leader_election = mode;
     }
 
     /// Replace the validator set (e.g. stake-derived epoch refresh).
@@ -71,10 +92,19 @@ impl ConsensusEngine {
         2 * self.f() + 1
     }
 
-    /// Leader for round r (round-robin).
+    /// Leader for round `r`.
     pub fn leader(&self, round: u64) -> AccountId {
-        let n = self.validators.len();
-        self.validators[(round as usize) % n]
+        match self.leader_election {
+            LeaderElection::RoundRobin => {
+                let n = self.validators.len();
+                self.validators[(round as usize) % n]
+            }
+            LeaderElection::Vrf => {
+                let vrf = dummy_vrf_output(round);
+                leader_from_vrf(&self.validators, &vrf)
+                    .expect("non-empty validator set")
+            }
+        }
     }
 
     /// Shared proposal checks: height, round-leader proposer, validator membership.
@@ -374,6 +404,18 @@ mod tests {
         assert!(engine.pending_block().is_none());
         assert_eq!(engine.num_validators(), 3);
         assert_eq!(engine.leader(0), v1);
+    }
+
+    #[test]
+    fn test_vrf_leader_uses_dummy_vrf_index() {
+        let validators: Vec<_> = (1u8..=4)
+            .map(|i| AccountId::from_bytes([i; 32]))
+            .collect();
+        let mut engine = ConsensusEngine::new(validators.clone());
+        engine.set_leader_election(LeaderElection::Vrf);
+        // dummy_vrf_output(1) → first 8 LE bytes encode 1 → index 1.
+        assert_eq!(engine.leader(1), validators[1]);
+        assert_eq!(engine.leader(0), validators[0]);
     }
 }
 

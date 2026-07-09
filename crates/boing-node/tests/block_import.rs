@@ -49,16 +49,14 @@ fn test_validate_and_execute_block() {
         state: AccountState {
             balance: 1_000_000,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
     parent.insert(Account {
         id: to,
         state: AccountState {
             balance: 0,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
 
     let tx = mk_transfer(proposer, to, 0, 100);
@@ -117,8 +115,7 @@ fn test_import_block() {
         state: AccountState {
             balance: 1_000_000,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
     let to = AccountId([2u8; 32]);
     parent.insert(Account {
@@ -126,8 +123,7 @@ fn test_import_block() {
         state: AccountState {
             balance: 0,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
 
     let tx = mk_transfer(proposer, to, 0, 50);

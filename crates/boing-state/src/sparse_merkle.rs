@@ -89,6 +89,8 @@ pub fn hash_account_leaf(v: &AccountState, code_hash: &Hash, storage_root: &Hash
     h.update(&v.balance.to_le_bytes());
     h.update(&v.nonce.to_le_bytes());
     h.update(&v.stake.to_le_bytes());
+    h.update(&v.pending_unbond.to_le_bytes());
+    h.update(&v.unbond_unlock_height.to_le_bytes());
     h.update(code_hash.as_bytes());
     h.update(storage_root.as_bytes());
     let mut out = [0u8; 32];
@@ -312,7 +314,7 @@ mod tests {
     fn test_insert_root_deterministic() {
         let mut tree = SparseMerkleTree::new();
         let id = AccountId([1u8; 32]);
-        tree.insert(id, &AccountState { balance: 100, nonce: 0, stake: 0 });
+        tree.insert(id, &AccountState { balance: 100, nonce: 0, stake: 0, ..Default::default() });
         let r1 = tree.root();
         let r2 = tree.root();
         assert_eq!(r1, r2);
@@ -323,8 +325,8 @@ mod tests {
         let mut t1 = SparseMerkleTree::new();
         let mut t2 = SparseMerkleTree::new();
         let id = AccountId([1u8; 32]);
-        t1.insert(id, &AccountState { balance: 100, nonce: 0, stake: 0 });
-        t2.insert(id, &AccountState { balance: 200, nonce: 0, stake: 0 });
+        t1.insert(id, &AccountState { balance: 100, nonce: 0, stake: 0, ..Default::default() });
+        t2.insert(id, &AccountState { balance: 200, nonce: 0, stake: 0, ..Default::default() });
         assert_ne!(t1.root(), t2.root());
     }
 
@@ -332,7 +334,7 @@ mod tests {
     fn test_get() {
         let mut tree = SparseMerkleTree::new();
         let id = AccountId([1u8; 32]);
-        tree.insert(id, &AccountState { balance: 42, nonce: 1, stake: 0 });
+        tree.insert(id, &AccountState { balance: 42, nonce: 1, stake: 0, ..Default::default() });
         assert!(tree.get(&id).is_some());
         assert!(tree.get(&AccountId([2u8; 32])).is_none());
     }
@@ -347,8 +349,8 @@ mod tests {
         k2[0] = 128;
         let id1 = AccountId(k1);
         let id2 = AccountId(k2);
-        tree.insert(id1, &AccountState { balance: 100, nonce: 0, stake: 0 });
-        tree.insert(id2, &AccountState { balance: 200, nonce: 1, stake: 0 });
+        tree.insert(id1, &AccountState { balance: 100, nonce: 0, stake: 0, ..Default::default() });
+        tree.insert(id2, &AccountState { balance: 200, nonce: 1, stake: 0, ..Default::default() });
         assert!(tree.prove(&id1).unwrap().verify());
         assert!(tree.prove(&id2).unwrap().verify());
     }
@@ -357,7 +359,7 @@ mod tests {
     fn test_delete() {
         let mut tree = SparseMerkleTree::new();
         let id = AccountId([1u8; 32]);
-        tree.insert(id, &AccountState { balance: 100, nonce: 0, stake: 0 });
+        tree.insert(id, &AccountState { balance: 100, nonce: 0, stake: 0, ..Default::default() });
         let root_with = tree.root();
         tree.delete(&id);
         assert!(tree.get(&id).is_none());

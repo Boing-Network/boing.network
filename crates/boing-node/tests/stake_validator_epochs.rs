@@ -26,8 +26,7 @@ fn node_with_accounts(
         state: AccountState {
             balance: 1_000_000,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
     for (id, balance, stake) in extra {
         state.insert(Account {
@@ -35,8 +34,7 @@ fn node_with_accounts(
             state: AccountState {
                 balance,
                 nonce: 0,
-                stake,
-            },
+                stake, ..Default::default() },
         });
     }
 
@@ -64,6 +62,7 @@ fn node_with_accounts(
         stake_validator_set: Some(StakeValidatorSetConfig {
             top_n: 2,
             epoch_len: 2,
+            min_stake: 100,
         }),
     }
 }
@@ -128,12 +127,38 @@ fn stake_validator_set_ignores_zero_stake_accounts() {
     node.stake_validator_set = Some(StakeValidatorSetConfig {
         top_n: 1,
         epoch_len: 1,
+        min_stake: 100,
     });
 
     submit_self_transfer(&mut node, &proposer_key, 0, 1);
     let _ = node.produce_block_if_ready().expect("block 1");
     // No positive stake elsewhere → keep current (proposer-only) set.
     assert_eq!(node.consensus.validators(), &[proposer]);
+}
+
+#[test]
+fn stake_validator_set_respects_min_stake() {
+    let proposer_key = SigningKey::generate(&mut OsRng);
+    let proposer = AccountId(proposer_key.verifying_key().to_bytes());
+    let below = AccountId([0xEEu8; 32]);
+    let above = AccountId([0xFFu8; 32]);
+
+    let mut node = node_with_accounts(
+        &proposer_key,
+        vec![(below, 0, 50), (above, 0, 500)],
+    );
+    node.stake_validator_set = Some(StakeValidatorSetConfig {
+        top_n: 2,
+        epoch_len: 1,
+        min_stake: 100,
+    });
+
+    submit_self_transfer(&mut node, &proposer_key, 0, 1);
+    let _ = node.produce_block_if_ready().expect("block 1");
+    let set = node.consensus.validators();
+    assert!(set.contains(&above), "{set:?}");
+    assert!(!set.contains(&below), "{set:?}");
+    assert!(set.contains(&proposer), "{set:?}");
 }
 
 #[test]
@@ -147,6 +172,7 @@ fn bond_then_epoch_includes_new_staker() {
     node.stake_validator_set = Some(StakeValidatorSetConfig {
         top_n: 1,
         epoch_len: 1,
+        min_stake: 10_000,
     });
 
     let bond = Transaction {

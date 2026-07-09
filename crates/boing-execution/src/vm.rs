@@ -118,8 +118,7 @@ impl Vm {
                     state: boing_primitives::AccountState {
                         balance: *amount,
                         nonce: 0,
-                        stake: 0,
-                    },
+                        stake: 0, ..Default::default() },
                 });
             }
         }
@@ -166,17 +165,43 @@ impl Vm {
                 base::BOND
             }
             TransactionPayload::Unbond { amount } => {
+                let height = exec_ctx.block_height;
+                let delay = boing_tokenomics::UNBONDING_DELAY_BLOCKS;
                 let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
                 sender_state.stake = sender_state
                     .stake
                     .checked_sub(*amount)
                     .ok_or(VmError::InsufficientBalance)?;
-                sender_state.balance = sender_state.balance.saturating_add(*amount);
+                // Restart the unlock clock for the combined pending amount.
+                sender_state.pending_unbond = sender_state.pending_unbond.saturating_add(*amount);
+                sender_state.unbond_unlock_height = height.saturating_add(delay);
                 sender_state.nonce = sender_state
                     .nonce
                     .checked_add(1)
                     .ok_or(VmError::NonceOverflow)?;
                 base::UNBOND
+            }
+            TransactionPayload::ClaimUnbond => {
+                let height = exec_ctx.block_height;
+                let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+                if sender_state.pending_unbond == 0 {
+                    return Err(VmError::InsufficientBalance);
+                }
+                if height < sender_state.unbond_unlock_height {
+                    return Err(VmError::UnbondNotMature {
+                        unlock_height: sender_state.unbond_unlock_height,
+                        current_height: height,
+                    });
+                }
+                let amount = sender_state.pending_unbond;
+                sender_state.pending_unbond = 0;
+                sender_state.unbond_unlock_height = 0;
+                sender_state.balance = sender_state.balance.saturating_add(amount);
+                sender_state.nonce = sender_state
+                    .nonce
+                    .checked_add(1)
+                    .ok_or(VmError::NonceOverflow)?;
+                base::CLAIM_UNBOND
             }
             TransactionPayload::Transfer { to, amount } => {
                 let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
@@ -200,8 +225,7 @@ impl Vm {
                             state: boing_primitives::AccountState {
                                 balance: *amount,
                                 nonce: 0,
-                                stake: 0,
-                            },
+                                stake: 0, ..Default::default() },
                         });
                     }
                 }
@@ -281,7 +305,7 @@ impl Vm {
 
         state.insert(boing_primitives::Account {
             id: contract_addr,
-            state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0 },
+            state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() },
         });
 
         let uses_init = contract_deploy_uses_init_code(bytecode);
@@ -376,8 +400,7 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
         let tx = Transaction {
             nonce: 0,
@@ -406,8 +429,7 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
         let tx = Transaction {
             nonce: 0,
@@ -437,8 +459,7 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
         // Init: LOG0 (empty data), MSTORE zero word at 0, RETURN 1 byte → runtime STOP (0x00).
         let init = vec![
@@ -476,8 +497,7 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
         let code = crate::reference_token::smoke_contract_bytecode();
         let deploy = Transaction {
@@ -520,8 +540,7 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
 
         let smoke_code = crate::reference_token::smoke_contract_bytecode();
@@ -603,8 +622,7 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
         let code = vec![0x00, 0x00];
         let salt = [7u8; 32];
@@ -634,8 +652,7 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
         let code = vec![0x00];
         let salt = [9u8; 32];
@@ -678,8 +695,7 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
 
         let salt = [1u8; 32];
@@ -729,6 +745,11 @@ pub enum VmError {
     AccountNotFound,
     #[error("Insufficient balance")]
     InsufficientBalance,
+    #[error("Unbond not mature: unlock at height {unlock_height}, current {current_height}")]
+    UnbondNotMature {
+        unlock_height: u64,
+        current_height: u64,
+    },
     #[error("Nonce overflow")]
     NonceOverflow,
     #[error("Invalid nonce: expected {expected}, got {got}")]
@@ -804,7 +825,7 @@ pub(crate) fn apply_in_tx_create2(
 
     state.insert(boing_primitives::Account {
         id: contract_addr,
-        state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0 },
+        state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() },
     });
 
     let uses_init = contract_deploy_uses_init_code(&bytecode);

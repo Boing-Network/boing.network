@@ -21,8 +21,7 @@ fn unsure_deploy_only_governance_admin_can_admit() {
         state: AccountState {
             balance: 1_000_000,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
 
     let admin = AccountId([42u8; 32]);
@@ -79,8 +78,7 @@ fn production_pool_config_rejects_enqueue_until_admins_set() {
         state: AccountState {
             balance: 1_000_000,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
 
     node.set_qa_policy(

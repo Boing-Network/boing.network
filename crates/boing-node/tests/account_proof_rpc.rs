@@ -23,16 +23,14 @@ fn node_with_accounts() -> BoingNode {
         state: AccountState {
             balance: 1_000_000,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
     state.insert(Account {
         id: AccountId(k128),
         state: AccountState {
             balance: 500,
             nonce: 1,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
     let native_aggregates = state.compute_native_aggregates();
     BoingNode {

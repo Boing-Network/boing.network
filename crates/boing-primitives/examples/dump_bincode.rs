@@ -34,6 +34,10 @@ fn main() {
     let p = bincode::serialize(&unbond).unwrap();
     println!("Unbond: len={} hex={}", p.len(), hex::encode(&p));
 
+    let claim = TransactionPayload::ClaimUnbond;
+    let p = bincode::serialize(&claim).unwrap();
+    println!("ClaimUnbond: len={} hex={}", p.len(), hex::encode(&p));
+
     let dwp = TransactionPayload::ContractDeployWithPurpose {
         bytecode: vec![0xab],
         purpose_category: "defi".to_string(),

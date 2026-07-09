@@ -105,6 +105,8 @@ pub struct StakeValidatorSetConfig {
     pub top_n: usize,
     /// Refresh when `height % epoch_len == 0` after a commit (height ≥ epoch_len).
     pub epoch_len: u64,
+    /// Minimum active `stake` to enter the set (default [`boing_tokenomics::MIN_VALIDATOR_STAKE`]).
+    pub min_stake: u128,
 }
 
 impl BoingNode {
@@ -143,8 +145,7 @@ impl BoingNode {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
-            },
+                stake: 0, ..Default::default() },
         });
         let native_aggregates = state.compute_native_aggregates();
 
@@ -376,11 +377,16 @@ impl BoingNode {
             .state
             .top_stakers(cfg.top_n.saturating_mul(4).max(cfg.top_n))
             .into_iter()
-            .filter(|id| self.state.get(id).map(|a| a.stake > 0).unwrap_or(false))
+            .filter(|id| {
+                self.state
+                    .get(id)
+                    .map(|a| a.stake >= cfg.min_stake)
+                    .unwrap_or(false)
+            })
             .take(cfg.top_n)
             .collect();
         if next.is_empty() {
-            // No positive stake yet — keep current set.
+            // Nobody meets min stake — keep current set.
             return;
         }
         // Ensure local identity remains in the set so this node can still vote/produce.

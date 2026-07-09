@@ -1484,7 +1484,9 @@ async fn dispatch_jsonrpc_request(
                             serde_json::json!({
                                 "balance": s.balance.to_string(),
                                 "nonce": s.nonce,
-                                "stake": s.stake.to_string()
+                                "stake": s.stake.to_string(),
+                                "pending_unbond": s.pending_unbond.to_string(),
+                                "unbond_unlock_height": s.unbond_unlock_height
                             }),
                         ),
                         None => rpc_ok(
@@ -1492,7 +1494,9 @@ async fn dispatch_jsonrpc_request(
                             serde_json::json!({
                                 "balance": "0",
                                 "nonce": 0,
-                                "stake": "0"
+                                "stake": "0",
+                                "pending_unbond": "0",
+                                "unbond_unlock_height": 0
                             }),
                         ),
                     }
@@ -1868,8 +1872,7 @@ async fn dispatch_jsonrpc_request(
                         state: AccountState {
                             balance: 0,
                             nonce: 0,
-                            stake: 0,
-                        },
+                            stake: 0, ..Default::default() },
                     });
                 }
             } else if state_copy.get(&sender).is_none() {

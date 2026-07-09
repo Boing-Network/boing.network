@@ -198,11 +198,11 @@ mod tests {
         let mut state = StateStore::new();
         state.insert(Account {
             id: a,
-            state: AccountState { balance: 100_000, nonce: 0, stake: 0 },
+            state: AccountState { balance: 100_000, nonce: 0, stake: 0, ..Default::default() },
         });
         state.insert(Account {
             id: b,
-            state: AccountState { balance: 0, nonce: 0, stake: 0 },
+            state: AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() },
         });
         let txs = vec![tx(a, b, 0, 100)];
         let (gas, receipts) = exec.execute_block(1, 0, &txs, &mut state, proposer).unwrap();
@@ -233,10 +233,10 @@ mod tests {
         let d = AccountId::from_bytes([4u8; 32]);
         let proposer = AccountId::from_bytes([9u8; 32]);
         let mut state = StateStore::new();
-        state.insert(Account { id: a, state: AccountState { balance: 100_000, nonce: 0, stake: 0 } });
-        state.insert(Account { id: b, state: AccountState { balance: 0, nonce: 0, stake: 0 } });
-        state.insert(Account { id: c, state: AccountState { balance: 100_000, nonce: 0, stake: 0 } });
-        state.insert(Account { id: d, state: AccountState { balance: 0, nonce: 0, stake: 0 } });
+        state.insert(Account { id: a, state: AccountState { balance: 100_000, nonce: 0, stake: 0, ..Default::default() } });
+        state.insert(Account { id: b, state: AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() } });
+        state.insert(Account { id: c, state: AccountState { balance: 100_000, nonce: 0, stake: 0, ..Default::default() } });
+        state.insert(Account { id: d, state: AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() } });
         // Independent transfers a->b and c->d — same batch, parallel execution
         let txs = vec![
             tx(a, b, 0, 100),

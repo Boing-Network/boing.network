@@ -44,8 +44,7 @@ fn node_with_p2p_only(
         state: AccountState {
             balance,
             nonce: 0,
-            stake: 0,
-        },
+            stake: 0, ..Default::default() },
     });
 
     let (p2p, event_rx) = boing_p2p::P2pNode::new(p2p_listen, None, 0).expect("P2P init");

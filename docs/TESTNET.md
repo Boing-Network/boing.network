@@ -76,7 +76,7 @@ RPC: `http://127.0.0.1:8545/`. No bootnodes needed.
 
 3. **Get testnet BOING** from the [Faucet](https://boing.network/faucet) (see §5).
 
-4. **Stake** by submitting a `Bond` transaction via RPC (stake accounting is live). **Validator set for consensus:** static list via `--validators` / `BOING_VALIDATORS` by default; opt-in stake epochs with `--validator-set stake` / **`BOING_VALIDATOR_SET=stake`** (see [RUNBOOK.md](RUNBOOK.md) §8.1). Min stake / unbonding delay remain follow-ups — [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md).
+4. **Stake** by submitting a `Bond` transaction via RPC (stake accounting is live). **Unbond** queues stake for a delay (`UNBONDING_DELAY_BLOCKS`); claim with **`ClaimUnbond`**. **Validator set for consensus:** static list via `--validators` / `BOING_VALIDATORS` by default; opt-in stake epochs with `--validator-set stake` / **`BOING_VALIDATOR_SET=stake`** and min stake via **`BOING_STAKE_VALIDATOR_MIN_STAKE`** (see [RUNBOOK.md](RUNBOOK.md) §8.1). Optional **`--leader-election vrf`**. On-chain slashing remains a follow-up — [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md).
 
 ## 5. Faucet (testnet BOING)
 
