@@ -1,4 +1,4 @@
-//! Print **`0x` + hex** of native CP pool CREATE2 salts (v1–v4).
+//! Print **`0x` + hex** of native CP pool CREATE2 salts (v1–v6).
 //!
 //! ```bash
 //! cargo run -p boing-execution --example print_native_cp_create2_salt
@@ -10,6 +10,8 @@ fn main() {
         ("NATIVE_CP_POOL_CREATE2_SALT_V2", boing_execution::NATIVE_CP_POOL_CREATE2_SALT_V2),
         ("NATIVE_CP_POOL_CREATE2_SALT_V3", boing_execution::NATIVE_CP_POOL_CREATE2_SALT_V3),
         ("NATIVE_CP_POOL_CREATE2_SALT_V4", boing_execution::NATIVE_CP_POOL_CREATE2_SALT_V4),
+        ("NATIVE_CP_POOL_CREATE2_SALT_V5", boing_execution::NATIVE_CP_POOL_CREATE2_SALT_V5),
+        ("NATIVE_CP_POOL_CREATE2_SALT_V6", boing_execution::NATIVE_CP_POOL_CREATE2_SALT_V6),
     ] {
         print!("{label}=");
         print!("0x");

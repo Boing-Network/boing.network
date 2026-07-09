@@ -6,6 +6,7 @@ import {
   SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY,
   SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY_TO,
   SELECTOR_NATIVE_AMM_SET_SWAP_FEE_BPS,
+  SELECTOR_NATIVE_AMM_SET_FEE_ADMIN,
   encodeNativeAmmSwapCalldata,
   encodeNativeAmmSwapToCalldata,
   encodeNativeAmmAddLiquidityCalldata,
@@ -13,6 +14,7 @@ import {
   encodeNativeAmmRemoveLiquidityToCalldata,
   encodeNativeAmmRemoveLiquidityCalldataHex,
   encodeNativeAmmSetSwapFeeBpsCalldata,
+  encodeNativeAmmSetFeeAdminCalldata,
   constantProductAmountOut,
   constantProductAmountOutNoFee,
   constantProductAmountOutWithFeeBps,
@@ -64,6 +66,14 @@ describe('nativeAmm', () => {
   it('encodeNativeAmmSetSwapFeeBpsCalldata rejects fee outside 1..10000', () => {
     expect(() => encodeNativeAmmSetSwapFeeBpsCalldata(0n)).toThrow(RangeError);
     expect(() => encodeNativeAmmSetSwapFeeBpsCalldata(10001n)).toThrow(RangeError);
+  });
+
+  it('encodeNativeAmmSetFeeAdminCalldata is 64 bytes with selector 0x17 and admin word', () => {
+    const admin = '0x' + 'ab'.repeat(32);
+    const c = encodeNativeAmmSetFeeAdminCalldata(admin);
+    expect(c.length).toBe(64);
+    expect(c[31]).toBe(SELECTOR_NATIVE_AMM_SET_FEE_ADMIN);
+    expect(bytesToHex(c.slice(32, 64))).toBe(admin);
   });
 
   it('native AMM Log2 topic0 hex (32-byte words)', () => {

@@ -41,6 +41,13 @@ export const NATIVE_CP_POOL_CREATE2_SALT_V5 = (() => {
     out.set(label);
     return out;
 })();
+/** Same bytes as `boing_execution::native_amm::NATIVE_CP_POOL_CREATE2_SALT_V6` (v5 + fee admin). */
+export const NATIVE_CP_POOL_CREATE2_SALT_V6 = (() => {
+    const label = new TextEncoder().encode('BOING_NATIVECP_C2V6');
+    const out = new Uint8Array(32);
+    out.set(label);
+    return out;
+})();
 /** Same bytes as `native_dex_factory::NATIVE_DEX_FACTORY_CREATE2_SALT_V1`. */
 export const NATIVE_DEX_FACTORY_CREATE2_SALT_V1 = (() => {
     const label = new TextEncoder().encode('BOING_NATIVEDEX_FACTORY_V1');
@@ -115,6 +122,10 @@ export function nativeCpPoolCreate2SaltV4Hex() {
 export function nativeCpPoolCreate2SaltV5Hex() {
     return validateHex32(bytesToHex(NATIVE_CP_POOL_CREATE2_SALT_V5));
 }
+/** `0x` + 64 hex for {@link NATIVE_CP_POOL_CREATE2_SALT_V6}. */
+export function nativeCpPoolCreate2SaltV6Hex() {
+    return validateHex32(bytesToHex(NATIVE_CP_POOL_CREATE2_SALT_V6));
+}
 /**
  * Nonce-derived contract `AccountId`: `BLAKE3(sender_32 || deploy_tx_nonce_le_u64)`.
  * Matches `boing_primitives::nonce_derived_contract_address` (deploy with `create2_salt: null`).
@@ -158,6 +169,10 @@ export function predictNativeCpPoolV4Create2Address(deployerHex, poolBytecodeV4)
 /** **v5** pool (v4 + explicit swap output recipient) + documented v5 salt. */
 export function predictNativeCpPoolV5Create2Address(deployerHex, poolBytecodeV5) {
     return predictCreate2ContractAddress(deployerHex, NATIVE_CP_POOL_CREATE2_SALT_V5, poolBytecodeV5);
+}
+/** **v6** pool (v5 + post-liquidity fee admin) + documented v6 salt. */
+export function predictNativeCpPoolV6Create2Address(deployerHex, poolBytecodeV6) {
+    return predictCreate2ContractAddress(deployerHex, NATIVE_CP_POOL_CREATE2_SALT_V6, poolBytecodeV6);
 }
 /** Pair-directory contract (`native_dex_factory_bytecode`) + documented salt. */
 export function predictNativeDexFactoryCreate2Address(deployerHex, factoryBytecode) {

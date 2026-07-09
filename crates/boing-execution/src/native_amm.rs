@@ -27,12 +27,14 @@ pub const SELECTOR_ADD_LIQUIDITY: u8 = 0x11;
 pub const SELECTOR_REMOVE_LIQUIDITY: u8 = 0x12;
 /// **v2 only:** one-time `set_tokens(token_a, token_b)` — 96-byte calldata (selector + two 32-byte ids; zero = no token for that side).
 pub const SELECTOR_SET_TOKENS: u8 = 0x13;
-/// **v3/v4 only:** `set_swap_fee_bps(fee)` — **64-byte** calldata (selector + one amount word). **Only** when **total LP supply == 0**; **`fee`** must satisfy **1 ≤ fee ≤ 10_000**.
+/// **v3/v4/v6:** `set_swap_fee_bps(fee)` — **64-byte** calldata. **v3/v4:** only when **total LP == 0**. **v6:** also allowed when caller is [`fee_admin_key`]. **`1 ≤ fee ≤ 10_000`**.
 pub const SELECTOR_SET_SWAP_FEE_BPS: u8 = 0x14;
 /// **v5 only (token-hook pools):** `swap_to` — same as [`SELECTOR_SWAP`] plus **word4** = output recipient `AccountId` (**160-byte** calldata). Reference-token `transfer` uses that account instead of [`Opcode::Caller`].
 pub const SELECTOR_SWAP_TO: u8 = 0x15;
 /// **v5 only:** `remove_liquidity_to` — same as [`SELECTOR_REMOVE_LIQUIDITY`] plus **word4** / **word5** = payout recipients for token A / B (**192-byte** calldata).
 pub const SELECTOR_REMOVE_LIQUIDITY_TO: u8 = 0x16;
+/// **v6:** `set_fee_admin(admin)` — **64-byte** calldata (selector + 32-byte `AccountId`); only when **total LP == 0**.
+pub const SELECTOR_SET_FEE_ADMIN: u8 = 0x17;
 
 /// XOR mask for per-signer LP balance slot: `storage_key = caller_id ^ LP_BALANCE_STORAGE_XOR`.
 pub const LP_BALANCE_STORAGE_XOR: [u8; 32] = *b"BOING_NATIVEAMM_LPRV1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
@@ -62,6 +64,10 @@ pub const NATIVE_CP_POOL_CREATE2_SALT_V4: [u8; 32] =
 /// CREATE2 salt for **v5** — v4 + [`SELECTOR_SWAP_TO`] ([`constant_product_pool_bytecode_v5`]).
 pub const NATIVE_CP_POOL_CREATE2_SALT_V5: [u8; 32] =
     *b"BOING_NATIVECP_C2V5\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+
+/// CREATE2 salt for **v6** — v5 + post-liquidity fee admin ([`constant_product_pool_bytecode_v6`]).
+pub const NATIVE_CP_POOL_CREATE2_SALT_V6: [u8; 32] =
+    *b"BOING_NATIVECP_C2V6\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
 /// `Log2` **topic0** after a successful **`swap`** (data: direction, `amount_in`, `amount_out` words).
 pub const NATIVE_AMM_TOPIC_SWAP: [u8; 32] = *b"BOING_NATIVEAMM_SWAP_V1\x00\x00\x00\x00\x00\x00\x00\x00\x00";
@@ -120,11 +126,19 @@ pub fn tokens_configured_key() -> [u8; 32] {
     k
 }
 
-/// **v3/v4:** Swap fee in basis points on **output** (after CP step). **0** = unset → default **[`NATIVE_CP_SWAP_FEE_BPS`]** on first `add_liquidity`; **`set_swap_fee_bps`** writes **1..=10_000**.
+/// **v3/v4/v6:** Swap fee in basis points on **output** (after CP step). **0** = unset → default **[`NATIVE_CP_SWAP_FEE_BPS`]** on first `add_liquidity`; **`set_swap_fee_bps`** writes **1..=10_000**.
 #[must_use]
 pub fn swap_fee_bps_key() -> [u8; 32] {
     let mut k = [0u8; 32];
     k[31] = 0x07;
+    k
+}
+
+/// **v6:** Account allowed to call [`SELECTOR_SET_SWAP_FEE_BPS`] after liquidity exists (`0` = unset → only LP==0 path).
+#[must_use]
+pub fn fee_admin_key() -> [u8; 32] {
+    let mut k = [0u8; 32];
+    k[31] = 0x08;
     k
 }
 
@@ -237,12 +251,21 @@ pub fn encode_set_tokens_calldata(token_a: &AccountId, token_b: &AccountId) -> V
     v
 }
 
-/// **v3/v4:** 64 bytes — `set_swap_fee_bps(fee)` with **1 ≤ fee ≤ 10_000** (only when **total LP == 0**).
+/// **v3/v4/v6:** 64 bytes — `set_swap_fee_bps(fee)` with **1 ≤ fee ≤ 10_000**.
 #[must_use]
 pub fn encode_set_swap_fee_bps_calldata(fee_bps: u128) -> Vec<u8> {
     assert!((1..=10_000).contains(&fee_bps), "fee_bps must be in 1..=10_000");
     let mut v = selector_word(SELECTOR_SET_SWAP_FEE_BPS).to_vec();
     v.extend_from_slice(&amount_word(fee_bps));
+    debug_assert_eq!(v.len(), 64);
+    v
+}
+
+/// **v6:** 64 bytes — `set_fee_admin(admin)` (only when **total LP == 0**).
+#[must_use]
+pub fn encode_set_fee_admin_calldata(admin: &AccountId) -> Vec<u8> {
+    let mut v = selector_word(SELECTOR_SET_FEE_ADMIN).to_vec();
+    v.extend_from_slice(&admin.0);
     debug_assert_eq!(v.len(), 64);
     v
 }
@@ -484,17 +507,43 @@ fn append_first_mint_default_swap_fee(c: &mut Vec<u8>, storage_swap_fee: bool) {
 }
 
 /// **v3/v4:** `set_swap_fee_bps` — only when **total LP == 0**; **1 ≤ fee ≤ 10_000**.
-fn append_set_swap_fee_handler(c: &mut Vec<u8>, abort_pc: usize) {
-    push32(c, &total_lp_supply_key());
-    c.push(Opcode::SLoad as u8);
-    c.push(Opcode::IsZero as u8);
-    let fix_lp0 = c.len();
-    push32(c, &[0u8; 32]);
-    c.push(Opcode::JumpI as u8);
-    push32(c, &word_u64(abort_pc as u64));
-    c.push(Opcode::Jump as u8);
-    let off_lp0 = c.len();
-    patch_push32_dest(c, fix_lp0, off_lp0);
+/// **v6** (`fee_admin_gate`): also allowed when `Caller == fee_admin_key` (even if LP > 0).
+fn append_set_swap_fee_handler(c: &mut Vec<u8>, abort_pc: usize, fee_admin_gate: bool) {
+    if fee_admin_gate {
+        // Authorized if LP==0 OR Caller == fee_admin.
+        push32(c, &total_lp_supply_key());
+        c.push(Opcode::SLoad as u8);
+        c.push(Opcode::IsZero as u8);
+        let fix_lp0 = c.len();
+        push32(c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+
+        push32(c, &fee_admin_key());
+        c.push(Opcode::SLoad as u8);
+        c.push(Opcode::Caller as u8);
+        c.push(Opcode::Eq as u8);
+        let fix_admin = c.len();
+        push32(c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+
+        push32(c, &word_u64(abort_pc as u64));
+        c.push(Opcode::Jump as u8);
+
+        let off_ok = c.len();
+        patch_push32_dest(c, fix_lp0, off_ok);
+        patch_push32_dest(c, fix_admin, off_ok);
+    } else {
+        push32(c, &total_lp_supply_key());
+        c.push(Opcode::SLoad as u8);
+        c.push(Opcode::IsZero as u8);
+        let fix_lp0 = c.len();
+        push32(c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+        push32(c, &word_u64(abort_pc as u64));
+        c.push(Opcode::Jump as u8);
+        let off_lp0 = c.len();
+        patch_push32_dest(c, fix_lp0, off_lp0);
+    }
 
     push32(c, &word_u64(32));
     c.push(Opcode::MLoad as u8);
@@ -519,6 +568,26 @@ fn append_set_swap_fee_handler(c: &mut Vec<u8>, abort_pc: usize) {
     push32(c, &word_u64(MEM_NATIVE_AMM_FEE_BPS));
     c.push(Opcode::MLoad as u8);
     push32(c, &swap_fee_bps_key());
+    c.push(Opcode::SStore as u8);
+    c.push(Opcode::Stop as u8);
+}
+
+/// **v6:** `set_fee_admin` — only when **total LP == 0**; stores word1 as [`fee_admin_key`].
+fn append_set_fee_admin_handler(c: &mut Vec<u8>, abort_pc: usize) {
+    push32(c, &total_lp_supply_key());
+    c.push(Opcode::SLoad as u8);
+    c.push(Opcode::IsZero as u8);
+    let fix_lp0 = c.len();
+    push32(c, &[0u8; 32]);
+    c.push(Opcode::JumpI as u8);
+    push32(c, &word_u64(abort_pc as u64));
+    c.push(Opcode::Jump as u8);
+    let off_lp0 = c.len();
+    patch_push32_dest(c, fix_lp0, off_lp0);
+
+    push32(c, &word_u64(32));
+    c.push(Opcode::MLoad as u8);
+    push32(c, &fee_admin_key());
     c.push(Opcode::SStore as u8);
     c.push(Opcode::Stop as u8);
 }
@@ -1036,6 +1105,8 @@ struct CpPoolBuildOpts {
     storage_swap_fee: bool,
     /// v5: [`SELECTOR_SWAP_TO`] + scratch at offset **1088** for router-safe token payout.
     swap_with_recipient: bool,
+    /// v6: [`fee_admin_key`] + post-liquidity [`SELECTOR_SET_SWAP_FEE_BPS`] for admin.
+    fee_admin_gate: bool,
 }
 
 /// Assembled pool: dispatch + `add_liquidity` (LP mint) + `swap` + `remove_liquidity` (pro-rata).
@@ -1044,10 +1115,12 @@ struct CpPoolBuildOpts {
 /// **v2** (`token_hooks`): `set_tokens` dispatch, `CALL` on swap out + remove payouts; scratch `1152`, `1248`.
 /// **v3/v4** (`storage_swap_fee`): [`swap_fee_bps_key`], scratch **`1024` / `1056`**, [`SELECTOR_SET_SWAP_FEE_BPS`].
 /// **v5** (`swap_with_recipient`): scratch **`1088`** + [`SELECTOR_SWAP_TO`].
+/// **v6** (`fee_admin_gate`): [`fee_admin_key`] + [`SELECTOR_SET_FEE_ADMIN`]; admin may change fee after LP.
 fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     let token_hooks = opts.token_hooks;
     let storage_swap_fee = opts.storage_swap_fee;
     let swap_with_recipient = opts.swap_with_recipient;
+    let fee_admin_gate = opts.fee_admin_gate;
     // Memory scratch (offsets ≥ 128 to stay past 128-byte calldata).
     const MEM_DIR: u64 = 128;
     const MEM_RA: u64 = 160;
@@ -1143,6 +1216,19 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
         None
     };
 
+    let fix_j_set_fee_admin = if fee_admin_gate {
+        push32(&mut c, &word_u64(0));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &selector_word(SELECTOR_SET_FEE_ADMIN));
+        c.push(Opcode::Eq as u8);
+        let at = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+        Some(at)
+    } else {
+        None
+    };
+
     let off_stop_unknown = c.len();
     c.push(Opcode::Stop as u8);
 
@@ -1155,7 +1241,13 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     if let Some(at) = fix_j_set_fee {
         let off_fee = c.len();
         patch_push32_dest(&mut c, at, off_fee);
-        append_set_swap_fee_handler(&mut c, off_stop_unknown);
+        append_set_swap_fee_handler(&mut c, off_stop_unknown, fee_admin_gate);
+    }
+
+    if let Some(at) = fix_j_set_fee_admin {
+        let off_admin = c.len();
+        patch_push32_dest(&mut c, at, off_admin);
+        append_set_fee_admin_handler(&mut c, off_stop_unknown);
     }
 
     // --- add_liquidity (LP mint + reserves) ---
@@ -1453,6 +1545,7 @@ pub fn constant_product_pool_bytecode() -> Vec<u8> {
         token_hooks: false,
         storage_swap_fee: false,
         swap_with_recipient: false,
+        fee_admin_gate: false,
     })
 }
 
@@ -1463,6 +1556,7 @@ pub fn constant_product_pool_bytecode_v2() -> Vec<u8> {
         token_hooks: true,
         storage_swap_fee: false,
         swap_with_recipient: false,
+        fee_admin_gate: false,
     })
 }
 
@@ -1473,6 +1567,7 @@ pub fn constant_product_pool_bytecode_v3() -> Vec<u8> {
         token_hooks: false,
         storage_swap_fee: true,
         swap_with_recipient: false,
+        fee_admin_gate: false,
     })
 }
 
@@ -1483,6 +1578,7 @@ pub fn constant_product_pool_bytecode_v4() -> Vec<u8> {
         token_hooks: true,
         storage_swap_fee: true,
         swap_with_recipient: false,
+        fee_admin_gate: false,
     })
 }
 
@@ -1493,6 +1589,18 @@ pub fn constant_product_pool_bytecode_v5() -> Vec<u8> {
         token_hooks: true,
         storage_swap_fee: true,
         swap_with_recipient: true,
+        fee_admin_gate: false,
+    })
+}
+
+/// v5 plus post-liquidity fee governance via [`fee_admin_key`] / [`SELECTOR_SET_FEE_ADMIN`]. CREATE2: [`NATIVE_CP_POOL_CREATE2_SALT_V6`].
+#[must_use]
+pub fn constant_product_pool_bytecode_v6() -> Vec<u8> {
+    build_cp_pool(CpPoolBuildOpts {
+        token_hooks: true,
+        storage_swap_fee: true,
+        swap_with_recipient: true,
+        fee_admin_gate: true,
     })
 }
 
@@ -2079,5 +2187,83 @@ mod tests {
 
         assert_eq!(it2.logs.len(), 1);
         assert_eq!(&it2.logs[0].data[80..96], &amount_word(u128::from(dy))[16..32]);
+    }
+
+    #[test]
+    fn constant_product_pool_bytecode_v6_passes_protocol_qa() {
+        use boing_qa::{check_contract_deploy_full, QaResult, RuleRegistry};
+
+        let code = constant_product_pool_bytecode_v6();
+        let registry = RuleRegistry::new();
+        let r = check_contract_deploy_full(&code, Some("dapp"), None, &registry);
+        assert!(
+            matches!(r, QaResult::Allow | QaResult::Unsure),
+            "expected Allow or Unsure for native CP pool v6 bytecode, got {r:?}"
+        );
+    }
+
+    /// **v6:** fee admin can change `swap_fee_bps` after liquidity exists.
+    #[test]
+    fn v6_fee_admin_can_set_fee_after_liquidity() {
+        let admin = AccountId([0xa1u8; 32]);
+        let stranger = AccountId([0xb2u8; 32]);
+        let pool = AccountId([0xc3u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: pool,
+            state: Default::default(),
+        });
+        let pool_code = constant_product_pool_bytecode_v6();
+        state.set_contract_code(pool, pool_code.clone());
+
+        // Before LP: set admin + fee.
+        let mut it = Interpreter::new(pool_code.clone(), 10_000_000);
+        it.run(admin, pool, &encode_set_fee_admin_calldata(&admin), &mut state)
+            .unwrap();
+        let mut it = Interpreter::new(pool_code.clone(), 10_000_000);
+        it.run(admin, pool, &encode_set_swap_fee_bps_calldata(50), &mut state)
+            .unwrap();
+        assert_eq!(
+            u128::from_be_bytes(
+                state.get_contract_storage(&pool, &swap_fee_bps_key())[16..32]
+                    .try_into()
+                    .unwrap()
+            ),
+            50
+        );
+
+        // Add liquidity (locks v3-style path for non-admin).
+        let mut it = Interpreter::new(pool_code.clone(), 10_000_000);
+        it.run(
+            admin,
+            pool,
+            &encode_add_liquidity_calldata(1_000, 2_000, 0),
+            &mut state,
+        )
+        .unwrap();
+
+        // Stranger cannot change fee after LP.
+        let fee_before = state.get_contract_storage(&pool, &swap_fee_bps_key());
+        let mut it = Interpreter::new(pool_code.clone(), 10_000_000);
+        it.run(stranger, pool, &encode_set_swap_fee_bps_calldata(200), &mut state)
+            .unwrap();
+        assert_eq!(
+            state.get_contract_storage(&pool, &swap_fee_bps_key()),
+            fee_before,
+            "non-admin must not change fee after LP"
+        );
+
+        // Admin can change fee after LP.
+        let mut it = Interpreter::new(pool_code, 10_000_000);
+        it.run(admin, pool, &encode_set_swap_fee_bps_calldata(200), &mut state)
+            .unwrap();
+        assert_eq!(
+            u128::from_be_bytes(
+                state.get_contract_storage(&pool, &swap_fee_bps_key())[16..32]
+                    .try_into()
+                    .unwrap()
+            ),
+            200
+        );
     }
 }

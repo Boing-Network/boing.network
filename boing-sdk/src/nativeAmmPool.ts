@@ -4,7 +4,7 @@
  *
  * Storage layout matches `boing_execution::native_amm`:
  * reserves (`reserve_a_key` / `reserve_b_key`), total LP (`total_lp_supply_key`), per-signer LP (`lp_balance_storage_key`);
- * **v3/v4:** `swap_fee_bps_key` (`k[31] == 0x07`).
+ * **v3/v4/v6:** `swap_fee_bps_key` (`k[31] == 0x07`); **v6:** `fee_admin_key` (`k[31] == 0x08`).
  * Amounts are u128 BE in the **low 16 bytes** of each 32-byte word.
  */
 
@@ -188,9 +188,13 @@ export const NATIVE_CONSTANT_PRODUCT_TOKEN_B_KEY_HEX =
 export const NATIVE_CONSTANT_PRODUCT_TOKENS_CONFIGURED_KEY_HEX =
   `0x${'00'.repeat(31)}06` as const;
 
-/** **v3/v4:** Swap fee bps on output (`swap_fee_bps_key`, `k[31] == 0x07`). **`0`** = unset until first `add_liquidity` (then defaults to **`NATIVE_CP_SWAP_FEE_BPS`** on-chain). */
+/** **v3/v4/v6:** Swap fee bps on output (`swap_fee_bps_key`, `k[31] == 0x07`). **`0`** = unset until first `add_liquidity` (then defaults to **`NATIVE_CP_SWAP_FEE_BPS`** on-chain). */
 export const NATIVE_CONSTANT_PRODUCT_SWAP_FEE_BPS_KEY_HEX =
   `0x${'00'.repeat(31)}07` as const;
+
+/** **v6:** Fee admin address (`fee_admin_key`, `k[31] == 0x08`). Zero until `set_fee_admin`; then may call `set_swap_fee_bps` after liquidity. */
+export const NATIVE_CONSTANT_PRODUCT_FEE_ADMIN_KEY_HEX =
+  `0x${'00'.repeat(31)}08` as const;
 
 const LP_BALANCE_XOR_U8: Uint8Array = (() => {
   const u8 = new Uint8Array(32);
@@ -293,7 +297,7 @@ export async function fetchNativeConstantProductTotalLpSupply(
   return decodeBoingStorageWordU128(w.value);
 }
 
-/** **v3/v4:** Raw u128 at **`swap_fee_bps_key`**. Use **`0n`** → default fee **`NATIVE_CP_SWAP_FEE_BPS`** when quoting swaps. */
+/** **v3/v4/v6:** Raw u128 at **`swap_fee_bps_key`**. Use **`0n`** → default fee **`NATIVE_CP_SWAP_FEE_BPS`** when quoting swaps. */
 export async function fetchNativeConstantProductSwapFeeBps(
   client: BoingClient,
   poolHex32: string
@@ -301,6 +305,16 @@ export async function fetchNativeConstantProductSwapFeeBps(
   const pool = validateHex32(poolHex32);
   const w = await client.getContractStorage(pool, NATIVE_CONSTANT_PRODUCT_SWAP_FEE_BPS_KEY_HEX);
   return decodeBoingStorageWordU128(w.value);
+}
+
+/** **v6:** Fee admin `AccountId` hex at **`fee_admin_key`** (32-byte word). All-zero when unset. */
+export async function fetchNativeConstantProductFeeAdmin(
+  client: BoingClient,
+  poolHex32: string
+): Promise<string> {
+  const pool = validateHex32(poolHex32);
+  const w = await client.getContractStorage(pool, NATIVE_CONSTANT_PRODUCT_FEE_ADMIN_KEY_HEX);
+  return validateHex32(w.value);
 }
 
 /** LP balance for **`signerHex32`** in **`poolHex32`** (XOR-derived storage key). */

@@ -10,12 +10,14 @@ export declare const SELECTOR_NATIVE_AMM_ADD_LIQUIDITY = 17;
 export declare const SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY = 18;
 /** **v2 pool:** one-time `set_tokens(token_a, token_b)`. */
 export declare const SELECTOR_NATIVE_AMM_SET_TOKENS = 19;
-/** **v3/v4 pool:** `set_swap_fee_bps(fee)` — **64-byte** calldata; only when **total LP == 0**; **`1 ≤ fee ≤ 10_000`**. */
+/** **v3/v4/v6 pool:** `set_swap_fee_bps(fee)` — **64-byte** calldata; **`1 ≤ fee ≤ 10_000`**. v3/v4: only when **total LP == 0**; v6: also when caller is fee admin. */
 export declare const SELECTOR_NATIVE_AMM_SET_SWAP_FEE_BPS = 20;
 /** **v5 pool:** `swap_to` — like `swap` plus **word4** = output recipient (**160-byte** calldata). */
 export declare const SELECTOR_NATIVE_AMM_SWAP_TO = 21;
 /** **v5 pool:** `remove_liquidity_to` — like `remove_liquidity` plus **recipient_a** / **recipient_b** (**192-byte** calldata). */
 export declare const SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY_TO = 22;
+/** **v6 pool:** `set_fee_admin(admin)` — **64-byte** calldata; only when **total LP == 0**. */
+export declare const SELECTOR_NATIVE_AMM_SET_FEE_ADMIN = 23;
 /** Swap fee in basis points on **output** (matches `native_amm::NATIVE_CP_SWAP_FEE_BPS`). */
 export declare const NATIVE_CP_SWAP_FEE_BPS = 30;
 /** Build 32-byte `Log2` **topic0** (UTF-8 ASCII + zero pad), matching `native_amm` constants. */
@@ -41,8 +43,10 @@ export declare function encodeNativeAmmRemoveLiquidityCalldata(liquidityBurn: bi
 export declare function encodeNativeAmmRemoveLiquidityToCalldata(liquidityBurn: bigint, minA: bigint, minB: bigint, recipientAHex32: string, recipientBHex32: string): Uint8Array;
 /** **v2:** 96-byte `set_tokens` — each id is 32-byte account hex (`0x` + 64 hex). Use `0x` + 64 zeros for “no token” on that side. */
 export declare function encodeNativeAmmSetTokensCalldata(tokenAHex32: string, tokenBHex32: string): Uint8Array;
-/** **v3/v4:** 64-byte `set_swap_fee_bps` calldata (`native_amm::encode_set_swap_fee_bps_calldata`). */
+/** **v3/v4/v6:** 64-byte `set_swap_fee_bps` calldata (`native_amm::encode_set_swap_fee_bps_calldata`). */
 export declare function encodeNativeAmmSetSwapFeeBpsCalldata(feeBps: bigint): Uint8Array;
+/** **v6:** 64-byte `set_fee_admin` calldata (`native_amm::encode_set_fee_admin_calldata`). */
+export declare function encodeNativeAmmSetFeeAdminCalldata(adminHex32: string): Uint8Array;
 export declare function encodeNativeAmmSwapCalldataHex(direction: bigint, amountIn: bigint, minOut: bigint): string;
 export declare function encodeNativeAmmSwapToCalldataHex(direction: bigint, amountIn: bigint, minOut: bigint, recipientHex32: string): string;
 export declare function encodeNativeAmmAddLiquidityCalldataHex(amountA: bigint, amountB: bigint, minLiquidity?: bigint): string;
@@ -50,11 +54,12 @@ export declare function encodeNativeAmmRemoveLiquidityCalldataHex(liquidityBurn:
 export declare function encodeNativeAmmRemoveLiquidityToCalldataHex(liquidityBurn: bigint, minA: bigint, minB: bigint, recipientAHex32: string, recipientBHex32: string): string;
 export declare function encodeNativeAmmSetTokensCalldataHex(tokenAHex32: string, tokenBHex32: string): string;
 export declare function encodeNativeAmmSetSwapFeeBpsCalldataHex(feeBps: bigint): string;
+export declare function encodeNativeAmmSetFeeAdminCalldataHex(adminHex32: string): string;
 /** Raw CP step (no swap fee): Δout = ⌊ r_out · Δin / (r_in + Δin) ⌋. */
 export declare function constantProductAmountOutNoFee(reserveIn: bigint, reserveOut: bigint, amountIn: bigint): bigint;
 /**
  * Amount out after an explicit **output-side** fee in basis points (`native_amm::constant_product_amount_out_after_fee_with_bps`).
- * **`feeBps`** must be **`0`…`10000`** (inclusive). For **v3/v4** pools, if storage at `swap_fee_bps_key` reads **`0`**, treat as **`NATIVE_CP_SWAP_FEE_BPS`** before quoting.
+ * **`feeBps`** must be **`0`…`10000`** (inclusive). For **v3/v4/v6** pools, if storage at `swap_fee_bps_key` reads **`0`**, treat as **`NATIVE_CP_SWAP_FEE_BPS`** before quoting.
  */
 export declare function constantProductAmountOutWithFeeBps(reserveIn: bigint, reserveOut: bigint, amountIn: bigint, feeBps: bigint): bigint;
 /**

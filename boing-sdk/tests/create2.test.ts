@@ -5,6 +5,7 @@ import {
   NATIVE_CP_POOL_CREATE2_SALT_V3,
   NATIVE_CP_POOL_CREATE2_SALT_V4,
   NATIVE_CP_POOL_CREATE2_SALT_V5,
+  NATIVE_CP_POOL_CREATE2_SALT_V6,
   NATIVE_DEX_FACTORY_CREATE2_SALT_V1,
   NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V1,
   NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V2,
@@ -18,6 +19,7 @@ import {
   nativeCpPoolCreate2SaltV3Hex,
   nativeCpPoolCreate2SaltV4Hex,
   nativeCpPoolCreate2SaltV5Hex,
+  nativeCpPoolCreate2SaltV6Hex,
   nativeDexFactoryCreate2SaltV1Hex,
   nativeDexLedgerRouterCreate2SaltV1Hex,
   nativeDexLedgerRouterCreate2SaltV2Hex,
@@ -70,11 +72,12 @@ describe('create2', () => {
     }
   });
 
-  it('NATIVE_CP_POOL_CREATE2_SALT_V3, V4, and V5 match Rust labels', () => {
+  it('NATIVE_CP_POOL_CREATE2_SALT_V3–V6 match Rust labels', () => {
     for (const [salt, label, hexFn] of [
       [NATIVE_CP_POOL_CREATE2_SALT_V3, 'BOING_NATIVECP_C2V3', nativeCpPoolCreate2SaltV3Hex],
       [NATIVE_CP_POOL_CREATE2_SALT_V4, 'BOING_NATIVECP_C2V4', nativeCpPoolCreate2SaltV4Hex],
       [NATIVE_CP_POOL_CREATE2_SALT_V5, 'BOING_NATIVECP_C2V5', nativeCpPoolCreate2SaltV5Hex],
+      [NATIVE_CP_POOL_CREATE2_SALT_V6, 'BOING_NATIVECP_C2V6', nativeCpPoolCreate2SaltV6Hex],
     ] as const) {
       const enc = new TextEncoder().encode(label);
       expect(salt.length).toBe(32);

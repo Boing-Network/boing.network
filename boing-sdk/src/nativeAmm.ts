@@ -13,12 +13,14 @@ export const SELECTOR_NATIVE_AMM_ADD_LIQUIDITY = 0x11;
 export const SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY = 0x12;
 /** **v2 pool:** one-time `set_tokens(token_a, token_b)`. */
 export const SELECTOR_NATIVE_AMM_SET_TOKENS = 0x13;
-/** **v3/v4 pool:** `set_swap_fee_bps(fee)` — **64-byte** calldata; only when **total LP == 0**; **`1 ≤ fee ≤ 10_000`**. */
+/** **v3/v4/v6 pool:** `set_swap_fee_bps(fee)` — **64-byte** calldata; **`1 ≤ fee ≤ 10_000`**. v3/v4: only when **total LP == 0**; v6: also when caller is fee admin. */
 export const SELECTOR_NATIVE_AMM_SET_SWAP_FEE_BPS = 0x14;
 /** **v5 pool:** `swap_to` — like `swap` plus **word4** = output recipient (**160-byte** calldata). */
 export const SELECTOR_NATIVE_AMM_SWAP_TO = 0x15;
 /** **v5 pool:** `remove_liquidity_to` — like `remove_liquidity` plus **recipient_a** / **recipient_b** (**192-byte** calldata). */
 export const SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY_TO = 0x16;
+/** **v6 pool:** `set_fee_admin(admin)` — **64-byte** calldata; only when **total LP == 0**. */
+export const SELECTOR_NATIVE_AMM_SET_FEE_ADMIN = 0x17;
 
 /** Swap fee in basis points on **output** (matches `native_amm::NATIVE_CP_SWAP_FEE_BPS`). */
 export const NATIVE_CP_SWAP_FEE_BPS = 30;
@@ -150,7 +152,7 @@ export function encodeNativeAmmSetTokensCalldata(tokenAHex32: string, tokenBHex3
   return out;
 }
 
-/** **v3/v4:** 64-byte `set_swap_fee_bps` calldata (`native_amm::encode_set_swap_fee_bps_calldata`). */
+/** **v3/v4/v6:** 64-byte `set_swap_fee_bps` calldata (`native_amm::encode_set_swap_fee_bps_calldata`). */
 export function encodeNativeAmmSetSwapFeeBpsCalldata(feeBps: bigint): Uint8Array {
   if (feeBps < 1n || feeBps > 10_000n) {
     throw new RangeError('feeBps must satisfy 1 <= feeBps <= 10000');
@@ -158,6 +160,14 @@ export function encodeNativeAmmSetSwapFeeBpsCalldata(feeBps: bigint): Uint8Array
   const out = new Uint8Array(64);
   out.set(selectorWord(SELECTOR_NATIVE_AMM_SET_SWAP_FEE_BPS), 0);
   out.set(amountWord(feeBps), 32);
+  return out;
+}
+
+/** **v6:** 64-byte `set_fee_admin` calldata (`native_amm::encode_set_fee_admin_calldata`). */
+export function encodeNativeAmmSetFeeAdminCalldata(adminHex32: string): Uint8Array {
+  const out = new Uint8Array(64);
+  out.set(selectorWord(SELECTOR_NATIVE_AMM_SET_FEE_ADMIN), 0);
+  out.set(hexToBytes(validateHex32(adminHex32)), 32);
   return out;
 }
 
@@ -210,6 +220,10 @@ export function encodeNativeAmmSetSwapFeeBpsCalldataHex(feeBps: bigint): string 
   return bytesToHex(encodeNativeAmmSetSwapFeeBpsCalldata(feeBps));
 }
 
+export function encodeNativeAmmSetFeeAdminCalldataHex(adminHex32: string): string {
+  return bytesToHex(encodeNativeAmmSetFeeAdminCalldata(adminHex32));
+}
+
 /** Raw CP step (no swap fee): Δout = ⌊ r_out · Δin / (r_in + Δin) ⌋. */
 export function constantProductAmountOutNoFee(
   reserveIn: bigint,
@@ -226,7 +240,7 @@ export function constantProductAmountOutNoFee(
 
 /**
  * Amount out after an explicit **output-side** fee in basis points (`native_amm::constant_product_amount_out_after_fee_with_bps`).
- * **`feeBps`** must be **`0`…`10000`** (inclusive). For **v3/v4** pools, if storage at `swap_fee_bps_key` reads **`0`**, treat as **`NATIVE_CP_SWAP_FEE_BPS`** before quoting.
+ * **`feeBps`** must be **`0`…`10000`** (inclusive). For **v3/v4/v6** pools, if storage at `swap_fee_bps_key` reads **`0`**, treat as **`NATIVE_CP_SWAP_FEE_BPS`** before quoting.
  */
 export function constantProductAmountOutWithFeeBps(
   reserveIn: bigint,

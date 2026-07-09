@@ -18,7 +18,9 @@ import {
   NATIVE_CONSTANT_PRODUCT_RESERVE_B_KEY_HEX,
   NATIVE_CONSTANT_PRODUCT_TOTAL_LP_KEY_HEX,
   NATIVE_CONSTANT_PRODUCT_SWAP_FEE_BPS_KEY_HEX,
+  NATIVE_CONSTANT_PRODUCT_FEE_ADMIN_KEY_HEX,
   fetchNativeConstantProductSwapFeeBps,
+  fetchNativeConstantProductFeeAdmin,
 } from '../src/nativeAmmPool.js';
 import type { BoingClient } from '../src/client.js';
 import type { SimulateResult } from '../src/types.js';
@@ -123,6 +125,10 @@ describe('nativeAmmPool', () => {
     expect(NATIVE_CONSTANT_PRODUCT_SWAP_FEE_BPS_KEY_HEX).toBe('0x' + '00'.repeat(31) + '07');
   });
 
+  it('fee admin key matches native_amm (byte 31 = 0x08)', () => {
+    expect(NATIVE_CONSTANT_PRODUCT_FEE_ADMIN_KEY_HEX).toBe('0x' + '00'.repeat(31) + '08');
+  });
+
   it('fetchNativeConstantProductSwapFeeBps', async () => {
     const getContractStorage = vi.fn(async (_pool: string, key: string) => {
       expect(key).toBe(NATIVE_CONSTANT_PRODUCT_SWAP_FEE_BPS_KEY_HEX);
@@ -131,6 +137,18 @@ describe('nativeAmmPool', () => {
     const client = { getContractStorage } as unknown as BoingClient;
     const n = await fetchNativeConstantProductSwapFeeBps(client, POOL);
     expect(n).toBe(100n);
+    expect(getContractStorage).toHaveBeenCalledTimes(1);
+  });
+
+  it('fetchNativeConstantProductFeeAdmin', async () => {
+    const admin = '0x' + '11'.repeat(32);
+    const getContractStorage = vi.fn(async (_pool: string, key: string) => {
+      expect(key).toBe(NATIVE_CONSTANT_PRODUCT_FEE_ADMIN_KEY_HEX);
+      return { value: admin };
+    });
+    const client = { getContractStorage } as unknown as BoingClient;
+    const got = await fetchNativeConstantProductFeeAdmin(client, POOL);
+    expect(got).toBe(admin);
     expect(getContractStorage).toHaveBeenCalledTimes(1);
   });
 

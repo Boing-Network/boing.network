@@ -137,7 +137,7 @@ Rough sizing for **in-repo** work after the current SDK / indexer / RPC CI slice
 
 | Follow-up | Notes |
 |-----------|--------|
-| **u128-wide math / adjustable on-chain fee** | **Done (VM base):** **`Mul` (`0x03`)** is **256×256 → 256** (`interpreter.rs`, **`proptest_mul.rs`**, `TECHNICAL-SPECIFICATION.md` §7.2) — native CP **output-side** fee math is no longer low-**64** truncated. **Still open:** Uniswap-style **fee-on-input** formula and/or **governable `fee_bps`** in pool storage (new bytecode revision). |
+| **u128-wide math / adjustable on-chain fee** | **Done (VM base + v6 governance):** **`Mul` (`0x03`)** is **256×256 → 256** (`interpreter.rs`, **`proptest_mul.rs`**, `TECHNICAL-SPECIFICATION.md` §7.2). **v3/v4** store **`swap_fee_bps`** (set only while LP==0). **v6** adds **`fee_admin`** / **`set_fee_admin`** so the admin can change fee after liquidity ([NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md)). **Still open:** Uniswap-style **fee-on-input** formula (optional product choice). |
 | **Richer log schemas** | Optional extra topics / `LOG3`+ if indexers need more indexed fields — current **NAMM-3** uses **`Log2`** only ([NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) § Logs). |
 | **Canonical testnet pool `AccountId`** | **Published** **`0x7247ddc3…`** in spec + **`boing-sdk`** + **`website/src/config/testnet.ts`** — verify **boing.finance** / partner apps use [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §2 env matrix. |
 | **Optional on-chain view selectors** | If bytecode adds explicit read methods beyond storage layout — **A5.2** remainder. |
