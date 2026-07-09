@@ -15,7 +15,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
         <span class="stage-badge-global">Testnet</span>
         <h1 class="page-title"><Icon name="faucet" size={32} class="title-icon" /> Testnet Faucet</h1>
         <p class="lead">
-          Get testnet BOING to pay for gas and stake. Enter your account ID (32-byte hex) and the faucet will send <strong>1,000</strong> testnet BOING to your account. Rate limit: 1 request per 60 seconds per account.
+          Get testnet BOING to pay for gas and stake. Enter your account ID (32-byte hex) and the faucet will send <strong>50,000</strong> testnet BOING to your account (enough for min validator stake). Rate limit: 1 request per 60 seconds per account.
         </p>
       </div>
     </header>
@@ -42,7 +42,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
       />
       <button id="request-btn" type="button" aria-busy="false">
         <span class="faucet-btn-inner">
-          <span class="faucet-btn-label">Request 1,000 testnet BOING</span>
+          <span class="faucet-btn-label">Request 50,000 testnet BOING</span>
           <span class="boing-loader boing-loader--sm faucet-inline-loader" hidden aria-hidden="true">
             <span class="boing-loader__dot"></span><span class="boing-loader__dot"></span><span class="boing-loader__dot"></span>
           </span>
@@ -140,7 +140,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
       } finally {
         btn.disabled = false;
         btn.setAttribute('aria-busy', 'false');
-        if (faucetLabel) (faucetLabel as HTMLElement).textContent = 'Request 1,000 testnet BOING';
+        if (faucetLabel) (faucetLabel as HTMLElement).textContent = 'Request 50,000 testnet BOING';
         if (faucetLoader) {
           faucetLoader.hidden = true;
           faucetLoader.setAttribute('aria-hidden', 'true');

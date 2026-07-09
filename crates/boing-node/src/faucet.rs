@@ -23,4 +23,7 @@ pub fn testnet_faucet_account_id() -> AccountId {
 pub const FAUCET_INITIAL_BALANCE: u128 = 10_000_000;
 
 /// Amount sent per faucet request.
-pub const FAUCET_DISPENSE_AMOUNT: u128 = 1_000;
+///
+/// Sized so a single request can fund **min validator stake** ([`boing_tokenomics::MIN_VALIDATOR_STAKE`] = 10_000)
+/// plus Bond gas (~21_000) for one-click stake-validator onboarding (VibeMiner / local testnet).
+pub const FAUCET_DISPENSE_AMOUNT: u128 = 50_000;

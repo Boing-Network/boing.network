@@ -73,8 +73,8 @@ No separate "miner" binary: **validating** is done by running `boing-node --vali
    - **Option A (recommended):** In-app "Get testnet BOING" that calls the public testnet RPC `https://testnet-rpc.boing.network/` with `boing_faucetRequest([user_account_hex])`. No need to run a faucet locally.  
    - **Option B:** Link to the web faucet [boing.network/faucet](https://boing.network/faucet).
 
-7. **Staking (validator)**  
-   User must hold BOING and submit a `Bond` transaction (via RPC or a wallet that supports Boing). Validator set is derived from top stakers. VibeMiner can link to [TESTNET.md](TESTNET.md) or a "How to stake" page.
+7. **Staking (public stake-derived validator set)**  
+   VibeMiner’s **`*-public-validator`** presets are one-click: the desktop app generates a persistent Ed25519 key (`BOING_VALIDATOR_KEY` via env, never argv), starts `boing-node --validator` with **`BOING_VALIDATOR_SET=stake`** and **`BOING_LEADER_ELECTION=vrf`**, then calls public RPC `boing_faucetRequest` + submits a signed **`Bond`** for **`MIN_VALIDATOR_STAKE` (10_000)**. Local **`*-validator`** presets remain solo/dev (`--validator` only). Top-N epoch inclusion still depends on stake ranking after Bond. See VibeMiner `docs/NODE_RUNNING.md`.
 
 ---
 

@@ -88,7 +88,7 @@ When the node is started with **`--faucet-enable`**, it accepts:
 
 | Method | Params | Description |
 |--------|--------|-------------|
-| `boing_faucetRequest` | `[hex_account_id]` | Send **1,000** testnet BOING to the given account (32-byte hex). Rate limit: **1 request per 60 seconds per account**. |
+| `boing_faucetRequest` | `[hex_account_id]` | Send **50,000** testnet BOING to the given account (32-byte hex) — enough for min validator stake (10,000) plus Bond fees. Rate limit: **1 request per 60 seconds per account**. |
 
 **Example (curl):**
 
