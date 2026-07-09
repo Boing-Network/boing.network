@@ -690,6 +690,7 @@ dependencies = [
  "bincode",
  "boing-consensus",
  "boing-execution",
+ "boing-governance",
  "boing-p2p",
  "boing-primitives",
  "boing-qa",

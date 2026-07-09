@@ -58,6 +58,9 @@ pub const UNBONDING_DELAY_BLOCKS: u64 = 100;
 /// Fraction of active stake burned on detected consensus equivocation (basis points).
 pub const EQUIVOCATION_SLASH_BPS: u16 = 5_000; // 50%
 
+/// Blocks after an equivocation slash during which an appeal may be submitted.
+pub const EQUIVOCATION_APPEAL_WINDOW_BLOCKS: u64 = 1_000;
+
 /// Slash active stake for consensus equivocation; burned amount is credited to [`FEE_BURN_SINK`].
 /// Returns the amount slashed (0 if account missing or stake is 0).
 pub fn slash_equivocation_stake(state: &mut StateStore, validator: &AccountId) -> u128 {
@@ -80,6 +83,40 @@ pub fn slash_equivocation_stake(state: &mut StateStore, validator: &AccountId) -
     };
     credit_account(state, FEE_BURN_SINK, amount);
     amount
+}
+
+/// Reverse an equivocation slash: debit [`FEE_BURN_SINK`] and restore `amount` to the validator's stake.
+/// Returns the amount actually restored (may be less if the burn sink is short).
+pub fn restore_equivocation_slash(
+    state: &mut StateStore,
+    validator: &AccountId,
+    amount: u128,
+) -> u128 {
+    if amount == 0 {
+        return 0;
+    }
+    let available = state.get(&FEE_BURN_SINK).map(|s| s.balance).unwrap_or(0);
+    let restore = amount.min(available);
+    if restore == 0 {
+        return 0;
+    }
+    if let Some(sink) = state.get_mut(&FEE_BURN_SINK) {
+        sink.balance = sink.balance.saturating_sub(restore);
+    }
+    if let Some(st) = state.get_mut(validator) {
+        st.stake = st.stake.saturating_add(restore);
+    } else {
+        state.insert(Account {
+            id: *validator,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: restore,
+                ..Default::default()
+            },
+        });
+    }
+    restore
 }
 
 /// dApp incentive cap per epoch (governance parameter; placeholder).
@@ -238,5 +275,25 @@ mod tests {
         assert_eq!(burned, 5_000);
         assert_eq!(state.get(&v).unwrap().stake, 5_000);
         assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 5_000);
+    }
+
+    #[test]
+    fn restore_equivocation_returns_stake_from_burn_sink() {
+        let v = AccountId([9u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: v,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 10_000,
+                ..Default::default()
+            },
+        });
+        let burned = slash_equivocation_stake(&mut state, &v);
+        let restored = restore_equivocation_slash(&mut state, &v, burned);
+        assert_eq!(restored, burned);
+        assert_eq!(state.get(&v).unwrap().stake, 10_000);
+        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 0);
     }
 }

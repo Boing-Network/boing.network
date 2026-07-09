@@ -86,20 +86,23 @@ impl SlashRegistry {
                 amount,
                 reason: reason.clone(),
                 block_height,
-                appeal_deadline: block_height + appeal_window_blocks,
+                appeal_deadline: block_height.saturating_add(appeal_window_blocks),
             },
         );
         id
     }
 
-    /// Submit an appeal for a slash. Returns appeal ID or error.
-    pub fn submit_appeal(&mut self, slash_id: u64, evidence: Vec<u8>) -> Result<u64, SlashingError> {
+    /// Submit an appeal for a slash at `current_height`. Returns appeal ID or error.
+    pub fn submit_appeal(
+        &mut self,
+        slash_id: u64,
+        evidence: Vec<u8>,
+        current_height: u64,
+    ) -> Result<u64, SlashingError> {
         let result = (|| {
             let slash = self.slashes.get(&slash_id).ok_or(SlashingError::SlashNotFound)?;
-            // Check appeal window
-            if slash.appeal_deadline > 0 {
-                // Caller must pass current height; we don't have chain access here
-                // For now we allow appeal if slash exists and no appeal yet
+            if current_height > slash.appeal_deadline {
+                return Err(SlashingError::AppealWindowClosed);
             }
             if self.appeals.values().any(|a| a.slash_id == slash_id) {
                 return Err(SlashingError::AppealAlreadyExists);
@@ -201,9 +204,13 @@ mod tests {
         assert_eq!(slash_id, 1);
         assert!(!reg.is_slash_reversed(slash_id));
 
-        let appeal_id = reg.submit_appeal(slash_id, b"evidence".to_vec()).unwrap();
+        let appeal_id = reg
+            .submit_appeal(slash_id, b"evidence".to_vec(), 150)
+            .unwrap();
         assert_eq!(appeal_id, 1);
-        assert!(reg.submit_appeal(slash_id, vec![]).is_err()); // duplicate
+        assert!(reg
+            .submit_appeal(slash_id, vec![], 150)
+            .is_err()); // duplicate
 
         reg.resolve_appeal(appeal_id, true).unwrap();
         assert!(reg.is_slash_reversed(slash_id));
@@ -213,9 +220,20 @@ mod tests {
     fn test_appeal_rejected() {
         let mut reg = SlashRegistry::new();
         let slash_id = reg.record_slash([2u8; 32], 500, SlashReason::Liveness, 50, 100);
-        let appeal_id = reg.submit_appeal(slash_id, vec![]).unwrap();
+        let appeal_id = reg.submit_appeal(slash_id, vec![], 50).unwrap();
         reg.resolve_appeal(appeal_id, false).unwrap();
         assert!(!reg.is_slash_reversed(slash_id));
+    }
+
+    #[test]
+    fn test_appeal_window_closed() {
+        let mut reg = SlashRegistry::new();
+        let slash_id = reg.record_slash([3u8; 32], 100, SlashReason::Equivocation, 10, 5);
+        assert!(matches!(
+            reg.submit_appeal(slash_id, vec![], 16),
+            Err(SlashingError::AppealWindowClosed)
+        ));
+        assert!(reg.submit_appeal(slash_id, vec![], 15).is_ok());
     }
 }
 
@@ -229,4 +247,6 @@ pub enum SlashingError {
     AppealAlreadyExists,
     #[error("Appeal already resolved")]
     AppealAlreadyResolved,
+    #[error("Appeal window closed")]
+    AppealWindowClosed,
 }

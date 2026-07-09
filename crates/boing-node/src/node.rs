@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use boing_consensus::ConsensusEngine;
 use boing_execution::{BlockExecutor, TransactionScheduler, Vm};
+use boing_governance::{SlashReason, SlashRegistry, SlashingError};
 use boing_p2p::{P2pEvent, P2pNode};
 use boing_primitives::{
     Account, AccountId, AccountState, Block, ConsensusVote, EquivocationEvidence, ExecutionReceipt,
@@ -78,10 +79,12 @@ pub struct BoingNode {
     pub early_votes: HashMap<(u64, Hash), Vec<AccountId>>,
     /// When set, refresh the consensus validator set from `top_stakers(n)` every `epoch_len` blocks.
     pub stake_validator_set: Option<StakeValidatorSetConfig>,
-    /// Rounds already slashed for a validator (dedupe local + gossiped evidence).
-    pub slashed_equivocations: HashMap<(AccountId, u64), ()>,
+    /// Rounds already slashed for a validator → slash registry id (dedupe local + gossiped evidence).
+    pub slashed_equivocations: HashMap<(AccountId, u64), u64>,
     /// Last accepted signed vote per (round, validator) — used to build gossip evidence on conflict.
     pub observed_votes: HashMap<(u64, AccountId), ConsensusVote>,
+    /// Auditable slash / appeal registry (in-memory MVP; not yet persisted).
+    pub slash_registry: SlashRegistry,
 }
 
 /// Result of recording a vote and resolving the pool item when possible.
@@ -178,6 +181,7 @@ impl BoingNode {
             stake_validator_set: None,
             slashed_equivocations: HashMap::new(),
             observed_votes: HashMap::new(),
+            slash_registry: SlashRegistry::new(),
         }
     }
 
@@ -528,20 +532,29 @@ impl BoingNode {
     }
 
     /// Burn a fraction of the offender's active stake (local + gossiped evidence; deduped per round).
+    /// Records an auditable slash with an appeal window when first applied.
     fn apply_equivocation_slash(&mut self, validator: AccountId, round: u64) -> bool {
         let key = (validator, round);
         if self.slashed_equivocations.contains_key(&key) {
             return false;
         }
         let burned = boing_tokenomics::slash_equivocation_stake(&mut self.state, &validator);
-        self.slashed_equivocations.insert(key, ());
+        let slash_id = self.slash_registry.record_slash(
+            validator.0,
+            burned,
+            SlashReason::Equivocation,
+            round,
+            boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS,
+        );
+        self.slashed_equivocations.insert(key, slash_id);
         if burned > 0 {
             self.refresh_native_aggregates();
             info!(
-                "Equivocation slash: validator={} round={} burned={}",
+                "Equivocation slash: validator={} round={} burned={} slash_id={}",
                 hex::encode(validator.0),
                 round,
-                burned
+                burned,
+                slash_id
             );
             true
         } else {
@@ -549,10 +562,52 @@ impl BoingNode {
                 "boing_node::node",
                 "consensus",
                 "equivocation_no_stake",
-                format!("validator={:?} round={round}", validator),
+                format!("validator={:?} round={round} slash_id={slash_id}", validator),
             );
             true // still mark as processed so we do not retry forever
         }
+    }
+
+    /// Submit an appeal for a recorded slash (must be within the appeal window at current chain height).
+    pub fn submit_slash_appeal(
+        &mut self,
+        slash_id: u64,
+        evidence: Vec<u8>,
+    ) -> Result<u64, SlashingError> {
+        self.slash_registry
+            .submit_appeal(slash_id, evidence, self.chain.height())
+    }
+
+    /// Resolve a pending appeal. If approved, restores burned stake from the fee burn sink.
+    /// Returns the amount restored (0 if rejected or nothing to restore).
+    pub fn resolve_slash_appeal(
+        &mut self,
+        appeal_id: u64,
+        approved: bool,
+    ) -> Result<u128, SlashingError> {
+        self.slash_registry.resolve_appeal(appeal_id, approved)?;
+        if !approved {
+            return Ok(0);
+        }
+        let Some(appeal) = self.slash_registry.get_appeal(appeal_id) else {
+            return Err(SlashingError::AppealNotFound);
+        };
+        let slash_id = appeal.slash_id;
+        let Some(slash) = self.slash_registry.get_slash(slash_id) else {
+            return Err(SlashingError::SlashNotFound);
+        };
+        let validator = AccountId(slash.validator);
+        let amount = slash.amount;
+        let restored =
+            boing_tokenomics::restore_equivocation_slash(&mut self.state, &validator, amount);
+        if restored > 0 {
+            self.refresh_native_aggregates();
+            info!(
+                "Slash appeal approved: slash_id={} appeal_id={} restored={}",
+                slash_id, appeal_id, restored
+            );
+        }
+        Ok(restored)
     }
 
     /// Apply verified gossiped equivocation evidence (slash + optional rebroadcast).

@@ -61,6 +61,7 @@ fn node_with_validators(validators: Vec<AccountId>, stakes: &[(AccountId, u128)]
         stake_validator_set: None,
         slashed_equivocations: HashMap::new(),
         observed_votes: HashMap::new(),
+        slash_registry: boing_governance::SlashRegistry::new(),
     }
 }
 
@@ -149,4 +150,56 @@ fn conflicting_observed_votes_slash_via_on_consensus_vote() {
     assert!(node
         .slashed_equivocations
         .contains_key(&(offender, 3)));
+}
+
+#[test]
+fn slash_appeal_restores_stake_when_approved() {
+    let v1 = AccountId([1u8; 32]);
+    let v3 = AccountId([3u8; 32]);
+    let v4 = AccountId([4u8; 32]);
+    let key = SigningKey::generate(&mut OsRng);
+    let offender = AccountId(key.verifying_key().to_bytes());
+    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
+
+    let a = ConsensusVote::sign(7, Hash([1u8; 32]), &key);
+    let b = ConsensusVote::sign(7, Hash([2u8; 32]), &key);
+    let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
+    assert!(node.on_equivocation_evidence(ev));
+    assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
+
+    let slash_id = *node.slashed_equivocations.get(&(offender, 7)).unwrap();
+    let appeal_id = node
+        .submit_slash_appeal(slash_id, b"false positive".to_vec())
+        .unwrap();
+    let restored = node.resolve_slash_appeal(appeal_id, true).unwrap();
+    assert_eq!(restored, 5_000);
+    assert_eq!(node.state.get(&offender).unwrap().stake, 10_000);
+    assert_eq!(
+        node.state
+            .get(&boing_tokenomics::FEE_BURN_SINK)
+            .unwrap()
+            .balance,
+        0
+    );
+    assert!(node.slash_registry.is_slash_reversed(slash_id));
+}
+
+#[test]
+fn slash_appeal_rejected_keeps_burn() {
+    let v1 = AccountId([1u8; 32]);
+    let v3 = AccountId([3u8; 32]);
+    let v4 = AccountId([4u8; 32]);
+    let key = SigningKey::generate(&mut OsRng);
+    let offender = AccountId(key.verifying_key().to_bytes());
+    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
+
+    let a = ConsensusVote::sign(4, Hash([1u8; 32]), &key);
+    let b = ConsensusVote::sign(4, Hash([2u8; 32]), &key);
+    let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
+    assert!(node.on_equivocation_evidence(ev));
+    let slash_id = *node.slashed_equivocations.get(&(offender, 4)).unwrap();
+    let appeal_id = node.submit_slash_appeal(slash_id, vec![]).unwrap();
+    assert_eq!(node.resolve_slash_appeal(appeal_id, false).unwrap(), 0);
+    assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
+    assert!(!node.slash_registry.is_slash_reversed(slash_id));
 }

@@ -48,6 +48,7 @@ fn node_with_proposer(signing_key: &SigningKey, balance: u128) -> BoingNode {
         stake_validator_set: None,
         slashed_equivocations: HashMap::new(),
         observed_votes: HashMap::new(),
+        slash_registry: boing_governance::SlashRegistry::new(),
     }
 }
 

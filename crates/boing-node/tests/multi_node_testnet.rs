@@ -69,6 +69,7 @@ fn node_with_p2p_and_block_provider(
         stake_validator_set: None,
         slashed_equivocations: HashMap::new(),
         observed_votes: HashMap::new(),
+        slash_registry: boing_governance::SlashRegistry::new(),
     };
     (node, event_rx)
 }
