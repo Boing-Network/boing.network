@@ -9,6 +9,8 @@ description = "Core types, cryptography, and primitives for Boing blockchain"
 blake3 = "1.5"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 sha2 = "0.10"
+# RFC 9381 ECVRF-EDWARDS25519-SHA512-TAI (leader election prove/verify)
+vrf-rfc9381 = { version = "0.0.7", features = ["edwards25519"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

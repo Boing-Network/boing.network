@@ -179,7 +179,7 @@ export function constantProductAmountOutWithFeeBps(reserveIn, reserveOut, amount
     return (dy * keep) / 10000n;
 }
 /**
- * Uniswap-style **fee-on-input** quote (off-chain helper; current pool bytecode uses **output-side** fee).
+ * Uniswap-style **fee-on-input** quote (matches on-chain **v7** pool swap math).
  * Matches `native_amm::constant_product_amount_out_fee_on_input_with_bps`.
  */
 export function constantProductAmountOutFeeOnInputWithFeeBps(reserveIn, reserveOut, amountIn, feeBps) {

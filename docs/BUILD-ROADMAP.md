@@ -182,7 +182,7 @@ boing-network/
 
 ### 4.4 Randomness & Fair Ordering
 
-- [x] VDF/VRF for verifiable randomness (leader selection; leader_from_vrf, dummy_vrf_output)
+- [x] VDF/VRF for verifiable randomness (leader selection; RFC 9381 ECVRF + `leader_from_vrf` / stub path)
 - [x] Replace or augment round-robin with VDF-driven selection (leader_from_vrf stub)
 
 ### 4.5 Security Standards (see [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md))

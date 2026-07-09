@@ -13,6 +13,8 @@ export declare const NATIVE_CP_POOL_CREATE2_SALT_V4: Uint8Array<ArrayBuffer>;
 export declare const NATIVE_CP_POOL_CREATE2_SALT_V5: Uint8Array<ArrayBuffer>;
 /** Same bytes as `boing_execution::native_amm::NATIVE_CP_POOL_CREATE2_SALT_V6` (v5 + fee admin). */
 export declare const NATIVE_CP_POOL_CREATE2_SALT_V6: Uint8Array<ArrayBuffer>;
+/** Same bytes as `boing_execution::native_amm::NATIVE_CP_POOL_CREATE2_SALT_V7` (v6 + fee-on-input). */
+export declare const NATIVE_CP_POOL_CREATE2_SALT_V7: Uint8Array<ArrayBuffer>;
 /** Same bytes as `native_dex_factory::NATIVE_DEX_FACTORY_CREATE2_SALT_V1`. */
 export declare const NATIVE_DEX_FACTORY_CREATE2_SALT_V1: Uint8Array<ArrayBuffer>;
 /** Same bytes as `native_dex_ledger_router::NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V1`. */
@@ -44,6 +46,8 @@ export declare function nativeCpPoolCreate2SaltV4Hex(): string;
 export declare function nativeCpPoolCreate2SaltV5Hex(): string;
 /** `0x` + 64 hex for {@link NATIVE_CP_POOL_CREATE2_SALT_V6}. */
 export declare function nativeCpPoolCreate2SaltV6Hex(): string;
+/** `0x` + 64 hex for {@link NATIVE_CP_POOL_CREATE2_SALT_V7}. */
+export declare function nativeCpPoolCreate2SaltV7Hex(): string;
 /**
  * Nonce-derived contract `AccountId`: `BLAKE3(sender_32 || deploy_tx_nonce_le_u64)`.
  * Matches `boing_primitives::nonce_derived_contract_address` (deploy with `create2_salt: null`).
@@ -65,6 +69,8 @@ export declare function predictNativeCpPoolV4Create2Address(deployerHex: string,
 export declare function predictNativeCpPoolV5Create2Address(deployerHex: string, poolBytecodeV5: Uint8Array): string;
 /** **v6** pool (v5 + post-liquidity fee admin) + documented v6 salt. */
 export declare function predictNativeCpPoolV6Create2Address(deployerHex: string, poolBytecodeV6: Uint8Array): string;
+/** **v7** pool (v6 + fee-on-input swap math) + documented v7 salt. */
+export declare function predictNativeCpPoolV7Create2Address(deployerHex: string, poolBytecodeV7: Uint8Array): string;
 /** Pair-directory contract (`native_dex_factory_bytecode`) + documented salt. */
 export declare function predictNativeDexFactoryCreate2Address(deployerHex: string, factoryBytecode: Uint8Array): string;
 /** Ledger router (`native_dex_ledger_router_bytecode`) + documented salt. */

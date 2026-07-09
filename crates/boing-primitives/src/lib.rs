@@ -32,7 +32,8 @@ pub use types::{
 pub use types::{Account, AccountState};
 pub use intent::{Intent, IntentKind, SignedIntent};
 pub use randomness::{
-    dummy_vrf_output, leader_from_vrf, verify_vrf_output, vrf_round_seed, VdfOutput, VrfOutput,
+    dummy_vrf_output, ecvrf_prove, leader_from_ecvrf_proofs, leader_from_vrf, verify_ecvrf_output,
+    verify_vrf_output, vrf_round_alpha, vrf_round_seed, ECVRF_PROOF_LEN, VdfOutput, VrfOutput,
 };
 pub use paymaster::{PaymasterConfig, SponsoredTransaction};
 pub use recovery::{Guardian, RecoveryRequest};

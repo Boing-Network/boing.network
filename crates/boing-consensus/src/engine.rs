@@ -14,7 +14,10 @@ pub enum LeaderElection {
     /// `validators[round % n]` (default).
     #[default]
     RoundRobin,
-    /// Deterministic selection via [`leader_from_vrf`] + [`dummy_vrf_output`] (dev/testnet stub).
+    /// Deterministic selection via [`leader_from_vrf`] + [`dummy_vrf_output`].
+    /// Production ECVRF prove/verify lives in `boing_primitives` (`ecvrf_prove` /
+    /// `verify_ecvrf_output` / `leader_from_ecvrf_proofs`); this mode keeps a shared
+    /// round seed so all nodes agree without gossiping per-validator proofs yet.
     Vrf,
 }
 
@@ -431,7 +434,7 @@ mod tests {
         let vrf0 = boing_primitives::dummy_vrf_output(0);
         let expected0 = boing_primitives::leader_from_vrf(&validators, &vrf0).unwrap();
         assert_eq!(engine.leader(0), expected0);
-        assert!(boing_primitives::verify_vrf_output(1, &vrf1));
+        assert!(boing_primitives::verify_vrf_output(1, &vrf1, None));
     }
 }
 

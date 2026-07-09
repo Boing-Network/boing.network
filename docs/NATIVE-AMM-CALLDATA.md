@@ -1,6 +1,6 @@
-# Native AMM calldata (v1–v6 encoders + reference pool bytecode)
+# Native AMM calldata (v1–v7 encoders + reference pool bytecode)
 
-**Status:** **Implemented** in `crates/boing-execution/src/native_amm.rs` and `boing-sdk/src/nativeAmm.ts`. **v1** — `constant_product_pool_bytecode` — ledger-only reserves. **v2** — `constant_product_pool_bytecode_v2` — one-time **`set_tokens`** plus nested **`Call` (`0xf1`)** to reference-token contracts on **swap output** and **`remove_liquidity`** payouts ([TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §7.2, [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md)). **v3** — `constant_product_pool_bytecode_v3` — same as v1 plus **on-chain swap fee bps** in storage (`swap_fee_bps_key`) and selector **`set_swap_fee_bps` (`0x14`)** when **total LP == 0**. **v4** — `constant_product_pool_bytecode_v4` — v2 token hooks **plus** the same configurable fee as v3. **v5** — `constant_product_pool_bytecode_v5` — v4 **plus** **`swap_to` (`0x15`)** / **`remove_liquidity_to` (`0x16`)**: explicit recipients so reference-token **`transfer`** can target the end user when the pool is called from a **router** (VM `Caller` is the router). CREATE2 salt: **`NATIVE_CP_POOL_CREATE2_SALT_V5`**. **v6** — `constant_product_pool_bytecode_v6` — v5 **plus** post-liquidity fee governance: **`set_fee_admin` (`0x17`)** while **total LP == 0**, then the fee admin may call **`set_swap_fee_bps`** after liquidity exists. CREATE2 salt: **`NATIVE_CP_POOL_CREATE2_SALT_V6`**. Existing **v1–v5** deployments are unchanged. Reserves and trade sizes stay in **u64** on the pool ledger (encoded as u128 words); the VM **`Mul`** opcode uses full **256×256 → 256** multiplication so on-chain fee math matches wide quotes.
+**Status:** **Implemented** in `crates/boing-execution/src/native_amm.rs` and `boing-sdk/src/nativeAmm.ts`. **v1** — `constant_product_pool_bytecode` — ledger-only reserves. **v2** — `constant_product_pool_bytecode_v2` — one-time **`set_tokens`** plus nested **`Call` (`0xf1`)** to reference-token contracts on **swap output** and **`remove_liquidity`** payouts ([TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §7.2, [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md)). **v3** — `constant_product_pool_bytecode_v3` — same as v1 plus **on-chain swap fee bps** in storage (`swap_fee_bps_key`) and selector **`set_swap_fee_bps` (`0x14`)** when **total LP == 0**. **v4** — `constant_product_pool_bytecode_v4` — v2 token hooks **plus** the same configurable fee as v3. **v5** — `constant_product_pool_bytecode_v5` — v4 **plus** **`swap_to` (`0x15`)** / **`remove_liquidity_to` (`0x16`)**: explicit recipients so reference-token **`transfer`** can target the end user when the pool is called from a **router** (VM `Caller` is the router). CREATE2 salt: **`NATIVE_CP_POOL_CREATE2_SALT_V5`**. **v6** — `constant_product_pool_bytecode_v6` — v5 **plus** post-liquidity fee governance: **`set_fee_admin` (`0x17`)** while **total LP == 0**, then the fee admin may call **`set_swap_fee_bps`** after liquidity exists. CREATE2 salt: **`NATIVE_CP_POOL_CREATE2_SALT_V6`**. **v7** — `constant_product_pool_bytecode_v7` — v6 **plus** Uniswap-style **fee-on-input** swap math (fee applied to \( \Delta_{in} \) before CP; reserves still credit full \( \Delta_{in} \)). CREATE2 salt: **`NATIVE_CP_POOL_CREATE2_SALT_V7`**. Existing **v1–v6** deployments are unchanged. Reserves and trade sizes stay in **u64** on the pool ledger (encoded as u128 words); the VM **`Mul`** opcode uses full **256×256 → 256** multiplication so on-chain fee math matches wide quotes.
 
 **Convention:** Extends the **96-byte reference call** style from [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md): word0 = selector in the **last byte** (offset 31); additional arguments follow in 32-byte words. Calls longer than 96 bytes use **contiguous 32-byte words** after the first 96 bytes.
 
@@ -26,10 +26,10 @@
 | `add_liquidity` (`0x11`) | Signer + pool | **v2:** still ledger-only; no token `CALL` in this revision |
 | `remove_liquidity` (`0x12`) | Signer + pool | **v2 with tokens:** include **both** token contracts if either slot is non-zero |
 | `set_tokens` (`0x13`) | Signer + pool | **v2:** include both token ids you pass (read/write) |
-| `set_swap_fee_bps` (`0x14`) | Signer + pool | **v3/v4:** only before first `add_liquidity` (**total LP == 0**). **v6:** also when signer is **`fee_admin`** (after liquidity) |
-| `swap_to` (`0x15`) | Signer + pool (+ output token if v5+) | **v5/v6**; same as `swap` plus **recipient** word; declare **recipient** in access list if it is a **new** account (rare) |
-| `remove_liquidity_to` (`0x16`) | Signer + pool | **v5/v6**; **v2 with tokens:** include both token contracts; declare **`recipient_a` / `recipient_b`** if they are **new** accounts (rare) |
-| `set_fee_admin` (`0x17`) | Signer + pool | **v6 only**; only before first `add_liquidity` (**total LP == 0**) |
+| `set_swap_fee_bps` (`0x14`) | Signer + pool | **v3/v4:** only before first `add_liquidity` (**total LP == 0**). **v6/v7:** also when signer is **`fee_admin`** (after liquidity) |
+| `swap_to` (`0x15`) | Signer + pool (+ output token if v5+) | **v5–v7**; same as `swap` plus **recipient** word; declare **recipient** in access list if it is a **new** account (rare) |
+| `remove_liquidity_to` (`0x16`) | Signer + pool | **v5–v7**; **v2 with tokens:** include both token contracts; declare **`recipient_a` / `recipient_b`** if they are **new** accounts (rare) |
+| `set_fee_admin` (`0x17`) | Signer + pool | **v6/v7**; only before first `add_liquidity` (**total LP == 0**) |
 
 **SDK (today):** `buildNativeConstantProductPoolAccessList` / `buildNativeConstantProductContractCallTx` / `mergeNativePoolAccessListWithSimulation` accept optional **`NativePoolAccessListOptions.additionalAccountsHex32`** so dApps can declare token contract ids before bytecode gains `CALL`; simulation merge still widens the list when needed.
 
@@ -42,18 +42,18 @@ Always validate with **`boing_simulateTransaction`**: when **`access_list_covers
 - **Slippage:** On-chain enforcement uses **`min_out`** on `swap` (and `min_liquidity` / `min_a` / `min_b` on liquidity methods when active). The UI computes `min_out` from an off-chain quote and user slippage bps — **rounding** can still cause reverts if reserves move; there is **no block deadline** field in current calldata (client-only urgency if desired).
 - **Upgrades:** MVP pool bytecode is **immutable** once deployed; there is **no admin pause** in this revision — communicate that in product copy.
 
-### Swap fee (default bps + v3/v4/v6 on-chain override)
+### Swap fee (default bps + v3–v7 on-chain override)
 
-The pool applies a **swap fee on the output** of the no-fee constant-product step (u64-safe; avoids `r_in * 10^4` overflow from fee-on-input formulas at full reserve range):
+**v1–v6** apply a **swap fee on the output** of the no-fee constant-product step. **v7** applies Uniswap-style **fee-on-input** (same `swap_fee_bps_key` / admin selectors as v6).
 
 - **Default fee:** **`NATIVE_CP_SWAP_FEE_BPS = 30`** (0.30%). Same constant in `boing_execution::native_amm`, `boing-sdk` `nativeAmm.ts`, and **v1/v2** bytecode (fixed fee).
-- **v3/v4/v6:** Fee is read from **`swap_fee_bps_key`** (`k[31] = 0x07`). Storage **`0`** means **unset**: on **first** `add_liquidity`, the pool writes **`NATIVE_CP_SWAP_FEE_BPS`**; on **swap**, **`SLoad` 0** is treated as **`30`** in scratch. **`set_swap_fee_bps`** may set **`1..=10_000`**; it **cannot** set fee to **`0`** via that selector.
+- **v3–v7:** Fee is read from **`swap_fee_bps_key`** (`k[31] = 0x07`). Storage **`0`** means **unset**: on **first** `add_liquidity`, the pool writes **`NATIVE_CP_SWAP_FEE_BPS`**; on **swap**, **`SLoad` 0** is treated as **`30`** in scratch. **`set_swap_fee_bps`** may set **`1..=10_000`**; it **cannot** set fee to **`0`** via that selector.
 - **v3/v4 authorization:** **`set_swap_fee_bps`** only while **total LP supply == 0** (otherwise no-op / stop).
-- **v6 authorization:** same LP==0 path, **or** caller equals **`fee_admin_key`** (set via **`set_fee_admin`** while LP==0). After liquidity exists, only the fee admin can change the fee.
+- **v6/v7 authorization:** same LP==0 path, **or** caller equals **`fee_admin_key`** (set via **`set_fee_admin`** while LP==0). After liquidity exists, only the fee admin can change the fee.
 - **On-chain bounds:** If stored fee **`> 10_000`**, swap **aborts**.
-- **Formula:** Let `dy_raw = ⌊ r_out · Δ_in / (r_in + Δ_in) ⌋`. Then **`dy = ⌊ dy_raw · (10_000 - fee_bps) / 10_000 ⌋`**. If `dy == 0` after the fee step, the swap **aborts** (no state change).
-- **Quotes:** **v1/v2:** **`constant_product_amount_out_after_fee`** (Rust) or **`constantProductAmountOut`** (TS). **v3/v4/v6:** read storage (or assume default before first mint); if raw word is **`0`**, quote with **`NATIVE_CP_SWAP_FEE_BPS`**; else use **`constant_product_amount_out_after_fee_with_bps`** / **`constantProductAmountOutWithFeeBps`**. Raw CP step only: **`constant_product_amount_out`** / **`constantProductAmountOutNoFee`**.
-- **Fee-on-input (off-chain helper only):** Uniswap-style \( \Delta_{in}' = \lfloor \Delta_{in} \cdot (10^4 - fee) / 10^4 \rfloor \) then CP on \( \Delta_{in}' \) — Rust **`constant_product_amount_out_fee_on_input*`**, TS **`constantProductAmountOutFeeOnInput*`**. Current pool bytecode still uses **output-side** fee; a future revision would be required to match on-chain.
+- **v1–v6 formula (output-side):** Let `dy_raw = ⌊ r_out · Δ_in / (r_in + Δ_in) ⌋`. Then **`dy = ⌊ dy_raw · (10_000 - fee_bps) / 10_000 ⌋`**. If `dy == 0` after the fee step, the swap **aborts** (no state change). Reserves credit full \( \Delta_{in} \).
+- **v7 formula (fee-on-input):** \( \Delta_{in}' = \lfloor \Delta_{in} \cdot (10^4 - fee) / 10^4 \rfloor \), then **`dy = ⌊ r_out · Δ_in' / (r_in + Δ_in') ⌋`**. Reserves still credit full \( \Delta_{in} \) (fee stays in-pool). If `dy == 0` or \( \Delta_{in}' == 0 \), the swap **aborts**.
+- **Quotes:** **v1/v2:** **`constant_product_amount_out_after_fee`** (Rust) or **`constantProductAmountOut`** (TS). **v3–v6:** read storage (or assume default before first mint); if raw word is **`0`**, quote with **`NATIVE_CP_SWAP_FEE_BPS`**; else use **`constant_product_amount_out_after_fee_with_bps`** / **`constantProductAmountOutWithFeeBps`**. **v7:** **`constant_product_amount_out_fee_on_input*`** / **`constantProductAmountOutFeeOnInput*`**. Raw CP step only: **`constant_product_amount_out`** / **`constantProductAmountOutNoFee`**.
 
 The fee accrues to LPs implicitly (traders receive less `out` token per swap).
 
@@ -175,6 +175,7 @@ Use a fixed **32-byte salt** so the pool address depends only on **deployer + by
 - **v4 salt (v2 + configurable fee):** `NATIVE_CP_POOL_CREATE2_SALT_V4` — `BOING_NATIVECP_C2V4`.
 - **v5 salt (v4 + `swap_to` / `remove_liquidity_to`):** `NATIVE_CP_POOL_CREATE2_SALT_V5` — `BOING_NATIVECP_C2V5`.
 - **v6 salt (v5 + fee admin):** `NATIVE_CP_POOL_CREATE2_SALT_V6` — `BOING_NATIVECP_C2V6`.
+- **v7 salt (v6 + fee-on-input):** `NATIVE_CP_POOL_CREATE2_SALT_V7` — `BOING_NATIVECP_C2V7`.
 - **Print salt hex:** `cargo run -p boing-execution --example print_native_cp_create2_salt` (prints `SALT_V1=` … `SALT_V6=`).
 - **Predict pool id:** use the **matching** salt + bytecode (pick the correct line from `dump_native_amm_pool`), then  
   `cargo run -p boing-primitives --example create2_contract_address -- 0x<DEPLOYER> 0x<SALT> path/to/pool.hex`

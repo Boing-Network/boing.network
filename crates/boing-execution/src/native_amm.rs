@@ -69,6 +69,10 @@ pub const NATIVE_CP_POOL_CREATE2_SALT_V5: [u8; 32] =
 pub const NATIVE_CP_POOL_CREATE2_SALT_V6: [u8; 32] =
     *b"BOING_NATIVECP_C2V6\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
+/// CREATE2 salt for **v7** — v6 + Uniswap-style **fee-on-input** swap math ([`constant_product_pool_bytecode_v7`]).
+pub const NATIVE_CP_POOL_CREATE2_SALT_V7: [u8; 32] =
+    *b"BOING_NATIVECP_C2V7\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+
 /// `Log2` **topic0** after a successful **`swap`** (data: direction, `amount_in`, `amount_out` words).
 pub const NATIVE_AMM_TOPIC_SWAP: [u8; 32] = *b"BOING_NATIVEAMM_SWAP_V1\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 /// `Log2` **topic0** after **`add_liquidity`** (data: `amount_a`, `amount_b`, `lp_mint` words).
@@ -126,7 +130,8 @@ pub fn tokens_configured_key() -> [u8; 32] {
     k
 }
 
-/// **v3/v4/v6:** Swap fee in basis points on **output** (after CP step). **0** = unset → default **[`NATIVE_CP_SWAP_FEE_BPS`]** on first `add_liquidity`; **`set_swap_fee_bps`** writes **1..=10_000**.
+/// **v3/v4/v6:** Swap fee in basis points on **output** (after CP step). **v7:** same key, applied on **input** before CP.
+/// **0** = unset → default **[`NATIVE_CP_SWAP_FEE_BPS`]** on first `add_liquidity`; **`set_swap_fee_bps`** writes **1..=10_000**.
 #[must_use]
 pub fn swap_fee_bps_key() -> [u8; 32] {
     let mut k = [0u8; 32];
@@ -312,11 +317,12 @@ pub const fn constant_product_amount_out_after_fee_with_bps(
     ((dy as u128 * keep as u128) / 10_000u128) as u64
 }
 
-/// Uniswap-style **fee-on-input** quote (off-chain / SDK helper; **not** used by current pool bytecode).
+/// Uniswap-style **fee-on-input** quote (matches on-chain **v7** pool swap math).
 ///
 /// \( \Delta_{in}' = \lfloor \Delta_{in} \cdot (10^4 - \text{fee}) / 10^4 \rfloor \), then
 /// \( \Delta_{out} = \lfloor r_{out} \cdot \Delta_{in}' / (r_{in} + \Delta_{in}') \rfloor \).
-/// Uses **u128** intermediates so large reserves do not truncate. **`fee_bps`** must be **0..=10_000**.
+/// Reserves credit the **full** \( \Delta_{in} \) (fee stays in-pool). Uses **u128** intermediates.
+/// **`fee_bps`** must be **0..=10_000**.
 #[must_use]
 pub const fn constant_product_amount_out_fee_on_input_with_bps(
     reserve_in: u64,
@@ -633,17 +639,12 @@ fn append_set_fee_admin_handler(c: &mut Vec<u8>, abort_pc: usize) {
     c.push(Opcode::Stop as u8);
 }
 
-/// Apply output-side fee to **MEM_DY** (**384**) after raw CP amount is stored.
-fn append_swap_apply_output_fee(c: &mut Vec<u8>, mem_dy: u64, storage_swap_fee: bool, abort_pc: usize) {
+/// Load `keep = 10_000 - fee_bps` into [`MEM_NATIVE_AMM_FEE_KEEP`] (constant or from storage).
+fn append_load_swap_fee_keep(c: &mut Vec<u8>, storage_swap_fee: bool, abort_pc: usize) {
     if !storage_swap_fee {
         let fee_keep = 10_000u64 - u64::from(NATIVE_CP_SWAP_FEE_BPS);
-        push32(c, &word_u64(mem_dy));
-        c.push(Opcode::MLoad as u8);
         push32(c, &word_u64(fee_keep));
-        c.push(Opcode::Mul as u8);
-        push32(c, &word_u64(10_000));
-        c.push(Opcode::Div as u8);
-        push32(c, &word_u64(mem_dy));
+        push32(c, &word_u64(MEM_NATIVE_AMM_FEE_KEEP));
         c.push(Opcode::MStore as u8);
         return;
     }
@@ -683,7 +684,11 @@ fn append_swap_apply_output_fee(c: &mut Vec<u8>, mem_dy: u64, storage_swap_fee: 
     c.push(Opcode::Sub as u8);
     push32(c, &word_u64(MEM_NATIVE_AMM_FEE_KEEP));
     c.push(Opcode::MStore as u8);
+}
 
+/// Apply output-side fee to **MEM_DY** (**384**) after raw CP amount is stored.
+fn append_swap_apply_output_fee(c: &mut Vec<u8>, mem_dy: u64, storage_swap_fee: bool, abort_pc: usize) {
+    append_load_swap_fee_keep(c, storage_swap_fee, abort_pc);
     push32(c, &word_u64(mem_dy));
     c.push(Opcode::MLoad as u8);
     push32(c, &word_u64(MEM_NATIVE_AMM_FEE_KEEP));
@@ -1148,6 +1153,8 @@ struct CpPoolBuildOpts {
     swap_with_recipient: bool,
     /// v6: [`fee_admin_key`] + post-liquidity [`SELECTOR_SET_SWAP_FEE_BPS`] for admin.
     fee_admin_gate: bool,
+    /// v7: apply fee to **input** before CP; reserves still credit full `dx`.
+    fee_on_input: bool,
 }
 
 /// Assembled pool: dispatch + `add_liquidity` (LP mint) + `swap` + `remove_liquidity` (pro-rata).
@@ -1157,11 +1164,13 @@ struct CpPoolBuildOpts {
 /// **v3/v4** (`storage_swap_fee`): [`swap_fee_bps_key`], scratch **`1024` / `1056`**, [`SELECTOR_SET_SWAP_FEE_BPS`].
 /// **v5** (`swap_with_recipient`): scratch **`1088`** + [`SELECTOR_SWAP_TO`].
 /// **v6** (`fee_admin_gate`): [`fee_admin_key`] + [`SELECTOR_SET_FEE_ADMIN`]; admin may change fee after LP.
+/// **v7** (`fee_on_input`): Uniswap-style fee-on-input CP; scratch **`992`** for `dx_eff`.
 fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     let token_hooks = opts.token_hooks;
     let storage_swap_fee = opts.storage_swap_fee;
     let swap_with_recipient = opts.swap_with_recipient;
     let fee_admin_gate = opts.fee_admin_gate;
+    let fee_on_input = opts.fee_on_input;
     // Memory scratch (offsets ≥ 128 to stay past 128-byte calldata).
     const MEM_DIR: u64 = 128;
     const MEM_RA: u64 = 160;
@@ -1172,6 +1181,8 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     const MEM_ROUT: u64 = 320;
     const MEM_RIN_P: u64 = 352;
     const MEM_DY: u64 = 384;
+    /// Effective input after fee (v7); below fee-bps scratch.
+    const MEM_DX_EFF: u64 = 992;
     /// Output recipient for **`swap_to`** (v5); loaded into transfer calldata instead of `Caller`.
     const MEM_SWAP_RECIP: u64 = 1088;
 
@@ -1440,14 +1451,46 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     let off_swap_math = c.len();
     patch_push32_dest(&mut c, fix_after_dir, off_swap_math);
 
-    // rin_p = rin + dx
-    push32(&mut c, &word_u64(MEM_RIN));
-    c.push(Opcode::MLoad as u8);
-    push32(&mut c, &word_u64(MEM_DX));
-    c.push(Opcode::MLoad as u8);
-    c.push(Opcode::Add as u8);
-    push32(&mut c, &word_u64(MEM_RIN_P));
-    c.push(Opcode::MStore as u8);
+    let fix_dx_eff0;
+    if fee_on_input {
+        // dx_eff = dx * keep / 10_000; CP uses dx_eff; reserves still credit full dx.
+        append_load_swap_fee_keep(&mut c, storage_swap_fee, off_stop_unknown);
+        push32(&mut c, &word_u64(MEM_DX));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_NATIVE_AMM_FEE_KEEP));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Mul as u8);
+        push32(&mut c, &word_u64(10_000));
+        c.push(Opcode::Div as u8);
+        push32(&mut c, &word_u64(MEM_DX_EFF));
+        c.push(Opcode::MStore as u8);
+
+        push32(&mut c, &word_u64(MEM_DX_EFF));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::IsZero as u8);
+        fix_dx_eff0 = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+
+        // rin_p = rin + dx_eff (pricing denominator only)
+        push32(&mut c, &word_u64(MEM_RIN));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_DX_EFF));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Add as u8);
+        push32(&mut c, &word_u64(MEM_RIN_P));
+        c.push(Opcode::MStore as u8);
+    } else {
+        fix_dx_eff0 = 0;
+        // rin_p = rin + dx
+        push32(&mut c, &word_u64(MEM_RIN));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_DX));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Add as u8);
+        push32(&mut c, &word_u64(MEM_RIN_P));
+        c.push(Opcode::MStore as u8);
+    }
 
     // rin_p == 0 → abort
     push32(&mut c, &word_u64(MEM_RIN_P));
@@ -1457,20 +1500,34 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     push32(&mut c, &[0u8; 32]);
     c.push(Opcode::JumpI as u8);
 
-    // dy = rout * dx / rin_p
-    push32(&mut c, &word_u64(MEM_ROUT));
-    c.push(Opcode::MLoad as u8);
-    push32(&mut c, &word_u64(MEM_DX));
-    c.push(Opcode::MLoad as u8);
-    c.push(Opcode::Mul as u8);
-    push32(&mut c, &word_u64(MEM_RIN_P));
-    c.push(Opcode::MLoad as u8);
-    c.push(Opcode::Div as u8);
-    push32(&mut c, &word_u64(MEM_DY));
-    c.push(Opcode::MStore as u8);
+    if fee_on_input {
+        // dy = rout * dx_eff / rin_p
+        push32(&mut c, &word_u64(MEM_ROUT));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_DX_EFF));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Mul as u8);
+        push32(&mut c, &word_u64(MEM_RIN_P));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Div as u8);
+        push32(&mut c, &word_u64(MEM_DY));
+        c.push(Opcode::MStore as u8);
+    } else {
+        // dy = rout * dx / rin_p
+        push32(&mut c, &word_u64(MEM_ROUT));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_DX));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Mul as u8);
+        push32(&mut c, &word_u64(MEM_RIN_P));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Div as u8);
+        push32(&mut c, &word_u64(MEM_DY));
+        c.push(Opcode::MStore as u8);
 
-    // Output-side LP fee: `dy = dy * (10_000 - fee_bps) / 10_000` (constant or from [`swap_fee_bps_key`]).
-    append_swap_apply_output_fee(&mut c, MEM_DY, storage_swap_fee, off_stop_unknown);
+        // Output-side LP fee: `dy = dy * (10_000 - fee_bps) / 10_000`.
+        append_swap_apply_output_fee(&mut c, MEM_DY, storage_swap_fee, off_stop_unknown);
+    }
 
     // dy == 0 after fee → abort (dust / rounding)
     push32(&mut c, &word_u64(MEM_DY));
@@ -1500,9 +1557,8 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     push32(&mut c, &word_u64(MEM_ROUT));
     c.push(Opcode::MStore as u8);
 
-    // Write back: if we came from A→B, rin was ra, rout was rb. From B→A, rin was rb, rout was ra.
-    // Re-dispatch using dir word: if dir==1, MEM_RA gets rout_new, MEM_RB gets rin_new? Actually after math:
-    // MEM_RIN_P is new "in" reserve, MEM_ROUT holds new "out" reserve (we overwrote rout in MEM_ROUT with rout_new)
+    // Write back: credit full `dx` into the input reserve (fee stays in-pool for v7).
+    // rin_new = rin + dx; rout_new already in MEM_ROUT.
 
     // Reload dir
     push32(&mut c, &word_u64(MEM_DIR));
@@ -1513,9 +1569,12 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     push32(&mut c, &[0u8; 32]);
     c.push(Opcode::JumpI as u8);
 
-    // A→B store: ra = MEM_RIN_P, rb = MEM_ROUT
-    push32(&mut c, &word_u64(MEM_RIN_P));
+    // A→B store: ra = rin + dx, rb = MEM_ROUT
+    push32(&mut c, &word_u64(MEM_RIN));
     c.push(Opcode::MLoad as u8);
+    push32(&mut c, &word_u64(MEM_DX));
+    c.push(Opcode::MLoad as u8);
+    c.push(Opcode::Add as u8);
     push32(&mut c, &reserve_a_key());
     c.push(Opcode::SStore as u8);
     push32(&mut c, &word_u64(MEM_ROUT));
@@ -1526,11 +1585,14 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
     push32(&mut c, &[0u8; 32]);
     c.push(Opcode::Jump as u8);
 
-    // B→A store: rb = MEM_RIN_P, ra = MEM_ROUT
+    // B→A store: rb = rin + dx, ra = MEM_ROUT
     let off_store_b2a = c.len();
     patch_push32_dest(&mut c, fix_store_b2a, off_store_b2a);
-    push32(&mut c, &word_u64(MEM_RIN_P));
+    push32(&mut c, &word_u64(MEM_RIN));
     c.push(Opcode::MLoad as u8);
+    push32(&mut c, &word_u64(MEM_DX));
+    c.push(Opcode::MLoad as u8);
+    c.push(Opcode::Add as u8);
     push32(&mut c, &reserve_b_key());
     c.push(Opcode::SStore as u8);
     push32(&mut c, &word_u64(MEM_ROUT));
@@ -1572,6 +1634,9 @@ fn build_cp_pool(opts: CpPoolBuildOpts) -> Vec<u8> {
 
     // abort labels → STOP
     patch_push32_dest(&mut c, fix_dx0, off_stop_unknown);
+    if fee_on_input {
+        patch_push32_dest(&mut c, fix_dx_eff0, off_stop_unknown);
+    }
     patch_push32_dest(&mut c, fix_rp0, off_stop_unknown);
     patch_push32_dest(&mut c, fix_dy_fee0, off_stop_unknown);
     patch_push32_dest(&mut c, fix_slip, off_stop_unknown);
@@ -1587,6 +1652,7 @@ pub fn constant_product_pool_bytecode() -> Vec<u8> {
         storage_swap_fee: false,
         swap_with_recipient: false,
         fee_admin_gate: false,
+        fee_on_input: false,
     })
 }
 
@@ -1598,6 +1664,7 @@ pub fn constant_product_pool_bytecode_v2() -> Vec<u8> {
         storage_swap_fee: false,
         swap_with_recipient: false,
         fee_admin_gate: false,
+        fee_on_input: false,
     })
 }
 
@@ -1609,6 +1676,7 @@ pub fn constant_product_pool_bytecode_v3() -> Vec<u8> {
         storage_swap_fee: true,
         swap_with_recipient: false,
         fee_admin_gate: false,
+        fee_on_input: false,
     })
 }
 
@@ -1620,6 +1688,7 @@ pub fn constant_product_pool_bytecode_v4() -> Vec<u8> {
         storage_swap_fee: true,
         swap_with_recipient: false,
         fee_admin_gate: false,
+        fee_on_input: false,
     })
 }
 
@@ -1631,6 +1700,7 @@ pub fn constant_product_pool_bytecode_v5() -> Vec<u8> {
         storage_swap_fee: true,
         swap_with_recipient: true,
         fee_admin_gate: false,
+        fee_on_input: false,
     })
 }
 
@@ -1642,6 +1712,19 @@ pub fn constant_product_pool_bytecode_v6() -> Vec<u8> {
         storage_swap_fee: true,
         swap_with_recipient: true,
         fee_admin_gate: true,
+        fee_on_input: false,
+    })
+}
+
+/// v6 plus Uniswap-style **fee-on-input** swap math. CREATE2: [`NATIVE_CP_POOL_CREATE2_SALT_V7`].
+#[must_use]
+pub fn constant_product_pool_bytecode_v7() -> Vec<u8> {
+    build_cp_pool(CpPoolBuildOpts {
+        token_hooks: true,
+        storage_swap_fee: true,
+        swap_with_recipient: true,
+        fee_admin_gate: true,
+        fee_on_input: true,
     })
 }
 
@@ -2311,5 +2394,78 @@ mod tests {
             ),
             200
         );
+    }
+
+    #[test]
+    fn constant_product_pool_bytecode_v7_passes_protocol_qa() {
+        use boing_qa::{check_contract_deploy_full, QaResult, RuleRegistry};
+
+        let code = constant_product_pool_bytecode_v7();
+        let registry = RuleRegistry::new();
+        let r = check_contract_deploy_full(&code, Some("dapp"), None, &registry);
+        assert!(
+            matches!(r, QaResult::Allow | QaResult::Unsure),
+            "expected Allow or Unsure for native CP pool v7 bytecode, got {r:?}"
+        );
+    }
+
+    /// **v7:** fee-on-input swap matches helper; reserves credit full `dx`.
+    #[test]
+    fn v7_fee_on_input_swap_matches_helper() {
+        let ra = 1000u64;
+        let rb = 2000u64;
+        let dx = 100u64;
+        let fee_bps = 2_000u16;
+        let dy = constant_product_amount_out_fee_on_input_with_bps(ra, rb, dx, fee_bps);
+        assert_ne!(
+            dy,
+            constant_product_amount_out_after_fee_with_bps(ra, rb, dx, fee_bps)
+        );
+
+        let sender = AccountId([0xd1u8; 32]);
+        let pool = AccountId([0xd2u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: pool,
+            state: Default::default(),
+        });
+        let pool_code = constant_product_pool_bytecode_v7();
+        state.set_contract_code(pool, pool_code.clone());
+
+        let mut it = Interpreter::new(pool_code.clone(), 10_000_000);
+        it.run(
+            sender,
+            pool,
+            &encode_set_swap_fee_bps_calldata(u128::from(fee_bps)),
+            &mut state,
+        )
+        .unwrap();
+        state.merge_contract_storage(pool, reserve_a_key(), amount_word(u128::from(ra)));
+        state.merge_contract_storage(pool, reserve_b_key(), amount_word(u128::from(rb)));
+
+        let mut it = Interpreter::new(pool_code, 10_000_000);
+        it.run(
+            sender,
+            pool,
+            &encode_swap_calldata(0, u128::from(dx), u128::from(dy)),
+            &mut state,
+        )
+        .unwrap();
+
+        assert_eq!(it.logs.len(), 1);
+        assert_eq!(&it.logs[0].data[80..96], &amount_word(u128::from(dy))[16..32]);
+
+        let ra2 = u128::from_be_bytes(
+            state.get_contract_storage(&pool, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let rb2 = u128::from_be_bytes(
+            state.get_contract_storage(&pool, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        assert_eq!(ra2, u128::from(ra + dx));
+        assert_eq!(rb2, u128::from(rb - dy));
     }
 }

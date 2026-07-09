@@ -122,7 +122,7 @@ struct Args {
     #[arg(long)]
     stake_validator_min_stake: Option<u128>,
 
-    /// Leader election: `round_robin` (default) or `vrf` (deterministic `leader_from_vrf` from round). Overrides **`BOING_LEADER_ELECTION`**.
+    /// Leader election: `round_robin` (default) or `vrf` (shared BLAKE3 round seed + `leader_from_vrf`; ECVRF prove/verify available in primitives). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
 }

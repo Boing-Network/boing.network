@@ -1,4 +1,4 @@
-//! Print `0x`-hex of native CP pool bytecode (**v1**–**v6**) for deploy / QA / docs.
+//! Print `0x`-hex of native CP pool bytecode (**v1**–**v7**) for deploy / QA / docs.
 //!
 //! ```text
 //! cargo run -p boing-execution --example dump_native_amm_pool
@@ -12,6 +12,7 @@ fn main() {
         ("v4_token_hooks_fee_bps", boing_execution::constant_product_pool_bytecode_v4()),
         ("v5_swap_to_recipient", boing_execution::constant_product_pool_bytecode_v5()),
         ("v6_fee_admin", boing_execution::constant_product_pool_bytecode_v6()),
+        ("v7_fee_on_input", boing_execution::constant_product_pool_bytecode_v7()),
     ] {
         eprintln!("// {label}: {} bytes", code.len());
         print!("0x");
