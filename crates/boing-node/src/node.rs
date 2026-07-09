@@ -500,6 +500,10 @@ impl BoingNode {
                 None
             }
             Ok(None) => None,
+            Err(boing_consensus::ConsensusError::Equivocation { validator, round }) => {
+                self.apply_equivocation_slash(validator, round);
+                None
+            }
             Err(e) => {
                 boing_telemetry::component_warn(
                     "boing_node::node",
@@ -509,6 +513,27 @@ impl BoingNode {
                 );
                 None
             }
+        }
+    }
+
+    /// Burn a fraction of the offender's active stake (local evidence path; not yet gossiped).
+    fn apply_equivocation_slash(&mut self, validator: AccountId, round: u64) {
+        let burned = boing_tokenomics::slash_equivocation_stake(&mut self.state, &validator);
+        if burned > 0 {
+            self.refresh_native_aggregates();
+            info!(
+                "Equivocation slash: validator={} round={} burned={}",
+                hex::encode(validator.0),
+                round,
+                burned
+            );
+        } else {
+            boing_telemetry::component_warn(
+                "boing_node::node",
+                "consensus",
+                "equivocation_no_stake",
+                format!("validator={:?} round={round}", validator),
+            );
         }
     }
 

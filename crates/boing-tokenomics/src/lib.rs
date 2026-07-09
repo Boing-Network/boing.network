@@ -55,6 +55,33 @@ pub const MIN_VALIDATOR_STAKE: u128 = 10_000;
 /// Blocks after `Unbond` before `ClaimUnbond` may move funds back to balance.
 pub const UNBONDING_DELAY_BLOCKS: u64 = 100;
 
+/// Fraction of active stake burned on detected consensus equivocation (basis points).
+pub const EQUIVOCATION_SLASH_BPS: u16 = 5_000; // 50%
+
+/// Slash active stake for consensus equivocation; burned amount is credited to [`FEE_BURN_SINK`].
+/// Returns the amount slashed (0 if account missing or stake is 0).
+pub fn slash_equivocation_stake(state: &mut StateStore, validator: &AccountId) -> u128 {
+    let amount = {
+        let Some(st) = state.get_mut(validator) else {
+            return 0;
+        };
+        if st.stake == 0 {
+            return 0;
+        }
+        let mut amount = st
+            .stake
+            .saturating_mul(EQUIVOCATION_SLASH_BPS as u128)
+            / 10_000;
+        if amount == 0 {
+            amount = 1u128.min(st.stake);
+        }
+        st.stake = st.stake.saturating_sub(amount);
+        amount
+    };
+    credit_account(state, FEE_BURN_SINK, amount);
+    amount
+}
+
 /// dApp incentive cap per epoch (governance parameter; placeholder).
 pub const DAPP_CAP_PER_EPOCH: u128 = 50_000;
 
@@ -192,5 +219,24 @@ mod tests {
         assert_eq!(state.get(&proposer).unwrap().balance, v);
         assert_eq!(state.get(&PROTOCOL_TREASURY).unwrap().balance, t);
         assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, b);
+    }
+
+    #[test]
+    fn slash_equivocation_burns_half_stake() {
+        let v = AccountId([9u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: v,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 10_000,
+                ..Default::default()
+            },
+        });
+        let burned = slash_equivocation_stake(&mut state, &v);
+        assert_eq!(burned, 5_000);
+        assert_eq!(state.get(&v).unwrap().stake, 5_000);
+        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 5_000);
     }
 }
