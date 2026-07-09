@@ -603,6 +603,7 @@ async fn rpc_client_version_and_supported_methods() {
     assert!(names.contains(&"boing_health"));
     assert!(names.contains(&"boing_getRpcMethodCatalog"));
     assert!(names.contains(&"boing_getRpcOpenApi"));
+    assert!(names.contains(&"boing_listSlashRecords"));
 }
 
 #[tokio::test]

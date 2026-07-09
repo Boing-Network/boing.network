@@ -402,6 +402,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_health",
     "boing_listDexPools",
     "boing_listDexTokens",
+    "boing_listSlashRecords",
     "boing_operatorApplyQaPolicy",
     "boing_qaCheck",
     "boing_qaPoolConfig",
@@ -1152,6 +1153,59 @@ async fn dispatch_jsonrpc_request(
             rpc_ok(
                 id,
                 serde_json::json!({ "items": n.qa_pool.list_summaries() }),
+            )
+        }
+        "boing_listSlashRecords" => {
+            let n = node.read().await;
+            let mut slashes: Vec<serde_json::Value> = n
+                .slash_registry
+                .list_slashes()
+                .into_iter()
+                .map(|s| {
+                    let reason = match &s.reason {
+                        boing_governance::SlashReason::Equivocation => "equivocation".to_string(),
+                        boing_governance::SlashReason::Liveness => "liveness".to_string(),
+                        boing_governance::SlashReason::Fraud => "fraud".to_string(),
+                        boing_governance::SlashReason::Other(x) => format!("other:{x}"),
+                    };
+                    serde_json::json!({
+                        "id": s.id,
+                        "validator": format!("0x{}", hex::encode(s.validator)),
+                        "amount": s.amount.to_string(),
+                        "reason": reason,
+                        "block_height": s.block_height,
+                        "appeal_deadline": s.appeal_deadline,
+                        "reversed": n.slash_registry.is_slash_reversed(s.id),
+                    })
+                })
+                .collect();
+            slashes.sort_by_key(|v| v.get("id").and_then(|x| x.as_u64()).unwrap_or(0));
+            let mut appeals: Vec<serde_json::Value> = n
+                .slash_registry
+                .list_appeals()
+                .into_iter()
+                .map(|a| {
+                    let status = match a.status {
+                        boing_governance::AppealStatus::Pending => "pending",
+                        boing_governance::AppealStatus::Approved => "approved",
+                        boing_governance::AppealStatus::Rejected => "rejected",
+                    };
+                    serde_json::json!({
+                        "id": a.id,
+                        "slash_id": a.slash_id,
+                        "status": status,
+                        "evidence_len": a.evidence.len(),
+                    })
+                })
+                .collect();
+            appeals.sort_by_key(|v| v.get("id").and_then(|x| x.as_u64()).unwrap_or(0));
+            rpc_ok(
+                id,
+                serde_json::json!({
+                    "slashes": slashes,
+                    "appeals": appeals,
+                    "persisted": false,
+                }),
             )
         }
         "boing_qaPoolConfig" => {

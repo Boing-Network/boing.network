@@ -125,7 +125,7 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 
 Current `boing-node` implements these JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
 
-`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitTransaction`, `boing_verifyAccountProof`.
+`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitTransaction`, `boing_verifyAccountProof`.
 
 **Implementation:** `BOING_RPC_SUPPORTED_METHODS` in `crates/boing-node/src/rpc.rs` — keep this list, the router match arms, and this spec in sync when adding a method.
 
@@ -153,6 +153,45 @@ Submit a signed transaction to the mempool.
 **Operator RPC (optional):** When the node process has environment variable **`BOING_OPERATOR_RPC_TOKEN`** set to a non-empty string, **`boing_qaPoolVote`** and **`boing_operatorApplyQaPolicy`** require HTTP header **`X-Boing-Operator: <same token>`**. If the variable is unset, behavior matches earlier releases (no header check). Use this on any RPC endpoint reachable from untrusted networks so pool votes cannot be triggered by spoofing an admin hex alone.
 
 **Does the pool need RPC to “run”?** No. The node **owns** the pool: when QA returns Unsure and governance allows it, enqueueing happens inside normal transaction/mempool handling (`boing_submitTransaction` may return **`-32051`**). No operator client is required for items to enter the queue or for the node to age them out per config. JSON-RPC is how **operators** *inspect and change* the pool—**`boing_qaPoolList`**, **`boing_qaPoolConfig`**, **`boing_qaPoolVote`**, **`boing_operatorApplyQaPolicy`**. For routine governance work, the **Boing Network desktop hub** (QA operator view) calls those methods over HTTP, so a terminal or **`boing` CLI** is optional (CLI remains useful for scripts and file-based `boing qa apply`).
+
+---
+
+### boing_listSlashRecords
+
+Read-only view of the node’s in-memory **`SlashRegistry`** (equivocation and liveness slashes + appeals).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[]` | No parameters |
+
+**Result:**
+
+```json
+{
+  "slashes": [
+    {
+      "id": 1,
+      "validator": "0x…",
+      "amount": "5000",
+      "reason": "equivocation",
+      "block_height": 7,
+      "appeal_deadline": 1007,
+      "reversed": false
+    }
+  ],
+  "appeals": [
+    {
+      "id": 1,
+      "slash_id": 1,
+      "status": "pending",
+      "evidence_len": 12
+    }
+  ],
+  "persisted": false
+}
+```
+
+**Notes:** Registry is **not** written to disk yet (`persisted: false`). Appeal submit/resolve remain in-process node APIs (`submit_slash_appeal` / `resolve_slash_appeal`), not public JSON-RPC write methods. See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3.
 
 ---
 

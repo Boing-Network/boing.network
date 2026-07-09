@@ -240,6 +240,12 @@
         "result": { "type": "object" }
       },
       {
+        "name": "boing_listSlashRecords",
+        "summary": "Read-only in-memory slash/appeal registry (equivocation + liveness). Not persisted across restarts; persisted=false in result.",
+        "params": { "type": "array", "maxItems": 0 },
+        "result": { "type": "object" }
+      },
+      {
         "name": "boing_qaCheck",
         "summary": "Run QA checks on contract bytecode/metadata.",
         "params": { "type": "array", "minItems": 1 },

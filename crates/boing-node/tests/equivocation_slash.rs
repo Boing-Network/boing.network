@@ -205,3 +205,56 @@ fn slash_appeal_rejected_keeps_burn() {
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
     assert!(!node.slash_registry.is_slash_reversed(slash_id));
 }
+
+#[tokio::test]
+async fn list_slash_records_rpc_returns_equivocation_entry() {
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+    use boing_node::rpc::rpc_router;
+    use boing_node::security::RateLimitConfig;
+    use axum::body::Body;
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    let v1 = AccountId([1u8; 32]);
+    let v3 = AccountId([3u8; 32]);
+    let v4 = AccountId([4u8; 32]);
+    let key = SigningKey::generate(&mut OsRng);
+    let offender = AccountId(key.verifying_key().to_bytes());
+    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
+
+    let a = ConsensusVote::sign(11, Hash([1u8; 32]), &key);
+    let b = ConsensusVote::sign(11, Hash([2u8; 32]), &key);
+    let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
+    assert!(node.on_equivocation_evidence(ev));
+
+    let app = rpc_router(
+        Arc::new(RwLock::new(node)),
+        &RateLimitConfig::default(),
+        None,
+        None,
+        None,
+    );
+    let req = axum::http::Request::builder()
+        .method("POST")
+        .uri("/")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "boing_listSlashRecords",
+                "params": []
+            })
+            .to_string(),
+        ))
+        .unwrap();
+    let res = app.oneshot(req).await.unwrap();
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let slashes = v["result"]["slashes"].as_array().expect("slashes");
+    assert_eq!(slashes.len(), 1);
+    assert_eq!(slashes[0]["reason"], "equivocation");
+    assert_eq!(slashes[0]["amount"], "5000");
+    assert_eq!(v["result"]["persisted"], false);
+}

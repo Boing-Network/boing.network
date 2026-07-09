@@ -1,7 +1,7 @@
 /**
  * Boing JSON-RPC client — typed methods for all node RPCs.
  */
-import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, JsonRpcBatchResponseItem } from './types.js';
+import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, JsonRpcBatchResponseItem } from './types.js';
 export interface BoingClientConfig {
     baseUrl: string;
     /** Optional fetch implementation (e.g. for Node or custom headers). */
@@ -201,6 +201,8 @@ export declare class BoingClient {
      */
     /** List pending governance QA pool items. */
     qaPoolList(): Promise<QaPoolListResult>;
+    /** Read-only: in-memory slash/appeal registry (equivocation + liveness). */
+    listSlashRecords(): Promise<ListSlashRecordsResult>;
     /** Read effective QA pool governance config and `pending_count`. */
     qaPoolConfig(): Promise<QaPoolConfigResult>;
     /** Read-only: effective QA rule registry JSON (same shape as `qa_registry.json`). No auth. */

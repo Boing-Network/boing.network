@@ -17,6 +17,7 @@ import type {
   QaPoolConfigResult,
   QaPoolListResult,
   QaPoolVoteResult,
+  ListSlashRecordsResult,
   RegisterDappResult,
   SimulateResult,
   SubmitIntentResult,
@@ -805,6 +806,11 @@ export class BoingClient {
   /** List pending governance QA pool items. */
   async qaPoolList(): Promise<QaPoolListResult> {
     return this.request<QaPoolListResult>('boing_qaPoolList', []);
+  }
+
+  /** Read-only: in-memory slash/appeal registry (equivocation + liveness). */
+  async listSlashRecords(): Promise<ListSlashRecordsResult> {
+    return this.request<ListSlashRecordsResult>('boing_listSlashRecords', []);
   }
 
   /** Read effective QA pool governance config and `pending_count`. */

@@ -608,6 +608,10 @@ export class BoingClient {
     async qaPoolList() {
         return this.request('boing_qaPoolList', []);
     }
+    /** Read-only: in-memory slash/appeal registry (equivocation + liveness). */
+    async listSlashRecords() {
+        return this.request('boing_listSlashRecords', []);
+    }
     /** Read effective QA pool governance config and `pending_count`. */
     async qaPoolConfig() {
         return this.request('boing_qaPoolConfig', []);

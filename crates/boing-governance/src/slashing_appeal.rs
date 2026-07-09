@@ -178,6 +178,11 @@ impl SlashRegistry {
     pub fn list_slashes(&self) -> Vec<&SlashRecord> {
         self.slashes.values().collect()
     }
+
+    /// List all appeals (for transparency / operator inspection).
+    pub fn list_appeals(&self) -> Vec<&SlashingAppeal> {
+        self.appeals.values().collect()
+    }
 }
 
 impl Default for SlashRegistry {

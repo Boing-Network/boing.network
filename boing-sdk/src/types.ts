@@ -426,6 +426,33 @@ export interface QaPoolListResult {
   items: QaPoolItemSummary[];
 }
 
+/** Row from `boing_listSlashRecords.slashes`. */
+export interface SlashRecordSummary {
+  id: number;
+  validator: string;
+  amount: string;
+  reason: string;
+  block_height: number;
+  appeal_deadline: number;
+  reversed: boolean;
+}
+
+/** Row from `boing_listSlashRecords.appeals`. */
+export interface SlashAppealSummary {
+  id: number;
+  slash_id: number;
+  status: 'pending' | 'approved' | 'rejected';
+  evidence_len: number;
+}
+
+/** Result of `boing_listSlashRecords`. */
+export interface ListSlashRecordsResult {
+  slashes: SlashRecordSummary[];
+  appeals: SlashAppealSummary[];
+  /** Always `false` until the registry is persisted. */
+  persisted: boolean;
+}
+
 /** Result of `boing_qaPoolConfig`. */
 export interface QaPoolConfigResult {
   max_pending_items: number;
