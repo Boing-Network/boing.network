@@ -22,12 +22,13 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::info;
 
 use crate::block_sync::{BlockRequest, BlockResponse};
-use boing_primitives::{Block, ConsensusVote, EquivocationEvidence, Hash, SignedTransaction};
+use boing_primitives::{Block, ConsensusVote, EquivocationEvidence, Hash, SignedTransaction, VrfProofGossip};
 
 const BLOCKS_TOPIC: &str = "boing/blocks";
 const TRANSACTIONS_TOPIC: &str = "boing/transactions";
 const VOTES_TOPIC: &str = "boing/votes";
 const EQUIVOCATION_TOPIC: &str = "boing/equivocation";
+const VRF_PROOFS_TOPIC: &str = "boing/vrf-proofs";
 
 /// P2P events (incoming blocks/transactions/votes and block fetch responses).
 #[derive(Debug)]
@@ -39,6 +40,8 @@ pub enum P2pEvent {
     VoteReceived(ConsensusVote),
     /// Gossiped equivocation evidence (both votes verified at the P2P edge).
     EquivocationReceived(EquivocationEvidence),
+    /// Gossiped per-validator ECVRF proof (verified at the P2P edge).
+    VrfProofReceived(VrfProofGossip),
     /// Response from request_block (by hash or height).
     BlockFetched(Block),
 }
@@ -48,6 +51,7 @@ enum BroadcastMsg {
     SignedTransaction(SignedTransaction),
     Vote(ConsensusVote),
     Equivocation(EquivocationEvidence),
+    VrfProof(VrfProofGossip),
 }
 
 enum Command {
@@ -171,8 +175,9 @@ impl P2pNode {
 
         let blocks_topic = IdentTopic::new(BLOCKS_TOPIC);
         let txs_topic = IdentTopic::new(TRANSACTIONS_TOPIC);
-            let votes_topic = IdentTopic::new(VOTES_TOPIC);
+        let votes_topic = IdentTopic::new(VOTES_TOPIC);
         let equivocation_topic = IdentTopic::new(EQUIVOCATION_TOPIC);
+        let vrf_proofs_topic = IdentTopic::new(VRF_PROOFS_TOPIC);
         let listen_addr = listen_addr.to_string();
         let block_provider = block_provider;
 
@@ -193,6 +198,11 @@ impl P2pNode {
                 .gossipsub
                 .subscribe(&equivocation_topic)
                 .expect("subscribe equivocation");
+            swarm
+                .behaviour_mut()
+                .gossipsub
+                .subscribe(&vrf_proofs_topic)
+                .expect("subscribe vrf-proofs");
 
             info!("P2P: listening on {} peer_id={:?}", listen_addr, swarm.local_peer_id());
 
@@ -382,6 +392,46 @@ impl P2pNode {
                                     }
                                 }
                             }
+                            Some(BroadcastMsg::VrfProof(proof)) => {
+                                match bincode::serialize(&proof) {
+                                    Ok(bytes) => {
+                                        if let Err(e) = swarm
+                                            .behaviour_mut()
+                                            .gossipsub
+                                            .publish(vrf_proofs_topic.clone(), bytes)
+                                        {
+                                            if matches!(e, PublishError::NoPeersSubscribedToTopic) {
+                                                boing_telemetry::component_debug(
+                                                    "boing_p2p::swarm",
+                                                    "p2p",
+                                                    "gossip_vrf_proof_no_subscribed_peers",
+                                                    "vrf proof not gossip-published yet (no subscribed peers)",
+                                                );
+                                            } else {
+                                                boing_telemetry::component_warn(
+                                                    "boing_p2p::swarm",
+                                                    "p2p",
+                                                    "gossip_vrf_proof_publish_failed",
+                                                    e,
+                                                );
+                                            }
+                                        } else {
+                                            info!(
+                                                "P2P: broadcast vrf proof round={} validator={:?}",
+                                                proof.round, proof.validator
+                                            );
+                                        }
+                                    }
+                                    Err(e) => {
+                                        boing_telemetry::component_warn(
+                                            "boing_p2p::swarm",
+                                            "p2p",
+                                            "vrf_proof_serialize_failed",
+                                            e,
+                                        );
+                                    }
+                                }
+                            }
                             None => break,
                         }
                     }
@@ -427,6 +477,24 @@ impl P2pNode {
                                                 "round={} validator={:?}",
                                                 ev.round(),
                                                 ev.validator()
+                                            ),
+                                        );
+                                    }
+                                }
+                            } else if topic == VRF_PROOFS_TOPIC {
+                                if let Ok(proof) =
+                                    bincode::deserialize::<VrfProofGossip>(&message.data)
+                                {
+                                    if proof.verify() {
+                                        let _ = event_tx.send(P2pEvent::VrfProofReceived(proof));
+                                    } else {
+                                        boing_telemetry::component_warn(
+                                            "boing_p2p::swarm",
+                                            "p2p",
+                                            "gossip_vrf_proof_invalid",
+                                            format!(
+                                                "round={} validator={:?}",
+                                                proof.round, proof.validator
                                             ),
                                         );
                                     }
@@ -593,6 +661,15 @@ impl P2pNode {
     pub fn broadcast_equivocation(&self, evidence: &EquivocationEvidence) -> Result<(), P2pError> {
         if let Some(ref ch) = self.broadcast_tx {
             ch.try_send(BroadcastMsg::Equivocation(evidence.clone()))
+                .map_err(|e| P2pError::Network(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    /// Gossip a verified per-validator ECVRF proof to subscribed peers.
+    pub fn broadcast_vrf_proof(&self, proof: &VrfProofGossip) -> Result<(), P2pError> {
+        if let Some(ref ch) = self.broadcast_tx {
+            ch.try_send(BroadcastMsg::VrfProof(proof.clone()))
                 .map_err(|e| P2pError::Network(e.to_string()))?;
         }
         Ok(())

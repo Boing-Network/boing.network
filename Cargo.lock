@@ -638,6 +638,7 @@ dependencies = [
  "async-trait",
  "boing-primitives",
  "boing-telemetry",
+ "ed25519-dalek",
  "thiserror 1.0.69",
  "tokio",
  "tracing",

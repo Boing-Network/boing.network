@@ -6,7 +6,10 @@ use std::collections::HashMap;
 
 use tracing::{debug, info};
 
-use boing_primitives::{AccountId, Block, Hash, dummy_vrf_output, leader_from_vrf};
+use boing_primitives::{
+    dummy_vrf_output, leader_from_ecvrf_proofs, leader_from_vrf, verify_ecvrf_output, AccountId,
+    Block, Hash, VrfOutput,
+};
 
 /// How the round leader is chosen.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -14,10 +17,9 @@ pub enum LeaderElection {
     /// `validators[round % n]` (default).
     #[default]
     RoundRobin,
-    /// Deterministic selection via [`leader_from_vrf`] + [`dummy_vrf_output`].
-    /// Production ECVRF prove/verify lives in `boing_primitives` (`ecvrf_prove` /
-    /// `verify_ecvrf_output` / `leader_from_ecvrf_proofs`); this mode keeps a shared
-    /// round seed so all nodes agree without gossiping per-validator proofs yet.
+    /// Prefer [`leader_from_ecvrf_proofs`] when a full set of verified per-validator ECVRF proofs
+    /// for the round is present; otherwise fall back to shared BLAKE3 [`dummy_vrf_output`] so all
+    /// nodes stay aligned while proofs are still gossiping.
     Vrf,
 }
 
@@ -35,6 +37,8 @@ pub struct ConsensusEngine {
     leader_election: LeaderElection,
     /// Validators that voted in the most recently committed round (for liveness accounting).
     last_committed_voters: Vec<AccountId>,
+    /// Verified ECVRF outputs keyed by round → validator (VRF leader mode).
+    vrf_proofs: HashMap<u64, HashMap<AccountId, VrfOutput>>,
 }
 
 impl ConsensusEngine {
@@ -47,6 +51,7 @@ impl ConsensusEngine {
             votes: HashMap::new(),
             leader_election: LeaderElection::RoundRobin,
             last_committed_voters: Vec::new(),
+            vrf_proofs: HashMap::new(),
         }
     }
 
@@ -71,6 +76,9 @@ impl ConsensusEngine {
 
     pub fn set_leader_election(&mut self, mode: LeaderElection) {
         self.leader_election = mode;
+        if mode != LeaderElection::Vrf {
+            self.vrf_proofs.clear();
+        }
     }
 
     /// Replace the validator set (e.g. stake-derived epoch refresh).
@@ -87,6 +95,36 @@ impl ConsensusEngine {
         self.pending_block = None;
         self.votes.clear();
         self.last_committed_voters.clear();
+        self.vrf_proofs.clear();
+    }
+
+    /// Insert a verified ECVRF proof for VRF leader election. Returns `true` if stored.
+    pub fn insert_vrf_proof(&mut self, validator: AccountId, round: u64, vrf: VrfOutput) -> bool {
+        if self.leader_election != LeaderElection::Vrf {
+            return false;
+        }
+        if !self.validators.contains(&validator) {
+            return false;
+        }
+        if !verify_ecvrf_output(&validator, round, &vrf) {
+            return false;
+        }
+        self.vrf_proofs
+            .entry(round)
+            .or_default()
+            .insert(validator, vrf);
+        // Keep current round and a small lookahead/history window.
+        let keep_from = self.round.saturating_sub(1);
+        self.vrf_proofs.retain(|r, _| *r >= keep_from);
+        true
+    }
+
+    /// Whether a full set of ECVRF proofs for `round` is available (all validators).
+    pub fn has_full_vrf_proofs(&self, round: u64) -> bool {
+        let Some(map) = self.vrf_proofs.get(&round) else {
+            return false;
+        };
+        self.validators.iter().all(|v| map.contains_key(v))
     }
 
     /// Max faulty replicas (f). HotStuff tolerates f failures with n = 3f+1.
@@ -107,9 +145,17 @@ impl ConsensusEngine {
                 self.validators[(round as usize) % n]
             }
             LeaderElection::Vrf => {
+                if let Some(map) = self.vrf_proofs.get(&round) {
+                    let proofs: Vec<(AccountId, VrfOutput)> =
+                        map.iter().map(|(id, v)| (*id, v.clone())).collect();
+                    if let Some(leader) =
+                        leader_from_ecvrf_proofs(&self.validators, round, &proofs)
+                    {
+                        return leader;
+                    }
+                }
                 let vrf = dummy_vrf_output(round);
-                leader_from_vrf(&self.validators, &vrf)
-                    .expect("non-empty validator set")
+                leader_from_vrf(&self.validators, &vrf).expect("non-empty validator set")
             }
         }
     }
@@ -435,6 +481,37 @@ mod tests {
         let expected0 = boing_primitives::leader_from_vrf(&validators, &vrf0).unwrap();
         assert_eq!(engine.leader(0), expected0);
         assert!(boing_primitives::verify_vrf_output(1, &vrf1, None));
+    }
+
+    #[test]
+    fn test_vrf_leader_prefers_ecvrf_when_full_set() {
+        use ed25519_dalek::SigningKey;
+
+        let keys: Vec<SigningKey> = (1u8..=3)
+            .map(|i| SigningKey::from_bytes(&[i; 32]))
+            .collect();
+        let validators: Vec<AccountId> = keys
+            .iter()
+            .map(|k| AccountId(k.verifying_key().to_bytes()))
+            .collect();
+        let mut engine = ConsensusEngine::new(validators.clone());
+        engine.set_leader_election(LeaderElection::Vrf);
+
+        let round = 7u64;
+        let stub = boing_primitives::dummy_vrf_output(round);
+        let stub_leader = boing_primitives::leader_from_vrf(&validators, &stub).unwrap();
+        assert_eq!(engine.leader(round), stub_leader);
+
+        let mut proofs = Vec::new();
+        for k in &keys {
+            let g = boing_primitives::VrfProofGossip::prove(round, k).unwrap();
+            assert!(engine.insert_vrf_proof(g.validator, g.round, g.vrf.clone()));
+            proofs.push((g.validator, g.vrf));
+        }
+        assert!(engine.has_full_vrf_proofs(round));
+        let expected =
+            boing_primitives::leader_from_ecvrf_proofs(&validators, round, &proofs).unwrap();
+        assert_eq!(engine.leader(round), expected);
     }
 }
 

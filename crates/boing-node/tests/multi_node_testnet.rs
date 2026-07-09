@@ -153,6 +153,10 @@ async fn test_four_validators_sync() {
                         let mut n = node_ref.write().await;
                         let _ = n.on_equivocation_evidence(ev);
                     }
+                    boing_p2p::P2pEvent::VrfProofReceived(proof) => {
+                        let mut n = node_ref.write().await;
+                        let _ = n.on_vrf_proof(proof);
+                    }
                     boing_p2p::P2pEvent::TransactionReceived(_) => {}
                 }
             }

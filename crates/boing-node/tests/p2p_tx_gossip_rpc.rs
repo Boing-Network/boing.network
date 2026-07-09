@@ -126,6 +126,10 @@ fn spawn_p2p_ingest(
                     let mut n = node.write().await;
                     let _ = n.on_equivocation_evidence(ev);
                 }
+                boing_p2p::P2pEvent::VrfProofReceived(proof) => {
+                    let mut n = node.write().await;
+                    let _ = n.on_vrf_proof(proof);
+                }
                 boing_p2p::P2pEvent::TransactionReceived(signed) => {
                     if signed.verify().is_err() {
                         continue;

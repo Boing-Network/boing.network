@@ -108,6 +108,10 @@ fn spawn_handlers(
                     let mut n = node_ref.write().await;
                     let _ = n.on_equivocation_evidence(ev);
                 }
+                boing_p2p::P2pEvent::VrfProofReceived(proof) => {
+                    let mut n = node_ref.write().await;
+                    let _ = n.on_vrf_proof(proof);
+                }
                 boing_p2p::P2pEvent::TransactionReceived(_) => {}
             }
         }
@@ -242,4 +246,35 @@ async fn four_validators_quorum_commit_via_votes() {
     let err = victim.write().await.handle_network_block(&forged);
     assert!(err.is_err(), "non-leader proposal must be rejected");
     assert_eq!(victim.read().await.chain.height(), tip_before);
+}
+
+#[test]
+fn vrf_ecvrf_proofs_override_stub_leader() {
+    use boing_consensus::LeaderElection;
+    use boing_primitives::{leader_from_ecvrf_proofs, VrfProofGossip};
+
+    let keys: Vec<SigningKey> = (1u8..=3)
+        .map(|i| SigningKey::from_bytes(&[i; 32]))
+        .collect();
+    let validators: Vec<AccountId> = keys
+        .iter()
+        .map(|k| AccountId(k.verifying_key().to_bytes()))
+        .collect();
+    let mut node =
+        BoingNode::with_validators(validators.clone(), validators[0], Some(keys[0].clone()));
+    node.consensus.set_leader_election(LeaderElection::Vrf);
+    let round = node.consensus.round();
+    let stub_leader = node.consensus.leader(round);
+
+    let mut proofs = Vec::new();
+    for k in &keys {
+        let g = VrfProofGossip::prove(round, k).unwrap();
+        assert!(node.on_vrf_proof(g.clone()));
+        proofs.push((g.validator, g.vrf));
+    }
+    assert!(node.consensus.has_full_vrf_proofs(round));
+    let expected = leader_from_ecvrf_proofs(&validators, round, &proofs).unwrap();
+    assert_eq!(node.consensus.leader(round), expected);
+    // Full ECVRF set may or may not match the stub; either way election must be stable.
+    let _ = stub_leader;
 }

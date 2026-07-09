@@ -12,6 +12,7 @@ pub mod randomness;
 pub mod recovery;
 pub mod signature;
 pub mod types;
+pub mod vrf_proof;
 
 pub use consensus_vote::{
     consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN,
@@ -35,6 +36,7 @@ pub use randomness::{
     dummy_vrf_output, ecvrf_prove, leader_from_ecvrf_proofs, leader_from_vrf, verify_ecvrf_output,
     verify_vrf_output, vrf_round_alpha, vrf_round_seed, ECVRF_PROOF_LEN, VdfOutput, VrfOutput,
 };
+pub use vrf_proof::VrfProofGossip;
 pub use paymaster::{PaymasterConfig, SponsoredTransaction};
 pub use recovery::{Guardian, RecoveryRequest};
 pub use hd::HdPath;

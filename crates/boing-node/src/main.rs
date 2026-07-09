@@ -122,7 +122,7 @@ struct Args {
     #[arg(long)]
     stake_validator_min_stake: Option<u128>,
 
-    /// Leader election: `round_robin` (default) or `vrf` (shared BLAKE3 round seed + `leader_from_vrf`; ECVRF prove/verify available in primitives). Overrides **`BOING_LEADER_ELECTION`**.
+    /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
 }
@@ -193,6 +193,7 @@ async fn main() -> anyhow::Result<()> {
                 });
             }
             n.consensus.set_leader_election(leader_election);
+            n.maybe_publish_vrf_proof_for_current_round();
             if rate_limit.connections_per_ip > 0 {
                 tracing::info!(
                     "P2P: max simultaneous connections per remote IP = {}",
@@ -270,6 +271,12 @@ async fn main() -> anyhow::Result<()> {
                                 tracing::warn!("P2P: applied gossiped equivocation slash");
                             }
                         }
+                        boing_p2p::P2pEvent::VrfProofReceived(proof) => {
+                            let mut n = node_clone.write().await;
+                            if n.on_vrf_proof(proof) {
+                                tracing::debug!("P2P: accepted gossiped VRF proof");
+                            }
+                        }
                         boing_p2p::P2pEvent::TransactionReceived(signed) => {
                             if let Err(e) = signed.verify() {
                                 logging::log_p2p_event_warn("gossip_tx_bad_signature", &e);
@@ -324,6 +331,7 @@ async fn main() -> anyhow::Result<()> {
                 });
             }
             n.consensus.set_leader_election(leader_election);
+            n.maybe_publish_vrf_proof_for_current_round();
             Arc::new(RwLock::new(n))
         }
     };

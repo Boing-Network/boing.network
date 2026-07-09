@@ -10,7 +10,7 @@ use boing_governance::{SlashReason, SlashRegistry, SlashingError};
 use boing_p2p::{P2pEvent, P2pNode};
 use boing_primitives::{
     Account, AccountId, AccountState, Block, ConsensusVote, EquivocationEvidence, ExecutionReceipt,
-    Hash, SignedTransaction,
+    Hash, SignedTransaction, VrfProofGossip,
 };
 use boing_qa::pool::{PendingQaQueue, PoolError, PoolResolution, QaPoolVote};
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
@@ -406,7 +406,38 @@ impl BoingNode {
             .insert(pending.block.header.proposer, 0);
         self.leader_wait_started = None;
         info!("Block committed: height={} hash={:?}", height, hash);
+        self.maybe_publish_vrf_proof_for_current_round();
         hash
+    }
+
+    /// Prove + gossip local ECVRF for the current consensus round when VRF leader mode is on.
+    pub fn maybe_publish_vrf_proof_for_current_round(&mut self) {
+        if self.consensus.leader_election() != boing_consensus::LeaderElection::Vrf {
+            return;
+        }
+        let Some(ref key) = self.validator_signing_key else {
+            return;
+        };
+        let round = self.consensus.round();
+        let Ok(proof) = VrfProofGossip::prove(round, key) else {
+            return;
+        };
+        if !self
+            .consensus
+            .insert_vrf_proof(proof.validator, proof.round, proof.vrf.clone())
+        {
+            return;
+        }
+        let _ = self.p2p.broadcast_vrf_proof(&proof);
+    }
+
+    /// Apply a verified gossiped ECVRF proof (P2P edge already verified).
+    pub fn on_vrf_proof(&mut self, proof: VrfProofGossip) -> bool {
+        if !proof.verify() {
+            return false;
+        }
+        self.consensus
+            .insert_vrf_proof(proof.validator, proof.round, proof.vrf)
     }
 
     /// Refresh consensus validators from top stakers when configured and at an epoch boundary.
@@ -450,6 +481,7 @@ impl BoingNode {
             next.len()
         );
         self.consensus.set_validators(next);
+        self.maybe_publish_vrf_proof_for_current_round();
     }
 
     /// Apply any buffered votes for the current pending proposal; returns commit hash if quorum hit.
@@ -747,6 +779,7 @@ impl BoingNode {
         self.refresh_native_aggregates();
         self.emit_head_subscriber_event();
         self.maybe_refresh_stake_validators(block.header.height);
+        self.maybe_publish_vrf_proof_for_current_round();
         Ok(())
     }
 
