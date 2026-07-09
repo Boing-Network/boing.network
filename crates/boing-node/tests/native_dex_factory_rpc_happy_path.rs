@@ -67,6 +67,8 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         slashed_equivocations: HashMap::new(),
         observed_votes: HashMap::new(),
         slash_registry: boing_governance::SlashRegistry::new(),
+        liveness_miss_streak: HashMap::new(),
+        leader_wait_started: None,
     }
 }
 

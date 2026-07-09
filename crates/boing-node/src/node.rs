@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use boing_consensus::ConsensusEngine;
 use boing_execution::{BlockExecutor, TransactionScheduler, Vm};
@@ -85,6 +86,10 @@ pub struct BoingNode {
     pub observed_votes: HashMap<(u64, AccountId), ConsensusVote>,
     /// Auditable slash / appeal registry (in-memory MVP; not yet persisted).
     pub slash_registry: SlashRegistry,
+    /// Consecutive leader-timeout observations per validator (multi-validator liveness).
+    pub liveness_miss_streak: HashMap<AccountId, u32>,
+    /// When the local node started waiting for the current round's leader (non-leader path).
+    pub leader_wait_started: Option<(u64, Instant)>,
 }
 
 /// Result of recording a vote and resolving the pool item when possible.
@@ -182,6 +187,8 @@ impl BoingNode {
             slashed_equivocations: HashMap::new(),
             observed_votes: HashMap::new(),
             slash_registry: SlashRegistry::new(),
+            liveness_miss_streak: HashMap::new(),
+            leader_wait_started: None,
         }
     }
 
@@ -368,6 +375,10 @@ impl BoingNode {
         self.refresh_native_aggregates();
         self.emit_head_subscriber_event();
         self.maybe_refresh_stake_validators(height);
+        // Successful commit clears leader-timeout accounting for this height's proposer.
+        self.liveness_miss_streak
+            .insert(pending.block.header.proposer, 0);
+        self.leader_wait_started = None;
         info!("Block committed: height={} hash={:?}", height, hash);
         hash
     }
@@ -776,6 +787,73 @@ impl BoingNode {
                     let _ = self.mempool.insert_after_pool_allow(signed);
                 }
             }
+        }
+    }
+
+    /// Tick liveness: if this node is not the round leader, has pending mempool txs, and has waited
+    /// longer than [`boing_tokenomics::LIVENESS_LEADER_TIMEOUT_SECS`] for a proposal, count a miss
+    /// against the expected leader and slash at [`boing_tokenomics::LIVENESS_MISS_THRESHOLD`].
+    ///
+    /// Call from the validator loop alongside [`Self::produce_block_if_ready`]. No-op for
+    /// single-validator sets. Local mempool non-empty is a heuristic to avoid idle false positives.
+    pub fn tick_liveness(&mut self) {
+        if self.consensus.num_validators() <= 1 {
+            return;
+        }
+        if self.pending_commit.is_some() {
+            self.leader_wait_started = None;
+            return;
+        }
+        let next_height = self.chain.height().saturating_add(1);
+        let leader = self.consensus.leader(next_height);
+        if leader == self.producer.proposer() {
+            self.leader_wait_started = None;
+            return;
+        }
+        if self.mempool.is_empty() {
+            self.leader_wait_started = None;
+            return;
+        }
+        let now = Instant::now();
+        let started = match self.leader_wait_started {
+            Some((h, t)) if h == next_height => t,
+            _ => {
+                self.leader_wait_started = Some((next_height, now));
+                return;
+            }
+        };
+        let timeout = Duration::from_secs(boing_tokenomics::LIVENESS_LEADER_TIMEOUT_SECS);
+        if now.duration_since(started) < timeout {
+            return;
+        }
+        // Count one miss and restart the wait window for this height.
+        self.leader_wait_started = Some((next_height, now));
+        let streak = self
+            .liveness_miss_streak
+            .entry(leader)
+            .and_modify(|s| *s = s.saturating_add(1))
+            .or_insert(1);
+        if *streak < boing_tokenomics::LIVENESS_MISS_THRESHOLD {
+            return;
+        }
+        *streak = 0;
+        let burned = boing_tokenomics::slash_liveness_stake(&mut self.state, &leader);
+        let slash_id = self.slash_registry.record_slash(
+            leader.0,
+            burned,
+            SlashReason::Liveness,
+            next_height,
+            boing_tokenomics::LIVENESS_APPEAL_WINDOW_BLOCKS,
+        );
+        if burned > 0 {
+            self.refresh_native_aggregates();
+            info!(
+                "Liveness slash: leader={} height={} burned={} slash_id={}",
+                hex::encode(leader.0),
+                next_height,
+                burned,
+                slash_id
+            );
         }
     }
 

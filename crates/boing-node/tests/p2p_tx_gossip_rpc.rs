@@ -74,6 +74,8 @@ fn node_with_p2p_only(
         slashed_equivocations: HashMap::new(),
         observed_votes: HashMap::new(),
         slash_registry: boing_governance::SlashRegistry::new(),
+        liveness_miss_streak: HashMap::new(),
+        leader_wait_started: None,
     };
     (node, event_rx)
 }

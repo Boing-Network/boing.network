@@ -61,6 +61,19 @@ pub const EQUIVOCATION_SLASH_BPS: u16 = 5_000; // 50%
 /// Blocks after an equivocation slash during which an appeal may be submitted.
 pub const EQUIVOCATION_APPEAL_WINDOW_BLOCKS: u64 = 1_000;
 
+/// Consecutive missed quorum votes before a liveness slash (multi-validator only).
+pub const LIVENESS_MISS_THRESHOLD: u32 = 3;
+
+/// Fraction of active stake burned on liveness slash (basis points) — milder than equivocation.
+pub const LIVENESS_SLASH_BPS: u16 = 1_000; // 10%
+
+/// Appeal window for liveness slashes (same length as equivocation for the thin MVP).
+pub const LIVENESS_APPEAL_WINDOW_BLOCKS: u64 = EQUIVOCATION_APPEAL_WINDOW_BLOCKS;
+
+/// How long a non-leader waits for a proposal (with local pending txs) before counting a leader miss.
+/// Default: 3× [`BLOCK_TIME_SECS`].
+pub const LIVENESS_LEADER_TIMEOUT_SECS: u64 = BLOCK_TIME_SECS.saturating_mul(3);
+
 /// Slash active stake for consensus equivocation; burned amount is credited to [`FEE_BURN_SINK`].
 /// Returns the amount slashed (0 if account missing or stake is 0).
 pub fn slash_equivocation_stake(state: &mut StateStore, validator: &AccountId) -> u128 {
@@ -74,6 +87,29 @@ pub fn slash_equivocation_stake(state: &mut StateStore, validator: &AccountId) -
         let mut amount = st
             .stake
             .saturating_mul(EQUIVOCATION_SLASH_BPS as u128)
+            / 10_000;
+        if amount == 0 {
+            amount = 1u128.min(st.stake);
+        }
+        st.stake = st.stake.saturating_sub(amount);
+        amount
+    };
+    credit_account(state, FEE_BURN_SINK, amount);
+    amount
+}
+
+/// Slash active stake for liveness failure; burned amount is credited to [`FEE_BURN_SINK`].
+pub fn slash_liveness_stake(state: &mut StateStore, validator: &AccountId) -> u128 {
+    let amount = {
+        let Some(st) = state.get_mut(validator) else {
+            return 0;
+        };
+        if st.stake == 0 {
+            return 0;
+        }
+        let mut amount = st
+            .stake
+            .saturating_mul(LIVENESS_SLASH_BPS as u128)
             / 10_000;
         if amount == 0 {
             amount = 1u128.min(st.stake);
@@ -295,5 +331,24 @@ mod tests {
         assert_eq!(restored, burned);
         assert_eq!(state.get(&v).unwrap().stake, 10_000);
         assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 0);
+    }
+
+    #[test]
+    fn slash_liveness_burns_ten_percent_stake() {
+        let v = AccountId([8u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: v,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 10_000,
+                ..Default::default()
+            },
+        });
+        let burned = slash_liveness_stake(&mut state, &v);
+        assert_eq!(burned, 1_000);
+        assert_eq!(state.get(&v).unwrap().stake, 9_000);
+        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 1_000);
     }
 }

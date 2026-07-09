@@ -30,6 +30,8 @@ pub struct ConsensusEngine {
     votes: HashMap<AccountId, Hash>,
     /// Leader selection policy.
     leader_election: LeaderElection,
+    /// Validators that voted in the most recently committed round (for liveness accounting).
+    last_committed_voters: Vec<AccountId>,
 }
 
 impl ConsensusEngine {
@@ -41,6 +43,7 @@ impl ConsensusEngine {
             pending_block: None,
             votes: HashMap::new(),
             leader_election: LeaderElection::RoundRobin,
+            last_committed_voters: Vec::new(),
         }
     }
 
@@ -80,6 +83,7 @@ impl ConsensusEngine {
         self.validators = new_validators;
         self.pending_block = None;
         self.votes.clear();
+        self.last_committed_voters.clear();
     }
 
     /// Max faulty replicas (f). HotStuff tolerates f failures with n = 3f+1.
@@ -204,12 +208,18 @@ impl ConsensusEngine {
         if self.votes.len() >= self.quorum() {
             let h = block.hash();
             info!("Consensus: committed block {} at round {}", h, self.round);
+            self.last_committed_voters = self.votes.keys().copied().collect();
             self.round += 1;
             self.pending_block = None;
             self.votes.clear();
             return Ok(Some(h));
         }
         Ok(None)
+    }
+
+    /// Validators that cast a vote in the last round that reached quorum (empty if none yet).
+    pub fn last_committed_voters(&self) -> &[AccountId] {
+        &self.last_committed_voters
     }
 
     /// Align consensus `round` with the next block to propose.
@@ -221,6 +231,8 @@ impl ConsensusEngine {
         self.round = next_block_height;
         self.pending_block = None;
         self.votes.clear();
+        // Catch-up / sync does not preserve live vote sets — clear so liveness is not inferred.
+        self.last_committed_voters.clear();
     }
 
     /// Propose and immediately collect votes from all validators (for single-process testing).
