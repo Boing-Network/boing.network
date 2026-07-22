@@ -410,6 +410,15 @@ export interface FaucetResult {
   amount: number;
   to: string;
   message: string;
+  /** Tip height when the faucet tx was accepted into the mempool (when node reports it). */
+  tip_height?: number;
+  /** Connected P2P peers at faucet time (when node reports it). */
+  connected_peers?: number;
+  /**
+   * Present when the node suspects the faucet tx may not commit soon
+   * (e.g. tip height 0 / no peers on a non-producing full node).
+   */
+  warning?: string;
 }
 
 /** Row from `boing_qaPoolList`. */

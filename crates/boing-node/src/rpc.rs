@@ -2631,6 +2631,8 @@ async fn dispatch_jsonrpc_request(
             let _faucet_gate = submit_lock.lock().await;
 
             let n = node.write().await;
+            let tip_height = n.chain.height();
+            let peer_count = n.p2p.connected_peers().await.len();
             let (chain_nonce, balance_ok) = match n.state.get(&faucet_id) {
                 Some(s) => (s.nonce, s.balance >= faucet::FAUCET_DISPENSE_AMOUNT),
                 None => {
@@ -2667,19 +2669,42 @@ async fn dispatch_jsonrpc_request(
                         map.insert(to_id, Instant::now());
                     }
                     info!(
-                        "RPC: faucet sent {} to {}",
+                        "RPC: faucet sent {} to {} (tip_height={} peers={})",
                         faucet::FAUCET_DISPENSE_AMOUNT,
-                        hex::encode(to_id.0)
+                        hex::encode(to_id.0),
+                        tip_height,
+                        peer_count
                     );
-                    rpc_ok(
-                        id,
-                        serde_json::json!({
-                            "ok": true,
-                            "amount": faucet::FAUCET_DISPENSE_AMOUNT,
-                            "to": hex::encode(to_id.0),
-                            "message": "Check your wallet; tx is in the mempool."
-                        }),
-                    )
+                    // Tip 0 + no peers: full nodes often look "ready" while faucet txs never commit.
+                    let warning = if tip_height == 0 && peer_count == 0 {
+                        Some(
+                            "Chain tip is height 0 with no connected peers. The faucet tx is in the local mempool but may never commit until this node syncs with a block-producing validator (check bootnodes / P2P) or runs with --validator.",
+                        )
+                    } else if tip_height == 0 {
+                        Some(
+                            "Chain tip is still height 0. The faucet tx is in the mempool; wait for block production or sync before expecting a non-zero balance.",
+                        )
+                    } else {
+                        None
+                    };
+                    let mut body = serde_json::json!({
+                        "ok": true,
+                        "amount": faucet::FAUCET_DISPENSE_AMOUNT,
+                        "to": hex::encode(to_id.0),
+                        "tip_height": tip_height,
+                        "connected_peers": peer_count,
+                        "message": if warning.is_some() {
+                            "Faucet tx accepted into mempool — tip may not advance; check tip_height / connected_peers / warning."
+                        } else {
+                            "Check your wallet; tx is in the mempool."
+                        }
+                    });
+                    if let Some(w) = warning {
+                        body.as_object_mut()
+                            .expect("faucet result object")
+                            .insert("warning".into(), serde_json::Value::String(w.into()));
+                    }
+                    rpc_ok(id, body)
                 }
                 Err(e) => rpc_error(id, -32000, format!("Faucet submit failed: {}", e)),
             }

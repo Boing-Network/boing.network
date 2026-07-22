@@ -131,7 +131,13 @@ import { TESTNET_RPC_URL } from '../config/testnet';
           return;
         }
         if (data.result?.ok) {
-          setMessage(`Success! ${data.result.amount} testnet BOING sent. ${data.result.message || ''}`);
+          const tip =
+            typeof data.result.tip_height === 'number' ? ` Tip height: ${data.result.tip_height}.` : '';
+          const warn = data.result.warning
+            ? ` Warning: ${data.result.warning}`
+            : '';
+          const base = `Faucet accepted ${data.result.amount} testnet BOING into the mempool. ${data.result.message || ''}${tip}${warn}`;
+          setMessage(base, Boolean(data.result.warning));
         } else {
           setMessage(data.result?.message || 'Request may have succeeded; check your wallet.', false);
         }

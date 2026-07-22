@@ -39,6 +39,14 @@ Specialist guides (RPC methods, VM calldata, security) stay in their own files; 
 
 After a chain reset, **`head_height`** may be **0** while prior bootstrap contracts remain readable. Treat **`boing_getNetworkInfo.end_user`** as the live contract hint source.
 
+### Public RPC HTTP 403 (User-Agent / WAF)
+
+Some Cloudflare / WAF edges in front of **`https://testnet-rpc.boing.network/`** return **HTTP 403** for requests with an empty or “bot-like” **`User-Agent`** (e.g. bare `curl` without `-A`). Browser-like or SDK UAs succeed.
+
+- **Operators:** Prefer allowing JSON-RPC **`POST /`** without requiring a browser UA (or document the required UA on the join/RPC page).
+- **Integrators:** `boing-sdk` sets **`User-Agent: boing-sdk/json-rpc`** automatically in **Node/CLI** runtimes (not in browsers). Probe scripts in this repo already pass a UA.
+- **Symptom check:** `curl` 403 + browser/`-A Mozilla/5.0` 200 on the same URL ⇒ edge policy, not an downed origin. Still verify **`boing_chainHeight`** — a 200 with tip **0** means the origin is up but not producing/syncing useful blocks (see [HANDOFF_TESTNET_HEIGHT_ZERO_AND_VIBEMINER_PEERING.md](HANDOFF_TESTNET_HEIGHT_ZERO_AND_VIBEMINER_PEERING.md)).
+
 ---
 
 ## 3. Go-live sequence (order matters)

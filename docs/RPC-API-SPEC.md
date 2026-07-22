@@ -811,7 +811,10 @@ Request testnet BOING for an account. Only available when the node is started wi
 |-------|------|-------------|
 | Params | `[hex_account_id]` | 32-byte account ID (hex). Recipient of the faucet transfer. |
 
-**Result:** `{ ok: true, amount: number, to: string, message: string }`
+**Result:** `{ ok: true, amount: number, to: string, message: string, tip_height: number, connected_peers: number, warning?: string }`
+
+- **`tip_height` / `connected_peers`:** Chain tip and P2P peer count at accept time.
+- **`warning`:** Present when tip is **0** (especially with **no peers**) — the transfer is only in the **local mempool** and may **never commit** until the node syncs or a validator produces blocks. Clients MUST NOT treat `ok: true` alone as “balance credited.”
 
 **Rate limit:** 1 request per 60 seconds per account ID. Returns `-32016` with message "Faucet cooldown" if called too soon.
 

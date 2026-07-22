@@ -25,7 +25,7 @@ export {
 } from './canonicalTestnetDex.js';
 
 import { BoingClient } from './client.js';
-export { BoingClient } from './client.js';
+export { BoingClient, BOING_SDK_DEFAULT_USER_AGENT } from './client.js';
 export type { BoingClientConfig } from './client.js';
 export {
   BoingRpcError,
