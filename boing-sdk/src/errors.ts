@@ -139,6 +139,12 @@ export function explainBoingRpcError(e: unknown): string {
     if (e.code === -32601)
       return `RPC method not implemented on this endpoint (old node or filtered proxy): ${e.message}`;
     if (e.code === -32602) return `Invalid RPC params: ${e.message}`;
+    if (e.code === -32000 && /duplicate transaction/i.test(e.message)) {
+      return `This exact transaction is already in the mempool: ${e.message}. Wait for inclusion (or a failed-fee receipt) before deploying the same payload again.`;
+    }
+    if (e.code === -32000 && /insufficient balance for fee/i.test(e.message)) {
+      return `Not enough native BOING to pay the execution fee: ${e.message}. Request the faucet and retry.`;
+    }
     if (e.code === -32000 && e.retryAfterMs != null && e.retryAfterMs > 0) {
       return `Transient RPC error (wait ~${Math.ceil(e.retryAfterMs / 1000)}s per Retry-After): ${e.message}`;
     }

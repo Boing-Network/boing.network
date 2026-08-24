@@ -5,7 +5,7 @@
 use rayon::prelude::*;
 
 use boing_primitives::{AccountId, ExecutionReceipt, Transaction, TransactionPayload};
-use boing_state::StateStore;
+use boing_state::{StateCheckpoint, StateStore};
 use boing_tokenomics::{charge_and_distribute_fee, fee_for_gas};
 
 use boing_qa::RuleRegistry;
@@ -123,38 +123,51 @@ impl BlockExecutor {
                     total_gas = total_gas.saturating_add(gas);
                 }
             } else {
-                // Sequential path
+                // Sequential path: isolate each tx so a fee/VM failure cannot abort the block
+                // (and poison the mempool by re-inserting the same deploy forever).
                 for &idx in &batch {
                     let tx = &txs[idx];
+                    let tx_ckpt = state.checkpoint();
                     match self.vm.execute_with_context(tx, state, exec_ctx) {
                         Ok(out) => {
                             let fee = fee_for_gas(out.gas_used);
-                            charge_and_distribute_fee(state, &tx.sender, fee, &fee_recipient)
-                                .map_err(ExecutionError::Fee)?;
-                            total_gas = total_gas.saturating_add(out.gas_used);
-                            receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
-                                tx,
-                                block_height,
-                                idx as u32,
-                                true,
-                                out.gas_used,
-                                out.return_data,
-                                out.logs,
-                                None,
-                            ));
+                            match charge_and_distribute_fee(state, &tx.sender, fee, &fee_recipient) {
+                                Ok(()) => {
+                                    total_gas = total_gas.saturating_add(out.gas_used);
+                                    receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
+                                        tx,
+                                        block_height,
+                                        idx as u32,
+                                        true,
+                                        out.gas_used,
+                                        out.return_data,
+                                        out.logs,
+                                        None,
+                                    ));
+                                }
+                                Err(e) => {
+                                    apply_failed_tx_consuming_nonce(
+                                        state,
+                                        tx,
+                                        tx_ckpt,
+                                        block_height,
+                                        idx as u32,
+                                        format!("{}", e),
+                                        &mut receipts[idx],
+                                    );
+                                }
+                            }
                         }
                         Err(e) => {
-                            receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
+                            apply_failed_tx_consuming_nonce(
+                                state,
                                 tx,
+                                tx_ckpt,
                                 block_height,
                                 idx as u32,
-                                false,
-                                0,
-                                Vec::new(),
-                                vec![],
-                                Some(format!("{}", e)),
-                            ));
-                            return Err(ExecutionError::Vm(e));
+                                format!("{}", e),
+                                &mut receipts[idx],
+                            );
                         }
                     }
                 }
@@ -167,6 +180,35 @@ impl BlockExecutor {
             .collect();
         Ok((total_gas, receipts))
     }
+}
+
+/// Revert a failed tx's state, still consume the sender nonce so the same payload cannot
+/// stall block production (mempool re-insert of a fee-underfunded deploy).
+fn apply_failed_tx_consuming_nonce(
+    state: &mut StateStore,
+    tx: &Transaction,
+    tx_ckpt: StateCheckpoint,
+    block_height: u64,
+    tx_index: u32,
+    error: String,
+    slot: &mut Option<ExecutionReceipt>,
+) {
+    state.revert(tx_ckpt);
+    if let Some(sender_state) = state.get_mut(&tx.sender) {
+        if sender_state.nonce == tx.nonce {
+            sender_state.nonce = sender_state.nonce.saturating_add(1);
+        }
+    }
+    *slot = Some(ExecutionReceipt::from_tx_outcome(
+        tx,
+        block_height,
+        tx_index,
+        false,
+        0,
+        Vec::new(),
+        vec![],
+        Some(error),
+    ));
 }
 
 impl Default for BlockExecutor {
@@ -251,6 +293,57 @@ mod tests {
         assert_eq!(state.get(&c).unwrap().balance, 100_000 - 50 - fee_each);
         assert_eq!(state.get(&d).unwrap().balance, 50);
         assert_eq!(gas, super::super::vm::GAS_PER_TRANSFER * 2);
+    }
+
+    #[test]
+    fn underfunded_deploy_fails_in_block_without_aborting_following_transfer() {
+        let exec = BlockExecutor::new();
+        let deployer = AccountId::from_bytes([1u8; 32]);
+        let payee = AccountId::from_bytes([2u8; 32]);
+        let proposer = AccountId::from_bytes([9u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: deployer,
+            state: AccountState {
+                balance: 50_000,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: payee,
+            state: AccountState {
+                balance: 100_000,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        let deploy = Transaction {
+            nonce: 0,
+            sender: deployer,
+            payload: TransactionPayload::ContractDeploy {
+                bytecode: vec![0x00],
+                create2_salt: None,
+            },
+            access_list: AccessList::default(),
+        };
+        let transfer = tx(payee, deployer, 0, 10);
+        let (_gas, receipts) = exec
+            .execute_block(1, 0, &[deploy, transfer], &mut state, proposer)
+            .expect("block must commit even when the deploy cannot pay its fee");
+        assert_eq!(receipts.len(), 2);
+        assert!(!receipts[0].success);
+        assert!(receipts[0]
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("insufficient balance for fee"));
+        assert!(receipts[1].success);
+        assert_eq!(state.get(&deployer).unwrap().nonce, 1);
+        assert_eq!(state.get(&deployer).unwrap().balance, 50_000 + 10);
+        assert_eq!(state.get(&payee).unwrap().nonce, 1);
     }
 }
 

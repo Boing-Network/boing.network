@@ -1107,6 +1107,25 @@ async fn dispatch_jsonrpc_request(
                                 info!("RPC: transaction submitted");
                                 rpc_ok(id, serde_json::json!({"tx_hash": "ok"}))
                             }
+                            Err(MempoolError::Duplicate) => rpc_error_with_data(
+                                id,
+                                -32000,
+                                "Duplicate transaction".into(),
+                                serde_json::json!({
+                                    "reason": "already_in_mempool",
+                                    "hint": "This exact signed payload is already pending. Wait for a block or change nonce/metadata; do not resubmit the same token.",
+                                }),
+                            ),
+                            Err(MempoolError::InsufficientFee { have, need }) => rpc_error_with_data(
+                                id,
+                                -32000,
+                                format!("insufficient balance for fee: have {have}, need {need}"),
+                                serde_json::json!({
+                                    "have": have.to_string(),
+                                    "need": need.to_string(),
+                                    "hint": "Request testnet BOING from the faucet and retry. Native token deploys charge gas_used as a native fee.",
+                                }),
+                            ),
                             Err(MempoolError::QaRejected(r)) => {
                                 let mut data = serde_json::json!({ "rule_id": r.rule_id.0, "message": r.message });
                                 if let Some(ref u) = r.doc_url {

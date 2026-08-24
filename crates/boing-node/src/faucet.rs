@@ -24,6 +24,7 @@ pub const FAUCET_INITIAL_BALANCE: u128 = 10_000_000;
 
 /// Amount sent per faucet request.
 ///
-/// Sized so a single request can fund **min validator stake** ([`boing_tokenomics::MIN_VALIDATOR_STAKE`] = 10_000)
-/// plus Bond gas (~21_000) for one-click stake-validator onboarding (VibeMiner / local testnet).
-pub const FAUCET_DISPENSE_AMOUNT: u128 = 50_000;
+/// Sized so a single request can fund a **native token deploy** (execution fee is
+/// `gas_used × GAS_PRICE`; reference fungible init is typically ~200k–400k) **and**
+/// min validator stake ([`boing_tokenomics::MIN_VALIDATOR_STAKE`] = 10_000).
+pub const FAUCET_DISPENSE_AMOUNT: u128 = 1_000_000;

@@ -20,7 +20,7 @@ export const QUESTS: Quest[] = [
     id: 'faucet',
     name: 'First drip',
     description: 'Request testnet BOING from the faucet.',
-    howToComplete: 'Go to the Faucet page, enter your account ID (32-byte hex), and request 50,000 testnet BOING.',
+    howToComplete: 'Go to the Faucet page, enter your account ID (32-byte hex), and request 1,000,000 testnet BOING.',
     verificationType: 'on_chain',
     rewardTier: 'base',
   },

@@ -806,8 +806,41 @@ impl BoingNode {
         self.intent_pool.submit(signed)
     }
 
+    /// Dry-run execution fee vs committed balance so underfunded deploys are rejected at submit
+    /// instead of stalling block production.
+    fn precheck_sender_can_pay_fee(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
+        if self.mempool.contains_tx_id(&signed.tx.id()) {
+            return Err(MempoolError::Duplicate);
+        }
+        let have = self
+            .state
+            .get(&signed.tx.sender)
+            .map(|s| s.balance)
+            .unwrap_or(0);
+        let mut state_copy = self.state.snapshot();
+        let height = self.chain.height();
+        let ts = self
+            .chain
+            .get_block_by_height(height)
+            .map(|b| b.header.timestamp)
+            .unwrap_or(0);
+        let vm = Vm::with_qa_registry(self.mempool.qa_registry().clone());
+        let exec_ctx = boing_execution::VmExecutionContext {
+            block_height: height.saturating_add(1),
+            block_timestamp: ts,
+        };
+        if let Ok(out) = vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
+            let need = boing_tokenomics::fee_for_gas(out.gas_used);
+            if have < need {
+                return Err(MempoolError::InsufficientFee { have, need });
+            }
+        }
+        Ok(())
+    }
+
     /// Submit a signed transaction to the mempool.
     pub fn submit_transaction(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
+        self.precheck_sender_can_pay_fee(&signed)?;
         match self.mempool.insert(signed.clone()) {
             Ok(()) => Ok(()),
             Err(MempoolError::QaPendingPool(tx_hash)) => {

@@ -218,6 +218,8 @@ pub enum MempoolError {
     InvalidSignature,
     #[error("Pending limit exceeded: sender has too many pending txs (max {limit})")]
     PendingLimitExceeded { sender: AccountId, limit: usize },
+    #[error("insufficient balance for fee: have {have}, need {need}")]
+    InsufficientFee { have: u128, need: u128 },
     /// Protocol QA rejected this deployment; rule_id and message give user feedback.
     #[error("QA rejected: {0}")]
     QaRejected(QaReject),

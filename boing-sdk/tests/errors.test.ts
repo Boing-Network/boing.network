@@ -54,4 +54,16 @@ describe('BoingRpcError helpers', () => {
     expect(explainBoingRpcError(new BoingRpcError(-32700, 'Parse error:'))).toContain('Invalid JSON');
     expect(explainBoingRpcError(new BoingRpcError(-32600, 'batch exceeds'))).toContain('Invalid JSON-RPC');
   });
+
+  it('explainBoingRpcError covers duplicate mempool submit', () => {
+    expect(explainBoingRpcError(new BoingRpcError(-32000, 'Duplicate transaction'))).toContain(
+      'already in the mempool',
+    );
+  });
+
+  it('explainBoingRpcError covers insufficient execution fee', () => {
+    expect(
+      explainBoingRpcError(new BoingRpcError(-32000, 'insufficient balance for fee: have 50000, need 381612')),
+    ).toContain('Not enough native BOING');
+  });
 });
