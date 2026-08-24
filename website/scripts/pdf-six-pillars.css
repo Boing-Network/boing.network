@@ -1,0 +1,129 @@
+/* Print stylesheet for the Six Pillars PDF (md-to-pdf / Puppeteer). Light, technical, readable. */
+
+@page {
+  size: Letter;
+}
+
+html {
+  background: #f7f5f0;
+}
+
+body {
+  font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.55;
+  color: #1a2433;
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 0;
+  background: #f7f5f0;
+}
+
+h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0b1f33;
+  margin: 0 0 0.4em;
+  padding-bottom: 0.35em;
+  border-bottom: 3px solid #0d9b86;
+}
+
+h2 {
+  font-size: 13.5pt;
+  font-weight: 700;
+  color: #0b1f33;
+  margin: 1.55em 0 0.45em;
+  page-break-after: avoid;
+}
+
+p,
+li {
+  orphans: 3;
+  widows: 3;
+}
+
+strong {
+  color: #0b1f33;
+}
+
+a {
+  color: #0b7a6c;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+blockquote {
+  margin: 0.85em 0 1.1em;
+  padding: 0.15em 0 0.15em 1em;
+  border-left: 4px solid #0d9b86;
+  color: #334155;
+  font-style: italic;
+}
+
+code {
+  font-family: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.86em;
+  background: #e8efe9;
+  padding: 0.08em 0.32em;
+  border-radius: 3px;
+}
+
+pre {
+  background: #13202e;
+  color: #e8eef4;
+  padding: 0.9em 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.82em;
+}
+
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.85em 0 1.2em;
+  font-size: 10pt;
+  page-break-inside: avoid;
+}
+
+th,
+td {
+  border: 1px solid #cfd8d4;
+  padding: 0.45em 0.65em;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #d7efe9;
+  color: #0b1f33;
+  font-weight: 650;
+}
+
+tr:nth-child(even) td {
+  background: #eef3ee;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid #c5d0cc;
+  margin: 1.6em 0;
+}
+
+ul,
+ol {
+  padding-left: 1.25em;
+}
+
+li {
+  margin: 0.25em 0;
+}

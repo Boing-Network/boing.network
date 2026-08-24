@@ -18,4 +18,11 @@ From `website/`:
 npm run build:pdfs
 ```
 
-See `generate-pdfs.js` for the list of Markdown sources. Output is `website/public/pdfs/*.pdf`. Written pages such as `/about` embed **SIX-PILLARS.pdf** (and essentials) instead of duplicating the markdown as HTML. After editing `docs/SIX-PILLARS.md`, regenerate PDFs and copy `SIX-PILLARS.pdf` into `boing.observer/public/pdfs/` so the explorer embed stays in sync.
+See `generate-pdfs.js` for the list of Markdown sources. Output is `website/public/pdfs/*.pdf`. Written pages such as `/about` embed **SIX-PILLARS.pdf** (and essentials) instead of duplicating the markdown as HTML.
+
+Regenerate only the pillars PDF (applies `pdf-six-pillars.css` and copies into a sibling `boing.observer` checkout):
+
+```bash
+node scripts/generate-pdfs.js SIX-PILLARS.md
+```
+
