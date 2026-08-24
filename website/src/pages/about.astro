@@ -1,61 +1,38 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Icon from '../components/Icon.astro';
+import PdfDocument from '../components/PdfDocument.astro';
 ---
 
-<Layout title="About" description="The DeFi that always bounces back. Boing Network design philosophy — authentic L1 blockchain built from first principles, decentralized by design." canonical="/about">
+<Layout title="About" description="The six pillars of Boing Network as a PDF — authentic L1 blockchain built from first principles." canonical="/about">
   <article class="page-wrap-full">
     <header class="page-hero-full">
-      <div class="page-wrap-inner" style="max-width: 720px;">
+      <div class="page-wrap-inner" style="max-width: 960px;">
         <span class="stage-badge-global">Testnet</span>
         <h1 class="about-title"><Icon name="shield" size={36} class="about-title-icon" /> About Boing Network</h1>
-        <p class="lead">The DeFi that always bounces back. An authentic L1 blockchain built from first principles — optimized for efficiency, free from dependencies on other chains, and designed for absolute decentralization.</p>
+        <p class="lead">Written network documents are published as PDFs. The DeFi that always bounces back — an authentic L1 built from first principles.</p>
       </div>
     </header>
-    <div class="page-wrap-inner about-content" style="max-width: 720px;">
-    <section class="about-section section-reveal delay-1">
-      <h2><Icon name="shield" size={22} class="section-icon" /> Design Philosophy</h2>
-      <ul>
-        <li><strong>Authentic</strong> — Our own architecture, not a fork or framework</li>
-        <li><strong>Independent</strong> — Core protocol does not depend on another L1 for consensus, execution, or identity</li>
-        <li><strong>Optimal</strong> — Adopt the best ideas from the ecosystem when they are demonstrably superior</li>
-        <li><strong>Unique</strong> — A distinct identity and technical story</li>
-        <li><strong>Decentralized</strong> — Absolute decentralization as a foundational requirement</li>
-        <li><strong>Transparent</strong> — 100% openness in design, governance, and operations — trust through verifiability</li>
-      </ul>
-    </section>
+    <div class="page-wrap-inner about-content" style="max-width: 960px;">
+      <section class="about-section section-reveal delay-1" aria-labelledby="pillars-heading">
+        <h2 id="pillars-heading"><Icon name="shield" size={22} class="section-icon" /> The Six Pillars</h2>
+        <p class="pdf-source">Canonical source: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/SIX-PILLARS.md" target="_blank" rel="noopener">docs/SIX-PILLARS.md</a>.</p>
+        <PdfDocument src="/pdfs/SIX-PILLARS.pdf" title="Six pillars" fileName="SIX-PILLARS.pdf" />
+      </section>
 
-    <section class="about-section section-reveal delay-2">
-      <h2><Icon name="shield" size={22} class="section-icon" /> The Six Pillars</h2>
-      <p>The network prioritizes, in order: <strong>Security</strong> (safety over speed) → <strong>Scalability</strong> (throughput, efficiency) → <strong>Decentralization</strong> (permissionless at every layer) → <strong>Authenticity</strong> (unique architecture) → <strong>Transparency</strong> (100% openness) → <strong>True quality assurance</strong> (protocol-enforced QA: only quality assets on-chain; automation + community pool for edge cases; leniency for meme culture; no malice).</p>
-    </section>
+      <section class="about-section section-reveal delay-2" aria-labelledby="essentials-heading">
+        <h2 id="essentials-heading"><Icon name="book" size={22} class="section-icon" /> Network essentials</h2>
+        <p class="pdf-source">Design philosophy, priorities, and tech stack. Source: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-NETWORK-ESSENTIALS.md" target="_blank" rel="noopener">docs/BOING-NETWORK-ESSENTIALS.md</a>.</p>
+        <PdfDocument src="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" title="Network essentials" fileName="BOING-NETWORK-ESSENTIALS.pdf" />
+      </section>
 
-    <section class="about-section section-reveal delay-3">
-      <h2><Icon name="rocket" size={22} class="section-icon" /> Unique Innovations</h2>
-      <ul>
-        <li><strong>Native Account Abstraction</strong> — Gasless txs, social recovery, session keys — built into the protocol, not a contract layer.</li>
-        <li><strong>Adaptive Gas Model</strong> — Dynamic gas that responds to network conditions with predictable caps.</li>
-        <li><strong>Native Cross-Chain Primitives</strong> — Light client verification and cross-chain messaging as protocol primitives.</li>
-        <li><strong>Protocol-Enforced Quality Assurance</strong> — Only deployments that meet defined rules and security bar are accepted; automation + community QA pool for edge cases; leniency for meme culture; no malice. No other major chain does this at the protocol layer.</li>
-        <li><strong>Transparent Slashing</strong> — Auditable slashing conditions with appeal mechanisms.</li>
-        <li><strong>Phased Governance</strong> — Time-locked stages (proposal → cooling → execution) for parameter changes.</li>
-        <li><strong>Custom VDF</strong> — Boing-specific verifiable delay function for fair ordering without external dependencies.</li>
-        <li><strong>State Rent with Grace Periods</strong> — Inactive accounts pay state rent with long grace periods and clear notifications.</li>
-        <li><strong>Native DeFi Primitives</strong> — Protocol-level AMM and swap logic for boing.finance; audited and composable by design.</li>
-      </ul>
-    </section>
-
-    <section class="about-section section-reveal delay-4">
-      <h2><Icon name="node" size={22} class="section-icon" /> Tech Stack at a Glance</h2>
-      <p>Rust · BLAKE3 (hashing) · Ed25519 (signatures) · PoS + HotStuff BFT (consensus) · Sparse Merkle tree (Verkle target) · Custom Boing VM (stack machine; Boing-defined opcodes and gas) · libp2p (networking) · Phased governance (time-locked). Node binary: <code>boing-node</code>; CLI: <code>boing</code> (init, dev, deploy). RPC port 8545. See <a href="/docs">Documentation</a> for full detail.</p>
-    </section>
-
-    <section class="about-section section-reveal delay-5">
-      <h2><Icon name="book" size={22} class="section-icon" /> Transparency &amp; Documentation</h2>
-      <p>We commit to 100% transparency in protocol design, tokenomics, governance, validator &amp; staking, security &amp; audits, and development. All design docs, specs, and roadmap are open. Explore the <a href="/docs">full documentation</a> for getting started, RPC API, tokenomics, operations, and PDFs.</p>
-    </section>
-
-    <p class="section-reveal delay-6"><a href="/docs">Documentation</a> · <a href="/docs/getting-started">Getting started</a> · <a href="/developers/quickstart">Developer quickstart</a> · <a href="/testnet">Testnet Dashboard</a>.</p>
+      <p class="section-reveal delay-3 about-links">
+        <a href="/docs">Documentation</a> ·
+        <a href="/docs/getting-started">Getting started</a> ·
+        <a href="/developers/quickstart">Developer quickstart</a> ·
+        <a href="/testnet">Testnet Dashboard</a> ·
+        <a href="https://boing.observer/about">Explorer about</a>
+      </p>
     </div>
   </article>
 </Layout>
@@ -74,10 +51,8 @@ import Icon from '../components/Icon.astro';
   }
   .about-section h2 { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; color: var(--text-primary); font-size: 1.35rem; flex-wrap: wrap; }
   .section-icon { color: var(--accent-teal); flex-shrink: 0; }
-  .about-section ul { padding-left: 1.5rem; margin: 0.5rem 0; }
-  .about-section li, .about-section p { color: var(--text-secondary); line-height: 1.6; }
-  .about-section a { color: var(--accent-teal); }
-  .about-section code { background: var(--bg-tertiary); padding: 0.2em 0.4em; border-radius: 4px; font-size: 0.9em; word-break: break-word; }
-  .about-content > p { margin-top: 2rem; }
-  .about-content > p a { color: var(--accent-teal); }
+  .pdf-source { color: var(--text-secondary); font-size: 0.95rem; margin: 0 0 1rem; }
+  .pdf-source a { color: var(--accent-teal); }
+  .about-links { margin-top: 2.5rem; }
+  .about-links a { color: var(--accent-teal); }
 </style>

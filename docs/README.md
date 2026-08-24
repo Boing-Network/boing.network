@@ -1,6 +1,6 @@
 # Boing Network — Documentation Index
 
-Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the six pillars and design philosophy. This file is the **canonical map** of `docs/`; the repo root [README.md](../README.md) duplicates a short subset for quick navigation. Contributors: [CONTRIBUTING.md](../CONTRIBUTING.md).
+Start with [SIX-PILLARS.md](SIX-PILLARS.md) (the written pillars, published as PDF) and [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for design philosophy and stack. This file is the **canonical map** of `docs/`; the repo root [README.md](../README.md) duplicates a short subset for quick navigation. Contributors: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Core
 
@@ -11,6 +11,7 @@ Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the si
 | [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md) | Architecture, tokenomics, design decisions |
 | [RUNBOOK.md](RUNBOOK.md) | Node setup, RPC, CLI, monitoring, incidents |
 | [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC API reference; § Native AMM = canonical pool; § DEX discovery |
+| [SIX-PILLARS.md](SIX-PILLARS.md) | Written six pillars (PDF on `/about` and `website/public/pdfs/SIX-PILLARS.pdf`) |
 
 ## Readiness, testnet & ops
 

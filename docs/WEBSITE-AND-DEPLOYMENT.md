@@ -53,7 +53,7 @@ boing.network/
 | Page / Section | Source | Notes |
 |----------------|--------|-------|
 | Landing | docs/BOING-BLOCKCHAIN-DESIGN-PLAN.md (Design Philosophy, Priority Pillars) | Hero, "Authentic L1" messaging |
-| /about | Design Plan §1–5, Innovation table | Philosophy, unique features |
+| /about | docs/SIX-PILLARS.md, docs/BOING-NETWORK-ESSENTIALS.md | Written pillars and essentials as **PDFs** (`/pdfs/…`); page chrome only |
 | /docs/getting-started | docs/BUILD-ROADMAP.md Quick Start, README | `cargo build`, `cargo run -p boing-node` |
 | /docs/architecture | Design Plan (Tech Stack, Full Stack Architecture) | Mermaid diagrams, layer breakdown |
 | /docs#rpc-api (and redirect `/docs/rpc-api`) | docs/RPC-API-SPEC.md | On-site: full method table + error codes aligned with `boing-node`; canonical prose + examples remain in the repo spec (also PDF in `/pdfs/`) |

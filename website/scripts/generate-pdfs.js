@@ -20,6 +20,7 @@ const DOCS_TO_PDF = [
   'TESTNET.md',
   'VIBEMINER-INTEGRATION.md',
   'RUNBOOK.md',
+  'SIX-PILLARS.md',
   'BOING-NETWORK-ESSENTIALS.md',
   'QUALITY-ASSURANCE-NETWORK.md',
   'DEVELOPMENT-AND-ENHANCEMENTS.md',
@@ -59,11 +60,22 @@ async function main() {
         { dest, basedir: docsDir }
       );
       console.log('Generated:', base + '.pdf');
+
+      // Keep the explorer copy of written docs in sync when that repo is a sibling checkout.
+      if (base === 'SIX-PILLARS') {
+        const observerPdfDir = path.join(repoRoot, '..', 'boing.observer', 'public', 'pdfs');
+        if (fs.existsSync(path.join(repoRoot, '..', 'boing.observer'))) {
+          fs.mkdirSync(observerPdfDir, { recursive: true });
+          fs.copyFileSync(dest, path.join(observerPdfDir, base + '.pdf'));
+          console.log('Copied to observer:', path.join(observerPdfDir, base + '.pdf'));
+        }
+      }
     } catch (err) {
       console.error('Failed', name, err?.message || err);
     }
   }
   console.log('PDF generation done.');
+  process.exit(0);
 }
 
 main();

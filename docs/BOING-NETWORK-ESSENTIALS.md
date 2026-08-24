@@ -12,6 +12,8 @@
 
 ## The Six Pillars
 
+The written pillars live in [SIX-PILLARS.md](SIX-PILLARS.md) and are published as **`/pdfs/SIX-PILLARS.pdf`** on the websites. Summary:
+
 The Boing blockchain prioritizes, in order:
 
 | # | Pillar | What it means |

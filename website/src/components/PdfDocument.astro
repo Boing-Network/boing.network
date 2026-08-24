@@ -1,0 +1,85 @@
+---
+interface Props {
+  src: string;
+  title: string;
+  fileName?: string;
+}
+const { src, title, fileName } = Astro.props as Props;
+const downloadName = fileName ?? src.split('/').pop() ?? 'document.pdf';
+---
+
+<figure class="pdf-document">
+  <figcaption class="pdf-document__bar">
+    <span class="pdf-document__title">{title}</span>
+    <span class="pdf-document__actions">
+      <a class="pdf-document__download" href={src} download={downloadName}>Download PDF</a>
+      <a class="pdf-document__open" href={src} target="_blank" rel="noopener noreferrer">Open</a>
+    </span>
+  </figcaption>
+  <object
+    class="pdf-document__frame"
+    data={`${src}#toolbar=1&navpanes=0&view=FitH`}
+    type="application/pdf"
+    aria-label={title}
+  >
+    <p>
+      This browser cannot display PDFs inline.
+      <a href={src} download={downloadName}>Download {title}</a>.
+    </p>
+  </object>
+</figure>
+
+<style>
+  .pdf-document {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--card-border, rgba(0, 232, 200, 0.18));
+    border-radius: 12px;
+    background: rgba(5, 12, 24, 0.55);
+  }
+  .pdf-document__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--card-border, rgba(0, 232, 200, 0.18));
+  }
+  .pdf-document__title {
+    font-weight: 600;
+    color: var(--text-primary, #f0f9ff);
+  }
+  .pdf-document__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .pdf-document__download {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    background: var(--accent-teal, #00e8c8);
+    color: #050c18;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .pdf-document__open {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--card-border, rgba(0, 232, 200, 0.18));
+    color: var(--text-secondary, #94a3b8);
+    text-decoration: none;
+  }
+  .pdf-document__frame {
+    display: block;
+    width: 100%;
+    height: min(80vh, 880px);
+    background: #0a0e14;
+  }
+  .pdf-document__frame p {
+    padding: 1.25rem;
+    color: var(--text-secondary, #94a3b8);
+  }
+</style>

@@ -45,7 +45,7 @@ const paramsObjectWrong = '{}';
         <h2>Overview</h2>
         <p>Boing Network is an authentic L1 blockchain built from first principles. It is independent of other chains and designed for sustainable value, uncapped supply with floor-triggered rebalancing, and 100% transparent governance and tokenomics.</p>
         <h3>The six pillars</h3>
-        <p>In order: <strong>Security</strong> (safety over speed) → <strong>Scalability</strong> (throughput, efficiency) → <strong>Decentralization</strong> (permissionless at every layer) → <strong>Authenticity</strong> (unique architecture) → <strong>Transparency</strong> (100% openness; trust through verifiability) → <strong>True quality assurance</strong> (protocol-enforced QA: only assets that meet rules and security bar; automation + community pool for edge cases; leniency for meme culture; no malice). See <a href="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" target="_blank" rel="noopener">BOING-NETWORK-ESSENTIALS (PDF)</a> and <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a> for full detail.</p>
+        <p>In order: <strong>Security</strong> → <strong>Scalability</strong> → <strong>Decentralization</strong> → <strong>Authenticity</strong> → <strong>Transparency</strong> → <strong>True quality assurance</strong>. The written pillars are the <a href="/pdfs/SIX-PILLARS.pdf" target="_blank" rel="noopener">SIX-PILLARS PDF</a> (also on <a href="/about">/about</a>). Broader stack notes: <a href="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" target="_blank" rel="noopener">BOING-NETWORK-ESSENTIALS (PDF)</a>. QA detail: <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a>.</p>
         <h3>Recent enhancements &amp; optimizations</h3>
         <p>Network-wide improvements include: re-insert of failed txs into mempool, RPC methods <code>boing_qaCheck</code> and QA error codes, <code>boing_getBalance</code> / <code>boing_getAccount</code>, <strong>native DEX discovery</strong> on-chain (<code>boing_listDexPools</code>, <code>boing_listDexTokens</code>, <code>boing_getDexToken</code>; capability names also appear under <code>boing_getNetworkInfo.developer.dex_discovery_methods</code>), unsigned <code>boing_simulateContractCall</code> for calldata dry-runs, six-pillars and essentials documentation, Protocol QA phase in the roadmap. QA pillar enhancements (pre-flight checks, structured errors, public metrics, versioned rule sets, appeal path) are documented in <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a>. For the full list of implemented and planned enhancements, see <a href="/pdfs/DEVELOPMENT-AND-ENHANCEMENTS.pdf" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS (PDF)</a>.</p>
         <h3>What this documentation covers</h3>
@@ -347,6 +347,12 @@ cargo build --release</code></pre>
         <h3>Repository docs (PDF)</h3>
         <p class="doc-section-desc">Source: <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">github.com/Boing-Network/boing.network</a>. Download any document as PDF:</p>
         <div class="resource-cards">
+          <a href="/pdfs/SIX-PILLARS.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="shield" size={28} /></span>
+            <h4 class="resource-card-title">SIX-PILLARS</h4>
+            <p class="resource-card-desc">Written six pillars — the PDF used on /about.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
           <a href="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" target="_blank" rel="noopener" class="resource-card">
             <span class="resource-card-icon"><Icon name="book" size={28} /></span>
             <h4 class="resource-card-title">BOING-NETWORK-ESSENTIALS</h4>
