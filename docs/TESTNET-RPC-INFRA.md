@@ -30,13 +30,13 @@ Specialist guides (RPC methods, VM calldata, security) stay in their own files; 
 
 | Surface | Status | Verify |
 |---------|--------|--------|
-| **Public RPC** | **Hosted** — Cloudflare Worker → Fly `boing-testnet-1` / `-2` at `https://testnet-rpc.boing.network/` | `npm run preflight-rpc`; `GET /__gateway/health` |
+| **Public testnet RPC** | **Hosted** — Cloudflare Worker → Fly `boing-testnet-1` / `-2` at `https://testnet-rpc.boing.network/` | `npm run preflight-rpc`; `GET /__gateway/health` |
 | **QA transparency RPC** | **Live** — registry + pool config | `npm run verify-public-testnet-rpc` |
 | **QA content policy** | **132-term** `content_blocklist` on public RPC (when applied) | `boing_getQaRegistry`; `npm run apply-public-testnet-qa-policy` after edits |
-| **Canonical CP pool** | **`0x7247ddc3…`** (reserve A readable) | `BOING_REQUIRE_NONZERO_RESERVE=1 npm run check-canonical-pool` |
+| **Canonical CP pool** | **Not published** on the hosted Fly ledger (`end_user.canonical_native_cp_pool` is `null`) | `boing_getNetworkInfo`; re-run full-stack deploy then `npm run check-canonical-pool` |
 | **QA registry vs docs** | Baseline in `docs/config/`; live may differ after operator apply | `npm run verify-qa-alignment` |
 | **Explorer** | **Live** — [boing.observer](https://boing.observer) | `/qa`, `/tokens`, `/dex/pools` |
-| **Chain tip** | Operator-dependent (may reset after redeploy) | `npm run observer-chain-tip-poll` |
+| **Chain tip** | Hosted Fly cluster (resets if volumes are wiped) | `npm run observer-chain-tip-poll` |
 
 After a chain reset, **`head_height`** may be **0** while prior bootstrap contracts remain readable. Treat **`boing_getNetworkInfo.end_user`** as the live contract hint source.
 
@@ -96,7 +96,7 @@ Cloudflare returns **530** when a **Tunnel** hostname cannot reach its connector
 
 ## 5. Canonical native AMM pool (integration contract)
 
-1. **Source of truth:** [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM — **`0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3`** (published **2026-05-21**). **`boing_getNetworkInfo.end_user`** on public RPC should match.
+1. **Source of truth:** live **`boing_getNetworkInfo.end_user`** on `https://testnet-rpc.boing.network/`. The hosted Fly chain currently has **null** canonical native DEX fields until ops bootstraps them ([FLY-IO.md](FLY-IO.md)). Historical hex **`0x7247ddc3…`** is the previous tunnel ledger (published **2026-05-21**).
 2. **Procedure:** [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md).
 3. **SDK constant:** **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** in **`boing-sdk`**.
 

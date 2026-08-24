@@ -49,7 +49,7 @@ spec:
           args:
             - --data-dir=/data
             - --p2p-listen=/ip4/0.0.0.0/tcp/4001
-            - --bootnodes=/ip4/73.84.106.121/tcp/4001,/ip4/73.84.106.121/tcp/4001
+            - --bootnodes=/ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001
             - --rpc-port=8545
             - --faucet-enable
           ports:

@@ -30,16 +30,22 @@ export const isTestnetLive =
   !TESTNET_RPC_URL.includes('localhost');
 
 /**
- * Canonical **native constant-product AMM** pool `AccountId` on public testnet (chain **6913**).
- * Keep in sync with [docs/RPC-API-SPEC.md](../../../docs/RPC-API-SPEC.md) § Native constant-product AMM
- * and `boing-sdk` **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**. **boing.finance** (separate app) should use the same hex in its env / `contracts.js` — not generated from this file.
+ * Last-published native DEX `AccountId`s from the **previous** tunnel ledger (chain **6913**).
+ * The hosted Fly testnet behind `https://testnet-rpc.boing.network/` currently returns
+ * **null** `boing_getNetworkInfo.end_user.canonical_native_*` — do not treat these hexes as live.
+ * Re-publish after `npm run deploy-native-dex-full-stack` + `BOING_CANONICAL_NATIVE_*` on the nodes.
+ */
+export const HOSTED_TESTNET_NATIVE_DEX_PUBLISHED = false;
+
+/**
+ * Historical canonical **native constant-product AMM** pool `AccountId` (previous public testnet).
+ * Live source of truth: `boing_getNetworkInfo.end_user.canonical_native_cp_pool`.
  */
 export const CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX =
   '0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3' as const;
 
 /**
- * Native AMM **LP vault** + **LP share token** (live public testnet full-stack deploy). Matches
- * `boing_getNetworkInfo.end_user` and `boing-sdk` `CANONICAL_BOING_TESTNET_NATIVE_*`.
+ * Historical native AMM **LP vault** + **LP share token** (previous full-stack deploy).
  * See docs/NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md Appendix B.
  */
 export const CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX =

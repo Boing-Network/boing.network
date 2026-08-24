@@ -1,8 +1,7 @@
 /**
  * One-call defaults for native Boing DEX wiring: merge **`boing_getNetworkInfo.end_user`**
- * hints with embedded testnet fallbacks and app overrides.
- *
- * See [BOING-DAPP-INTEGRATION.md](../../docs/BOING-DAPP-INTEGRATION.md) § **Seamless native DEX defaults**.
+ * hints with app overrides. Historical embedded 6913 ids are used only when network info
+ * is omitted (offline). Live RPC nulls mean the hosted chain has not published those contracts.
  */
 import type { BoingClient } from './client.js';
 import { type NativeDexFactoryRegisterRpcParsed } from './nativeDexFactoryLogs.js';
@@ -42,9 +41,11 @@ export type NativeDexIntegrationOverrides = {
  */
 export declare function buildNativeDexIntegrationOverridesFromProcessEnv(): NativeDexIntegrationOverrides;
 /**
- * Merge RPC **`end_user`** canonical addresses, optional app overrides, and embedded **6913** fallbacks
- * (see [`canonicalTestnetDex.ts`](./canonicalTestnetDex.ts)).
- * Order per field: overrides → node hints → testnet embedded constants.
+ * Merge RPC **`end_user`** canonical addresses with optional app overrides.
+ * Order per field: overrides → node hints. Embedded **6913** constants (see
+ * [`canonicalTestnetDex.ts`](./canonicalTestnetDex.ts)) apply **only** when `info` is omitted
+ * (offline / unit tests). A live `boing_getNetworkInfo` snapshot with null canonical fields
+ * means the hosted chain has not published those contracts — do not substitute historical ids.
  */
 export declare function mergeNativeDexIntegrationDefaults(info: NetworkInfo | null | undefined, overrides?: NativeDexIntegrationOverrides): NativeDexIntegrationDefaults;
 /** Fetch **`boing_getNetworkInfo`** and {@link mergeNativeDexIntegrationDefaults}. */

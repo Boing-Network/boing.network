@@ -127,13 +127,7 @@ The website provides a **dedicated faucet page** at [boing.network/faucet](https
 
 ### 5.3 Native constant-product AMM pool (chain 6913)
 
-The in-ledger **MVP constant-product pool** is a normal **32-byte contract `AccountId`**. Integrators set it in dApp config — on **boing.finance**: **`frontend/src/config/boingCanonicalTestnetPool.js`** (constant **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**) and/or **`REACT_APP_BOING_NATIVE_AMM_POOL`** for Pages builds, plus **`nativeConstantProductPool`** in `contracts.js` for chain **6913**. The **canonical public testnet** hex is the table below and in [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM; optional TypeScript mirror: **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** in **`boing-sdk`**. New pool rotations: [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md).
-
-| | |
-|--|--|
-| **Canonical public testnet pool `AccountId`** | **`0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3`** — same as [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM (operator-published **2026-05-21**; superseded **`0xce4f8193…`**). Also on the website [Join Testnet](https://boing.network/testnet/join#native-amm-pool) page (`website/src/config/testnet.ts`) and **`boing-sdk`** **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**. |
-
-Storage keys and calldata: [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). SDK examples: **`BOING_POOL_HEX`** in [examples/native-boing-tutorial](../examples/native-boing-tutorial/).
+The in-ledger **MVP constant-product pool** is a normal **32-byte contract `AccountId`**. Integrators should read **`boing_getNetworkInfo.end_user.canonical_native_cp_pool`** on public RPC (or set **`REACT_APP_BOING_NATIVE_AMM_POOL`** on a private chain). The hosted Fly testnet currently has **no published canonical pool** (`end_user` fields are `null`). Historical hex **`0x7247ddc3…`** was the previous tunnel ledger (operator-published **2026-05-21**); do not assume it exists on the current hosted chain. New pool rotations: [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md), [FLY-IO.md](FLY-IO.md).
 
 ## 6. Bootnode list (testnet)
 

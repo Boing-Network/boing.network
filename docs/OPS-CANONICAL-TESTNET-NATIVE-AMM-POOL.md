@@ -1,5 +1,7 @@
 # OPS — Canonical public testnet native AMM pool (`AccountId`)
 
+**Hosted Fly testnet (2026-08-24):** `https://testnet-rpc.boing.network/` currently returns **`end_user.canonical_native_cp_pool: null`**. The hex in § Published is the **previous tunnel ledger** — do not treat it as live on the Fly cluster until ops re-runs `npm run deploy-native-dex-full-stack` and sets `BOING_CANONICAL_NATIVE_*` on the nodes. Live source of truth: `boing_getNetworkInfo.end_user`.
+
 **Goal (OPS-1):** When operations freeze a **long-lived** constant-product pool on **Boing testnet (chain id 6913)**, publish its **32-byte pool `AccountId`** once and mirror it everywhere integrators look. This doc is the **checklist**; it does **not** contain a placeholder fake address.
 
 **Lost signing seed / chain reset:** [OPS-FRESH-TESTNET-BOOTSTRAP.md](OPS-FRESH-TESTNET-BOOTSTRAP.md) — new `BOING_SECRET_HEX`, CREATE2 manifest, repo sync, redeploy.
@@ -14,7 +16,7 @@
 | **Bytecode** | **v1** constant-product pool (full-stack deploy on public RPC) |
 | **Deploy** | Operator-published id above — **use this hex** for RPC reads, dApp defaults, and **`npm run check-canonical-pool`**. |
 | **Deployer (documented)** | `0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29` |
-| **Date** | **2026-05-21** (matches live `boing_getNetworkInfo.end_user` on `https://testnet-rpc.boing.network/`) |
+| **Date** | **2026-05-21** (previous public tunnel ledger; **not** currently advertised on hosted Fly `end_user`) |
 | **Verification** | **`npm run check-canonical-pool`** with **`BOING_REQUIRE_NONZERO_RESERVE=1`**; reserves via **`npm run fetch-native-amm-reserves`** with **`BOING_POOL_HEX`**. Deploy record: [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md) **Appendix B**. |
 
 **Related live contracts (same deploy):** factory `0x58112627…`, multihop router `0xf801cd1a…`, ledger v2/v3, LP vault, LP share — see **`boing-sdk`** `canonicalTestnetDex.ts` and [`scripts/canonical-testnet-published.manifest.json`](../scripts/canonical-testnet-published.manifest.json).

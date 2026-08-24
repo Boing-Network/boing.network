@@ -44,7 +44,7 @@ const probeLocalP2p =
   process.env.BOING_PROBE_LOCAL_P2P === '1' || process.env.BOING_PROBE_LOCAL_P2P === 'true';
 const localP2pPort = Math.max(1, parseInt(process.env.BOING_LOCAL_P2P_PORT ?? '4001', 10) || 4001);
 
-const DEFAULT_BOOTNODES = '/ip4/73.84.106.121/tcp/4001,/ip4/73.84.106.121/tcp/4001';
+const DEFAULT_BOOTNODES = '/ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001';
 
 /** @param {{ host: string, port: number }[]} targets */
 function dedupeTargets(targets) {

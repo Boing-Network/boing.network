@@ -6,6 +6,7 @@ import {
   TESTNET_RPC_URL,
   BOOTNODES,
   isTestnetLive,
+  HOSTED_TESTNET_NATIVE_DEX_PUBLISHED,
   CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX,
   CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX,
   CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX,
@@ -101,6 +102,8 @@ import {
 
     <section class="section" id="native-amm-pool">
       <h2>Native AMM pool (chain 6913)</h2>
+      {HOSTED_TESTNET_NATIVE_DEX_PUBLISHED ? (
+        <>
       <p>
         Integrators and <a href="https://boing.finance" target="_blank" rel="noopener noreferrer">boing.finance</a> use this
         <strong>canonical constant-product pool</strong> account id on public testnet. Full RPC and storage layout:
@@ -115,10 +118,22 @@ import {
       <p class="muted small-print">
         Ops smoke (optional): <code>npm run check-canonical-pool</code> from the <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener noreferrer">boing.network</a> repo root — verifies <code>boing_getContractStorage</code> against this pool on <code>BOING_RPC_URL</code>.
       </p>
+        </>
+      ) : (
+        <p>
+          The hosted Fly testnet at <code>{TESTNET_RPC_URL}</code> has <strong>not published</strong> a canonical native AMM pool yet.
+          Read <code>boing_getNetworkInfo.end_user.canonical_native_cp_pool</code> on that RPC (currently <code>null</code>).
+          After ops runs <code>npm run deploy-native-dex-full-stack</code> and sets <code>BOING_CANONICAL_NATIVE_*</code> on the nodes, this page will show the live pool id.
+          Spec: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md#native-constant-product-amm-chain-6913--integration-note" target="_blank" rel="noopener noreferrer">RPC-API-SPEC</a>
+          · <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/FLY-IO.md" target="_blank" rel="noopener noreferrer">FLY-IO.md</a>.
+        </p>
+      )}
     </section>
 
     <section class="section" id="native-lp-vault-share">
       <h2>Native LP vault &amp; share token (chain 6913)</h2>
+      {HOSTED_TESTNET_NATIVE_DEX_PUBLISHED ? (
+        <>
       <p>
         Optional <strong>CREATE2</strong> contracts for the wrapped-LP path (vault + transferable share token). Same canonical deployer and bytecode as
         <a href="https://github.com/Boing-Network/boing.network/blob/main/scripts/canonical-testnet-dex-predicted.json" target="_blank" rel="noopener noreferrer"><code>canonical-testnet-dex-predicted.json</code></a>.
@@ -136,6 +151,13 @@ import {
         <code class="rpc-url-display pool-id-display">{CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX}</code>
         <CopyButton label="Copy share token id" copiedLabel="Copied!" />
       </div>
+        </>
+      ) : (
+        <p>
+          LP vault and share-token ids will appear here when the hosted testnet publishes
+          <code>end_user.canonical_native_amm_lp_vault</code> / <code>canonical_native_lp_share_token</code>.
+        </p>
+      )}
     </section>
 
     <section class="section" id="bootnodes">

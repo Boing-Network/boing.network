@@ -23,6 +23,15 @@ function generateClientRequestId() {
     }
     return `boing-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
+/** Node/CLI only — browsers forbid setting `User-Agent` on fetch. */
+function isNonBrowserRuntime() {
+    return typeof globalThis === 'undefined' || typeof globalThis.document === 'undefined';
+}
+/**
+ * Default UA for Node/CLI calls to public RPC (some CDN/WAF edges return HTTP 403 for empty/bot UA).
+ * Overridable via {@link BoingClientConfig.extraHeaders}.
+ */
+export const BOING_SDK_DEFAULT_USER_AGENT = 'boing-sdk/json-rpc';
 /**
  * HTTP JSON-RPC client for a Boing node.
  * All methods return typed results; on RPC error they throw BoingRpcError (with code, message, method, and optional data).
@@ -68,6 +77,11 @@ export class BoingClient {
         const h = { ...this.extraHeaders };
         if (this.generateRequestId) {
             h['X-Request-Id'] = generateClientRequestId();
+        }
+        if (isNonBrowserRuntime() &&
+            h['User-Agent'] == null &&
+            h['user-agent'] == null) {
+            h['User-Agent'] = BOING_SDK_DEFAULT_USER_AGENT;
         }
         return h;
     }

@@ -1,5 +1,7 @@
 # Handoff: testnet height stuck at 0 + VibeMiner two-PC peering (from PudgyMon)
 
+**Superseded for public RPC (2026-08-24):** canonical testnet is the hosted Fly cluster behind `https://testnet-rpc.boing.network/` ([FLY-IO.md](FLY-IO.md)). This note remains as a record of the home-lab / tunnel outage.
+
 **Date:** 2026-07-22 (America/New_York evening probe)  
 **Source chat:** PudgyMon workspace (`C:\Users\chiku\Projects\PudgyMon`) diagnosing Boing RPC for game contract deploy  
 **Target workspace:** Cursor multi-root `boing.network-vibeminer-workspace` (`boing.network` + `vibeminer`)  

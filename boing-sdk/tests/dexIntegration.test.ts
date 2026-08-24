@@ -58,7 +58,7 @@ function baseInfo(overrides: Partial<NetworkInfo>): NetworkInfo {
 }
 
 describe('dexIntegration', () => {
-  it('mergeNativeDexIntegrationDefaults uses testnet embedded pool on 6913', () => {
+  it('mergeNativeDexIntegrationDefaults does not substitute historical ids when live RPC left them unset', () => {
     const d = mergeNativeDexIntegrationDefaults(
       baseInfo({
         end_user: {
@@ -68,6 +68,20 @@ describe('dexIntegration', () => {
         },
       }),
     );
+    expect(d.nativeCpPoolAccountHex).toBeNull();
+    expect(d.poolSource).toBe('none');
+    expect(d.nativeDexFactoryAccountHex).toBeNull();
+    expect(d.factorySource).toBe('none');
+    expect(d.nativeDexMultihopSwapRouterAccountHex).toBeNull();
+    expect(d.nativeDexLedgerRouterV2AccountHex).toBeNull();
+    expect(d.nativeDexLedgerRouterV3AccountHex).toBeNull();
+    expect(d.nativeAmmLpVaultAccountHex).toBeNull();
+    expect(d.nativeLpShareTokenAccountHex).toBeNull();
+    expect(d.endUserExplorerUrl).toBeNull();
+  });
+
+  it('mergeNativeDexIntegrationDefaults uses embedded ids only when network info is omitted', () => {
+    const d = mergeNativeDexIntegrationDefaults(null);
     expect(d.nativeCpPoolAccountHex).toBe(CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX);
     expect(d.poolSource).toBe('sdk_testnet_embedded');
     expect(d.nativeDexFactoryAccountHex).toBe(CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX);
@@ -82,7 +96,6 @@ describe('dexIntegration', () => {
     expect(d.nativeAmmLpVaultSource).toBe('sdk_testnet_embedded');
     expect(d.nativeLpShareTokenAccountHex).toBe(CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX);
     expect(d.nativeLpShareTokenSource).toBe('sdk_testnet_embedded');
-    expect(d.endUserExplorerUrl).toBeNull();
   });
 
   it('mergeNativeDexIntegrationDefaults prefers RPC end_user pool over embedded', () => {
@@ -145,6 +158,7 @@ describe('dexIntegration', () => {
     const client = { getNetworkInfo } as unknown as BoingClient;
     const d = await fetchNativeDexIntegrationDefaults(client);
     expect(getNetworkInfo).toHaveBeenCalledOnce();
-    expect(d.poolSource).toBe('sdk_testnet_embedded');
+    expect(d.poolSource).toBe('none');
+    expect(d.nativeCpPoolAccountHex).toBeNull();
   });
 });

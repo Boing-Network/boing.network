@@ -1,12 +1,10 @@
 /**
  * One-call defaults for native Boing DEX wiring: merge **`boing_getNetworkInfo.end_user`**
- * hints with embedded testnet fallbacks and app overrides.
- *
- * See [BOING-DAPP-INTEGRATION.md](../../docs/BOING-DAPP-INTEGRATION.md) § **Seamless native DEX defaults**.
+ * hints with app overrides. Historical embedded 6913 ids are used only when network info
+ * is omitted (offline). Live RPC nulls mean the hosted chain has not published those contracts.
  */
 import { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from './canonicalTestnet.js';
 import { CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V2_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V3_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_MULTIHOP_SWAP_ROUTER_HEX, CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX, } from './canonicalTestnetDex.js';
-import { isBoingTestnetChainId } from './chainIds.js';
 import { validateHex32 } from './hex.js';
 import { getLogsChunked } from './indexerBatch.js';
 import { NATIVE_DEX_FACTORY_TOPIC_REGISTER_HEX } from './nativeDexFactory.js';
@@ -24,7 +22,7 @@ function parseOptionalHex32(v) {
         return null;
     }
 }
-function mergeOptionalAccountHex(chainId, override, rpcField, embeddedWhenTestnet) {
+function mergeOptionalAccountHex(override, rpcField, embeddedWhenOffline) {
     const o = override;
     if (o?.trim()) {
         try {
@@ -37,8 +35,8 @@ function mergeOptionalAccountHex(chainId, override, rpcField, embeddedWhenTestne
     const rpc = parseOptionalHex32(rpcField ?? null);
     if (rpc)
         return { hex: rpc, source: 'rpc_end_user' };
-    if (chainId != null && isBoingTestnetChainId(chainId) && embeddedWhenTestnet != null) {
-        return { hex: embeddedWhenTestnet, source: 'sdk_testnet_embedded' };
+    if (embeddedWhenOffline != null) {
+        return { hex: embeddedWhenOffline, source: 'sdk_testnet_embedded' };
     }
     return { hex: null, source: 'none' };
 }
@@ -119,27 +117,39 @@ export function buildNativeDexIntegrationOverridesFromProcessEnv() {
     return o;
 }
 /**
- * Merge RPC **`end_user`** canonical addresses, optional app overrides, and embedded **6913** fallbacks
- * (see [`canonicalTestnetDex.ts`](./canonicalTestnetDex.ts)).
- * Order per field: overrides → node hints → testnet embedded constants.
+ * Merge RPC **`end_user`** canonical addresses with optional app overrides.
+ * Order per field: overrides → node hints. Embedded **6913** constants (see
+ * [`canonicalTestnetDex.ts`](./canonicalTestnetDex.ts)) apply **only** when `info` is omitted
+ * (offline / unit tests). A live `boing_getNetworkInfo` snapshot with null canonical fields
+ * means the hosted chain has not published those contracts — do not substitute historical ids.
  */
 export function mergeNativeDexIntegrationDefaults(info, overrides) {
-    const chainId = info?.chain_id ?? null;
     const eu = info?.end_user;
-    const poolEmb = CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX;
-    const facEmb = CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX;
-    const hopEmb = CANONICAL_BOING_TESTNET_NATIVE_DEX_MULTIHOP_SWAP_ROUTER_HEX;
-    const l2Emb = CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V2_HEX;
-    const l3Emb = CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V3_HEX;
-    const vaultEmb = CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX;
-    const shareEmb = CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX;
-    const pool = mergeOptionalAccountHex(chainId, overrides?.nativeCpPoolAccountHex, eu?.canonical_native_cp_pool ?? null, poolEmb);
-    const factory = mergeOptionalAccountHex(chainId, overrides?.nativeDexFactoryAccountHex, eu?.canonical_native_dex_factory ?? null, facEmb);
-    const multihop = mergeOptionalAccountHex(chainId, overrides?.nativeDexMultihopSwapRouterAccountHex, eu?.canonical_native_dex_multihop_swap_router ?? null, hopEmb);
-    const ledgerV2 = mergeOptionalAccountHex(chainId, overrides?.nativeDexLedgerRouterV2AccountHex, eu?.canonical_native_dex_ledger_router_v2 ?? null, l2Emb);
-    const ledgerV3 = mergeOptionalAccountHex(chainId, overrides?.nativeDexLedgerRouterV3AccountHex, eu?.canonical_native_dex_ledger_router_v3 ?? null, l3Emb);
-    const vault = mergeOptionalAccountHex(chainId, overrides?.nativeAmmLpVaultAccountHex, eu?.canonical_native_amm_lp_vault ?? null, vaultEmb);
-    const share = mergeOptionalAccountHex(chainId, overrides?.nativeLpShareTokenAccountHex, eu?.canonical_native_lp_share_token ?? null, shareEmb);
+    const allowEmbedded = info == null;
+    const poolEmb = allowEmbedded ? CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX : null;
+    const facEmb = allowEmbedded ? CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX : null;
+    const hopEmb = allowEmbedded
+        ? CANONICAL_BOING_TESTNET_NATIVE_DEX_MULTIHOP_SWAP_ROUTER_HEX
+        : null;
+    const l2Emb = allowEmbedded
+        ? CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V2_HEX
+        : null;
+    const l3Emb = allowEmbedded
+        ? CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V3_HEX
+        : null;
+    const vaultEmb = allowEmbedded
+        ? CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX
+        : null;
+    const shareEmb = allowEmbedded
+        ? CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX
+        : null;
+    const pool = mergeOptionalAccountHex(overrides?.nativeCpPoolAccountHex, eu?.canonical_native_cp_pool ?? null, poolEmb);
+    const factory = mergeOptionalAccountHex(overrides?.nativeDexFactoryAccountHex, eu?.canonical_native_dex_factory ?? null, facEmb);
+    const multihop = mergeOptionalAccountHex(overrides?.nativeDexMultihopSwapRouterAccountHex, eu?.canonical_native_dex_multihop_swap_router ?? null, hopEmb);
+    const ledgerV2 = mergeOptionalAccountHex(overrides?.nativeDexLedgerRouterV2AccountHex, eu?.canonical_native_dex_ledger_router_v2 ?? null, l2Emb);
+    const ledgerV3 = mergeOptionalAccountHex(overrides?.nativeDexLedgerRouterV3AccountHex, eu?.canonical_native_dex_ledger_router_v3 ?? null, l3Emb);
+    const vault = mergeOptionalAccountHex(overrides?.nativeAmmLpVaultAccountHex, eu?.canonical_native_amm_lp_vault ?? null, vaultEmb);
+    const share = mergeOptionalAccountHex(overrides?.nativeLpShareTokenAccountHex, eu?.canonical_native_lp_share_token ?? null, shareEmb);
     let endUserExplorerUrl = null;
     const ex = eu?.explorer_url;
     if (typeof ex === 'string') {

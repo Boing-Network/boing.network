@@ -1,8 +1,9 @@
 /**
- * **Live native DEX aux** on public Boing testnet RPC (`https://testnet-rpc.boing.network`, chain **6913**).
- * Deployed via `npm run deploy-native-dex-full-stack` (operator record: `docs/NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md` Appendix B).
+ * Last published native DEX aux ids from the **previous** public testnet ledger (chain **6913**).
+ * Hosted Fly RPC currently returns null `end_user.canonical_native_*` until ops re-runs
+ * `npm run deploy-native-dex-full-stack` and sets `BOING_CANONICAL_NATIVE_*` on the nodes.
  *
- * **V1 ledger router** is optional (`BOING_AUX_INCLUDE_LEDGER_V1`); this stack ships swap2 + v2 + v3 forwarders only.
+ * **V1 ledger router** is optional (`BOING_AUX_INCLUDE_LEDGER_V1`).
  * `CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V1_HEX` remains a legacy CREATE2 prediction id — do not assume it is deployed.
  */
 import { validateHex32 } from './hex.js';

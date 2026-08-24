@@ -200,12 +200,39 @@ async function main() {
       ...(tunnel1033
         ? {
             opsHint:
-              'Cloudflare tunnel origin is down (HTTP 530 / 1033). Restore cloudflared + boing-node on the RPC host, or point BOING_RPC_URL at a working node. See docs/RUNBOOK.md § 8.3.',
+              'Public RPC gateway could not reach a hosted node (HTTP 530 / 1033). See docs/FLY-IO.md and docs/RUNBOOK.md § 8.3.',
           }
         : {}),
     };
     console.error(JSON.stringify(payload, null, 2));
     process.exit(1);
+  }
+
+  const poolOverride = Boolean(process.env.BOING_POOL_HEX && process.env.BOING_POOL_HEX.trim());
+  if (!poolOverride) {
+    const info = await rpc('boing_getNetworkInfo', []);
+    if (info.ok && info.result && typeof info.result === 'object') {
+      const eu = /** @type {{ end_user?: { canonical_native_cp_pool?: unknown } }} */ (info.result).end_user;
+      const livePool =
+        eu && typeof eu.canonical_native_cp_pool === 'string' ? eu.canonical_native_cp_pool.trim() : '';
+      if (!livePool) {
+        console.log(
+          JSON.stringify(
+            {
+              ok: true,
+              skipped: true,
+              rpc: base,
+              chainHeight: height.result,
+              reason:
+                'boing_getNetworkInfo.end_user.canonical_native_cp_pool is unset on this RPC. Hosted Fly testnet has not published a canonical pool yet.',
+            },
+            null,
+            2,
+          ),
+        );
+        process.exit(0);
+      }
+    }
   }
 
   const storage = await rpc('boing_getContractStorage', [pool, RESERVE_A_KEY]);

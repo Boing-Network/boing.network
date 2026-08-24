@@ -24,7 +24,7 @@ This document is the **single source of truth** for keeping **boing.network** (w
 
 | Network | Public URL | Notes |
 |--------|------------|--------|
-| **Testnet** | `https://testnet-rpc.boing.network` or `https://testnet-rpc.boing.network/` | Trailing slash optional; all three should normalize (e.g. strip) for consistency. |
+| **Testnet** | `https://testnet-rpc.boing.network` or `https://testnet-rpc.boing.network/` | Cloudflare Worker gateway over Fly `boing-testnet-1` / `-2`. Trailing slash optional; all three should normalize (e.g. strip) for consistency. |
 | **Mainnet** | TBD | When published, set in env for all three; no silent fallback to testnet. |
 
 ### Env / config by codebase
@@ -43,10 +43,10 @@ The same JSON-RPC method exists on **any** `boing-node` that includes it, but **
 
 | Surface | Who calls it | What to upgrade when you see `Method not found` |
 |--------|----------------|--------------------------------------------------|
-| **Public testnet RPC** | **boing.observer** `/qa`, website tooling that use `https://testnet-rpc.boing.network/` | The **`boing-node` behind the tunnel** (see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)). Updating a **local** VibeMiner binary does **not** change this URL. |
+| **Public testnet RPC** | **boing.observer** `/qa`, website tooling that use `https://testnet-rpc.boing.network/` | The **`boing-node` behind the public RPC gateway** (Fly; see [FLY-IO.md](FLY-IO.md)). Updating a **local** VibeMiner binary does **not** change this URL. |
 | **Local RPC** | Browser/tools pointed at `http://127.0.0.1:8545` (e.g. node started from **VibeMiner**) | The **downloaded / running** `boing-node` on that machine (newer GitHub release zip). This does **not** fix boing.observer until the **public** backend is upgraded too. |
 
-**User confusion to avoid:** “I updated VibeMiner / my local node — why does boing.observer/qa still error?” Because the observer uses **`NEXT_PUBLIC_TESTNET_RPC`** (default public testnet), not your PC’s port 8545. Until that public node runs a build with `boing_getQaRegistry`, the explorer shows **Method not found**; use [canonical QA JSON](config/CANONICAL-QA-REGISTRY.md) for a static baseline, or upgrade the tunnel node.
+**User confusion to avoid:** “I updated VibeMiner / my local node — why does boing.observer/qa still error?” Because the observer uses **`NEXT_PUBLIC_TESTNET_RPC`** (default public testnet), not your PC’s port 8545. Until that public node runs a build with `boing_getQaRegistry`, the explorer shows **Method not found**; use [canonical QA JSON](config/CANONICAL-QA-REGISTRY.md) for a static baseline, or upgrade the hosted Fly node.
 
 **VibeMiner copy** should stress **local binary + listing URL**; **boing.observer copy** should stress **configured RPC URL**. Both are correct; cross-link this section from app hints where helpful.
 
@@ -70,9 +70,9 @@ For wallet connection and dApp integration (e.g. portal sign-in, chain switching
 | Item | Value |
 |------|--------|
 | **Chain** | **6913** (testnet) |
-| **Canonical pool `AccountId`** | `0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3` |
-| **Canonical DEX factory** | `0x58112627fc84618a27b82e9af82bc9a51761c6d3cca1260c93d56d22b6c481a1` |
-| **Multihop router** | `0xf801cd1aa5ec402f89a2f394b49e6b0c136264d8945b16a4a6a81a188b18acc1` |
+| **Canonical pool `AccountId`** | **Unset on hosted Fly RPC** (`end_user.canonical_native_cp_pool` is `null`). Historical `0x7247ddc3…` was the previous tunnel ledger. |
+| **Canonical DEX factory** | **Unset** on hosted Fly RPC. |
+| **Multihop router** | **Unset** on hosted Fly RPC. |
 
 - **Docs:** [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM, [TESTNET.md](TESTNET.md) §5.3, [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md) Appendix B.
 - **Live RPC:** `boing_getNetworkInfo.end_user` on `https://testnet-rpc.boing.network/`.
@@ -113,7 +113,7 @@ Use this to avoid drift after deployments.
 
 ## 7. Infrastructure and deployment
 
-- **RPC:** Single public testnet RPC at `https://testnet-rpc.boing.network/` (e.g. via Cloudflare Tunnel from a node with `--faucet-enable`). All three apps depend on it for testnet. **Smoke from this repo:** `examples/native-boing-tutorial` **`npm run preflight-rpc`** with **`BOING_RPC_URL`** (no keys) — [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md). **VibeMiner (desktop):** sync from **`GET https://boing.network/api/networks`** **`meta`** (download tag, bootnodes, chain id, optional **`ecosystem`** URLs for wallet/explorer/docs) — [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §6.
+- **RPC:** Single public testnet RPC at `https://testnet-rpc.boing.network/` (Cloudflare Worker → Fly cluster; see [FLY-IO.md](FLY-IO.md)). All three apps depend on it for testnet. **Smoke from this repo:** `examples/native-boing-tutorial` **`npm run preflight-rpc`** with **`BOING_RPC_URL`** (no keys) — [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md). **VibeMiner (desktop):** sync from **`GET https://boing.network/api/networks`** **`meta`** (download tag, bootnodes, chain id, optional **`ecosystem`** URLs for wallet/explorer/docs) — [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §6.
 - **Portal (sign-in):** boing.network Cloudflare Pages + Workers (D1 for nonces/sessions). Wallet signs BLAKE3(message) with Ed25519; portal verifies with same stack (@noble/ed25519 + @noble/hashes). See [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) (Part 3: rollout and smoke test).
 - **Self-host:** Optional static + minimal API runbook and vendoring are documented in [BOING-INFRASTRUCTURE-INDEPENDENCE.md](BOING-INFRASTRUCTURE-INDEPENDENCE.md).
 

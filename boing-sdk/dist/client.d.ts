@@ -2,6 +2,11 @@
  * Boing JSON-RPC client — typed methods for all node RPCs.
  */
 import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, JsonRpcBatchResponseItem } from './types.js';
+/**
+ * Default UA for Node/CLI calls to public RPC (some CDN/WAF edges return HTTP 403 for empty/bot UA).
+ * Overridable via {@link BoingClientConfig.extraHeaders}.
+ */
+export declare const BOING_SDK_DEFAULT_USER_AGENT = "boing-sdk/json-rpc";
 export interface BoingClientConfig {
     baseUrl: string;
     /** Optional fetch implementation (e.g. for Node or custom headers). */

@@ -13,7 +13,7 @@ export declare const SDK_VERSION = "0.1.0";
 export { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from './canonicalTestnet.js';
 export { CANONICAL_BOING_TESTNET_NATIVE_DEX_DEPLOYER_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V1_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V2_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V3_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_MULTIHOP_SWAP_ROUTER_HEX, CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX, CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX, } from './canonicalTestnetDex.js';
 import { BoingClient } from './client.js';
-export { BoingClient } from './client.js';
+export { BoingClient, BOING_SDK_DEFAULT_USER_AGENT } from './client.js';
 export type { BoingClientConfig } from './client.js';
 export { BoingRpcError, explainBoingRpcError, isBoingRpcMethodNotFound, isRetriableBoingRpcError, } from './errors.js';
 export { parseRetryAfterMs } from './retryAfter.js';
