@@ -13,6 +13,6 @@
     "boing-sdk": "file:../../boing-sdk"
   },
   "devDependencies": {
-    "wrangler": "^4.81.1"
+    "wrangler": "^4.125.0"
   }
 }
