@@ -95,7 +95,8 @@ Publish dedicated IPv4 multiaddrs in `PUBLIC_BOOTNODES` / [TESTNET.md](TESTNET.m
 
 1. Probes **`GET /live`** on each Fly origin.
 2. Proxies JSON-RPC **POST /** (and node probe paths) to a live backend.
-3. Failsover **testnet-1 → testnet-2** on HTTP **5xx/530** or timeout.
+3. Failsover **testnet-1 → testnet-2** on HTTP **5xx/530** or timeout **for reads**.
+4. Fans out **`boing_submitTransaction`** to **all** backends so contract deploys reach the validator. Sequential failover-only routing can leave a mempool-accepted deploy on the full node (`boing-testnet-2`) that never appears in a block or on `boing.observer`.
 
 Do **not** point that hostname at a home Cloudflare Tunnel. A down laptop or `cloudflared` process is what produced explorer HTTP **530**.
 

@@ -38,6 +38,8 @@ Specialist guides (RPC methods, VM calldata, security) stay in their own files; 
 | **Explorer** | **Live** — [boing.observer](https://boing.observer) | `/qa`, `/tokens`, `/dex/pools` |
 | **Chain tip** | Hosted Fly cluster (resets if volumes are wiped) | `npm run observer-chain-tip-poll` |
 
+`boing.finance` **Deploy submitted** is mempool accept, not explorer listing. `/tokens` indexes **included** `ContractDeploy*` txs; `/dex/tokens` needs a published factory (`end_user.canonical_native_dex_factory`). The public gateway fans out **`boing_submitTransaction`** to both Fly nodes so deploys are not stranded on the non-validator.
+
 After a chain reset, **`head_height`** may be **0** while prior bootstrap contracts remain readable. Treat **`boing_getNetworkInfo.end_user`** as the live contract hint source.
 
 ### Public RPC HTTP 403 (User-Agent / WAF)

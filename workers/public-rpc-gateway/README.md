@@ -12,6 +12,8 @@ Clients (observer, website, SDK)
 
 This replaces a home **Cloudflare Tunnel** connector as the origin. The public hostname stays stable so explorer, wallet, and website env do not need to change.
 
+**Writes:** `boing_submitTransaction` is posted to **every** configured backend in parallel (validator `boing-testnet-1` first in `RPC_BACKENDS`). Sequential read failover to the full node can mempool-accept a deploy that the single validator never includes — finance then shows success while `boing.observer` stays empty. Reads still fail over first-healthy.
+
 ## Deploy
 
 ```bash
