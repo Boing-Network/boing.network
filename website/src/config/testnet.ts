@@ -19,8 +19,8 @@ export const BOOTNODES: string[] =
   env && env.PUBLIC_BOOTNODES
     ? env.PUBLIC_BOOTNODES.split(',').map((s) => s.trim()).filter(Boolean)
     : [
-        '/ip4/73.84.106.121/tcp/4001', // Primary (faucet + RPC via testnet-rpc.boing.network)
-        '/ip4/73.84.106.121/tcp/4001', // Same host today; duplicate entry for VibeMiner comma-separated bootnodes until a second IP is published
+        '/ip4/169.155.48.188/tcp/4001', // Fly validator (boing-testnet-1)
+        '/ip4/109.105.220.118/tcp/4001', // Fly full node (boing-testnet-2)
       ];
 
 /** Whether the testnet is "live" (we have at least one bootnode and a non-local RPC). */

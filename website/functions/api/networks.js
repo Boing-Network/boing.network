@@ -92,7 +92,7 @@ function maybeUpgradeStaleOfficialBoingZipUrl(url) {
 }
 
 /** Default bootnodes (keep in sync with website/src/config/testnet.ts fallbacks). */
-const DEFAULT_BOOTNODES = ['/ip4/73.84.106.121/tcp/4001', '/ip4/73.84.106.121/tcp/4001'];
+const DEFAULT_BOOTNODES = ['/ip4/169.155.48.188/tcp/4001', '/ip4/109.105.220.118/tcp/4001'];
 
 const DEVNET_BASE = {
   rpc_url: 'https://testnet-rpc.boing.network/',

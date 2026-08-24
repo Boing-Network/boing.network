@@ -2,9 +2,7 @@
 
 **Routing:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) places this guide next to **public RPC** and **testnet** docs in one map.
 
-This guide walks you through setting up the full testnet infrastructure: **Bootnode 1**, **Bootnode 2**, **Faucet RPC**, and **Cloudflare Tunnel** for the public URL.
-
-To run the same two-node layout on **Fly.io** instead of two local machines, see [FLY-IO.md](FLY-IO.md) (`./scripts/fly-deploy-testnet.sh`).
+**Canonical public testnet** is the hosted Fly.io pair plus the Cloudflare RPC gateway ([FLY-IO.md](FLY-IO.md)). Use this guide only when you want a **local / home-lab** two-machine layout (bootnodes + optional Cloudflare Tunnel). Do not point `testnet-rpc.boing.network` at a laptop tunnel — that hostname is the Worker in `workers/public-rpc-gateway`.
 
 ---
 
@@ -58,7 +56,7 @@ Then push to `main`; the deploy workflow will use them.
 
 | Machine | Role | Ports | Notes |
 |---------|------|-------|-------|
-| **Primary** | Bootnode 1 + Faucet + RPC | 4001 (P2P), 8545 (RPC) | Starts the chain; Cloudflare tunnel exposes RPC at testnet-rpc.boing.network |
+| **Primary** | Bootnode 1 + Faucet + RPC | 4001 (P2P), 8545 (RPC) | Local/home-lab only; public RPC is the Fly + Worker edge in [FLY-IO.md](FLY-IO.md) |
 | **Secondary** | Bootnode 2 | 4001 (P2P), 8546 (RPC) | Connects to Bootnode 1; provides redundancy |
 
 ### Public RPC: QA operator methods
@@ -225,7 +223,7 @@ Once both bootnodes and the tunnel are running:
 | Config | Location | Value |
 |--------|----------|-------|
 | `PUBLIC_TESTNET_RPC_URL` | Website env / GitHub Actions / Cloudflare Pages | `https://testnet-rpc.boing.network/` |
-| `PUBLIC_BOOTNODES` | Website env / GitHub Actions / Cloudflare Pages | `/ip4/73.84.106.121/tcp/4001,/ip4/73.84.106.121/tcp/4001` |
+| `PUBLIC_BOOTNODES` | Website env / GitHub Actions / Cloudflare Pages | `/ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001` |
 
 **TESTNET.md** §6: Bootnode table updated; set env vars for production deploy.
 

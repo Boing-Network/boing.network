@@ -137,7 +137,7 @@ Storage keys and calldata: [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). SDK
 
 ## 6. Bootnode list (testnet)
 
-Public testnet connectivity (as of **2026-05-21**):
+Public testnet connectivity (as of **2026-08-24**):
 
 - **Website:** [boing.network/testnet/join](https://boing.network/testnet/join) and [Bootnodes](https://boing.network/bootnodes) (`website/src/config/testnet.ts` or env **`PUBLIC_BOOTNODES`**)
 - **Networks API:** `GET https://boing.network/api/networks` — VibeMiner sync
@@ -146,13 +146,13 @@ Public testnet connectivity (as of **2026-05-21**):
 
 | Bootnode | Multiaddr | Notes |
 |----------|-----------|-------|
-| Primary | `/ip4/73.84.106.121/tcp/4001` | Faucet + RPC via testnet-rpc.boing.network (Cloudflare tunnel) |
-| Secondary | `/ip4/73.84.106.121/tcp/4001` | Same host today; add a second IP when ops scales out |
+| Primary | `/ip4/169.155.48.188/tcp/4001` | Fly.io `boing-testnet-1` (validator + faucet) |
+| Secondary | `/ip4/109.105.220.118/tcp/4001` | Fly.io `boing-testnet-2` (full node) |
 
 **Operator maintenance:**
 
 1. **Bootnodes:** Keep at least one stable P2P listener on **4001**; update the table when adding a second IP.
-2. **Public RPC:** Node with **`--faucet-enable`**, tunnel to **`https://testnet-rpc.boing.network/`**, publish **`BOING_CANONICAL_NATIVE_*`** per [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example).
+2. **Public RPC:** Hosted Fly nodes behind the Cloudflare Worker at **`https://testnet-rpc.boing.network/`** ([FLY-IO.md](FLY-IO.md)). Publish **`BOING_CANONICAL_NATIVE_*`** per [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example).
 3. **Genesis:** All validators must share genesis so the faucet account holds testnet BOING.
 4. **Docs:** Incentive program — [Part 3](#part-3--incentivized-testnet). Critical path — [READINESS.md](READINESS.md) §3.
 

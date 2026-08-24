@@ -8,7 +8,7 @@
 | [`boing-node-public-testnet.systemd.example`](./boing-node-public-testnet.systemd.example) | **`systemd`** unit: **`EnvironmentFile=`** for `/etc/boing-node/testnet.env` + **`ExecStart`** with bootnodes/RPC flags. |
 | [`boing-node-public-testnet.docker-compose.yml`](./boing-node-public-testnet.docker-compose.yml) | **Docker Compose** (Linux **`network_mode: host`**) + **`env_file: ./.env`**. |
 | [`boing-node-public-testnet.kubernetes.example.yaml`](./boing-node-public-testnet.kubernetes.example.yaml) | **Kubernetes** `ConfigMap` + **`Deployment`** with **`envFrom`**. |
-| [Fly.io hosted testnet](../docs/FLY-IO.md) | **`Dockerfile`** + [`deploy/fly/`](../deploy/fly/) + [`scripts/fly-deploy-testnet.sh`](../scripts/fly-deploy-testnet.sh). |
+| [Fly.io hosted testnet](../docs/FLY-IO.md) | **`Dockerfile`** + [`deploy/fly/`](../deploy/fly/) + [`scripts/fly-deploy-testnet.sh`](../scripts/fly-deploy-testnet.sh) + [`workers/public-rpc-gateway`](../workers/public-rpc-gateway/). |
 
 **VibeMiner / public testnet checks (repo root `package.json`):** **`npm run vibeminer-public-testnet-preflight`**, **`npm run compare-local-public-tip`** — see [docs/VIBEMINER-INTEGRATION.md](../docs/VIBEMINER-INTEGRATION.md).
 

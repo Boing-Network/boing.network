@@ -74,7 +74,7 @@ Complete these **before** running bootnodes. See [BOING-NETWORK-ESSENTIALS.md](B
 
 | Step | Action | Done |
 |------|--------|------|
-| 1.1 | Run at least **2** `boing-node` with stable public IPs, P2P enabled | ☑ (single host `/ip4/73.84.106.121/tcp/4001` today) |
+| 1.1 | Run at least **2** `boing-node` with stable public IPs, P2P enabled | ☑ Fly `/ip4/169.155.48.188/tcp/4001` + `/ip4/109.105.220.118/tcp/4001` |
 | 1.2 | Open TCP 4001 (P2P) and optionally 8545 (RPC) | ☐ verify firewall on operator host |
 | 1.3 | Record multiaddrs (e.g. `/ip4/1.2.3.4/tcp/4001`) | ☑ listed in [TESTNET.md](TESTNET.md) §6 |
 
@@ -85,7 +85,7 @@ Complete these **before** running bootnodes. See [BOING-NETWORK-ESSENTIALS.md](B
 | Step | Action | Done |
 |------|--------|------|
 | 2.1 | Run node with `--faucet-enable` and `--bootnodes` | ☑ |
-| 2.2 | Expose at `https://testnet-rpc.boing.network/` (Cloudflare tunnel) | ☑ |
+| 2.2 | Expose at `https://testnet-rpc.boing.network/` (Cloudflare Worker → Fly) | ☑ |
 | 2.3 | Confirm `boing_faucetRequest` works | ☐ verify via [boing.network/faucet](https://boing.network/faucet) |
 
 ### 3.3 Update Config and Docs

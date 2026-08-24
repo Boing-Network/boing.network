@@ -2,7 +2,7 @@
 
 Run **`boing-node`** on [Fly.io](https://fly.io): a validator with faucet and public JSON-RPC, plus a second full node that peers over P2P.
 
-This is a **hosted testnet**. The first deploy creates **new chain state** on Fly volumes. It does **not** automatically replace the existing Cloudflare-tunneled origin at `https://testnet-rpc.boing.network/`. Point DNS at Fly only after you intend to cut over.
+This is the **canonical hosted testnet**. Public JSON-RPC at `https://testnet-rpc.boing.network/` is served by the Cloudflare Worker in [`workers/public-rpc-gateway`](../workers/public-rpc-gateway/) (health-checked failover to both Fly apps). The first Fly deploy creates **new chain state** on volumes — it is not the old home-lab / tunnel ledger unless you restore that volume.
 
 **Related:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [RUNBOOK.md](RUNBOOK.md), [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example).
 
@@ -89,15 +89,25 @@ Restarts keep the tip: the node writes `chain/blocks/0.bin` on first start if it
 
 Publish dedicated IPv4 multiaddrs in `PUBLIC_BOOTNODES` / [TESTNET.md](TESTNET.md) §6 when you want community nodes to join this hosted net.
 
-## Cut over public RPC later
+## Public RPC edge
 
-To serve `https://testnet-rpc.boing.network/` from Fly:
+`https://testnet-rpc.boing.network/` is a Cloudflare Worker ([`workers/public-rpc-gateway`](../workers/public-rpc-gateway/)) that:
 
-1. Confirm Fly RPC with `preflight-rpc`.
-2. Point the hostname at `boing-testnet-1.fly.dev` (CNAME or Cloudflare).
-3. Keep **`BOING_CANONICAL_NATIVE_*`** in sync if you bootstrap DEX contracts on this new chain.
+1. Probes **`GET /live`** on each Fly origin.
+2. Proxies JSON-RPC **POST /** (and node probe paths) to a live backend.
+3. Failsover **testnet-1 → testnet-2** on HTTP **5xx/530** or timeout.
 
-A Fly chain is **not** the same ledger as a previous home-lab / tunnel origin unless you restore that volume.
+Do **not** point that hostname at a home Cloudflare Tunnel. A down laptop or `cloudflared` process is what produced explorer HTTP **530**.
+
+```bash
+cd workers/public-rpc-gateway && npm run deploy
+curl -fsS https://testnet-rpc.boing.network/__gateway/health
+export BOING_RPC_URL=https://testnet-rpc.boing.network/
+# from examples/native-boing-tutorial after boing-sdk build:
+npm run preflight-rpc
+```
+
+Keep **`BOING_CANONICAL_NATIVE_*`** in sync if you bootstrap DEX contracts on this chain. `boing.observer` also failsover to the Fly origins if the public hostname is down.
 
 ## Ops
 

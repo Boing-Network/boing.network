@@ -85,7 +85,7 @@ No separate "miner" binary: **validating** is done by running `boing-node --vali
 | **Testnet** | [TESTNET.md](TESTNET.md) §6; website [boing.network/testnet/join](https://boing.network/testnet/join) | `https://testnet-rpc.boing.network/` |
 | **Mainnet** | To be published at mainnet launch | To be published |
 
-**Testnet bootnodes (current):** Comma-separated multiaddrs, e.g. `/ip4/73.84.106.121/tcp/4001` (see [TESTNET.md](TESTNET.md) §6 and `website/src/config/testnet.ts`). Override via env `PUBLIC_BOOTNODES` when building the website.
+**Testnet bootnodes (current):** `/ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001` (Fly.io pair; see [TESTNET.md](TESTNET.md) §6 and `website/src/config/testnet.ts`). Override via env `PUBLIC_BOOTNODES` when building the website.
 
 **Testnet public RPC:** `https://testnet-rpc.boing.network/` — used for faucet (`boing_faucetRequest`) and read-only queries (`boing_chainHeight`, `boing_getBlockByHeight`, etc.). Override via env `PUBLIC_TESTNET_RPC_URL`.
 
@@ -209,7 +209,7 @@ Use these values to list **Boing Network** in the VibeMiner request listing form
 | Field | Value |
 |-------|--------|
 | **Node download URL (HTTPS)** | `https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.10/release-windows-x86_64.zip` (Linux/macOS: `release-linux-x86_64.zip` / `release-macos-aarch64.zip`; see [TESTNET.md](TESTNET.md) §9.1) |
-| **Command template** | `boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/73.84.106.121/tcp/4001,/ip4/73.84.106.121/tcp/4001 --rpc-port 8545 --faucet-enable` (add `--validator` for validator preset; Linux/macOS use `boing-node-linux-x86_64` / `boing-node-macos-aarch64`) |
+| **Command template** | `boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001 --rpc-port 8545 --faucet-enable` (add `--validator` for validator preset; Linux/macOS use `boing-node-linux-x86_64` / `boing-node-macos-aarch64`) |
 | **Disk (GB)** | 10 |
 | **RAM (MB)** | 2048 |
 | **Binary SHA256 (optional)** | *(Leave blank or fill per release for integrity)* |
@@ -217,7 +217,7 @@ Use these values to list **Boing Network** in the VibeMiner request listing form
 **Notes for command template:**
 
 - Use `{dataDir}` exactly as your form expects (some systems use `{dataDir}`, others `{data_dir}`).
-- Bootnodes: current testnet bootnode is `/ip4/73.84.106.121/tcp/4001`. Canonical list is at [boing.network/testnet/join](https://boing.network/testnet/join) and in [TESTNET.md](TESTNET.md) §6. If VibeMiner supports configurable bootnodes (e.g. from a URL or env), you can document that so operators get the latest list.
+- Bootnodes: current testnet bootnodes are `/ip4/169.155.48.188/tcp/4001` and `/ip4/109.105.220.118/tcp/4001`. Canonical list is at [boing.network/testnet/join](https://boing.network/testnet/join) and in [TESTNET.md](TESTNET.md) §6. If VibeMiner supports configurable bootnodes (e.g. from a URL or env), you can document that so operators get the latest list.
 - Omit `--validator` for a full-node-only run if the app offers that option.
 - **Windows:** Build with `--no-default-features` to disable mDNS (see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)).
 - **Rate limits:** For a **local** node behind heavy wallet/indexer traffic, operators may set env **`BOING_RATE_PROFILE=dev`** or pass **`--dev-rate-limits`** (see [RUNBOOK.md](RUNBOOK.md) §2). Do **not** recommend the dev profile for **public** RPC hosts.

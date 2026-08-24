@@ -26,11 +26,11 @@ Specialist guides (RPC methods, VM calldata, security) stay in their own files; 
 
 ---
 
-## 2. Current status snapshot (2026-05-21)
+## 2. Current status snapshot (2026-08-24)
 
 | Surface | Status | Verify |
 |---------|--------|--------|
-| **Public RPC** | **Live** — `https://testnet-rpc.boing.network/` | `npm run preflight-rpc` |
+| **Public RPC** | **Hosted** — Cloudflare Worker → Fly `boing-testnet-1` / `-2` at `https://testnet-rpc.boing.network/` | `npm run preflight-rpc`; `GET /__gateway/health` |
 | **QA transparency RPC** | **Live** — registry + pool config | `npm run verify-public-testnet-rpc` |
 | **QA content policy** | **132-term** `content_blocklist` on public RPC (when applied) | `boing_getQaRegistry`; `npm run apply-public-testnet-qa-policy` after edits |
 | **Canonical CP pool** | **`0x7247ddc3…`** (reserve A readable) | `BOING_REQUIRE_NONZERO_RESERVE=1 npm run check-canonical-pool` |
@@ -57,7 +57,7 @@ Some Cloudflare / WAF edges in front of **`https://testnet-rpc.boing.network/`**
 1. **Same genesis everywhere** — All validators and full nodes share one genesis (faucet account, chain id, etc.).
 2. **Bootnodes** — At least two stable P2P listeners (or one host today); publish multiaddrs on the website and in [TESTNET.md](TESTNET.md) §6. See [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md).
 3. **Validators / block production** — Enough stake and connectivity that height advances.
-4. **Public RPC** — `boing-node` with `--rpc-port` (direct or **Cloudflare Tunnel**). Set **`BOING_CHAIN_ID=6913`**, **`BOING_CHAIN_NAME=Boing Testnet`**, and optional **`BOING_CANONICAL_NATIVE_*`** from [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example). See [RUNBOOK.md](RUNBOOK.md) §8.
+4. **Public RPC** — Hosted Fly cluster + Cloudflare Worker at `https://testnet-rpc.boing.network/` ([FLY-IO.md](FLY-IO.md)). Set **`BOING_CHAIN_ID=6913`**, **`BOING_CHAIN_NAME=Boing Testnet`**, and optional **`BOING_CANONICAL_NATIVE_*`** from [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example). See [RUNBOOK.md](RUNBOOK.md) §8.
 5. **Verify RPC from the internet** — Before announcing “testnet is up”:
 
    ```bash
@@ -78,7 +78,7 @@ Some Cloudflare / WAF edges in front of **`https://testnet-rpc.boing.network/`**
 
 ### HTTP 530 / Cloudflare error 1033
 
-Cloudflare returns **530** when the **tunnel cannot reach the origin** (RPC down, wrong port, or `cloudflared` stopped). Restore **`cloudflared` + `boing-node`** on the origin — not an SDK or dApp fix. Details: [RUNBOOK.md](RUNBOOK.md) §8.3.
+Cloudflare returns **530** when a **Tunnel** hostname cannot reach its connector. Public testnet RPC must **not** depend on a home `cloudflared` process. Confirm the Worker route is attached (`workers/public-rpc-gateway`) and Fly `/live` is **200**. Explorer `POST /api/rpc` failsover to `*.fly.dev` if the public hostname is still on a dead tunnel. Details: [FLY-IO.md](FLY-IO.md), [RUNBOOK.md](RUNBOOK.md) §8.3.
 
 ---
 
@@ -110,7 +110,7 @@ Cloudflare returns **530** when the **tunnel cannot reach the origin** (RPC down
 | **Canonical pool** | `npm run check-canonical-pool` — CI: [canonical-pool-public-rpc.yml](../.github/workflows/canonical-pool-public-rpc.yml) |
 | **QA alignment** | `npm run verify-qa-alignment`, `npm run verify-public-testnet-rpc` |
 | **QA vulgarity smoke** | `boing_qaCheck` with blocked `asset_name` → **`reject`** / **`CONTENT_POLICY_VIOLATION`** (after node binary includes registry fix) |
-| **Tunnel health** | No HTTP **530** / **1033** on public URL |
+| **Public RPC edge** | `GET /live` and `GET /__gateway/health` on `https://testnet-rpc.boing.network/` — no HTTP **530** |
 | **Manual dApp smoke** | [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) § Manual E2E smoke |
 | **Playwright (optional CI)** | [PLAYWRIGHT-E2E-CI-OPS.md](PLAYWRIGHT-E2E-CI-OPS.md), [examples/native-boing-playwright/README.md](../examples/native-boing-playwright/README.md) |
 

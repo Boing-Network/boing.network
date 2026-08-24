@@ -1,0 +1,13 @@
+# Public testnet JSON-RPC edge: https://testnet-rpc.boing.network/
+# Failover proxy in front of the Fly.io cluster. See README.md and docs/FLY-IO.md.
+name = "boing-public-rpc-gateway"
+main = "src/index.ts"
+compatibility_date = "2026-03-06"
+workers_dev = true
+
+[[routes]]
+pattern = "testnet-rpc.boing.network/*"
+zone_name = "boing.network"
+
+[vars]
+RPC_BACKENDS = "https://boing-testnet-1.fly.dev,https://boing-testnet-2.fly.dev"
