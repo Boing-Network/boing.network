@@ -76,6 +76,26 @@ impl Persistence {
         Ok(())
     }
 
+    /// Write height-0 genesis if `chain/blocks/0.bin` is missing.
+    ///
+    /// Production nodes used to persist only produced/imported blocks (height ≥ 1).
+    /// [`Self::load_chain`] requires `0.bin`; without this backfill a restart silently
+    /// starts a new chain while later blocks remain on disk.
+    pub fn save_genesis_if_missing(&self, genesis: &Block) -> Result<bool, PersistenceError> {
+        if genesis.header.height != 0 {
+            return Err(PersistenceError::Serialization(
+                "save_genesis_if_missing requires a height-0 block".into(),
+            ));
+        }
+        self.ensure_dirs()?;
+        let path = self.blocks_dir().join("0.bin");
+        if path.exists() {
+            return Ok(false);
+        }
+        self.save_block(genesis)?;
+        Ok(true)
+    }
+
     /// Save a single block to disk (append).
     pub fn save_block(&self, block: &Block) -> Result<(), PersistenceError> {
         self.ensure_dirs()?;

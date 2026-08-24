@@ -13,6 +13,7 @@ Specialist guides (RPC methods, VM calldata, security) stay in their own files; 
 | **User-facing testnet** (join, faucet, bootnodes) | [TESTNET.md](TESTNET.md) |
 | **Copy-paste commands** (`cargo`, `boing-node`, tutorial `npm run`) | [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md) |
 | **Two-machine bootnode + tunnel + website secrets** | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) |
+| **Hosted testnet on Fly.io** | [FLY-IO.md](FLY-IO.md) (`./scripts/fly-deploy-testnet.sh`) |
 | **Beta readiness / six pillars** | [READINESS.md](READINESS.md) |
 | **Upgrade / restart the node behind public RPC** | [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) |
 | **JSON-RPC methods, errors, canonical pool hex** | [RPC-API-SPEC.md](RPC-API-SPEC.md) |

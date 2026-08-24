@@ -236,6 +236,13 @@ impl BoingNode {
         if let Some(ref path) = data_dir {
             let path = path.as_ref();
             let persistence = Persistence::new(path);
+            if let Some(genesis) = node.chain.get_block_by_height(0) {
+                if persistence.save_genesis_if_missing(&genesis)? {
+                    tracing::info!(
+                        "Persistence: wrote missing genesis 0.bin so restarts can reload the chain"
+                    );
+                }
+            }
 
             if persistence.has_persisted_data() {
                 if let Some(chain) = persistence.load_chain()? {

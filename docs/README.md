@@ -21,6 +21,7 @@ Start with [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for the si
 | [TESTNET.md](TESTNET.md) | Join testnet, portal, incentivized program; **§9.1** node zip release checklist |
 | [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md) | Copy/paste RPC smoke and tutorial `npm run` commands |
 | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Bootnodes, Cloudflare tunnel, VibeMiner alignment |
+| [FLY-IO.md](FLY-IO.md) | Hosted two-node testnet on Fly.io (validator + peering full node) |
 | [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) | Upgrade node behind public JSON-RPC |
 | [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md) | Self-hosted RPC + deploy native DEX stack |
 | [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) | One-click node; **`/api/networks`**; Appendix A two-node Windows |

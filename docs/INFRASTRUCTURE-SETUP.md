@@ -4,6 +4,8 @@
 
 This guide walks you through setting up the full testnet infrastructure: **Bootnode 1**, **Bootnode 2**, **Faucet RPC**, and **Cloudflare Tunnel** for the public URL.
 
+To run the same two-node layout on **Fly.io** instead of two local machines, see [FLY-IO.md](FLY-IO.md) (`./scripts/fly-deploy-testnet.sh`).
+
 ---
 
 ## Quick Run Instructions

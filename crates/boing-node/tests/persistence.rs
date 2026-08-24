@@ -60,6 +60,40 @@ fn test_persistence_roundtrip() {
 }
 
 #[test]
+fn load_chain_recovers_when_genesis_file_was_never_written() {
+    let temp = std::env::temp_dir().join("boing-persistence-missing-genesis");
+    let _ = std::fs::remove_dir_all(&temp);
+
+    let proposer = AccountId([1u8; 32]);
+    let genesis = ChainState::genesis(proposer);
+    let chain = ChainState::from_genesis(genesis.clone());
+    let block1 = Block {
+        header: boing_primitives::BlockHeader {
+            parent_hash: genesis.hash(),
+            height: 1,
+            timestamp: 1,
+            proposer,
+            tx_root: boing_primitives::Hash::ZERO,
+            receipts_root: boing_primitives::Hash::ZERO,
+            state_root: boing_primitives::Hash::ZERO,
+        },
+        transactions: vec![],
+    };
+    chain.append(block1.clone()).unwrap();
+
+    let p = Persistence::new(&temp);
+    p.ensure_dirs().unwrap();
+    p.save_block(&block1).unwrap();
+    p.save_chain_meta(1, block1.hash()).unwrap();
+    assert!(p.load_chain().unwrap().is_none());
+
+    assert!(p.save_genesis_if_missing(&genesis).unwrap());
+    let loaded = p.load_chain().unwrap().expect("chain");
+    assert_eq!(loaded.height(), 1);
+    assert_eq!(loaded.latest_hash(), block1.hash());
+}
+
+#[test]
 fn test_qa_config_json_roundtrip() {
     let temp = std::env::temp_dir().join("boing-qa-persist-test");
     let _ = std::fs::remove_dir_all(&temp);

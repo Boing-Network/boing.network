@@ -1,0 +1,65 @@
+# Primary Fly.io node: validator + faucet + public JSON-RPC.
+# Must live at repo root so Docker build context includes Cargo.toml + crates/.
+# Deploy: fly deploy --config fly.testnet-1.toml --remote-only --ha=false
+# See docs/FLY-IO.md
+
+app = "boing-testnet-1"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+  ignorefile = ".dockerignore"
+
+[env]
+  RUST_LOG = "info"
+  BOING_CHAIN_ID = "6913"
+  BOING_CHAIN_NAME = "Boing Testnet"
+  BOING_DATA_DIR = "/data"
+  BOING_P2P_LISTEN = "/ip4/0.0.0.0/tcp/4001"
+  BOING_RPC_PORT = "8545"
+  BOING_VALIDATOR = "1"
+  BOING_FAUCET_ENABLE = "1"
+  BOING_RATE_PROFILE = "dev"
+  BOING_DEX_TOKEN_METADATA_SCAN_BLOCKS = "8192"
+  BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS = "500000"
+  BOING_DEX_TOKEN_DECIMALS_JSON = "{}"
+  BOING_RPC_CORS_EXTRA_ORIGINS = "https://boing.network,https://www.boing.network,https://boing.observer,https://boing.express,https://boing.finance,http://localhost:3000,http://localhost:5173,http://localhost:9999"
+
+[http_service]
+  internal_port = 8545
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+  [[http_service.checks]]
+    grace_period = "45s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    path = "/live"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 4001
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 4001
+
+[mounts]
+  source = "boing_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "2048mb"
