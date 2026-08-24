@@ -429,6 +429,12 @@ export interface QaPoolItemSummary {
   allow_votes: number;
   reject_votes: number;
   age_secs: number;
+  /** Present when the pending signed deploy declared a purpose category. */
+  purpose_category?: string;
+  /** Present when the pending signed deploy included asset name metadata. */
+  asset_name?: string;
+  /** Present when the pending signed deploy included asset symbol metadata. */
+  asset_symbol?: string;
 }
 
 export interface QaPoolListResult {

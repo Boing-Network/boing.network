@@ -40,7 +40,7 @@ Specialist guides (RPC methods, VM calldata, security) stay in their own files; 
 
 `boing.finance` **Deploy submitted** is mempool accept, not explorer listing. `/tokens` indexes **included** `ContractDeploy*` txs; `/dex/tokens` needs a published factory (`end_user.canonical_native_dex_factory`). The public gateway fans out **`boing_submitTransaction`** to both Fly nodes so deploys are not stranded on the non-validator.
 
-Native token deploys charge **`gas_used × GAS_PRICE`** as a native fee (reference fungible init is typically **~200k–400k**). The testnet faucet now dispenses **1,000,000** BOING per request so one drip can pay that fee. A 50k drip cannot; the underfunded deploy stays in the mempool, aborts block production, and a retry with the same metadata returns **Duplicate transaction**.
+Native token deploys still **meter** ~200k–400k **gas**, but the fee is **`ceil(gas_used / 21_000)` BOING** (~10–20 BOING), not one token per gas. The testnet faucet dispenses **1,000,000** BOING per request (also covers min validator stake). Underfunded deploys fail that tx (nonce consumed) without aborting the block; a retry of the identical signed payload still returns **Duplicate transaction** while it sits in the mempool.
 
 After a chain reset, **`head_height`** may be **0** while prior bootstrap contracts remain readable. Treat **`boing_getNetworkInfo.end_user`** as the live contract hint source.
 

@@ -220,7 +220,7 @@ For security incidents and vulnerabilities:
 
 - **Block time:** ~2 seconds (configurable via tokenomics)
 - **Throughput:** Parallel transfer batches; access-list batching reduces conflicts
-- **Gas:** Fixed per tx type (Transfer, Bond, Unbond, ContractCall, ContractDeploy); **fee market v0** charges `gas_used × GAS_PRICE` (1 BOING/gas) and splits 70% / 20% / 10% to proposer / treasury / burn (see [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §8.4)
+- **Gas:** Fixed per tx type (Transfer, Bond, Unbond, ContractCall, ContractDeploy); **fee market v0** charges `ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)` (1 BOING per 21,000 gas, so a transfer costs 1 BOING) and splits 70% / 20% / 10% to proposer / treasury / burn (see [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §8.4)
 - **Batching:** Scheduler groups non-conflicting txs; transfers with disjoint access lists run in parallel
 
 ## 6c. Decentralization Design

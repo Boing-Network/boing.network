@@ -381,7 +381,9 @@ See [§7.2 Opcodes](#72-opcodes). Contract execution adds opcode costs to base `
 After a successful transaction, the executor charges:
 
 ```text
-fee = gas_used × GAS_PRICE   // GAS_PRICE = 1 BOING per gas unit (boing-tokenomics)
+fee = ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)
+// GAS_PRICE = 1, GAS_UNITS_PER_BOING = 21_000 (boing-tokenomics)
+// A Transfer (21_000 gas) costs 1 BOING. Native token init (~200k–400k gas) costs ~10–20 BOING.
 ```
 
 The fee is deducted from the sender and split:

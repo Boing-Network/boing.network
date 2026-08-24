@@ -295,13 +295,20 @@ impl PendingQaQueue {
     pub fn list_summaries(&self) -> Vec<QaPoolItemSummary> {
         self.list()
             .into_iter()
-            .map(|i| QaPoolItemSummary {
-                tx_hash: format!("0x{}", hex::encode(i.tx_hash.0)),
-                bytecode_hash: format!("0x{}", hex::encode(i.bytecode_hash)),
-                deployer: format!("0x{}", hex::encode(i.deployer.0)),
-                allow_votes: i.vote_counts().0,
-                reject_votes: i.vote_counts().1,
-                age_secs: i.age_secs(),
+            .map(|i| {
+                let (purpose_category, asset_name, asset_symbol) =
+                    deploy_metadata_from_bincode(&i.signed_tx_bincode);
+                QaPoolItemSummary {
+                    tx_hash: format!("0x{}", hex::encode(i.tx_hash.0)),
+                    bytecode_hash: format!("0x{}", hex::encode(i.bytecode_hash)),
+                    deployer: format!("0x{}", hex::encode(i.deployer.0)),
+                    allow_votes: i.vote_counts().0,
+                    reject_votes: i.vote_counts().1,
+                    age_secs: i.age_secs(),
+                    purpose_category,
+                    asset_name,
+                    asset_symbol,
+                }
             })
             .collect()
     }
@@ -339,6 +346,22 @@ impl PendingQaQueue {
     }
 }
 
+fn deploy_metadata_from_bincode(
+    bytes: &[u8],
+) -> (Option<String>, Option<String>, Option<String>) {
+    let Ok(signed) = bincode::deserialize::<SignedTransaction>(bytes) else {
+        return (None, None, None);
+    };
+    match signed.tx.payload.as_contract_deploy() {
+        Some((_, purpose, _, name, symbol)) => (
+            purpose.map(str::to_string),
+            name.map(str::to_string),
+            symbol.map(str::to_string),
+        ),
+        None => (None, None, None),
+    }
+}
+
 /// Public view for RPC (`boing_qaPoolList`).
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct QaPoolItemSummary {
@@ -348,6 +371,12 @@ pub struct QaPoolItemSummary {
     pub allow_votes: usize,
     pub reject_votes: usize,
     pub age_secs: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub purpose_category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_symbol: Option<String>,
 }
 
 #[cfg(test)]
@@ -366,6 +395,25 @@ mod tests {
             sender,
             payload: TransactionPayload::ContractDeploy {
                 bytecode: vec![0x00],
+                create2_salt: None,
+            },
+            access_list: AccessList::default(),
+        };
+        SignedTransaction::new(tx, &key)
+    }
+
+    fn sample_named_token_deploy() -> SignedTransaction {
+        let key = SigningKey::generate(&mut OsRng);
+        let sender = AccountId(key.verifying_key().to_bytes());
+        let tx = Transaction {
+            nonce: 0,
+            sender,
+            payload: TransactionPayload::ContractDeployWithPurposeAndMetadata {
+                bytecode: vec![0x00],
+                purpose_category: "token".into(),
+                description_hash: None,
+                asset_name: Some("Review Me".into()),
+                asset_symbol: Some("RVM".into()),
                 create2_salt: None,
             },
             access_list: AccessList::default(),
@@ -445,6 +493,21 @@ mod tests {
             queue.add(PendingQaItem::from_signed(&signed).unwrap()),
             Err(PoolError::PoolDisabled)
         );
+    }
+
+    #[test]
+    fn list_summaries_includes_asset_metadata() {
+        let queue =
+            PendingQaQueue::from_governance_config(QaPoolGovernanceConfig::development_default());
+        let signed = sample_named_token_deploy();
+        queue
+            .add(PendingQaItem::from_signed(&signed).unwrap())
+            .unwrap();
+        let rows = queue.list_summaries();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].purpose_category.as_deref(), Some("token"));
+        assert_eq!(rows[0].asset_name.as_deref(), Some("Review Me"));
+        assert_eq!(rows[0].asset_symbol.as_deref(), Some("RVM"));
     }
 }
 

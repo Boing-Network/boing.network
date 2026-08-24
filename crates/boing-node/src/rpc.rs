@@ -1123,7 +1123,7 @@ async fn dispatch_jsonrpc_request(
                                 serde_json::json!({
                                     "have": have.to_string(),
                                     "need": need.to_string(),
-                                    "hint": "Request testnet BOING from the faucet and retry. Native token deploys charge gas_used as a native fee.",
+                                    "hint": "Request testnet BOING from the faucet and retry. Native fees are ceil(gas_used / 21000) BOING (a token deploy is typically ~10–20 BOING).",
                                 }),
                             ),
                             Err(MempoolError::QaRejected(r)) => {

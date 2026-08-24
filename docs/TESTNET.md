@@ -88,7 +88,7 @@ When the node is started with **`--faucet-enable`**, it accepts:
 
 | Method | Params | Description |
 |--------|--------|-------------|
-| `boing_faucetRequest` | `[hex_account_id]` | Send **1,000,000** testnet BOING to the given account (32-byte hex) — enough for a native token deploy fee (~200k–400k gas) plus min validator stake (10,000). Rate limit: **1 request per 60 seconds per account**. |
+| `boing_faucetRequest` | `[hex_account_id]` | Send **1,000,000** testnet BOING to the given account (32-byte hex) — enough for native fees (a transfer is **1 BOING**; a token deploy is typically **~10–20 BOING**) plus min validator stake (10,000). Rate limit: **1 request per 60 seconds per account**. |
 
 **Example (curl):**
 

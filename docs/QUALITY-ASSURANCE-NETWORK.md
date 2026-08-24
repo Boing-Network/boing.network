@@ -19,7 +19,7 @@
 
 - **Live rule registry (read-only):** JSON-RPC **`boing_getQaRegistry`** with params `[]` returns the **effective** `RuleRegistry` JSON the node is using (same shape as `qa_registry.json`). No authentication required.
 - **Canonical reference JSON (for comparison and docs):** [`docs/config/CANONICAL-QA-REGISTRY.md`](config/CANONICAL-QA-REGISTRY.md) describes [`qa_registry.canonical.json`](config/qa_registry.canonical.json) and [`qa_pool_config.canonical.json`](config/qa_pool_config.canonical.json), aligned with code defaults. **Deployed networks may differ** after governance or operator policy updates—always verify against **`boing_getQaRegistry`** and **`boing_qaPoolConfig`** on the RPC you trust.
-- **Explorer:** [Boing Observer — QA transparency](https://boing.observer/qa) loads live pool parameters, pending queue, and registry JSON from public RPC.
+- **Explorer:** [Boing Observer — QA transparency](https://boing.observer/qa) loads live pool parameters, pending queue, and registry JSON from public RPC. Reviewers with the explorer **reviewer** role can Allow / Reject Unsure items from that page (server-side `boing_qaPoolVote`; not a public unauthenticated vote).
 
 ---
 

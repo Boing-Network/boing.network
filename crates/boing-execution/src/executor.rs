@@ -41,7 +41,7 @@ impl BlockExecutor {
     /// On error, state may be partially applied (caller should revert if needed).
     /// Transfer-only batches run in parallel; other batches run sequentially.
     ///
-    /// After each successful tx, charges `fee = gas_used * GAS_PRICE` from the sender and
+    /// After each successful tx, charges `fee_for_gas(gas_used)` from the sender and
     /// distributes per tokenomics BPS to `fee_recipient` (block proposer), treasury, and burn.
     pub fn execute_block(
         &self,
@@ -257,11 +257,17 @@ mod tests {
         let (v, t, burn) = boing_tokenomics::split_fee(fee);
         assert_eq!(state.get(&proposer).unwrap().balance, v);
         assert_eq!(
-            state.get(&boing_tokenomics::PROTOCOL_TREASURY).unwrap().balance,
+            state
+                .get(&boing_tokenomics::PROTOCOL_TREASURY)
+                .map(|s| s.balance)
+                .unwrap_or(0),
             t
         );
         assert_eq!(
-            state.get(&boing_tokenomics::FEE_BURN_SINK).unwrap().balance,
+            state
+                .get(&boing_tokenomics::FEE_BURN_SINK)
+                .map(|s| s.balance)
+                .unwrap_or(0),
             burn
         );
     }
@@ -305,7 +311,8 @@ mod tests {
         state.insert(Account {
             id: deployer,
             state: AccountState {
-                balance: 50_000,
+                // Plain ContractDeploy uses 200_000 gas → 10 BOING after GAS_UNITS_PER_BOING.
+                balance: 1,
                 nonce: 0,
                 stake: 0,
                 ..Default::default()
@@ -342,7 +349,7 @@ mod tests {
             .contains("insufficient balance for fee"));
         assert!(receipts[1].success);
         assert_eq!(state.get(&deployer).unwrap().nonce, 1);
-        assert_eq!(state.get(&deployer).unwrap().balance, 50_000 + 10);
+        assert_eq!(state.get(&deployer).unwrap().balance, 1 + 10);
         assert_eq!(state.get(&payee).unwrap().nonce, 1);
     }
 }

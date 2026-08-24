@@ -21,8 +21,14 @@ pub const FEE_TREASURY_BPS: u16 = 2_000; // 20%
 /// Fee split: share to burn (basis points).
 pub const FEE_BURN_BPS: u16 = 1_000; // 10%
 
-/// Fixed gas price for fee market v0 (BOING per gas unit). Fee = gas_used × GAS_PRICE.
+/// Fixed gas price for fee market v0 (BOING per [`GAS_UNITS_PER_BOING`] gas).
+/// Native balances are whole BOING (no 18-decimal wei). Fee market v0 still meters
+/// execution in gas units; this price converts that meter into tokens.
 pub const GAS_PRICE: u128 = 1;
+
+/// Gas units that cost [`GAS_PRICE`] BOING (ceil). Matches `GAS_PER_TRANSFER` in
+/// `boing-execution` so a simple transfer costs **1 BOING**.
+pub const GAS_UNITS_PER_BOING: u64 = 21_000;
 
 /// Protocol treasury AccountId (receives FEE_TREASURY_BPS of tx fees).
 /// Distinct from the all-zero burn sink.
@@ -173,8 +179,16 @@ pub fn split_fee(fee: u128) -> (u128, u128, u128) {
 }
 
 /// Fee charged for `gas_used` at the fixed [`GAS_PRICE`].
+///
+/// `fee = ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)`. Any non-zero gas pays
+/// at least 1 BOING when `GAS_PRICE >= 1`.
 pub fn fee_for_gas(gas_used: u64) -> u128 {
-    (gas_used as u128).saturating_mul(GAS_PRICE)
+    if gas_used == 0 {
+        return 0;
+    }
+    let num = (gas_used as u128).saturating_mul(GAS_PRICE);
+    let den = GAS_UNITS_PER_BOING as u128;
+    num.saturating_add(den.saturating_sub(1)) / den
 }
 
 fn credit_account(state: &mut StateStore, id: AccountId, amount: u128) {
@@ -251,6 +265,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn fee_for_gas_scales_meter_to_whole_boing() {
+        assert_eq!(fee_for_gas(0), 0);
+        assert_eq!(fee_for_gas(1), 1);
+        assert_eq!(fee_for_gas(GAS_UNITS_PER_BOING), 1);
+        assert_eq!(fee_for_gas(21_000), 1);
+        // Reference fungible init is typically ~381k gas → 19 BOING, not 381_612.
+        assert_eq!(fee_for_gas(381_612), 19);
+    }
+
+    #[test]
     fn test_block_emission_year1() {
         assert_eq!(block_emission_validators(0), 0);
         let r1 = block_emission_validators(1);
@@ -285,13 +309,15 @@ mod tests {
                 ..Default::default()
             },
         });
-        let fee = fee_for_gas(21_000);
+        let fee = 10_000u128;
         charge_and_distribute_fee(&mut state, &sender, fee, &proposer).unwrap();
         let (v, t, b) = split_fee(fee);
+        assert_eq!(v + t + b, fee);
         assert_eq!(state.get(&sender).unwrap().balance, 100_000 - fee);
         assert_eq!(state.get(&proposer).unwrap().balance, v);
         assert_eq!(state.get(&PROTOCOL_TREASURY).unwrap().balance, t);
         assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, b);
+        assert_eq!(fee_for_gas(21_000), 1);
     }
 
     #[test]

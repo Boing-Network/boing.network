@@ -20,7 +20,7 @@ This document combines **what is already in the boing-network repo versus what t
 
 - **The explorer app itself** — a separate frontend (e.g. Next.js, Remix, Astro, or Vite) that:
   - Uses the one-shot prompt in [§10. One-shot prompt you can paste](#10-one-shot-prompt-you-can-paste) (Part 2 below).
-  - Reads from the Boing JSON-RPC (e.g. testnet RPC URL from env): `boing_chainHeight`, `boing_getBlockByHeight`, `boing_getBlockByHash`, `boing_getBalance`, `boing_getAccount`, optional `boing_getTransactionReceipt` / bounded `boing_getLogs` for tx/event views, and for QA transparency: `boing_qaPoolList`, `boing_qaPoolConfig`, `boing_getQaRegistry` (see `/qa` on boing.observer).
+  - Reads from the Boing JSON-RPC (e.g. testnet RPC URL from env): `boing_chainHeight`, `boing_getBlockByHeight`, `boing_getBlockByHash`, `boing_getBalance`, `boing_getAccount`, optional `boing_getTransactionReceipt` / bounded `boing_getLogs` for tx/event views, and for QA transparency: `boing_qaPoolList`, `boing_qaPoolConfig`, `boing_getQaRegistry` (see `/qa` on boing.observer). Reviewer Allow/Reject on Unsure deploys is an explorer-gated call to `boing_qaPoolVote` (operator header stays on the server).
   - Implements: network selector (Testnet/Mainnet), home (chain height + latest blocks), block detail (by height/hash), account page (balance, nonce, stake), search (height / hash / address), and “Protocol QA Passed” for ContractDeploy + QA explainer in footer/About.
 - **Hosting:** Deploy the app and point **boing.observer** to it (e.g. Vercel, Cloudflare Pages). No backend required beyond calling the public RPC.
 

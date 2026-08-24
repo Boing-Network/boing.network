@@ -232,7 +232,7 @@ List pending items in the community QA pool (same `tx_hash` keys as `-32051`).
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[]` | None |
-| Result | `{ items: [...] }` | Each item: `tx_hash`, `bytecode_hash`, `deployer` (hex), `allow_votes`, `reject_votes`, `age_secs`. |
+| Result | `{ items: [...] }` | Each item: `tx_hash`, `bytecode_hash`, `deployer` (hex), `allow_votes`, `reject_votes`, `age_secs`, and when present on the signed deploy: `purpose_category`, `asset_name`, `asset_symbol`. |
 
 ---
 
