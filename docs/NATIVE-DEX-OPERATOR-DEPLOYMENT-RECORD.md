@@ -1,5 +1,10 @@
 # Native DEX — operator deployment record (addresses & env)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 Use this doc to **track what you actually deployed** on a given network. It complements:
 
 - **Canonical CREATE2 predictions** (fixed deployer + bytecode): [OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md](OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md), JSON mirror [`scripts/canonical-testnet-dex-predicted.json`](../scripts/canonical-testnet-dex-predicted.json).

@@ -1,7 +1,17 @@
 # Boing Network — Development Recommendations & Enhancement Vision
 
-> **Purpose:** Strategic recommendations and vision for SDK, decentralized automation, ecosystem, intent-based execution, developer incentives, and Boing Studio.  
-> **References:** [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [NETWORK-COST-ESTIMATE.md](NETWORK-COST-ESTIMATE.md), [DECENTRALIZATION-AND-NETWORKING.md](DECENTRALIZATION-AND-NETWORKING.md) — *Cryptographic verification for automation is [Appendix: Cryptographic verification](#appendix-cryptographic-verification-for-decentralized-automation) at the end of this document.*
+> 👋 **Everyday users:** this is a **vision** doc, not a user manual. Shipped products: [wallet](https://boing.express), [explorer](https://boing.observer), [finance](https://boing.finance).  
+> 🛠️ **Developers:** mix of implemented SDK/RPC work and **non-normative TBD**. Prefer [RPC-API-SPEC.md](RPC-API-SPEC.md) and [boing-sdk](../boing-sdk/README.md) for what exists today.  
+> 🛰️ **Operators:** implementation priority matrix is in §1.5 — do not schedule TBD items as if they are committed.
+
+**Purpose:** Strategic recommendations and vision for SDK, decentralized automation, ecosystem, intent-based execution, developer incentives, and Boing Studio.  
+**References:** [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [NETWORK-COST-ESTIMATE.md](NETWORK-COST-ESTIMATE.md), [DECENTRALIZATION-AND-NETWORKING.md](DECENTRALIZATION-AND-NETWORKING.md) — *Cryptographic verification for automation is [Appendix: Cryptographic verification](#appendix-cryptographic-verification-for-decentralized-automation) at the end of this document.*
+
+```mermaid
+flowchart TB
+  Now[Shipped: node, SDK, QA, DEX discovery] --> Next[In progress: UX, indexer, hosted observer]
+  Next --> Vision[Vision: Studio, storage, richer automation]
+```
 
 ---
 

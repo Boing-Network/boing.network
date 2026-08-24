@@ -1,5 +1,10 @@
 # Handoff: testnet height stuck at 0 + VibeMiner two-PC peering (from PudgyMon)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Superseded for public RPC (2026-08-24):** canonical testnet is the hosted Fly cluster behind `https://testnet-rpc.boing.network/` ([FLY-IO.md](FLY-IO.md)). This note remains as a record of the home-lab / tunnel outage.
 
 **Date:** 2026-07-22 (America/New_York evening probe)  

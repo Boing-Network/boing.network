@@ -1,7 +1,20 @@
 # Boing Network — Operational Runbook
 
-> **Purpose:** Operations guide for running and maintaining Boing Network nodes.  
-> **References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) (six pillars and network essentials), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [README.md](../README.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [READINESS.md](READINESS.md) (beta checklist and quick starts)
+> 👋 **Everyday users:** you probably want the [faucet](https://boing.network/faucet) and [VibeMiner](VIBEMINER-INTEGRATION.md), not this file.  
+> 🛠️ **Developers:** local node is `cargo run -p boing-node` on port **8545**.  
+> 🛰️ **Operators:** this is the runbook — setup, RPC, CLI, monitoring, incidents, testnet ops.
+
+**Purpose:** Operations guide for running and maintaining Boing Network nodes.  
+**References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [README.md](../README.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [READINESS.md](READINESS.md), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md)
+
+```mermaid
+flowchart LR
+  Build[cargo build --release] --> Run[boing-node]
+  Run --> Rpc[JSON-RPC :8545]
+  Run --> P2P[libp2p :4001]
+  P2P --> Boots[Hosted bootnodes]
+  Rpc --> Apps[Wallet / explorer / dApps]
+```
 
 ---
 

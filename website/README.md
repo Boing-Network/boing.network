@@ -1,6 +1,18 @@
 # boing.network Website
 
+> 👋 **Everyday users:** the site is [boing.network](https://boing.network) — faucet, testnet portal, docs, PDFs.  
+> 🛠️ **Developers:** Astro → Cloudflare Pages. Content mapping: [docs/WEBSITE-AND-DEPLOYMENT.md](../docs/WEBSITE-AND-DEPLOYMENT.md).  
+> 🛰️ **Operators:** `npm run build:pdfs` regenerates `/pdfs/*.pdf` from `docs/*.md` (including Mermaid).
+
 Static site for [boing.network](https://boing.network) — built with Astro, deployed to Cloudflare Pages.
+
+```mermaid
+flowchart LR
+  MD[docs/*.md] --> PDF[npm run build:pdfs]
+  PDF --> Public[public/pdfs]
+  Astro[website/src] --> Pages[Cloudflare Pages]
+  Public --> Pages
+```
 
 ## Setup
 

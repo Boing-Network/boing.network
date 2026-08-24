@@ -4,9 +4,22 @@
 
 August 2026 · [boing.network](https://boing.network) · [boing.observer](https://boing.observer)
 
-This is the written form of the six pillars — the values we use when the protocol has to choose. It is meant to be readable: technical enough that an engineer can map each pillar to shipped behavior, casual enough that you do not need the full spec in your lap.
+> 👋 **Everyday users:** this is the why. Use it when you want to know what Boing will *not* trade away.  
+> 🛠️ **Developers:** each pillar maps to shipped behavior — VM, RPC, QA, consensus.  
+> 🛰️ **Operators:** when two good ideas fight, apply this order as an engineering rule, not a slogan.
+
+This is the written form of the six pillars. It is meant to be readable: technical enough that an engineer can map each pillar to shipped behavior, casual enough that you do not need the full spec in your lap.
 
 For stack, crates, and doc pointers, see [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md). For the QA pipeline itself, see [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md).
+
+```mermaid
+flowchart LR
+  S[1 🔐 Security] --> Sc[2 ⚡ Scalability]
+  Sc --> D[3 🌍 Decentralization]
+  D --> A[4 🧬 Authenticity]
+  A --> T[5 🔎 Transparency]
+  T --> Q[6 ✅ True QA]
+```
 
 ---
 
@@ -24,7 +37,7 @@ The last pillar is last because it is a *product* of the others working. It is n
 
 ---
 
-## 1. Security
+## 1. 🔐 Security
 
 **Plain terms.** Correctness first. We would rather be a little slower than be wrong, slash the wrong person, or let a malformed tx take down a block.
 
@@ -34,7 +47,7 @@ The last pillar is last because it is a *product* of the others working. It is n
 
 ---
 
-## 2. Scalability
+## 2. ⚡ Scalability
 
 **Plain terms.** The chain should feel snappy without quietly giving up the other pillars.
 
@@ -44,7 +57,7 @@ The last pillar is last because it is a *product* of the others working. It is n
 
 ---
 
-## 3. Decentralization
+## 3. 🌍 Decentralization
 
 **Plain terms.** Anyone who meets the protocol rules can participate. Nobody gets a special door.
 
@@ -61,7 +74,7 @@ Public JSON-RPC is `https://testnet-rpc.boing.network/`. Those are conveniences 
 
 ---
 
-## 4. Authenticity
+## 4. 🧬 Authenticity
 
 **Plain terms.** Boing is its own chain. Not a fork with the logos swapped, not a framework wrapped around someone else’s VM.
 
@@ -71,7 +84,7 @@ Public JSON-RPC is `https://testnet-rpc.boing.network/`. Those are conveniences 
 
 ---
 
-## 5. Transparency
+## 5. 🔎 Transparency
 
 **Plain terms.** Trust comes from being able to check, not from being asked to believe.
 
@@ -83,11 +96,21 @@ The explorer publishes a live [QA transparency](https://boing.observer/qa) dashb
 
 ---
 
-## 6. True quality assurance
+## 6. ✅ True quality assurance
 
 **Plain terms.** Assets do not land on-chain and then get “cleaned up.” They pass the bar first. Memes are allowed. Malice is not.
 
 **On chain.** Every `ContractDeploy` is classified **allow**, **reject**, or **unsure** before inclusion.
+
+```mermaid
+flowchart TD
+  Deploy[ContractDeploy] --> Auto{Automated QA}
+  Auto -->|hard fail| Reject[🚫 Reject — never in a block]
+  Auto -->|hard pass| Allow[✅ Allow — eligible]
+  Auto -->|ambiguous / policy| Pool[🗳️ Community QA pool]
+  Pool --> Allow
+  Pool --> Reject
+```
 
 | Outcome | What happens | Typical reasons |
 |--------|----------------|-----------------|

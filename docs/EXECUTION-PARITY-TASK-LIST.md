@@ -1,5 +1,10 @@
 # Execution parity — code task list
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Why “multi-year” came up before:** That label applies to matching **every** external ecosystem toolchain and surface area (multiple foreign VMs, wallets, indexers, audits at once). That is not the same as **shipping useful Boing-native features** on the schedule below.
 
 **What is realistic with focused work:** Individual **tracks** below are on the order of **days to a few weeks** each (spec + implementation + tests + doc), depending on review and whether the change touches consensus/persistence. Several tracks can run in parallel if people split crates.

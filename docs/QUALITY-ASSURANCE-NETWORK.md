@@ -1,7 +1,21 @@
 # Boing Network — Quality Assurance at the Protocol Layer
 
-> **Mission addition:** True quality assurance with top-notch standards.  
-> The QA regulatory system **confirms that all assets are up-to-par before approving deployment** onto the blockchain. No asset is deployed until it passes. All regulatory QA processes are **automated and decentralized**—with a decentralization that **defends against the deployment of malicious assets** (no scams, no single gatekeeper).
+> 👋 **Everyday users:** memes are allowed; scams are not. Live queue: [boing.observer/qa](https://boing.observer/qa). Pre-flight UI: [QA check](https://boing.observer/tools/qa-check).  
+> 🛠️ **Developers:** call `boing_qaCheck` before `ContractDeploy`. Read `rule_id` + `message` on reject (`-32050`).  
+> 🛰️ **Operators:** live rules are `boing_getQaRegistry` on the RPC you trust — not a screenshot of this file.
+
+**Mission:** True quality assurance with top-notch standards.  
+The QA regulatory system **confirms that all assets are up-to-par before approving deployment** onto the blockchain. No asset is deployed until it passes. All regulatory QA processes are **automated and decentralized**—with a decentralization that **defends against the deployment of malicious assets** (no scams, no single gatekeeper).
+
+```mermaid
+flowchart TD
+  Bytecode[Deploy bytecode] --> Check[boing_qaCheck]
+  Check -->|reject| Blocked[🚫 Never in a block]
+  Check -->|allow| Include[✅ Eligible for inclusion]
+  Check -->|unsure| Pool[🗳️ Community QA pool]
+  Pool -->|vote allow| Include
+  Pool -->|vote reject| Blocked
+```
 
 ---
 

@@ -1,5 +1,10 @@
 # Canonical native deploy artifacts (fungible + NFT)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This document is the **integration anchor** for dApps (e.g. **boing.finance**) that want **EVM-style “form only” deploy** on Boing L1: **pinned Boing VM bytecode** + **`contract_deploy_meta`** (or `contract_deploy_purpose`) + Boing Express signing.
 
 It pairs with [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) (calldata layout), [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md), [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md), and [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md).

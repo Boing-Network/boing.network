@@ -1,5 +1,10 @@
 # Boing mini-IR (subset transpiler — T3)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Status:** version 1 — structural JSON that transpiles to Boing VM bytecode (`crates/boing-execution/src/bytecode.rs`). This is **not** a single high-level contract language or a full HLL; it is a machine-readable layer between hand-written asm ([`tools/boing-vm-assemble.mjs`](../tools/boing-vm-assemble.mjs)) and future richer compilers.
 
 **Tool:** [`tools/boing-vm-transpile-ir.mjs`](../tools/boing-vm-transpile-ir.mjs)

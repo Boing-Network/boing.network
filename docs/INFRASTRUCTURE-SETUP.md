@@ -1,5 +1,10 @@
 # Boing Testnet — Infrastructure Setup Guide
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Routing:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) places this guide next to **public RPC** and **testnet** docs in one map.
 
 **Canonical public testnet** is the hosted Fly.io pair plus the Cloudflare RPC gateway ([FLY-IO.md](FLY-IO.md)). Use this guide only when you want a **local / home-lab** two-machine layout (bootnodes + optional Cloudflare Tunnel). Do not point `testnet-rpc.boing.network` at a laptop tunnel — that hostname is the Worker in `workers/public-rpc-gateway`.

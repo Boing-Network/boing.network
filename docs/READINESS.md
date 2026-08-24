@@ -1,8 +1,19 @@
 # Boing Network — Readiness
 
-> **Purpose:** Single checklist for beta, six-pillar readiness, and launch-blocking items.  
-> **References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [RUNBOOK.md](RUNBOOK.md), [TESTNET.md](TESTNET.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md).  
-> **Incentivized testnet:** See [TESTNET.md](TESTNET.md) Part 3 for incentive design, promotion, and mainnet migration.
+> 👋 **Everyday users:** “is testnet usable?” — wallet, faucet, explorer, public RPC. Details below are the launch checklist.  
+> 🛠️ **Developers:** beta + six-pillar readiness + launch-blocking path.  
+> 🛰️ **Operators:** incentivized testnet design is [TESTNET.md](TESTNET.md) Part 3.
+
+**Purpose:** Single checklist for beta, six-pillar readiness, and launch-blocking items.  
+**References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [RUNBOOK.md](RUNBOOK.md), [TESTNET.md](TESTNET.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md).  
+**Incentivized testnet:** See [TESTNET.md](TESTNET.md) Part 3 for incentive design, promotion, and mainnet migration.
+
+```mermaid
+flowchart LR
+  Pillars[Six pillars] --> Beta[Beta checklist]
+  Beta --> Blockers[Launch-blocking path]
+  Blockers --> Verify[Verification commands]
+```
 
 ---
 

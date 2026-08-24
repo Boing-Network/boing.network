@@ -1,5 +1,10 @@
 # Native LP share token (Boing VM)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 Bytecode: `lp_share_token_bytecode()` in `crates/boing-execution/src/native_lp_share_token.rs`.
 
 ## Purpose

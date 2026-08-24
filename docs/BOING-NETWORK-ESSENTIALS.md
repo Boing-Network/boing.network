@@ -1,16 +1,38 @@
 # Boing Network — Essentials
 
-> **One place for the essentials of the Boing blockchain network:** the six pillars, design philosophy, priorities, tech stack, and pointers to the rest of the docs.
+> 👋 **Everyday users:** the six pillars, the stack in one table, and where to click next.  
+> 🛠️ **Developers:** crates, RPC defaults, and the spec index.  
+> 🛰️ **Operators:** the same facts wallets and explorers depend on.
+
+**One place for the essentials of the Boing blockchain network:** the six pillars, design philosophy, priorities, tech stack, and pointers to the rest of the docs.
+
+```mermaid
+flowchart TB
+  User[You] --> Apps
+  subgraph Apps [Ecosystem]
+    Site[🌐 boing.network]
+    Wallet[👛 boing.express]
+    Explorer[🔭 boing.observer]
+    Finance[💱 boing.finance]
+  end
+  Apps --> RPC[📡 JSON-RPC]
+  RPC --> Node[boing-node]
+  Node --> VM[Boing VM]
+  Node --> Cons[PoS + HotStuff BFT]
+  Node --> QA[Protocol QA]
+```
 
 ---
 
-## What Is Boing Network?
+## What is Boing Network?
 
 **Boing Network** is an authentic, decentralized **L1 blockchain** built from first principles. It is optimized for efficiency, free from dependencies on other chains, and committed to **100% transparency** and **true quality assurance** at the protocol layer. This document summarizes the core commitments and where to go for detail.
 
+Public testnet RPC: **`https://testnet-rpc.boing.network/`**. Addresses are **32-byte** Ed25519 account ids (64 hex chars, optional `0x`) — not 20-byte EVM addresses.
+
 ---
 
-## The Six Pillars
+## The six pillars
 
 The written pillars live in [SIX-PILLARS.md](SIX-PILLARS.md) and are published as **`/pdfs/SIX-PILLARS.pdf`** on the websites. Summary:
 
@@ -18,16 +40,16 @@ The Boing blockchain prioritizes, in order:
 
 | # | Pillar | What it means |
 |---|--------|----------------|
-| **1** | **Security** | Safety and correctness over speed. |
-| **2** | **Scalability** | Throughput and efficient resource use. |
-| **3** | **Decentralization** | Permissionless participation at every layer. |
-| **4** | **Authenticity** | Unique architecture and identity (not a fork or framework). |
-| **5** | **Transparency** | 100% openness in design, governance, and operations — the foundation for community trust. |
-| **6** | **True quality assurance** | Top-notch standards with built-in automation: only assets that meet protocol-defined rules and security bar are allowed on-chain. All currently known edge cases are resolved by the automated regulatory QA system (Allow or Reject); **leniency for meme culture** (meme/community/entertainment are valid purposes), with **no maliciousness or malignancy** allowed. The community QA pool is only for genuinely unknown or policy-mandated cases. See [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md). |
+| **1** | 🔐 **Security** | Safety and correctness over speed. |
+| **2** | ⚡ **Scalability** | Throughput and efficient resource use. |
+| **3** | 🌍 **Decentralization** | Permissionless participation at every layer. |
+| **4** | 🧬 **Authenticity** | Unique architecture and identity (not a fork or framework). |
+| **5** | 🔎 **Transparency** | 100% openness in design, governance, and operations — the foundation for community trust. |
+| **6** | ✅ **True quality assurance** | Top-notch standards with built-in automation: only assets that meet protocol-defined rules and security bar are allowed on-chain. All currently known edge cases are resolved by the automated regulatory QA system (Allow or Reject); **leniency for meme culture** (meme/community/entertainment are valid purposes), with **no maliciousness or malignancy** allowed. The community QA pool is only for genuinely unknown or policy-mandated cases. See [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md). |
 
 ---
 
-## Design Philosophy
+## Design philosophy
 
 - **Authentic** — Our own architecture, not a fork or framework.
 - **Independent** — Core protocol does not depend on another L1 for consensus, execution, or identity.
@@ -38,7 +60,7 @@ The Boing blockchain prioritizes, in order:
 
 ---
 
-## Priorities (Order of Precedence)
+## Priorities (order of precedence)
 
 When trade-offs arise, the network applies this order:
 
@@ -46,7 +68,7 @@ When trade-offs arise, the network applies this order:
 
 ---
 
-## Tech Stack at a Glance
+## Tech stack at a glance
 
 | Layer | Technology |
 |-------|------------|
@@ -61,7 +83,7 @@ When trade-offs arise, the network applies this order:
 
 ---
 
-## Crates (Implementation)
+## Crates (implementation)
 
 | Crate | Role |
 |-------|------|
@@ -79,37 +101,42 @@ When trade-offs arise, the network applies this order:
 
 ---
 
-## Key Documents
+## Key documents
 
 | Document | Use it for |
 |----------|------------|
+| [docs/README.md](README.md) | Full index split by audience |
 | [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) | Single source of truth: crypto, data formats, bytecode, gas, RPC, QA rules |
 | [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md) | Full architecture, innovations, tokenomics, design decisions |
-| [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Sixth pillar: QA rules, automation, community pool, meme leniency, no malice; Appendix A: deployer checklist; Appendix B: canonical malice definition |
+| [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Sixth pillar: QA rules, automation, community pool, meme leniency, no malice |
 | [BUILD-ROADMAP.md](BUILD-ROADMAP.md) | Implementation phases and progress |
 | [RUNBOOK.md](RUNBOOK.md) | Running nodes, RPC, CLI, monitoring, incidents |
-| [TESTNET.md](TESTNET.md) | Join testnet, Testnet Portal (registration, quests), Incentivized testnet (readiness, promotion, mainnet migration) |
+| [TESTNET.md](TESTNET.md) | Join testnet, Testnet Portal (registration, quests), incentivized testnet |
 | [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC methods and error codes |
 | [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) | Protocol, network, application, and operational security |
-| [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md) | SDK, automation, vision; network-wide enhancements (implemented and planned) |
+| [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md) | SDK, automation, vision; network-wide enhancements |
 
-All docs live in **[docs/](docs/)**. The [README](../README.md) in the repo root lists the full doc set.
+All docs live in **[docs/](./)**. The [README](../README.md) in the repo root is the short landing page.
 
 ---
 
-## Quick Reference
+## Quick reference
 
 | Item | Default / convention |
 |------|----------------------|
-| **RPC port** | 8545 |
+| **Public RPC** | `https://testnet-rpc.boing.network/` |
+| **Local RPC port** | `8545` |
 | **Address (AccountId)** | 32 bytes, hex-encoded (64 hex chars; optional `0x` prefix) |
 | **Transaction format** | Bincode-serialized; signed with Ed25519 over BLAKE3 signable hash |
 | **Node binary** | `cargo run -p boing-node` |
 | **CLI** | `boing` (init, dev, deploy, metrics register, completions) |
+| **Wallet** | [boing.express](https://boing.express) |
+| **Explorer** | [boing.observer](https://boing.observer) |
+| **DeFi** | [boing.finance](https://boing.finance) |
 
 ---
 
-## Transparency Commitment
+## Transparency commitment
 
 We commit to 100% transparency in:
 

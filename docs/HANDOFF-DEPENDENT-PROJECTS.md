@@ -1,6 +1,18 @@
 # Handoff: work in dependent projects (Express, Observer, partners)
 
+> 👋 **Everyday users:** skip this — it is an engineering backlog. Use [boing.express](https://boing.express) and [boing.observer](https://boing.observer).  
+> 🛠️ **Developers on wallet / explorer / finance:** this is the **shared checklist** of what the protocol repo already ships vs what each app should do next.  
+> 🛰️ **Operators:** SDK + tutorial verification commands are in §5 of this file and [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md).
+
 This document complements **[THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md)** (URLs, RPC envs, chain IDs). It records **what already ships in the `boing.network` monorepo** and **recommended next work** for codebases that are **not** this repository—primarily **boing.express** (wallet), **boing.observer** (explorer), and partner frontends (e.g. **boing.finance**).
+
+```mermaid
+flowchart LR
+  Protocol[boing.network protocol + SDK] --> Express[boing.express]
+  Protocol --> Observer[boing.observer]
+  Protocol --> Finance[boing.finance]
+  Protocol --> Partners[Partner dApps]
+```
 
 ---
 

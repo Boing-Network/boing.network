@@ -1,5 +1,10 @@
 # JSON-RPC error codes for dApps (Boing node)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 Canonical definitions live in [RPC-API-SPEC.md](RPC-API-SPEC.md). This page is a **dApp-focused** cheat sheet and alignment target for **Boing Express** (and any injected wallet): returned `code` / `message` / `data` should match these contracts so clients like `boing-sdk` can branch reliably.
 
 ---

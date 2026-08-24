@@ -16,7 +16,7 @@ const paramsObjectWrong = '{}';
       <div class="page-wrap-inner">
         <span class="stage-badge-global">Testnet</span>
         <h1 class="docs-main-title"><Icon name="book" size={32} class="docs-title-icon" /> Boing Network Documentation</h1>
-        <p class="docs-lead">Select a section from the table of contents to view it. Only the selected section is shown.</p>
+        <p class="docs-lead">Pick a path. Everyday users start with wallet + faucet. Developers start with RPC and the SDK. Operators start with the testnet runbooks. PDFs at the bottom match the repository Markdown — including diagrams.</p>
       </div>
     </header>
     <div class="docs-body">
@@ -44,8 +44,14 @@ const paramsObjectWrong = '{}';
       <section id="overview" class="doc-section active">
         <h2>Overview</h2>
         <p>Boing Network is an authentic L1 blockchain built from first principles. It is independent of other chains and designed for sustainable value, uncapped supply with floor-triggered rebalancing, and 100% transparent governance and tokenomics.</p>
+        <h3>Pick your path</h3>
+        <ul>
+          <li>👋 <strong>Everyday users</strong> — Create a wallet at <a href="https://boing.express" target="_blank" rel="noopener">boing.express</a>, request testnet BOING at <a href="/faucet">the faucet</a>, then look up your account on <a href="https://boing.observer" target="_blank" rel="noopener">boing.observer</a>. Swap on <a href="https://boing.finance" target="_blank" rel="noopener">boing.finance</a> with Boing Express (not MetaMask) on Boing L1.</li>
+          <li>🛠️ <strong>Developers</strong> — Public RPC <code>https://testnet-rpc.boing.network/</code>. Addresses are 32-byte hex (64 characters), Ed25519 + BLAKE3, not EVM. Start with <a href="#getting-started">Getting Started</a> and <a href="#rpc-api">RPC API</a>. TypeScript: in-repo <code>boing-sdk</code>.</li>
+          <li>🛰️ <strong>Operators</strong> — Bootnodes, Fly cluster, and the Worker gateway are documented in the repository <code>docs/TESTNET.md</code> and <code>docs/FLY-IO.md</code>. Upgrading a laptop node does not change the public explorer.</li>
+        </ul>
         <h3>The six pillars</h3>
-        <p>In order: <strong>Security</strong> → <strong>Scalability</strong> → <strong>Decentralization</strong> → <strong>Authenticity</strong> → <strong>Transparency</strong> → <strong>True quality assurance</strong>. The written pillars are the <a href="/pdfs/SIX-PILLARS.pdf" target="_blank" rel="noopener">SIX-PILLARS PDF</a> (also on <a href="/about">/about</a>). Broader stack notes: <a href="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" target="_blank" rel="noopener">BOING-NETWORK-ESSENTIALS (PDF)</a>. QA detail: <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a>.</p>
+        <p>In order: <strong>🔐 Security</strong> → <strong>⚡ Scalability</strong> → <strong>🌍 Decentralization</strong> → <strong>🧬 Authenticity</strong> → <strong>🔎 Transparency</strong> → <strong>✅ True quality assurance</strong>. The written pillars are the <a href="/pdfs/SIX-PILLARS.pdf" target="_blank" rel="noopener">SIX-PILLARS PDF</a> (also on <a href="/about">/about</a>). Broader stack notes: <a href="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" target="_blank" rel="noopener">BOING-NETWORK-ESSENTIALS (PDF)</a>. QA detail: <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a>.</p>
         <h3>Recent enhancements &amp; optimizations</h3>
         <p>Network-wide improvements include: re-insert of failed txs into mempool, RPC methods <code>boing_qaCheck</code> and QA error codes, <code>boing_getBalance</code> / <code>boing_getAccount</code>, <strong>native DEX discovery</strong> on-chain (<code>boing_listDexPools</code>, <code>boing_listDexTokens</code>, <code>boing_getDexToken</code>; capability names also appear under <code>boing_getNetworkInfo.developer.dex_discovery_methods</code>), unsigned <code>boing_simulateContractCall</code> for calldata dry-runs, six-pillars and essentials documentation, Protocol QA phase in the roadmap. QA pillar enhancements (pre-flight checks, structured errors, public metrics, versioned rule sets, appeal path) are documented in <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QUALITY-ASSURANCE-NETWORK (PDF)</a>. For the full list of implemented and planned enhancements, see <a href="/pdfs/DEVELOPMENT-AND-ENHANCEMENTS.pdf" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS (PDF)</a>.</p>
         <h3>What this documentation covers</h3>

@@ -1,5 +1,10 @@
 # Pattern: AMM / liquidity on Boing VM (constant product)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Roadmap:** [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md) track **F1**.
 
 This document specifies an **application-level** pattern for a minimal **constant-product** style AMM (`x * y = k`) on Boing. It is **not** a consensus change: one or more **contracts** hold reserves in VM storage and expose **`ContractCall`** entrypoints. Deployments must still pass **protocol QA**; declare purpose **`dApp`**, **`tooling`**, or another **valid** category from your governance registry ([QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md)).

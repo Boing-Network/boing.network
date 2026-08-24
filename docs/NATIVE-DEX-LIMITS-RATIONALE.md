@@ -1,5 +1,10 @@
 # Native DEX limits vs EVM — why they exist and what extension costs
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This complements [BOING-NATIVE-DEX-CAPABILITY.md](./BOING-NATIVE-DEX-CAPABILITY.md) and [NATIVE-DEX-FACTORY.md](./NATIVE-DEX-FACTORY.md). It answers **why** several EVM DEX patterns are absent or different, and what it would take to add them.
 
 ---

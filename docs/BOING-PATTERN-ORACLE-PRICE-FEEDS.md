@@ -1,5 +1,10 @@
 # Pattern: Oracle / on-chain price feeds (app layer)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Roadmap:** [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md) track **F4**.
 
 Boing L1 does **not** require a dedicated “oracle opcode.” Price and feed semantics are **contracts + conventions**, optionally fed by **multisig**, **governance**, or **TWAP** math over AMM reserves ([BOING-PATTERN-AMM-LIQUIDITY.md](BOING-PATTERN-AMM-LIQUIDITY.md)).

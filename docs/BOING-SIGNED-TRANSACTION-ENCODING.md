@@ -1,5 +1,10 @@
 # Boing `SignedTransaction` — bincode layout (JS ↔ Rust)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This spec matches `crates/boing-primitives` serialization using **bincode 1.3** with serde’s default derived encoding. The TypeScript implementation lives in `boing-sdk/src/bincode.ts` and is verified against `cargo run -p boing-primitives --example dump_bincode`.
 
 ---

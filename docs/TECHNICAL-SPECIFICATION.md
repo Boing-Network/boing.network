@@ -1,7 +1,22 @@
 # Boing Network — Technical Specification
 
-> **Purpose:** Single source of truth for all technical specifications: software stack, cryptography, data formats, bytecode, gas, RPC API, and protocol rules.  
-> **References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md)
+> 👋 **Everyday users:** you do not need this file. Start at [SIX-PILLARS.md](SIX-PILLARS.md) or [TESTNET.md](TESTNET.md).  
+> 🛠️ **Developers:** this is the single source of truth for crypto, data formats, bytecode, gas, RPC shapes, and QA rules.  
+> 🛰️ **Operators:** crate map and networking defaults live in §2 and §12.
+
+**Purpose:** Single source of truth for all technical specifications: software stack, cryptography, data formats, bytecode, gas, RPC API, and protocol rules.  
+**References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md)
+
+```mermaid
+flowchart TB
+  Tx[SignedTransaction] --> Hash[BLAKE3 signable hash]
+  Hash --> Sig[Ed25519]
+  Sig --> Mempool[Mempool]
+  Mempool --> VM[Boing VM]
+  VM --> State[Sparse Merkle state]
+  VM --> QA[Protocol QA on deploy]
+  State --> Commit[HotStuff commit]
+```
 
 ---
 

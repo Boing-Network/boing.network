@@ -1,5 +1,10 @@
 # Canonical QA configuration (reference)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This folder holds **reference JSON** that matches the **default governance shapes** in the Boing node and `boing-qa` crate. Use it for documentation, diffs, and tooling—not as a substitute for checking what a **live** node actually runs.
 
 ## Files

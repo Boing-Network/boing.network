@@ -1,5 +1,10 @@
 # Handoff: Universal contract deploy listing + live updates
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Goal:** Offer an HTTP (and optional **SSE**) surface that lists **predicted contract account ids** for every **`ContractDeploy` / `ContractDeployWithPurpose` / `ContractDeployWithPurposeAndMetadata`** transaction, and stays current as new blocks are committed.
 
 **This is not** `boing_listDexTokens` or the native DEX directory Worker (DEX-scoped pools/tokens). It is a **chain-wide deploy feed** backed by an **indexer** that reads full **`transactions`** from **`boing_getBlockByHeight`**.

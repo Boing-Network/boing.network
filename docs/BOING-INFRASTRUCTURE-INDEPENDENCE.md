@@ -1,5 +1,10 @@
 # Boing Infrastructure Independence
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This document outlines what the Boing Network and Boing Express wallet **depend on** (other networks, libraries, hosting) and whether those dependencies can be replaced with **custom-built or self-hosted** solutions so Boing relies only on its own infrastructure where feasible.
 
 ---

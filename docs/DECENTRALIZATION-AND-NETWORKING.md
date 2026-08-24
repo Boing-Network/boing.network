@@ -1,5 +1,10 @@
 # Boing Network — Decentralization Strategy & WebRTC Signaling
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 > **Purpose:** Deepen decentralization — P2P robustness, peer discovery, randomness, light clients, cross-chain trustlessness, and decentralized WebRTC signaling for browser light clients.  
 > **References:** [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md)
 

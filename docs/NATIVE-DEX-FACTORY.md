@@ -1,5 +1,10 @@
 # Native DEX pair directory (Boing VM)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This document specifies the **pair directory** bytecode produced by `native_dex_factory_bytecode()` in `crates/boing-execution/src/native_dex_factory.rs`. It complements:
 
 - [NATIVE-AMM-CALLDATA.md](./NATIVE-AMM-CALLDATA.md) — constant-product **pool** contract

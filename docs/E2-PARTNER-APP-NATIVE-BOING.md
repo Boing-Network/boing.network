@@ -1,5 +1,10 @@
 # E2 — Partner apps: native Boing deploy / call (no foreign chain client SDK)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Roadmap:** [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md) track **E2**.
 
 This is the **canonical pattern** for apps (e.g. **boing.finance**) that already support **20-byte-address / injected-provider** flows but need a **native Boing** path when users connect **Boing Express** with a **32-byte AccountId**.

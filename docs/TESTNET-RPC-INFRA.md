@@ -1,8 +1,21 @@
 # Testnet operations, public RPC, and infrastructure
 
+> 👋 **Everyday users:** public RPC is `https://testnet-rpc.boing.network/`. Faucet and portal live on [boing.network](https://boing.network).  
+> 🛠️ **Developers:** this is the **operator hub** — bootnodes, env matrix, QA apply, monitoring.  
+> 🛰️ **Operators:** start here before specialist VM/RPC specs.
+
 **Audience:** Operators and integrators who need **bootnodes**, **public JSON-RPC**, **Cloudflare tunnel / website env**, **canonical native AMM**, **QA policy**, and **monitoring** in one place.
 
 Specialist guides (RPC methods, VM calldata, security) stay in their own files; this page is the **operator hub**.
+
+```mermaid
+flowchart TB
+  Hub[TESTNET-RPC-INFRA] --> Boots[Bootnodes]
+  Hub --> RPC[Public RPC gateway]
+  Hub --> QA[QA policy apply]
+  Hub --> AMM[Canonical native AMM env]
+  Hub --> Mon[Monitoring]
+```
 
 ---
 

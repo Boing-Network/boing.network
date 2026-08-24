@@ -1,5 +1,10 @@
 # Playwright native AMM E2E — CI and operations
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 The package **`examples/native-boing-playwright`** runs **headed** Chromium with an **unpacked Boing Express** extension ([README](../examples/native-boing-playwright/README.md)). Tests call **`chromium.launchPersistentContext`** with **`headless: false`** and expect an operator to **unlock** the wallet within **`BOING_E2E_PANEL_TIMEOUT_MS`** (default **120s**).
 
 ---

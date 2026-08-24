@@ -1,5 +1,10 @@
 # Commands and scripts — before VibeMiner node rollout
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Purpose:** One place to copy commands after **bootnodes / validators / public RPC** are up, so you can finish verification and optional “future work” flows before upgrading **VibeMiner** to rely on live nodes.
 
 **Maintenance:** When you add or rename a **repo-root** or **tutorial** `npm run` script, a new **`scripts/*.mjs`**, change **`.github/workflows/boing-sdk-rpc-integration.yml`**, or change **`website/functions/api/networks.js`** (**`BOING_TESTNET_DOWNLOAD_TAG`**, **`buildNetworksMeta`**, bootnode defaults), update this document and [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §3.1 / §6 (and [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) if it is a notable slice).

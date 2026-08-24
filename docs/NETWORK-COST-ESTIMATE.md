@@ -1,5 +1,10 @@
 # Boing Network — Cost Estimate for Running
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 > **Short answer:** Yes, running a blockchain network costs money. Costs scale with decentralization (more validators/nodes = more infrastructure).
 
 ---

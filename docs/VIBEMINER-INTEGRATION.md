@@ -1,7 +1,20 @@
 # Boing Network — VibeMiner Integration
 
-> **Purpose:** How Boing testnet (and mainnet) can be offered as a one-click mining/validator experience in VibeMiner desktop apps.  
-> **Audience:** VibeMiner maintainers and network operators who want to list Boing in the app.
+> 👋 **Everyday users:** VibeMiner is the **one-click desktop node**. You still need a [wallet](https://boing.express) for keys and the [faucet](https://boing.network/faucet) for testnet BOING.  
+> 🛠️ **Developers:** listing JSON is `GET https://boing.network/api/networks` (`meta` includes download tag, bootnodes, chain id, ecosystem URLs).  
+> 🛰️ **Operators:** upgrading the VibeMiner binary on a laptop does **not** change [boing.observer](https://boing.observer) — that uses public RPC. See [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) §2.1.
+
+**Purpose:** How Boing testnet (and mainnet) can be offered as a one-click mining/validator experience in VibeMiner desktop apps.  
+**Audience:** VibeMiner maintainers and network operators who want to list Boing in the app.
+
+```mermaid
+flowchart LR
+  VM[🖥️ VibeMiner] -->|GET /api/networks| Site[boing.network]
+  VM -->|download zip| GH[GitHub Releases]
+  VM -->|run| Node[boing-node]
+  Node --> P2P[Bootnodes]
+  Node --> LocalRpc[127.0.0.1:8545]
+```
 
 ---
 

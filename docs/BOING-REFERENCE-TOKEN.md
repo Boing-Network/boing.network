@@ -1,5 +1,10 @@
 # Boing reference fungible layout (off-chain standard)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This document defines a **recommended** calldata layout for fungible-token-style contracts on the **Boing VM**. It is **not** a consensus-enforced transaction type: deployers ship ordinary `ContractDeploy` bytecode that implements (or ignores) this ABI. All deploys still pass **protocol QA** (`boing-qa`).
 
 ## Principles

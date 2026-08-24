@@ -1,10 +1,24 @@
 # Fly.io — hosted Boing testnet
 
+> 👋 **Everyday users:** you call `https://testnet-rpc.boing.network/` — you do not SSH to Fly.  
+> 🛠️ **Developers:** that hostname is a Cloudflare Worker with failover to Fly `boing-testnet-1` / `boing-testnet-2`. Never point it at a home tunnel.  
+> 🛰️ **Operators:** this is the canonical hosted cluster. First deploy creates **new chain state** on volumes.
+
 Run **`boing-node`** on [Fly.io](https://fly.io): a validator with faucet and public JSON-RPC, plus a second full node that peers over P2P.
 
 This is the **canonical hosted testnet**. Public JSON-RPC at `https://testnet-rpc.boing.network/` is served by the Cloudflare Worker in [`workers/public-rpc-gateway`](../workers/public-rpc-gateway/) (health-checked failover to both Fly apps). The first Fly deploy creates **new chain state** on volumes — it is not the old home-lab / tunnel ledger unless you restore that volume.
 
+```mermaid
+flowchart LR
+  Client[Wallets / explorer / dApps] --> GW[public-rpc-gateway]
+  GW --> F1[Fly boing-testnet-1]
+  GW --> F2[Fly boing-testnet-2]
+  F1 --- P2P[libp2p :4001]
+  F2 --- P2P
+```
+
 **Related:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [RUNBOOK.md](RUNBOOK.md), [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example).
+
 
 ## What gets deployed
 

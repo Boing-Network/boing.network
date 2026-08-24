@@ -1,7 +1,20 @@
 # Boing Blockchain: Authentic Network Design Plan
 
-> **Core Principle:** An authentic, unique L1 blockchain built from first principles — optimized for efficiency, free from dependencies on other chains, designed for **absolute decentralization**, and committed to **100% transparency** in how we build, govern, and operate.  
-> **Quick overview:** For the six pillars, priorities, and essentials in one place, see [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md).
+> 👋 **Everyday users:** why Boing is its own L1 — not a fork. Short version: [SIX-PILLARS.md](SIX-PILLARS.md).  
+> 🛠️ **Developers:** architecture, tokenomics, and design decisions. Spec-level truth is [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md).  
+> 🛰️ **Operators:** stack choices (Rust, libp2p, HotStuff) constrain how you run nodes.
+
+**Core Principle:** An authentic, unique L1 blockchain built from first principles — optimized for efficiency, free from dependencies on other chains, designed for **absolute decentralization**, and committed to **100% transparency** in how we build, govern, and operate.  
+**Quick overview:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md).
+
+```mermaid
+flowchart TB
+  Phil[Design philosophy] --> Pillars[Six pillars in order]
+  Pillars --> Stack[Rust · BLAKE3 · Ed25519 · HotStuff · Boing VM]
+  Stack --> QA[Protocol QA]
+  Stack --> Dex[Native DEX on L1]
+  Stack --> Apps[Wallet · Explorer · Finance]
+```
 
 ---
 

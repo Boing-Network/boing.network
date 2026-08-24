@@ -1,5 +1,10 @@
 # Boing Design System — Site Variants
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Version:** 1.0 · **Date:** February 2026
 
 This document is the single source of truth for the Boing design system across **boing.express**, **boing.finance**, and **boing.network**. It defines a shared visual language and three tailored variants so each site expresses its own personality while staying recognizably Boing.

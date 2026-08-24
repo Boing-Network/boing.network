@@ -1,5 +1,10 @@
 # Protocol roadmap: native DEX RPC, LP positions, and indexer-scale history
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 > **Status:** Draft for **protocol / node / indexer** owners. Nothing in this document is **binding as implemented behavior** until **`boing-node`** ships it and [RPC-API-SPEC.md](RPC-API-SPEC.md) lists the method. **dApps** (e.g. **boing.finance**) should treat this as the **target integration contract**.
 
 | § | Topic |

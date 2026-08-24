@@ -1,5 +1,10 @@
 # Boing VM — independence from other networks
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 Boing’s execution layer is **only** the **Boing VM**: a stack machine defined in this repository and in [`TECHNICAL-SPECIFICATION.md`](TECHNICAL-SPECIFICATION.md) §7. The node does **not** embed or call another chain’s bytecode engine as its execution runtime.
 
 ## What this means

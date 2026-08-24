@@ -1,5 +1,10 @@
 # Boing Network — Website Specification and Deployment
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 > **Domain:** boing.network  
 > **Hosting:** Cloudflare Pages  
 > **Backend:** Cloudflare Workers + D1 + R2 + KV

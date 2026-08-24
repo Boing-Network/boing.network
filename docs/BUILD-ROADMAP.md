@@ -1,9 +1,22 @@
 # Boing Blockchain — Implementation Roadmap
 
-> **Priorities:** Security → Scalability → Decentralization → Authenticity  
-> **Goal:** Build an authentic, efficient L1 with unique innovations.  
-> **Aligned with:** [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md) (UX, Technical Innovations, Sustainability)  
-> **Recommendations:** [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md) (SDK, Automation, dApp Incentives)
+> 👋 **Everyday users:** testnet is live. Mainnet is still ahead. Track phases here; day-to-day use is [wallet](https://boing.express) + [explorer](https://boing.observer).  
+> 🛠️ **Developers:** Foundation and networking crates are in-tree. Remaining work is listed by phase — do not treat TBD vision docs as shipped.  
+> 🛰️ **Operators:** public RPC + Fly cluster are the current hosted path ([FLY-IO.md](FLY-IO.md)).
+
+**Priorities:** Security → Scalability → Decentralization → Authenticity → Transparency → True QA  
+**Goal:** Build an authentic, efficient L1 with unique innovations.  
+**Aligned with:** [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md)
+
+```mermaid
+flowchart LR
+  F[Foundation ✅] --> N[Networking ✅]
+  N --> VM[VM + state ✅]
+  VM --> PoS[PoS / production 🚧]
+  PoS --> UX[UX + automation 🚧]
+  UX --> X[Cross-chain 📋]
+  X --> M[Mainnet 📋]
+```
 
 ---
 

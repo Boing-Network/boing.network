@@ -1,6 +1,19 @@
 # Handoff: native DEX directory (D1), R2 uploads, and chain-side follow-ups
 
-This document is for the **boing.network** AI / engineering agent and protocol owners. It summarizes what **boing.finance + boing.network workers** now provide, what **you must configure** (secrets / variables), and what still requires **Boing node or protocol** work.
+> 👋 **Everyday users:** pool lists in [boing.finance](https://boing.finance) and [boing.observer/dex/pools](https://boing.observer/dex/pools) read chain (and optionally this Worker). You do not operate it.  
+> 🛠️ **Developers:** JSON routes `GET /v1/directory/meta` and `/v1/directory/pools`. SDK: `fetchNativeDexDirectoryMeta`, `collectAllNativeDexDirectoryPools`.  
+> 🛰️ **Operators:** this file is the **source of truth** for the Worker (`workers/native-dex-indexer`). Bindings, secrets, snapshot limits, and chain follow-ups live here.
+
+This document is for the **boing.network** engineering agent and protocol owners. It summarizes what **boing.finance + boing.network workers** now provide, what **you must configure** (secrets / variables), and what still requires **Boing node or protocol** work.
+
+```mermaid
+flowchart LR
+  Node[boing-node RPC] --> Worker[native-dex-indexer]
+  Worker --> D1[D1 directory]
+  Worker --> R2[R2 manifests]
+  D1 --> HTTP[GET /v1/directory/*]
+  HTTP --> Apps[finance / observer / SDK]
+```
 
 ---
 

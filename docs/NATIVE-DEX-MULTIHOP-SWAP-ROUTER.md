@@ -1,5 +1,10 @@
 # Native DEX multihop swap router (Boing VM)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 Bytecode: `native_dex_multihop_swap_router_bytecode()` in `crates/boing-execution/src/native_dex_multihop_swap_router.rs` (alias: `native_dex_swap2_router_bytecode()`).
 
 ## Purpose

@@ -1,9 +1,26 @@
 # Boing Network — JSON-RPC API Specification
 
-> **Version:** 0.1  
-> **Transport:** HTTP POST  
-> **Encoding:** JSON-RPC 2.0  
-> **References:** [RUNBOOK.md](RUNBOOK.md)
+> 👋 **Everyday users:** you do not call this API directly. The [wallet](https://boing.express) and [explorer](https://boing.observer) do it for you.  
+> 🛠️ **Developers:** this is the contract. Prefer `boing-sdk` `createClient(url)` over hand-rolled `fetch`. Probe with `boing_getRpcMethodCatalog` / `probeBoingRpcCapabilities`.  
+> 🛰️ **Operators:** CORS, batch limits, `/live` `/ready`, and `BOING_*` env for `boing_getNetworkInfo.end_user`.
+
+**Version:** 0.1  
+**Transport:** HTTP POST  
+**Encoding:** JSON-RPC 2.0  
+**References:** [RUNBOOK.md](RUNBOOK.md) · [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md)
+
+```mermaid
+flowchart LR
+  Client[dApp / wallet / explorer] -->|HTTP POST JSON-RPC| Rpc[boing-node :8545]
+  Client -->|optional GET /ws| Ws[newHeads]
+  Rpc --> State[Committed chain state]
+  Rpc --> QA[boing_qaCheck / pool]
+  Rpc --> Dex[boing_listDexPools / Tokens]
+```
+
+**Public testnet:** `https://testnet-rpc.boing.network/`. Local default: `http://127.0.0.1:8545/`.
+
+If `boing_chainHeight` works but newer methods return **`-32601`**, the process is an **older binary** or a gateway allowlist — upgrading VibeMiner on your laptop does **not** change the public explorer. See [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) §2.1.
 
 ---
 

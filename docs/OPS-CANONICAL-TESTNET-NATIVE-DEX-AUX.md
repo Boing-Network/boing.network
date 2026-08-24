@@ -1,5 +1,10 @@
 # OPS — Canonical public testnet native DEX aux contracts (predicted CREATE2)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Goal:** Mirror the same **predictability story** as the canonical CP pool ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md)): fixed **deployer** + **CREATE2** + **frozen bytecode** ⇒ **known `AccountId`s** before anyone submits deploy txs. This doc lists those predictions and how to verify them on RPC.
 
 **Track what you actually deployed** (nonce vs CREATE2, your pool id, etc.): [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md).

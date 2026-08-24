@@ -1,5 +1,10 @@
 # OPS — Fresh testnet operator keys + canonical address rotation
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 Use this when **no one depends on the current published pool/deployer** and you have **lost** the old `BOING_SECRET_HEX` (32-byte Ed25519 seed) or you are **wiping** chain state and want one coherent set of CREATE2 predictions in git + on-chain.
 
 ## What you are replacing

@@ -1,7 +1,29 @@
 # Boing Network — Security Standards
 
-> **Purpose:** Top-tier security across protocol, network, application, and operational layers.  
-> **References:** [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md) (appendix: cryptographic verification)
+> 👋 **Everyday users:** keys never leave [Boing Express](https://boing.express). Treat anyone asking for a private key as hostile.  
+> 🛠️ **Developers:** Ed25519 + BLAKE3 + bincode — not secp256k1 / keccak. Simulate before submit.  
+> 🛰️ **Operators:** BFT 1/3, RPC rate limits, incident path below.
+
+**Purpose:** Top-tier security across protocol, network, application, and operational layers.  
+**References:** [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md), [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md)
+
+```mermaid
+flowchart TB
+  subgraph protocol [Protocol]
+    BFT[HotStuff BFT]
+    Crypto[Ed25519 + BLAKE3]
+    QA[Deploy QA]
+  end
+  subgraph network [Network]
+    Noise[libp2p Noise]
+    Rate[RPC rate limits]
+  end
+  subgraph app [Application]
+    Wallet[Client-side keys]
+    Sim[Simulate then submit]
+  end
+  protocol --> network --> app
+```
 
 ---
 

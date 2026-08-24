@@ -1,7 +1,18 @@
 # Boing Network — Executive Summary & Pitch Deck
 
+> 👋 **Everyday users:** one-page story. Products you can use today: [wallet](https://boing.express), [explorer](https://boing.observer), [testnet faucet](https://boing.network/faucet).  
+> 🛠️ **Developers:** protocol-enforced QA + native DEX discovery is the technical wedge. Specs: [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md), [RPC-API-SPEC.md](RPC-API-SPEC.md).  
+> 🛰️ **Operators:** testnet is live; PDF is generated via `npm run build:pdfs` in `website/`.
+
 **Outlier Ventures Beacon Accelerator**  
 *Confidential — Boing Network*
+
+```mermaid
+flowchart LR
+  Problem[Any bytecode on most L1s] --> QA[Protocol QA Allow / Reject / Unsure]
+  QA --> Trust[Higher trust, less spam]
+  Stack[Own Rust stack] --> Apps[Wallet · Explorer · Finance]
+```
 
 ---
 

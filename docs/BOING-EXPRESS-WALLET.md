@@ -1,8 +1,23 @@
 # Boing Express — Wallet: Bootstrap, Integration & Chrome Web Store
 
+> 👋 **Everyday users:** open [boing.express](https://boing.express) (or the Chrome/Firefox extension). Keys stay in your browser. Then [get testnet BOING](https://boing.network/faucet).  
+> 🛠️ **Developers:** inject `window.boing` (`boing_requestAccounts`, `boing_sendTransaction`, DEX list methods). Spec in the express repo: `docs/WALLET_CONNECTION_AND_API.md`.  
+> 🛰️ **Operators:** CORS must include `https://boing.express`. Mainnet stays disabled until `VITE_BOING_MAINNET_RPC` is a distinct URL.
+
 Use this document to **bootstrap**, **integrate**, and **publish** **Boing Express** — the wallet for the Boing Network. Product name is always **Boing Express** (not "Boing Wallet"). Domain: **boing.express**. This doc merges the creation prompt, full Boing integration checklist, Chrome Web Store readiness, and **Part 3:** portal wallet connection, sign-in APIs, rollout, and smoke tests.
 
-**Cross-repo alignment:** For canonical URLs, RPC endpoints, chain IDs, and cross-linking between boing.network, boing.express, and boing.observer, see [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md).
+**Cross-repo alignment:** [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md). **Canonical implementation:** sibling repo `boing.express`.
+
+```mermaid
+flowchart LR
+  User[You] --> Web[🌐 boing.express web]
+  User --> Ext[🧩 Browser extension]
+  Web --> Keys[🔐 Keys in browser only]
+  Ext --> Keys
+  Ext --> Inject[window.boing]
+  Inject --> DApp[Boing dApps]
+  Keys --> RPC[testnet-rpc.boing.network]
+```
 
 ---
 

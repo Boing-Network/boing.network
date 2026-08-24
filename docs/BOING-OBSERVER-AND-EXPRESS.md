@@ -1,8 +1,23 @@
 # Boing Observer & Boing Express — Build guide and explorer spec
 
-This document combines **what is already in the boing-network repo versus what to build in separate projects** for **boing.observer** (explorer) and **boing.express** (wallet), and the full **boing.observer** explorer specification (RPC, QA UI, MVP, one-shot prompt).
+> 👋 **Everyday users:** [boing.observer](https://boing.observer) is the block explorer. [boing.express](https://boing.express) is the wallet. Search by height, hash, or 64-hex address.  
+> 🛠️ **Developers:** explorer is Next.js 15 in the `boing.observer` repo; wallet is Vite + extension in `boing.express`. Both talk to `https://testnet-rpc.boing.network/`.  
+> 🛰️ **Operators:** explorer `/qa` uses **public** RPC, not your laptop’s `:8545`. See [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) §2.1.
 
-- **Wallet (Boing Express):** Full bootstrap, integration, Chrome Web Store, and portal sign-in are in **[BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md)** (single doc).
+This document combines **what is already in the boing-network repo versus what lives in separate projects** for **boing.observer** (explorer) and **boing.express** (wallet), and the full **boing.observer** explorer specification (RPC, QA UI, MVP).
+
+- **Wallet (Boing Express):** [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md).
+- **Live explorer:** both products are shipped; this file remains the protocol-side spec.
+
+```mermaid
+flowchart LR
+  You[You] --> Obs[🔭 boing.observer]
+  You --> Exp[👛 boing.express]
+  Obs --> Proxy[Same-origin /api/rpc]
+  Proxy --> Public[testnet-rpc.boing.network]
+  Exp --> Public
+  Public --> Fly[Fly boing-testnet-1 / 2]
+```
 
 ---
 

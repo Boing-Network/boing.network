@@ -1,5 +1,10 @@
 # Boing VM — full capability roadmap
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This document is the **product-facing** companion to [EXECUTION-PARITY-TASK-LIST.md](EXECUTION-PARITY-TASK-LIST.md). The execution task list tracks **protocol and VM crate work** (receipts, opcodes, QA, RPC). This roadmap tracks **end-to-end product capabilities** on **Boing’s native stack** (VM, txs, wallet, SDK).
 
 **Normative behavior** is always defined by Boing specs and this repo — not by other networks. Informal “how this feels vs other ecosystems” notes below are **comparisons for readers** only; Boing remains independent — see [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md).

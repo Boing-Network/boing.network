@@ -1,5 +1,10 @@
 # Devnet / self-hosted RPC — deploy native AMM pool and seed liquidity
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 Use this when you run your own **validator + full node** (e.g. **VibeMiner**) with a **public JSON-RPC URL**, you have **devnet BOING** (native balance for fees), and **nothing is deployed yet**. It complements [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) (canonical **public** testnet) and [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) (browser path).
 
 ---

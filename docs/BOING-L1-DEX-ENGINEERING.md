@@ -1,5 +1,10 @@
 # Engineering: DEX-style products on Boing L1 (non-EVM)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This document is for **protocol and VM engineers** shipping **factory / router / locker**-style DeFi on Boing L1. It complements **boing.finance** docs:
 
 - [boing-l1-vs-evm-dex.md](https://github.com/Boing-Network/boing.finance/blob/main/docs/boing-l1-vs-evm-dex.md) (conceptual)

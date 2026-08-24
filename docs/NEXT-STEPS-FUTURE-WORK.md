@@ -1,5 +1,10 @@
 # Next steps and future work (backlog)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This file **does not** replace detailed checklists ([EXECUTION-PARITY-TASK-LIST.md](EXECUTION-PARITY-TASK-LIST.md), [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [TESTNET.md](TESTNET.md)). It **groups** what is still **partial**, **ops-dependent**, or **multi-sprint** so contributors can find the next slice quickly — including **enhancements**, **optimizations** (protocol, SDK, and ops), and **infrastructure / CI** upgrades.
 
 **Protocol / VM crate tasks:** [EXECUTION-PARITY-TASK-LIST.md](EXECUTION-PARITY-TASK-LIST.md) — currently **all tracks checked**; new opcode or receipt work should add rows there again.

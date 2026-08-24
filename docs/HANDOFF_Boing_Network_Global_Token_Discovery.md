@@ -1,8 +1,19 @@
 # Handoff: Boing Network — decentralized token & pool discovery
 
+> 👋 **Everyday users:** wallets and [boing.finance](https://boing.finance) should list tokens that exist **on chain**, not from a private spreadsheet.  
+> 🛠️ **Developers:** `boing_listDexPools` / `boing_listDexTokens` / `boing_getDexToken`. Advertised on `boing_getNetworkInfo.developer.dex_discovery_methods`.  
+> 🛰️ **Operators:** factory-scoped; publish `end_user.canonical_native_dex_factory`.
+
 **Audience:** Boing Network core / RPC / indexer maintainers  
 **Consumer:** `boing.finance` frontend, `boing-sdk`, third-party wallets  
 **Goal:** Replace ad-hoc “global token list” expectations with a **verifiable, chain-derived discovery surface** that any client can call without trusting a single operator-hosted database.
+
+```mermaid
+flowchart LR
+  Factory[Native DEX factory] --> RPC[listDexPools / listDexTokens]
+  RPC --> SDK[boing-sdk]
+  SDK --> Apps[finance / observer / wallets]
+```
 
 ---
 

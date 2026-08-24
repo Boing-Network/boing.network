@@ -1,8 +1,29 @@
-# Three-Codebase Alignment — boing.network, boing.express, boing.observer
+# Three-Codebase Alignment — website, wallet, explorer (and finance)
 
-This document is the **single source of truth** for keeping **boing.network** (website + portal), **boing.express** (wallet), and **boing.observer** (block explorer) in sync with the Boing Network and with each other.
+> 👋 **Everyday users:** the three public apps you will actually open.  
+> 🛠️ **Developers:** canonical URLs, RPC env vars, chain IDs (`0x1b01` / 6913 testnet).  
+> 🛰️ **Operators:** CORS origins and why upgrading a laptop node does not fix [boing.observer/qa](https://boing.observer/qa).
 
-**Dependent-project backlog:** for recommended implementation work outside this repo (wallet UX, explorer features, partner integration), see **[HANDOFF-DEPENDENT-PROJECTS.md](HANDOFF-DEPENDENT-PROJECTS.md)**.
+This document is the **single source of truth** for keeping **boing.network** (website + portal), **boing.express** (wallet), **boing.observer** (block explorer), and **boing.finance** (DeFi app) in sync with the Boing Network and with each other.
+
+**Dependent-project backlog:** [HANDOFF-DEPENDENT-PROJECTS.md](HANDOFF-DEPENDENT-PROJECTS.md).
+
+```mermaid
+flowchart LR
+  Site[🌐 boing.network]
+  Wallet[👛 boing.express]
+  Explorer[🔭 boing.observer]
+  Finance[💱 boing.finance]
+  RPC[📡 testnet-rpc.boing.network]
+  Site --> RPC
+  Wallet --> RPC
+  Explorer --> RPC
+  Finance --> RPC
+  Wallet -->|account deep links| Explorer
+  Site -->|faucet / docs| Wallet
+  Site -->|Resources| Explorer
+  Finance -->|View on explorer| Explorer
+```
 
 ---
 

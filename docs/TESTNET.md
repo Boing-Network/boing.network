@@ -1,7 +1,33 @@
 # Boing Network — Testnet
 
-> **Purpose:** Single guide for joining the testnet, using the Testnet Portal, and the incentivized testnet program (readiness, promotion, mainnet migration).  
-> **References:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) (single map: testnet ops + public RPC + infra), [RUNBOOK.md](RUNBOOK.md), [READINESS.md](READINESS.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md)
+> 👋 **Everyday users:** create a [wallet](https://boing.express), request testnet BOING at [the faucet](https://boing.network/faucet), then watch it on [boing.observer](https://boing.observer). You do **not** need to run a node.  
+> 🛠️ **Developers:** public RPC is `https://testnet-rpc.boing.network/`. Smoke with `npm run preflight-rpc` from the tutorial package.  
+> 🛰️ **Operators:** Part 1 (nodes + bootnodes), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), and §9 release tags.
+
+**Purpose:** Single guide for joining the testnet, using the Testnet Portal, and the incentivized testnet program (readiness, promotion, mainnet migration).  
+**References:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) (single map: testnet ops + public RPC + infra), [RUNBOOK.md](RUNBOOK.md), [READINESS.md](READINESS.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md)
+
+```mermaid
+flowchart LR
+  subgraph skipNode [No node required]
+    W[👛 Wallet] --> F[🚰 Faucet]
+    F --> E[🔭 Explorer]
+  end
+  subgraph runNode [Run infrastructure]
+    B[Bootnodes] --> N[boing-node]
+    N --> R[Public RPC gateway]
+  end
+  skipNode --> R
+```
+
+| I want to… | Do this |
+|---|---|
+| 👛 Use the chain today | [boing.express](https://boing.express) → [faucet](https://boing.network/faucet) → [explorer](https://boing.observer) |
+| 📡 Call JSON-RPC | `POST https://testnet-rpc.boing.network/` with `boing_health` / `boing_chainHeight` |
+| 🖥️ One-click node | [VibeMiner](VIBEMINER-INTEGRATION.md) using `GET https://boing.network/api/networks` |
+| 🛰️ Join as a validator | Part 1 below: P2P listen + hosted bootnodes + faucet + Bond |
+
+Hosted bootnodes (2026-08-24): `/ip4/169.155.48.188/tcp/4001` and `/ip4/109.105.220.118/tcp/4001`. Canonical public RPC hostname is the Worker gateway — **not** a home Cloudflare Tunnel.
 
 ---
 

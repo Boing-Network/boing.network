@@ -1,5 +1,10 @@
 # Hosted observer / indexer service (OBS-1)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Status:** Architecture and operations spec. **boing.observer** today can be a **static frontend + public JSON-RPC** (no durable backend). This document describes the **next layer**: a long-running **ingestion + storage + query** stack that powers fast search, stable deep links, and reorg-safe history without hammering the validator RPC for every page view.
 
 **Related:** [INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md) (replay loop, SDK helpers, pruned nodes), [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md) (explorer UX), [RPC-API-SPEC.md](RPC-API-SPEC.md) (methods and caps), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 (`observer-chain-tip-poll` interim).

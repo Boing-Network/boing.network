@@ -1,5 +1,10 @@
 # Accelerator Applications — Beacon & Outlier Ventures (OV)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 > **Purpose:** Draft answers and copy-paste content for **Beacon** and **Outlier Ventures (OV) Black** accelerator applications. Fill in fields marked **[YOU FILL]** before submitting.  
 > **Pitch deck PDF:** Generate with `npm run build:pdfs` in `website/`; upload `website/public/pdfs/Executive-Summary-Pitch-Deck.pdf` when the form asks for a deck.
 

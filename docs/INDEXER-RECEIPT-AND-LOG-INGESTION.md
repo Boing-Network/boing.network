@@ -1,5 +1,10 @@
 # Indexer: receipt and log ingestion (I1–I3)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Roadmap:** [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md) tracks **I1** (this spec), **I2** (`boing_getLogs`), **I3** (`boing-sdk` helpers).
 
 This spec is for **off-chain indexers** (Workers, daemons, explorer backends) that want **strong** visibility into **execution results** and **events**. The **canonical replay path** remains **blocks + receipts**; **`boing_getLogs`** is an optional, bounded shortcut (see below).

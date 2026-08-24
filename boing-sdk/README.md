@@ -1,6 +1,17 @@
 # Boing SDK
 
+> 🛠️ **Developers:** this is the TypeScript client for Boing JSON-RPC, QA errors, native DEX calldata, and wallet glue.  
+> 👋 **Everyday users:** you use this indirectly through [boing.express](https://boing.express), [boing.observer](https://boing.observer), and [boing.finance](https://boing.finance).  
+> 🛰️ **Operators:** after SDK **source** changes, run `npm run build` here and commit `dist/`. Tutorial `file:` consumers need a fresh `dist/`.
+
 TypeScript/JavaScript client for [Boing Network](https://github.com/Boing-Network/boing.network): typed RPC client, hex utilities, and structured errors (including QA rejection feedback).
+
+```mermaid
+flowchart LR
+  App[dApp / finance / explorer] --> SDK[boing-sdk]
+  SDK --> RPC[boing_chainHeight / getAccount / qaCheck / listDex*]
+  SDK --> Wallet[window.boing helpers]
+```
 
 ## Install
 

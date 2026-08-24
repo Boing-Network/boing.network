@@ -1,5 +1,10 @@
 # Native DEX full-stack deploy — JSON output reference
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 `npm run deploy-native-dex-full-stack` (from `examples/native-boing-tutorial`) prints **one JSON object** to stdout. Use it as a deployment record and to populate env vars for dApps / follow-up scripts.
 
 **What the orchestrator runs (when phases are not skipped):** bytecode dump → pool + pair directory (`bootstrap-native-pool-and-dex`) → multihop swap2 + ledger routers v2–v3 (optional ledger v1 if `BOING_FULL_STACK_INCLUDE_LEDGER_V1=1`) → LP vault + LP share → share `set_minter_once` + vault `configure` → **kickstart liquidity** (vault `deposit_add`, or direct pool `add_liquidity` if LP deploy was skipped). Run only against an RPC where blocks are produced; it is **not** invoked by `boing-node` on startup.

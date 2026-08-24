@@ -1,5 +1,10 @@
 # OPS — Canonical public testnet native AMM pool (`AccountId`)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Hosted Fly testnet (2026-08-24):** `https://testnet-rpc.boing.network/` currently returns **`end_user.canonical_native_cp_pool: null`**. The hex in § Published is the **previous tunnel ledger** — do not treat it as live on the Fly cluster until ops re-runs `npm run deploy-native-dex-full-stack` and sets `BOING_CANONICAL_NATIVE_*` on the nodes. Live source of truth: `boing_getNetworkInfo.end_user`.
 
 **Goal (OPS-1):** When operations freeze a **long-lived** constant-product pool on **Boing testnet (chain id 6913)**, publish its **32-byte pool `AccountId`** once and mirror it everywhere integrators look. This doc is the **checklist**; it does **not** contain a placeholder fake address.

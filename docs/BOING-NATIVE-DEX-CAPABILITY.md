@@ -1,6 +1,20 @@
 # Boing VM native DEX: what exists today
 
+> 👋 **Everyday users:** swap on [boing.finance](https://boing.finance) when a canonical pool is published on the RPC you use. Hosted Fly testnet may show `end_user.canonical_native_*` as **null** until operators bootstrap.  
+> 🛠️ **Developers:** Boing VM programs + `boing-sdk` — not Solidity. Discovery: `boing_listDexPools` / `boing_listDexTokens`.  
+> 🛰️ **Operators:** `npm run deploy-native-dex-full-stack` is an RPC script, **not** something `boing-node` runs on startup.
+
 This document answers whether a **usable DEX-style product** can run **only** on Boing VM (no foreign execution engine on L1), and what is **not** replicated from typical EVM DEX stacks.
+
+```mermaid
+flowchart TB
+  Factory[DEX factory / pair directory] --> Pools[CP pools]
+  Pools --> Swap1[Direct swap]
+  Pools --> MH[Multihop router 2-6 hops]
+  Pools --> Ledger[Ledger routers v1-v3]
+  Factory --> RPC[boing_listDexPools / Tokens]
+  RPC --> Apps[Wallet · Explorer · Finance]
+```
 
 ## What you can ship today (Boing VM only)
 

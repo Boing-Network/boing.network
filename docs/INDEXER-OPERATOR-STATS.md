@@ -1,5 +1,10 @@
 # Operator Stats Indexer & RPC — What You Need
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 This document describes **what to build** so the Testnet Portal can show per-operator stats (blocks proposed, rank, uptime) on the [Operator Hub Leaderboard](https://boing.network/testnet/operators/leaderboard) and [My Dashboard](https://boing.network/testnet/operators/dashboard).
 
 ---

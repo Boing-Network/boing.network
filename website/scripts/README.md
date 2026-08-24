@@ -20,7 +20,9 @@ npm run build:pdfs
 
 See `generate-pdfs.js` for the list of Markdown sources. Output is `website/public/pdfs/*.pdf`. Written pages such as `/about` embed **SIX-PILLARS.pdf** (and essentials) instead of duplicating the markdown as HTML.
 
-Regenerate only the pillars PDF (applies `pdf-six-pillars.css` and copies into a sibling `boing.observer` checkout):
+Mermaid fenced blocks (```mermaid) in those Markdown files are rendered to diagrams in Chromium before print.
+
+Regenerate only the pillars PDF (copies into a sibling `boing.observer` checkout when present):
 
 ```bash
 node scripts/generate-pdfs.js SIX-PILLARS.md

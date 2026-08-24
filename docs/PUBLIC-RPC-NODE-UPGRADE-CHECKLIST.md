@@ -1,5 +1,10 @@
 # Public RPC node — upgrade checklist (operators)
 
+> 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
+> 🛠️ **Developers:** keep this aligned with shipped code.
+> 🛰️ **Operators:** treat the sections below as the working spec for this topic.
+
+
 **Routing:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) — where this checklist sits relative to **infra** and **testnet** guides.
 
 Use this when you are about to **replace or restart** the `boing-node` process behind **public testnet JSON-RPC** (direct or Cloudflare Tunnel). It complements [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) and [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md).
