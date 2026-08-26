@@ -49,6 +49,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) | How the wallet works (product lives at boing.express) |
 | [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md) | Explorer + wallet: what each app is for |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Allow / Reject / Unsure in plain language + deployer checklist |
+| [QA-GATE-RULES.md](QA-GATE-RULES.md) | Operational catalog of every automated gate (also observer `/qa/rules` PDF) |
 | [Executive-Summary-Pitch-Deck.md](Executive-Summary-Pitch-Deck.md) | Short pitch (PDF on the site) |
 
 ---
@@ -113,6 +114,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | Doc | What you get |
 |-----|----------------|
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Protocol QA, community pool, content blocklist governance |
+| [QA-GATE-RULES.md](QA-GATE-RULES.md) | Enforced rule IDs, opcode whitelist, content matching, live vs canonical lists |
 | [config/CANONICAL-QA-REGISTRY.md](config/CANONICAL-QA-REGISTRY.md) | QA JSON configs + `npm run apply-public-testnet-qa-policy` |
 | [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) | Protocol, network, application security |
 | [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) | Sync boing.network / express / observer / finance |

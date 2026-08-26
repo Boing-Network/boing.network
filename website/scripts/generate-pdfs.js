@@ -26,6 +26,7 @@ const DOCS_TO_PDF = [
   'SIX-PILLARS.md',
   'BOING-NETWORK-ESSENTIALS.md',
   'QUALITY-ASSURANCE-NETWORK.md',
+  'QA-GATE-RULES.md',
   'DEVELOPMENT-AND-ENHANCEMENTS.md',
   'BOING-BLOCKCHAIN-DESIGN-PLAN.md',
   'RPC-API-SPEC.md',
@@ -160,7 +161,7 @@ async function main() {
       await page.close();
       console.log('Generated:', base + '.pdf');
 
-      if (isSixPillars) {
+      if (isSixPillars || base === 'QA-GATE-RULES') {
         const observerPdfDir = path.join(repoRoot, '..', 'boing.observer', 'public', 'pdfs');
         if (fs.existsSync(path.join(repoRoot, '..', 'boing.observer'))) {
           fs.mkdirSync(observerPdfDir, { recursive: true });

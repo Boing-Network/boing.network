@@ -1,7 +1,7 @@
 # Boing Network — Quality Assurance at the Protocol Layer
 
 > 👋 **Everyday users:** memes are allowed; scams are not. Live queue: [boing.observer/qa](https://boing.observer/qa). Pre-flight UI: [QA check](https://boing.observer/tools/qa-check).  
-> 🛠️ **Developers:** call `boing_qaCheck` before `ContractDeploy`. Read `rule_id` + `message` on reject (`-32050`).  
+> 🛠️ **Developers:** call `boing_qaCheck` before `ContractDeploy`. Read `rule_id` + `message` on reject (`-32050`). **Every enforced gate:** [QA-GATE-RULES.md](QA-GATE-RULES.md) (PDF on [boing.observer/qa/rules](https://boing.observer/qa/rules)).  
 > 🛰️ **Operators:** live rules are `boing_getQaRegistry` on the RPC you trust — not a screenshot of this file.
 
 **Mission:** True quality assurance with top-notch standards.  

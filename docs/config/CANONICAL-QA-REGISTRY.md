@@ -34,6 +34,7 @@ Pool parameters are already exposed as **`boing_qaPoolConfig`** (summary fields)
 
 - [RPC-API-SPEC.md](../RPC-API-SPEC.md) — `boing_getQaRegistry`, pool methods, error codes.
 - [QUALITY-ASSURANCE-NETWORK.md](../QUALITY-ASSURANCE-NETWORK.md) — protocol QA behavior and governance.
+- [QA-GATE-RULES.md](../QA-GATE-RULES.md) — operational catalog of every automated Allow / Reject / Unsure rule.
 - **Boing Observer** — [QA transparency](https://boing.observer/qa) shows live pool status and registry JSON from RPC.
 
 ## Raw URLs (stable paths on `main`)
