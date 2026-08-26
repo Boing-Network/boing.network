@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use boing_primitives::{Account, AccountId, AccountState, Hash};
 
+use crate::qa_pending::QaPendingRecord;
 use crate::sparse_merkle::{
     hash_account_leaf, hash_contract_code, SparseMerkleTree,
 };
@@ -37,6 +38,7 @@ pub struct StateCheckpoint {
     accounts: HashMap<AccountId, AccountState>,
     contract_code: HashMap<AccountId, Vec<u8>>,
     contract_storage: HashMap<(AccountId, [u8; 32]), [u8; 32]>,
+    qa_pending: HashMap<Hash, QaPendingRecord>,
 }
 
 /// State store with Sparse Merkle tree for state_root.
@@ -48,6 +50,8 @@ pub struct StateStore {
     pub contract_code: HashMap<AccountId, Vec<u8>>,
     /// Contract storage: (contract, key) -> value.
     pub contract_storage: HashMap<(AccountId, [u8; 32]), [u8; 32]>,
+    /// On-chain Unsure QA items (public-membership path).
+    qa_pending: HashMap<Hash, QaPendingRecord>,
 }
 
 impl StateStore {
@@ -136,6 +140,10 @@ impl StateStore {
             let leaf = hash_account_leaf(&state, &code_hash, &storage_root);
             self.tree.insert_leaf_hash(id.0, leaf);
         }
+        for (subject, rec) in &self.qa_pending {
+            self.tree
+                .insert_leaf_hash(QaPendingRecord::smt_key(subject), rec.commitment_hash());
+        }
         self.tree.root()
     }
 
@@ -161,6 +169,7 @@ impl StateStore {
         for ((contract, key), value) in &self.contract_storage {
             out.merge_contract_storage(*contract, *key, *value);
         }
+        out.qa_pending = self.qa_pending.clone();
         out
     }
 
@@ -170,6 +179,7 @@ impl StateStore {
             accounts: self.accounts.iter().map(|(k, v)| (*k, v.clone())).collect(),
             contract_code: self.contract_code.iter().map(|(k, v)| (*k, v.clone())).collect(),
             contract_storage: self.contract_storage.iter().map(|(k, v)| (*k, *v)).collect(),
+            qa_pending: self.qa_pending.clone(),
         }
     }
 
@@ -184,6 +194,7 @@ impl StateStore {
         self.accounts = cp.accounts;
         self.contract_code = cp.contract_code;
         self.contract_storage = cp.contract_storage;
+        self.qa_pending = cp.qa_pending;
         self.tree = SparseMerkleTree::new();
         let _ = self.state_root();
     }
@@ -238,6 +249,30 @@ impl StateStore {
             state.merge_contract_storage(contract, key, value);
         }
         state
+    }
+
+    pub fn qa_pending(&self, subject: &Hash) -> Option<&QaPendingRecord> {
+        self.qa_pending.get(subject)
+    }
+
+    pub fn qa_pending_mut(&mut self, subject: &Hash) -> Option<&mut QaPendingRecord> {
+        self.qa_pending.get_mut(subject)
+    }
+
+    pub fn insert_qa_pending(&mut self, subject: Hash, record: QaPendingRecord) {
+        self.qa_pending.insert(subject, record);
+    }
+
+    pub fn remove_qa_pending(&mut self, subject: &Hash) -> Option<QaPendingRecord> {
+        self.qa_pending.remove(subject)
+    }
+
+    pub fn export_qa_pending(&self) -> Vec<(Hash, QaPendingRecord)> {
+        self.qa_pending.iter().map(|(k, v)| (*k, v.clone())).collect()
+    }
+
+    pub fn load_qa_pending(&mut self, items: Vec<(Hash, QaPendingRecord)>) {
+        self.qa_pending = items.into_iter().collect();
     }
 
     /// Top N accounts by stake (for validator set derivation).

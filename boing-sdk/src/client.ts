@@ -37,6 +37,7 @@ import type {
   VerifyProofResult,
   OperatorApplyQaPolicyResult,
   QaRegistryResult,
+  NetworkFeePolicyResult,
   JsonRpcBatchResponseItem,
 } from './types.js';
 import { ensureHex, validateHex32 } from './hex.js';
@@ -860,19 +861,21 @@ export class BoingClient {
   }
 
   /**
-   * Vote on a pooled Unsure deploy. `voter` must be a governance administrator unless the node uses dev_open_voting.
-   * Params: tx_hash hex, voter account hex, `allow` | `reject` | `abstain`.
+   * Vote on a pooled Unsure deploy.
+   * With `public_membership`, pass a 4th argument: hex of a signed `QaPoolVote` transaction
+   * (sender must equal `voterHex`). Admin-only nodes still accept 3 params (operator header may apply).
    */
   async qaPoolVote(
     txHashHex: string,
     voterHex: string,
-    vote: 'allow' | 'reject' | 'abstain'
+    vote: 'allow' | 'reject' | 'abstain',
+    signedVoteTxHex?: string
   ): Promise<QaPoolVoteResult> {
-    return this.request<QaPoolVoteResult>('boing_qaPoolVote', [
-      validateHex32(txHashHex),
-      validateHex32(voterHex),
-      vote,
-    ]);
+    const params = [validateHex32(txHashHex), validateHex32(voterHex), vote];
+    if (signedVoteTxHex) {
+      params.push(ensureHex(signedVoteTxHex));
+    }
+    return this.request<QaPoolVoteResult>('boing_qaPoolVote', params);
   }
 
   /**
@@ -882,6 +885,16 @@ export class BoingClient {
    */
   async operatorApplyQaPolicy(registryJson: string, qaPoolConfigJson: string): Promise<OperatorApplyQaPolicyResult> {
     return this.request<OperatorApplyQaPolicyResult>('boing_operatorApplyQaPolicy', [registryJson, qaPoolConfigJson]);
+  }
+
+  /** Read native fee split and extra levies (`network_fee_config`). */
+  async getNetworkFeePolicy(): Promise<NetworkFeePolicyResult> {
+    return this.request<NetworkFeePolicyResult>('boing_getNetworkFeePolicy', []);
+  }
+
+  /** Replace native fee policy (operator RPC). */
+  async operatorApplyFeePolicy(networkFeeConfigJson: string): Promise<OperatorApplyQaPolicyResult> {
+    return this.request<OperatorApplyQaPolicyResult>('boing_operatorApplyFeePolicy', [networkFeeConfigJson]);
   }
 
   async qaCheck(

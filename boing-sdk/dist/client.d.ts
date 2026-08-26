@@ -1,7 +1,7 @@
 /**
  * Boing JSON-RPC client — typed methods for all node RPCs.
  */
-import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, JsonRpcBatchResponseItem } from './types.js';
+import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, NetworkFeePolicyResult, JsonRpcBatchResponseItem } from './types.js';
 /**
  * Default UA for Node/CLI calls to public RPC (some CDN/WAF edges return HTTP 403 for empty/bot UA).
  * Overridable via {@link BoingClientConfig.extraHeaders}.
@@ -223,16 +223,21 @@ export declare class BoingClient {
     /** Read-only: effective QA rule registry JSON (same shape as `qa_registry.json`). No auth. */
     getQaRegistry(): Promise<QaRegistryResult>;
     /**
-     * Vote on a pooled Unsure deploy. `voter` must be a governance administrator unless the node uses dev_open_voting.
-     * Params: tx_hash hex, voter account hex, `allow` | `reject` | `abstain`.
+     * Vote on a pooled Unsure deploy.
+     * With `public_membership`, pass a 4th argument: hex of a signed `QaPoolVote` transaction
+     * (sender must equal `voterHex`). Admin-only nodes still accept 3 params (operator header may apply).
      */
-    qaPoolVote(txHashHex: string, voterHex: string, vote: 'allow' | 'reject' | 'abstain'): Promise<QaPoolVoteResult>;
+    qaPoolVote(txHashHex: string, voterHex: string, vote: 'allow' | 'reject' | 'abstain', signedVoteTxHex?: string): Promise<QaPoolVoteResult>;
     /**
      * Apply QA registry and pool governance config on the node (operator RPC).
      * Params are full JSON documents as strings (same format as `qa_registry.json` / `qa_pool_config.json`).
      * Requires `X-Boing-Operator` when the node has `BOING_OPERATOR_RPC_TOKEN` set.
      */
     operatorApplyQaPolicy(registryJson: string, qaPoolConfigJson: string): Promise<OperatorApplyQaPolicyResult>;
+    /** Read native fee split and extra levies (`network_fee_config`). */
+    getNetworkFeePolicy(): Promise<NetworkFeePolicyResult>;
+    /** Replace native fee policy (operator RPC). */
+    operatorApplyFeePolicy(networkFeeConfigJson: string): Promise<OperatorApplyQaPolicyResult>;
     qaCheck(hexBytecode: string, purposeCategory?: string, descriptionHash?: string, assetName?: string, assetSymbol?: string): Promise<QaCheckResponse>;
     /** Request testnet BOING (only when node is started with --faucet-enable). Params: 32-byte account ID (hex). Rate limited per account. */
     faucetRequest(hexAccountId: string): Promise<FaucetResult>;

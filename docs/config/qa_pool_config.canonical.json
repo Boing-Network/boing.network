@@ -7,5 +7,10 @@
   "allow_threshold_fraction": 0.6666666666666666,
   "reject_threshold_fraction": 0.6666666666666666,
   "default_on_expiry": "reject",
-  "dev_open_voting": false
+  "dev_open_voting": false,
+  "public_membership": true,
+  "min_voter_stake": 0,
+  "min_quorum_votes": 3,
+  "reward_per_counted_vote": 1,
+  "pay_abstain": false
 }

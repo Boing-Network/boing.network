@@ -1,0 +1,7 @@
+{
+  "fee_validators_bps": 0,
+  "fee_treasury_bps": 10000,
+  "fee_burn_bps": 0,
+  "extra_fixed_fee": "0",
+  "transfer_amount_bps": 0
+}

@@ -10,11 +10,12 @@ use boing_governance::{SlashReason, SlashRegistry, SlashingError};
 use boing_p2p::{P2pEvent, P2pNode};
 use boing_primitives::{
     Account, AccountId, AccountState, Block, ConsensusVote, EquivocationEvidence, ExecutionReceipt,
-    Hash, SignedTransaction, VrfProofGossip,
+    Hash, QaPoolVoteKind, SignedTransaction, TransactionPayload, VrfProofGossip,
 };
 use boing_qa::pool::{PendingQaQueue, PoolError, PoolResolution, QaPoolVote};
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
 use boing_state::{ChainNativeAggregates, StateStore};
+use boing_tokenomics::{network_fee_amount, NetworkFeePolicy};
 use ed25519_dalek::SigningKey;
 use tokio::sync::{broadcast, mpsc};
 use tracing::info;
@@ -264,18 +265,27 @@ impl BoingNode {
 
             node.persistence = Some(persistence);
 
-            let (load_reg, load_pool, load_slash) = {
+            let (load_reg, load_pool, load_slash, load_fee) = {
                 let p = node.persistence.as_ref().expect("just set");
                 (
                     p.load_qa_registry()?,
                     p.load_qa_pool_config()?,
                     p.load_slash_registry()?,
+                    p.load_network_fee_config()?,
                 )
             };
             if load_reg.is_some() || load_pool.is_some() {
                 let reg = load_reg.unwrap_or_else(|| node.mempool.qa_registry().clone());
                 let pool = load_pool.unwrap_or_else(QaPoolGovernanceConfig::development_default);
                 node.apply_qa_policy_without_persist(reg, pool);
+            }
+            if let Some(fee) = load_fee {
+                node.apply_fee_policy_without_persist(fee);
+            }
+            if let Some(ref p) = node.persistence {
+                if let Ok(Some(pending)) = p.load_qa_pending() {
+                    node.state.load_qa_pending(pending);
+                }
             }
             if let Some(slash_reg) = load_slash {
                 node.slash_registry = slash_reg;
@@ -313,9 +323,24 @@ impl BoingNode {
         pool_config: QaPoolGovernanceConfig,
     ) {
         self.mempool.set_qa_registry(registry.clone());
-        self.executor = BlockExecutor::with_qa_registry(registry.clone());
-        self.vm = Vm::with_qa_registry(registry);
+        let fee = self.executor.fee_policy().clone();
+        self.executor = BlockExecutor::with_policies(registry.clone(), pool_config.clone(), fee);
+        self.vm = Vm::with_qa_policies(registry, pool_config.clone());
         self.qa_pool.set_governance_config(pool_config);
+    }
+
+    fn apply_fee_policy_without_persist(&mut self, policy: NetworkFeePolicy) {
+        self.executor.set_fee_policy(policy);
+    }
+
+    /// Replace native fee split / extra levies; persists `network_fee_config.json` when a data dir is set.
+    pub fn set_fee_policy(&mut self, policy: NetworkFeePolicy) {
+        self.apply_fee_policy_without_persist(policy.clone());
+        if let Some(ref p) = self.persistence {
+            if let Err(e) = p.save_network_fee_config(&policy) {
+                logging::log_persistence_warn("save_network_fee_config", &e);
+            }
+        }
     }
 
     /// Set QA rules and pool governance together; persists to `qa_registry.json` / `qa_pool_config.json` when `data_dir` is configured.
@@ -830,8 +855,16 @@ impl BoingNode {
             block_timestamp: ts,
         };
         if let Ok(out) = vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
-            let need = boing_tokenomics::fee_for_gas(out.gas_used);
-            if have < need {
+            let need = network_fee_amount(
+                out.gas_used,
+                &signed.tx.payload,
+                self.executor.fee_policy(),
+            );
+            let remaining = state_copy
+                .get(&signed.tx.sender)
+                .map(|s| s.balance)
+                .unwrap_or(0);
+            if remaining < need {
                 return Err(MempoolError::InsufficientFee { have, need });
             }
         }
@@ -842,7 +875,12 @@ impl BoingNode {
     pub fn submit_transaction(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
         self.precheck_sender_can_pay_fee(&signed)?;
         match self.mempool.insert(signed.clone()) {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                if let TransactionPayload::QaPoolVote { subject, vote } = signed.tx.payload {
+                    let _ = self.note_on_chain_qa_vote(subject, signed.tx.sender, vote);
+                }
+                Ok(())
+            }
             Err(MempoolError::QaPendingPool(tx_hash)) => {
                 let item = boing_qa::pool::PendingQaItem::from_signed(&signed)
                     .map_err(|e| MempoolError::QaPoolEnqueue(e.to_string()))?;
@@ -854,6 +892,9 @@ impl BoingNode {
                         return Err(MempoolError::QaPoolDeployerCap)
                     }
                     Err(e) => return Err(MempoolError::QaPoolEnqueue(e.to_string())),
+                }
+                if self.qa_pool.governance_config().public_membership {
+                    let _ = self.mempool.insert_unsure_for_inclusion(signed);
                 }
                 Err(MempoolError::QaPendingPool(tx_hash))
             }
@@ -868,7 +909,16 @@ impl BoingNode {
         voter: AccountId,
         vote: QaPoolVote,
     ) -> Result<QaPoolVoteResult, PoolError> {
-        self.qa_pool.vote(tx_hash, voter, vote)?;
+        let stake = self.state.get(&voter).map(|s| s.stake);
+        self.qa_pool.vote(tx_hash, voter, vote, stake)?;
+        if self.qa_pool.governance_config().public_membership {
+            // Deploy completion and voter payouts happen when signed QaPoolVote txs apply.
+            return match self.qa_pool.resolve(tx_hash) {
+                PoolResolution::Pending => Ok(QaPoolVoteResult::Pending),
+                PoolResolution::Reject => Ok(QaPoolVoteResult::Rejected),
+                PoolResolution::Allow(_) => Ok(QaPoolVoteResult::Pending),
+            };
+        }
         match self.qa_pool.resolve(tx_hash) {
             PoolResolution::Pending => Ok(QaPoolVoteResult::Pending),
             PoolResolution::Reject => Ok(QaPoolVoteResult::Rejected),
@@ -882,6 +932,22 @@ impl BoingNode {
                 }
             }
         }
+    }
+
+    /// Record a signed on-chain QA vote in the local pool (for RPC listing) after mempool admission.
+    pub fn note_on_chain_qa_vote(
+        &self,
+        subject: Hash,
+        voter: AccountId,
+        vote: QaPoolVoteKind,
+    ) -> Result<(), PoolError> {
+        let qv = match vote {
+            QaPoolVoteKind::Allow => QaPoolVote::Allow,
+            QaPoolVoteKind::Reject => QaPoolVote::Reject,
+            QaPoolVoteKind::Abstain => QaPoolVote::Abstain,
+        };
+        let stake = self.state.get(&voter).map(|s| s.stake);
+        self.qa_pool.vote(subject, voter, qv, stake)
     }
 
     fn apply_qa_pool_expirations(&self) {

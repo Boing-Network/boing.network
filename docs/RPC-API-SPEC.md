@@ -77,9 +77,11 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 
 **`boing_getNetworkInfo`** (params **`[]`**) returns a single JSON object for wallets and dApps: committed tip fields (same as **`boing_getSyncState`**), target block time, **`client_version`**, optional **`chain_id`** / **`chain_name`** from environment (see below), consensus summary (**`validator_count`**, **`model`**), **`native_currency`**, **`chain_native`** (chain-wide sums over the committed account table), **`developer`** (doc URLs, npm package id, WebSocket **`/ws`** handshake, and API discovery method names), and an explicit **`rpc.not_available`** list.
 
-**`chain_native`:** **`account_count`**, **`total_balance`**, **`total_stake`**, and **`total_native_held`** are **u128 decimal strings** (same style as **`boing_getAccount`**). They are the **sum** of per-account **`balance`** / **`stake`** in this node’s committed state — **not** “circulating supply”, “total minted”, or treasury definitions. **`as_of_height`** is the committed tip height those sums match.
+**`chain_native`:** **`account_count`**, **`total_balance`**, **`total_stake`**, and **`total_native_held`** are **u128 decimal strings** (same style as **`boing_getAccount`**). They are the **sum** of per-account **`balance`** / **`stake`** in this node’s committed state — **not** “circulating supply” or “total minted”. **`as_of_height`** is the committed tip height those sums match.
 
-**Important:** Public JSON-RPC still does **not** expose **staking APY** or protocol-defined **network-wide supply** (mint/burn/treasury). The node lists remaining gaps under **`rpc.not_available`** (today **`staking_apy`**) and **`rpc.not_available_note`**. **Per-account** balance and stake remain available via **`boing_getAccount`** (and **`boing_getBalance`** for balance only).
+**`treasury`:** Canonical protocol treasury account **`0x5452454153555259000000000000000000000000000000000000000000000001`** (`PROTOCOL_TREASURY`), current **`balance`**, and the effective **`fee_policy`** (same object as **`boing_getNetworkFeePolicy`**). Native tx fees default to **100% treasury**; mining (block emission) still credits the round proposer.
+
+**Important:** Public JSON-RPC still does **not** expose **staking APY** or a protocol-defined **circulating supply**. The node lists remaining gaps under **`rpc.not_available`** (today **`staking_apy`**) and **`rpc.not_available_note`**. **Per-account** balance and stake remain available via **`boing_getAccount`**.
 
 **Operator environment (optional):**
 
@@ -142,7 +144,7 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 
 Current `boing-node` implements these JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
 
-`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_resolveSlashAppeal`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`.
+`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkFeePolicy`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_resolveSlashAppeal`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`.
 
 **Implementation:** `BOING_RPC_SUPPORTED_METHODS` in `crates/boing-node/src/rpc.rs` — keep this list, the router match arms, and this spec in sync when adding a method.
 
@@ -165,11 +167,11 @@ Submit a signed transaction to the mempool.
 
 **Result (success):** `{ "tx_hash": "ok" }` — current **`boing-node`** uses the literal **`"ok"`** when the tx is accepted into the mempool (not a 32-byte transaction id). Track inclusion via **`boing_getBlockByHeight`** / receipts / account nonce, or compute the signable **`tx_id`** client-side from the signed payload if your tooling needs a stable hex.
 
-**QA pool (Unsure):** If mempool QA returns Unsure **and** governance allows the pool to accept work (`qa_pool_config`: non-zero `max_pending_items` and either `administrators` or `dev_open_voting`), the node enqueues the deployment and responds with **`-32051`** and `data: { "tx_hash": "0x..." }`. **Governance-listed administrators** vote via `boing_qaPoolVote`. Hard caps (`max_pending_items`, `max_pending_per_deployer`) prevent pool congestion; when full, **`-32055`** / **`-32056`** apply instead of enqueueing.
+**QA pool (Unsure):** If mempool QA returns Unsure **and** governance allows the pool to accept work (`qa_pool_config`: non-zero `max_pending_items` and `public_membership`, `administrators`, or `dev_open_voting`), the node enqueues the deployment and responds with **`-32051`** and `data: { "tx_hash": "0x..." }`. The same signed deploy is **gossiped** so peers can enqueue it. With **`public_membership`**, the node also admits the deploy for inclusion so apply can register it on-chain (no contract created until quorum Allow). Voters submit a signed **`QaPoolVote`** transaction (via `boing_submitTransaction` or as the 4th param to `boing_qaPoolVote`). Hard caps (`max_pending_items`, `max_pending_per_deployer`) prevent pool congestion; when full, **`-32055`** / **`-32056`** apply instead of enqueueing.
 
-**Operator RPC (optional):** When the node process has environment variable **`BOING_OPERATOR_RPC_TOKEN`** set to a non-empty string, **`boing_qaPoolVote`** and **`boing_operatorApplyQaPolicy`** require HTTP header **`X-Boing-Operator: <same token>`**. If the variable is unset, behavior matches earlier releases (no header check). Use this on any RPC endpoint reachable from untrusted networks so pool votes cannot be triggered by spoofing an admin hex alone.
+**Operator RPC (optional):** When the node process has environment variable **`BOING_OPERATOR_RPC_TOKEN`** set to a non-empty string, **`boing_operatorApplyQaPolicy`**, **`boing_operatorApplyFeePolicy`**, and **admin-only** **`boing_qaPoolVote`** require HTTP header **`X-Boing-Operator: <same token>`**. **`public_membership` QA votes do not use the operator header** — eligibility is protocol-side (signed vote tx; `-32053` if ineligible). If the variable is unset, admin-only votes match earlier releases (no header check).
 
-**Does the pool need RPC to “run”?** No. The node **owns** the pool: when QA returns Unsure and governance allows it, enqueueing happens inside normal transaction/mempool handling (`boing_submitTransaction` may return **`-32051`**). No operator client is required for items to enter the queue or for the node to age them out per config. JSON-RPC is how **operators** *inspect and change* the pool—**`boing_qaPoolList`**, **`boing_qaPoolConfig`**, **`boing_qaPoolVote`**, **`boing_operatorApplyQaPolicy`**. For routine governance work, the **Boing Network desktop hub** (QA operator view) calls those methods over HTTP, so a terminal or **`boing` CLI** is optional (CLI remains useful for scripts and file-based `boing qa apply`).
+**Does the pool need RPC to “run”?** No. The node **owns** the pool: when QA returns Unsure and governance allows it, enqueueing happens inside normal transaction/mempool handling (`boing_submitTransaction` may return **`-32051`**). JSON-RPC is how clients *inspect and vote*—**`boing_qaPoolList`**, **`boing_qaPoolConfig`**, **`boing_qaPoolVote`**. Policy changes use **`boing_operatorApplyQaPolicy`**. Explorers and wallets are **read-and-submit clients only**; they must not scrape fees or pay voters. Voter rewards are credited in **apply** from [`PROTOCOL_TREASURY`](QUALITY-ASSURANCE-NETWORK.md).
 
 ---
 
@@ -255,14 +257,40 @@ List pending items in the community QA pool (same `tx_hash` keys as `-32051`).
 
 ### boing_qaPoolVote
 
-Cast a vote on a pending pool item. When quorum and allow/reject thresholds are met, the item is resolved; on **Allow**, the stored signed transaction is inserted into the mempool.
+Cast a vote on a pending pool item.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Params | `[tx_hash_hex, voter_hex, vote]` | `vote` is `allow`, `reject`, or `abstain` (case-insensitive). Only accounts listed in governance `qa_pool_config.administrators` may vote, unless `dev_open_voting` is true with an empty admin list (local dev). |
-| Result | `{ outcome: "pending" \| "reject" \| "allow", mempool?: boolean, duplicate?: boolean, error?: string }` | On `allow` with `mempool: true`, the tx is in the mempool. |
+| Params | `[tx_hash_hex, voter_hex, vote]` or `[tx_hash_hex, voter_hex, vote, signed_vote_tx_hex]` | `vote` is `allow`, `reject`, or `abstain` (case-insensitive). **`public_membership`:** any 32-byte account may vote, but the 4th param **must** be a hex-encoded signed `QaPoolVote` transaction (sender = `voter_hex`, payload subject/vote must match). **Admin-only** configs: listed `administrators` (or `dev_open_voting` with empty admins); operator header may apply. **`-32053`** if the voter is ineligible (not a member, deployer voting on their own item, or below `min_voter_stake`). **Anti-sybil:** one vote per account per item (later votes overwrite). **Abstain** does not count toward quorum and does **not** pay unless `pay_abstain` is true. |
+| Result | `{ outcome: "pending" \| "reject" \| "allow", mempool?: boolean, duplicate?: boolean, error?: string }` | On public membership, Allow/Reject **resolution and voter payouts happen in apply** when the signed vote tx is included. |
 
-**Errors:** `-32052` no pending item for `tx_hash`; `-32053` voter is not a governance QA administrator; **`-32057`** operator authentication required (see **Operator RPC** above).
+**Errors:** `-32052` no pending item; `-32053` voter ineligible; **`-32057`** operator authentication required for **admin-only** votes when the operator token is set.
+
+**Voter payout (apply):** When a signed `QaPoolVote` is included and that vote is counted toward a resolving quorum, each unpaid counted voter is credited `reward_per_counted_vote` BOING from `PROTOCOL_TREASURY` (pro-rata if the treasury is short). Explorers/wallets do not pay voters.
+
+---
+
+### boing_getNetworkFeePolicy
+
+Read the effective native fee policy (same JSON shape as `network_fee_config.json`).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[]` | None |
+| Result | object | `fee_validators_bps`, `fee_treasury_bps`, `fee_burn_bps` (must sum to 10000), `extra_fixed_fee` (u128 decimal string), `transfer_amount_bps`, `treasury_account` (`0x5452454153555259…0001`), `fee_formula`. |
+
+Default production policy: **100% of native fees to the protocol treasury** (0 / 10000 / 0). Block **emission** (mining rewards) still goes to the round **proposer**.
+
+---
+
+### boing_operatorApplyFeePolicy
+
+Replace the node’s native fee policy (persists `network_fee_config.json`). Requires **`X-Boing-Operator`** when **`BOING_OPERATOR_RPC_TOKEN`** is set.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[network_fee_config_json]` | One JSON string. |
+| Result | `{ ok: true }` | Policy applied. |
 
 ---
 
@@ -288,7 +316,7 @@ Read effective QA pool governance parameters and current queue depth (no params)
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[]` | None |
-| Result | object | `max_pending_items`, `max_pending_per_deployer`, `review_window_secs`, quorum/threshold fractions, `default_on_expiry`, `dev_open_voting`, `administrator_count`, `accepts_new_pending`, `pending_count`. |
+| Result | object | `max_pending_items`, `max_pending_per_deployer`, `review_window_secs`, quorum/threshold fractions, `default_on_expiry`, `dev_open_voting`, `public_membership`, `min_voter_stake`, `min_quorum_votes`, `reward_per_counted_vote`, `pay_abstain`, `administrator_count`, `accepts_new_pending`, `pending_count`. |
 
 ---
 
@@ -853,11 +881,11 @@ Request testnet BOING for an account. Only available when the node is started wi
 | -32050 | **QA: Deployment rejected** — Transaction rejected by protocol QA (e.g. bytecode or purpose rule). Response SHOULD include `data: { rule_id: string, message: string }` for structured feedback. See [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md). |
 | -32051 | **QA: Pending pool** — Deployment referred to governance QA pool (result: Unsure). Response includes `data: { tx_hash: string }` (hex). |
 | -32052 | **QA pool** — No pending item for the given `tx_hash`. |
-| -32053 | **QA pool** — Voter is not a governance QA administrator. |
-| -32054 | **QA pool disabled** — Governance has not enabled the pool (e.g. no `administrators` and `dev_open_voting` false, or `max_pending_items` is 0). |
+| -32053 | **QA pool** — Voter is not eligible (not a member / public-membership gate, deployer voting on their own item, or below `min_voter_stake`). |
+| -32054 | **QA pool disabled** — Governance has not enabled the pool (`max_pending_items` is 0, or none of `public_membership` / `dev_open_voting` / `administrators`). |
 | -32055 | **QA pool full** — Global `max_pending_items` reached; optional `data.reason: "pool_full"`. |
 | -32056 | **QA pool deployer cap** — Sender exceeded `max_pending_per_deployer`; optional `data.reason: "deployer_cap"`. |
-| -32057 | **Operator RPC auth** — `boing_qaPoolVote` or `boing_operatorApplyQaPolicy` called without valid `X-Boing-Operator` while `BOING_OPERATOR_RPC_TOKEN` is set on the node. |
+| -32057 | **Operator RPC auth** — `boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`, or **admin-only** `boing_qaPoolVote` called without valid `X-Boing-Operator` while `BOING_OPERATOR_RPC_TOKEN` is set. |
 
 ---
 

@@ -380,6 +380,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | ContractDeploy | 200,000 |
 | Bond | 21,000 |
 | Unbond | 21,000 |
+| QaPoolVote | 21,000 |
 
 ### 8.2 Opcode Gas
 
@@ -401,15 +402,27 @@ fee = ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)
 // A Transfer (21_000 gas) costs 1 BOING. Native token init (~200k–400k gas) costs ~10–20 BOING.
 ```
 
-The fee is deducted from the sender and split:
+Optional governance extras (`network_fee_config.json`): **`extra_fixed_fee`** (u128) and **`transfer_amount_bps`** on Transfer amounts. Full charged amount:
 
-| Share | BPS | Destination |
-|-------|-----|-------------|
-| Validators | 7000 (70%) | Block proposer (`fee_recipient`) |
-| Treasury | 2000 (20%) | `PROTOCOL_TREASURY` |
-| Burn | 1000 (10%) | `FEE_BURN_SINK` (protocol burn account) |
+```text
+fee = ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)
+    + extra_fixed_fee
+    + (transfer_amount × transfer_amount_bps / 10_000)
+```
 
-Integer remainders from the BPS split are added to the validator share so parts always sum to `fee`. Failed transactions do not charge fees. There is no per-tx `gas_price` field yet (fixed network price).
+The fee is deducted from the sender and split by **`NetworkFeePolicy`** (defaults **100% treasury**):
+
+| Share | Default BPS | Destination |
+|-------|-------------|-------------|
+| Validators | 0 | Block proposer (`fee_recipient`) |
+| Treasury | 10000 (100%) | `PROTOCOL_TREASURY` (`0x5452454153555259…0001`) |
+| Burn | 0 | `FEE_BURN_SINK` |
+
+BPS values must sum to 10_000. Integer remainders from the split are added to the **treasury** share. **Fail closed:** if the sender cannot cover fee + transfer, apply reverts and consumes the nonce. Failed transactions do not charge fees. There is no per-tx `gas_price` field yet (fixed network price).
+
+**Mining vs fees:** Block **emission** still mints to the round **proposer** (`BLOCK_EMISSION_PROPOSER_BPS`, independent of the fee split). If one operator runs every validator, that operator’s proposer accounts receive 100% of emission; **gas still defaults to the treasury**.
+
+QA counted-voter rewards are paid from `PROTOCOL_TREASURY` in apply — see [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) §8.1. RPC: **`boing_getNetworkFeePolicy`**, **`boing_operatorApplyFeePolicy`**, **`boing_getNetworkInfo.treasury`**.
 
 ## 9. Protocol QA Rules
 
@@ -465,7 +478,8 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 | `boing_rpcSupportedMethods` | `[]` | string[] — sorted `boing_*` names |
 | `boing_health` | `[]` | `{ ok, client_version, chain_id?, chain_name?, head_height, rpc_surface, rpc_metrics }` |
 | `boing_getSyncState` | `[]` | `{ head_height, finalized_height, latest_block_hash }` |
-| `boing_getNetworkInfo` | `[]` | Chain metadata, tip, `chain_native`, `developer`, `rpc_surface`, `end_user`, `rpc.not_available`, … |
+| `boing_getNetworkInfo` | `[]` | Chain metadata, tip, `chain_native`, **`treasury`**, `developer`, `rpc_surface`, `end_user`, `rpc.not_available`, … |
+| `boing_getNetworkFeePolicy` | `[]` | Native fee split + extra levies + treasury account |
 | `boing_getRpcMethodCatalog` | `[]` | Embedded method catalog (JSON Schema–style hints) |
 | `boing_getRpcOpenApi` | `[]` | OpenAPI 3.1 root for `POST /`, `GET /ws`, probes |
 | `boing_getBalance` | `[hex_account_id]` | `{ balance: string }` |
@@ -485,8 +499,9 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 | `boing_qaPoolList` | `[]` | `{ items: [...] }` |
 | `boing_qaPoolConfig` | `[]` | Pool governance + queue snapshot |
 | `boing_getQaRegistry` | `[]` | Effective QA rule registry JSON |
-| `boing_qaPoolVote` | `[tx_hash_hex, voter_hex, vote]` | Vote outcome object |
+| `boing_qaPoolVote` | `[tx_hash_hex, voter_hex, vote]` or 4th signed `QaPoolVote` hex | Vote outcome object; **-32053** if ineligible |
 | `boing_operatorApplyQaPolicy` | `[qa_registry_json, qa_pool_config_json]` | `{ ok: true }` (operator auth when configured) |
+| `boing_operatorApplyFeePolicy` | `[network_fee_config_json]` | `{ ok: true }` (operator auth when configured) |
 | `boing_faucetRequest` | `[hex_account_id]` | `{ ok: true, amount, to, message }` (only when `--faucet-enable`) |
 
 ### 11.3 Error Codes

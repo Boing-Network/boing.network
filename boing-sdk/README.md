@@ -98,7 +98,8 @@ try {
   - **Fixed contract submitter** — `createNativeContractSubmitter({ client, secretKey32, senderHex, contractHex, accessList? })` → `.submitCalldata(bytes)`
   - `registerDappMetrics(hexContract, hexOwner)`, `submitIntent(hexSignedIntent)`
   - `qaCheck(hexBytecode, purposeCategory?, descriptionHash?, assetName?, assetSymbol?)` — pre-flight QA without submitting (same param order as node `boing_qaCheck`)
-  - `qaPoolList()`, `qaPoolConfig()`, `qaPoolVote(txHashHex, voterHex, vote)` — governance QA pool for Unsure deploys
+  - `qaPoolList()`, `qaPoolConfig()`, `qaPoolVote(txHashHex, voterHex, vote, signedVoteTxHex?)` — QA pool for Unsure deploys (`public_membership` requires a signed `QaPoolVote` tx)
+  - `getNetworkFeePolicy()`, `operatorApplyFeePolicy(json)` — native fee split / treasury levies
   - `faucetRequest(hexAccountId)` — testnet only
 - **BoingRpcError** — `code`, `message`, `data`, `method`; `isQaRejected`, `isQaPendingPool`, `pendingPoolTxHash`, `isQaPoolDisabled`, `isQaPoolFull`, `isQaPoolDeployerCap`, `qaData`; `toString()` for logging.
 - **Hex helpers** — `ensureHex`, `bytesToHex`, `hexToBytes`, `accountIdToHex`, `hexToAccountId`, `validateHex32`, **`isBoingNativeAccountIdHex`** (32-byte account id check for multi-wallet wizards).

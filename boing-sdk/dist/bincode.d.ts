@@ -13,6 +13,7 @@ export declare const PayloadVariant: {
     readonly Bond: 5;
     readonly Unbond: 6;
     readonly ClaimUnbond: 7;
+    readonly QaPoolVote: 8;
 };
 export declare function concatBytes(...parts: Uint8Array[]): Uint8Array;
 export declare function writeU32Le(n: number): Uint8Array;
@@ -64,6 +65,10 @@ export type TransactionPayloadInput = {
     amount: bigint;
 } | {
     kind: 'claimUnbond';
+} | {
+    kind: 'qaPoolVote';
+    subject: Uint8Array;
+    vote: 'allow' | 'reject' | 'abstain';
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

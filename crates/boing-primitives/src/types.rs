@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::hash::{Hash, hasher};
 
 /// Account identifier (32 bytes, typically derived from pubkey).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct AccountId(pub [u8; 32]);
 
@@ -128,6 +128,9 @@ impl Transaction {
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => "Deploy contract".into(),
+            TransactionPayload::QaPoolVote { subject, vote } => {
+                format!("QA pool vote {:?} on {}", vote, hex::encode(&subject.0[..8]))
+            }
         };
         if self.payload.deploy_create2_salt().is_some() {
             payload_str = format!("{payload_str} (salt-derived)");
@@ -175,7 +178,8 @@ impl Transaction {
             } => suggested_access_list_for_contract_deploy(self.sender, bytecode, *create2_salt),
             TransactionPayload::Bond { .. }
             | TransactionPayload::Unbond { .. }
-            | TransactionPayload::ClaimUnbond => {
+            | TransactionPayload::ClaimUnbond
+            | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
         }
@@ -228,6 +232,21 @@ pub enum TransactionPayload {
     Unbond { amount: u128 },
     /// Claim matured `pending_unbond` into `balance` once `unbond_unlock_height` is reached.
     ClaimUnbond,
+    /// Signed QA pool vote on a pending Unsure deploy (`subject` = that deploy's `tx.id()`).
+    /// Appended last so existing bincode discriminants stay stable.
+    QaPoolVote {
+        subject: Hash,
+        vote: QaPoolVoteKind,
+    },
+}
+
+/// Allow / Reject / Abstain for [`TransactionPayload::QaPoolVote`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum QaPoolVoteKind {
+    Allow,
+    Reject,
+    Abstain,
 }
 
 /// Borrowed fields exposed by [`TransactionPayload::as_contract_deploy`].

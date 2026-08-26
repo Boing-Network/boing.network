@@ -38,6 +38,13 @@ fn main() {
     let p = bincode::serialize(&claim).unwrap();
     println!("ClaimUnbond: len={} hex={}", p.len(), hex::encode(&p));
 
+    let qv = TransactionPayload::QaPoolVote {
+        subject: boing_primitives::Hash([3u8; 32]),
+        vote: boing_primitives::QaPoolVoteKind::Allow,
+    };
+    let p = bincode::serialize(&qv).unwrap();
+    println!("QaPoolVote: len={} hex={}", p.len(), hex::encode(&p));
+
     let dwp = TransactionPayload::ContractDeployWithPurpose {
         bytecode: vec![0xab],
         purpose_category: "defi".to_string(),

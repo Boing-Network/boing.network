@@ -1,7 +1,8 @@
-//! Governance JSON for the Unsure QA pool — administrators, anti-congestion caps, vote thresholds.
+//! Governance JSON for the Unsure QA pool — membership, anti-congestion caps, vote thresholds, voter rewards.
 //!
 //! Apply via governance proposal `target_key` [`GOVERNANCE_QA_POOL_CONFIG_KEY`] or load from `qa_pool_config.json` on the node.
-//! Only listed **administrators** may vote unless `dev_open_voting` is true (local dev / testnet).
+//! Production public membership (`public_membership`) lets any 32-byte account call `boing_qaPoolVote`;
+//! `dev_open_voting` remains a local-dev shortcut when administrators are empty.
 
 use boing_primitives::AccountId;
 use serde::{Deserialize, Serialize};
@@ -35,10 +36,19 @@ fn default_threshold() -> f64 {
     2.0 / 3.0
 }
 
-/// Serializable governance payload for the QA pool. Keeps the queue **bounded** so administrator review cannot be flooded.
+fn default_min_quorum_votes() -> u32 {
+    3
+}
+
+fn default_reward_per_counted_vote() -> u128 {
+    1
+}
+
+/// Serializable governance payload for the QA pool. Keeps the queue **bounded** so review cannot be flooded.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct QaPoolGovernanceConfig {
-    /// 32-byte account IDs as hex strings (optional `0x`). Only these accounts may vote when `dev_open_voting` is false.
+    /// 32-byte account IDs as hex strings (optional `0x`). Used when `public_membership` is false
+    /// (and `dev_open_voting` is false or admins are non-empty).
     #[serde(default)]
     pub administrators: Vec<String>,
     /// Max concurrent pending Unsure items globally. **Anti-congestion:** when reached, new Unsure submissions are refused.
@@ -59,8 +69,26 @@ pub struct QaPoolGovernanceConfig {
     #[serde(default)]
     pub default_on_expiry: QaPoolExpiryPolicy,
     /// When true **and** `administrators` is empty, any account may vote (development / open testnet only).
+    /// Prefer [`Self::public_membership`] for production.
     #[serde(default)]
     pub dev_open_voting: bool,
+    /// Production public-membership model: any 32-byte account may vote (subject to eligibility).
+    #[serde(default)]
+    pub public_membership: bool,
+    /// Minimum active stake required to vote when `public_membership` is true (`0` = no stake gate).
+    #[serde(default)]
+    pub min_voter_stake: u128,
+    /// Absolute minimum Allow+Reject votes to meet quorum under public membership (anti-sybil vs electorate size 1).
+    #[serde(default = "default_min_quorum_votes")]
+    pub min_quorum_votes: u32,
+    /// Whole-BOING paid from the protocol treasury to each counted voter when a vote is applied
+    /// toward quorum. `0` disables payouts.
+    #[serde(default = "default_reward_per_counted_vote")]
+    pub reward_per_counted_vote: u128,
+    /// If true, Abstain is paid the same as Allow/Reject. Default false: abstain does **not** pay
+    /// and does **not** count toward quorum.
+    #[serde(default)]
+    pub pay_abstain: bool,
 }
 
 impl Default for QaPoolGovernanceConfig {
@@ -75,17 +103,27 @@ impl Default for QaPoolGovernanceConfig {
             reject_threshold_fraction: default_threshold(),
             default_on_expiry: QaPoolExpiryPolicy::Reject,
             dev_open_voting: false,
+            public_membership: false,
+            min_voter_stake: 0,
+            min_quorum_votes: default_min_quorum_votes(),
+            reward_per_counted_vote: default_reward_per_counted_vote(),
+            pay_abstain: false,
         }
     }
 }
 
 impl QaPoolGovernanceConfig {
-    /// Production-style defaults: admin-only, bounded queue. **Administrators must be set** (empty list ⇒ pool will not accept Unsure until governance fills this).
+    /// Production defaults: public membership, bounded queue, 3-vote quorum floor, 1 BOING per counted vote.
     pub fn production_default() -> Self {
-        Self::default()
+        Self {
+            public_membership: true,
+            min_quorum_votes: default_min_quorum_votes(),
+            reward_per_counted_vote: default_reward_per_counted_vote(),
+            ..Self::default()
+        }
     }
 
-    /// Local tests and dev nodes: open voting, generous caps.
+    /// Local tests and dev nodes: open voting, generous caps, 1-vote quorum (legacy `dev_open_voting`).
     pub fn development_default() -> Self {
         Self {
             administrators: Vec::new(),
@@ -97,6 +135,11 @@ impl QaPoolGovernanceConfig {
             reject_threshold_fraction: 2.0 / 3.0,
             default_on_expiry: QaPoolExpiryPolicy::Reject,
             dev_open_voting: true,
+            public_membership: false,
+            min_voter_stake: 0,
+            min_quorum_votes: 1,
+            reward_per_counted_vote: 0,
+            pay_abstain: false,
         }
     }
 
@@ -113,20 +156,53 @@ impl QaPoolGovernanceConfig {
         if self.max_pending_items == 0 {
             return false;
         }
-        self.dev_open_voting || !self.administrator_accounts().is_empty()
+        self.public_membership
+            || self.dev_open_voting
+            || !self.administrator_accounts().is_empty()
     }
 
-    /// True if `voter` may cast a pool vote under this config.
+    /// Membership gate (ignores stake and deployer conflict). Used by the in-memory pool.
     pub fn voter_may_vote(&self, voter: AccountId) -> bool {
+        self.voter_eligibility(voter, None, None).is_ok()
+    }
+
+    /// Full eligibility: membership, optional min stake, deployer cannot vote on their own item.
+    pub fn voter_eligibility(
+        &self,
+        voter: AccountId,
+        deployer: Option<AccountId>,
+        voter_stake: Option<u128>,
+    ) -> Result<(), QaVoterIneligible> {
+        if let Some(d) = deployer {
+            if d == voter {
+                return Err(QaVoterIneligible::DeployerConflict);
+            }
+        }
+        if self.public_membership {
+            if self.min_voter_stake > 0 {
+                let stake = voter_stake.unwrap_or(0);
+                if stake < self.min_voter_stake {
+                    return Err(QaVoterIneligible::InsufficientStake);
+                }
+            }
+            return Ok(());
+        }
         let admins = self.administrator_accounts();
         if self.dev_open_voting && admins.is_empty() {
-            return true;
+            return Ok(());
         }
-        admins.contains(&voter)
+        if admins.contains(&voter) {
+            return Ok(());
+        }
+        Err(QaVoterIneligible::NotMember)
     }
 
-    /// Effective electorate size for quorum math (minimum 1 when open mode).
+    /// Effective electorate size for quorum math.
+    /// Public membership uses `min_quorum_votes` as the denominator (not an unbounded public set).
     pub fn effective_electorate_size(&self) -> usize {
+        if self.public_membership {
+            return (self.min_quorum_votes as usize).max(1);
+        }
         let admins = self.administrator_accounts();
         if self.dev_open_voting && admins.is_empty() {
             1
@@ -134,6 +210,43 @@ impl QaPoolGovernanceConfig {
             admins.len().max(1)
         }
     }
+
+    /// Allow/Reject/Pending from counted votes (Abstain already excluded from `allow`/`reject`).
+    pub fn quorum_decision(&self, allow: usize, reject: usize) -> QaQuorumDecision {
+        let total = allow.saturating_add(reject);
+        let electorate = self.effective_electorate_size().max(1);
+        if (total as f64 / electorate as f64) < self.quorum_fraction {
+            return QaQuorumDecision::Pending;
+        }
+        if total == 0 {
+            return QaQuorumDecision::Pending;
+        }
+        let allow_ratio = allow as f64 / total as f64;
+        let reject_ratio = reject as f64 / total as f64;
+        if allow_ratio >= self.allow_threshold_fraction {
+            return QaQuorumDecision::Allow;
+        }
+        if reject_ratio >= self.reject_threshold_fraction {
+            return QaQuorumDecision::Reject;
+        }
+        QaQuorumDecision::Pending
+    }
+}
+
+/// Outcome of [`QaPoolGovernanceConfig::quorum_decision`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QaQuorumDecision {
+    Pending,
+    Allow,
+    Reject,
+}
+
+/// Why a voter cannot cast a QA pool vote.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QaVoterIneligible {
+    NotMember,
+    DeployerConflict,
+    InsufficientStake,
 }
 
 fn parse_account_hex(s: &str) -> Option<AccountId> {
@@ -161,14 +274,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn production_does_not_accept_without_admins() {
+    fn production_accepts_with_public_membership() {
         let c = QaPoolGovernanceConfig::production_default();
-        assert!(!c.accepts_new_pending());
+        assert!(c.accepts_new_pending());
+        assert!(c.public_membership);
+        assert!(c.voter_may_vote(AccountId::from_bytes([9u8; 32])));
+        assert_eq!(c.effective_electorate_size(), 3);
     }
 
     #[test]
     fn development_accepts_with_open_voting() {
         let c = QaPoolGovernanceConfig::development_default();
         assert!(c.accepts_new_pending());
+        assert!(!c.public_membership);
+    }
+
+    #[test]
+    fn deployer_cannot_vote_on_own_item() {
+        let c = QaPoolGovernanceConfig::production_default();
+        let d = AccountId::from_bytes([1u8; 32]);
+        assert_eq!(
+            c.voter_eligibility(d, Some(d), Some(0)),
+            Err(QaVoterIneligible::DeployerConflict)
+        );
+    }
+
+    #[test]
+    fn min_stake_gate() {
+        let mut c = QaPoolGovernanceConfig::production_default();
+        c.min_voter_stake = 100;
+        let v = AccountId::from_bytes([2u8; 32]);
+        assert_eq!(
+            c.voter_eligibility(v, None, Some(0)),
+            Err(QaVoterIneligible::InsufficientStake)
+        );
+        assert!(c.voter_eligibility(v, None, Some(100)).is_ok());
     }
 }

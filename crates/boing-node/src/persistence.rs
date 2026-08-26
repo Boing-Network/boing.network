@@ -9,7 +9,8 @@ use boing_primitives::{AccountId, AccountState, Block, ExecutionReceipt, Hash};
 use boing_qa::pool_config::QaPoolGovernanceConfig;
 use boing_qa::RuleRegistry;
 use boing_governance::SlashRegistry;
-use boing_state::{ContractStorageEntry, StateStore};
+use boing_state::{ContractStorageEntry, QaPendingRecord, StateStore};
+use boing_tokenomics::NetworkFeePolicy;
 
 use crate::chain::ChainState;
 
@@ -20,6 +21,8 @@ const STATE_DIR: &str = "state";
 const STATE_FILE: &str = "accounts.bin";
 const QA_REGISTRY_FILE: &str = "qa_registry.json";
 const QA_POOL_CONFIG_FILE: &str = "qa_pool_config.json";
+const NETWORK_FEE_CONFIG_FILE: &str = "network_fee_config.json";
+const QA_PENDING_FILE: &str = "qa_pending.bin";
 const SLASH_REGISTRY_FILE: &str = "slash_registry.json";
 
 /// Chain metadata stored on disk.
@@ -164,6 +167,10 @@ impl Persistence {
         let bytes = bincode::serialize(&persisted)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
         std::fs::write(path, bytes)?;
+        let pending_path = self.state_dir().join(QA_PENDING_FILE);
+        let pending_bytes = bincode::serialize(&state.export_qa_pending())
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        std::fs::write(pending_path, pending_bytes)?;
         Ok(())
     }
 
@@ -283,6 +290,44 @@ impl Persistence {
         serde_json::from_slice(&bytes)
             .map(Some)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))
+    }
+
+    fn network_fee_config_path(&self) -> std::path::PathBuf {
+        self.base.join(NETWORK_FEE_CONFIG_FILE)
+    }
+
+    pub fn save_network_fee_config(
+        &self,
+        policy: &NetworkFeePolicy,
+    ) -> Result<(), PersistenceError> {
+        let json = serde_json::to_vec_pretty(policy)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        std::fs::write(self.network_fee_config_path(), json)?;
+        Ok(())
+    }
+
+    pub fn load_network_fee_config(&self) -> Result<Option<NetworkFeePolicy>, PersistenceError> {
+        let path = self.network_fee_config_path();
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = std::fs::read(&path)?;
+        serde_json::from_slice(&bytes)
+            .map(Some)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))
+    }
+
+    pub fn load_qa_pending(
+        &self,
+    ) -> Result<Option<Vec<(Hash, QaPendingRecord)>>, PersistenceError> {
+        let path = self.state_dir().join(QA_PENDING_FILE);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = std::fs::read(path)?;
+        let items: Vec<(Hash, QaPendingRecord)> = bincode::deserialize(&bytes)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        Ok(Some(items))
     }
 
     fn slash_registry_path(&self) -> std::path::PathBuf {

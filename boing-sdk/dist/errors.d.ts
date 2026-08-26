@@ -26,6 +26,8 @@ export declare class BoingRpcError extends Error {
     get isQaRejected(): boolean;
     /** True if deployment was referred to governance QA pool (-32051). */
     get isQaPendingPool(): boolean;
+    /** True if QA pool voter is ineligible (-32053). */
+    get isQaPoolVoterIneligible(): boolean;
     /** True if QA pool is disabled by governance (-32054). */
     get isQaPoolDisabled(): boolean;
     /** True if QA pool hit global max pending (-32055). */

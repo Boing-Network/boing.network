@@ -283,7 +283,19 @@
       },
       {
         "name": "boing_qaPoolVote",
-        "summary": "Vote on a QA pool item (operator auth may apply).",
+        "summary": "Vote on a QA pool item. Public membership: 4th param signed QaPoolVote tx; admin-only may require operator header.",
+        "params": { "type": "array", "minItems": 1 },
+        "result": { "type": "object" }
+      },
+      {
+        "name": "boing_getNetworkFeePolicy",
+        "summary": "Native fee split and extra levies (treasury-first by default).",
+        "params": { "type": "array", "maxItems": 0 },
+        "result": { "type": "object" }
+      },
+      {
+        "name": "boing_operatorApplyFeePolicy",
+        "summary": "Replace network_fee_config (operator token).",
         "params": { "type": "array", "minItems": 1 },
         "result": { "type": "object" }
       },

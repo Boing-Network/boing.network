@@ -46,7 +46,7 @@ use crate::node::{BoingNode, QaPoolVoteResult};
 use crate::security::RateLimitConfig;
 use boing_primitives::{
     create2_contract_address, nonce_derived_contract_address, AccessList, Account, AccountId,
-    AccountState, ExecutionLog, ExecutionReceipt, Hash, SignedIntent, SignedTransaction,
+    AccountState, ExecutionLog, ExecutionReceipt, Hash, QaPoolVoteKind, SignedIntent, SignedTransaction,
     Transaction, TransactionPayload, MAX_EXECUTION_LOG_TOPICS,
 };
 use boing_qa::pool::{PoolError, QaPoolVote};
@@ -54,7 +54,7 @@ use boing_qa::{
     check_contract_deploy_full_with_metadata, qa_pool_config_from_json, rule_registry_from_json,
     QaPoolExpiryPolicy, QaResult,
 };
-use boing_tokenomics::BLOCK_TIME_SECS;
+use boing_tokenomics::{network_fee_policy_from_json, NetworkFeePolicy, BLOCK_TIME_SECS, PROTOCOL_TREASURY, PROTOCOL_TREASURY_HEX};
 
 /// Shared node state for RPC and validator loop.
 pub type NodeState = Arc<RwLock<BoingNode>>;
@@ -76,7 +76,9 @@ pub struct RpcState {
     pub faucet_signer: Option<Arc<ed25519_dalek::SigningKey>>,
     pub faucet_cooldown: Option<FaucetCooldown>,
     pub faucet_submit_lock: Option<FaucetSubmitLock>,
-    /// When set, `boing_qaPoolVote` and `boing_operatorApplyQaPolicy` require header `X-Boing-Operator: <token>`.
+    /// When set, `boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`, and
+    /// **admin-only** `boing_qaPoolVote` require header `X-Boing-Operator: <token>`.
+    /// Public-membership QA votes do not use this header.
     pub operator_rpc_token: Option<Arc<str>>,
     /// Broadcast channel for WebSocket **`/ws`** **newHeads** subscribers (clone per connection).
     pub head_broadcast: Option<broadcast::Sender<serde_json::Value>>,
@@ -321,6 +323,18 @@ fn execution_receipt_to_json(r: &ExecutionReceipt) -> serde_json::Value {
     })
 }
 
+fn fee_policy_json(p: &NetworkFeePolicy) -> serde_json::Value {
+    serde_json::json!({
+        "fee_validators_bps": p.fee_validators_bps,
+        "fee_treasury_bps": p.fee_treasury_bps,
+        "fee_burn_bps": p.fee_burn_bps,
+        "extra_fixed_fee": p.extra_fixed_fee.to_string(),
+        "transfer_amount_bps": p.transfer_amount_bps,
+        "treasury_account": format!("0x{}", PROTOCOL_TREASURY_HEX),
+        "fee_formula": "network_fee = ceil(gas_used * GAS_PRICE / GAS_UNITS_PER_BOING) + extra_fixed_fee + (transfer_amount * transfer_amount_bps / 10000)",
+    })
+}
+
 fn parse_hash32_hex(s: &str) -> Result<Hash, String> {
     let bytes = hex::decode(s.trim_start_matches("0x")).map_err(|e| e.to_string())?;
     if bytes.len() != 32 {
@@ -393,6 +407,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getContractStorage",
     "boing_getDexToken",
     "boing_getLogs",
+    "boing_getNetworkFeePolicy",
     "boing_getNetworkInfo",
     "boing_getQaRegistry",
     "boing_getRpcMethodCatalog",
@@ -403,6 +418,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_listDexPools",
     "boing_listDexTokens",
     "boing_listSlashRecords",
+    "boing_operatorApplyFeePolicy",
     "boing_operatorApplyQaPolicy",
     "boing_qaCheck",
     "boing_qaPoolConfig",
@@ -1133,14 +1149,17 @@ async fn dispatch_jsonrpc_request(
                                 }
                                 rpc_error_with_data(id, -32050, format!("Deployment rejected by QA: {}", r.message), data)
                             }
-                            Err(MempoolError::QaPendingPool(tx_hash)) => rpc_error_with_data(
+                            Err(MempoolError::QaPendingPool(tx_hash)) => {
+                                let _ = n.p2p.broadcast_signed_transaction(&gossip_copy);
+                                rpc_error_with_data(
                                 id,
                                 -32051,
                                 "Deployment referred to community QA pool.".into(),
                                 serde_json::json!({
                                     "tx_hash": format!("0x{}", hex::encode(tx_hash.0)),
                                 }),
-                            ),
+                            )
+                            }
                             Err(MempoolError::QaPoolEnqueue(msg)) => {
                                 rpc_error(id, -32000, format!("QA pool enqueue failed: {}", msg))
                             }
@@ -1376,6 +1395,11 @@ async fn dispatch_jsonrpc_request(
                     "reject_threshold_fraction": cfg.reject_threshold_fraction,
                     "default_on_expiry": expiry,
                     "dev_open_voting": cfg.dev_open_voting,
+                    "public_membership": cfg.public_membership,
+                    "min_voter_stake": cfg.min_voter_stake.to_string(),
+                    "min_quorum_votes": cfg.min_quorum_votes,
+                    "reward_per_counted_vote": cfg.reward_per_counted_vote.to_string(),
+                    "pay_abstain": cfg.pay_abstain,
                     "administrator_count": cfg.administrator_accounts().len(),
                     "accepts_new_pending": cfg.accepts_new_pending(),
                     "pending_count": n.qa_pool.pending_len(),
@@ -1395,25 +1419,22 @@ async fn dispatch_jsonrpc_request(
             }
         }
         "boing_qaPoolVote" => {
-            if !state.operator_authorized(headers) {
-                return (StatusCode::OK, rpc_error(
-                        id,
-                        -32057,
-                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
-                            .into(),
-                    ),
-                );
-            }
             let params = req
                 .params
                 .and_then(|p| serde_json::from_value::<Vec<String>>(p).ok());
-            let (tx_hex, voter_hex, vote_s) = match params {
-                Some(v) if v.len() >= 3 => (v[0].clone(), v[1].clone(), v[2].clone()),
+            let (tx_hex, voter_hex, vote_s, signed_hex) = match params {
+                Some(v) if v.len() >= 4 => (
+                    v[0].clone(),
+                    v[1].clone(),
+                    v[2].clone(),
+                    Some(v[3].clone()),
+                ),
+                Some(v) if v.len() >= 3 => (v[0].clone(), v[1].clone(), v[2].clone(), None),
                 _ => {
                     return (StatusCode::OK, rpc_error(
                             id,
                             -32602,
-                            "Invalid params: expected [tx_hash_hex, voter_hex, allow|reject|abstain]".into(),
+                            "Invalid params: expected [tx_hash_hex, voter_hex, allow|reject|abstain] or [..., signed_vote_tx_hex]".into(),
                         ),
                     );
                 }
@@ -1430,6 +1451,78 @@ async fn dispatch_jsonrpc_request(
                 Ok(v) => v,
                 Err(e) => return (StatusCode::OK, rpc_error(id, -32602, e)),
             };
+            let public = {
+                let n = node.read().await;
+                n.qa_pool.governance_config().public_membership
+            };
+            if !public && !state.operator_authorized(headers) {
+                return (StatusCode::OK, rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            if public {
+                let Some(signed_hex) = signed_hex else {
+                    return (StatusCode::OK, rpc_error(
+                        id,
+                        -32602,
+                        "public_membership requires a 4th param: hex-encoded signed QaPoolVote transaction".into(),
+                    ));
+                };
+                let bytes = match hex::decode(signed_hex.trim_start_matches("0x")) {
+                    Ok(b) => b,
+                    Err(e) => return (StatusCode::OK, rpc_error(id, -32602, e.to_string())),
+                };
+                let signed: SignedTransaction = match bincode::deserialize(&bytes) {
+                    Ok(s) => s,
+                    Err(e) => return (StatusCode::OK, rpc_error(id, -32602, format!("invalid signed vote tx: {e}"))),
+                };
+                if signed.verify().is_err() {
+                    return (StatusCode::OK, rpc_error(id, -32602, "invalid vote transaction signature".into()));
+                }
+                if signed.tx.sender != voter {
+                    return (StatusCode::OK, rpc_error(id, -32602, "signed vote sender must equal voter_hex".into()));
+                }
+                let expected_kind = match vote {
+                    QaPoolVote::Allow => QaPoolVoteKind::Allow,
+                    QaPoolVote::Reject => QaPoolVoteKind::Reject,
+                    QaPoolVote::Abstain => QaPoolVoteKind::Abstain,
+                };
+                match &signed.tx.payload {
+                    TransactionPayload::QaPoolVote { subject, vote: kind }
+                        if *subject == tx_hash && *kind == expected_kind => {}
+                    _ => {
+                        return (StatusCode::OK, rpc_error(
+                            id,
+                            -32602,
+                            "signed payload must be QaPoolVote matching tx_hash and vote".into(),
+                        ));
+                    }
+                }
+                let gossip = signed.clone();
+                let n = node.read().await;
+                if let Err(e) = n.submit_transaction(signed) {
+                    return (
+                        StatusCode::OK,
+                        match e {
+                            MempoolError::InsufficientFee { have, need } => rpc_error_with_data(
+                                id,
+                                -32000,
+                                format!("insufficient balance for fee: have {have}, need {need}"),
+                                serde_json::json!({
+                                    "have": have.to_string(),
+                                    "need": need.to_string(),
+                                }),
+                            ),
+                            other => rpc_error(id, -32000, other.to_string()),
+                        },
+                    );
+                }
+                let _ = n.p2p.broadcast_signed_transaction(&gossip);
+            }
             let n = node.read().await;
             match n.qa_pool_vote(tx_hash, voter, vote) {
                 Ok(QaPoolVoteResult::Pending) => {
@@ -1458,7 +1551,7 @@ async fn dispatch_jsonrpc_request(
                 Err(PoolError::NotAdministrator) => rpc_error(
                     id,
                     -32053,
-                    "Voter is not a governance QA pool administrator.".into(),
+                    "Voter is not eligible to vote on this QA pool item.".into(),
                 ),
                 Err(e) => rpc_error(id, -32000, e.to_string()),
             }
@@ -1508,6 +1601,52 @@ async fn dispatch_jsonrpc_request(
             let mut n = node.write().await;
             n.set_qa_policy(registry, pool_cfg);
             info!("RPC: operator applied QA policy (registry + pool config)");
+            rpc_ok(id, serde_json::json!({ "ok": true }))
+        }
+        "boing_getNetworkFeePolicy" => {
+            let n = node.read().await;
+            let p = n.executor.fee_policy();
+            rpc_ok(id, fee_policy_json(p))
+        }
+        "boing_operatorApplyFeePolicy" => {
+            if !state.operator_authorized(headers) {
+                return (StatusCode::OK, rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            let params = req
+                .params
+                .and_then(|p| serde_json::from_value::<Vec<String>>(p).ok());
+            let json = match params {
+                Some(v) if !v.is_empty() => v[0].clone(),
+                _ => {
+                    return (StatusCode::OK, rpc_error(
+                            id,
+                            -32602,
+                            "Invalid params: expected [network_fee_config_json]".into(),
+                        ),
+                    );
+                }
+            };
+            let policy = match network_fee_policy_from_json(json.as_bytes()) {
+                Ok(p) => p,
+                Err(e) => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, format!("Invalid network_fee_config JSON: {}", e)),
+                    );
+                }
+            };
+            if let Err(e) = policy.validate() {
+                return (StatusCode::OK, rpc_error(id, -32602, e));
+            }
+            let mut n = node.write().await;
+            n.set_fee_policy(policy);
+            info!("RPC: operator applied network fee policy");
             rpc_ok(id, serde_json::json!({ "ok": true }))
         }
         "boing_chainHeight" => {
@@ -1599,6 +1738,11 @@ async fn dispatch_jsonrpc_request(
                         "total_stake": agg.total_stake.to_string(),
                         "total_native_held": agg.total_native_held.to_string(),
                         "as_of_height": head_height,
+                    },
+                    "treasury": {
+                        "account": format!("0x{}", PROTOCOL_TREASURY_HEX),
+                        "balance": n.state.get(&PROTOCOL_TREASURY).map(|s| s.balance).unwrap_or(0).to_string(),
+                        "fee_policy": fee_policy_json(n.executor.fee_policy()),
                     },
                     "developer": network_info_developer_hints(),
                     "rpc_surface": rpc_surface_capabilities(state),

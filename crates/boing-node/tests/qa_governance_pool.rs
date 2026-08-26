@@ -68,8 +68,9 @@ fn unsure_deploy_only_governance_admin_can_admit() {
     assert_eq!(node.mempool.len(), 1);
 }
 
+/// Production public membership enqueues Unsure deploys (no administrators required).
 #[test]
-fn production_pool_config_rejects_enqueue_until_admins_set() {
+fn production_pool_config_enqueues_unsure_with_public_membership() {
     let mut node = BoingNode::new();
     let key = SigningKey::generate(&mut OsRng);
     let deployer = AccountId(key.verifying_key().to_bytes());
@@ -103,6 +104,6 @@ fn production_pool_config_rejects_enqueue_until_admins_set() {
 
     assert!(matches!(
         node.submit_transaction(signed),
-        Err(MempoolError::QaPoolDisabled)
+        Err(MempoolError::QaPendingPool(_))
     ));
 }

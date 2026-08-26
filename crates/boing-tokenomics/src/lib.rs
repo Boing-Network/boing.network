@@ -4,8 +4,13 @@
 //! See BOING-BLOCKCHAIN-DESIGN-PLAN.md for full design.
 
 pub mod dapp_incentives;
+pub mod fee_policy;
 
-use boing_primitives::{Account, AccountId, AccountState};
+pub use fee_policy::{
+    network_fee_policy_from_json, NetworkFeePolicy, GOVERNANCE_NETWORK_FEE_CONFIG_KEY,
+};
+
+use boing_primitives::{Account, AccountId, AccountState, TransactionPayload};
 use boing_state::StateStore;
 
 /// Max supply (1 billion BOING). Hard cap; no infinite inflation.
@@ -14,12 +19,21 @@ pub const MAX_SUPPLY: u128 = 1_000_000_000;
 /// Target block time in seconds.
 pub const BLOCK_TIME_SECS: u64 = 2;
 
-/// Fee split: share to validators (basis points, 10000 = 100%).
-pub const FEE_VALIDATORS_BPS: u16 = 7_000; // 70%
-/// Fee split: share to treasury (basis points).
-pub const FEE_TREASURY_BPS: u16 = 2_000; // 20%
-/// Fee split: share to burn (basis points).
-pub const FEE_BURN_BPS: u16 = 1_000; // 10%
+/// Canonical 32-byte hex of [`PROTOCOL_TREASURY`] (`TREASURY` ASCII prefix + 0x01).
+pub const PROTOCOL_TREASURY_HEX: &str =
+    "5452454153555259000000000000000000000000000000000000000000000001";
+
+/// Default fee split when no [`NetworkFeePolicy`] is supplied: 100% to treasury.
+/// Runtime governance overrides these via [`NetworkFeePolicy`].
+pub const FEE_VALIDATORS_BPS: u16 = 0;
+/// Fee split: share to treasury (basis points). Default **100%**.
+pub const FEE_TREASURY_BPS: u16 = 10_000;
+/// Fee split: share to burn (basis points). Default **0%**.
+pub const FEE_BURN_BPS: u16 = 0;
+
+/// Share of the *emission formula* minted to the round proposer (independent of tx-fee split).
+/// Kept at 70% of the year-N emission so changing fee BPS does not zero mining rewards.
+pub const BLOCK_EMISSION_PROPOSER_BPS: u16 = 7_000;
 
 /// Fixed gas price for fee market v0 (BOING per [`GAS_UNITS_PER_BOING`] gas).
 /// Native balances are whole BOING (no 18-decimal wei). Fee market v0 still meters
@@ -30,7 +44,7 @@ pub const GAS_PRICE: u128 = 1;
 /// `boing-execution` so a simple transfer costs **1 BOING**.
 pub const GAS_UNITS_PER_BOING: u64 = 21_000;
 
-/// Protocol treasury AccountId (receives FEE_TREASURY_BPS of tx fees).
+/// Protocol treasury AccountId (receives the treasury share of tx fees and pays QA voter rewards).
 /// Distinct from the all-zero burn sink.
 pub const PROTOCOL_TREASURY: AccountId = AccountId([
     0x54, 0x52, 0x45, 0x41, 0x53, 0x55, 0x52, 0x59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -167,15 +181,38 @@ pub const DAPP_CAP_PER_EPOCH: u128 = 50_000;
 /// Blocks per year (approximate).
 pub const BLOCKS_PER_YEAR: u64 = 365 * 24 * 3600 / BLOCK_TIME_SECS;
 
-/// Split a fee into (validators, treasury, burn) using [`FEE_VALIDATORS_BPS`] / [`FEE_TREASURY_BPS`] / [`FEE_BURN_BPS`].
-/// Any remainder from integer division is added to the validator share so the parts sum to `fee`.
+/// Split a fee using compile-time [`FEE_*_BPS`] defaults (treasury-first).
+/// Remainder from integer division goes to the **treasury** share so parts sum to `fee`.
 pub fn split_fee(fee: u128) -> (u128, u128, u128) {
-    let validators = fee.saturating_mul(FEE_VALIDATORS_BPS as u128) / 10_000;
-    let treasury = fee.saturating_mul(FEE_TREASURY_BPS as u128) / 10_000;
-    let burn = fee.saturating_mul(FEE_BURN_BPS as u128) / 10_000;
+    split_fee_with_policy(fee, &NetworkFeePolicy::treasury_default())
+}
+
+/// Split `fee` using an explicit [`NetworkFeePolicy`]. Remainder goes to treasury.
+pub fn split_fee_with_policy(fee: u128, policy: &NetworkFeePolicy) -> (u128, u128, u128) {
+    let validators = fee.saturating_mul(policy.fee_validators_bps as u128) / 10_000;
+    let treasury = fee.saturating_mul(policy.fee_treasury_bps as u128) / 10_000;
+    let burn = fee.saturating_mul(policy.fee_burn_bps as u128) / 10_000;
     let allocated = validators.saturating_add(treasury).saturating_add(burn);
-    let validators = validators.saturating_add(fee.saturating_sub(allocated));
+    let treasury = treasury.saturating_add(fee.saturating_sub(allocated));
     (validators, treasury, burn)
+}
+
+/// Total native fee for a successful included tx: gas fee + extra fixed + optional transfer BPS.
+pub fn network_fee_amount(
+    gas_used: u64,
+    payload: &TransactionPayload,
+    policy: &NetworkFeePolicy,
+) -> u128 {
+    let gas_fee = fee_for_gas(gas_used);
+    let bps_fee = match payload {
+        TransactionPayload::Transfer { amount, .. } if policy.transfer_amount_bps > 0 => {
+            amount.saturating_mul(policy.transfer_amount_bps as u128) / 10_000
+        }
+        _ => 0,
+    };
+    gas_fee
+        .saturating_add(policy.extra_fixed_fee)
+        .saturating_add(bps_fee)
 }
 
 /// Fee charged for `gas_used` at the fixed [`GAS_PRICE`].
@@ -191,7 +228,7 @@ pub fn fee_for_gas(gas_used: u64) -> u128 {
     num.saturating_add(den.saturating_sub(1)) / den
 }
 
-fn credit_account(state: &mut StateStore, id: AccountId, amount: u128) {
+pub(crate) fn credit_account(state: &mut StateStore, id: AccountId, amount: u128) {
     if amount == 0 {
         return;
     }
@@ -211,13 +248,30 @@ fn credit_account(state: &mut StateStore, id: AccountId, amount: u128) {
     }
 }
 
-/// Deduct `fee` from `sender` and credit validator / treasury / burn shares.
-/// Returns an error if the sender cannot pay.
+/// Deduct `fee` from `sender` and credit validator / treasury / burn shares using default policy.
+/// Returns an error if the sender cannot pay (fail closed).
 pub fn charge_and_distribute_fee(
     state: &mut StateStore,
     sender: &AccountId,
     fee: u128,
     fee_recipient: &AccountId,
+) -> Result<(), FeeError> {
+    charge_and_distribute_fee_with_policy(
+        state,
+        sender,
+        fee,
+        fee_recipient,
+        &NetworkFeePolicy::treasury_default(),
+    )
+}
+
+/// Same as [`charge_and_distribute_fee`] with an explicit fee-split policy.
+pub fn charge_and_distribute_fee_with_policy(
+    state: &mut StateStore,
+    sender: &AccountId,
+    fee: u128,
+    fee_recipient: &AccountId,
+    policy: &NetworkFeePolicy,
 ) -> Result<(), FeeError> {
     if fee == 0 {
         return Ok(());
@@ -230,11 +284,48 @@ pub fn charge_and_distribute_fee(
         });
     }
     sender_state.balance -= fee;
-    let (to_validators, to_treasury, to_burn) = split_fee(fee);
+    let (to_validators, to_treasury, to_burn) = split_fee_with_policy(fee, policy);
     credit_account(state, *fee_recipient, to_validators);
     credit_account(state, PROTOCOL_TREASURY, to_treasury);
     credit_account(state, FEE_BURN_SINK, to_burn);
     Ok(())
+}
+
+/// Pay QA pool voters from [`PROTOCOL_TREASURY`].
+///
+/// Each voter is owed `reward_each`. If the treasury cannot cover the full amount, remaining
+/// balance is split evenly (integer division; remainder stays in the treasury). Returns total paid.
+/// Does not fail the surrounding transaction.
+pub fn pay_qa_counted_voters(
+    state: &mut StateStore,
+    voters: &[AccountId],
+    reward_each: u128,
+) -> u128 {
+    if voters.is_empty() || reward_each == 0 {
+        return 0;
+    }
+    let n = voters.len() as u128;
+    let want = reward_each.saturating_mul(n);
+    let available = state.get(&PROTOCOL_TREASURY).map(|s| s.balance).unwrap_or(0);
+    if available == 0 {
+        return 0;
+    }
+    let (per, total) = if available >= want {
+        (reward_each, want)
+    } else {
+        let per = available / n;
+        (per, per.saturating_mul(n))
+    };
+    if per == 0 {
+        return 0;
+    }
+    if let Some(t) = state.get_mut(&PROTOCOL_TREASURY) {
+        t.balance = t.balance.saturating_sub(total);
+    }
+    for voter in voters {
+        credit_account(state, *voter, per);
+    }
+    total
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -257,7 +348,7 @@ pub fn block_emission_validators(block_height: u64) -> u128 {
     let floor_per_block =
         (MAX_SUPPLY * EMISSION_FLOOR_BPS as u128 / 10_000) / BLOCKS_PER_YEAR as u128;
     let emission = (year1_per_block as f64 * decay) as u128;
-    emission.max(floor_per_block) * FEE_VALIDATORS_BPS as u128 / 10_000
+    emission.max(floor_per_block) * BLOCK_EMISSION_PROPOSER_BPS as u128 / 10_000
 }
 
 #[cfg(test)]
@@ -288,9 +379,9 @@ mod tests {
             let (v, t, b) = split_fee(fee);
             assert_eq!(v + t + b, fee);
             if fee >= 10_000 {
-                assert_eq!(v, fee * 7_000 / 10_000);
-                assert_eq!(t, fee * 2_000 / 10_000);
-                assert_eq!(b, fee * 1_000 / 10_000);
+                assert_eq!(v, 0);
+                assert_eq!(t, fee);
+                assert_eq!(b, 0);
             }
         }
     }
@@ -314,10 +405,33 @@ mod tests {
         let (v, t, b) = split_fee(fee);
         assert_eq!(v + t + b, fee);
         assert_eq!(state.get(&sender).unwrap().balance, 100_000 - fee);
-        assert_eq!(state.get(&proposer).unwrap().balance, v);
+        assert_eq!(state.get(&proposer).map(|s| s.balance).unwrap_or(0), v);
         assert_eq!(state.get(&PROTOCOL_TREASURY).unwrap().balance, t);
-        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, b);
+        assert_eq!(state.get(&FEE_BURN_SINK).map(|s| s.balance).unwrap_or(0), b);
         assert_eq!(fee_for_gas(21_000), 1);
+        assert_eq!(t, fee);
+        assert_eq!(v, 0);
+    }
+
+    #[test]
+    fn protocol_treasury_canonical_bytes() {
+        assert_eq!(&PROTOCOL_TREASURY.0[..8], b"TREASURY");
+        assert_eq!(PROTOCOL_TREASURY.0[31], 1);
+        assert_eq!(
+            PROTOCOL_TREASURY_HEX.to_ascii_lowercase(),
+            "5452454153555259000000000000000000000000000000000000000000000001"
+        );
+    }
+
+    #[test]
+    fn pay_qa_voters_debits_treasury() {
+        let voter = AccountId([3u8; 32]);
+        let mut state = StateStore::new();
+        credit_account(&mut state, PROTOCOL_TREASURY, 10);
+        let paid = pay_qa_counted_voters(&mut state, &[voter], 1);
+        assert_eq!(paid, 1);
+        assert_eq!(state.get(&PROTOCOL_TREASURY).unwrap().balance, 9);
+        assert_eq!(state.get(&voter).unwrap().balance, 1);
     }
 
     #[test]

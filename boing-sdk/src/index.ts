@@ -109,6 +109,8 @@ export type {
   QaPoolItemSummary,
   QaPoolListResult,
   QaPoolVoteResult,
+  NetworkFeePolicyResult,
+  NetworkTreasuryInfo,
   ListSlashRecordsResult,
   SlashAppealSummary,
   SlashRecordSummary,

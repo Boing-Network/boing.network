@@ -36,6 +36,11 @@ export class BoingRpcError extends Error {
     return this.code === -32051;
   }
 
+  /** True if QA pool voter is ineligible (-32053). */
+  get isQaPoolVoterIneligible(): boolean {
+    return this.code === -32053;
+  }
+
   /** True if QA pool is disabled by governance (-32054). */
   get isQaPoolDisabled(): boolean {
     return this.code === -32054;
@@ -118,6 +123,7 @@ export function explainBoingRpcError(e: unknown): string {
         ? `Deployment queued for QA pool (tx_hash ${h}). Vote via boing_qaPoolVote.`
         : `Deployment queued for QA pool: ${e.message}`;
     }
+    if (e.isQaPoolVoterIneligible) return `QA pool voter is not eligible: ${e.message}`;
     if (e.isQaPoolDisabled) return `QA pool is disabled by governance: ${e.message}`;
     if (e.isQaPoolFull) return `QA pool is full (global cap): ${e.message}`;
     if (e.isQaPoolDeployerCap) return `QA pool deployer cap reached: ${e.message}`;

@@ -147,6 +147,23 @@ export interface ChainNativeAggregates {
   as_of_height: number;
 }
 
+/** Protocol treasury from `boing_getNetworkInfo.treasury`. */
+export interface NetworkTreasuryInfo {
+  account: string;
+  balance: string;
+  fee_policy: NetworkFeePolicyResult;
+}
+
+export interface NetworkFeePolicyResult {
+  fee_validators_bps: number;
+  fee_treasury_bps: number;
+  fee_burn_bps: number;
+  extra_fixed_fee: string;
+  transfer_amount_bps: number;
+  treasury_account: string;
+  fee_formula: string;
+}
+
 /** `boing_getNetworkInfo.developer` — links and discovery hints (env-overridable on the node). */
 export interface NetworkDeveloperHints {
   repository_url: string;
@@ -261,6 +278,7 @@ export interface NetworkInfo {
     decimals: number;
   };
   chain_native: ChainNativeAggregates;
+  treasury?: NetworkTreasuryInfo;
   developer: NetworkDeveloperHints;
   /** Same shape as `boing_health.rpc_surface` on current `boing-node`; omit on older binaries. */
   rpc_surface?: BoingHealthRpcSurface;
@@ -492,6 +510,11 @@ export interface QaPoolConfigResult {
   reject_threshold_fraction: number;
   default_on_expiry: 'reject' | 'allow';
   dev_open_voting: boolean;
+  public_membership: boolean;
+  min_voter_stake: string;
+  min_quorum_votes: number;
+  reward_per_counted_vote: string;
+  pay_abstain: boolean;
   administrator_count: number;
   accepts_new_pending: boolean;
   pending_count: number;

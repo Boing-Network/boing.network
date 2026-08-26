@@ -33,7 +33,7 @@ flowchart TD
 
 - **Live rule registry (read-only):** JSON-RPC **`boing_getQaRegistry`** with params `[]` returns the **effective** `RuleRegistry` JSON the node is using (same shape as `qa_registry.json`). No authentication required.
 - **Canonical reference JSON (for comparison and docs):** [`docs/config/CANONICAL-QA-REGISTRY.md`](config/CANONICAL-QA-REGISTRY.md) describes [`qa_registry.canonical.json`](config/qa_registry.canonical.json) and [`qa_pool_config.canonical.json`](config/qa_pool_config.canonical.json), aligned with code defaults. **Deployed networks may differ** after governance or operator policy updates—always verify against **`boing_getQaRegistry`** and **`boing_qaPoolConfig`** on the RPC you trust.
-- **Explorer:** [Boing Observer — QA transparency](https://boing.observer/qa) loads live pool parameters, pending queue, and registry JSON from public RPC. Reviewers with the explorer **reviewer** role can Allow / Reject Unsure items from that page (server-side `boing_qaPoolVote`; not a public unauthenticated vote).
+- **Explorer / wallet:** [Boing Observer](https://boing.observer/qa) and Boing Express are **read-and-submit clients only**. They load pool status from RPC and may submit signed `QaPoolVote` transactions. They must **not** scrape protocol fees or pay voters from a Worker. Voter rewards are credited in consensus apply from [`PROTOCOL_TREASURY`](#81-protocol-treasury-and-public-membership).
 
 ---
 
@@ -47,6 +47,7 @@ flowchart TD
 6. [Automated QA Pipeline](#6-automated-qa-pipeline)
 7. [What Determines Allow, Reject, or Unsure (Edge Case)?](#7-what-determines-allow-reject-or-unsure-edge-case)
 8. [Community QA Pool (Edge Cases, Network Lifespan)](#8-community-qa-pool-edge-cases-network-lifespan)
+  - 8.1 [Protocol treasury and public membership](#81-protocol-treasury-and-public-membership)
 9. [Minimizing Edge Cases (Majority Decided by Automation)](#9-minimizing-edge-cases-majority-decided-by-automation)
 10. [Meme Assets and No Discrimination](#10-meme-assets-and-no-discrimination)
 11. [Resolving Currently Known Edge Cases by Automation (Pillar Optimization)](#11-resolving-currently-known-edge-cases-by-automation-pillar-optimization)
@@ -250,17 +251,38 @@ The QA community pool exists for **edge cases that occur throughout the lifespan
 
 When the automated system returns **Unsure**, the deployment does not go through the normal path. Instead:
 
-- **Pending QA queue:** The deployment (e.g. tx hash + bytecode hash + deployer) is recorded in a **pending QA** structure (on-chain or in a dedicated module).
-- **Eligibility for the pool:** A set of **QA pool members** (addresses) who are allowed to vote. Eligibility can be:
-  - Staked validators, or
-  - Separate stake for “QA pool” role, or
-  - Governance-selected set, or
-  - Open to any staker above a threshold.
-- **Voting:** For each pending item, pool members vote **Allow** or **Reject**. Optionally **Abstain**.
-- **Decision rule:** e.g. “Allow only if at least 2/3 of voting members vote Allow within window T”; otherwise Reject.
-- **Outcome:**
-  - **Allow** → the original ContractDeploy tx is then treated as valid and can be included in a block (e.g. via a special “QA-approved” path or by re-submission with a proof).
-  - **Reject** → the deployment is permanently rejected; the user can fix and try again (as a new tx).
+- **Pending QA queue:** The signed deploy is recorded in the node’s in-memory pool and, when **`public_membership`** is on, **admitted for inclusion**. Apply **registers** it in `StateStore.qa_pending` (nonce consumed, **no contract created**, receipt `qa_pending`) until quorum Allow.
+- **Eligibility (production):** **`public_membership: true`** — any 32-byte account may call **`boing_qaPoolVote`** / submit **`TransactionPayload::QaPoolVote`**. Ineligible voters get **`-32053`**: not a member (admin-only configs), deployer voting on their own item, or stake below **`min_voter_stake`**. **`dev_open_voting`** remains a local-dev shortcut when `administrators` is empty.
+- **Anti-sybil:** **one vote per account per item** (later votes overwrite). Public quorum uses **`min_quorum_votes`** as the electorate size (default 3), not an unbounded public set.
+- **Voting:** Signed **Allow** / **Reject** / **Abstain**. **Abstain does not count toward quorum and does not pay** unless governance sets **`pay_abstain: true`**.
+- **Decision rule:** Quorum is `min_quorum_votes` (public) or the admin set size; then **2/3** of counted Allow/Reject votes (governance fractions) to resolve.
+- **Outcome (on-chain, public membership):**
+  - **Allow** → apply **installs** the stored deploy bytecode as a contract and pays counted voters from the treasury.
+  - **Reject** → pending record is dropped; counted voters are still paid.
+- **Outcome (admin-only / `dev_open_voting`):** Unsure stays off-chain until RPC Allow inserts the stored signed tx into the mempool (legacy path).
+
+### 8.1 Protocol treasury and public membership
+
+Native **transaction fees are protocol-level**, not observer- or wallet-side:
+
+| Item | Value |
+|------|--------|
+| **Treasury account** | `PROTOCOL_TREASURY` = ASCII `"TREASURY"` + zeros + `0x01` = **`0x5452454153555259000000000000000000000000000000000000000000000001`** |
+| **Fee formula** | `fee = ceil(gas_used × GAS_PRICE / 21000) + extra_fixed_fee + (transfer_amount × transfer_amount_bps / 10000)` |
+| **Default split** | **100% of `fee` to the treasury** (`fee_validators_bps=0`, `fee_treasury_bps=10000`, `fee_burn_bps=0`). Remainder of any BPS split also goes to treasury. |
+| **Fail closed** | Apply reverts (nonce consumed) if the payer cannot cover **fee + transfer**. |
+| **Mining vs gas** | **Block emission** still credits the round **proposer**. **Gas/tx fees** default to the treasury (governance can restore a proposer share via `network_fee_config`). |
+| **Knobs** | File **`network_fee_config.json`**, RPC **`boing_getNetworkFeePolicy`** / **`boing_operatorApplyFeePolicy`**, `boing_getNetworkInfo.treasury`. |
+
+**QA voter payout** (apply, when a counted vote is included toward a resolving quorum):
+
+```text
+payout_i = min(reward_per_counted_vote, floor(treasury_balance / N))
+```
+
+Each unpaid counted voter `i` is credited from the treasury; if the treasury is short, rewards are **pro-rata** and the vote tx still succeeds. Default **`reward_per_counted_vote = 1`** BOING. Explorers must not pay voters.
+
+Read live knobs with **`boing_qaPoolConfig`**. Full JSON: [`docs/config/qa_pool_config.canonical.json`](config/qa_pool_config.canonical.json).
 
 ### 8.3 Time limits: assets must not remain in the pool too long
 
@@ -277,9 +299,9 @@ Result: every asset that enters the pool receives a **final outcome** (Allow or 
 
 ### 8.4 Incentives and abuse
 
-- **Rewards:** Pool members who participate in votes can earn a small reward (e.g. from protocol or from a fee on “QA-approved” deploys).
+- **Rewards (shipped):** Counted Allow/Reject voters are paid **`reward_per_counted_vote`** from **`PROTOCOL_TREASURY`** when their vote is applied toward quorum (§8.1). Abstain does not pay by default.
 - **Slashing / reputation:** Malicious or clearly wrong decisions (e.g. Allow on malware) can be slashed or downgraded (reputation) if we have a way to detect abuse (e.g. later governance vote, or appeal by community).
-- **Transparency:** All pending items and votes are public so the community can see what is “unsure” and how the pool decided.
+- **Transparency:** All pending items and votes are public so the community can see what is “unsure” and how the pool decided. Observability UIs must not scrape fees or pay voters.
 
 ### 8.5 Relation to existing governance
 
@@ -665,11 +687,11 @@ Governance should maintain a **content_blocklist** of terms that the network doe
 
 Separate proposal key **`qa_pool_config`** (`boing_qa::GOVERNANCE_QA_POOL_CONFIG_KEY`) controls who may resolve **Unsure** deploys and how large the pending queue may grow. Deserialize with `boing_qa::qa_pool_config_from_json`. Nodes persist it as **`qa_pool_config.json`** next to **`qa_registry.json`**.
 
-Example JSON:
+Example JSON (production public membership — see [`qa_pool_config.canonical.json`](config/qa_pool_config.canonical.json)):
 
 ```json
 {
-  "administrators": ["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+  "administrators": [],
   "max_pending_items": 32,
   "max_pending_per_deployer": 2,
   "review_window_secs": 604800,
@@ -677,12 +699,21 @@ Example JSON:
   "allow_threshold_fraction": 0.6666666666666666,
   "reject_threshold_fraction": 0.6666666666666666,
   "default_on_expiry": "reject",
-  "dev_open_voting": false
+  "dev_open_voting": false,
+  "public_membership": true,
+  "min_voter_stake": 0,
+  "min_quorum_votes": 3,
+  "reward_per_counted_vote": 1,
+  "pay_abstain": false
 }
 ```
 
-- **administrators:** 32-byte account IDs (hex). Only these voters count for governance-final decisions on pooled deploys. Leave empty only with **`dev_open_voting: true`** (local dev).
-- **max_pending_items:** Global cap; when reached, new Unsure submissions are refused (**anti-congestion**). Set **`0`** to disable the pool entirely.
+- **public_membership:** Production model. Any 32-byte account may vote; ineligible voters still get **`-32053`**. Complements (does not require) **`dev_open_voting`**.
+- **administrators:** Used when **`public_membership` is false**. Only these accounts may vote unless **`dev_open_voting: true`** with an empty admin list (local dev).
+- **min_voter_stake:** Optional stake gate for public membership (`0` = off).
+- **min_quorum_votes:** Electorate size for public quorum math (anti-sybil vs a 1-account electorate).
+- **reward_per_counted_vote / pay_abstain:** Treasury payout per counted vote; abstain unpaid by default.
+- **max_pending_items:** Global cap; when reached, new Unsure submissions are refused. Set **`0`** to disable the pool entirely.
 - **max_pending_per_deployer:** Per-address cap (`0` = unlimited).
 - **`BoingNode::set_qa_policy`** updates mempool, VM, executor, and pool together so rules stay aligned.
 

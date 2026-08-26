@@ -782,6 +782,7 @@ dependencies = [
 name = "boing-state"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "boing-primitives",
  "boing-telemetry",
  "serde",
@@ -802,6 +803,8 @@ version = "0.1.0"
 dependencies = [
  "boing-primitives",
  "boing-state",
+ "serde",
+ "serde_json",
  "thiserror 1.0.69",
 ]
 

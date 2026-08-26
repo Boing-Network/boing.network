@@ -30,7 +30,7 @@ Canonical definitions live in [RPC-API-SPEC.md](RPC-API-SPEC.md). This page is a
 | -32050 | **QA: deployment rejected** | `{ rule_id: string, message: string }` |
 | -32051 | **QA: Unsure → governance pool** | `{ tx_hash: string }` |
 | -32052 | QA pool: no pending item for `tx_hash` | — |
-| -32053 | QA pool: voter not an administrator | — |
+| -32053 | QA pool: voter ineligible (not a member, deployer voting on own item, or below `min_voter_stake`) | — |
 | -32054 | QA pool disabled by governance | — |
 | -32055 | QA pool full (global cap) | optional `{ reason: "pool_full" }` |
 | -32056 | QA pool: per-deployer cap | optional `{ reason: "deployer_cap" }` |
@@ -44,6 +44,7 @@ Canonical definitions live in [RPC-API-SPEC.md](RPC-API-SPEC.md). This page is a
 
 - `e.isQaRejected`, `e.qaData` for **-32050**
 - `e.isQaPendingPool`, `e.pendingPoolTxHash` for **-32051**
+- `e.isQaPoolVoterIneligible` for **-32053**
 - `e.isQaPoolDisabled`, `e.isQaPoolFull`, `e.isQaPoolDeployerCap` for **-32054..-32056**
 - **`explainBoingRpcError(e)`** for user-facing log/UI strings
 

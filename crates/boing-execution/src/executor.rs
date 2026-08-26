@@ -6,9 +6,11 @@ use rayon::prelude::*;
 
 use boing_primitives::{AccountId, ExecutionReceipt, Transaction, TransactionPayload};
 use boing_state::{StateCheckpoint, StateStore};
-use boing_tokenomics::{charge_and_distribute_fee, fee_for_gas};
+use boing_tokenomics::{
+    charge_and_distribute_fee_with_policy, network_fee_amount, NetworkFeePolicy,
+};
 
-use boing_qa::RuleRegistry;
+use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
 
 use super::interpreter::VmExecutionContext;
 use super::parallel::ExecutionView;
@@ -19,6 +21,7 @@ use super::{TransactionScheduler, Vm, VmError};
 pub struct BlockExecutor {
     vm: Vm,
     scheduler: TransactionScheduler,
+    fee_policy: NetworkFeePolicy,
 }
 
 impl BlockExecutor {
@@ -26,6 +29,7 @@ impl BlockExecutor {
         Self {
             vm: Vm::new(),
             scheduler: TransactionScheduler::new(),
+            fee_policy: NetworkFeePolicy::treasury_default(),
         }
     }
 
@@ -34,15 +38,40 @@ impl BlockExecutor {
         Self {
             vm: Vm::with_qa_registry(registry),
             scheduler: TransactionScheduler::new(),
+            fee_policy: NetworkFeePolicy::treasury_default(),
         }
+    }
+
+    pub fn with_policies(
+        registry: RuleRegistry,
+        pool_config: QaPoolGovernanceConfig,
+        fee_policy: NetworkFeePolicy,
+    ) -> Self {
+        Self {
+            vm: Vm::with_qa_policies(registry, pool_config),
+            scheduler: TransactionScheduler::new(),
+            fee_policy,
+        }
+    }
+
+    pub fn fee_policy(&self) -> &NetworkFeePolicy {
+        &self.fee_policy
+    }
+
+    pub fn set_fee_policy(&mut self, policy: NetworkFeePolicy) {
+        self.fee_policy = policy;
+    }
+
+    pub fn vm(&self) -> &Vm {
+        &self.vm
     }
 
     /// Execute all transactions. Returns total gas used and one receipt per tx (in block order).
     /// On error, state may be partially applied (caller should revert if needed).
     /// Transfer-only batches run in parallel; other batches run sequentially.
     ///
-    /// After each successful tx, charges `fee_for_gas(gas_used)` from the sender and
-    /// distributes per tokenomics BPS to `fee_recipient` (block proposer), treasury, and burn.
+    /// After each successful tx, charges [`network_fee_amount`] from the sender (fail closed)
+    /// and distributes per [`NetworkFeePolicy`] to proposer / treasury / burn.
     pub fn execute_block(
         &self,
         block_height: u64,
@@ -107,9 +136,15 @@ impl BlockExecutor {
                 }
                 for (idx, view, gas) in batch_results {
                     view.merge_into(state);
-                    let fee = fee_for_gas(gas);
-                    charge_and_distribute_fee(state, &txs[idx].sender, fee, &fee_recipient)
-                        .map_err(ExecutionError::Fee)?;
+                    let fee = network_fee_amount(gas, &txs[idx].payload, &self.fee_policy);
+                    charge_and_distribute_fee_with_policy(
+                        state,
+                        &txs[idx].sender,
+                        fee,
+                        &fee_recipient,
+                        &self.fee_policy,
+                    )
+                    .map_err(ExecutionError::Fee)?;
                     receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
                         &txs[idx],
                         block_height,
@@ -130,8 +165,14 @@ impl BlockExecutor {
                     let tx_ckpt = state.checkpoint();
                     match self.vm.execute_with_context(tx, state, exec_ctx) {
                         Ok(out) => {
-                            let fee = fee_for_gas(out.gas_used);
-                            match charge_and_distribute_fee(state, &tx.sender, fee, &fee_recipient) {
+                            let fee = network_fee_amount(out.gas_used, &tx.payload, &self.fee_policy);
+                            match charge_and_distribute_fee_with_policy(
+                                state,
+                                &tx.sender,
+                                fee,
+                                &fee_recipient,
+                                &self.fee_policy,
+                            ) {
                                 Ok(()) => {
                                     total_gas = total_gas.saturating_add(out.gas_used);
                                     receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
@@ -251,11 +292,11 @@ mod tests {
         assert_eq!(gas, super::super::vm::GAS_PER_TRANSFER);
         assert_eq!(receipts.len(), 1);
         assert!(receipts[0].success);
-        let fee = boing_tokenomics::fee_for_gas(gas);
+        let fee = boing_tokenomics::network_fee_amount(gas, &txs[0].payload, &boing_tokenomics::NetworkFeePolicy::treasury_default());
         assert_eq!(state.get(&a).unwrap().balance, 100_000 - 100 - fee);
         assert_eq!(state.get(&b).unwrap().balance, 100);
         let (v, t, burn) = boing_tokenomics::split_fee(fee);
-        assert_eq!(state.get(&proposer).unwrap().balance, v);
+        assert_eq!(state.get(&proposer).map(|s| s.balance).unwrap_or(0), v);
         assert_eq!(
             state
                 .get(&boing_tokenomics::PROTOCOL_TREASURY)
@@ -270,6 +311,8 @@ mod tests {
                 .unwrap_or(0),
             burn
         );
+        assert_eq!(t, fee);
+        assert_eq!(v, 0);
     }
 
     #[test]
@@ -293,7 +336,11 @@ mod tests {
         let (gas, receipts) = exec.execute_block(1, 0, &txs, &mut state, proposer).unwrap();
         assert_eq!(receipts.len(), 2);
         assert!(receipts.iter().all(|r| r.success));
-        let fee_each = boing_tokenomics::fee_for_gas(super::super::vm::GAS_PER_TRANSFER);
+        let fee_each = boing_tokenomics::network_fee_amount(
+            super::super::vm::GAS_PER_TRANSFER,
+            &txs[0].payload,
+            &boing_tokenomics::NetworkFeePolicy::treasury_default(),
+        );
         assert_eq!(state.get(&a).unwrap().balance, 100_000 - 100 - fee_each);
         assert_eq!(state.get(&b).unwrap().balance, 100);
         assert_eq!(state.get(&c).unwrap().balance, 100_000 - 50 - fee_each);
@@ -351,6 +398,101 @@ mod tests {
         assert_eq!(state.get(&deployer).unwrap().nonce, 1);
         assert_eq!(state.get(&deployer).unwrap().balance, 1 + 10);
         assert_eq!(state.get(&payee).unwrap().nonce, 1);
+    }
+
+    #[test]
+    fn public_qa_vote_pays_from_treasury_and_completes_deploy() {
+        use boing_primitives::{QaPoolVoteKind, nonce_derived_contract_address};
+        use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
+        use boing_tokenomics::PROTOCOL_TREASURY;
+
+        let mut pool = QaPoolGovernanceConfig::production_default();
+        pool.min_quorum_votes = 1;
+        pool.quorum_fraction = 0.5;
+        pool.allow_threshold_fraction = 0.5;
+        pool.reward_per_counted_vote = 5;
+        let registry = RuleRegistry::new().with_always_review_categories(vec!["meme".into()]);
+        let exec = BlockExecutor::with_policies(
+            registry,
+            pool,
+            boing_tokenomics::NetworkFeePolicy::treasury_default(),
+        );
+
+        let deployer = AccountId::from_bytes([1u8; 32]);
+        let voter = AccountId::from_bytes([2u8; 32]);
+        let proposer = AccountId::from_bytes([9u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: deployer,
+            state: AccountState {
+                balance: 1_000_000,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: voter,
+            state: AccountState {
+                balance: 1_000_000,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: PROTOCOL_TREASURY,
+            state: AccountState {
+                balance: 100,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+
+        let deploy = Transaction {
+            nonce: 0,
+            sender: deployer,
+            payload: TransactionPayload::ContractDeployWithPurposeAndMetadata {
+                bytecode: vec![0x00],
+                purpose_category: "meme".into(),
+                description_hash: None,
+                asset_name: None,
+                asset_symbol: None,
+                create2_salt: None,
+            },
+            access_list: AccessList::default(),
+        };
+        let subject = deploy.id();
+        let vote = Transaction {
+            nonce: 0,
+            sender: voter,
+            payload: TransactionPayload::QaPoolVote {
+                subject,
+                vote: QaPoolVoteKind::Allow,
+            },
+            access_list: AccessList::new(vec![voter], vec![voter]),
+        };
+
+        let (_g, receipts) = exec
+            .execute_block(1, 0, &[deploy, vote], &mut state, proposer)
+            .unwrap();
+        assert!(receipts[0].success);
+        assert_eq!(receipts[0].return_data, b"qa_pending");
+        assert!(receipts[1].success);
+        assert_eq!(receipts[1].return_data, b"qa_vote_allow");
+        let deploy_fee = boing_tokenomics::fee_for_gas(super::super::vm::GAS_PER_CONTRACT_DEPLOY);
+        let vote_fee = boing_tokenomics::fee_for_gas(super::super::vm::GAS_PER_QA_POOL_VOTE);
+        assert_eq!(
+            state.get(&PROTOCOL_TREASURY).unwrap().balance,
+            100 + deploy_fee + vote_fee - 5
+        );
+        assert_eq!(
+            state.get(&voter).unwrap().balance,
+            1_000_000 - vote_fee + 5
+        );
+        let created = nonce_derived_contract_address(&deployer, 0);
+        assert!(state.get_contract_code(&created).is_some());
     }
 }
 

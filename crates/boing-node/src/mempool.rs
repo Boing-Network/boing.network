@@ -89,10 +89,30 @@ impl Mempool {
         signed: SignedTransaction,
         skip_deploy_qa: bool,
     ) -> Result<(), MempoolError> {
+        self.insert_with_qa_mode(
+            signed,
+            if skip_deploy_qa {
+                DeployQaMode::Skip
+            } else {
+                DeployQaMode::Enforce
+            },
+        )
+    }
+
+    /// Admit an Unsure deploy so the producer can register it on-chain (public membership).
+    pub fn insert_unsure_for_inclusion(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
+        self.insert_with_qa_mode(signed, DeployQaMode::AdmitUnsure)
+    }
+
+    fn insert_with_qa_mode(
+        &self,
+        signed: SignedTransaction,
+        qa_mode: DeployQaMode,
+    ) -> Result<(), MempoolError> {
         signed
             .verify()
             .map_err(|_| MempoolError::InvalidSignature)?;
-        if !skip_deploy_qa {
+        if qa_mode != DeployQaMode::Skip {
             if let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) =
                 signed.tx.payload.as_contract_deploy()
             {
@@ -107,7 +127,9 @@ impl Mempool {
                 ) {
                     QaResult::Reject(reject) => return Err(MempoolError::QaRejected(reject)),
                     QaResult::Unsure => {
-                        return Err(MempoolError::QaPendingPool(signed.tx.id()));
+                        if qa_mode != DeployQaMode::AdmitUnsure {
+                            return Err(MempoolError::QaPendingPool(signed.tx.id()));
+                        }
                     }
                     QaResult::Allow => {}
                 }
@@ -176,7 +198,7 @@ impl Mempool {
     /// Duplicates are skipped; invalid signatures are skipped. Used to restore txs when a block is not committed.
     pub fn reinsert(&self, signed_txs: Vec<SignedTransaction>) {
         for signed in signed_txs {
-            let _ = self.insert(signed);
+            let _ = self.insert_with_qa_mode(signed, DeployQaMode::Skip);
         }
     }
 
@@ -210,6 +232,13 @@ impl Mempool {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DeployQaMode {
+    Enforce,
+    Skip,
+    AdmitUnsure,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum MempoolError {
     #[error("Duplicate transaction")]
@@ -228,7 +257,7 @@ pub enum MempoolError {
     QaPendingPool(Hash),
     #[error("QA pool enqueue failed: {0}")]
     QaPoolEnqueue(String),
-    #[error("QA pool disabled by governance (no administrators configured)")]
+    #[error("QA pool disabled by governance")]
     QaPoolDisabled,
     #[error("QA pool is at capacity (max_pending_items); try later")]
     QaPoolFull,

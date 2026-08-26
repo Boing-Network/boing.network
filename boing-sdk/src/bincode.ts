@@ -17,6 +17,7 @@ export const PayloadVariant = {
   Bond: 5,
   Unbond: 6,
   ClaimUnbond: 7,
+  QaPoolVote: 8,
 } as const;
 
 export function concatBytes(...parts: Uint8Array[]): Uint8Array {
@@ -118,7 +119,8 @@ export type TransactionPayloadInput =
     }
   | { kind: 'bond'; amount: bigint }
   | { kind: 'unbond'; amount: bigint }
-  | { kind: 'claimUnbond' };
+  | { kind: 'claimUnbond' }
+  | { kind: 'qaPoolVote'; subject: Uint8Array; vote: 'allow' | 'reject' | 'abstain' };
 
 export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array {
   switch (payload.kind) {
@@ -164,6 +166,18 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
       return concatBytes(writeU32Le(PayloadVariant.Unbond), writeU128Le(payload.amount));
     case 'claimUnbond':
       return writeU32Le(PayloadVariant.ClaimUnbond);
+    case 'qaPoolVote': {
+      const voteDisc =
+        payload.vote === 'allow' ? 0 : payload.vote === 'reject' ? 1 : 2;
+      if (payload.subject.length !== 32) {
+        throw new Error('qaPoolVote subject must be 32 bytes');
+      }
+      return concatBytes(
+        writeU32Le(PayloadVariant.QaPoolVote),
+        payload.subject,
+        writeU32Le(voteDisc),
+      );
+    }
     default: {
       const _x: never = payload;
       return _x;

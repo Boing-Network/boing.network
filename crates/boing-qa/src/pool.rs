@@ -90,6 +90,18 @@ impl PendingQaItem {
         (allow, reject)
     }
 
+    /// Counted voters for rewards: Allow/Reject, plus Abstain iff `pay_abstain`.
+    pub fn counted_voters(&self, pay_abstain: bool) -> Vec<AccountId> {
+        self.votes
+            .iter()
+            .filter(|(_, v)| match v {
+                QaPoolVote::Allow | QaPoolVote::Reject => true,
+                QaPoolVote::Abstain => pay_abstain,
+            })
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
     /// Whether the item has reached the deadline.
     pub fn is_expired(&self, max_time: Duration) -> bool {
         self.entered_at.elapsed() >= max_time
@@ -146,6 +158,7 @@ impl PendingQaQueue {
             component_event = "governance_config_updated",
             max_pending = config.max_pending_items,
             admin_count = config.administrator_accounts().len(),
+            public_membership = config.public_membership,
             dev_open = config.dev_open_voting,
             accepts = config.accepts_new_pending(),
             "QA pool governance config updated"
@@ -195,15 +208,23 @@ impl PendingQaQueue {
         Ok(())
     }
 
-    /// Record a vote from a governance administrator.
-    pub fn vote(&self, tx_hash: Hash, voter: AccountId, vote: QaPoolVote) -> Result<(), PoolError> {
-        let cfg = self.governance.lock().unwrap();
-        if !cfg.voter_may_vote(voter) {
-            return Err(PoolError::NotAdministrator);
-        }
-        drop(cfg);
+    /// Record a vote. Rejects ineligible voters ([`PoolError::NotAdministrator`] → RPC `-32053`).
+    pub fn vote(
+        &self,
+        tx_hash: Hash,
+        voter: AccountId,
+        vote: QaPoolVote,
+        voter_stake: Option<u128>,
+    ) -> Result<(), PoolError> {
+        let cfg = self.governance.lock().unwrap().clone();
         let mut inner = self.inner.lock().unwrap();
         let item = inner.items.get_mut(&tx_hash).ok_or(PoolError::NotFound)?;
+        if cfg
+            .voter_eligibility(voter, Some(item.deployer), voter_stake)
+            .is_err()
+        {
+            return Err(PoolError::NotAdministrator);
+        }
         item.votes.insert(voter, vote);
         Ok(())
     }
@@ -445,13 +466,13 @@ mod tests {
         queue.add(item).unwrap();
 
         queue
-            .vote(tx_hash, AccountId::from_bytes([1u8; 32]), QaPoolVote::Allow)
+            .vote(tx_hash, AccountId::from_bytes([1u8; 32]), QaPoolVote::Allow, None)
             .unwrap();
         queue
-            .vote(tx_hash, AccountId::from_bytes([2u8; 32]), QaPoolVote::Allow)
+            .vote(tx_hash, AccountId::from_bytes([2u8; 32]), QaPoolVote::Allow, None)
             .unwrap();
         queue
-            .vote(tx_hash, AccountId::from_bytes([3u8; 32]), QaPoolVote::Reject)
+            .vote(tx_hash, AccountId::from_bytes([3u8; 32]), QaPoolVote::Reject, None)
             .unwrap();
 
         let r = queue.resolve(tx_hash);
@@ -469,7 +490,7 @@ mod tests {
         let tx_hash = signed.tx.id();
         queue.add(PendingQaItem::from_signed(&signed).unwrap()).unwrap();
         queue
-            .vote(tx_hash, AccountId::from_bytes([9u8; 32]), QaPoolVote::Allow)
+            .vote(tx_hash, AccountId::from_bytes([9u8; 32]), QaPoolVote::Allow, None)
             .unwrap();
         assert!(matches!(queue.resolve(tx_hash), PoolResolution::Allow(_)));
     }
@@ -486,8 +507,20 @@ mod tests {
     }
 
     #[test]
-    fn production_default_disables_pool_until_admins_configured() {
+    fn production_default_accepts_pending_with_public_membership() {
         let queue = PendingQaQueue::from_governance_config(QaPoolGovernanceConfig::production_default());
+        let signed = sample_deploy_tx();
+        queue
+            .add(PendingQaItem::from_signed(&signed).unwrap())
+            .unwrap();
+        assert_eq!(queue.pending_len(), 1);
+    }
+
+    #[test]
+    fn zero_max_pending_disables_pool() {
+        let mut c = QaPoolGovernanceConfig::production_default();
+        c.max_pending_items = 0;
+        let queue = PendingQaQueue::from_governance_config(c);
         let signed = sample_deploy_tx();
         assert_eq!(
             queue.add(PendingQaItem::from_signed(&signed).unwrap()),
@@ -515,9 +548,9 @@ mod tests {
 pub enum PoolError {
     #[error("Item already in pool")]
     Duplicate,
-    #[error("Voter is not a governance QA administrator")]
+    #[error("Voter is not eligible to vote on this QA pool item")]
     NotAdministrator,
-    #[error("QA pool is disabled by governance (configure administrators or dev_open_voting)")]
+    #[error("QA pool is disabled by governance (configure public_membership, administrators, or dev_open_voting)")]
     PoolDisabled,
     #[error("QA pool is at max_pending_items capacity")]
     PoolFull,

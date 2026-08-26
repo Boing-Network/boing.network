@@ -86,6 +86,10 @@ struct Args {
     #[arg(long)]
     qa_pool_config: Option<PathBuf>,
 
+    /// Optional path to network_fee_config.json (treasury fee split / extra levies).
+    #[arg(long)]
+    network_fee_config: Option<PathBuf>,
+
     /// Max pending transactions per sender in the mempool (distinct nonces). Default follows the active rate-limit profile (mainnet **16**, dev **64** unless overridden here).
     #[arg(long)]
     pending_txs_per_sender: Option<u32>,
@@ -368,6 +372,19 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("Applied QA policy from CLI (--qa-registry / --qa-pool-config)");
     }
 
+    if let Some(ref path) = args.network_fee_config {
+        let bytes =
+            std::fs::read(path).map_err(|e| anyhow::anyhow!("read --network-fee-config: {}", e))?;
+        let policy = boing_tokenomics::network_fee_policy_from_json(&bytes)
+            .map_err(|e| anyhow::anyhow!("network_fee_config JSON: {}", e))?;
+        policy
+            .validate()
+            .map_err(|e| anyhow::anyhow!("network_fee_config: {}", e))?;
+        let mut n = node.write().await;
+        n.set_fee_policy(policy);
+        tracing::info!("Applied network fee policy from CLI (--network-fee-config)");
+    }
+
     // Testnet faucet: ensure faucet account exists and pass signer to RPC
     let faucet_signer = if args.faucet_enable {
         let faucet_id = faucet::testnet_faucet_account_id();
@@ -399,7 +416,7 @@ async fn main() -> anyhow::Result<()> {
         .map(|s| -> Arc<str> { s.into() });
     if operator_rpc_token.is_some() {
         tracing::info!(
-            "BOING_OPERATOR_RPC_TOKEN is set: boing_qaPoolVote and boing_operatorApplyQaPolicy require header X-Boing-Operator"
+            "BOING_OPERATOR_RPC_TOKEN is set: boing_operatorApplyQaPolicy / boing_operatorApplyFeePolicy require X-Boing-Operator; boing_qaPoolVote requires it only when public_membership is false"
         );
     }
 

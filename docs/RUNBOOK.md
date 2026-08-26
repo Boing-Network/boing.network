@@ -84,6 +84,8 @@ Produces blocks when there are pending transactions.
 cargo run -p boing-node -- --data-dir ./boing-data --rpc-port 8545
 ```
 
+Persists chain, QA policy (`qa_registry.json` / `qa_pool_config.json`), and native fee policy (`network_fee_config.json`). Override at start with `--qa-registry`, `--qa-pool-config`, and `--network-fee-config`. Canonical shapes: [`docs/config/qa_pool_config.canonical.json`](config/qa_pool_config.canonical.json), [`docs/config/network_fee_config.canonical.json`](config/network_fee_config.canonical.json). Default fee split is **100% to `PROTOCOL_TREASURY`**; mining emission still credits the round proposer.
+
 ### Mempool: pending transactions per sender
 
 Each account may have only **N** distinct pending nonces in the mempool at once (default **N = 16**, aligned with [`RateLimitConfig::default_mainnet`](../crates/boing-node/src/security.rs)). The process logs `Mempool: max pending txs per sender = …` at startup. Operators can raise the cap (e.g. busy testnet RPC) with:
@@ -233,7 +235,7 @@ For security incidents and vulnerabilities:
 
 - **Block time:** ~2 seconds (configurable via tokenomics)
 - **Throughput:** Parallel transfer batches; access-list batching reduces conflicts
-- **Gas:** Fixed per tx type (Transfer, Bond, Unbond, ContractCall, ContractDeploy); **fee market v0** charges `ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)` (1 BOING per 21,000 gas, so a transfer costs 1 BOING) and splits 70% / 20% / 10% to proposer / treasury / burn (see [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §8.4)
+- **Gas:** Fixed per tx type (Transfer, Bond, Unbond, ContractCall, ContractDeploy, QaPoolVote); **fee market v0** charges `ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)` (1 BOING per 21,000 gas, so a transfer costs 1 BOING) plus optional `extra_fixed_fee` / `transfer_amount_bps`. Default split is **100% protocol treasury** (`PROTOCOL_TREASURY`); block **emission** still goes to the round proposer. Override via `network_fee_config.json` / `boing_operatorApplyFeePolicy` (see [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §8.4).
 - **Batching:** Scheduler groups non-conflicting txs; transfers with disjoint access lists run in parallel
 
 ## 6c. Decentralization Design

@@ -2,11 +2,14 @@
 
 use boing_primitives::{
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
-    nonce_derived_contract_address, AccountId, AccountState, ExecutionLog, Transaction,
-    TransactionPayload,
+    nonce_derived_contract_address, AccountId, AccountState, ExecutionLog, Hash, QaPoolVoteKind,
+    Transaction, TransactionPayload,
 };
-use boing_qa::{check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaResult, RuleRegistry};
-use boing_state::StateStore;
+use boing_qa::{
+    check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaPoolGovernanceConfig,
+    QaQuorumDecision, QaResult, RuleRegistry,
+};
+use boing_state::{unpaid_counted_voters, QaPendingRecord, StateStore};
 
 use crate::gas::base;
 use super::interpreter::{Interpreter, VmExecutionContext};
@@ -17,6 +20,8 @@ pub const GAS_PER_CONTRACT_CALL: u64 = 100_000;
 /// Gas budget for **`0xFD` init** that runs at deploy (SSTORE bootstrap + `MSTORE`/`RETURN` of large runtime).
 pub const GAS_PER_CONTRACT_DEPLOY_INIT: u64 = 5_000_000;
 pub const GAS_PER_CONTRACT_DEPLOY: u64 = 200_000;
+/// Gas for an on-chain [`boing_primitives::TransactionPayload::QaPoolVote`].
+pub const GAS_PER_QA_POOL_VOTE: u64 = base::QA_POOL_VOTE;
 
 /// Successful VM / tx application outcome (for receipts and simulation).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -65,23 +70,41 @@ fn default_qa_registry() -> RuleRegistry {
 pub struct Vm {
     /// Same rule set as mempool deploy QA (`check_contract_deploy_full_with_metadata`).
     qa_registry: RuleRegistry,
+    /// Pool membership / quorum / voter-reward knobs (execution-time public votes).
+    qa_pool_config: QaPoolGovernanceConfig,
 }
 
 impl Vm {
     pub fn new() -> Self {
         Self {
             qa_registry: default_qa_registry(),
+            qa_pool_config: QaPoolGovernanceConfig::development_default(),
         }
     }
 
     /// Use the same [RuleRegistry] as the node mempool so execution rejects the same deploys as admission.
     pub fn with_qa_registry(qa_registry: RuleRegistry) -> Self {
-        Self { qa_registry }
+        Self {
+            qa_registry,
+            qa_pool_config: QaPoolGovernanceConfig::development_default(),
+        }
+    }
+
+    /// Registry + pool governance (public membership, voter rewards).
+    pub fn with_qa_policies(qa_registry: RuleRegistry, qa_pool_config: QaPoolGovernanceConfig) -> Self {
+        Self {
+            qa_registry,
+            qa_pool_config,
+        }
     }
 
     /// Reference to the QA registry used for contract deploy execution checks.
     pub fn qa_registry(&self) -> &RuleRegistry {
         &self.qa_registry
+    }
+
+    pub fn qa_pool_config(&self) -> &QaPoolGovernanceConfig {
+        &self.qa_pool_config
     }
 
     /// Execute Transfer tx against any TransferState (for parallel path).
@@ -239,6 +262,9 @@ impl Vm {
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
                 return self.execute_contract_deploy(state, tx, exec_ctx);
             }
+            TransactionPayload::QaPoolVote { subject, vote } => {
+                return self.execute_qa_pool_vote(state, tx, *subject, *vote, exec_ctx);
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -276,9 +302,11 @@ impl Vm {
                 });
             }
             QaResult::Unsure => {
-                // Aligns with mempool: Unsure is not a hard reject. Community QA pool admits some Unsure
-                // txs; at execution we only enforce Allow vs Reject. Block validity / honest producers
-                // are the gate for whether an Unsure deploy was properly accepted off-chain.
+                if self.qa_pool_config.public_membership {
+                    return self.register_unsure_deploy(state, tx, exec_ctx.block_height);
+                }
+                // Legacy / admin-pool path: Unsure is not a hard reject. Community QA pool admits
+                // some Unsure txs; at execution we only enforce Allow vs Reject.
                 boing_telemetry::component_debug(
                     "boing_execution::vm",
                     "execution",
@@ -338,6 +366,169 @@ impl Vm {
             return_data: Vec::new(),
             logs,
         })
+    }
+
+    fn register_unsure_deploy(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        let subject = tx.id();
+        if state.qa_pending(&subject).is_some() {
+            return Err(VmError::QaPendingAlreadyRegistered);
+        }
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        state.insert_qa_pending(subject, QaPendingRecord::new(tx.clone(), height));
+        Ok(VmExecutionResult {
+            gas_used: GAS_PER_CONTRACT_DEPLOY,
+            return_data: b"qa_pending".to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn execute_qa_pool_vote(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        subject: Hash,
+        vote: QaPoolVoteKind,
+        exec_ctx: VmExecutionContext,
+    ) -> Result<VmExecutionResult, VmError> {
+        let voter = tx.sender;
+        let deployer = {
+            let record = state
+                .qa_pending(&subject)
+                .ok_or(VmError::QaPendingNotFound)?;
+            record.deployer
+        };
+        let voter_stake = state.get(&voter).map(|s| s.stake).unwrap_or(0);
+        self.qa_pool_config
+            .voter_eligibility(voter, Some(deployer), Some(voter_stake))
+            .map_err(|e| match e {
+                boing_qa::QaVoterIneligible::DeployerConflict => VmError::QaVoterIneligible(
+                    "deployer cannot vote on their own Unsure deploy",
+                ),
+                boing_qa::QaVoterIneligible::InsufficientStake => {
+                    VmError::QaVoterIneligible("voter stake below min_voter_stake")
+                }
+                boing_qa::QaVoterIneligible::NotMember => {
+                    VmError::QaVoterIneligible("voter is not eligible under qa_pool_config")
+                }
+            })?;
+
+        let sender_state = state.get_mut(&voter).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+
+        let pay_abstain = self.qa_pool_config.pay_abstain;
+        let reward_each = self.qa_pool_config.reward_per_counted_vote;
+        let (decision, unpaid) = {
+            let record = state
+                .qa_pending_mut(&subject)
+                .ok_or(VmError::QaPendingNotFound)?;
+            record.votes.insert(voter, vote);
+
+            let mut allow = 0usize;
+            let mut reject = 0usize;
+            for kind in record.votes.values() {
+                match kind {
+                    QaPoolVoteKind::Allow => allow += 1,
+                    QaPoolVoteKind::Reject => reject += 1,
+                    QaPoolVoteKind::Abstain => {}
+                }
+            }
+            let decision = self.qa_pool_config.quorum_decision(allow, reject);
+            if matches!(decision, QaQuorumDecision::Pending) {
+                return Ok(VmExecutionResult {
+                    gas_used: GAS_PER_QA_POOL_VOTE,
+                    return_data: b"qa_vote_pending".to_vec(),
+                    logs: Vec::new(),
+                });
+            }
+            let unpaid = unpaid_counted_voters(record, pay_abstain);
+            for id in &unpaid {
+                record.rewarded.insert(*id);
+            }
+            (decision, unpaid)
+        };
+        let _paid = boing_tokenomics::pay_qa_counted_voters(state, &unpaid, reward_each);
+
+        match decision {
+            QaQuorumDecision::Allow => {
+                let rec = state
+                    .remove_qa_pending(&subject)
+                    .ok_or(VmError::QaPendingNotFound)?;
+                self.install_contract_from_deploy_tx(state, &rec.tx, exec_ctx)?;
+                Ok(VmExecutionResult {
+                    gas_used: GAS_PER_QA_POOL_VOTE,
+                    return_data: b"qa_vote_allow".to_vec(),
+                    logs: Vec::new(),
+                })
+            }
+            QaQuorumDecision::Reject => {
+                let _ = state.remove_qa_pending(&subject);
+                Ok(VmExecutionResult {
+                    gas_used: GAS_PER_QA_POOL_VOTE,
+                    return_data: b"qa_vote_reject".to_vec(),
+                    logs: Vec::new(),
+                })
+            }
+            QaQuorumDecision::Pending => unreachable!(),
+        }
+    }
+
+    /// Create the contract for a previously registered Unsure deploy (nonce already consumed).
+    fn install_contract_from_deploy_tx(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        exec_ctx: VmExecutionContext,
+    ) -> Result<(), VmError> {
+        let Some((bytecode, _, _, _, _)) = tx.payload.as_contract_deploy() else {
+            return Err(VmError::NotImplemented("QA allow of non-deploy"));
+        };
+        let contract_addr = if let Some(salt) = tx.payload.deploy_create2_salt() {
+            create2_contract_address(&tx.sender, &salt, bytecode)
+        } else {
+            nonce_derived_contract_address(&tx.sender, tx.nonce)
+        };
+        if state.get(&contract_addr).is_some() || state.get_contract_code(&contract_addr).is_some() {
+            return Err(VmError::DeploymentAddressInUse);
+        }
+        state.insert(boing_primitives::Account {
+            id: contract_addr,
+            state: boing_primitives::AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        let uses_init = contract_deploy_uses_init_code(bytecode);
+        let init_body = contract_deploy_init_body(bytecode);
+        let stored_code = if uses_init {
+            let mut interpreter = Interpreter::new(init_body.to_vec(), GAS_PER_CONTRACT_DEPLOY_INIT);
+            let _g_init = interpreter.run_with_qa(
+                tx.sender,
+                contract_addr,
+                &[],
+                state,
+                &self.qa_registry,
+                exec_ctx,
+            )?;
+            interpreter.return_data.take().unwrap_or_default()
+        } else {
+            bytecode.to_vec()
+        };
+        state.set_contract_code(contract_addr, stored_code);
+        Ok(())
     }
 
     fn execute_contract_call(
@@ -776,6 +967,12 @@ pub enum VmError {
     CallBufferTooLarge,
     #[error("QA rejected: {rule_id} — {message}")]
     QaRejected { rule_id: String, message: String },
+    #[error("QA pool vote ineligible: {0}")]
+    QaVoterIneligible(&'static str),
+    #[error("QA pool item not registered on-chain")]
+    QaPendingNotFound,
+    #[error("QA pool item already registered")]
+    QaPendingAlreadyRegistered,
     #[error("In-contract CREATE2 is not available for this storage backend")]
     Create2NotSupported,
     #[error("CREATE2 init code size is zero")]

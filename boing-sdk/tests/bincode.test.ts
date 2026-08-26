@@ -18,6 +18,9 @@ const GOLDEN = {
   contractDeploy: '020000000200000000000000dead00',
   bond: '0500000001000000000000000000000000000000',
   unbond: '0600000002000000000000000000000000000000',
+  claimUnbond: '07000000',
+  qaPoolVote:
+    '08000000030303030303030303030303030303030303030303030303030303030303030300000000',
   deployWithPurpose:
     '030000000100000000000000ab040000000000000064656669012000000000000000cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc00',
   deployWithMeta:
@@ -60,13 +63,25 @@ describe('bincode golden vectors (boing-primitives)', () => {
     expect(Buffer.from(p).toString('hex')).toBe(GOLDEN.contractDeploy);
   });
 
-  it('encodes Bond / Unbond', () => {
+  it('encodes Bond / Unbond / ClaimUnbond / QaPoolVote', () => {
     expect(
       Buffer.from(encodeTransactionPayload({ kind: 'bond', amount: 1n })).toString('hex'),
     ).toBe(GOLDEN.bond);
     expect(
       Buffer.from(encodeTransactionPayload({ kind: 'unbond', amount: 2n })).toString('hex'),
     ).toBe(GOLDEN.unbond);
+    expect(
+      Buffer.from(encodeTransactionPayload({ kind: 'claimUnbond' })).toString('hex'),
+    ).toBe(GOLDEN.claimUnbond);
+    expect(
+      Buffer.from(
+        encodeTransactionPayload({
+          kind: 'qaPoolVote',
+          subject: new Uint8Array(32).fill(3),
+          vote: 'allow',
+        }),
+      ).toString('hex'),
+    ).toBe(GOLDEN.qaPoolVote);
   });
 
   it('encodes deploy-with-purpose and deploy-with-metadata', () => {

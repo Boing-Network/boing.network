@@ -15,6 +15,7 @@ export const PayloadVariant = {
     Bond: 5,
     Unbond: 6,
     ClaimUnbond: 7,
+    QaPoolVote: 8,
 };
 export function concatBytes(...parts) {
     const n = parts.reduce((a, p) => a + p.length, 0);
@@ -105,6 +106,13 @@ export function encodeTransactionPayload(payload) {
             return concatBytes(writeU32Le(PayloadVariant.Unbond), writeU128Le(payload.amount));
         case 'claimUnbond':
             return writeU32Le(PayloadVariant.ClaimUnbond);
+        case 'qaPoolVote': {
+            const voteDisc = payload.vote === 'allow' ? 0 : payload.vote === 'reject' ? 1 : 2;
+            if (payload.subject.length !== 32) {
+                throw new Error('qaPoolVote subject must be 32 bytes');
+            }
+            return concatBytes(writeU32Le(PayloadVariant.QaPoolVote), payload.subject, writeU32Le(voteDisc));
+        }
         default: {
             const _x = payload;
             return _x;
