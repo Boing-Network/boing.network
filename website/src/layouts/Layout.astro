@@ -227,8 +227,13 @@ const noindex = isAuthPage;
 
         var mqDesktop = window.matchMedia('(min-width: 768px)');
 
+        function isDesktop() {
+          return mqDesktop.matches;
+        }
+
         function openNav() {
           header.classList.add('nav-open');
+          nav.removeAttribute('hidden');
           toggle.setAttribute('aria-expanded', 'true');
           toggle.setAttribute('aria-label', 'Close menu');
           document.body.classList.add('nav-scroll-lock');
@@ -241,13 +246,18 @@ const noindex = isAuthPage;
           toggle.setAttribute('aria-label', 'Open menu');
           document.body.classList.remove('nav-scroll-lock');
           if (backdrop) backdrop.setAttribute('aria-hidden', 'true');
+          if (!isDesktop()) nav.setAttribute('hidden', '');
+          else nav.removeAttribute('hidden');
         }
 
         function isOpen() {
           return header.classList.contains('nav-open');
         }
 
-        toggle.addEventListener('click', function() {
+        if (!isDesktop()) nav.setAttribute('hidden', '');
+
+        toggle.addEventListener('click', function(e) {
+          e.stopPropagation();
           if (isOpen()) closeNav();
           else openNav();
         });
@@ -267,8 +277,8 @@ const noindex = isAuthPage;
           }
         });
 
-        mqDesktop.addEventListener('change', function(e) {
-          if (e.matches) closeNav();
+        mqDesktop.addEventListener('change', function() {
+          closeNav();
         });
       })();
     </script>
@@ -432,6 +442,8 @@ const noindex = isAuthPage;
     gap: 0.75rem;
     width: 100%;
     min-width: 0;
+    position: relative;
+    z-index: 3;
   }
   @media (min-width: 768px) {
     .site-header-bar {
@@ -443,9 +455,12 @@ const noindex = isAuthPage;
   .site-nav-toggle {
     display: none;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
     flex-shrink: 0;
-    padding: 0.45rem 0.65rem;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.45rem 0.7rem;
     margin: 0;
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -456,6 +471,8 @@ const noindex = isAuthPage;
     font-weight: 600;
     line-height: 1;
     cursor: pointer;
+    position: relative;
+    z-index: 4;
     transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
   }
   .site-nav-toggle:hover {
@@ -497,7 +514,7 @@ const noindex = isAuthPage;
     display: none;
     position: fixed;
     inset: 0;
-    z-index: 28;
+    z-index: 1;
     background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
@@ -734,11 +751,15 @@ const noindex = isAuthPage;
 
   @media (max-width: 767px) {
     .site-nav-toggle {
-      display: flex;
+      display: inline-flex;
     }
 
-    .site-nav {
+    /* `.site-header nav` is more specific than `.site-nav` — hide with the same selector. */
+    .site-header nav,
+    .site-header .site-nav {
       display: none;
+      position: relative;
+      z-index: 2;
       flex-direction: column;
       align-items: stretch;
       flex-wrap: nowrap;
@@ -752,6 +773,7 @@ const noindex = isAuthPage;
       border-top: 1px solid var(--border-color);
     }
 
+    .site-header.nav-open nav,
     .site-header.nav-open .site-nav {
       display: flex;
     }
