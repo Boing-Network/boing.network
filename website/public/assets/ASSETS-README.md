@@ -7,8 +7,8 @@ Place the following assets in this directory (`/public/assets/`) so they resolve
 | Filename | Used for |
 |----------|----------|
 | **icon-only-transparent.png** | Boing icon/logo (transparent). Used in header nav and hero. Single asset for all contexts. |
-| **mascot-default.png** | Corner mascot (fixed bottom-right). Default pose. |
-| **mascot-excited.png** | Hero section mascot. Energetic pose. |
+| **mascot-default.png** | Corner mascot (fixed bottom-right). Default pose. Compressed web-ready copy from the official Boing mascot set. |
+| **mascot-excited.png** | Hero section mascot. Energetic pose. Compressed web-ready copy from the official Boing mascot set. |
 | **pillar-security.svg** | Pillars — Security (vector, neon gradient shield). |
 | **pillar-scalability.svg** | Pillars — Scalability (bars + growth path). |
 | **pillar-decentralization.svg** | Pillars — Decentralization (mesh nodes). |

@@ -41,12 +41,12 @@ const noindex = isAuthPage;
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonicalUrl} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=4" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=5" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/logo-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/assets/icon-only-transparent.png" />
-    <link rel="shortcut icon" href="/favicon.svg?v=4" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
 
@@ -74,17 +74,37 @@ const noindex = isAuthPage;
 
     <!-- Additional SEO -->
     <meta name="theme-color" content="#070a0e" />
-    <meta name="keywords" content="Boing, Boing Network, blockchain, DeFi, L1, cryptocurrency, boing.finance, decentralized finance" />
+    <meta name="keywords" content="Boing, Boing Network, blockchain, DeFi, L1, cryptocurrency, boing.finance, boing.express, boing.observer, decentralized finance, wallet, block explorer" />
 
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Boing Network",
-      "url": siteUrl,
-      "description": "Authentic. Decentralized. Optimal. Quality-Assured. Authentic L1 blockchain built from first principles.",
-      "slogan": "The DeFi that always bounces back!",
-      "logo": `${siteUrl}/assets/icon-only-transparent.png`,
-      "image": ogImage
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": `${siteUrl}/#organization`,
+          "name": "Boing Network",
+          "url": siteUrl,
+          "description": "Authentic. Decentralized. Optimal. Quality-Assured. Authentic L1 blockchain built from first principles.",
+          "slogan": "The DeFi that always bounces back!",
+          "logo": `${siteUrl}/assets/icon-only-transparent.png`,
+          "image": ogImage,
+          "sameAs": [
+            "https://boing.observer",
+            "https://boing.express",
+            "https://boing.finance"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": `${siteUrl}/#website`,
+          "name": "Boing Network",
+          "alternateName": "boing.network",
+          "url": siteUrl,
+          "description": "Authentic L1 blockchain built from first principles. Swap, stake, and build on the Boing ecosystem.",
+          "inLanguage": "en-US",
+          "publisher": { "@id": `${siteUrl}/#organization` }
+        }
+      ]
     })} />
   </head>
   <body class:list={[pageClass, `route-${(path || '/').replace(/^\//, '').replace(/\//g, '-') || 'index'}`, isTestnetApp && 'testnet-app']}>
@@ -94,7 +114,7 @@ const noindex = isAuthPage;
     <header class="site-header site-header--bar backdrop-blur-md border-b border-[var(--border-color)] shadow-md">
       <div class="site-header-bar">
         <a href="/" class="logo flex items-center gap-2 no-underline">
-          <img src="/logo.svg" alt="Boing" width="40" height="40" class="logo-icon flex-shrink-0" />
+          <img src="/logo.svg" alt="Boing Network" width="40" height="40" class="logo-icon flex-shrink-0" />
           <span class="font-display font-extrabold text-xl text-neon-cyan">Boing Network</span>
         </a>
         <button
@@ -349,14 +369,6 @@ const noindex = isAuthPage;
   }
   .site-header nav a:focus-visible {
     outline-offset: 4px;
-  }
-
-  /* Homepage: hide engraved BG until Genesis Block intro completes (intro script sets opacity on .site-engrave-bg) */
-  html.page-home .site-engrave-bg {
-    transition: opacity 1s ease;
-  }
-  html.page-home:not(.intro-complete) .site-engrave-bg {
-    opacity: 0;
   }
 
   .site-header--bar {

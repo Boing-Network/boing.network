@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /testnet/sign-in
+Disallow: /testnet/register
+Disallow: /testnet/set-password
 
 Sitemap: https://boing.network/sitemap.xml

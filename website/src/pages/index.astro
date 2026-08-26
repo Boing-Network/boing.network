@@ -1,6 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
 ---
 
 <Layout
@@ -8,8 +7,6 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
   description="Boing Network — Authentic. Decentralized. Optimal. Quality-Assured. Authentic L1 blockchain built from first principles. Swap, stake, and build on the Boing ecosystem."
   canonical="/"
 >
-  <GenesisBlockIntro durationMs={4000} />
-
   <!-- Hero -->
   <section class="hero" id="hero">
     <!-- Robot hero: extracted Boing robot (from hero image) with 3D motion over environment background -->
@@ -260,10 +257,7 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
     display: flex; align-items: center; justify-content: center;
     pointer-events: none; z-index: 2;
     perspective: 1400px;
-    transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
   }
-  :global(html.intro-active) .hero-robot-wrap { opacity: 0; transform: scale(0.96); }
-  :global(html.intro-complete) .hero-robot-wrap { opacity: 1; transform: scale(1); }
   @media (min-width: 900px) {
     .hero-robot-wrap { position: absolute; right: 0; bottom: 0; top: 0; left: 45%; }
   }
@@ -308,11 +302,8 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
   }
   .hero-bg {
     position: absolute; inset: 0; pointer-events: none; z-index: 0;
-    transition: opacity 1s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
   }
-  :global(html.intro-active) .hero-bg { opacity: 0; }
-  :global(html.intro-complete) .hero-bg { opacity: 1; }
   .hero-orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; animation: float 20s ease-in-out infinite; will-change: transform; }
   .hero-orb-1 { width: 400px; height: 400px; background: radial-gradient(circle, var(--accent-teal) 0%, transparent 70%); top: -20%; left: 10%; animation-delay: 0s; }
   .hero-orb-2 { width: 300px; height: 300px; background: radial-gradient(circle, var(--accent-cyan) 0%, transparent 70%); bottom: -10%; right: 15%; animation-delay: -7s; }
@@ -363,45 +354,6 @@ import GenesisBlockIntro from '../components/GenesisBlockIntro.astro';
     max-width: 800px;
     margin: 0 auto;
   }
-  :global(html.intro-active) .hero-content {
-    pointer-events: none;
-  }
-  :global(html.intro-active) .hero-content .hero-logo-img,
-  :global(html.intro-active) .hero-content .hero-title,
-  :global(html.intro-active) .hero-content .tagline,
-  :global(html.intro-active) .hero-content .stage-badge,
-  :global(html.intro-active) .hero-content .hero-stage,
-  :global(html.intro-active) .hero-content .hero-highlights,
-  :global(html.intro-active) .hero-content .cta {
-    opacity: 0;
-    transform: translateY(24px) scale(0.98);
-  }
-  :global(html.intro-complete) .hero-content .hero-logo-img,
-  :global(html.intro-complete) .hero-content .hero-title,
-  :global(html.intro-complete) .hero-content .tagline,
-  :global(html.intro-complete) .hero-content .stage-badge,
-  :global(html.intro-complete) .hero-content .hero-stage,
-  :global(html.intro-complete) .hero-content .hero-highlights,
-  :global(html.intro-complete) .hero-content .cta {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  .hero-content .hero-logo-img,
-  .hero-content .hero-title,
-  .hero-content .tagline,
-  .hero-content .stage-badge,
-  .hero-content .hero-stage,
-  .hero-content .hero-highlights,
-  .hero-content .cta {
-    transition: opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1), transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  :global(html.intro-complete) .hero-content .hero-logo-img { transition-delay: 0.02s; }
-  :global(html.intro-complete) .hero-content .hero-title { transition-delay: 0.1s; }
-  :global(html.intro-complete) .hero-content .tagline { transition-delay: 0.18s; }
-  :global(html.intro-complete) .hero-content .stage-badge { transition-delay: 0.05s; }
-  :global(html.intro-complete) .hero-content .hero-stage { transition-delay: 0.14s; }
-  :global(html.intro-complete) .hero-content .hero-highlights { transition-delay: 0.26s; }
-  :global(html.intro-complete) .hero-content .cta { transition-delay: 0.34s; }
   .hero-logo-img { display: block; max-width: min(120px, 28vw); height: auto; margin: 0 auto 0.5rem; object-fit: contain; filter: drop-shadow(0 0 16px var(--glow-cyan)); }
   .hero-title { font-size: clamp(2rem, 5vw, 3.5rem); margin: 0 0 0.5rem; }
   .tagline { margin: 0 0 0.5rem; }
