@@ -1,0 +1,38 @@
+/* Major markdown sections (## / <h2>) start on a new page so a heading is
+   never left at the bottom of one page with its body on the next. */
+
+h2 {
+  break-before: page;
+  page-break-before: always;
+  break-after: avoid;
+  page-break-after: avoid;
+  margin-top: 0;
+}
+
+h1,
+h3,
+h4 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+/* Markdown `---` rules sit between ## sections. With section page breaks they
+   would otherwise land alone on a page after a full-height diagram. */
+hr {
+  display: none;
+}
+
+table,
+pre,
+figure,
+blockquote,
+.mermaid {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  max-height: 190mm;
+  height: auto !important;
+}

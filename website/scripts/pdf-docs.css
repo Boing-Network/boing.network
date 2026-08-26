@@ -34,7 +34,6 @@ h2 {
   font-weight: 700;
   color: #0b1f33;
   margin: 1.55em 0 0.45em;
-  page-break-after: avoid;
 }
 
 h3 {
@@ -42,7 +41,6 @@ h3 {
   font-weight: 650;
   color: #12324a;
   margin: 1.2em 0 0.35em;
-  page-break-after: avoid;
 }
 
 p,

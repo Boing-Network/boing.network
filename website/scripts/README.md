@@ -18,7 +18,7 @@ From `website/`:
 npm run build:pdfs
 ```
 
-See `generate-pdfs.js` for the list of Markdown sources. Output is `website/public/pdfs/*.pdf`. Written pages such as `/about` embed **SIX-PILLARS.pdf** (and essentials) instead of duplicating the markdown as HTML.
+See `generate-pdfs.js` for the list of Markdown sources. Output is `website/public/pdfs/*.pdf`. Written pages such as `/about` embed **SIX-PILLARS.pdf** (and essentials) instead of duplicating the markdown as HTML. Each `##` heading starts on a new page (`pdf-page-breaks.css`).
 
 Mermaid fenced blocks (```mermaid) in those Markdown files are rendered to diagrams in Chromium before print.
 

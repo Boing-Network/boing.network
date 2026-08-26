@@ -41,6 +41,7 @@ const docsDir = path.join(repoRoot, 'docs');
 const outDir = path.join(websiteDir, 'public', 'pdfs');
 const sixPillarsCss = path.join(scriptDir, 'pdf-six-pillars.css');
 const docsCss = path.join(scriptDir, 'pdf-docs.css');
+const pageBreaksCss = path.join(scriptDir, 'pdf-page-breaks.css');
 
 const MERMAID_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
 
@@ -135,7 +136,7 @@ async function main() {
           dest: tmpHtml,
           basedir: docsDir,
           as_html: true,
-          stylesheet: [isSixPillars ? sixPillarsCss : docsCss],
+          stylesheet: [isSixPillars ? sixPillarsCss : docsCss, pageBreaksCss],
           body_class: ['boing-pdf'],
         }
       );
