@@ -29,6 +29,19 @@ const canonicalUrl = canonical ? `${siteUrl}${canonical.startsWith('/') ? canoni
 const ogImage = `${siteUrl}/og.png`;
 const isAuthPage = /^testnet\/(sign-in|register|set-password)(\/|$)/.test(pathNorm);
 const noindex = isAuthPage;
+const isHome = path === '/' || path === '';
+const navCurrent = {
+  overview: isHome,
+  resources: path === '/resources' || path.startsWith('/resources/'),
+  downloads: path === '/downloads' || path.startsWith('/downloads/'),
+  about: path === '/about',
+  community: path === '/community' || path.startsWith('/community/'),
+  dashboard: pathNorm === 'testnet',
+  developers: pathNorm.startsWith('testnet/developers'),
+  users: pathNorm.startsWith('testnet/users'),
+  operators: pathNorm.startsWith('testnet/operators'),
+  register: pathNorm.startsWith('testnet/register'),
+};
 ---
 
 <!doctype html>
@@ -111,74 +124,87 @@ const noindex = isAuthPage;
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <StoneEngravingOverlay />
     <BoingMascot />
-    <header class="site-header site-header--bar backdrop-blur-md border-b border-[var(--border-color)] shadow-md">
-      <div class="site-header-bar">
-        <a href="/" class="logo flex items-center gap-2 no-underline">
-          <img src="/logo.svg" alt="Boing Network" width="40" height="40" class="logo-icon flex-shrink-0" />
-          <span class="font-display font-extrabold text-xl text-neon-cyan">Boing Network</span>
-        </a>
-        <button
-          type="button"
-          class="site-nav-toggle"
-          aria-expanded="false"
-          aria-controls="site-nav"
-          aria-label="Open menu"
-        >
-          <span class="site-nav-toggle-bars" aria-hidden="true">
-            <span class="site-nav-toggle-bar"></span>
-            <span class="site-nav-toggle-bar"></span>
-            <span class="site-nav-toggle-bar"></span>
-          </span>
-          <span class="site-nav-toggle-text">Menu</span>
-        </button>
-      </div>
-      <div class="site-nav-backdrop" aria-hidden="true" tabindex="-1"></div>
-      <nav id="site-nav" class="site-nav" aria-label="Main">
-        {path === '/' || path === '' ? (
-          <>
-            <a href="#hero" class="nav-section">Overview</a>
-            <a href="#pillars" class="nav-section">Pillars</a>
-            <a href="#tokenomics" class="nav-section">Tokenomics</a>
-            <a href="#roadmap" class="nav-section">Roadmap</a>
-            <a href="#build" class="nav-section">Build</a>
-            <a href="/testnet" class="nav-testnet">Dashboard</a>
-            <a href="/resources" class="nav-section">Resources</a>
-            <a href="/downloads" class="nav-section">Downloads</a>
-          </>
-        ) : isTestnetApp ? (
-          <>
-            <a href="/testnet" class="nav-testnet" data-testnet-nav="dashboard" id="nav-testnet-dashboard">Dashboard</a>
-            <span id="nav-testnet-hub-links" class="nav-hub-links" style="display: none;" aria-label="Hub pages">
-              <a href="/testnet/developers/resources" data-testnet-hub-link data-hub="developer">Resources</a>
-              <a href="/testnet/developers/community" data-testnet-hub-link data-hub="developer">Community</a>
-              <a href="/testnet/developers/dashboard" data-testnet-hub-link data-hub="developer">My Dashboard</a>
-              <a href="/testnet/users/community" data-testnet-hub-link data-hub="user">Community</a>
-              <a href="/testnet/users/quests" data-testnet-hub-link data-hub="user">Quests</a>
-              <a href="/testnet/users/dashboard" data-testnet-hub-link data-hub="user">My Dashboard</a>
-              <a href="/testnet/operators/dashboard" data-testnet-hub-link data-hub="operator">My Dashboard</a>
-              <a href="/testnet/operators/leaderboard" data-testnet-hub-link data-hub="operator">Leaderboard</a>
-              <a href="/testnet/operators/resources" data-testnet-hub-link data-hub="operator">Resources</a>
+    <div class="site-nav-backdrop" aria-hidden="true" tabindex="-1"></div>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <div class="site-header-bar">
+          <a href="/" class="logo" aria-label="Boing Network home">
+            <img src="/logo.svg" alt="" width="36" height="36" class="logo-icon" />
+            <span class="logo-wordmark">Boing Network</span>
+          </a>
+          <button
+            type="button"
+            class="site-nav-toggle"
+            aria-expanded="false"
+            aria-controls="site-nav"
+            aria-label="Open menu"
+          >
+            <span class="site-nav-toggle-bars" aria-hidden="true">
+              <span class="site-nav-toggle-bar"></span>
+              <span class="site-nav-toggle-bar"></span>
+              <span class="site-nav-toggle-bar"></span>
             </span>
-            <a href="/testnet/developers" data-testnet-nav="developers">Developers</a>
-            <a href="/testnet/users" data-testnet-nav="users">Users</a>
-            <a href="/testnet/operators" data-testnet-nav="operators">Operators</a>
-            <a href="/testnet/register" data-testnet-nav="register">Register</a>
-            <span class="nav-site-sep" id="nav-testnet-sep" aria-hidden="true">·</span>
-            <a href="/resources" class="nav-site-link" id="nav-testnet-site-resources">Resources</a>
-            <span id="portal-auth" class="portal-auth-nav"></span>
-            <a href="/" class="testnet-logout">Back to website</a>
-          </>
-        ) : (
-          <>
-            <a href="/" class="nav-link">Overview</a>
-            <a href="/testnet" class="nav-testnet">Dashboard</a>
-            <a href="/resources" class="nav-link">Resources</a>
-            <a href="/downloads" class="nav-link">Downloads</a>
-            <a href="/about" class="nav-link nav-link--secondary">About</a>
-            <a href="/community" class="nav-link nav-link--secondary">Community</a>
-          </>
-        )}
-      </nav>
+          </button>
+        </div>
+        <nav id="site-nav" class="site-nav" aria-label="Main">
+          {isHome ? (
+            <>
+              <div class="site-nav-cluster">
+                <a href="#hero" class="nav-section" data-nav-section="hero">Overview</a>
+                <a href="#pillars" class="nav-section" data-nav-section="pillars">Pillars</a>
+                <a href="#tokenomics" class="nav-section" data-nav-section="tokenomics">Tokenomics</a>
+                <a href="#roadmap" class="nav-section" data-nav-section="roadmap">Roadmap</a>
+                <a href="#build" class="nav-section" data-nav-section="build">Build</a>
+                <a href="/resources" class="nav-link">Resources</a>
+                <a href="/downloads" class="nav-link">Downloads</a>
+              </div>
+              <div class="site-nav-actions">
+                <a href="/testnet" class="nav-cta">Dashboard</a>
+              </div>
+            </>
+          ) : isTestnetApp ? (
+            <>
+              <div class="site-nav-cluster">
+                <a href="/testnet" class="nav-link" data-testnet-nav="dashboard" id="nav-testnet-dashboard" aria-current={navCurrent.dashboard ? 'page' : undefined}>Dashboard</a>
+                <span id="nav-testnet-hub-links" class="nav-hub-links" style="display: none;" aria-label="Hub pages">
+                  <a href="/testnet/developers/resources" data-testnet-hub-link data-hub="developer">Resources</a>
+                  <a href="/testnet/developers/community" data-testnet-hub-link data-hub="developer">Community</a>
+                  <a href="/testnet/developers/dashboard" data-testnet-hub-link data-hub="developer">My Dashboard</a>
+                  <a href="/testnet/users/community" data-testnet-hub-link data-hub="user">Community</a>
+                  <a href="/testnet/users/quests" data-testnet-hub-link data-hub="user">Quests</a>
+                  <a href="/testnet/users/dashboard" data-testnet-hub-link data-hub="user">My Dashboard</a>
+                  <a href="/testnet/operators/dashboard" data-testnet-hub-link data-hub="operator">My Dashboard</a>
+                  <a href="/testnet/operators/leaderboard" data-testnet-hub-link data-hub="operator">Leaderboard</a>
+                  <a href="/testnet/operators/resources" data-testnet-hub-link data-hub="operator">Resources</a>
+                </span>
+                <a href="/testnet/developers" class="nav-link" data-testnet-nav="developers" aria-current={navCurrent.developers ? 'page' : undefined}>Developers</a>
+                <a href="/testnet/users" class="nav-link" data-testnet-nav="users" aria-current={navCurrent.users ? 'page' : undefined}>Users</a>
+                <a href="/testnet/operators" class="nav-link" data-testnet-nav="operators" aria-current={navCurrent.operators ? 'page' : undefined}>Operators</a>
+                <a href="/testnet/register" class="nav-link" data-testnet-nav="register" aria-current={navCurrent.register ? 'page' : undefined}>Register</a>
+                <span class="nav-site-sep" id="nav-testnet-sep" hidden></span>
+                <a href="/resources" class="nav-link" id="nav-testnet-site-resources">Resources</a>
+              </div>
+              <div class="site-nav-actions">
+                <span id="portal-auth" class="portal-auth-nav"></span>
+                <a href="/" class="nav-quiet testnet-logout" aria-label="Back to website">Website</a>
+              </div>
+            </>
+          ) : (
+            <>
+              <div class="site-nav-cluster">
+                <a href="/" class="nav-link" aria-current={navCurrent.overview ? 'page' : undefined}>Overview</a>
+                <a href="/resources" class="nav-link" aria-current={navCurrent.resources ? 'page' : undefined}>Resources</a>
+                <a href="/downloads" class="nav-link" aria-current={navCurrent.downloads ? 'page' : undefined}>Downloads</a>
+                <a href="/about" class="nav-link" aria-current={navCurrent.about ? 'page' : undefined}>About</a>
+                <a href="/community" class="nav-link" aria-current={navCurrent.community ? 'page' : undefined}>Community</a>
+              </div>
+              <div class="site-nav-actions">
+                <a href="/testnet" class="nav-cta">Dashboard</a>
+              </div>
+            </>
+          )}
+        </nav>
+      </div>
     </header>
     <main id="main-content" tabindex="-1">
       <slot />
@@ -225,7 +251,7 @@ const noindex = isAuthPage;
         var backdrop = document.querySelector('.site-nav-backdrop');
         if (!header || !toggle || !nav) return;
 
-        var mqDesktop = window.matchMedia('(min-width: 768px)');
+        var mqDesktop = window.matchMedia('(min-width: 960px)');
 
         function isDesktop() {
           return mqDesktop.matches;
@@ -280,6 +306,41 @@ const noindex = isAuthPage;
         mqDesktop.addEventListener('change', function() {
           closeNav();
         });
+      })();
+    </script>
+    <script is:inline>
+      (function() {
+        var nav = document.getElementById('site-nav');
+        if (!nav) return;
+        var links = nav.querySelectorAll('a.nav-section[data-nav-section]');
+        if (!links.length) return;
+        var ids = [];
+        links.forEach(function(link) {
+          var id = link.getAttribute('data-nav-section');
+          if (id && document.getElementById(id)) ids.push(id);
+        });
+        if (!ids.length) return;
+
+        function setActive(id) {
+          links.forEach(function(link) {
+            var on = link.getAttribute('data-nav-section') === id;
+            link.classList.toggle('active', on);
+            if (on) link.setAttribute('aria-current', 'location');
+            else link.removeAttribute('aria-current');
+          });
+        }
+
+        var observer = new IntersectionObserver(function(entries) {
+          var visible = entries.filter(function(e) { return e.isIntersecting; });
+          if (!visible.length) return;
+          visible.sort(function(a, b) { return b.intersectionRatio - a.intersectionRatio; });
+          setActive(visible[0].target.id);
+        }, { rootMargin: '-18% 0px -64% 0px', threshold: [0, 0.2, 0.45, 1] });
+
+        ids.forEach(function(id) {
+          observer.observe(document.getElementById(id));
+        });
+        setActive(ids[0]);
       })();
     </script>
     <script is:inline src="/portal-session.js"></script>
@@ -377,12 +438,9 @@ const noindex = isAuthPage;
     outline: 2px solid var(--accent-teal);
     outline-offset: 2px;
   }
-  .site-header nav a:focus-visible {
-    outline-offset: 4px;
-  }
-
-  .site-header--bar {
-    background: color-mix(in srgb, var(--surface, #0f1419) 88%, transparent);
+  .site-header a:focus-visible {
+    outline-offset: 3px;
+    border-radius: 8px;
   }
 
   a {
@@ -409,29 +467,33 @@ const noindex = isAuthPage;
     left: 0;
     right: 0;
     z-index: 30;
+    padding: 0.7rem 1.25rem;
+    background:
+      linear-gradient(180deg, rgba(6, 8, 12, 0.82) 0%, rgba(7, 10, 14, 0.58) 100%);
+    backdrop-filter: blur(22px) saturate(1.2);
+    -webkit-backdrop-filter: blur(22px) saturate(1.2);
+    border-bottom: 1px solid rgba(0, 217, 255, 0.12);
+    box-shadow:
+      inset 0 1px 0 rgba(0, 217, 255, 0.06),
+      0 10px 36px rgba(0, 0, 0, 0.28);
+  }
+  .site-header-inner {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 0;
-    padding: 0.875rem 1.5rem;
+    max-width: 1280px;
+    margin: 0 auto;
   }
-  @media (min-width: 768px) {
+  @media (min-width: 960px) {
     .site-header {
-      flex-direction: row;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.75rem 1rem;
-      padding: 0.875rem 2rem;
+      padding: 0.65rem 1.75rem;
     }
-  }
-  body.testnet-app .site-header {
-    padding: 0.75rem 1.5rem;
-  }
-  @media (min-width: 768px) {
-    body.testnet-app .site-header {
-      padding: 0.75rem 2rem;
-      gap: 0.5rem 1rem;
+    .site-header-inner {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.25rem;
     }
   }
 
@@ -445,7 +507,7 @@ const noindex = isAuthPage;
     position: relative;
     z-index: 3;
   }
-  @media (min-width: 768px) {
+  @media (min-width: 960px) {
     .site-header-bar {
       width: auto;
       flex: 0 0 auto;
@@ -456,53 +518,51 @@ const noindex = isAuthPage;
     display: none;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
     flex-shrink: 0;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0.45rem 0.7rem;
+    width: 42px;
+    height: 42px;
+    padding: 0;
     margin: 0;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--surface, #0f1419) 70%, transparent);
-    color: var(--text-primary);
-    font-family: var(--font-sans);
-    font-size: 0.875rem;
-    font-weight: 600;
-    line-height: 1;
+    border: 1px solid rgba(0, 217, 255, 0.18);
+    border-radius: 999px;
+    background: rgba(15, 20, 25, 0.55);
+    color: var(--text-secondary);
     cursor: pointer;
     position: relative;
     z-index: 4;
-    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
   }
-  .site-nav-toggle:hover {
-    border-color: var(--accent-teal);
+  .site-nav-toggle:hover,
+  .site-header.nav-open .site-nav-toggle {
+    border-color: rgba(0, 217, 255, 0.45);
     color: var(--accent-teal);
+    background: rgba(0, 217, 255, 0.08);
+    box-shadow: 0 0 16px rgba(0, 217, 255, 0.15);
   }
   .site-nav-toggle-bars {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 4px;
-    width: 18px;
+    gap: 5px;
+    width: 16px;
     height: 14px;
   }
   .site-nav-toggle-bar {
     display: block;
     width: 100%;
-    height: 2px;
+    height: 1.5px;
     border-radius: 1px;
     background: currentColor;
     transition: transform 0.2s ease, opacity 0.2s ease;
   }
   .site-header.nav-open .site-nav-toggle-bar:nth-child(1) {
-    transform: translateY(6px) rotate(45deg);
+    transform: translateY(6.5px) rotate(45deg);
   }
   .site-header.nav-open .site-nav-toggle-bar:nth-child(2) {
     opacity: 0;
   }
   .site-header.nav-open .site-nav-toggle-bar:nth-child(3) {
-    transform: translateY(-6px) rotate(-45deg);
+    transform: translateY(-6.5px) rotate(-45deg);
   }
   @media (prefers-reduced-motion: reduce) {
     .site-nav-toggle-bar {
@@ -514,12 +574,12 @@ const noindex = isAuthPage;
     display: none;
     position: fixed;
     inset: 0;
-    z-index: 1;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
+    z-index: 29;
+    background: rgba(4, 6, 10, 0.62);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
-  .site-header.nav-open .site-nav-backdrop {
+  body.nav-scroll-lock .site-nav-backdrop {
     display: block;
   }
 
@@ -530,85 +590,103 @@ const noindex = isAuthPage;
   .logo {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-weight: 700;
-    font-size: 1.25rem;
+    gap: 0.65rem;
     text-decoration: none;
+    min-width: 0;
+  }
+  .logo:hover,
+  .logo:focus-visible {
+    color: inherit;
+    filter: none;
+    text-shadow: none;
+  }
+  .logo-wordmark {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.01em;
+    color: var(--text-primary);
+    white-space: nowrap;
+    transition: color 0.2s ease, text-shadow 0.2s ease;
+  }
+  .logo:hover .logo-wordmark {
+    color: var(--accent-teal);
+    text-shadow: 0 0 12px rgba(0, 217, 255, 0.35);
   }
   .logo-icon {
     flex-shrink: 0;
     display: block;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     object-fit: contain;
-    filter: drop-shadow(0 0 6px var(--glow-cyan-subtle));
+    filter: drop-shadow(0 0 8px var(--glow-cyan-subtle));
+    transition: filter 0.2s ease;
   }
-
   .logo:hover .logo-icon {
-    filter: drop-shadow(0 0 10px var(--glow-cyan));
+    filter: drop-shadow(0 0 12px var(--glow-cyan));
   }
 
   .site-header nav,
   .site-nav {
     display: flex;
     align-items: center;
-    gap: 0.75rem 1rem;
-    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+    min-width: 0;
   }
-  body.testnet-app .site-header nav,
-  body.testnet-app .site-nav {
-    gap: 0.5rem 0.75rem;
+  .site-nav-cluster {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+    padding: 0.22rem;
+    background: rgba(12, 16, 24, 0.55);
+    border: 1px solid rgba(36, 48, 66, 0.8);
+    border-radius: 999px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+  .site-nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-shrink: 0;
   }
   .site-header nav a,
   .site-nav a {
-    color: var(--text-primary);
+    color: var(--text-tertiary);
     font-family: var(--font-sans);
     font-weight: 500;
-    padding: 0.35rem 0.5rem;
-    line-height: 1.5;
-    display: inline-block;
+    font-size: 0.8125rem;
+    letter-spacing: 0.02em;
+    padding: 0.42rem 0.8rem;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
     white-space: nowrap;
-    transition: color 0.2s ease;
+    border-radius: 999px;
+    text-decoration: none;
+    filter: none;
+    text-shadow: none;
+    transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   }
-  body.testnet-app .site-header nav a,
-  body.testnet-app .site-nav a {
-    padding: 0.4rem 0.35rem;
-  }
-
   .site-header nav a:hover,
+  .site-nav a:hover {
+    color: var(--accent-teal);
+    background: rgba(0, 217, 255, 0.08);
+    filter: none;
+    text-shadow: none;
+  }
   .site-header nav a.active,
-  .site-nav a:hover,
-  .site-nav a.active {
+  .site-header nav a[aria-current="page"],
+  .site-header nav a[aria-current="location"],
+  .site-nav a.active,
+  .site-nav a[aria-current="page"],
+  .site-nav a[aria-current="location"] {
     color: var(--accent-teal);
-  }
-  .site-header nav a.nav-section.active,
-  .site-nav a.nav-section.active {
-    color: var(--accent-teal);
-    border-bottom: 2px solid var(--accent-teal);
+    background: rgba(0, 217, 255, 0.12);
+    box-shadow: 0 0 16px rgba(0, 217, 255, 0.1);
   }
 
-  /* Testnet: far right, distinct color (amber/gold) */
-  .site-header nav a.nav-testnet,
-  .site-nav a.nav-testnet {
-    margin-left: auto;
-    color: #f59e0b;
-    font-weight: 600;
-  }
-  .site-header nav a.nav-testnet:hover,
-  .site-nav a.nav-testnet:hover {
-    color: #fbbf24;
-  }
-  .site-header nav a.nav-link--secondary,
-  .site-nav a.nav-link--secondary {
-    color: var(--text-tertiary);
-    font-size: 0.9rem;
-  }
-  .site-header nav a.nav-link--secondary:hover,
-  .site-nav a.nav-link--secondary:hover {
-    color: var(--accent-teal);
-  }
-
-  /* Testnet app: show testnet footer; main nav already includes testnet links from Layout */
   body.testnet-app [data-testnet-show] { display: revert !important; }
   body.testnet-app [data-testnet-hide] { display: none !important; }
   body.testnet-app .testnet-footer { display: block !important; }
@@ -619,29 +697,37 @@ const noindex = isAuthPage;
   .nav-hub-links {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem 0.75rem;
+    gap: 0.1rem;
     flex-wrap: wrap;
   }
   .nav-hub-links a { white-space: nowrap; }
-  .nav-site-sep { color: var(--text-tertiary); font-weight: 300; pointer-events: none; margin: 0 0.1rem; }
-  .site-header nav a.nav-site-link,
-  .site-nav a.nav-site-link { color: var(--text-tertiary); font-size: 0.9rem; }
-  .site-header nav a.nav-site-link:hover,
-  .site-nav a.nav-site-link:hover { color: var(--accent-teal); }
+  .nav-site-sep { display: none; }
 
-  /* Testnet app: logout link + portal-auth in header */
+  .site-header nav a.nav-quiet,
+  .site-nav a.nav-quiet,
   .site-header nav a.testnet-logout,
   .site-nav a.testnet-logout {
-    margin-left: auto;
     color: var(--text-tertiary);
+    background: transparent;
+    padding: 0.42rem 0.7rem;
   }
+  .site-header nav a.nav-quiet:hover,
+  .site-nav a.nav-quiet:hover,
   .site-header nav a.testnet-logout:hover,
   .site-nav a.testnet-logout:hover {
     color: var(--accent-teal);
+    background: rgba(0, 217, 255, 0.08);
   }
   .portal-auth-nav {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0 0.15rem;
+  }
+  .portal-auth-nav:empty {
+    display: none;
   }
   .portal-auth-nav .account-short {
     font-family: var(--font-mono);
@@ -649,6 +735,7 @@ const noindex = isAuthPage;
   }
   .portal-auth-nav a {
     color: var(--accent-teal);
+    padding: 0.42rem 0.7rem;
   }
   .portal-auth-nav .auth-signout {
     background: none;
@@ -656,31 +743,39 @@ const noindex = isAuthPage;
     color: var(--text-tertiary);
     cursor: pointer;
     font-size: inherit;
-    padding: 0;
+    font-family: inherit;
+    padding: 0.42rem 0.7rem;
+    border-radius: 999px;
   }
   .portal-auth-nav .auth-signout:hover {
     color: var(--accent-teal);
+    background: rgba(0, 217, 255, 0.08);
   }
 
-  /* Boing Design Kit: primary CTA = neon cyan */
   .site-header nav a.nav-cta,
   .site-nav a.nav-cta {
-    padding: 0.35rem 0.75rem;
-    border-radius: 8px;
+    padding: 0.42rem 0.95rem;
+    border-radius: 999px;
     font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.02em;
     font-family: var(--font-display);
-    color: var(--stone-deep, #06080c);
-    background: var(--accent-teal);
-    border: none;
-    box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
-    transition: all 0.2s ease;
+    color: var(--accent-teal);
+    background: rgba(0, 217, 255, 0.1);
+    border: 1px solid rgba(0, 217, 255, 0.38);
+    box-shadow: 0 0 18px rgba(0, 217, 255, 0.12);
   }
-
   .site-header nav a.nav-cta:hover,
-  .site-nav a.nav-cta:hover {
-    color: var(--stone-deep, #06080c);
-    transform: translateY(-2px);
-    box-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
+  .site-nav a.nav-cta:hover,
+  .site-header nav a.nav-cta:focus-visible,
+  .site-nav a.nav-cta:focus-visible {
+    color: var(--accent-teal);
+    background: rgba(0, 217, 255, 0.16);
+    border-color: rgba(0, 217, 255, 0.7);
+    box-shadow: 0 0 22px rgba(0, 217, 255, 0.28);
+    transform: none;
+    filter: none;
+    text-shadow: none;
   }
 
   /* Shared Join Testnet / primary CTA (hero, banners) — Design Kit */
@@ -749,12 +844,11 @@ const noindex = isAuthPage;
     }
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 959px) {
     .site-nav-toggle {
       display: inline-flex;
     }
 
-    /* `.site-header nav` is more specific than `.site-nav` — hide with the same selector. */
     .site-header nav,
     .site-header .site-nav {
       display: none;
@@ -763,14 +857,14 @@ const noindex = isAuthPage;
       flex-direction: column;
       align-items: stretch;
       flex-wrap: nowrap;
-      gap: 0;
+      gap: 0.85rem;
       width: 100%;
-      max-height: min(70vh, calc(100dvh - 4.5rem));
+      max-height: min(74vh, calc(100dvh - 4.5rem));
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      padding: 0.35rem 0 0.75rem;
-      margin-top: 0.5rem;
-      border-top: 1px solid var(--border-color);
+      padding: 0.85rem 0.15rem 1rem;
+      margin-top: 0.65rem;
+      border-top: 1px solid rgba(0, 217, 255, 0.1);
     }
 
     .site-header.nav-open nav,
@@ -778,24 +872,45 @@ const noindex = isAuthPage;
       display: flex;
     }
 
+    .site-nav-cluster,
+    .site-nav-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      width: 100%;
+      gap: 0.2rem;
+      padding: 0;
+      background: none;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .site-nav-actions {
+      gap: 0.45rem;
+      padding-top: 0.35rem;
+    }
+
     .site-nav a,
     .site-nav .portal-auth-nav {
       display: block;
       width: 100%;
-      padding: 0.65rem 0.25rem;
+      padding: 0.7rem 0.85rem;
       white-space: normal;
       line-height: 1.4;
-      border-radius: 6px;
+      border-radius: 10px;
+      font-size: 0.95rem;
     }
 
     .site-nav a:hover,
     .site-nav a:focus-visible {
-      background: rgba(0, 217, 255, 0.06);
+      background: rgba(0, 217, 255, 0.08);
     }
 
-    .site-nav a.nav-testnet,
-    .site-nav a.testnet-logout {
-      margin-left: 0;
+    .site-header nav a.nav-cta,
+    .site-nav a.nav-cta {
+      text-align: center;
+      justify-content: center;
+      margin-top: 0.15rem;
     }
 
     .site-nav .nav-hub-links {
@@ -807,7 +922,7 @@ const noindex = isAuthPage;
     }
 
     .site-nav .nav-hub-links a {
-      padding: 0.65rem 0.25rem;
+      padding: 0.7rem 0.85rem;
     }
 
     .site-nav .nav-site-sep {
@@ -817,11 +932,11 @@ const noindex = isAuthPage;
     .site-nav .portal-auth-nav {
       font-size: 0.9rem;
       color: var(--text-secondary);
-      padding: 0.5rem 0.25rem;
+      padding: 0.5rem 0.85rem;
     }
 
-    .logo span {
-      font-size: 1.05rem;
+    .logo-wordmark {
+      font-size: 1rem;
     }
   }
 
@@ -830,23 +945,9 @@ const noindex = isAuthPage;
       width: 32px;
       height: 32px;
     }
-    .site-nav a {
-      font-size: 0.9rem;
-    }
-    .site-nav-toggle-text {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
   }
 
-  @media (min-width: 768px) {
+  @media (min-width: 960px) {
     .site-nav-backdrop {
       display: none !important;
     }

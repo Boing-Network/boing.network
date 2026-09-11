@@ -250,11 +250,8 @@ button[data-variant="secondary"]:hover,
   box-shadow: 0 4px 30px var(--glow-cyan);
 }
 
-/* Navigation Bar */
-nav,
-.navbar,
-header,
-.site-header {
+/* Navigation Bar — chrome lives in Layout.astro; do not style every header/nav. */
+.navbar {
   background: rgba(10, 14, 26, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -265,18 +262,13 @@ header,
   z-index: 1000;
 }
 
-nav a,
-.navbar a,
-.site-header nav a {
+.navbar a {
   color: var(--text-secondary);
   font-family: var(--font-sans);
   transition: color var(--motion-transition);
 }
 
-nav a:hover,
 .navbar a:hover,
-.site-header nav a:hover,
-nav a.active,
 .navbar a.active {
   color: var(--accent-teal);
   text-shadow: none;
@@ -533,9 +525,6 @@ textarea::placeholder {
    RESPONSIVE — site-wide breakpoints
    ============================================================ */
 @media (max-width: 768px) {
-  .site-header {
-    padding: 0.75rem 1rem !important;
-  }
   .site-header nav {
     gap: 0.5rem;
   }

@@ -51,37 +51,60 @@ const links = hub === 'developer' ? developerLinks : hub === 'user' ? userLinks 
 
 <style>
   .hub-nav {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
+    margin: 0 0 1.75rem;
   }
   .hub-nav-list {
-    display: flex;
+    display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem 1rem;
+    gap: 0.15rem;
     list-style: none;
-    padding: 0;
+    padding: 0.22rem;
     margin: 0;
-    font-size: 0.9rem;
+    background: rgba(12, 16, 24, 0.55);
+    border: 1px solid rgba(36, 48, 66, 0.8);
+    border-radius: 14px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+  .hub-nav-item {
+    margin: 0;
   }
   .hub-nav-link {
-    color: var(--text-secondary);
+    display: block;
+    color: var(--text-tertiary);
     text-decoration: none;
-    padding: 0.35rem 0.5rem;
-    border-radius: 6px;
-    transition: color 0.2s ease, background-color 0.2s ease;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
   }
   .hub-nav-link:hover {
     color: var(--accent-teal);
+    background: rgba(0, 217, 255, 0.08);
   }
   .hub-nav-link--current {
     color: var(--accent-teal);
     font-weight: 600;
-    background: rgba(34, 211, 238, 0.12);
+    background: rgba(0, 217, 255, 0.12);
+    box-shadow: 0 0 16px rgba(0, 217, 255, 0.12);
   }
   .hub-nav-link:focus-visible {
     outline: 2px solid var(--accent-teal);
     outline-offset: 2px;
+  }
+  @media (max-width: 520px) {
+    .hub-nav-list {
+      display: flex;
+      width: 100%;
+    }
+    .hub-nav-item {
+      flex: 1 1 calc(50% - 0.15rem);
+    }
+    .hub-nav-link {
+      text-align: center;
+      padding: 0.5rem 0.55rem;
+    }
   }
 </style>
