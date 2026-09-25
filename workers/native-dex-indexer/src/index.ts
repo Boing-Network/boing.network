@@ -290,11 +290,17 @@ export default {
           return json({ error: 'D1 not configured (DIRECTORY_DB binding missing)' }, 503);
         }
         const meta = await getDirectoryMeta(db);
+        const emptyDirectoryNote =
+          meta.poolCount === 0
+            ? 'Empty until ops: set REACT_APP_BOING_NATIVE_AMM_POOL / BOING_CANONICAL_NATIVE_* (or end_user.canonical_native_*) on the RPC, then wait for cron or POST /v1/directory/sync. poolCount 0 before the first successful sync is expected.'
+            : null;
         return json({
           api: 'boing-native-dex-directory/v1',
           resource: 'meta',
           schemaVersion: NATIVE_DEX_DIRECTORY_SCHEMA_VERSION,
           ...meta,
+          emptyDirectory: meta.poolCount === 0,
+          emptyDirectoryNote,
         });
       }
 

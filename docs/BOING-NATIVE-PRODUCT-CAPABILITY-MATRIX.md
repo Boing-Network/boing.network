@@ -30,25 +30,29 @@ egister_pair when factory id published |
 | **Add / remove liquidity** | Boing router or Uniswap/Pancake V2 | External | **done** — Liquidity page + trade hub; paste pool AccountId OK |
 | **Multi-pair / smart route** | Boing router when live | Jupiter | **app-wired** — factory + multihop router; **needs operator deploy** for live ids + registered pairs |
 | **Liquidity locker** | LiquidityLocker when live | — | **needs operator deploy** — module id via env / end_user |
-| **Pools / directory / markets** | GeckoTerminal + EVM pools page | GeckoTerminal | **app-wired** — Observer /dex/pools + finance Pools tab; Worker directory optional |
+| **Pools / directory / markets** | GeckoTerminal + EVM pools page | GeckoTerminal | **app-wired** — Observer `/dex/pools` + finance Pools tab; Worker `/v1/directory/meta` returns honest `emptyDirectory` / `emptyDirectoryNote` until ops sync |
+
 | **Portfolio** | EVM balances / The Graph / Alchemy | SOL + SPL | **app-wired** (2026-09) — oing_getAccount BOING + stake; LP via Swap → Your liquidity |
-| **Bridge** | LI.FI / external | Not in initial scope | **planned** — honest banner; no Boing VM bridge protocol yet |
+| **Bridge** | LI.FI / external | Not in initial scope | **app-wired** — honest `/bridge` scaffold + banner (not LI.FI execution, not a Boing VM bridge); live transfers still need protocol + ops |
+
 | **Analytics / charts** | Token charts + markets board | Markets board | **partial** — reserve history + optional indexer stats |
 | **Explorer transparency** | Chain explorers | Solscan-class | **app-wired** — Observer account/tx (32-byte), DEX directory, ClaimUnbond + QaPoolVote |
-| **Wallet signing** | MetaMask / EVM injected | Phantom / Solflare | **done** — Boing Express only (contract_call + ccess_list + simulate; one-shot suggested access-list merge on send) |
+| **Wallet signing** | MetaMask / EVM injected | Phantom / Solflare | **done** — Boing Express only (`contract_call` + `access_list` + simulate; one-shot suggested access-list merge on send; approval UI documents auto-merge) |
+
 
 ## What still needs operators (not app code)
 
 1. Publish non-zero **canonical CP pool** (and ideally factory / multihop router / locker) on hosted testnet via BOING_CANONICAL_NATIVE_* → end_user hints.
 2. Bootstrap **register_pair** / seed liquidity so smart route and directory are non-empty.
-3. Optional: native-dex-indexer Worker sync so Observer/finance directory pages list pools without log walks.
-4. EVM mainnet DEXFactory deploys remain a separate finance contracts/ operator track (not Boing VM).
+3. Optional: run native-dex-indexer cron / `POST /v1/directory/sync` after publishing ids (Worker empty-path honesty is already code-complete).
+4. **Boing VM bridge protocol** + live transfer execution (app scaffold only today).
+5. EVM mainnet DEXFactory deploys remain a separate finance contracts/ operator track (not Boing VM).
 
-## Dependent-repo checklist (this pass)
+## Dependent-repo checklist (this pass — 2026-09-25 continued)
 
 | Repo | Focus |
 |------|--------|
-| **boing.finance** | Always show native trade hub on 6913; Portfolio Boing path; honest no-pool gate |
-| **boing.express** | contract_call / access_list / simulate; auto-merge suggested access list once on send |
-| **boing.observer** | 32-byte account/tx; DEX directory; ClaimUnbond + QaPoolVote payload display |
-| **boing.network** | This matrix + existing VM/SDK/native DEX stack (no EVM runtime deps) |
+| **boing.finance** | Always-on honest `/bridge` scaffold banner; wire `getBoingL1FullDexReadiness` into trade hub + Native VM; Portfolio + always-on L1 trade hub (prior) |
+| **boing.express** | Approval pipeline copy for one-shot `access_list` auto-merge; simulate/send path (prior) |
+| **boing.observer** | ClaimUnbond narrative clarified as Boing-native (not EVM); ClaimUnbond + QaPoolVote display (prior) |
+| **boing.network** | This matrix; Worker `/v1/directory/meta` empty-directory honesty + README (no EVM/Solana runtime deps) |

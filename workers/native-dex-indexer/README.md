@@ -34,6 +34,17 @@ Bindings (**D1**, **KV**, **R2**) are configured in `wrangler.toml`, not as arbi
 
 
 
+
+
+## Empty directory (honest path)
+
+`GET /v1/directory/meta` returns `poolCount: 0` with `emptyDirectory: true` and `emptyDirectoryNote` until:
+
+1. Canonical CP pool / factory ids exist via Worker env (`REACT_APP_BOING_NATIVE_AMM_POOL`, `REACT_APP_BOING_NATIVE_VM_DEX_FACTORY`, …) **or** live `boing_getNetworkInfo.end_user.canonical_native_*`, and
+2. Cron runs or an operator calls `POST /v1/directory/sync` with `DIRECTORY_SYNC_SECRET`.
+
+Empty-until-ops is expected on hosted testnet before bootstrap — not an app bug.
+
 ## Endpoints
 
 

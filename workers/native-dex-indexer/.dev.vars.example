@@ -16,3 +16,10 @@
 # NATIVE_DEX_INDEXER_RECEIPT_ARCHIVE_BLOCKS=500
 # NATIVE_DEX_INDEXER_TOKEN_USD_JSON={"0x...":"1"}
 # NATIVE_DEX_INDEXER_TOKEN_DIRECTORY_JSON=[{"id":"0x...","symbol":"FOO"}]
+
+# --- Canonical native DEX ids (optional; empty directory until set + sync) ---
+# Same names as finance CRA / node BOING_CANONICAL_NATIVE_* mirrored into end_user.
+# REACT_APP_BOING_NATIVE_AMM_POOL=0x...
+# REACT_APP_BOING_NATIVE_VM_DEX_FACTORY=0x...
+# REACT_APP_BOING_NATIVE_VM_SWAP_ROUTER=0x...
+
