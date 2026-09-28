@@ -15,9 +15,9 @@ boing-primitives = { path = "../boing-primitives" }
 boing-telemetry = { path = "../boing-telemetry" }
 bincode = "1"
 serde = { version = "1", features = ["derive"] }
-libp2p = { version = "0.56", default-features = false, features = ["tcp", "noise", "yamux", "gossipsub", "tokio", "tls", "macros", "request-response", "cbor"] }
-libp2p-core = { version = "0.43", default-features = false }
-libp2p-swarm = { version = "0.47", features = ["macros"] }
+libp2p = { version = "0.57", default-features = false, features = ["tcp", "noise", "yamux", "gossipsub", "tokio", "tls", "macros", "request-response", "cbor"] }
+libp2p-core = { version = "0.44", default-features = false }
+libp2p-swarm = { version = "0.48", features = ["macros"] }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 async-trait = "0.1"
