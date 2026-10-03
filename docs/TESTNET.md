@@ -114,7 +114,7 @@ When the node is started with **`--faucet-enable`**, it accepts:
 
 | Method | Params | Description |
 |--------|--------|-------------|
-| `boing_faucetRequest` | `[hex_account_id]` | Send **1,000,000** testnet BOING to the given account (32-byte hex) — enough for native fees (a transfer is **1 BOING**; a token deploy is typically **~10–20 BOING**) plus min validator stake (10,000). Rate limit: **1 request per 60 seconds per account**. |
+| `boing_faucetRequest` | `[hex_account_id]` | Send **10** testnet BOING to the given account (32-byte hex; native units are 1:1 with BOING) — enough for several transfers (a transfer is **1 BOING**; a token deploy is typically **~10–20 BOING** and may need a second request). Not enough for min validator stake (10,000). Rate limit: **1 request per 60 seconds per account**. |
 
 **Example (curl):**
 
@@ -132,7 +132,7 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
   "id": 1,
   "result": {
     "ok": true,
-    "amount": 1000000,
+    "amount": 10,
     "to": "hex_account_id",
     "message": "Check your wallet; tx is in the mempool."
   }
@@ -142,7 +142,7 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 **Notes:**
 
 - Only nodes started with `--faucet-enable` support this. **Do not use on mainnet.**
-- The faucet account is funded at genesis with 10,000,000 testnet BOING; each request sends **1,000,000**.
+- The faucet account is funded at genesis with 10,000,000 testnet BOING; each request sends **10**.
 - If you get "Faucet cooldown", wait 60 seconds and try again for the same account.
 
 ### 5.2 Public faucet page
