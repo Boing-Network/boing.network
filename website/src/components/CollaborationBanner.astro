@@ -1,0 +1,53 @@
+---
+/**
+ * Site-wide invitation for anyone who wants to collaborate on Boing Network.
+ */
+const email = 'nico.builds@boing.network';
+---
+
+<aside class="collaboration-banner" role="note" aria-label="Collaboration">
+  <p class="collaboration-banner__text">
+    Want to collaborate on the Boing Network? Email Nico at
+    <a class="collaboration-banner__link" href={`mailto:${email}`}>{email}</a>.
+  </p>
+</aside>
+
+<style>
+  .collaboration-banner {
+    width: 100%;
+    padding: 0.45rem 1rem;
+    text-align: center;
+    background: rgba(0, 217, 255, 0.08);
+    border-bottom: 1px solid rgba(0, 217, 255, 0.18);
+  }
+
+  .collaboration-banner__text {
+    margin: 0;
+    font-family: Comfortaa, system-ui, sans-serif;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: rgba(232, 240, 248, 0.88);
+  }
+
+  .collaboration-banner__link {
+    color: #00d9ff;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .collaboration-banner__link:hover,
+  .collaboration-banner__link:focus-visible {
+    color: #7aefff;
+  }
+
+  @media (min-width: 960px) {
+    .collaboration-banner {
+      padding: 0.5rem 1.75rem;
+    }
+
+    .collaboration-banner__text {
+      font-size: 0.875rem;
+    }
+  }
+</style>
