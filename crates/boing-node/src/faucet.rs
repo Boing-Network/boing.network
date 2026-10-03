@@ -24,7 +24,8 @@ pub const FAUCET_INITIAL_BALANCE: u128 = 10_000_000;
 
 /// Amount sent per faucet request.
 ///
-/// Sized so a single request can fund many native txs (a transfer is 1 BOING; a
-/// reference fungible deploy is typically ~10–20 BOING after `fee_for_gas`) **and**
-/// min validator stake ([`boing_tokenomics::MIN_VALIDATOR_STAKE`] = 10_000).
-pub const FAUCET_DISPENSE_AMOUNT: u128 = 1_000_000;
+/// Native BOING uses integer chain units (1 unit = 1 BOING; no fractional decimals).
+/// Sized for light testnet use: a transfer is 1 BOING; a reference fungible deploy is
+/// typically ~10–20 BOING after `fee_for_gas` (may need a second request). Not enough
+/// for min validator stake ([`boing_tokenomics::MIN_VALIDATOR_STAKE`] = 10_000).
+pub const FAUCET_DISPENSE_AMOUNT: u128 = 10;
