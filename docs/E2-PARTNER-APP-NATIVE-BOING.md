@@ -51,7 +51,11 @@ Tutorial repo: [examples/native-boing-tutorial](../examples/native-boing-tutoria
 ## NFT deploy on native Boing
 
 - Use **reference NFT** calldata ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)) and purpose **`NFT`** / **`nft`** for collection contracts.
-- **Pinned collection bytecode** is versioned like fungibles; roadmap for marketplace / royalties: **F2** in [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md).
+- **Pinned collection bytecode** template **version `"2"`**, artifact id **`boing.reference_nft_collection.v0`** — same pattern as fungibles (version bump, artifact id stays). Hex: dump **third** `0x` line from `cargo run -p boing-execution --example dump_reference_token_artifacts`, or `node boing-sdk/scripts/embed-reference-nft-collection-template-hex.mjs`.
+- **Mint path:** admin lazy-mint via `transfer_nft` (single token) **or** template-v2 **`mint_batch` (`0x06`, layout `96+64n`, n≤**`MAX_REFERENCE_NFT_MINT_BATCH`**=50**) via **`encodeReferenceMintBatchCalldata(Hex)`**. Atomic check-then-write; failures are `VmError` (not `STOP`). Zero metadata hash skips `SSTORE`. Access lists are **AccountIds** (sender + collection), not storage keys.
+- **Express:** one approval; preview **“Mint N NFTs to {to}”**; `boing_sendTransaction` returns **`{ tx_hash, tx_id }`** — poll `boing_getTransactionReceipt(tx_id)`.
+- **v1 collections cannot be upgraded** in place; redeploy v2. **Hosted Fly 6913** still needs node redeploy for 3M call gas before large batches work on public RPC.
+- Roadmap for marketplace / royalties: **F2** in [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md).
 
 ---
 

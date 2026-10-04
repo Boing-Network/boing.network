@@ -7,6 +7,8 @@
 
 This document defines a **recommended** calldata layout for NFT-style contracts on the **Boing VM**. It is **not** a consensus-enforced transaction type: deployers use ordinary `ContractDeploy` / `ContractCall` with bytecode that may implement this ABI. All deploys still pass **protocol QA** (`boing-qa`). Use purpose category **`NFT`** / **`nft`** when declaring deploys (see `QUALITY-ASSURANCE-NETWORK.md`).
 
+> **Ops / testnet (6913):** Template **v2** + `GAS_PER_CONTRACT_CALL = 3_000_000` are on **`boing.network` `main`** (merge [`2bd5a33`](https://github.com/Boing-Network/boing.network/commit/2bd5a332d7535eaed107bde8945c6c4e1d77d511)). Public Fly apps **`boing-testnet-1` / `boing-testnet-2`** must still be **redeployed** before `mint_batch` at n≈50 works on `https://testnet-rpc.boing.network/`. Until then, do **not** claim batch mint is live on hosted testnet; older 100 000-gas nodes `OutOfGas`. This is **not** JSON-RPC HTTP batching (`BOING_RPC_MAX_BATCH`).
+
 ## Principles
 
 - **Boing VM only.** Opcodes and semantics are Boing-defined (`TECHNICAL-SPECIFICATION.md` §7, [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md)).

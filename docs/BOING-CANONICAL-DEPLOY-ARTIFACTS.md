@@ -76,9 +76,9 @@ For **secured** template changes, repeat with `cargo test -p boing-execution` (i
 
 | Field | Status |
 |--------|--------|
-| **Reference calldata** | **Defined** — `owner_of`, `transfer_nft`, `set_metadata_hash`, **`mint_batch`** ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)) |
-| **SDK encoders** | **Shipped** — `encodeReferenceOwnerOfCalldata`, etc. |
-| **Canonical collection bytecode** | **Shipped** — `reference_nft_collection_template_bytecode()` (`boing-execution` / `reference_nft.rs`) |
+| **Reference calldata** | **Defined** — `owner_of`, `transfer_nft`, `set_metadata_hash`, **`mint_batch` (`0x06`, layout `96+64n`)** ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)) |
+| **SDK encoders** | **Shipped** — `encodeReferenceOwnerOfCalldata`, `encodeReferenceTransferNftCalldata`, `encodeReferenceSetMetadataHashCalldata`, **`encodeReferenceMintBatchCalldata`** / **`encodeReferenceMintBatchCalldataHex`**, `MAX_REFERENCE_NFT_MINT_BATCH` (= **50**) |
+| **Canonical collection bytecode** | **Shipped** — `reference_nft_collection_template_bytecode()` (`boing-execution` / `reference_nft.rs`); dump **third** `0x` line |
 | **Marketplace / royalties (F2 doc)** | **Roadmap** — on-chain binding royalties still app-layer ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) § Marketplace) |
 
 ### Versioning (NFT)
@@ -91,6 +91,8 @@ For **secured** template changes, repeat with `cargo test -p boing-execution` (i
 **SDK:** `resolveReferenceNftCollectionTemplateBytecodeHex`, env `BOING_REFERENCE_NFT_COLLECTION_TEMPLATE_BYTECODE_HEX` (and `VITE_` / `REACT_APP_` variants), `REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION` = **`2`**. Embed: `node boing-sdk/scripts/embed-reference-nft-collection-template-hex.mjs`.
 
 **v1 collections on chain never gain `0x06`.** Do not replace bytecode. Empty drops: redeploy v2. Already-minted sets: one-tx-per-token or a new collection + remint unminted drafts.
+
+**Batch mint (marketplaces / FreshMint-style apps):** encode with **`encodeReferenceMintBatchCalldata(Hex)`** — one consensus `ContractCall`, not N txs and not JSON-RPC HTTP batching. Access list = **AccountIds** (sender + collection). Poll **`boing_getTransactionReceipt(tx_id)`** (`Transaction::id()`); mempool `"ok"` is only an ack. **Hosted Fly testnet** still needs a node redeploy with **`GAS_PER_CONTRACT_CALL = 3_000_000`** before n≈50 is usable on `testnet-rpc.boing.network` (see [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) ops banner). Pin hex: `cargo run -p boing-execution --example dump_reference_token_artifacts` (line **3**) or `node boing-sdk/scripts/embed-reference-nft-collection-template-hex.mjs`.
 
 **Upgrades (product):**
 
@@ -118,7 +120,7 @@ Stdout: line **1** = smoke (not a token), line **2** = **minimal fungible** temp
 2. **Default path:** If `resolveReferenceFungibleTemplateBytecodeHex()` (or the **secured** resolver) returns a string, users see **no bytecode** on the main path — same rhythm as EVM **form → approve in wallet**. Prefer **`buildReferenceFungibleDeployMetaTx`** or **`buildReferenceFungibleSecuredDeployMetaTx`** in code so the wizard does not manually pair **`resolve` + `buildContractDeployMetaTx`**.
 3. **Advanced:** Keep **paste bytecode** + `description_hash` + QA for power users.
 4. **Copy:** Native deploy uses **Boing Express**, not MetaMask; avoid implying an ERC-20 factory on L1.
-5. **NFT page:** The **Create NFT** wizard (collection → images → metadata → review) is shared; **on-chain native collection** deploy uses **Native VM** in the app with **`purpose_category: 'nft'`** when collection bytecode is configured (`resolveReferenceNftCollectionTemplateBytecodeHex` + `buildContractDeployMetaTx`). Export metadata JSON from the wizard for any toolchain.
+5. **NFT page:** The **Create NFT** wizard (collection → images → metadata → review) is shared; **on-chain native collection** deploy uses **Native VM** in the app with **`purpose_category: 'nft'`** when collection bytecode is configured (`resolveReferenceNftCollectionTemplateBytecodeHex` + `buildContractDeployMetaTx` / **`buildReferenceNftCollectionDeployMetaTx`**). Template **version `"2"`** (artifact id **`boing.reference_nft_collection.v0`**) includes **`mint_batch`**. After deploy, first-touch admin, then one Express approval for **`encodeReferenceMintBatchCalldata`** (preview: “Mint N NFTs to {to}”; result includes **`tx_id`**). Export metadata JSON from the wizard for any toolchain.
 
 ---
 

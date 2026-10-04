@@ -40,7 +40,7 @@ Dependent apps should **pin or track** published `boing-sdk` versions (npm or `f
 
 | Priority | Item | Notes |
 |----------|------|--------|
-| **P0** | **`boing_sendTransaction`** for **`contract_call`** | Must accept Boing shape: 32-byte `contract`, `calldata`, explicit `access_list` — not only `eth_sendTransaction` 20-byte `to`/`data`. |
+| **P0** | **`boing_sendTransaction`** for **`contract_call`** | Must accept Boing shape: 32-byte `contract`, `calldata`, explicit `access_list` — not only `eth_sendTransaction` 20-byte `to`/`data`. **Shipped:** reference NFT **`mint_batch`** preview (“Mint N NFTs to {to}”) + return **`{ tx_hash, tx_id }`** for receipt polling ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)). |
 | **P0** | **`boing_chainId`** / **`boing_requestAccounts`** | Already the alignment contract; keep parity with [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) §3. |
 | **P1** | **`boing_simulateTransaction`** UX | Surface `suggested_access_list` / retry flow; mirror copy in [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) § swap pre-flight. |
 | **P1** | Error mapping | Optionally reuse SDK strings via documentation parity: user-facing text aligned with **`mapInjectedProviderErrorToUiMessage`** and [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md). |
@@ -58,7 +58,7 @@ Dependent apps should **pin or track** published `boing-sdk` versions (npm or `f
 | Priority | Item | Notes |
 |----------|------|--------|
 | **P0** | **RPC** config | `NEXT_PUBLIC_TESTNET_RPC` (and mainnet when live) — same URL semantics as alignment doc §2. |
-| **P1** | **Token / NFT metadata** | **Shipped:** `/asset/:address` metadata scan, `/tokens` index with thumbnails, reference NFT storage probes — use **`boing-sdk`** **`metadataMedia`** helpers for off-chain JSON/IPFS when extending. |
+| **P1** | **Token / NFT metadata** | **Shipped:** `/asset/:address` metadata scan, `/tokens` index with thumbnails, reference NFT storage probes — use **`boing-sdk`** **`metadataMedia`** helpers for off-chain JSON/IPFS when extending. Batch mints (`mint_batch`) still land as **one receipt** + XOR storage writes; poll **`tx_id`**, not mempool `"ok"`. |
 | **P1** | **Optional “Pools / DEX directory”** | Read-only: use **`fetchNativeDexDirectorySnapshot`** + bounded **`registerLogs`** or durable index ([BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md) §4.3). Avoid full-chain log scans on every page load. |
 | **P1** | **Account / tx** views | 32-byte Boing `AccountId` display (no 20-byte assumption); link format per alignment doc. |
 | **P2** | **Route / quote** pages | If product wants “best path” UX, depend on **`boing-sdk`** `findBestCpRoutes` / `fetchCpRoutingFromDirectoryLogs` with cached venue list from your indexer. |
@@ -74,6 +74,7 @@ Dependent apps should **pin or track** published `boing-sdk` versions (npm or `f
 | **P1** | **Routing** | **`nativeDexRouting`** for quotes; multihop / pool encoders in **`boing-sdk`**. |
 | **P1** | **D1 directory pagination** | Optional **`REACT_APP_BOING_NATIVE_DEX_DIRECTORY_BASE_URL`** + **`fetchNativeDexDirectoryPoolsPage`**; merge indexer stats by **`poolHex`**. Verify: **`npm run verify-native-dex-directory-worker`**. |
 | **P2** | **Wallet** | **`providerSupportsBoingNativeRpc`**; steer to Boing Express when false. |
+| **P2** | **Native NFT batch mint** | Template **v2** + **`encodeReferenceMintBatchCalldata`**; Create NFT deploy still uses pinned hex. Large batches need Fly nodes on **3M** call gas ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)). |
 | **Protocol** | **Unsigned simulate, LP positions, history** | [PROTOCOL_NATIVE_DEX_RPC_AND_INDEXING_ROADMAP.md](PROTOCOL_NATIVE_DEX_RPC_AND_INDEXING_ROADMAP.md). |
 
 ### Directory API (boing.finance engineers)

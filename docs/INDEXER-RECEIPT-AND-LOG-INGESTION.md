@@ -150,7 +150,7 @@ flowchart TD
 
 - **Full index / explorer backends** should still drive the main loop from **`boing_getBlockByHeight(h, true)`** (or archive replay): you get **transactions + receipts** in one consistent snapshot per height, with straightforward idempotency on **`tx_id`**.
 - **`boing_getLogs`** is useful when you already know **height bounds** and optional **`address` / `topics`** filters—for example incremental “events only” workers, operator dashboards, or narrowing a bug search. Respect node caps (**128** blocks, **2048** logs per request); page the chain in **≤128-height windows** if you use it for wider ranges. On **`429` / rate limits**, back off; prefer batch **block+receipt** fetches for heavy catch-up.
-- **`boing_getContractStorage`** can backfill **state** for known layouts ([BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md), [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)).
+- **`boing_getContractStorage`** can backfill **state** for known layouts ([BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md), [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)). A reference NFT **`mint_batch`** is still **one** receipt with multiple XOR storage writes (not N receipts / not JSON-RPC HTTP batching).
 
 ---
 

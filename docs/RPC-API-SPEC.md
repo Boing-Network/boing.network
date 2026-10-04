@@ -710,7 +710,7 @@ Verify an account Merkle proof.
 
 ### boing_getContractStorage
 
-Read a single 32-byte Boing VM storage word for a contract (same semantics as `SLOAD`: missing slot → zero word). Useful for indexers and wallets that know the storage key layout (e.g. reference NFT / token conventions).
+Read a single 32-byte Boing VM storage word for a contract (same semantics as `SLOAD`: missing slot → zero word). Useful for indexers and wallets that know the storage key layout (e.g. reference NFT / token conventions — [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) XOR owner/metadata keys; a **`mint_batch`** still writes those slots under one receipt). This helper is unrelated to JSON-RPC **HTTP** batching (`BOING_RPC_MAX_BATCH`).
 
 | Field | Type | Description |
 |-------|------|-------------|

@@ -64,7 +64,7 @@ For dApps that want the **same 96-byte** `transfer` / `mint_first` layout but **
 
 ## NFTs
 
-See **[BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)** for the reference NFT calldata layout (`owner_of`, `transfer_nft`, optional metadata hash).
+See **[BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)** for the reference NFT calldata layout (`owner_of`, `transfer_nft`, `set_metadata_hash`, and template-v2 **`mint_batch` (`0x06`, `96+64n`)`).
 
 ## QA
 
