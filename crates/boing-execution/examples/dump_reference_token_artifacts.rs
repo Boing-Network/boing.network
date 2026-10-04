@@ -5,7 +5,7 @@
 //!   ([BOING-REFERENCE-TOKEN.md](../../docs/BOING-REFERENCE-TOKEN.md)); deploy with purpose **`token`**.
 //! - [`boing_execution::reference_nft_collection_template_bytecode`] — minimal **collection**
 //!   implementing [BOING-REFERENCE-NFT.md](../../docs/BOING-REFERENCE-NFT.md) selectors (`owner_of`,
-//!   `transfer_nft`, `set_metadata_hash`) + lazy admin; deploy with purpose **`nft`** / **`NFT`**.
+//!   `transfer_nft`, `set_metadata_hash`, `mint_batch`) + lazy admin; deploy with purpose **`nft`** / **`NFT`**.
 //! - [`boing_execution::reference_fungible_secured_pinned_default_deploy_bytecode`] — **`0xFD`** init +
 //!   runtime with optional enforcement toggles; see [BOING-REFERENCE-TOKEN.md](../../docs/BOING-REFERENCE-TOKEN.md)
 //!   § Secured template and [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](../../docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md).

@@ -6,6 +6,9 @@ import { calldataAccountIdWord, calldataFixedWord32, calldataSelectorLastByte, }
 export const SELECTOR_OWNER_OF = 0x03;
 export const SELECTOR_TRANSFER_NFT = 0x04;
 export const SELECTOR_SET_METADATA_HASH = 0x05;
+export const SELECTOR_MINT_BATCH = 0x06;
+/** Bytecode cap; production `GAS_PER_CONTRACT_CALL` (3_000_000) is sized for this `n` with owner+metadata stores. */
+export const MAX_REFERENCE_NFT_MINT_BATCH = 50;
 /** XOR mask for owner slot — mirrors `REF_NFT_OWNER_STORAGE_XOR` in `reference_nft.rs`. */
 export const REF_NFT_OWNER_STORAGE_XOR_HEX = validateHex32('0x424f494e475f5245464e46545f4f574e45523031000000000000000000000000');
 /** XOR mask for metadata hash slot — mirrors `REF_NFT_METADATA_STORAGE_XOR` in `reference_nft.rs`. */
@@ -69,4 +72,49 @@ export function encodeReferenceSetMetadataHashCalldata(tokenIdHex32, metadataHas
 }
 export function encodeReferenceOwnerOfCalldataHex(tokenIdHex32) {
     return bytesToHex(encodeReferenceOwnerOfCalldata(tokenIdHex32));
+}
+export function encodeReferenceTransferNftCalldataHex(toHexAccount32, tokenIdHex32) {
+    return bytesToHex(encodeReferenceTransferNftCalldata(toHexAccount32, tokenIdHex32));
+}
+export function encodeReferenceSetMetadataHashCalldataHex(tokenIdHex32, metadataHashHex32) {
+    return bytesToHex(encodeReferenceSetMetadataHashCalldata(tokenIdHex32, metadataHashHex32));
+}
+/**
+ * Variable-length `mint_batch` calldata: `96 + 64n` bytes.
+ *
+ * | Offset | Content |
+ * | 0..31 | selector word (low byte `0x06`) |
+ * | 32..63 | `to` AccountId |
+ * | 64..95 | `n` as big-endian u64 in the low 8 bytes |
+ * | 96 .. 96+32n-1 | `tokenIds[i]` |
+ * | 96+32n .. 96+64n-1 | `metadataHashes[i]` |
+ *
+ * All-zero metadata hashes skip `SSTORE` on-chain (option B). `n` must be in `1..=MAX_REFERENCE_NFT_MINT_BATCH`.
+ */
+export function encodeReferenceMintBatchCalldata(toHexAccount32, tokenIdsHex32, metadataHashesHex32) {
+    if (tokenIdsHex32.length !== metadataHashesHex32.length) {
+        throw new RangeError(`mint_batch length mismatch: ${tokenIdsHex32.length} token ids vs ${metadataHashesHex32.length} hashes`);
+    }
+    const n = tokenIdsHex32.length;
+    if (n < 1 || n > MAX_REFERENCE_NFT_MINT_BATCH) {
+        throw new RangeError(`mint_batch n must be 1..=${MAX_REFERENCE_NFT_MINT_BATCH}, got ${n}`);
+    }
+    const out = new Uint8Array(96 + 64 * n);
+    out.set(calldataSelectorLastByte(SELECTOR_MINT_BATCH), 0);
+    out.set(calldataAccountIdWord(toHexAccount32), 32);
+    const nWord = new Uint8Array(32);
+    let x = BigInt(n);
+    for (let i = 31; i >= 24; i--) {
+        nWord[i] = Number(x & 0xffn);
+        x >>= 8n;
+    }
+    out.set(nWord, 64);
+    for (let i = 0; i < n; i++) {
+        out.set(calldataFixedWord32(tokenIdsHex32[i]), 96 + 32 * i);
+        out.set(calldataFixedWord32(metadataHashesHex32[i]), 96 + 32 * n + 32 * i);
+    }
+    return out;
+}
+export function encodeReferenceMintBatchCalldataHex(toHexAccount32, tokenIdsHex32, metadataHashesHex32) {
+    return bytesToHex(encodeReferenceMintBatchCalldata(toHexAccount32, tokenIdsHex32, metadataHashesHex32));
 }

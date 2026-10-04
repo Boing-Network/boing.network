@@ -20,7 +20,7 @@ export const REFERENCE_FUNGIBLE_SECURED_TEMPLATE_VERSION = '1';
 /** Logical id for the NFT collection template. */
 export const REFERENCE_NFT_COLLECTION_TEMPLATE_ARTIFACT_ID = 'boing.reference_nft_collection.v0';
 /** Matches `reference_nft_collection_template_bytecode()` in `boing-execution` (regenerate via `dump_reference_token_artifacts`). */
-export const REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION = '1';
+export const REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION = '2';
 const DEFAULT_NFT_COLLECTION_ENV_KEYS = [
     'BOING_REFERENCE_NFT_COLLECTION_TEMPLATE_BYTECODE_HEX',
     'VITE_BOING_REFERENCE_NFT_COLLECTION_TEMPLATE_BYTECODE_HEX',

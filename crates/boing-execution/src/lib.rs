@@ -26,10 +26,11 @@ pub use interpreter::{Interpreter, StorageAccess, VmExecutionContext, MAX_CALL_D
 pub use parallel::ExecutionView;
 pub use scheduler::TransactionScheduler;
 pub use reference_nft::{
-    encode_owner_of_calldata, encode_set_metadata_hash_calldata, encode_transfer_nft_calldata,
-    ref_nft_collection_admin_key, reference_nft_collection_template_bytecode,
-    REF_NFT_METADATA_STORAGE_XOR, REF_NFT_OWNER_STORAGE_XOR, SELECTOR_OWNER_OF,
-    SELECTOR_SET_METADATA_HASH, SELECTOR_TRANSFER_NFT, token_id_word,
+    encode_mint_batch_calldata, encode_owner_of_calldata, encode_set_metadata_hash_calldata,
+    encode_transfer_nft_calldata, ref_nft_collection_admin_key,
+    reference_nft_collection_template_bytecode, MAX_REFERENCE_NFT_MINT_BATCH,
+    REF_NFT_METADATA_STORAGE_XOR, REF_NFT_OWNER_STORAGE_XOR, SELECTOR_MINT_BATCH,
+    SELECTOR_OWNER_OF, SELECTOR_SET_METADATA_HASH, SELECTOR_TRANSFER_NFT, token_id_word,
 };
 pub use reference_token::{
     encode_mint_first_calldata, encode_transfer_calldata, ref_fungible_admin_key,
