@@ -84,8 +84,8 @@ describe('canonicalDeployArtifacts', () => {
     expect(h.length).toBeGreaterThan(200);
   });
 
-  it('REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION is 1', () => {
-    expect(REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION).toBe('1');
+  it('REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION is 2', () => {
+    expect(REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION).toBe('2');
   });
 
   it('buildReferenceFungibleDeployMetaTx matches resolve + buildContractDeployMetaTx', () => {

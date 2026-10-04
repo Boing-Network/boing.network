@@ -376,7 +376,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | Tx Type | Base Gas |
 |---------|----------|
 | Transfer | 21,000 |
-| ContractCall | 100,000 |
+| ContractCall | 3,000,000 (interpreter budget `GAS_PER_CONTRACT_CALL`; fee uses actual `gas_used`) |
 | ContractDeploy | 200,000 |
 | Bond | 21,000 |
 | Unbond | 21,000 |

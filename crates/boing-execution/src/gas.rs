@@ -5,7 +5,7 @@
 /// Base gas costs per transaction type (before multiplier).
 pub mod base {
     pub const TRANSFER: u64 = 21_000;
-    pub const CONTRACT_CALL: u64 = 100_000;
+    pub const CONTRACT_CALL: u64 = 3_000_000;
     pub const CONTRACT_DEPLOY: u64 = 200_000;
     pub const BOND: u64 = 21_000;
     pub const UNBOND: u64 = 21_000;
@@ -25,7 +25,9 @@ pub struct GasConfig {
 
 impl Default for GasConfig {
     fn default() -> Self {
-        Self { multiplier_e4: 10000 }
+        Self {
+            multiplier_e4: 10000,
+        }
     }
 }
 
@@ -58,6 +60,6 @@ impl GasConfig {
 
     /// Upper bound for any single tx (predictable cap).
     pub fn max_tx_gas(&self) -> u64 {
-        self.gas(base::CONTRACT_DEPLOY * 2) // worst-case reasonable tx
+        self.gas(base::CONTRACT_CALL.max(base::CONTRACT_DEPLOY).saturating_mul(2))
     }
 }

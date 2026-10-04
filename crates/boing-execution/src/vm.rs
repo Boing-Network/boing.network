@@ -16,7 +16,7 @@ use super::interpreter::{Interpreter, VmExecutionContext};
 
 /// Gas used by a transaction.
 pub const GAS_PER_TRANSFER: u64 = 21_000;
-pub const GAS_PER_CONTRACT_CALL: u64 = 100_000;
+pub const GAS_PER_CONTRACT_CALL: u64 = 3_000_000;
 /// Gas budget for **`0xFD` init** that runs at deploy (SSTORE bootstrap + `MSTORE`/`RETURN` of large runtime).
 pub const GAS_PER_CONTRACT_DEPLOY_INIT: u64 = 5_000_000;
 pub const GAS_PER_CONTRACT_DEPLOY: u64 = 200_000;

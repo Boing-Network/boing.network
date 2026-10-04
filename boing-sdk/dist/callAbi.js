@@ -105,6 +105,7 @@ export const BoingReferenceCallDescriptors = {
             selector: SELECTOR_SET_METADATA_HASH,
             params: ['bytes32', 'bytes32'],
         },
+        // `mint_batch` is variable-length (`96+64n`); use `encodeReferenceMintBatchCalldata`, not this helper.
     },
     /** Native constant-product pool (`docs/NATIVE-AMM-CALLDATA.md`) — three u128 words after selector. */
     nativeAmm: {

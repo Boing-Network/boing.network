@@ -388,6 +388,8 @@ export {
   SELECTOR_OWNER_OF,
   SELECTOR_TRANSFER_NFT,
   SELECTOR_SET_METADATA_HASH,
+  SELECTOR_MINT_BATCH,
+  MAX_REFERENCE_NFT_MINT_BATCH,
   REF_NFT_OWNER_STORAGE_XOR_HEX,
   REF_NFT_METADATA_STORAGE_XOR_HEX,
   referenceNftOwnerStorageKey,
@@ -396,7 +398,11 @@ export {
   encodeReferenceOwnerOfCalldata,
   encodeReferenceTransferNftCalldata,
   encodeReferenceSetMetadataHashCalldata,
+  encodeReferenceMintBatchCalldata,
   encodeReferenceOwnerOfCalldataHex,
+  encodeReferenceTransferNftCalldataHex,
+  encodeReferenceSetMetadataHashCalldataHex,
+  encodeReferenceMintBatchCalldataHex,
 } from './referenceNft.js';
 export {
   ipfsUriToGatewayUrl,

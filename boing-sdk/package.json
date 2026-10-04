@@ -11,6 +11,7 @@
     "test": "vitest run",
     "verify": "node scripts/verify.mjs",
     "embed-fungible-hex": "node scripts/embed-reference-fungible-template-hex.mjs",
+    "embed-nft-hex": "node scripts/embed-reference-nft-collection-template-hex.mjs",
     "generate-operator-key": "node scripts/generate-operator-key.mjs",
     "probe-rpc": "node scripts/probe-rpc.mjs",
     "prepublishOnly": "npm run build"

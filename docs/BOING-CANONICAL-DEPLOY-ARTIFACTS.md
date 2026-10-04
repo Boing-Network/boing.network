@@ -76,7 +76,7 @@ For **secured** template changes, repeat with `cargo test -p boing-execution` (i
 
 | Field | Status |
 |--------|--------|
-| **Reference calldata** | **Defined** — `owner_of`, `transfer_nft`, `set_metadata_hash` ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)) |
+| **Reference calldata** | **Defined** — `owner_of`, `transfer_nft`, `set_metadata_hash`, **`mint_batch`** ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)) |
 | **SDK encoders** | **Shipped** — `encodeReferenceOwnerOfCalldata`, etc. |
 | **Canonical collection bytecode** | **Shipped** — `reference_nft_collection_template_bytecode()` (`boing-execution` / `reference_nft.rs`) |
 | **Marketplace / royalties (F2 doc)** | **Roadmap** — on-chain binding royalties still app-layer ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) § Marketplace) |
@@ -85,9 +85,12 @@ For **secured** template changes, repeat with `cargo test -p boing-execution` (i
 
 | Version | Artifact id | BLAKE3 (deploy payload) | Notes |
 |---------|-------------|-------------------------|--------|
-| **1** | `boing.reference_nft_collection.v0` | Run `cargo run -p boing-execution --example dump_reference_token_artifacts` and hash the **third** `0x` line | Lazy **admin** (first caller); `owner_of` / `transfer_nft` / `set_metadata_hash`; mint = admin-only when `owner_of` is zero. Purpose **`nft`** / **`NFT`**. |
+| **1** | `boing.reference_nft_collection.v0` | Historical: dump **third** `0x` line from the v1 binary | Lazy admin; `owner_of` / `transfer_nft` / `set_metadata_hash` only. **Cannot** be upgraded in place. |
+| **2** | `boing.reference_nft_collection.v0` | Run `cargo run -p boing-execution --example dump_reference_token_artifacts` and hash the **third** `0x` line | Same storage XOR keys plus **`mint_batch` (`0x06`)**. Redeploy for new collections. Purpose **`nft`** / **`NFT`**. |
 
-**SDK:** `resolveReferenceNftCollectionTemplateBytecodeHex`, env `BOING_REFERENCE_NFT_COLLECTION_TEMPLATE_BYTECODE_HEX` (and `VITE_` / `REACT_APP_` variants), `REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION` = **`1`**.
+**SDK:** `resolveReferenceNftCollectionTemplateBytecodeHex`, env `BOING_REFERENCE_NFT_COLLECTION_TEMPLATE_BYTECODE_HEX` (and `VITE_` / `REACT_APP_` variants), `REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION` = **`2`**. Embed: `node boing-sdk/scripts/embed-reference-nft-collection-template-hex.mjs`.
+
+**v1 collections on chain never gain `0x06`.** Do not replace bytecode. Empty drops: redeploy v2. Already-minted sets: one-tx-per-token or a new collection + remint unminted drafts.
 
 **Upgrades (product):**
 
