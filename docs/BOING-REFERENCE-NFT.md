@@ -107,7 +107,7 @@ When `metadata_hash` points to JSON (IPFS, HTTPS), recommended keys for marketpl
 
 **Implementation:** `boing_execution::reference_nft_collection_template_bytecode()` — lazy admin; `owner_of` / `transfer_nft` / `set_metadata_hash` / **`mint_batch`**; XOR keys `REF_NFT_OWNER_STORAGE_XOR` / `REF_NFT_METADATA_STORAGE_XOR`. **Single mint:** unowned `token_id` + admin `transfer_nft`. **Batch mint (v2):** `mint_batch`.
 
-Integration: [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md). **`boing-sdk`:** `resolveReferenceNftCollectionTemplateBytecodeHex`, **`REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION`** = **`2`**, artifact id **`boing.reference_nft_collection.v0`**. Hex: `cargo run -p boing-execution --example dump_reference_token_artifacts` (**third** `0x` line) or `node boing-sdk/scripts/embed-reference-nft-collection-template-hex.mjs`.
+Integration: [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md). **`boing-sdk`:** `resolveReferenceNftCollectionTemplateBytecodeHex`, **`REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION`** = **`2`**, artifact id **`boing.reference_nft_collection.v0`**. Hex: pinned [`artifacts/reference-nft-collection-template-v2.hex`](artifacts/reference-nft-collection-template-v2.hex), or regenerate with `cargo run -p boing-execution --example dump_reference_token_artifacts` (**third** `0x` line) / `node boing-sdk/scripts/embed-reference-nft-collection-template-hex.mjs`.
 
 ### v1 vs v2 (no in-place upgrade)
 
