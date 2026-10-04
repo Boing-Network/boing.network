@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as applied before **1.0.0** (minor releases may include breaking TypeScript surface changes).
 
+## [0.4.0] - 2026-10-04
+
+### Added
+
+- **Reference NFT `mint_batch` encoders** — `SELECTOR_MINT_BATCH` (`0x06`), `MAX_REFERENCE_NFT_MINT_BATCH` (50), `encodeReferenceMintBatchCalldata` / `encodeReferenceMintBatchCalldataHex` (layout `96 + 64n`; all-zero metadata hashes skip on-chain `SSTORE`). FreshMint and other clients can drop local encoders.
+- **Reference NFT collection template v2** — `REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION` is `"2"`; default embed / resolvers ship the v2 deploy bytecode (artifact id still `boing.reference_nft_collection.v0`). Existing on-chain v1 collections stay immutable without `mint_batch`.
+
+### Notes
+
+- Large `mint_batch` calls need nodes with `GAS_PER_CONTRACT_CALL = 3_000_000` (measured n=50 owner+metadata ≈ 2.15M gas). Public Fly testnet redeploy may still be pending.
+
 ## [0.3.1] - 2026-04-12
 
 ### Added
