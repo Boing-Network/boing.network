@@ -16,7 +16,7 @@ export declare const REFERENCE_FUNGIBLE_SECURED_TEMPLATE_VERSION: "1";
 /** Logical id for the NFT collection template. */
 export declare const REFERENCE_NFT_COLLECTION_TEMPLATE_ARTIFACT_ID: "boing.reference_nft_collection.v0";
 /** Matches `reference_nft_collection_template_bytecode()` in `boing-execution` (regenerate via `dump_reference_token_artifacts`). */
-export declare const REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION: "2";
+export declare const REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION: "3";
 /** Boing Express / wallet JSON-RPC tx object for `contract_deploy_meta`. */
 export type ContractDeployMetaTxObject = {
     type: 'contract_deploy_meta';

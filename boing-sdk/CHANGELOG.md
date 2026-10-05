@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as applied before **1.0.0** (minor releases may include breaking TypeScript surface changes).
 
+## [0.5.0] - 2026-10-05
+
+### Changed
+
+- **`MAX_REFERENCE_NFT_MINT_BATCH`** raised **50 → 500** (template **v3** bytecode).
+- **`REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION`** is **`"3"`**; default embed ships v3 hex (artifact id still `boing.reference_nft_collection.v0`). Existing on-chain v2 collections keep n≤50 forever.
+
+### Notes
+
+- Full n=500 owner+metadata ≈ **33.3M** gas → nodes need **`GAS_PER_CONTRACT_CALL = 40_000_000`**. Fee ≈ **1587 BOING**. For 10k tokens: **20 × 500** txs (10k in one call is not practical — see [BOING-REFERENCE-NFT.md](../docs/BOING-REFERENCE-NFT.md)).
+- FreshMint / Vercel: set new v3 hex env (prefer `BOING_REFERENCE_NFT_COLLECTION_TEMPLATE_V3_BYTECODE_HEX` or the shared resolver env) after Fly nodes redeploy with 40M gas.
+
 ## [0.4.0] - 2026-10-04
 
 ### Added
@@ -14,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 
-- Large `mint_batch` calls need nodes with `GAS_PER_CONTRACT_CALL = 3_000_000` (measured n=50 owner+metadata ≈ 2.15M gas). Public Fly testnet redeploy may still be pending.
+- Large `mint_batch` calls need nodes with `GAS_PER_CONTRACT_CALL = 3_000_000` (measured n=50 owner+metadata ≈ 2.15M gas). Superseded by **0.5.0** / template v3 (40M / n=500).
 
 ## [0.3.1] - 2026-04-12
 

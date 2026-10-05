@@ -15,7 +15,9 @@ function id(n: number): string {
 }
 
 function hash(n: number): string {
-  return '0x' + n.toString(16).padStart(2, '0') + 'aa'.repeat(31);
+  // Full 32-byte word (64 hex chars): high byte 0xaa, low 8 bytes = n.
+  const low = n.toString(16).padStart(16, '0');
+  return ('0x' + 'aa' + '00'.repeat(23) + low) as string;
 }
 
 describe('encodeReferenceMintBatchCalldata', () => {
@@ -29,14 +31,16 @@ describe('encodeReferenceMintBatchCalldata', () => {
     expect(encodeReferenceMintBatchCalldataHex(to, ids, hashes).startsWith('0x')).toBe(true);
   });
 
-  it('encodes n=MAX (50) at the documented production cap', () => {
-    expect(MAX_REFERENCE_NFT_MINT_BATCH).toBe(50);
+  it('encodes n=MAX (500) at the documented production cap', () => {
+    expect(MAX_REFERENCE_NFT_MINT_BATCH).toBe(500);
     const n = MAX_REFERENCE_NFT_MINT_BATCH;
     const ids = Array.from({ length: n }, (_, i) => id(i + 1));
     const hashes = Array.from({ length: n }, (_, i) => hash(i + 1));
     const bytes = encodeReferenceMintBatchCalldata(to, ids, hashes);
     expect(bytes.length).toBe(96 + 64 * n);
-    expect(bytes[95]).toBe(n);
+    // n=500 = 0x01f4 in the low 8 bytes of word2
+    expect(bytes[94]).toBe(0x01);
+    expect(bytes[95]).toBe(0xf4);
   });
 
   it('rejects length mismatch', () => {
@@ -46,13 +50,13 @@ describe('encodeReferenceMintBatchCalldata', () => {
   });
 
   it('rejects n=0 and n>MAX', () => {
-    expect(() => encodeReferenceMintBatchCalldata(to, [], [])).toThrow(/1\.\.=50/);
-    const ids = Array.from({ length: 51 }, (_, i) => id(i + 1));
-    const hashes = Array.from({ length: 51 }, (_, i) => hash(i + 1));
-    expect(() => encodeReferenceMintBatchCalldata(to, ids, hashes)).toThrow(/1\.\.=50/);
+    expect(() => encodeReferenceMintBatchCalldata(to, [], [])).toThrow(/1\.\.=500/);
+    const ids = Array.from({ length: 501 }, (_, i) => id(i + 1));
+    const hashes = Array.from({ length: 501 }, (_, i) => hash(i + 1));
+    expect(() => encodeReferenceMintBatchCalldata(to, ids, hashes)).toThrow(/1\.\.=500/);
   });
 
-  it('template version is 2', () => {
-    expect(REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION).toBe('2');
+  it('template version is 3', () => {
+    expect(REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION).toBe('3');
   });
 });
