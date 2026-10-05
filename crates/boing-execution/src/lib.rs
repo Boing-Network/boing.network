@@ -107,6 +107,7 @@ pub use native_amm_lp_vault::{
     SELECTOR_NATIVE_AMM_LP_VAULT_DEPOSIT_ADD,
 };
 pub use vm::{
-    GAS_PER_CONTRACT_DEPLOY_INIT, TransferState, Vm, VmError, VmExecutionResult,
+    GAS_PER_CONTRACT_CALL, GAS_PER_CONTRACT_DEPLOY_INIT, TransferState, Vm, VmError,
+    VmExecutionResult,
 };
 pub use boing_primitives::{Transaction, AccessList};

@@ -7,8 +7,8 @@ export const SELECTOR_OWNER_OF = 0x03;
 export const SELECTOR_TRANSFER_NFT = 0x04;
 export const SELECTOR_SET_METADATA_HASH = 0x05;
 export const SELECTOR_MINT_BATCH = 0x06;
-/** Bytecode cap; production `GAS_PER_CONTRACT_CALL` (3_000_000) is sized for this `n` with owner+metadata stores. */
-export const MAX_REFERENCE_NFT_MINT_BATCH = 50;
+/** Bytecode cap; production `GAS_PER_CONTRACT_CALL` (40_000_000) is sized for this `n` with owner+metadata stores. */
+export const MAX_REFERENCE_NFT_MINT_BATCH = 500;
 /** XOR mask for owner slot — mirrors `REF_NFT_OWNER_STORAGE_XOR` in `reference_nft.rs`. */
 export const REF_NFT_OWNER_STORAGE_XOR_HEX = validateHex32('0x424f494e475f5245464e46545f4f574e45523031000000000000000000000000');
 /** XOR mask for metadata hash slot — mirrors `REF_NFT_METADATA_STORAGE_XOR` in `reference_nft.rs`. */

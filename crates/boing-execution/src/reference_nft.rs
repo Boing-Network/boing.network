@@ -16,11 +16,11 @@ pub const SELECTOR_OWNER_OF: u8 = 0x03;
 pub const SELECTOR_TRANSFER_NFT: u8 = 0x04;
 /// Optional: bind a 32-byte metadata commitment (URI hash, etc.) to `token_id`.
 pub const SELECTOR_SET_METADATA_HASH: u8 = 0x05;
-/// `mint_batch(to, token_ids[], metadata_hashes[])` — admin-only atomic multi-mint (template v2).
+/// `mint_batch(to, token_ids[], metadata_hashes[])` — admin-only atomic multi-mint (template v2+; v3 raises max n).
 pub const SELECTOR_MINT_BATCH: u8 = 0x06;
 
 /// Bytecode hard cap on `n` for [`SELECTOR_MINT_BATCH`]. Call gas must still cover `n` `SSTORE`s.
-pub const MAX_REFERENCE_NFT_MINT_BATCH: u16 = 50;
+pub const MAX_REFERENCE_NFT_MINT_BATCH: u16 = 500;
 
 /// Opaque token id as a full 32-byte big-endian word (contract defines encoding).
 pub fn token_id_word(id: &[u8; 32]) -> [u8; 32] {
@@ -85,19 +85,21 @@ pub fn encode_mint_batch_calldata(
 }
 
 // --- Minimal collection VM bytecode (scratch memory, big-endian words) ---
-// Calldata for `mint_batch` n=50 is `96+64*50 = 3296` bytes at mem[0..). Scratch must sit above that.
+// Calldata for `mint_batch` is `96+64n` at mem[0..). Scratch must sit above `96+64*MAX`.
 
-const MEM_SCRATCH_SEL: u64 = 4160;
-const MEM_SCRATCH_TO: u64 = 4128;
-const MEM_SCRATCH_TID: u64 = 4192;
-const MEM_SCRATCH_HASH: u64 = 4224;
-const MEM_SCRATCH_OWNER: u64 = 4096;
-const MEM_RET_OWNER_OF: u64 = 4256;
-const MEM_BATCH_I: u64 = 4352;
-const MEM_BATCH_N: u64 = 4384;
-const MEM_BATCH_TO: u64 = 4416;
-const MEM_BATCH_TID: u64 = 4448;
-const MEM_BATCH_J: u64 = 4480;
+// Scratch above max mint_batch calldata (96+64*MAX). MAX=500 → 32096 bytes.
+const MEM_SCRATCH_BASE: u64 = 32_768;
+const MEM_SCRATCH_SEL: u64 = MEM_SCRATCH_BASE + 64; // 65600
+const MEM_SCRATCH_TO: u64 = MEM_SCRATCH_BASE + 32; // 65568
+const MEM_SCRATCH_TID: u64 = MEM_SCRATCH_BASE + 96;
+const MEM_SCRATCH_HASH: u64 = MEM_SCRATCH_BASE + 128;
+const MEM_SCRATCH_OWNER: u64 = MEM_SCRATCH_BASE; // 65536
+const MEM_RET_OWNER_OF: u64 = MEM_SCRATCH_BASE + 160;
+const MEM_BATCH_I: u64 = MEM_SCRATCH_BASE + 256;
+const MEM_BATCH_N: u64 = MEM_SCRATCH_BASE + 288;
+const MEM_BATCH_TO: u64 = MEM_SCRATCH_BASE + 320;
+const MEM_BATCH_TID: u64 = MEM_SCRATCH_BASE + 352;
+const MEM_BATCH_J: u64 = MEM_SCRATCH_BASE + 384;
 
 /// Singleton storage key: **lazy admin** — first caller becomes admin when this slot is zero.
 #[must_use]
@@ -690,16 +692,16 @@ mod tests {
         assert_eq!(state.get_contract_storage(&collection, &ok), [0u8; 32]);
     }
 
-    fn tid_word(n: u8) -> [u8; 32] {
+    fn tid_word(n: u64) -> [u8; 32] {
         let mut t = [0u8; 32];
-        t[31] = n;
+        t[24..].copy_from_slice(&n.to_be_bytes());
         t
     }
 
-    fn hash_word(n: u8) -> [u8; 32] {
+    fn hash_word(n: u64) -> [u8; 32] {
         let mut h = [0u8; 32];
-        h[0] = n;
-        h[31] = 0xaa;
+        h[24..].copy_from_slice(&n.to_be_bytes());
+        h[0] = 0xaa;
         h
     }
 
@@ -748,8 +750,8 @@ mod tests {
         let collection = AccountId([0x53u8; 32]);
         let (mut state, code) = collection_fixture(deployer, collection);
         let n = MAX_REFERENCE_NFT_MINT_BATCH as usize;
-        let ids: Vec<[u8; 32]> = (1..=n as u8).map(tid_word).collect();
-        let mut hashes: Vec<[u8; 32]> = (1..=n as u8).map(hash_word).collect();
+        let ids: Vec<[u8; 32]> = (1..=n as u64).map(tid_word).collect();
+        let mut hashes: Vec<[u8; 32]> = (1..=n as u64).map(hash_word).collect();
         hashes[0] = [0u8; 32];
         let data = encode_mint_batch_calldata(&to, &ids, &hashes);
         let mut it = Interpreter::new(code, crate::vm::GAS_PER_CONTRACT_CALL);
@@ -770,8 +772,8 @@ mod tests {
         let collection = AccountId([0x63u8; 32]);
         let (mut state, code) = collection_fixture(deployer, collection);
         let n = MAX_REFERENCE_NFT_MINT_BATCH as usize;
-        let ids: Vec<[u8; 32]> = (1..=n as u8).map(tid_word).collect();
-        let hashes: Vec<[u8; 32]> = (1..=n as u8).map(hash_word).collect();
+        let ids: Vec<[u8; 32]> = (1..=n as u64).map(tid_word).collect();
+        let hashes: Vec<[u8; 32]> = (1..=n as u64).map(hash_word).collect();
         let owned = ids[2];
         let mut it = Interpreter::new(code.clone(), crate::vm::GAS_PER_CONTRACT_CALL);
         it.run(
@@ -854,8 +856,9 @@ mod tests {
 
     #[test]
     fn mint_batch_n_max_fits_production_call_gas() {
+        // Measured n=500 owner+metadata ≈ 33_319_882 (template v3); budget 40M leaves headroom.
         assert!(
-            crate::vm::GAS_PER_CONTRACT_CALL >= 2_500_000,
+            crate::vm::GAS_PER_CONTRACT_CALL >= 40_000_000,
             "call budget must cover n={} owner+metadata SSTOREs; got {}",
             MAX_REFERENCE_NFT_MINT_BATCH,
             crate::vm::GAS_PER_CONTRACT_CALL
@@ -865,14 +868,14 @@ mod tests {
         let collection = AccountId([0x93u8; 32]);
         let (mut state, code) = collection_fixture(deployer, collection);
         let n = MAX_REFERENCE_NFT_MINT_BATCH as usize;
-        let ids: Vec<[u8; 32]> = (1..=n as u8).map(tid_word).collect();
-        let hashes: Vec<[u8; 32]> = (1..=n as u8).map(hash_word).collect();
+        let ids: Vec<[u8; 32]> = (1..=n as u64).map(tid_word).collect();
+        let hashes: Vec<[u8; 32]> = (1..=n as u64).map(hash_word).collect();
         let data = encode_mint_batch_calldata(&to, &ids, &hashes);
         let mut it = Interpreter::new(code, crate::vm::GAS_PER_CONTRACT_CALL);
         it.run(deployer, collection, &data, &mut state).unwrap();
-        // Measured ~2_151_307 with owner+metadata SSTORE for n=50 (2026-10 template v2).
+        // Measured 33_319_882 with owner+metadata SSTORE for n=500 (2026-10 template v3).
         assert!(
-            (2_000_000..2_500_000).contains(&it.gas_used),
+            (32_000_000..36_000_000).contains(&it.gas_used),
             "unexpected mint_batch n={n} gas_used {}",
             it.gas_used
         );
@@ -882,7 +885,7 @@ mod tests {
             it.gas_used
         );
         assert!(
-            it.gas_used > 1_000_000,
+            it.gas_used > 20_000_000,
             "unexpectedly cheap mint_batch n={n}: {}",
             it.gas_used
         );

@@ -147,7 +147,7 @@ These are the **attributes and rules** that deployments must satisfy. They are t
 ### 5.2 Tokens and NFTs (when applicable)
 
 - **Fungible reference calldata** (off-chain convention): see [`BOING-REFERENCE-TOKEN.md`](BOING-REFERENCE-TOKEN.md). Deployments declaring **`token`** should align wallet/tooling with that layout where practical; bytecode QA remains opcode/size/well-formedness + purpose rules.
-- **NFT reference calldata** (off-chain convention): see [`BOING-REFERENCE-NFT.md`](BOING-REFERENCE-NFT.md) — `owner_of`, `transfer_nft`, `set_metadata_hash`, and template-v2 **`mint_batch`**. Default QA is opcode/size/well-formedness; **Allow or Unsure** is expected. There is no default pin-hash allowlist of official NFT bytecode.
+- **NFT reference calldata** (off-chain convention): see [`BOING-REFERENCE-NFT.md`](BOING-REFERENCE-NFT.md) — `owner_of`, `transfer_nft`, `set_metadata_hash`, and template-v3 **`mint_batch`** (n≤500). Default QA is opcode/size/well-formedness; **Allow or Unsure** is expected. There is no default pin-hash allowlist of official NFT bytecode.
 - **Naming / metadata**: optional checks (e.g. content policy on `asset_name` / `asset_symbol` in `ContractDeployWithPurposeAndMetadata`) apply when those fields are present; NFT URI schemas remain off-chain unless governance adds rules.
 
 ### 5.3 Purpose and legitimacy (no scams)
