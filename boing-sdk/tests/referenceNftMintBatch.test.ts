@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  decodeReferenceNftCalldata,
   encodeReferenceMintBatchCalldata,
   encodeReferenceMintBatchCalldataHex,
+  encodeReferenceTransferNftCalldata,
   MAX_REFERENCE_NFT_MINT_BATCH,
   SELECTOR_MINT_BATCH,
+  SELECTOR_TRANSFER_NFT,
   referenceNftTokenIdWordFromU64,
 } from '../src/referenceNft.js';
 import { REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION } from '../src/canonicalDeployArtifacts.js';
@@ -58,5 +61,32 @@ describe('encodeReferenceMintBatchCalldata', () => {
 
   it('template version is 3', () => {
     expect(REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION).toBe('3');
+  });
+});
+
+describe('decodeReferenceNftCalldata', () => {
+  it('round-trips mint_batch', () => {
+    const ids = [id(1), id(2)];
+    const hashes = [hash(1), hash(2)];
+    const bytes = encodeReferenceMintBatchCalldata(to, ids, hashes);
+    const decoded = decodeReferenceNftCalldata(bytes);
+    expect(decoded).toEqual({
+      selector: SELECTOR_MINT_BATCH,
+      to,
+      n: 2,
+      tokenIds: ids,
+      metadataHashes: hashes,
+    });
+  });
+
+  it('round-trips transfer_nft', () => {
+    const tokenId = id(7);
+    const bytes = encodeReferenceTransferNftCalldata(to, tokenId);
+    const decoded = decodeReferenceNftCalldata(bytes);
+    expect(decoded).toEqual({
+      selector: SELECTOR_TRANSFER_NFT,
+      to,
+      tokenId,
+    });
   });
 });

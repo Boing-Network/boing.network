@@ -1,0 +1,24 @@
+{
+  "name": "boing-nft-owner-indexer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "tail": "wrangler tail",
+    "d1:apply:local": "wrangler d1 migrations apply boing-nft-owner-index --local",
+    "d1:apply:remote": "wrangler d1 migrations apply boing-nft-owner-index --remote",
+    "secret:sync": "wrangler secret put NFT_OWNER_SYNC_SECRET"
+  },
+  "dependencies": {
+    "boing-sdk": "file:../../boing-sdk"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260928.1",
+    "typescript": "^5.7.0",
+    "vitest": "^5.0.2",
+    "wrangler": "^4.142.0"
+  }
+}
