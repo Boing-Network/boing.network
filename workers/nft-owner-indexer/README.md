@@ -12,9 +12,10 @@ Base URL after deploy: `https://boing-nft-owner-indexer.<account>.workers.dev` (
 |--------|------|-------|
 | **GET** | **`/v1/nfts/by-owner?owner=0x…64`** | Current holdings. Optional `limit` (default 50, max 200), `cursor` (`collection:tokenId`), `collection=` filter. |
 | **GET** | **`/v1/nfts/item?collection=&tokenId=`** | Single item ownership row. |
-| **GET** | **`/v1/meta`** (alias **`/v1/sync`**) | Cursor tip, lag vs finalized, row counts. |
+| **GET** | **`/v1/meta`** (alias **`/v1/sync`**) | Cursor tip, lag vs finalized, row counts, `gapRanges` / `gapRangeCount`. |
+| **GET** | **`/v1/gaps`** | Just the pruned-height `gapRanges` (see **Pruned RPC / scan gaps** below). |
 | **POST** | **`/v1/sync`** | One ingest tick. Requires `Authorization: Bearer $NFT_OWNER_SYNC_SECRET`. |
-| **POST** | **`/v1/backfill?from=&to=`** | Force-index inclusive heights (max 501). Same bearer. |
+| **POST** | **`/v1/backfill?from=&to=`** | Force-index inclusive heights (max 501). Same bearer. Response includes `contiguousThrough`, `cursorAdvanced`, `newGapRanges`. |
 | **GET** | **`/health`** | Plain `ok`. |
 
 ### `GET /v1/nfts/by-owner` response shape
@@ -95,6 +96,39 @@ Same pattern as OBS-1 (`examples/observer-d1-worker`):
 3. Parent-hash mismatch on extend aborts the tick (next cron retries after rewind).
 
 Disable only for debugging: `BOING_DISABLE_REORG_REWIND=1`.
+
+## Pruned RPC / scan gaps
+
+Public RPC nodes prune history beyond a window, so `BOING_OMIT_MISSING=1` (the default) skips
+missing heights instead of failing the whole tick. Skipped heights are **never silently folded
+into the committed cursor** — the indexer uses `boing-sdk`'s gap helpers
+(`summarizeIndexerFetchGaps`, `nextContiguousIndexedHeightAfterOmittedFetch`,
+`mergeInclusiveHeightRanges`, `subtractInclusiveRangeFromRanges`) the same way
+`examples/observer-d1-worker` does for OBS-1:
+
+- The **global ingest cursor** (`GET /v1/meta` → `lastCommittedHeight`) only advances to the
+  longest *contiguous* prefix of a cron window — it stops right before a pruned height instead of
+  jumping past it, even though any present blocks past the hole are still indexed (just not yet
+  counted as "committed").
+- Every pruned height is recorded in D1 **`block_height_gaps`**, surfaced at **`GET /v1/gaps`**
+  and inside **`GET /v1/meta`** (`gapRanges` / `gapRangeCount`).
+- **`POST /v1/backfill?from=&to=`** re-attempts a specific range (e.g. one you point at an
+  archive/unpruned RPC, or re-point `BOING_RPC_URL` at temporarily). It always re-indexes whatever
+  blocks are present (even a historical range behind the current cursor — the global cursor is
+  left untouched unless the backfilled window directly continues it) and reconciles
+  `block_height_gaps`: a height that comes back present this time is removed from the gap table;
+  a height still missing stays recorded.
+
+Operator loop for a reported gap:
+
+```bash
+curl "$WORKER_URL/v1/gaps"
+# { "gapRanges": [{ "fromHeight": 1200, "toHeight": 1250 }], ... }
+
+curl -X POST -H "Authorization: Bearer $NFT_OWNER_SYNC_SECRET" \
+  "$WORKER_URL/v1/backfill?from=1200&to=1250"
+# repeat against an archive RPC if the default pruned public RPC still can't serve that range
+```
 
 ## Observer proxy
 

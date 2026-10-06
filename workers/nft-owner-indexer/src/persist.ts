@@ -1,3 +1,8 @@
+import {
+  blockHeightGapRowsForInsert,
+  mergeInclusiveHeightRanges,
+  type InclusiveHeightRange,
+} from 'boing-sdk';
 import type { ExtractedNftEvent } from './extract.js';
 import { normalizeHex64, zeros32 } from './cors.js';
 
@@ -253,6 +258,43 @@ export async function persistBlockEvents(
   }
 }
 
+/** Merged, chain-scoped pruned-height ranges recorded by `indexHeightRange`/backfill. */
+export async function loadGapRanges(
+  db: D1Database,
+  chainId: string
+): Promise<InclusiveHeightRange[]> {
+  const { results } = await db
+    .prepare(
+      'SELECT from_height, to_height FROM block_height_gaps WHERE chain_id = ? ORDER BY from_height ASC'
+    )
+    .bind(chainId)
+    .all<{ from_height: number; to_height: number }>();
+  return mergeInclusiveHeightRanges(
+    (results ?? []).map((r) => ({ fromHeight: r.from_height, toHeight: r.to_height }))
+  );
+}
+
+/** Wipe and rewrite `block_height_gaps` for `chainId` from merged inclusive ranges. */
+export async function replaceGapRanges(
+  db: D1Database,
+  chainId: string,
+  ranges: readonly InclusiveHeightRange[],
+  nowSec: number
+): Promise<void> {
+  await db.prepare('DELETE FROM block_height_gaps WHERE chain_id = ?').bind(chainId).run();
+  const rows = blockHeightGapRowsForInsert({ chainId, ranges, recordedAtSec: nowSec });
+  if (rows.length === 0) return;
+  const stmts = rows.map((r) =>
+    db
+      .prepare(
+        `INSERT INTO block_height_gaps (chain_id, from_height, to_height, reason, recorded_at)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .bind(r.chain_id, r.from_height, r.to_height, r.reason, r.recorded_at)
+  );
+  await db.batch(stmts);
+}
+
 export type OwnedNftItem = {
   collection: string;
   tokenId: string;
@@ -327,7 +369,7 @@ export async function listNftsByOwner(
   let nextCursor: string | null = null;
   if (rows.length > limit && page.length > 0) {
     const last = page[page.length - 1]!;
-    nextCursor = `${last.collection}:${last.tokenId}`;
+    nextCursor = `${last.collection_hex}:${last.token_id_hex}`;
   }
   return { items, nextCursor };
 }

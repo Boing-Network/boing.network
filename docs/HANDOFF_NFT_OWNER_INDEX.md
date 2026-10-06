@@ -15,6 +15,8 @@ Cloudflare Worker + D1 that:
 3. Stores event history + current ownership.
 4. Serves **`GET /v1/nfts/by-owner?owner=`**.
 5. Rewinds on tip hash mismatch (OBS-1 pattern).
+6. Tracks pruned-RPC scan gaps (`block_height_gaps`, **`GET /v1/gaps`**) instead of silently
+   claiming completeness across a hole — same `boing-sdk` gap helpers as `examples/observer-d1-worker`.
 
 ## Normative docs in-repo
 

@@ -14,17 +14,23 @@
 import {
   createClient,
   fetchBlocksWithReceiptsForHeightRange,
+  nextContiguousIndexedHeightAfterOmittedFetch,
   planIndexerCatchUp,
   planIndexerChainTipsWithFallback,
+  summarizeIndexerFetchGaps,
+  type InclusiveHeightRange,
 } from 'boing-sdk';
 import { handleOptions, jsonRes, normalizeHex64, parseCorsOrigins, zeros32 } from './cors.js';
 import { extractNftEventsFromBlock } from './extract.js';
+import { reconcileGapRangesForWindow } from './gaps.js';
 import {
   getOwnershipStats,
   listNftsByOwner,
   loadCursor,
+  loadGapRanges,
   lookupOwner,
   persistBlockEvents,
+  replaceGapRanges,
   upsertIngestCursor,
 } from './persist.js';
 import { parseMaxReorgRewindSteps, rewindStaleTipIfNeeded } from './reorg.js';
@@ -60,11 +66,32 @@ function authorized(req: Request, env: Env): boolean {
   return h === `Bearer ${secret}`;
 }
 
+/**
+ * Index `[fromHeight, toHeight]` (inclusive), persist events/ownership for every present block,
+ * then reconcile `block_height_gaps` for pruned heights and — only when this window directly
+ * continues the **global** ingest cursor — advance that cursor to the longest contiguous prefix
+ * actually indexed. Safe to call for historical/out-of-band windows (e.g. `POST /v1/backfill`
+ * targeting an older gap): events are still persisted, gaps still reconciled, but the global
+ * cursor is left untouched so it never moves backward or skips ahead of unindexed heights.
+ */
 async function indexHeightRange(
   env: Env,
   fromHeight: number,
   toHeight: number
-): Promise<{ indexed: number; events: number; fromHeight: number; toHeight: number }> {
+): Promise<{
+  indexed: number;
+  events: number;
+  fromHeight: number;
+  toHeight: number;
+  /** Highest height such that `[fromHeight, H]` is fully indexed with no pruned gap. */
+  contiguousThrough: number;
+  /** Whether the global ingest cursor was advanced (only when `fromHeight` continues it). */
+  cursorAdvanced: boolean;
+  /** Newly-discovered pruned ranges inside this window (already merged into `block_height_gaps`). */
+  newGapRanges: InclusiveHeightRange[];
+  gapRangeCount: number;
+  aborted: boolean;
+}> {
   const client = createClient(env.BOING_RPC_URL);
   const db = env.NFT_OWNER_DB;
   const maxConcurrent = parsePositiveInt(env.BOING_MAX_CONCURRENT, 4);
@@ -77,14 +104,15 @@ async function indexHeightRange(
     onMissingBlock: omitMissing ? 'omit' : 'throw',
   });
 
-  let eventsTotal = 0;
-  let lastHash = zeros32();
-  let lastHeight = fromHeight - 1;
   const { lastHash: tipHash, lastIndexedHeight: tipHeight } = await loadCursor(db, chainId);
-  if (tipHeight >= 0) {
-    lastHash = tipHash;
-    lastHeight = tipHeight;
-  }
+  const windowContinuesGlobalCursor = fromHeight === tipHeight + 1;
+
+  let eventsTotal = 0;
+  let lastHash = tipHeight >= 0 ? tipHash : zeros32();
+  let lastHeight = tipHeight >= 0 ? tipHeight : fromHeight - 1;
+  const processedHeights: number[] = [];
+  const heightHashMap = new Map<number, string>();
+  let aborted = false;
 
   for (const bundle of bundles) {
     const height = bundle.height;
@@ -107,6 +135,7 @@ async function indexHeightRange(
             expectedParent,
           })
         );
+        aborted = true;
         break;
       }
     }
@@ -116,17 +145,51 @@ async function indexHeightRange(
     eventsTotal += primed.length;
     lastHash = blockHash;
     lastHeight = height;
+    processedHeights.push(height);
+    heightHashMap.set(height, blockHash);
   }
 
-  if (bundles.length > 0 && lastHeight >= 0) {
-    await upsertIngestCursor(db, chainId, lastHeight, lastHash, nowSec);
+  const attemptedThrough = aborted
+    ? (processedHeights[processedHeights.length - 1] ?? fromHeight - 1)
+    : toHeight;
+
+  let contiguousThrough = fromHeight - 1;
+  let newGapRanges: InclusiveHeightRange[] = [];
+  if (attemptedThrough >= fromHeight) {
+    const fetchGaps = summarizeIndexerFetchGaps(fromHeight, attemptedThrough, processedHeights);
+    contiguousThrough = nextContiguousIndexedHeightAfterOmittedFetch(fromHeight - 1, fetchGaps);
+    newGapRanges = fetchGaps.missingHeightRangesInclusive;
+
+    const stored = await loadGapRanges(db, chainId);
+    const reconciled = reconcileGapRangesForWindow(
+      stored,
+      { fromHeight, toHeight: attemptedThrough },
+      newGapRanges
+    );
+    await replaceGapRanges(db, chainId, reconciled, nowSec);
   }
+
+  let cursorAdvanced = false;
+  if (windowContinuesGlobalCursor && contiguousThrough > fromHeight - 1) {
+    const hash = heightHashMap.get(contiguousThrough);
+    if (hash) {
+      await upsertIngestCursor(db, chainId, contiguousThrough, hash, nowSec);
+      cursorAdvanced = true;
+    }
+  }
+
+  const gapRangeCount = (await loadGapRanges(db, chainId)).length;
 
   return {
-    indexed: bundles.length,
+    indexed: processedHeights.length,
     events: eventsTotal,
     fromHeight,
-    toHeight: lastHeight,
+    toHeight: attemptedThrough,
+    contiguousThrough,
+    cursorAdvanced,
+    newGapRanges,
+    gapRangeCount,
+    aborted,
   };
 }
 
@@ -257,6 +320,7 @@ export default {
             'GET /v1/nfts/by-owner?owner=',
             'GET /v1/nfts/item?collection=&tokenId=',
             'GET /v1/meta',
+            'GET /v1/gaps',
             'GET /v1/sync',
             'POST /v1/sync',
             'POST /v1/backfill?from=&to=',
@@ -273,6 +337,7 @@ export default {
       const chainId = env.BOING_CHAIN_ID ?? 'boing-testnet';
       const cursor = await loadCursor(env.NFT_OWNER_DB, chainId);
       const stats = await getOwnershipStats(env.NFT_OWNER_DB);
+      const gapRanges = await loadGapRanges(env.NFT_OWNER_DB, chainId);
       let tips: { headHeight?: number; finalizedHeight?: number } = {};
       try {
         const client = createClient(env.BOING_RPC_URL);
@@ -299,7 +364,25 @@ export default {
           rpcFinalizedHeight: tips.finalizedHeight ?? null,
           lagVsFinalized,
           stats,
-          note: 'Reference NFT ownership from mint_batch / transfer_nft / set_metadata_hash. Not the DEX LP ERC-721 snapshot.',
+          gapRanges,
+          gapRangeCount: gapRanges.length,
+          note: 'Reference NFT ownership from mint_batch / transfer_nft / set_metadata_hash. Not the DEX LP ERC-721 snapshot. gapRanges are pruned-RPC height ranges this index could not backfill yet (see GET /v1/gaps, POST /v1/backfill).',
+        },
+        200,
+        cors,
+        origin
+      );
+    }
+
+    if (path === '/v1/gaps' && req.method === 'GET') {
+      const chainId = env.BOING_CHAIN_ID ?? 'boing-testnet';
+      const gapRanges = await loadGapRanges(env.NFT_OWNER_DB, chainId);
+      return jsonRes(
+        {
+          chainId,
+          gapRanges,
+          gapRangeCount: gapRanges.length,
+          note: 'Inclusive [fromHeight, toHeight] height ranges the upstream RPC could not serve (pruned). Backfill with POST /v1/backfill?from=&to= once an archive/unpruned RPC can serve them.',
         },
         200,
         cors,
