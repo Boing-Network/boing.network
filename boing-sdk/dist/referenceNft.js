@@ -118,3 +118,118 @@ export function encodeReferenceMintBatchCalldata(toHexAccount32, tokenIdsHex32, 
 export function encodeReferenceMintBatchCalldataHex(toHexAccount32, tokenIdsHex32, metadataHashesHex32) {
     return bytesToHex(encodeReferenceMintBatchCalldata(toHexAccount32, tokenIdsHex32, metadataHashesHex32));
 }
+function normalizeCalldataBytes(calldata) {
+    if (calldata instanceof Uint8Array)
+        return calldata.length >= 32 ? calldata : null;
+    const t = String(calldata).trim();
+    if (!t)
+        return null;
+    try {
+        const bytes = hexToBytes(t.startsWith('0x') || t.startsWith('0X') ? t : `0x${t}`);
+        return bytes.length >= 32 ? bytes : null;
+    }
+    catch {
+        return null;
+    }
+}
+function wordHex(bytes, offset) {
+    return bytesToHex(bytes.subarray(offset, offset + 32));
+}
+function readBeU64Low8(word) {
+    for (let i = 0; i < 24; i++) {
+        if (word[i] !== 0)
+            return null;
+    }
+    let n = BigInt(0);
+    for (let i = 24; i < 32; i++) {
+        n = (n << BigInt(8)) | BigInt(word[i]);
+    }
+    if (n > BigInt(Number.MAX_SAFE_INTEGER))
+        return null;
+    return Number(n);
+}
+/** Selector byte is the last byte of the first 32-byte word. */
+export function referenceNftCalldataSelector(calldata) {
+    const bytes = normalizeCalldataBytes(calldata);
+    if (!bytes)
+        return null;
+    return bytes[31] ?? null;
+}
+/**
+ * If `tokenId` is a sequential reference id (high 24 bytes zero), return that u64.
+ * FreshMint-style opaque hash ids return null.
+ */
+export function tryReferenceNftTokenIdU64(tokenIdHex32) {
+    try {
+        const bytes = hexToBytes(validateHex32(tokenIdHex32));
+        return readBeU64Low8(bytes);
+    }
+    catch {
+        return null;
+    }
+}
+/** Best-effort decode of reference NFT collection calldata. Returns null when unrecognized. */
+export function decodeReferenceNftCalldata(calldata) {
+    const bytes = normalizeCalldataBytes(calldata);
+    if (!bytes)
+        return null;
+    const selector = bytes[31];
+    if (selector === SELECTOR_MINT_BATCH) {
+        if (bytes.length < 96)
+            return null;
+        const n = readBeU64Low8(bytes.subarray(64, 96));
+        if (n == null || n < 1 || n > MAX_REFERENCE_NFT_MINT_BATCH)
+            return null;
+        const expected = 96 + 64 * n;
+        if (bytes.length < expected)
+            return null;
+        for (let i = expected; i < bytes.length; i++) {
+            if (bytes[i] !== 0)
+                return null;
+        }
+        const to = wordHex(bytes, 32);
+        const tokenIds = [];
+        const metadataHashes = [];
+        for (let i = 0; i < n; i++) {
+            tokenIds.push(wordHex(bytes, 96 + 32 * i));
+            metadataHashes.push(wordHex(bytes, 96 + 32 * n + 32 * i));
+        }
+        return { selector: SELECTOR_MINT_BATCH, to, n, tokenIds, metadataHashes };
+    }
+    if (bytes.length < 96)
+        return null;
+    if (selector === SELECTOR_TRANSFER_NFT) {
+        return {
+            selector: SELECTOR_TRANSFER_NFT,
+            to: wordHex(bytes, 32),
+            tokenId: wordHex(bytes, 64),
+        };
+    }
+    if (selector === SELECTOR_SET_METADATA_HASH) {
+        return {
+            selector: SELECTOR_SET_METADATA_HASH,
+            tokenId: wordHex(bytes, 32),
+            metadataHash: wordHex(bytes, 64),
+        };
+    }
+    if (selector === SELECTOR_OWNER_OF) {
+        return {
+            selector: SELECTOR_OWNER_OF,
+            tokenId: wordHex(bytes, 32),
+        };
+    }
+    return null;
+}
+/** Collect opaque token-id words from a decoded reference NFT call. */
+export function tokenIdsFromDecodedReferenceNftCall(decoded) {
+    switch (decoded.selector) {
+        case SELECTOR_MINT_BATCH:
+            return [...decoded.tokenIds];
+        case SELECTOR_TRANSFER_NFT:
+        case SELECTOR_SET_METADATA_HASH:
+        case SELECTOR_OWNER_OF:
+            return [decoded.tokenId];
+        default:
+            return [];
+    }
+}

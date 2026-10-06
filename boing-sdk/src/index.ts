@@ -403,6 +403,15 @@ export {
   encodeReferenceTransferNftCalldataHex,
   encodeReferenceSetMetadataHashCalldataHex,
   encodeReferenceMintBatchCalldataHex,
+  referenceNftCalldataSelector,
+  tryReferenceNftTokenIdU64,
+  decodeReferenceNftCalldata,
+  tokenIdsFromDecodedReferenceNftCall,
+  type DecodedReferenceMintBatch,
+  type DecodedReferenceTransferNft,
+  type DecodedReferenceSetMetadataHash,
+  type DecodedReferenceOwnerOf,
+  type DecodedReferenceNftCall,
 } from './referenceNft.js';
 export {
   ipfsUriToGatewayUrl,

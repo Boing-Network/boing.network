@@ -43,4 +43,37 @@ export declare function encodeReferenceSetMetadataHashCalldataHex(tokenIdHex32: 
  */
 export declare function encodeReferenceMintBatchCalldata(toHexAccount32: string, tokenIdsHex32: readonly string[], metadataHashesHex32: readonly string[]): Uint8Array;
 export declare function encodeReferenceMintBatchCalldataHex(toHexAccount32: string, tokenIdsHex32: readonly string[], metadataHashesHex32: readonly string[]): string;
+/** Selector byte is the last byte of the first 32-byte word. */
+export declare function referenceNftCalldataSelector(calldata: string | Uint8Array): number | null;
+/**
+ * If `tokenId` is a sequential reference id (high 24 bytes zero), return that u64.
+ * FreshMint-style opaque hash ids return null.
+ */
+export declare function tryReferenceNftTokenIdU64(tokenIdHex32: string): number | null;
+export type DecodedReferenceMintBatch = {
+    selector: typeof SELECTOR_MINT_BATCH;
+    to: string;
+    n: number;
+    tokenIds: string[];
+    metadataHashes: string[];
+};
+export type DecodedReferenceTransferNft = {
+    selector: typeof SELECTOR_TRANSFER_NFT;
+    to: string;
+    tokenId: string;
+};
+export type DecodedReferenceSetMetadataHash = {
+    selector: typeof SELECTOR_SET_METADATA_HASH;
+    tokenId: string;
+    metadataHash: string;
+};
+export type DecodedReferenceOwnerOf = {
+    selector: typeof SELECTOR_OWNER_OF;
+    tokenId: string;
+};
+export type DecodedReferenceNftCall = DecodedReferenceMintBatch | DecodedReferenceTransferNft | DecodedReferenceSetMetadataHash | DecodedReferenceOwnerOf;
+/** Best-effort decode of reference NFT collection calldata. Returns null when unrecognized. */
+export declare function decodeReferenceNftCalldata(calldata: string | Uint8Array): DecodedReferenceNftCall | null;
+/** Collect opaque token-id words from a decoded reference NFT call. */
+export declare function tokenIdsFromDecodedReferenceNftCall(decoded: DecodedReferenceNftCall): string[];
 //# sourceMappingURL=referenceNft.d.ts.map
