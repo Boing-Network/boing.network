@@ -30,6 +30,32 @@ When you change SDK **source** (`src/`), run `npm run build` in `boing-sdk` and 
 
 **boing.finance** checks out `boing.network` only so the `file:` path resolves; it does not build the SDK first. **boing.finance**’s `frontend/scripts/postinstall-boing-sdk.mjs` only runs `npm run build` in the linked package when `dist/index.js` is missing (e.g. local SDK development or a broken checkout) and **fails the install** if that build does not succeed.
 
+### Publish to npm (CI)
+
+Do **not** use interactive `npm login` / OTP for routine publishes. Use the **Publish boing-sdk** GitHub Action (`.github/workflows/boing-sdk-publish.yml`), which publishes on tags `boing-sdk/v*` with an npm **Automation** (or granular publish) token.
+
+**One-time (package owner `boing.network`):**
+
+1. Sign in at [npmjs.com](https://www.npmjs.com/) (auth app / recovery is enough to create a token; you do **not** paste OTP into chat or into CI).
+2. **Access Tokens** → generate an **Automation** token (preferred) or a granular token with **publish** on `boing-sdk`. Automation tokens skip OTP on each `npm publish`.
+3. In GitHub → `Boing-Network/boing.network` → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**:
+   - Name: `NPM_TOKEN`
+   - Value: the token (never commit it)
+4. Confirm the secret exists before tagging.
+
+**Each release** (after `package.json` version + `CHANGELOG` + committed `dist/` are on `main`):
+
+```bash
+git checkout main && git pull origin main
+node -p "require('./boing-sdk/package.json').version"   # e.g. 0.5.0
+git tag -a "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")" -m "boing-sdk $(node -p "require('./boing-sdk/package.json').version")"
+git push origin "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")"
+```
+
+Watch **Actions → Publish boing-sdk**. Then: `npm view boing-sdk version`.
+
+If you cannot sign in to npm at all (no auth app, no recovery), CI cannot publish either — restore npm account access first. GitHub Packages is not the default path for FreshMint (`npm install boing-sdk`).
+
 ## Tests
 
 - **Unit / offline:** `npm test` — Vitest; does not require a running Boing node.

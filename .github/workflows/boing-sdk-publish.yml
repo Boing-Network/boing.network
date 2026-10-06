@@ -1,0 +1,86 @@
+# Publish boing-sdk to the public npm registry (no interactive OTP).
+#
+# Trigger: push tag matching boing-sdk/v* (e.g. boing-sdk/v0.5.0).
+# Secret: NPM_TOKEN — npm Automation or granular publish token for the
+# package owner (boing.network). Automation tokens do not require OTP per publish.
+#
+# Operator steps: see boing-sdk/README.md § Publish to npm (CI).
+name: Publish boing-sdk
+
+on:
+  push:
+    tags:
+      - "boing-sdk/v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: boing-sdk
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: boing-sdk/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify tag matches package.json version
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#boing-sdk/v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          echo "tag=${GITHUB_REF_NAME} tag_version=${TAG_VERSION} package.json=${PKG_VERSION}"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag version (${TAG_VERSION}) must match boing-sdk/package.json (${PKG_VERSION})"
+            exit 1
+          fi
+
+      - name: Skip if version already on npm
+        id: already
+        run: |
+          set -euo pipefail
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if npm view "boing-sdk@${PKG_VERSION}" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "boing-sdk@${PKG_VERSION} is already on the registry; skipping publish."
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        if: steps.already.outputs.already != 'true'
+        run: npm run build
+
+      - name: Verify committed dist/ matches TypeScript output
+        if: steps.already.outputs.already != 'true'
+        run: |
+          set -euo pipefail
+          cd ..
+          git diff --exit-code -- boing-sdk/dist/ || {
+            echo "::error::boing-sdk dist/ is out of sync with src/. Run: cd boing-sdk && npm run build && git add dist && git commit"
+            exit 1
+          }
+
+      - name: Test
+        if: steps.already.outputs.already != 'true'
+        run: npm test
+
+      - name: Publish to npm
+        if: steps.already.outputs.already != 'true'
+        run: npm publish --access public
+        env:
+          # setup-node writes //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
