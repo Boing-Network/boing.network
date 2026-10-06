@@ -118,7 +118,8 @@ async function indexHeightRange(
     const height = bundle.height;
     const block = bundle.block as {
       hash?: string;
-      header?: { parent_hash?: string };
+      header?: { parent_hash?: unknown };
+      hash?: unknown;
     };
     const blockHash = normalizeHex64(block.hash) ?? zeros32();
     const parentHash = normalizeHex64(block.header?.parent_hash) ?? zeros32();

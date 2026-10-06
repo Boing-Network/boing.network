@@ -11,15 +11,17 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "NFT_OWNER_DB"
 database_name = "boing-nft-owner-index"
-# Replace after: npx wrangler d1 create boing-nft-owner-index
-database_id = "REPLACE_AFTER_D1_CREATE"
+# D1: wrangler d1 create boing-nft-owner-index (reused existing database)
+database_id = "746604dc-49e5-410e-844a-29edc78d6ef0"
 migrations_dir = "migrations"
 
 [triggers]
 crons = ["*/2 * * * *"]
 
 [vars]
-BOING_RPC_URL = "https://testnet-rpc.boing.network"
+# Fly origin (same backends as workers/public-rpc-gateway). The public hostname
+# https://testnet-rpc.boing.network is WAF-challenged for Worker-origin fetches.
+BOING_RPC_URL = "https://boing-testnet-1.fly.dev"
 BOING_CHAIN_ID = "boing-testnet"
 BOING_MAX_BLOCKS_PER_TICK = "16"
 BOING_MAX_CONCURRENT = "4"

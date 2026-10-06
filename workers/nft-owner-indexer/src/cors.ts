@@ -1,10 +1,21 @@
 /** Normalize 32-byte account / token / hash hex to lowercase `0x` + 64 hex. */
 export function normalizeHex64(raw: unknown): string | null {
-  if (typeof raw !== 'string' || !raw.trim()) return null;
-  const s = raw.trim();
-  const hex = s.startsWith('0x') || s.startsWith('0X') ? s.slice(2) : s;
-  if (!/^[0-9a-fA-F]{64}$/.test(hex)) return null;
-  return `0x${hex.toLowerCase()}`;
+  if (typeof raw === 'string') {
+    if (!raw.trim()) return null;
+    const s = raw.trim();
+    const hex = s.startsWith('0x') || s.startsWith('0X') ? s.slice(2) : s;
+    if (!/^[0-9a-fA-F]{64}$/.test(hex)) return null;
+    return `0x${hex.toLowerCase()}`;
+  }
+  // Public RPC often returns Hash fields as a 32-byte number array, not hex.
+  if (raw instanceof Uint8Array) {
+    if (raw.length !== 32) return null;
+    return `0x${Array.from(raw, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+  }
+  if (Array.isArray(raw) && raw.length === 32 && raw.every((b) => Number.isInteger(b) && b >= 0 && b <= 255)) {
+    return `0x${(raw as number[]).map((b) => b.toString(16).padStart(2, '0')).join('')}`;
+  }
+  return null;
 }
 
 export function zeros32(): string {

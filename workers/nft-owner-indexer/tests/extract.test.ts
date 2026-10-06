@@ -88,3 +88,19 @@ describe('compareCanonicalBlockHash', () => {
     );
   });
 });
+
+describe('normalizeHex64', () => {
+  it('accepts 32-byte number arrays from RPC Hash fields', async () => {
+    const { normalizeHex64 } = await import('../src/cors.js');
+    const genesis = [
+      4, 125, 29, 31, 237, 79, 151, 64, 141, 66, 100, 110, 67, 80, 120, 95, 219, 213, 13, 248, 154,
+      112, 69, 38, 227, 46, 99, 114, 164, 183, 32, 106,
+    ];
+    expect(normalizeHex64(genesis)).toBe(
+      '0x047d1d1fed4f97408d42646e4350785fdbd50df89a704526e32e6372a4b7206a'
+    );
+    expect(normalizeHex64('047d1d1fed4f97408d42646e4350785fdbd50df89a704526e32e6372a4b7206a')).toBe(
+      '0x047d1d1fed4f97408d42646e4350785fdbd50df89a704526e32e6372a4b7206a'
+    );
+  });
+});

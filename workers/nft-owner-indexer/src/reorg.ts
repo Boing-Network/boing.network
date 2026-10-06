@@ -82,7 +82,7 @@ export async function rewindStaleTipIfNeeded(
     const rpcBlock = await client.getBlockByHeight(h, false);
     const rpcHash =
       rpcBlock && typeof rpcBlock === 'object'
-        ? ((rpcBlock as { hash?: string }).hash ?? null)
+        ? normalizeHex64((rpcBlock as { hash?: unknown }).hash)
         : null;
     const dbRow = await getIndexedBlockAtHeight(db, h);
     const cmp = compareCanonicalBlockHash(rpcHash, dbRow?.block_hash);
