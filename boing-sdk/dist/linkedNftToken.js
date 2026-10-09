@@ -1,10 +1,9 @@
 /**
- * Display-only **linked NFT collection ↔ fungible token** convention (MVP).
+ * Off-chain **cache helpers** for linked NFT collection ↔ fungible token pairs.
  *
- * Schema **`boing.linked_nft_token.v1`** supports **many collections ↔ many tokens** (peer lists).
- * Links are **mutable** after create via off-chain JSON; deploy-time **`description_hash`** commits the
- * initial document. There is **no** on-chain registry yet — spoofable unless indexers soft-gate on
- * same deployer / attester (see {@link softGateLinkedNftTokenPeers}).
+ * **Source of truth** is the on-chain registry (`linkedNftTokenRegistry.ts` /
+ * `boing_execution::linked_nft_token_registry`). Schema **`boing.linked_nft_token.v1`** and
+ * companion JSON keys are optional indexer/UI caches only — not authoritative.
  *
  * See `docs/BOING-LINKED-NFT-TOKEN.md`.
  */

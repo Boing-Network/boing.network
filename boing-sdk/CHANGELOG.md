@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Linked NFT ↔ fungible token (display-only MVP)** — schema **`boing.linked_nft_token.v1`** (many-to-many peer lists), Blake3 **`description_hash`**, off-chain keys `linked_nft_token` / `companion_tokens` / `companion_collections`, CREATE2 salt convention, joint deploy helper **`buildLinkedNftTokenPairDeploys`**, attach/update/unlink + **`softGateLinkedNftTokenPeers`** (`linkedNftToken.ts`; [BOING-LINKED-NFT-TOKEN.md](../docs/BOING-LINKED-NFT-TOKEN.md)).
+- **Linked NFT ↔ fungible token (enforced on-chain)** — registry bytecode + selectors `0xE0`–`0xE6` (dual asset-claimer auth, many-to-many, mutable unlink); SDK **`linkedNftTokenRegistry.ts`** (deploy / claim / register / unlink / query), CREATE2 salt predictor, **`buildLinkedNftTokenRegisterFlowTxs`**. Optional schema **`boing.linked_nft_token.v1`** + off-chain keys remain as **cache only** (`linkedNftToken.ts`). Docs: [BOING-LINKED-NFT-TOKEN.md](../docs/BOING-LINKED-NFT-TOKEN.md).
 - **`ContractDeployMetaTxObject.create2_salt`** / **`buildContractDeployMetaTx({ create2SaltHex })`** for Express CREATE2 deploys.
 
 ## [0.5.0] - 2026-10-05

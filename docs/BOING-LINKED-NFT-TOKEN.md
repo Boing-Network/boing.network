@@ -1,88 +1,78 @@
-# Linked NFT collection ↔ fungible token (display-only MVP)
+# Linked NFT collection ↔ fungible token (enforced on-chain)
 
 > 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md).
-> 🛠️ **Developers:** use `boing-sdk` helpers; keep this aligned with shipped code.
-> 🛰️ **Operators:** no new node binary or QA purpose category — separate `nft` + `token` deploys.
+> 🛠️ **Developers:** use `boing-sdk` registry helpers; keep this aligned with shipped code.
+> 🛰️ **Operators:** deploy one registry contract (purpose `dapp`); separate `nft` + `token` deploys unchanged.
 
-## Verdict
+## Verdict (Nico 2026-10-09, updated)
 
-Boing L1 has **no** on-chain collection↔token registry yet. The MVP is a **metadata convention + SDK**:
+| Topic | Decision |
+|-------|----------|
+| **Enforcement** | **On-chain registry** (not display-only) |
+| **Cardinality** | **Many-to-many** |
+| **Mutability** | **Add / remove** via registry calls |
+| **Metadata schema** | Optional **cache only** — not source of truth |
 
-| Decision (2026-10-09) | Choice |
-|----------------------|--------|
-| Cardinality | **Many-to-many** (no strict 1:1 limit) |
-| Mutability | **Mutable after create** (off-chain JSON / republished metadata) |
-| Enforcement | **Display-only** (not mint-gating / not registry) |
-| Spoof policy | **Soft-gate:** prefer same deployer / `attester`; document spoof risk |
+## Auth model (dual asset claimer)
 
-## Schema `boing.linked_nft_token.v1`
+The registry does **not** call into NFT/token templates (lazy-admin `CALL` would hijack admin). Instead:
 
-Canonical JSON (fixed key order via SDK normalize):
+1. **`claim_asset(asset)`** — first successful caller for that AccountId becomes its **claimer**. Idempotent if already claimer; others abort.
+2. **`transfer_asset_claimer(asset, new)`** — only current claimer.
+3. **`register_link(collection, token)`** / **`unlink_at(index)`** — require `CALLER` to be claimer of **both** sides.
 
-```json
-{
-  "schema": "boing.linked_nft_token.v1",
-  "role": "nft_collection",
-  "self": "0x…32-byte AccountId…",
-  "peers": ["0x…", "0x…"],
-  "attester": "0x…",
-  "revision": 0,
-  "note": ""
-}
-```
+Operational note: claim assets in the same session as deploy (CREATE2-predictable addresses) so a third party cannot front-run `claim_asset` on your ids.
 
-- **`role`:** `nft_collection` | `fungible_token`
-- **`peers`:** AccountIds of the other side (deduped, lowercased, sorted before hash)
-- **`attester`:** preferred same-deployer hint for indexers / UIs
-- **`revision`:** bump when attaching / updating / unlinking peers off-chain
+## Selectors
 
-**On-chain commit:** Blake3-256 of UTF-8 canonical JSON → **`description_hash`** on `contract_deploy_meta` (same pattern as `boing.native_token_security.v1`).
+| Selector | Byte | Calldata | Purpose |
+|----------|------|----------|---------|
+| `claim_asset` | `0xE0` | **64** | Word1 = asset AccountId |
+| `register_link` | `0xE1` | **96** | Word1 = collection, word2 = token |
+| `unlink_at` | `0xE2` | **64** | Word1 = index (u64 low 8 bytes); tombstones the slot |
+| `links_count` | `0xE3` | **32** | Returns count word (includes tombstones) |
+| `get_link_at` | `0xE4` | **64** | Returns **64** bytes: collection, token (zeros = tombstone) |
+| `get_asset_claimer` | `0xE5` | **64** | Returns claimer AccountId |
+| `transfer_asset_claimer` | `0xE6` | **96** | Word1 = asset, word2 = new claimer |
 
-**Off-chain JSON keys** (mutable surface after deploy):
+Max slots: **4096** (`LINKED_NFT_TOKEN_REGISTRY_MAX_LINKS`). No O(1) presence map (no hash opcode; XOR maps collide) — clients scan `get_link_at` / logs and skip zeros / duplicates.
 
-| Key | Meaning |
-|-----|---------|
-| `linked_nft_token` | Full schema object |
-| `companion_tokens` | Convenience peer list on NFT / project metadata |
-| `companion_collections` | Convenience peer list on fungible / project metadata |
+## Logs
 
-Deploy-time `description_hash` is the **initial** commitment. Later peer changes live in republished off-chain metadata (templates do not rewrite deploy meta).
+| Event | topic0 | topic1 | topic2 | data |
+|-------|--------|--------|--------|------|
+| register | `BOING_NFT_TOKEN_LINK_REG1…` | collection | token | CALLER |
+| unlink | `BOING_NFT_TOKEN_LINK_UNL1…` | collection | token | CALLER |
 
-## CREATE2 salt convention
+## Storage
 
-For joint “project” deploys:
+- **Count** — `linked_nft_token_registry_count_key()`
+- **Pair *i*** — `BASE + (i * 2 + f)` for `f ∈ {0,1}` (collection, token)
+- **Claimer** — `asset ^ LINKED_NFT_TOKEN_CLAIMER_XOR`
 
-1. Choose a 32-byte **collection** salt (or let the SDK randomize).
-2. **Token** salt = `BLAKE3("boing.nft_token_pair.v1" ‖ collectionSalt)`.
-3. Predict both addresses with `predictCreate2ContractAddress`, then put mutual peers into both link documents before submit.
+## CREATE2
 
-Two txs remain (mempool / QA). Handle partial success in the UI.
+Salt: `LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1` (`BOING_NFT_TOKEN_LINK_REG_V1`).  
+Bytecode: `linked_nft_token_registry_bytecode()` / SDK `DEFAULT_LINKED_NFT_TOKEN_REGISTRY_BYTECODE_HEX`.  
+QA purpose: **`dapp`**.
 
-## SDK surface (`boing-sdk`)
+## SDK (`boing-sdk`)
 
-| Helper | Purpose |
-|--------|---------|
-| `normalizeLinkedNftToken` / `encodeLinkedNftTokenJson` / `decodeLinkedNftTokenJson` | Schema encode/decode |
-| `descriptionHashHexFromLinkedNftToken` | Blake3 → `description_hash` |
-| `attachLinkedNftTokenPeer` / `updateLinkedNftTokenPeers` / `unlinkLinkedNftTokenPeer` | Mutate peer lists (+ `revision`) |
-| `applyLinkedNftTokenOffchainKeys` / `readLinkedNftTokenFromOffchainMetadata` | Off-chain JSON keys |
-| `linkedNftTokenPairSalts` / `deriveLinkedNftTokenFungibleSaltHex` | Salt convention |
-| `buildLinkedNftTokenPairDeploys` | Two `contract_deploy_meta` txs + predicted addresses |
-| `softGateLinkedNftTokenPeers` | Prefer same deployer / attester; flag spoof risk |
+| Surface | Role |
+|---------|------|
+| `buildLinkedNftTokenRegistryDeployMetaTx` | Deploy registry |
+| `encodeLinkedNftTokenClaimAsset*` / `RegisterLink*` / `UnlinkAt*` / … | Calldata |
+| `buildLinkedNftTokenRegisterFlowTxs` | claim×2 + register Express txs |
+| `buildLinkedNftTokenRegistryContractCallTx` | Access-listed `contract_call` |
+| `buildLinkedNftTokenPairDeploys` | Joint NFT+token CREATE2 deploys (then register on registry) |
+| `linkedNftToken.ts` schema helpers | **Optional cache** (`description_hash` / off-chain JSON) |
 
-See `boing-sdk/src/linkedNftToken.ts` and `boing-sdk/tests/linkedNftToken.test.ts`.
+## Optional metadata cache
 
-## Spoof risk
-
-Anyone can put arbitrary AccountIds in `peers` or off-chain keys. **Do not** treat a link as authoritative without checks. Prefer:
-
-1. Same deploy AccountId on both contracts, and/or
-2. `attester` matching that deployer (`softGateLinkedNftTokenPeers`).
-
-A future on-chain registry (DEX `register_pair` precedent) can harden discovery later.
+Schema `boing.linked_nft_token.v1` and keys `linked_nft_token` / `companion_tokens` / `companion_collections` remain for UI hydration. **Do not** treat them as authoritative; resolve peers from the registry.
 
 ## Related
 
-- [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)
-- [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md)
-- [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md)
+- Rust: `crates/boing-execution/src/linked_nft_token_registry.rs`
+- [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) (same register-directory pattern)
+- [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) / [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md)
