@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as applied before **1.0.0** (minor releases may include breaking TypeScript surface changes).
 
+## [0.5.1] - 2026-10-09
+
+### Added
+
+- **Linked NFT ↔ fungible token (display-only MVP)** — schema **`boing.linked_nft_token.v1`** (many-to-many peer lists), Blake3 **`description_hash`**, off-chain keys `linked_nft_token` / `companion_tokens` / `companion_collections`, CREATE2 salt convention, joint deploy helper **`buildLinkedNftTokenPairDeploys`**, attach/update/unlink + **`softGateLinkedNftTokenPeers`** (`linkedNftToken.ts`; [BOING-LINKED-NFT-TOKEN.md](../docs/BOING-LINKED-NFT-TOKEN.md)).
+- **`ContractDeployMetaTxObject.create2_salt`** / **`buildContractDeployMetaTx({ create2SaltHex })`** for Express CREATE2 deploys.
+
 ## [0.5.0] - 2026-10-05
 
 ### Changed
