@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as applied before **1.0.0** (minor releases may include breaking TypeScript surface changes).
 
+## [0.5.2] - 2026-10-10
+
+### Added
+
+- **`buildLinkedNftTokenProjectPack`** — thin dApp helper composing **`buildLinkedNftTokenPairDeploys`** + **`buildLinkedNftTokenRegisterFlowTxs`** (joint NFT+token CREATE2 deploys, then claim×2 + `register_link`). Defaults registry to canonical public testnet. Docs: [BOING-LINKED-NFT-TOKEN.md](../docs/BOING-LINKED-NFT-TOKEN.md).
+
 ## [0.5.1] - 2026-10-09
 
 ### Added

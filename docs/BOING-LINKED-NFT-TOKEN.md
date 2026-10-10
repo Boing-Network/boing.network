@@ -89,12 +89,49 @@ QA purpose: **`dapp`**.
 
 | Surface | Role |
 |---------|------|
+| **`buildLinkedNftTokenProjectPack`** | **dApp entry:** joint NFT+token CREATE2 deploys **+** claim×2 + `register_link` (thin composition) |
+| `buildLinkedNftTokenPairDeploys` | Joint NFT+token CREATE2 deploys only |
+| `buildLinkedNftTokenRegisterFlowTxs` | claim×2 + register Express txs (after addresses known) |
 | `buildLinkedNftTokenRegistryDeployMetaTx` | Deploy registry |
 | `encodeLinkedNftTokenClaimAsset*` / `RegisterLink*` / `UnlinkAt*` / … | Calldata |
-| `buildLinkedNftTokenRegisterFlowTxs` | claim×2 + register Express txs |
 | `buildLinkedNftTokenRegistryContractCallTx` | Access-listed `contract_call` |
-| `buildLinkedNftTokenPairDeploys` | Joint NFT+token CREATE2 deploys (then register on registry) |
 | `linkedNftToken.ts` schema helpers | **Optional cache** (`description_hash` / off-chain JSON) |
+
+### Recommended dApp sequence (project pack)
+
+Prefer the thin pack helper when a wizard should mint a linked collection+token in one flow:
+
+```ts
+import {
+  buildLinkedNftTokenProjectPack,
+  CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX,
+} from 'boing-sdk';
+
+const pack = buildLinkedNftTokenProjectPack({
+  deployerHex: walletAccountId, // CREATE2 deployer + default claimer
+  collectionName: 'My Collection',
+  collectionSymbol: 'MYC',
+  tokenName: 'My Token',
+  tokenSymbol: 'MYT',
+  // registryHex32 defaults to CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX
+  registryHex32: CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX,
+});
+
+// 1) Submit pack.collectionDeployTx then pack.tokenDeployTx (either order OK).
+// 2) After both land, submit pack.registerFlowTxs in order:
+//    claim(collection) → claim(token) → register_link.
+//    Claim in the same session as deploy so nobody front-runs claim_asset.
+// pack.submitOrder === ['collectionDeploy','tokenDeploy','claimCollection','claimToken','registerLink']
+```
+
+**Lower-level composition** (same result) if you already split deploy vs register UI:
+
+1. `buildLinkedNftTokenPairDeploys({ deployerHex, collectionName, … })` → two `contract_deploy_meta` txs + predicted addresses.
+2. Submit both deploys; handle partial success (one of two may land alone).
+3. `buildLinkedNftTokenRegisterFlowTxs({ senderHex32, registryHex32, collectionHex32, tokenHex32 })` with the predicted (or confirmed) AccountIds.
+4. Submit the three `contract_call` txs in order.
+
+No new contracts are required — the pack only wires existing reference NFT/fungible templates and the live registry.
 
 ## Optional metadata cache
 
