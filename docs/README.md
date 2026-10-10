@@ -66,6 +66,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md) | Pinned fungible / NFT bytecode |
 | [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) | Reference fungible |
 | [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) | Reference NFT (v3 `mint_batch` `0x06`, n≤500) |
+| [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) | Enforced on-chain NFT↔token registry (live testnet AccountId, selectors `0xE0`–`0xE6`) |
 | [E2-PARTNER-APP-NATIVE-BOING.md](E2-PARTNER-APP-NATIVE-BOING.md) | Partner native Boing apps |
 
 ### Native DEX and AMM

@@ -2,6 +2,9 @@
  * On-chain **linked NFT ↔ fungible token** registry (enforced).
  * Matches `boing_execution::linked_nft_token_registry`.
  * See `docs/BOING-LINKED-NFT-TOKEN.md`.
+ *
+ * **Public testnet** registry AccountId: {@link CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX}
+ * on `https://testnet-rpc.boing.network/` (CREATE2 salt `BOING_NFT_TOKEN_LINK_REG_V1`, selectors `0xE0`–`0xE6`).
  */
 
 import { mergeAccessListWithSimulation } from './accessList.js';
@@ -14,6 +17,14 @@ import { DEFAULT_LINKED_NFT_TOKEN_REGISTRY_BYTECODE_HEX } from './defaultLinkedN
 import { bytesToHex, ensureHex, hexToBytes, validateHex32 } from './hex.js';
 import { decodeBoingStorageWordU128 } from './nativeAmmPool.js';
 import type { SimulateResult } from './types.js';
+
+/**
+ * Live linked NFT↔token registry on **public Boing testnet** (`https://testnet-rpc.boing.network/`).
+ * Deployed with salt `BOING_NFT_TOKEN_LINK_REG_V1` after PR #42 (`924c0ba`). Mainnet: not deployed.
+ */
+export const CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX = validateHex32(
+  '0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8',
+);
 
 /** `claim_asset(asset)` — **64** bytes. */
 export const SELECTOR_LINKED_NFT_TOKEN_CLAIM_ASSET = 0xe0;

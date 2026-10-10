@@ -99,6 +99,8 @@ For **secured** template changes, repeat with `cargo test -p boing-execution` (i
 
 - **Phase B — F2 marketplace:** optional selectors or companion contracts for **binding** royalties ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) § Marketplace).
 
+**Linked NFT ↔ fungible token (enforced):** after separate NFT + token deploys, register the official pair on the on-chain registry (dual claimer). **Public testnet registry AccountId:** `0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8` — see [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) and `boing-sdk` **`CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX`**.
+
 ---
 
 ## Smoke contract (not a user token)
@@ -129,5 +131,6 @@ Stdout: line **1** = smoke (not a token), line **2** = **minimal fungible** temp
 
 - [E2-PARTNER-APP-NATIVE-BOING.md](E2-PARTNER-APP-NATIVE-BOING.md)  
 - [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) — `contract_deploy_meta`  
+- [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) — enforced NFT↔token registry (live testnet)  
 - `boing-sdk` — `canonicalDeployArtifacts.ts`  
 - `examples/native-boing-tutorial/` — scripted deploy patterns

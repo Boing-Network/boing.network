@@ -144,6 +144,10 @@ await provider.request({ method: 'boing_sendTransaction', params: [tx] });
 
 Keep **paste bytecode** / **description_hash** under **Advanced** only — same mental model as EVM “custom bytecode” toggles.
 
+### Linked NFT collection ↔ fungible token (enforced)
+
+Official pairs use the **on-chain** registry (not display-only metadata). On public testnet, pin registry AccountId **`0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8`** (`CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX`, or env `*_BOING_LINKED_NFT_TOKEN_REGISTRY`). Flow: deploy NFT + token → **`claim_asset`** on both → **`register_link`** (SDK **`buildLinkedNftTokenRegisterFlowTxs`**). Selectors **`0xE0`–`0xE6`**, CREATE2 salt **`BOING_NFT_TOKEN_LINK_REG_V1`**, many-to-many and mutable. Full layout: [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md).
+
 ---
 
 ## 6. Auth / “login”
@@ -169,6 +173,7 @@ Keep **paste bytecode** / **description_hash** under **Advanced** only — same 
 ## References
 
 - [boing-sdk README](../boing-sdk/README.md) — RPC client, `callAbi.ts`, calldata helpers, submit flows  
+- [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) — enforced NFT↔token registry (live testnet AccountId)  
 - [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md) — Phase 1 tracks P / W / E  
 - [RPC-API-SPEC.md](RPC-API-SPEC.md)  
 - [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md)  
