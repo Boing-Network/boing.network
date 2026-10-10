@@ -10,6 +10,7 @@ import {
   CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX,
   CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX,
   CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX,
+  CANONICAL_LINKED_NFT_TOKEN_REGISTRY_ACCOUNT_ID_HEX,
 } from '../../config/testnet';
 ---
 
@@ -158,6 +159,24 @@ import {
           <code>end_user.canonical_native_amm_lp_vault</code> / <code>canonical_native_lp_share_token</code>.
         </p>
       )}
+    </section>
+
+    <section class="section" id="linked-nft-token-registry">
+      <h2>Linked NFT ↔ token registry (chain 6913)</h2>
+      <p>
+        Enforced on-chain registry for official NFT collection ↔ fungible token pairs (dual asset-claimer auth, many-to-many, mutable).
+        Protocol: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-LINKED-NFT-TOKEN.md" target="_blank" rel="noopener noreferrer">BOING-LINKED-NFT-TOKEN.md</a>
+        · SDK <code>CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX</code> / <code>buildLinkedNftTokenRegisterFlowTxs</code>.
+        Salt <code>BOING_NFT_TOKEN_LINK_REG_V1</code>, selectors <code>0xE0</code>–<code>0xE6</code>.
+      </p>
+      <p><strong>Registry <code>AccountId</code> (public testnet):</strong></p>
+      <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_LINKED_NFT_TOKEN_REGISTRY_ACCOUNT_ID_HEX}>
+        <code class="rpc-url-display pool-id-display">{CANONICAL_LINKED_NFT_TOKEN_REGISTRY_ACCOUNT_ID_HEX}</code>
+        <CopyButton label="Copy registry id" copiedLabel="Copied!" />
+      </div>
+      <p class="muted small-print">
+        RPC <code>{TESTNET_RPC_URL}</code>. Optional env for apps: <code>NEXT_PUBLIC_BOING_LINKED_NFT_TOKEN_REGISTRY</code> / <code>REACT_APP_BOING_LINKED_NFT_TOKEN_REGISTRY</code>.
+      </p>
     </section>
 
     <section class="section" id="bootnodes">

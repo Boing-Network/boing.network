@@ -129,7 +129,7 @@ When `metadata_hash` points to JSON (IPFS, HTTPS), recommended keys for marketpl
 
 **Binding royalties** require **contract logic** (e.g. on `transfer_nft`, query a stored **royalty bps + recipient** per `token_id` or collection-wide slot)—not JSON alone.
 
-**Linked project tokens:** enforced via the on-chain link registry (dual asset-claimer). See [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) and `boing-sdk` **`linkedNftTokenRegistry.ts`**.
+**Linked project tokens:** enforced via the on-chain link registry (dual asset-claimer; many-to-many, mutable). **Public testnet registry:** `0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8` on `https://testnet-rpc.boing.network/` (salt `BOING_NFT_TOKEN_LINK_REG_V1`, selectors `0xE0`–`0xE6`). See [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) and `boing-sdk` **`linkedNftTokenRegistry.ts`**.
 
 ### Example call sequences
 

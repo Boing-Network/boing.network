@@ -2,7 +2,7 @@
 
 > 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md).
 > 🛠️ **Developers:** use `boing-sdk` registry helpers; keep this aligned with shipped code.
-> 🛰️ **Operators:** deploy one registry contract (purpose `dapp`); separate `nft` + `token` deploys unchanged.
+> 🛰️ **Operators:** one registry is live on public testnet (below); redeploy only with the same CREATE2 salt + bytecode if you need a fresh chain.
 
 ## Verdict (Nico 2026-10-09, updated)
 
@@ -12,6 +12,35 @@
 | **Cardinality** | **Many-to-many** |
 | **Mutability** | **Add / remove** via registry calls |
 | **Metadata schema** | Optional **cache only** — not source of truth |
+
+Protocol merge: [PR #42](https://github.com/Boing-Network/boing.network/pull/42) @ `main` **`924c0ba`**.
+
+## Live registry (public testnet)
+
+| Field | Value |
+|-------|--------|
+| **RPC** | `https://testnet-rpc.boing.network/` |
+| **Registry `AccountId`** | `0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8` |
+| **CREATE2 salt** | `BOING_NFT_TOKEN_LINK_REG_V1` (`LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1` / SDK `LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1_HEX`) |
+| **Selectors** | `0xE0`–`0xE6` |
+| **Auth** | Dual **asset claimer** (claim both sides, then register / unlink) |
+| **Cardinality / mutability** | Many-to-many; mutable after create |
+| **QA purpose** | `dapp` |
+| **Mainnet** | Not deployed |
+
+**SDK constant:** `CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX` (`linkedNftTokenRegistry.ts`).
+
+**App env (wire the same hex):** `NEXT_PUBLIC_BOING_LINKED_NFT_TOKEN_REGISTRY` / `REACT_APP_BOING_LINKED_NFT_TOKEN_REGISTRY` / `BOING_LINKED_NFT_TOKEN_REGISTRY`.
+
+**Verify (public):**
+
+```bash
+curl -fsS -A boing-sdk/json-rpc -X POST https://testnet-rpc.boing.network/ \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"boing_simulateContractCall","params":["0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8","0x00000000000000000000000000000000000000000000000000000000000000e3"]}'
+```
+
+Expect `success: true` and a zero count word when no links are registered. Optional node hint `end_user.canonical_linked_nft_token_registry` is a follow-up; until then, apps hardcode or env-pin the AccountId above.
 
 ## Auth model (dual asset claimer)
 
