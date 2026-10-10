@@ -28,6 +28,10 @@ name = "dump_native_dex_factory"
 path = "examples/dump_native_dex_factory.rs"
 
 [[example]]
+name = "dump_linked_nft_token_registry"
+path = "examples/dump_linked_nft_token_registry.rs"
+
+[[example]]
 name = "dump_native_dex_ledger_router"
 path = "examples/dump_native_dex_ledger_router.rs"
 

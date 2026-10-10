@@ -109,6 +109,13 @@ export const NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1 = (() => {
     out.set(label);
     return out;
 })();
+/** Same bytes as `linked_nft_token_registry::LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1`. */
+export const LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1 = (() => {
+    const label = new TextEncoder().encode('BOING_NFT_TOKEN_LINK_REG_V1');
+    const out = new Uint8Array(32);
+    out.set(label);
+    return out;
+})();
 /** `0x` + 64 hex for {@link NATIVE_CP_POOL_CREATE2_SALT_V1}. */
 export function nativeCpPoolCreate2SaltV1Hex() {
     return validateHex32(bytesToHex(NATIVE_CP_POOL_CREATE2_SALT_V1));
@@ -221,6 +228,10 @@ export function predictNativeLpShareTokenCreate2Address(deployerHex, bytecode) {
 export function predictNativeAmmLpVaultCreate2Address(deployerHex, bytecode) {
     return predictCreate2ContractAddress(deployerHex, NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1, bytecode);
 }
+/** Linked NFT↔token registry (`linked_nft_token_registry_bytecode`) + documented salt. */
+export function predictLinkedNftTokenRegistryCreate2Address(deployerHex, bytecode) {
+    return predictCreate2ContractAddress(deployerHex, LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1, bytecode);
+}
 /** `0x` + 64 hex for {@link NATIVE_DEX_FACTORY_CREATE2_SALT_V1}. */
 export function nativeDexFactoryCreate2SaltV1Hex() {
     return validateHex32(bytesToHex(NATIVE_DEX_FACTORY_CREATE2_SALT_V1));
@@ -252,4 +263,8 @@ export function nativeLpShareTokenCreate2SaltV1Hex() {
 /** `0x` + 64 hex for {@link NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1}. */
 export function nativeAmmLpVaultCreate2SaltV1Hex() {
     return validateHex32(bytesToHex(NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1));
+}
+/** `0x` + 64 hex for {@link LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1}. */
+export function linkedNftTokenRegistryCreate2SaltV1Hex() {
+    return validateHex32(bytesToHex(LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1));
 }

@@ -8,6 +8,7 @@ mod gas;
 mod interpreter;
 mod native_amm;
 mod native_dex_factory;
+mod linked_nft_token_registry;
 mod native_dex_ledger_router;
 mod native_dex_multihop_swap_router;
 mod native_lp_share_token;
@@ -72,6 +73,18 @@ pub use native_dex_factory::{
     native_dex_factory_triplet_storage_key,
     NATIVE_DEX_FACTORY_CREATE2_SALT_V1, NATIVE_DEX_FACTORY_MAX_PAIRS, NATIVE_DEX_FACTORY_TOPIC_REGISTER,
     SELECTOR_GET_PAIR_AT, SELECTOR_PAIRS_COUNT, SELECTOR_REGISTER_PAIR,
+};
+pub use linked_nft_token_registry::{
+    encode_claim_asset_calldata, encode_get_asset_claimer_calldata, encode_get_link_at_calldata,
+    encode_links_count_calldata, encode_register_link_calldata, encode_transfer_asset_claimer_calldata,
+    encode_unlink_at_calldata, linked_nft_token_claimer_storage_key,
+    linked_nft_token_registry_bytecode, linked_nft_token_registry_count_key,
+    linked_nft_token_registry_pair_base_word, linked_nft_token_registry_pair_storage_key,
+    LINKED_NFT_TOKEN_CLAIMER_XOR, LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1,
+    LINKED_NFT_TOKEN_REGISTRY_MAX_LINKS, LINKED_NFT_TOKEN_TOPIC_REGISTER,
+    LINKED_NFT_TOKEN_TOPIC_UNLINK, SELECTOR_CLAIM_ASSET, SELECTOR_GET_ASSET_CLAIMER,
+    SELECTOR_GET_LINK_AT, SELECTOR_LINKS_COUNT, SELECTOR_REGISTER_LINK,
+    SELECTOR_TRANSFER_ASSET_CLAIMER, SELECTOR_UNLINK_AT,
 };
 pub use native_dex_ledger_router::{
     encode_ledger_router_forward_calldata, encode_ledger_router_forward_calldata_v2,
