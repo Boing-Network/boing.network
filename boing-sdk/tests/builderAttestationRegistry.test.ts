@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1_HEX,
   BUILDER_ATTESTATION_REGISTRY_COUNT_KEY_HEX,
+  CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX,
   SELECTOR_BUILDER_ATTEST_ATTEST,
   SELECTOR_BUILDER_ATTEST_CLAIM_ASSET,
   SELECTOR_BUILDER_ATTEST_REVOKE_AT,
@@ -30,6 +31,12 @@ const SENDER = `0x${'aa'.repeat(32)}`;
 const REG = `0x${'bb'.repeat(32)}`;
 
 describe('builderAttestationRegistry', () => {
+  it('pins canonical public testnet registry AccountId', () => {
+    expect(CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX).toBe(
+      '0x734077a9f926077d39e84ec278b77b7b600c840f7101809646d8797a6a9e1816',
+    );
+  });
+
   it('locks CREATE2 salt label', () => {
     expect(builderAttestationRegistryCreate2SaltV1Hex()).toBe(
       BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1_HEX,

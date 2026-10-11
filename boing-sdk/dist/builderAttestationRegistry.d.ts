@@ -3,11 +3,17 @@
  * Matches `boing_execution::builder_attestation_registry`.
  * See `docs/BOING-BUILDER-ATTESTATION.md`.
  *
- * CREATE2 salt `BOING_BUILDER_ATTEST_REG_V1`, selectors `0xE0`–`0xE6`.
- * Canonical testnet AccountId: set after first public deploy (env-pin apps).
+ * **Public testnet** registry AccountId: {@link CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX}
+ * on `https://testnet-rpc.boing.network/` (CREATE2 salt `BOING_BUILDER_ATTEST_REG_V1`, selectors `0xE0`–`0xE6`).
  */
 import { type ContractDeployMetaTxObject } from './canonicalDeployArtifacts.js';
 import type { SimulateResult } from './types.js';
+/**
+ * Live builder attestation registry on **public Boing testnet** (`https://testnet-rpc.boing.network/`).
+ * Deployed with salt `BOING_BUILDER_ATTEST_REG_V1` (PR #49). Ephemeral faucet-funded deployer (seed not retained).
+ * Mainnet: not deployed.
+ */
+export declare const CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX: string;
 /** `claim_asset(asset)` — **64** bytes. */
 export declare const SELECTOR_BUILDER_ATTEST_CLAIM_ASSET = 224;
 /** `attest(collection, token, note_hash)` — **128** bytes. */

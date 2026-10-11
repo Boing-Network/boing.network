@@ -22,17 +22,28 @@
 | Field | Value |
 |-------|--------|
 | **RPC** | `https://testnet-rpc.boing.network/` |
-| **Registry `AccountId`** | *TBD — deploy with steps below* |
+| **Registry `AccountId`** | `0x734077a9f926077d39e84ec278b77b7b600c840f7101809646d8797a6a9e1816` |
 | **CREATE2 salt** | `BOING_BUILDER_ATTEST_REG_V1` (`BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1` / SDK `BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1_HEX`) |
 | **Selectors** | `0xE0`–`0xE6` |
 | **Auth** | Dual **asset claimer**; revoke also allows recorded builder |
 | **Cardinality / mutability** | Many attestations; append + tombstone revoke |
 | **QA purpose** | `dapp` |
+| **Deployer AccountId** | `0xe99a951e41407b23270d18e8d9f25bb69859835e1f053e12de271724f9dbf500` (ephemeral faucet-funded; seed **not** retained) |
 | **Mainnet** | Not deployed |
 
-**SDK:** `DEFAULT_BUILDER_ATTESTATION_REGISTRY_BYTECODE_HEX`, `buildBuilderAttestationRegistryDeployMetaTx`, `buildBuilderAttestationAttestFlowTxs`.
+**SDK:** `CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX`, `DEFAULT_BUILDER_ATTESTATION_REGISTRY_BYTECODE_HEX`, `buildBuilderAttestationRegistryDeployMetaTx`, `buildBuilderAttestationAttestFlowTxs`.
 
-**App env (after deploy):** `REACT_APP_BOING_BUILDER_ATTESTATION_REGISTRY` / `NEXT_PUBLIC_BOING_BUILDER_ATTESTATION_REGISTRY` / `BOING_BUILDER_ATTESTATION_REGISTRY`.
+**App env (wire the same hex):** `REACT_APP_BOING_BUILDER_ATTESTATION_REGISTRY` / `NEXT_PUBLIC_BOING_BUILDER_ATTESTATION_REGISTRY` / `BOING_BUILDER_ATTESTATION_REGISTRY`.
+
+**Verify (public):**
+
+```bash
+curl -fsS -A boing-sdk/json-rpc -X POST https://testnet-rpc.boing.network/ \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"boing_simulateContractCall","params":["0x734077a9f926077d39e84ec278b77b7b600c840f7101809646d8797a6a9e1816","0x00000000000000000000000000000000000000000000000000000000000000e3"]}'
+```
+
+Expect `success: true` and a zero count word when no attestations are registered.
 
 ## Auth model
 
@@ -105,14 +116,7 @@ import {
 "
 ```
 
-Verify after deploy (`attestations_count` → zero word):
-
-```bash
-# Replace REG with live AccountId
-curl -fsS -A boing-sdk/json-rpc -X POST https://testnet-rpc.boing.network/ \
-  -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"boing_simulateContractCall","params":["REG","0x00000000000000000000000000000000000000000000000000000000000000e3"]}'
-```
+Verify after deploy (`attestations_count` → zero word): use the **Verify (public)** curl above with the live AccountId.
 
 ## SDK (`boing-sdk`)
 

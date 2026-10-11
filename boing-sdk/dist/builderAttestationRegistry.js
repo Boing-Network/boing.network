@@ -3,14 +3,20 @@
  * Matches `boing_execution::builder_attestation_registry`.
  * See `docs/BOING-BUILDER-ATTESTATION.md`.
  *
- * CREATE2 salt `BOING_BUILDER_ATTEST_REG_V1`, selectors `0xE0`–`0xE6`.
- * Canonical testnet AccountId: set after first public deploy (env-pin apps).
+ * **Public testnet** registry AccountId: {@link CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX}
+ * on `https://testnet-rpc.boing.network/` (CREATE2 salt `BOING_BUILDER_ATTEST_REG_V1`, selectors `0xE0`–`0xE6`).
  */
 import { mergeAccessListWithSimulation } from './accessList.js';
 import { buildContractDeployMetaTx, ensure0xHex, } from './canonicalDeployArtifacts.js';
 import { DEFAULT_BUILDER_ATTESTATION_REGISTRY_BYTECODE_HEX } from './defaultBuilderAttestationRegistryBytecodeHex.js';
 import { bytesToHex, ensureHex, hexToBytes, validateHex32 } from './hex.js';
 import { decodeBoingStorageWordU128 } from './nativeAmmPool.js';
+/**
+ * Live builder attestation registry on **public Boing testnet** (`https://testnet-rpc.boing.network/`).
+ * Deployed with salt `BOING_BUILDER_ATTEST_REG_V1` (PR #49). Ephemeral faucet-funded deployer (seed not retained).
+ * Mainnet: not deployed.
+ */
+export const CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX = validateHex32('0x734077a9f926077d39e84ec278b77b7b600c840f7101809646d8797a6a9e1816');
 /** `claim_asset(asset)` — **64** bytes. */
 export const SELECTOR_BUILDER_ATTEST_CLAIM_ASSET = 0xe0;
 /** `attest(collection, token, note_hash)` — **128** bytes. */
