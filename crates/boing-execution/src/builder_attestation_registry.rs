@@ -1,13 +1,14 @@
-//! On-chain **builder attestation** registry — scaffold (selectors, salts, encoders).
+//! On-chain **builder attestation** registry (enforced builder signal).
 //!
 //! Dual asset-claimer auth (same pattern as [`crate::linked_nft_token_registry`]).
-//! Full bytecode assembler is intentionally deferred until the product design is locked;
-//! see Agent Store `docs/builder-attestations-onchain.md` and `docs/BOING-BUILDER-ATTESTATION.md`.
+//! `attest` requires claimer of both collection and token; `revoke_at` allows the
+//! recorded builder **or** the current dual claimer. No cross-contract companion check.
 //!
-//! Selectors are **per-contract** (no collision with companions `0xE0`–`0xE6` on a different AccountId).
+//! See `docs/BOING-BUILDER-ATTESTATION.md`.
 
 use boing_primitives::AccountId;
 
+use crate::bytecode::Opcode;
 use crate::reference_token::selector_word;
 
 /// `claim_asset(asset)` — **64** bytes (selector + AccountId).
@@ -26,21 +27,31 @@ pub const SELECTOR_BUILDER_ATTEST_GET_CLAIMER: u8 = 0xE5;
 /// `transfer_asset_claimer(asset, new_claimer)` — **96** bytes.
 pub const SELECTOR_BUILDER_ATTEST_TRANSFER_CLAIMER: u8 = 0xE6;
 
-/// `Log3` topic0 after successful attest (scaffold; packing finalized with bytecode).
-/// topic1 = collection, topic2 = token.
+/// `Log3` topic0 after successful attest.
+/// topic1 = collection, topic2 = token, data = builder (CALLER).
 pub const BUILDER_ATTEST_TOPIC_ATTEST: [u8; 32] =
     *b"BOING_BLDR_ATTEST_REG1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
 /// `Log3` topic0 after successful revoke.
+/// topic1 = collection, topic2 = token, data = recorded builder.
 pub const BUILDER_ATTEST_TOPIC_REVOKE: [u8; 32] =
     *b"BOING_BLDR_ATTEST_UNL1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
-/// CREATE2 salt for the future attestation-registry bytecode.
+/// CREATE2 salt for [`builder_attestation_registry_bytecode`].
 pub const BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1: [u8; 32] =
     *b"BOING_BUILDER_ATTEST_REG_V1\x00\x00\x00\x00\x00";
 
 /// Inclusive upper bound on stored attestation slots (includes tombstones).
 pub const BUILDER_ATTESTATION_REGISTRY_MAX_SLOTS: u64 = 4096;
+
+fn push32(code: &mut Vec<u8>, w: &[u8; 32]) {
+    code.push(Opcode::Push32 as u8);
+    code.extend_from_slice(w);
+}
+
+fn patch_push32_dest(code: &mut [u8], push32_opcode_at: usize, dest: usize) {
+    code[push32_opcode_at + 1..push32_opcode_at + 33].copy_from_slice(&word_u64(dest as u64));
+}
 
 fn word_u64(n: u64) -> [u8; 32] {
     let mut w = [0u8; 32];
@@ -96,6 +107,58 @@ pub fn builder_attestation_registry_slot_storage_key(index: u64, field: u8) -> [
         addend >>= 8;
     }
     w
+}
+
+fn append_build_slot_key(code: &mut Vec<u8>, mem_idx: u64, field: u8) {
+    push32(code, &word_u64(mem_idx));
+    code.push(Opcode::MLoad as u8);
+    push32(code, &word_u64(2));
+    code.push(Opcode::Shl as u8); // index * 4
+    push32(code, &word_u64(u64::from(field)));
+    code.push(Opcode::Add as u8);
+    push32(code, &builder_attestation_registry_slot_base_word());
+    code.push(Opcode::Add as u8);
+}
+
+fn append_sstore_slot_field(code: &mut Vec<u8>, mem_idx: u64, field: u8, calldata_word_off: u64) {
+    push32(code, &word_u64(calldata_word_off));
+    code.push(Opcode::MLoad as u8);
+    append_build_slot_key(code, mem_idx, field);
+    code.push(Opcode::SStore as u8);
+}
+
+fn append_sstore_slot_caller(code: &mut Vec<u8>, mem_idx: u64, field: u8) {
+    code.push(Opcode::Caller as u8);
+    append_build_slot_key(code, mem_idx, field);
+    code.push(Opcode::SStore as u8);
+}
+
+/// Abort if `SLOAD(calldata[asset_off] ^ CLAIMER_XOR) != CALLER`.
+fn append_require_caller_is_claimer(code: &mut Vec<u8>, asset_off: u64, fix_aborts: &mut Vec<usize>) {
+    push32(code, &word_u64(asset_off));
+    code.push(Opcode::MLoad as u8);
+    push32(code, &BUILDER_ATTEST_CLAIMER_XOR);
+    code.push(Opcode::Xor as u8);
+    code.push(Opcode::SLoad as u8);
+    code.push(Opcode::Caller as u8);
+    code.push(Opcode::Eq as u8);
+    code.push(Opcode::IsZero as u8);
+    let fix = code.len();
+    push32(code, &[0u8; 32]);
+    code.push(Opcode::JumpI as u8);
+    fix_aborts.push(fix);
+}
+
+/// Log3: topic0, topic1=mem[32] collection, topic2=mem[64] token, data=32 bytes at `mem_data`.
+fn append_log3_topics_ct_data_mem(code: &mut Vec<u8>, topic0: &[u8; 32], mem_data: u64) {
+    push32(code, topic0);
+    push32(code, &word_u64(32));
+    code.push(Opcode::MLoad as u8); // collection
+    push32(code, &word_u64(64));
+    code.push(Opcode::MLoad as u8); // token
+    push32(code, &word_u64(32));
+    push32(code, &word_u64(mem_data));
+    code.push(Opcode::Log3 as u8);
 }
 
 #[must_use]
@@ -155,12 +218,375 @@ pub fn encode_builder_attest_transfer_claimer_calldata(
     v
 }
 
+/// Canonical builder-attestation registry bytecode (v1).
+/// CREATE2: [`BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1`].
+#[must_use]
+pub fn builder_attestation_registry_bytecode() -> Vec<u8> {
+    const MEM_IDX: u64 = 160;
+    const MEM_TMP: u64 = 192;
+    const MEM_LOG: u64 = 224;
+    const MEM_RET: u64 = 256;
+
+    let mut c: Vec<u8> = Vec::new();
+    let mut fix_aborts: Vec<usize> = Vec::new();
+
+    // --- dispatch ---
+    let mut fix_jumps = [0usize; 7];
+    for (i, sel) in [
+        SELECTOR_BUILDER_ATTEST_CLAIM_ASSET,
+        SELECTOR_BUILDER_ATTEST_ATTEST,
+        SELECTOR_BUILDER_ATTEST_REVOKE_AT,
+        SELECTOR_BUILDER_ATTEST_COUNT,
+        SELECTOR_BUILDER_ATTEST_GET_AT,
+        SELECTOR_BUILDER_ATTEST_GET_CLAIMER,
+        SELECTOR_BUILDER_ATTEST_TRANSFER_CLAIMER,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        push32(&mut c, &word_u64(0));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &selector_word(sel));
+        c.push(Opcode::Eq as u8);
+        fix_jumps[i] = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+    }
+    let off_abort = c.len();
+    c.push(Opcode::Stop as u8);
+
+    // ========== claim_asset ==========
+    {
+        let off = c.len();
+        patch_push32_dest(&mut c, fix_jumps[0], off);
+
+        // abort if asset == 0
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::IsZero as u8);
+        {
+            let fix = c.len();
+            push32(&mut c, &[0u8; 32]);
+            c.push(Opcode::JumpI as u8);
+            fix_aborts.push(fix);
+        }
+
+        // key = asset ^ CLAIMER_XOR → MEM_IDX
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &BUILDER_ATTEST_CLAIMER_XOR);
+        c.push(Opcode::Xor as u8);
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MStore as u8);
+
+        // existing → MEM_TMP
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::SLoad as u8);
+        push32(&mut c, &word_u64(MEM_TMP));
+        c.push(Opcode::MStore as u8);
+
+        // if existing == 0 → set; else require == CALLER
+        push32(&mut c, &word_u64(MEM_TMP));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::IsZero as u8);
+        let fix_set = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+
+        push32(&mut c, &word_u64(MEM_TMP));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Caller as u8);
+        c.push(Opcode::Eq as u8);
+        c.push(Opcode::IsZero as u8);
+        {
+            let fix = c.len();
+            push32(&mut c, &[0u8; 32]);
+            c.push(Opcode::JumpI as u8);
+            fix_aborts.push(fix);
+        }
+        c.push(Opcode::Stop as u8);
+
+        let off_set = c.len();
+        patch_push32_dest(&mut c, fix_set, off_set);
+        c.push(Opcode::Caller as u8);
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::SStore as u8);
+        c.push(Opcode::Stop as u8);
+    }
+
+    // ========== attest ==========
+    {
+        let off = c.len();
+        patch_push32_dest(&mut c, fix_jumps[1], off);
+
+        // abort if collection == 0 or token == 0
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::IsZero as u8);
+        {
+            let fix = c.len();
+            push32(&mut c, &[0u8; 32]);
+            c.push(Opcode::JumpI as u8);
+            fix_aborts.push(fix);
+        }
+        push32(&mut c, &word_u64(64));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::IsZero as u8);
+        {
+            let fix = c.len();
+            push32(&mut c, &[0u8; 32]);
+            c.push(Opcode::JumpI as u8);
+            fix_aborts.push(fix);
+        }
+
+        append_require_caller_is_claimer(&mut c, 32, &mut fix_aborts);
+        append_require_caller_is_claimer(&mut c, 64, &mut fix_aborts);
+
+        // cnt → MEM_IDX; abort if !(cnt < MAX)
+        push32(&mut c, &builder_attestation_registry_count_key());
+        c.push(Opcode::SLoad as u8);
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MStore as u8);
+
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(BUILDER_ATTESTATION_REGISTRY_MAX_SLOTS));
+        c.push(Opcode::Lt as u8);
+        c.push(Opcode::IsZero as u8);
+        {
+            let fix = c.len();
+            push32(&mut c, &[0u8; 32]);
+            c.push(Opcode::JumpI as u8);
+            fix_aborts.push(fix);
+        }
+
+        // store collection, token, builder=CALLER, note_hash
+        append_sstore_slot_field(&mut c, MEM_IDX, 0, 32);
+        append_sstore_slot_field(&mut c, MEM_IDX, 1, 64);
+        append_sstore_slot_caller(&mut c, MEM_IDX, 2);
+        append_sstore_slot_field(&mut c, MEM_IDX, 3, 96);
+
+        // count + 1
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(1));
+        c.push(Opcode::Add as u8);
+        push32(&mut c, &builder_attestation_registry_count_key());
+        c.push(Opcode::SStore as u8);
+
+        // log data = CALLER (builder)
+        c.push(Opcode::Caller as u8);
+        push32(&mut c, &word_u64(MEM_LOG));
+        c.push(Opcode::MStore as u8);
+        append_log3_topics_ct_data_mem(&mut c, &BUILDER_ATTEST_TOPIC_ATTEST, MEM_LOG);
+        c.push(Opcode::Stop as u8);
+    }
+
+    // ========== revoke_at ==========
+    {
+        let off = c.len();
+        patch_push32_dest(&mut c, fix_jumps[2], off);
+
+        // ix → MEM_IDX
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MStore as u8);
+
+        // require ix < count
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &builder_attestation_registry_count_key());
+        c.push(Opcode::SLoad as u8);
+        c.push(Opcode::Lt as u8);
+        c.push(Opcode::IsZero as u8);
+        {
+            let fix = c.len();
+            push32(&mut c, &[0u8; 32]);
+            c.push(Opcode::JumpI as u8);
+            fix_aborts.push(fix);
+        }
+
+        // load collection / token / builder into 32 / 64 / 96
+        append_build_slot_key(&mut c, MEM_IDX, 0);
+        c.push(Opcode::SLoad as u8);
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MStore as u8);
+        append_build_slot_key(&mut c, MEM_IDX, 1);
+        c.push(Opcode::SLoad as u8);
+        push32(&mut c, &word_u64(64));
+        c.push(Opcode::MStore as u8);
+        append_build_slot_key(&mut c, MEM_IDX, 2);
+        c.push(Opcode::SLoad as u8);
+        push32(&mut c, &word_u64(96));
+        c.push(Opcode::MStore as u8);
+
+        // abort if already tombstone (collection == 0)
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::IsZero as u8);
+        {
+            let fix = c.len();
+            push32(&mut c, &[0u8; 32]);
+            c.push(Opcode::JumpI as u8);
+            fix_aborts.push(fix);
+        }
+
+        // Auth: CALLER == builder → ok; else dual claimer
+        push32(&mut c, &word_u64(96));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Caller as u8);
+        c.push(Opcode::Eq as u8);
+        let fix_auth_ok = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+
+        append_require_caller_is_claimer(&mut c, 32, &mut fix_aborts);
+        append_require_caller_is_claimer(&mut c, 64, &mut fix_aborts);
+
+        let off_auth_ok = c.len();
+        patch_push32_dest(&mut c, fix_auth_ok, off_auth_ok);
+
+        // tombstone all four fields
+        for field in 0u8..4 {
+            push32(&mut c, &word_u64(0));
+            append_build_slot_key(&mut c, MEM_IDX, field);
+            c.push(Opcode::SStore as u8);
+        }
+
+        // log data = recorded builder (mem 96)
+        push32(&mut c, &word_u64(96));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_LOG));
+        c.push(Opcode::MStore as u8);
+        append_log3_topics_ct_data_mem(&mut c, &BUILDER_ATTEST_TOPIC_REVOKE, MEM_LOG);
+        c.push(Opcode::Stop as u8);
+    }
+
+    // ========== attestations_count ==========
+    {
+        let off = c.len();
+        patch_push32_dest(&mut c, fix_jumps[3], off);
+        push32(&mut c, &builder_attestation_registry_count_key());
+        c.push(Opcode::SLoad as u8);
+        push32(&mut c, &word_u64(MEM_RET));
+        c.push(Opcode::MStore as u8);
+        push32(&mut c, &word_u64(32));
+        push32(&mut c, &word_u64(MEM_RET));
+        c.push(Opcode::Return as u8);
+        c.push(Opcode::Stop as u8);
+    }
+
+    // ========== get_attestation_at ==========
+    {
+        let off = c.len();
+        patch_push32_dest(&mut c, fix_jumps[4], off);
+
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MStore as u8);
+
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &builder_attestation_registry_count_key());
+        c.push(Opcode::SLoad as u8);
+        c.push(Opcode::Lt as u8);
+        c.push(Opcode::IsZero as u8);
+        {
+            let fix = c.len();
+            push32(&mut c, &[0u8; 32]);
+            c.push(Opcode::JumpI as u8);
+            fix_aborts.push(fix);
+        }
+
+        for (field, off) in [(0u8, 0u64), (1, 32), (2, 64), (3, 96)] {
+            append_build_slot_key(&mut c, MEM_IDX, field);
+            c.push(Opcode::SLoad as u8);
+            push32(&mut c, &word_u64(MEM_RET + off));
+            c.push(Opcode::MStore as u8);
+        }
+        push32(&mut c, &word_u64(128));
+        push32(&mut c, &word_u64(MEM_RET));
+        c.push(Opcode::Return as u8);
+        c.push(Opcode::Stop as u8);
+    }
+
+    // ========== get_asset_claimer ==========
+    {
+        let off = c.len();
+        patch_push32_dest(&mut c, fix_jumps[5], off);
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &BUILDER_ATTEST_CLAIMER_XOR);
+        c.push(Opcode::Xor as u8);
+        c.push(Opcode::SLoad as u8);
+        push32(&mut c, &word_u64(MEM_RET));
+        c.push(Opcode::MStore as u8);
+        push32(&mut c, &word_u64(32));
+        push32(&mut c, &word_u64(MEM_RET));
+        c.push(Opcode::Return as u8);
+        c.push(Opcode::Stop as u8);
+    }
+
+    // ========== transfer_asset_claimer ==========
+    {
+        let off = c.len();
+        patch_push32_dest(&mut c, fix_jumps[6], off);
+
+        // new_claimer != 0
+        push32(&mut c, &word_u64(64));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::IsZero as u8);
+        {
+            let fix = c.len();
+            push32(&mut c, &[0u8; 32]);
+            c.push(Opcode::JumpI as u8);
+            fix_aborts.push(fix);
+        }
+        append_require_caller_is_claimer(&mut c, 32, &mut fix_aborts);
+
+        // key → MEM_IDX; store new
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &BUILDER_ATTEST_CLAIMER_XOR);
+        c.push(Opcode::Xor as u8);
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MStore as u8);
+
+        push32(&mut c, &word_u64(64));
+        c.push(Opcode::MLoad as u8);
+        push32(&mut c, &word_u64(MEM_IDX));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::SStore as u8);
+        c.push(Opcode::Stop as u8);
+    }
+
+    for fix in fix_aborts {
+        patch_push32_dest(&mut c, fix, off_abort);
+    }
+
+    c
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use boing_primitives::AccountId;
+    use boing_state::StateStore;
+
+    use crate::interpreter::Interpreter;
 
     fn aid(byte: u8) -> AccountId {
         AccountId([byte; 32])
+    }
+
+    fn run(state: &mut StateStore, registry: AccountId, caller: AccountId, calldata: &[u8]) -> Interpreter {
+        let mut it = Interpreter::new(builder_attestation_registry_bytecode(), 8_000_000);
+        it.run(caller, registry, calldata, state).unwrap();
+        it
     }
 
     #[test]
@@ -205,7 +631,6 @@ mod tests {
         let k4 = builder_attestation_registry_slot_storage_key(1, 0);
         assert_ne!(k0, k1);
         assert_ne!(k0, k4);
-        // field 0 index 1 == base + 4; field 0 index 0 == base
         assert_eq!(k4[31].wrapping_sub(k0[31]), 4);
     }
 
@@ -215,5 +640,219 @@ mod tests {
         let key = builder_attestation_claimer_storage_key(&a);
         assert_ne!(key, a.0);
         assert_ne!(key, [0u8; 32]);
+    }
+
+    #[test]
+    fn claim_attest_get_revoke_roundtrip() {
+        let registry = aid(0xfa);
+        let alice = aid(0xa1);
+        let bob = aid(0xb0);
+        let coll = aid(0x11);
+        let tok = aid(0x22);
+        let note = [0x33u8; 32];
+
+        let mut state = StateStore::new();
+        state.set_contract_code(registry, builder_attestation_registry_bytecode());
+
+        // bob cannot attest without claims
+        let it = run(
+            &mut state,
+            registry,
+            bob,
+            &encode_builder_attest_attest_calldata(&coll, &tok, &note),
+        );
+        assert!(it.logs.is_empty());
+
+        run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_claim_asset_calldata(&coll),
+        );
+        run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_claim_asset_calldata(&tok),
+        );
+
+        let it = run(
+            &mut state,
+            registry,
+            bob,
+            &encode_builder_attest_attest_calldata(&coll, &tok, &note),
+        );
+        assert!(it.logs.is_empty());
+
+        let it = run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_attest_calldata(&coll, &tok, &note),
+        );
+        assert_eq!(it.logs.len(), 1);
+        assert_eq!(it.logs[0].topics[0], BUILDER_ATTEST_TOPIC_ATTEST);
+        assert_eq!(it.logs[0].topics[1], coll.0);
+        assert_eq!(it.logs[0].topics[2], tok.0);
+        assert_eq!(it.logs[0].data, alice.0.to_vec());
+
+        let it = run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_count_calldata(),
+        );
+        let mut exp = [0u8; 32];
+        exp[31] = 1;
+        assert_eq!(it.return_data.as_deref(), Some(&exp[..]));
+
+        let it = run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_get_at_calldata(0),
+        );
+        let mut want = Vec::new();
+        want.extend_from_slice(&coll.0);
+        want.extend_from_slice(&tok.0);
+        want.extend_from_slice(&alice.0);
+        want.extend_from_slice(&note);
+        assert_eq!(it.return_data.as_deref(), Some(want.as_slice()));
+
+        // bob cannot revoke (not builder, not claimer)
+        let it = run(
+            &mut state,
+            registry,
+            bob,
+            &encode_builder_attest_revoke_at_calldata(0),
+        );
+        assert!(it.logs.is_empty());
+
+        // builder can revoke
+        let it = run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_revoke_at_calldata(0),
+        );
+        assert_eq!(it.logs.len(), 1);
+        assert_eq!(it.logs[0].topics[0], BUILDER_ATTEST_TOPIC_REVOKE);
+        assert_eq!(it.logs[0].data, alice.0.to_vec());
+
+        let it = run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_get_at_calldata(0),
+        );
+        assert_eq!(it.return_data.as_deref(), Some(&[0u8; 128][..]));
+
+        // re-attest appends new slot
+        let it = run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_attest_calldata(&coll, &tok, &note),
+        );
+        assert_eq!(it.logs.len(), 1);
+        let it = run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_count_calldata(),
+        );
+        let mut exp2 = [0u8; 32];
+        exp2[31] = 2;
+        assert_eq!(it.return_data.as_deref(), Some(&exp2[..]));
+    }
+
+    #[test]
+    fn dual_claimer_can_revoke_after_transfer_and_duplicates_allowed() {
+        let registry = aid(0xfa);
+        let alice = aid(0xa1);
+        let carol = aid(0xc1);
+        let coll = aid(0x11);
+        let tok = aid(0x22);
+        let note = [0u8; 32];
+
+        let mut state = StateStore::new();
+        state.set_contract_code(registry, builder_attestation_registry_bytecode());
+
+        for a in [&coll, &tok] {
+            run(
+                &mut state,
+                registry,
+                alice,
+                &encode_builder_attest_claim_asset_calldata(a),
+            );
+        }
+
+        // two attestations (duplicates allowed)
+        run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_attest_calldata(&coll, &tok, &note),
+        );
+        run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_attest_calldata(&coll, &tok, &[0x44; 32]),
+        );
+        let it = run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_count_calldata(),
+        );
+        let mut exp = [0u8; 32];
+        exp[31] = 2;
+        assert_eq!(it.return_data.as_deref(), Some(&exp[..]));
+
+        // transfer claimers to carol; alice (builder) can still revoke slot 0
+        run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_transfer_claimer_calldata(&coll, &carol),
+        );
+        run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_transfer_claimer_calldata(&tok, &carol),
+        );
+        let it = run(
+            &mut state,
+            registry,
+            alice,
+            &encode_builder_attest_revoke_at_calldata(0),
+        );
+        assert_eq!(it.logs.len(), 1);
+
+        // carol (dual claimer, not builder) can revoke slot 1
+        let it = run(
+            &mut state,
+            registry,
+            carol,
+            &encode_builder_attest_revoke_at_calldata(1),
+        );
+        assert_eq!(it.logs.len(), 1);
+        assert_eq!(it.logs[0].topics[0], BUILDER_ATTEST_TOPIC_REVOKE);
+        assert_eq!(it.logs[0].data, alice.0.to_vec()); // recorded builder
+    }
+
+    #[test]
+    fn builder_attestation_registry_bytecode_passes_protocol_qa() {
+        use boing_qa::{check_contract_deploy_full, QaResult, RuleRegistry};
+
+        let code = builder_attestation_registry_bytecode();
+        let registry = RuleRegistry::new();
+        let r = check_contract_deploy_full(&code, Some("dapp"), None, &registry);
+        assert!(
+            matches!(r, QaResult::Allow | QaResult::Unsure),
+            "expected Allow or Unsure for builder attestation registry bytecode, got {r:?}"
+        );
     }
 }

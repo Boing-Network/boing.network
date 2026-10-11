@@ -686,6 +686,7 @@ export {
   decodeLinkedNftTokenGetLinkAtReturnData,
   buildLinkedNftTokenRegisterFlowTxs,
 } from './linkedNftTokenRegistry.js';
+export { DEFAULT_BUILDER_ATTESTATION_REGISTRY_BYTECODE_HEX } from './defaultBuilderAttestationRegistryBytecodeHex.js';
 export {
   SELECTOR_BUILDER_ATTEST_CLAIM_ASSET,
   SELECTOR_BUILDER_ATTEST_ATTEST,
@@ -715,6 +716,12 @@ export {
   encodeBuilderAttestTransferClaimerCalldataHex,
   decodeBuilderAttestCountReturnData,
   decodeBuilderAttestGetAtReturnData,
+  resolveBuilderAttestationRegistryBytecodeHex,
+  buildBuilderAttestationRegistryDeployMetaTx,
+  buildBuilderAttestationRegistryAccessList,
+  buildBuilderAttestationRegistryContractCallTx,
+  mergeBuilderAttestationRegistryAccessListWithSimulation,
+  buildBuilderAttestationAttestFlowTxs,
 } from './builderAttestationRegistry.js';
 export {
   LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER,

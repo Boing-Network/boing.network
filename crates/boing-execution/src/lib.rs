@@ -88,14 +88,15 @@ pub use linked_nft_token_registry::{
     SELECTOR_TRANSFER_ASSET_CLAIMER, SELECTOR_UNLINK_AT,
 };
 pub use builder_attestation_registry::{
-    builder_attestation_claimer_storage_key, builder_attestation_registry_count_key,
-    builder_attestation_registry_slot_base_word, builder_attestation_registry_slot_storage_key,
-    encode_builder_attest_attest_calldata, encode_builder_attest_claim_asset_calldata,
-    encode_builder_attest_count_calldata, encode_builder_attest_get_at_calldata,
-    encode_builder_attest_get_claimer_calldata, encode_builder_attest_revoke_at_calldata,
-    encode_builder_attest_transfer_claimer_calldata, BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1,
-    BUILDER_ATTESTATION_REGISTRY_MAX_SLOTS, BUILDER_ATTEST_CLAIMER_XOR, BUILDER_ATTEST_TOPIC_ATTEST,
-    BUILDER_ATTEST_TOPIC_REVOKE, SELECTOR_BUILDER_ATTEST_ATTEST, SELECTOR_BUILDER_ATTEST_CLAIM_ASSET,
+    builder_attestation_claimer_storage_key, builder_attestation_registry_bytecode,
+    builder_attestation_registry_count_key, builder_attestation_registry_slot_base_word,
+    builder_attestation_registry_slot_storage_key, encode_builder_attest_attest_calldata,
+    encode_builder_attest_claim_asset_calldata, encode_builder_attest_count_calldata,
+    encode_builder_attest_get_at_calldata, encode_builder_attest_get_claimer_calldata,
+    encode_builder_attest_revoke_at_calldata, encode_builder_attest_transfer_claimer_calldata,
+    BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1, BUILDER_ATTESTATION_REGISTRY_MAX_SLOTS,
+    BUILDER_ATTEST_CLAIMER_XOR, BUILDER_ATTEST_TOPIC_ATTEST, BUILDER_ATTEST_TOPIC_REVOKE,
+    SELECTOR_BUILDER_ATTEST_ATTEST, SELECTOR_BUILDER_ATTEST_CLAIM_ASSET,
     SELECTOR_BUILDER_ATTEST_COUNT, SELECTOR_BUILDER_ATTEST_GET_AT, SELECTOR_BUILDER_ATTEST_GET_CLAIMER,
     SELECTOR_BUILDER_ATTEST_REVOKE_AT, SELECTOR_BUILDER_ATTEST_TRANSFER_CLAIMER,
 };

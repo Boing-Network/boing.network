@@ -36,6 +36,8 @@ export declare const NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1: Uint8Array<ArrayBuff
 export declare const NATIVE_AMM_LP_VAULT_CREATE2_SALT_V1: Uint8Array<ArrayBuffer>;
 /** Same bytes as `linked_nft_token_registry::LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1`. */
 export declare const LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1: Uint8Array<ArrayBuffer>;
+/** Same bytes as `builder_attestation_registry::BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1`. */
+export declare const BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1: Uint8Array<ArrayBuffer>;
 /** `0x` + 64 hex for {@link NATIVE_CP_POOL_CREATE2_SALT_V1}. */
 export declare function nativeCpPoolCreate2SaltV1Hex(): string;
 /** `0x` + 64 hex for {@link NATIVE_CP_POOL_CREATE2_SALT_V2}. */
@@ -91,6 +93,11 @@ export declare function predictNativeLpShareTokenCreate2Address(deployerHex: str
 export declare function predictNativeAmmLpVaultCreate2Address(deployerHex: string, bytecode: Uint8Array): string;
 /** Linked NFT↔token registry (`linked_nft_token_registry_bytecode`) + documented salt. */
 export declare function predictLinkedNftTokenRegistryCreate2Address(deployerHex: string, bytecode: Uint8Array): string;
+/**
+ * Builder attestation registry CREATE2 predictor (salt locked; pass bytecode when assembler ships).
+ * See `docs/BOING-BUILDER-ATTESTATION.md`.
+ */
+export declare function predictBuilderAttestationRegistryCreate2Address(deployerHex: string, bytecode: Uint8Array): string;
 /** `0x` + 64 hex for {@link NATIVE_DEX_FACTORY_CREATE2_SALT_V1}. */
 export declare function nativeDexFactoryCreate2SaltV1Hex(): string;
 /** `0x` + 64 hex for {@link NATIVE_DEX_LEDGER_ROUTER_CREATE2_SALT_V1}. */
@@ -109,4 +116,6 @@ export declare function nativeLpShareTokenCreate2SaltV1Hex(): string;
 export declare function nativeAmmLpVaultCreate2SaltV1Hex(): string;
 /** `0x` + 64 hex for {@link LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1}. */
 export declare function linkedNftTokenRegistryCreate2SaltV1Hex(): string;
+/** `0x` + 64 hex for {@link BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1}. */
+export declare function builderAttestationRegistryCreate2SaltV1Hex(): string;
 //# sourceMappingURL=create2.d.ts.map

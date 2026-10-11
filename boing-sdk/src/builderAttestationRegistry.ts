@@ -1,13 +1,22 @@
 /**
- * On-chain **builder attestation** registry — scaffold (selectors, salts, encoders).
+ * On-chain **builder attestation** registry (enforced builder signal).
  * Matches `boing_execution::builder_attestation_registry`.
  * See `docs/BOING-BUILDER-ATTESTATION.md`.
  *
- * Bytecode / testnet AccountId: **not yet** — do not deploy from this scaffold.
+ * CREATE2 salt `BOING_BUILDER_ATTEST_REG_V1`, selectors `0xE0`–`0xE6`.
+ * Canonical testnet AccountId: set after first public deploy (env-pin apps).
  */
 
+import { mergeAccessListWithSimulation } from './accessList.js';
+import {
+  buildContractDeployMetaTx,
+  ensure0xHex,
+  type ContractDeployMetaTxObject,
+} from './canonicalDeployArtifacts.js';
+import { DEFAULT_BUILDER_ATTESTATION_REGISTRY_BYTECODE_HEX } from './defaultBuilderAttestationRegistryBytecodeHex.js';
 import { bytesToHex, ensureHex, hexToBytes, validateHex32 } from './hex.js';
 import { decodeBoingStorageWordU128 } from './nativeAmmPool.js';
+import type { SimulateResult } from './types.js';
 
 /** `claim_asset(asset)` — **64** bytes. */
 export const SELECTOR_BUILDER_ATTEST_CLAIM_ASSET = 0xe0;
@@ -195,4 +204,114 @@ export function decodeBuilderAttestGetAtReturnData(returnDataHex: string): {
     noteHashHex,
     active: collectionHex !== ZERO32,
   };
+}
+
+function normalizeCalldataHex(calldataHex: string): string {
+  const h = ensureHex(calldataHex.trim());
+  const raw = h.slice(2);
+  if (raw.length % 2 !== 0) throw new Error('calldata must be even-length hex');
+  if (!HEX_RE.test(raw)) throw new Error('calldata: invalid hex');
+  return `0x${raw.toLowerCase()}`;
+}
+
+export function resolveBuilderAttestationRegistryBytecodeHex(opts?: {
+  explicitHex?: string;
+}): `0x${string}` {
+  if (opts?.explicitHex?.trim()) return ensure0xHex(opts.explicitHex);
+  return ensure0xHex(DEFAULT_BUILDER_ATTESTATION_REGISTRY_BYTECODE_HEX);
+}
+
+export function buildBuilderAttestationRegistryDeployMetaTx(input?: {
+  assetName?: string;
+  assetSymbol?: string;
+  purposeCategory?: string;
+  descriptionHashHex?: string;
+  create2SaltHex?: string;
+  bytecodeHexOverride?: string;
+}): ContractDeployMetaTxObject {
+  const bytecodeHex = input?.bytecodeHexOverride?.trim()
+    ? ensure0xHex(input.bytecodeHexOverride)
+    : resolveBuilderAttestationRegistryBytecodeHex();
+  return buildContractDeployMetaTx({
+    bytecodeHex,
+    assetName: input?.assetName?.trim() || 'Builder Attestation Registry',
+    assetSymbol: input?.assetSymbol?.trim() || 'BATT',
+    purposeCategory: input?.purposeCategory ?? 'dapp',
+    descriptionHashHex: input?.descriptionHashHex,
+    create2SaltHex: input?.create2SaltHex ?? BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1_HEX,
+  });
+}
+
+export function buildBuilderAttestationRegistryAccessList(
+  senderHex32: string,
+  registryHex32: string,
+): { read: string[]; write: string[] } {
+  const s = validateHex32(senderHex32).toLowerCase();
+  const r = validateHex32(registryHex32).toLowerCase();
+  return { read: [s, r], write: [s, r] };
+}
+
+export function buildBuilderAttestationRegistryContractCallTx(
+  senderHex32: string,
+  registryHex32: string,
+  calldataHex: string,
+): {
+  type: 'contract_call';
+  contract: string;
+  calldata: string;
+  access_list: { read: string[]; write: string[] };
+} {
+  return {
+    type: 'contract_call',
+    contract: validateHex32(registryHex32).toLowerCase(),
+    calldata: normalizeCalldataHex(calldataHex),
+    access_list: buildBuilderAttestationRegistryAccessList(senderHex32, registryHex32),
+  };
+}
+
+export function mergeBuilderAttestationRegistryAccessListWithSimulation(
+  senderHex32: string,
+  registryHex32: string,
+  sim: SimulateResult,
+): { read: string[]; write: string[] } {
+  const base = buildBuilderAttestationRegistryAccessList(senderHex32, registryHex32);
+  return mergeAccessListWithSimulation(base.read, base.write, sim);
+}
+
+/**
+ * Build Express `contract_call` txs to claim both assets and attest once.
+ * Caller must be (or become) claimer of both AccountIds — typically the joint deployer.
+ * Companion links are app policy only (not checked on-chain).
+ */
+export function buildBuilderAttestationAttestFlowTxs(input: {
+  senderHex32: string;
+  registryHex32: string;
+  collectionHex32: string;
+  tokenHex32: string;
+  noteHashHex32?: string;
+}): Array<ReturnType<typeof buildBuilderAttestationRegistryContractCallTx>> {
+  const {
+    senderHex32,
+    registryHex32,
+    collectionHex32,
+    tokenHex32,
+    noteHashHex32 = ZERO32,
+  } = input;
+  return [
+    buildBuilderAttestationRegistryContractCallTx(
+      senderHex32,
+      registryHex32,
+      encodeBuilderAttestClaimAssetCalldataHex(collectionHex32),
+    ),
+    buildBuilderAttestationRegistryContractCallTx(
+      senderHex32,
+      registryHex32,
+      encodeBuilderAttestClaimAssetCalldataHex(tokenHex32),
+    ),
+    buildBuilderAttestationRegistryContractCallTx(
+      senderHex32,
+      registryHex32,
+      encodeBuilderAttestAttestCalldataHex(collectionHex32, tokenHex32, noteHashHex32),
+    ),
+  ];
 }
