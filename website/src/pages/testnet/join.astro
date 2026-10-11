@@ -11,6 +11,7 @@ import {
   CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX,
   CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX,
   CANONICAL_LINKED_NFT_TOKEN_REGISTRY_ACCOUNT_ID_HEX,
+  CANONICAL_BUILDER_ATTESTATION_REGISTRY_ACCOUNT_ID_HEX,
 } from '../../config/testnet';
 ---
 
@@ -176,6 +177,26 @@ import {
       </div>
       <p class="muted small-print">
         RPC <code>{TESTNET_RPC_URL}</code>. Optional env for apps: <code>NEXT_PUBLIC_BOING_LINKED_NFT_TOKEN_REGISTRY</code> / <code>REACT_APP_BOING_LINKED_NFT_TOKEN_REGISTRY</code>.
+      </p>
+    </section>
+
+    <section class="section" id="builder-attestation-registry">
+      <h2>Builder attestation registry (chain 6913)</h2>
+      <p>
+        On-chain registry for optional <strong>builder attested</strong> signals on a collection + token pair
+        (dual asset-claimer auth, separate from companions). Companions remain project structure authority.
+        Protocol: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-BUILDER-ATTESTATION.md" target="_blank" rel="noopener noreferrer">BOING-BUILDER-ATTESTATION.md</a>
+        · SDK <code>CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX</code> / <code>buildBuilderAttestationAttestFlowTxs</code>.
+        Salt <code>BOING_BUILDER_ATTEST_REG_V1</code>, selectors <code>0xE0</code>–<code>0xE6</code>.
+      </p>
+      <p><strong>Registry <code>AccountId</code> (public testnet):</strong></p>
+      <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_BUILDER_ATTESTATION_REGISTRY_ACCOUNT_ID_HEX}>
+        <code class="rpc-url-display pool-id-display">{CANONICAL_BUILDER_ATTESTATION_REGISTRY_ACCOUNT_ID_HEX}</code>
+        <CopyButton label="Copy registry id" copiedLabel="Copied!" />
+      </div>
+      <p class="muted small-print">
+        RPC <code>{TESTNET_RPC_URL}</code>. Optional env for apps: <code>REACT_APP_BOING_BUILDER_ATTESTATION_REGISTRY</code> / <code>NEXT_PUBLIC_BOING_BUILDER_ATTESTATION_REGISTRY</code> / <code>VITE_BOING_BUILDER_ATTESTATION_REGISTRY</code>.
+        Soft wallet-signed proofs are not network authority.
       </p>
     </section>
 
