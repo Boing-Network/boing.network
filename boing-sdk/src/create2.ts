@@ -135,6 +135,14 @@ export const LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1 = (() => {
   return out;
 })();
 
+/** Same bytes as `builder_attestation_registry::BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1`. */
+export const BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1 = (() => {
+  const label = new TextEncoder().encode('BOING_BUILDER_ATTEST_REG_V1');
+  const out = new Uint8Array(32);
+  out.set(label);
+  return out;
+})();
+
 /** `0x` + 64 hex for {@link NATIVE_CP_POOL_CREATE2_SALT_V1}. */
 export function nativeCpPoolCreate2SaltV1Hex(): string {
   return validateHex32(bytesToHex(NATIVE_CP_POOL_CREATE2_SALT_V1));
@@ -286,6 +294,21 @@ export function predictLinkedNftTokenRegistryCreate2Address(
   return predictCreate2ContractAddress(deployerHex, LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1, bytecode);
 }
 
+/**
+ * Builder attestation registry CREATE2 predictor (salt locked; pass bytecode when assembler ships).
+ * See `docs/BOING-BUILDER-ATTESTATION.md`.
+ */
+export function predictBuilderAttestationRegistryCreate2Address(
+  deployerHex: string,
+  bytecode: Uint8Array,
+): string {
+  return predictCreate2ContractAddress(
+    deployerHex,
+    BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1,
+    bytecode,
+  );
+}
+
 /** `0x` + 64 hex for {@link NATIVE_DEX_FACTORY_CREATE2_SALT_V1}. */
 export function nativeDexFactoryCreate2SaltV1Hex(): string {
   return validateHex32(bytesToHex(NATIVE_DEX_FACTORY_CREATE2_SALT_V1));
@@ -329,4 +352,9 @@ export function nativeAmmLpVaultCreate2SaltV1Hex(): string {
 /** `0x` + 64 hex for {@link LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1}. */
 export function linkedNftTokenRegistryCreate2SaltV1Hex(): string {
   return validateHex32(bytesToHex(LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1));
+}
+
+/** `0x` + 64 hex for {@link BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1}. */
+export function builderAttestationRegistryCreate2SaltV1Hex(): string {
+  return validateHex32(bytesToHex(BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1));
 }
