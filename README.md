@@ -108,6 +108,8 @@ All project documentation lives in **[docs/](docs/)**. Start at the **[docs inde
 | [TESTNET.md](docs/TESTNET.md) | Join testnet, portal, incentivized program |
 | [RUNBOOK.md](docs/RUNBOOK.md) | Operational runbook for node operators |
 | [BOING-DAPP-INTEGRATION.md](docs/BOING-DAPP-INTEGRATION.md) | dApp checklist + SDK patterns |
+| [BOING-LINKED-NFT-TOKEN.md](docs/BOING-LINKED-NFT-TOKEN.md) | On-chain companions (NFT↔token) registry |
+| [BOING-BUILDER-ATTESTATION.md](docs/BOING-BUILDER-ATTESTATION.md) | On-chain builder attestation registry |
 | [THREE-CODEBASE-ALIGNMENT.md](docs/THREE-CODEBASE-ALIGNMENT.md) | Wallet, explorer, website URLs and env |
 
 ---

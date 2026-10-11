@@ -139,6 +139,7 @@ Schema `boing.linked_nft_token.v1` and keys `linked_nft_token` / `companion_toke
 
 ## Related
 
+- Builder attestation (separate registry; builder signal, not companions): [BOING-BUILDER-ATTESTATION.md](BOING-BUILDER-ATTESTATION.md)
 - Rust: `crates/boing-execution/src/linked_nft_token_registry.rs`
 - [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) (same register-directory pattern)
 - [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) / [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md)

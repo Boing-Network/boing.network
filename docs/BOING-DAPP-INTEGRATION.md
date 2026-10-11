@@ -148,6 +148,10 @@ Keep **paste bytecode** / **description_hash** under **Advanced** only — same 
 
 Official pairs use the **on-chain** registry (not display-only metadata). On public testnet, pin registry AccountId **`0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8`** (`CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX`, or env `*_BOING_LINKED_NFT_TOKEN_REGISTRY`). Flow: deploy NFT + token → **`claim_asset`** on both → **`register_link`** (SDK **`buildLinkedNftTokenRegisterFlowTxs`**). Selectors **`0xE0`–`0xE6`**, CREATE2 salt **`BOING_NFT_TOKEN_LINK_REG_V1`**, many-to-many and mutable. Full layout: [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md).
 
+### Builder attestation (on-chain signal)
+
+Optional **builder signal** for a (collection, token) pair — separate registry and claimer state from companions. Companions remain project structure authority; attestation does not create or replace a companion edge. On public testnet, pin AccountId **`0x734077a9f926077d39e84ec278b77b7b600c840f7101809646d8797a6a9e1816`** (`CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX`, or env `*_BOING_BUILDER_ATTESTATION_REGISTRY`). Flow: prefer companions linked (app policy) → **`claim_asset`** on both sides of **this** registry → **`attest`** (SDK **`buildBuilderAttestationAttestFlowTxs`**). Selectors **`0xE0`–`0xE6`**, CREATE2 salt **`BOING_BUILDER_ATTEST_REG_V1`**. Soft wallet-signed JSON proofs are **not** network authority. Full layout: [BOING-BUILDER-ATTESTATION.md](BOING-BUILDER-ATTESTATION.md).
+
 ---
 
 ## 6. Auth / “login”
@@ -174,6 +178,7 @@ Official pairs use the **on-chain** registry (not display-only metadata). On pub
 
 - [boing-sdk README](../boing-sdk/README.md) — RPC client, `callAbi.ts`, calldata helpers, submit flows  
 - [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) — enforced NFT↔token registry (live testnet AccountId)  
+- [BOING-BUILDER-ATTESTATION.md](BOING-BUILDER-ATTESTATION.md) — on-chain builder attestation registry (live testnet AccountId)  
 - [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md) — Phase 1 tracks P / W / E  
 - [RPC-API-SPEC.md](RPC-API-SPEC.md)  
 - [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md)  
