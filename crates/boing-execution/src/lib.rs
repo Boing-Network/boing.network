@@ -9,6 +9,7 @@ mod interpreter;
 mod native_amm;
 mod native_dex_factory;
 mod linked_nft_token_registry;
+mod builder_attestation_registry;
 mod native_dex_ledger_router;
 mod native_dex_multihop_swap_router;
 mod native_lp_share_token;
@@ -85,6 +86,18 @@ pub use linked_nft_token_registry::{
     LINKED_NFT_TOKEN_TOPIC_UNLINK, SELECTOR_CLAIM_ASSET, SELECTOR_GET_ASSET_CLAIMER,
     SELECTOR_GET_LINK_AT, SELECTOR_LINKS_COUNT, SELECTOR_REGISTER_LINK,
     SELECTOR_TRANSFER_ASSET_CLAIMER, SELECTOR_UNLINK_AT,
+};
+pub use builder_attestation_registry::{
+    builder_attestation_claimer_storage_key, builder_attestation_registry_count_key,
+    builder_attestation_registry_slot_base_word, builder_attestation_registry_slot_storage_key,
+    encode_builder_attest_attest_calldata, encode_builder_attest_claim_asset_calldata,
+    encode_builder_attest_count_calldata, encode_builder_attest_get_at_calldata,
+    encode_builder_attest_get_claimer_calldata, encode_builder_attest_revoke_at_calldata,
+    encode_builder_attest_transfer_claimer_calldata, BUILDER_ATTESTATION_REGISTRY_CREATE2_SALT_V1,
+    BUILDER_ATTESTATION_REGISTRY_MAX_SLOTS, BUILDER_ATTEST_CLAIMER_XOR, BUILDER_ATTEST_TOPIC_ATTEST,
+    BUILDER_ATTEST_TOPIC_REVOKE, SELECTOR_BUILDER_ATTEST_ATTEST, SELECTOR_BUILDER_ATTEST_CLAIM_ASSET,
+    SELECTOR_BUILDER_ATTEST_COUNT, SELECTOR_BUILDER_ATTEST_GET_AT, SELECTOR_BUILDER_ATTEST_GET_CLAIMER,
+    SELECTOR_BUILDER_ATTEST_REVOKE_AT, SELECTOR_BUILDER_ATTEST_TRANSFER_CLAIMER,
 };
 pub use native_dex_ledger_router::{
     encode_ledger_router_forward_calldata, encode_ledger_router_forward_calldata_v2,
