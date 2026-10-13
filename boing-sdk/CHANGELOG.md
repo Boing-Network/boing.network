@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-10-13
+
 ### Added
 
 - **Builder attestation (on-chain registry)** — bytecode + selectors `0xE0`–`0xE6` (dual asset-claimer separate from companions; revoke = recorded builder **or** dual claimer); SDK **`builderAttestationRegistry.ts`** (deploy / claim / attest / revoke / query), CREATE2 salt `BOING_BUILDER_ATTEST_REG_V1`, **`CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX`** (`0x734077a9…1816`), **`buildBuilderAttestationAttestFlowTxs`**. Docs: [BOING-BUILDER-ATTESTATION.md](../docs/BOING-BUILDER-ATTESTATION.md). Shipped via [PR #49](https://github.com/Boing-Network/boing.network/pull/49).
