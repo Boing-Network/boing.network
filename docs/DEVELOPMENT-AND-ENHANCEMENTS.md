@@ -326,6 +326,7 @@ This section tracks **overall network** enhancements (not limited to one pillar)
 | **boing init** | ✓ | Scaffolds Cargo.toml, README, boing.json, src/lib.rs |
 | **boing dev** | ✓ | Spawns boing-node via cargo |
 | **boing deploy** | ✓ | Connects to RPC, validates reachability |
+| **boing token** | ✓ | Deploy / mint / transfer / balance for the native reference fungible template |
 | **boing metrics register** | Stub | CLI accepts params; backend TBD |
 | **CronSchedule / Scheduler** | ✓ | `boing-automation` crate |
 | **Trigger / TriggerCondition** | ✓ | Block height, balance, timestamp |

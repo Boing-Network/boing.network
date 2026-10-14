@@ -25,7 +25,7 @@ Materializes **every contract deploy** (`ContractDeploy*`) seen on a Boing chain
 
 - **Cron** (default: every minute) advances **`next_height`** in D1 and ingests up to **`DEPLOY_REGISTRY_MAX_BLOCKS_PER_TICK`** blocks per tick.
 - Each tick issues up to **`DEPLOY_REGISTRY_PARALLEL_FETCHES`** concurrent **`boing_getBlockByHeight`** calls, then **batches D1 inserts** (up to 100 statements per `batch()` round-trip) for all deploy rows in those blocks.
-- **Push-style clients** should open **`/v1/deployments/stream`** or subscribe to **`boing_newHeads`** on the node and refetch **`/v1/deployments`** after each head.
+- **Push-style clients** should open **`/v1/deployments/stream`** or subscribe to the node's WebSocket **`newHeads`** stream (`GET /ws`) and refetch **`/v1/deployments`** after each head.
 - **Catch-up:** tune **`DEPLOY_REGISTRY_MAX_BLOCKS_PER_TICK`** / **`DEPLOY_REGISTRY_PARALLEL_FETCHES`**, or call **`POST /v1/sync`** in a loop (with auth) to drain backlog faster than cron alone.
 
 ## Setup

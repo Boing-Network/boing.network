@@ -167,7 +167,9 @@ curl -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 |---------|-------------|
 | `boing init [name]` | Scaffold a new dApp project |
 | `boing dev [--port 8545]` | Start local dev chain |
-| `boing deploy [path]` | Deploy contract or config |
+| `boing deploy [path]` | Check RPC reachability (deploy submission is via SDK or `boing token`) |
+| `boing token deploy --symbol <SYM> [--initial-supply N]` | Deploy the native reference fungible token; also `mint`, `transfer`, `balance`, `bytecode` |
+| `boing qa apply --registry <path> --pool <path>` | Operator: push QA registry / pool config |
 | `boing metrics register --contract <hex> --owner <hex>` | Register contract for dApp incentives |
 | `boing completions <shell>` | Generate shell completion (bash, zsh, fish, powershell, elvish) |
 

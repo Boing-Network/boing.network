@@ -34,7 +34,8 @@ flowchart LR
 |------|---------|---------|
 | **boing** | `boing init [name]` | Scaffold dApp project |
 | | `boing dev [--port 8545]` | Start local chain |
-| | `boing deploy [path]` | Verify RPC; deploy via `boing_submitTransaction` |
+| | `boing deploy [path]` | Verify RPC reachability (prints the `boing_submitTransaction` flow) |
+| | `boing token deploy/mint/transfer/balance` | Native reference fungible token ([BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md)) |
 | | `boing metrics register` | Register dApp for incentive tracking |
 | | `boing completions <shell>` | Shell completion |
 | | `boing --version` | Report CLI version |

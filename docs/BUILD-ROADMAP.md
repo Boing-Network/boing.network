@@ -49,7 +49,7 @@ boing-network/
 │   ├── boing-governance/   # Phased governance (time locks)
 │   ├── boing-automation/   # Scheduler, triggers, executor incentives
 │   ├── boing-qa/           # Protocol QA (Allow/Reject/Unsure)
-│   ├── boing-cli/          # boing init, dev, deploy
+│   ├── boing-cli/          # boing init, dev, deploy, token, metrics, qa
 │   ├── boing-p2p/          # libp2p networking
 │   └── boing-node/         # Node binary
 ├── docs/                   # All project documentation

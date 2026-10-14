@@ -66,7 +66,7 @@ flowchart LR
 ### Optional (nice-to-have)
 
 - **Website links:** When observer and wallet are live, add links from boing.network (e.g. nav or “Ecosystem” / “Tools”) to boing.observer and boing.express. See [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) for the full cross-linking checklist.
-- **RPC method `boing_getSpendableBalance`:** [RPC-API-SPEC.md](RPC-API-SPEC.md) recommends it for wallets; if the node exposes it, the wallet can use it for display instead of deriving from full state.
+- **Spendable balance:** there is no separate `boing_getSpendableBalance`; `boing_getBalance` returns the spendable balance, and `boing_getAccount` adds `nonce`, `stake`, and `pending_unbond`.
 
 ### Summary
 
@@ -125,7 +125,7 @@ Use the **Boing JSON-RPC API** as the source of truth. Key methods:
 - `header` — object with: `parent_hash`, `height`, `timestamp`, `proposer`, `tx_root`, `state_root` (all hex or numbers as per node serialization).
 - `transactions` — array of transaction objects (each has `nonce`, `sender`, `payload`, `access_list`; IDs can be derived from serialized tx hash if no `boing_getTransactionByHash` exists).
 
-**Note:** The official spec does not define `boing_getTransactionByHash`. For “transaction by hash” the first version can either (a) not offer it, or (b) scan recent blocks by height and match by derived tx hash. Plan for a possible future RPC method.
+**Note:** There is no `boing_getTransactionByHash`. For “transaction by hash”, call `boing_getTransactionReceipt([tx_id_hex])` (returns `block_height`, success, gas, return data, logs) and then `boing_getBlockByHeight` to load the full transaction.
 
 **Reference:** All methods, error codes, and params are in the repo at **`docs/RPC-API-SPEC.md`**. Implement against that spec; if the node returns extra fields, the explorer can display them.
 

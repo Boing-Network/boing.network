@@ -88,7 +88,7 @@ Details: [docs/FLY-IO.md](docs/FLY-IO.md), [docs/VIBEMINER-INTEGRATION.md](docs/
 | `boing-governance` | Governance types and helpers used by the protocol stack |
 | `boing-telemetry` | Structured logging and RPC telemetry helpers |
 | `boing-qa` | Protocol QA: Allow/Reject/Unsure checks for deployment ([QUALITY-ASSURANCE-NETWORK.md](docs/QUALITY-ASSURANCE-NETWORK.md)) |
-| `boing-cli` | `boing init`, `boing dev`, `boing deploy` |
+| `boing-cli` | `boing init`, `boing dev`, `boing deploy`, `boing token` (deploy / mint / transfer / balance), `boing metrics register`, `boing qa apply` |
 | `boing-p2p` | libp2p networking |
 | `boing-node` | Node binary |
 

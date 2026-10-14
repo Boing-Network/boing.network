@@ -95,7 +95,7 @@ When trade-offs arise, the network applies this order:
 | `boing-governance` | Time-locked governance, slashing appeal |
 | `boing-automation` | Scheduler, triggers, executor incentives, verification |
 | `boing-qa` | Protocol QA: Allow/Reject/Unsure for deployments |
-| `boing-cli` | `boing init`, `boing dev`, `boing deploy` |
+| `boing-cli` | `boing init`, `boing dev`, `boing deploy`, `boing token` (deploy / mint / transfer / balance), `boing metrics register`, `boing qa apply` |
 | `boing-p2p` | libp2p networking |
 | `boing-node` | Node binary (RPC, mempool, block producer, chain) |
 
