@@ -58,6 +58,19 @@ For dApps that want the **same 96-byte** `transfer` / `mint_first` layout but **
   | `0x07` | **Set transfer-unlock height** — amount word carries **u64** BE in low **8** bytes (requires transfer-unlock flag). |
 - **SDK:** `resolveReferenceFungibleSecuredTemplateBytecodeHex`, `buildReferenceFungibleSecuredDeployMetaTx` (with **`nativeTokenSecurity`** to encode wizard toggles into **`0xFD` init**; **`chainContext.chainHeight`** required when **`timelock`** is on; **`mintFirstTotalSupplyWei`** for **`maxWalletPercentage`**), `referenceFungibleSecuredConfigFromNativeTokenSecurity`, env `BOING_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX` (+ `VITE_` / `REACT_APP_` variants). **Pinned default** (no `nativeTokenSecurity`) keeps enforcement flags **off**. Custom Rust configs remain available via `reference_fungible_secured_deploy_bytecode`.
 
+## CLI: `boing token` (Rust, no SDK required)
+
+`boing-cli` ships a Boing-native token flow built only on `boing-primitives` + `boing-execution` (no EVM / Solana runtimes):
+
+| Command | What it does |
+|---------|--------------|
+| `boing token deploy --symbol TKN [--name ...] [--initial-supply N] [--mint-to <id>]` | Signs `ContractDeployWithPurposeAndMetadata` (purpose **`token`**) with the canonical template; prints the nonce-derived token address; optionally sends `mint_first` at nonce+1 (fixed supply). |
+| `boing token mint --token <id> --amount N [--to <id>]` | One-time `mint_first` (admin = first caller). |
+| `boing token transfer --token <id> --to <id> --amount N` | Reference `transfer`. |
+| `boing token balance --token <id> --holder <id>` | Reads `boing_getContractStorage` at `holder ^ REF_FUNGIBLE_BALANCE_XOR` and prints the `u128` balance. |
+| `boing token bytecode` | Prints the template hex. |
+
+Signer is a 32-byte Ed25519 seed from `--secret-hex` or `BOING_SECRET_HEX`. `--nonce` overrides the `boing_getAccount` lookup; `--dry-run` prints signed tx hex instead of calling `boing_submitTransaction`. Global `--rpc-url` selects the node.
 ## Smoke contract
 
 `boing_execution::smoke_contract_bytecode()` is a minimal program used in tests: it stores the caller, emits `LOG0` over the first four calldata bytes, and returns the caller id. It is **not** a token.

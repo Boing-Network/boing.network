@@ -5,11 +5,12 @@ use std::path::PathBuf;
 use clap::{CommandFactory, Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod deploy;
 mod init;
 mod dev;
-mod deploy;
 mod metrics_register;
 mod qa_apply;
+mod token;
 
 #[derive(Parser)]
 #[command(name = "boing")]
@@ -52,6 +53,9 @@ enum Commands {
     /// Operator QA: apply registry / pool config to a node
     #[command(subcommand)]
     Qa(QaCommands),
+    /// Boing-native fungible token: deploy / mint / transfer / balance (reference template)
+    #[command(subcommand)]
+    Token(TokenCommands),
     /// Generate shell completion script (bash, zsh, fish, powershell)
     Completions {
         /// Shell: bash, zsh, fish, powershell, elvish
@@ -73,6 +77,68 @@ enum MetricsCommands {
     },
 }
 
+#[derive(clap::Args)]
+struct SignerArgs {
+    /// 32-byte Ed25519 secret seed hex (default: environment variable BOING_SECRET_HEX)
+    #[arg(long)]
+    secret_hex: Option<String>,
+    /// Override sender nonce (default: fetched via boing_getAccount)
+    #[arg(long)]
+    nonce: Option<u64>,
+    /// Print signed transaction hex instead of submitting
+    #[arg(long)]
+    dry_run: bool,
+}
+
+#[derive(Subcommand)]
+enum TokenCommands {
+    /// Deploy the reference fungible template (purpose `token`), optionally minting a fixed supply
+    Deploy {
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long)]
+        symbol: Option<String>,
+        /// Fixed supply minted once right after deploy (u128 base units)
+        #[arg(long)]
+        initial_supply: Option<u128>,
+        /// Recipient of the initial supply (default: deployer)
+        #[arg(long)]
+        mint_to: Option<String>,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// One-time `mint_first` (admin only; fixed supply)
+    Mint {
+        #[arg(long)]
+        token: String,
+        #[arg(long)]
+        to: Option<String>,
+        #[arg(long)]
+        amount: u128,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Transfer tokens from the signer to `--to`
+    Transfer {
+        #[arg(long)]
+        token: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        amount: u128,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Read a holder's balance (boing_getContractStorage)
+    Balance {
+        #[arg(long)]
+        token: String,
+        #[arg(long)]
+        holder: String,
+    },
+    /// Print the reference fungible template bytecode hex
+    Bytecode,
+}
 #[derive(Subcommand)]
 enum QaCommands {
     /// Push `qa_registry.json` and `qa_pool_config.json` via RPC (requires X-Boing-Operator when the node sets BOING_OPERATOR_RPC_TOKEN)
@@ -117,13 +183,70 @@ async fn main() -> anyhow::Result<()> {
                 .filter(|s| !s.trim().is_empty());
             qa_apply::run(&cli.rpc_url, &registry, &pool, token.as_deref()).await
         }
+        Commands::Token(cmd) => match cmd {
+            TokenCommands::Deploy {
+                name,
+                symbol,
+                initial_supply,
+                mint_to,
+                signer,
+            } => {
+                token::deploy(
+                    &cli.rpc_url,
+                    signer.secret_hex,
+                    name,
+                    symbol,
+                    initial_supply,
+                    mint_to,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
+            }
+            TokenCommands::Mint {
+                token: t,
+                to,
+                amount,
+                signer,
+            } => {
+                token::mint(
+                    &cli.rpc_url,
+                    signer.secret_hex,
+                    &t,
+                    to,
+                    amount,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
+            }
+            TokenCommands::Transfer {
+                token: t,
+                to,
+                amount,
+                signer,
+            } => {
+                token::transfer(
+                    &cli.rpc_url,
+                    signer.secret_hex,
+                    &t,
+                    &to,
+                    amount,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
+            }
+            TokenCommands::Balance { token: t, holder } => {
+                token::balance(&cli.rpc_url, &t, &holder).await
+            }
+            TokenCommands::Bytecode => {
+                token::print_bytecode();
+                Ok(())
+            }
+        },
         Commands::Completions { shell } => {
-            clap_complete::generate(
-                shell,
-                &mut Cli::command(),
-                "boing",
-                &mut std::io::stdout(),
-            );
+            clap_complete::generate(shell, &mut Cli::command(), "boing", &mut std::io::stdout());
             Ok(())
         }
     };
