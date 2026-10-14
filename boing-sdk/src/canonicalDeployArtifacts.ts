@@ -46,6 +46,8 @@ export type ContractDeployMetaTxObject = {
   asset_name: string;
   asset_symbol: string;
   description_hash?: `0x${string}`;
+  /** Optional CREATE2 salt (`0x` + 64 hex). Omit for nonce-derived address. */
+  create2_salt?: `0x${string}`;
 };
 
 const DEFAULT_FUNGIBLE_ENV_KEYS = [
@@ -169,6 +171,8 @@ export function buildContractDeployMetaTx(input: {
   /** Default `token` matches Express convenience when name/symbol are set. */
   purposeCategory?: string;
   descriptionHashHex?: string;
+  /** Optional CREATE2 salt (`0x` + 64 hex). Omit for nonce-derived address. */
+  create2SaltHex?: string;
 }): ContractDeployMetaTxObject {
   const name = input.assetName.trim();
   const sym = input.assetSymbol.trim().toUpperCase();
@@ -190,6 +194,10 @@ export function buildContractDeployMetaTx(input: {
   const dh = input.descriptionHashHex?.trim();
   if (dh) {
     out.description_hash = ensure0xHex(dh);
+  }
+  const salt = input.create2SaltHex?.trim();
+  if (salt) {
+    out.create2_salt = ensure0xHex(salt);
   }
   return out;
 }

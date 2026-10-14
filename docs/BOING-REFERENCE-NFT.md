@@ -124,8 +124,12 @@ When `metadata_hash` points to JSON (IPFS, HTTPS), recommended keys for marketpl
 | `attributes` | Array of `{ trait_type, value }` for rarity UIs |
 | `seller_fee_basis_points` | Optional royalty hint (0–10000); **enforce in contract** if royalties are binding |
 | `fee_recipient` | Optional `AccountId` hex for royalty receiver (off-chain hint) |
+| `linked_nft_token` | Optional cache of **`boing.linked_nft_token.v1`** (not authoritative; prefer on-chain registry) |
+| `companion_tokens` | Optional AccountId hex list cache of linked fungible tokens |
 
 **Binding royalties** require **contract logic** (e.g. on `transfer_nft`, query a stored **royalty bps + recipient** per `token_id` or collection-wide slot)—not JSON alone.
+
+**Linked project tokens:** enforced via the on-chain link registry (dual asset-claimer; many-to-many, mutable). **Public testnet registry:** `0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8` on `https://testnet-rpc.boing.network/` (salt `BOING_NFT_TOKEN_LINK_REG_V1`, selectors `0xE0`–`0xE6`). See [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) and `boing-sdk` **`linkedNftTokenRegistry.ts`**.
 
 ### Example call sequences
 

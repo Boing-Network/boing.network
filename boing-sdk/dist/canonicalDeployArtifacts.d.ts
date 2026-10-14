@@ -25,6 +25,8 @@ export type ContractDeployMetaTxObject = {
     asset_name: string;
     asset_symbol: string;
     description_hash?: `0x${string}`;
+    /** Optional CREATE2 salt (`0x` + 64 hex). Omit for nonce-derived address. */
+    create2_salt?: `0x${string}`;
 };
 /**
  * Normalize hex for wallet RPC payloads (`0x` prefix). Use for deploy bytecode or `description_hash`.
@@ -64,6 +66,8 @@ export declare function buildContractDeployMetaTx(input: {
     /** Default `token` matches Express convenience when name/symbol are set. */
     purposeCategory?: string;
     descriptionHashHex?: string;
+    /** Optional CREATE2 salt (`0x` + 64 hex). Omit for nonce-derived address. */
+    create2SaltHex?: string;
 }): ContractDeployMetaTxObject;
 export type BuildReferenceFungibleDeployMetaTxInput = {
     assetName: string;

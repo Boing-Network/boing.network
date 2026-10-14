@@ -53,3 +53,20 @@ export const CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX =
 
 export const CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX =
   '0x101201403f573e5b1d6d5c6b93d52d12c68957f4a228d5dad76e78c747044421' as const;
+
+/**
+ * Live **linked NFT ↔ fungible token** registry on public testnet (PR #42 / `924c0ba`).
+ * CREATE2 salt `BOING_NFT_TOKEN_LINK_REG_V1`, selectors `0xE0`–`0xE6`.
+ * See docs/BOING-LINKED-NFT-TOKEN.md.
+ */
+export const CANONICAL_LINKED_NFT_TOKEN_REGISTRY_ACCOUNT_ID_HEX =
+  '0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8' as const;
+
+/**
+ * Live **builder attestation** registry on public testnet (PR #49 / `61fa426`).
+ * CREATE2 salt `BOING_BUILDER_ATTEST_REG_V1`, selectors `0xE0`–`0xE6`.
+ * Builder signal only — companions remain project authority.
+ * See docs/BOING-BUILDER-ATTESTATION.md.
+ */
+export const CANONICAL_BUILDER_ATTESTATION_REGISTRY_ACCOUNT_ID_HEX =
+  '0x734077a9f926077d39e84ec278b77b7b600c840f7101809646d8797a6a9e1816' as const;

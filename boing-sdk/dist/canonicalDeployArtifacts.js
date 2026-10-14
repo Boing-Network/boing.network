@@ -150,6 +150,10 @@ export function buildContractDeployMetaTx(input) {
     if (dh) {
         out.description_hash = ensure0xHex(dh);
     }
+    const salt = input.create2SaltHex?.trim();
+    if (salt) {
+        out.create2_salt = ensure0xHex(salt);
+    }
     return out;
 }
 /**

@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) as applied before **1.0.0** (minor releases may include breaking TypeScript surface changes).
 
+## [Unreleased]
+
+## [0.5.3] - 2026-10-13
+
+### Added
+
+- **Builder attestation (on-chain registry)** — bytecode + selectors `0xE0`–`0xE6` (dual asset-claimer separate from companions; revoke = recorded builder **or** dual claimer); SDK **`builderAttestationRegistry.ts`** (deploy / claim / attest / revoke / query), CREATE2 salt `BOING_BUILDER_ATTEST_REG_V1`, **`CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX`** (`0x734077a9…1816`), **`buildBuilderAttestationAttestFlowTxs`**. Docs: [BOING-BUILDER-ATTESTATION.md](../docs/BOING-BUILDER-ATTESTATION.md). Shipped via [PR #49](https://github.com/Boing-Network/boing.network/pull/49).
+
+## [0.5.2] - 2026-10-10
+
+### Added
+
+- **`buildLinkedNftTokenProjectPack`** — thin dApp helper composing **`buildLinkedNftTokenPairDeploys`** + **`buildLinkedNftTokenRegisterFlowTxs`** (joint NFT+token CREATE2 deploys, then claim×2 + `register_link`). Defaults registry to canonical public testnet. Docs: [BOING-LINKED-NFT-TOKEN.md](../docs/BOING-LINKED-NFT-TOKEN.md).
+
+## [0.5.1] - 2026-10-09
+
+### Added
+
+- **Linked NFT ↔ fungible token (enforced on-chain)** — registry bytecode + selectors `0xE0`–`0xE6` (dual asset-claimer auth, many-to-many, mutable unlink); SDK **`linkedNftTokenRegistry.ts`** (deploy / claim / register / unlink / query), CREATE2 salt predictor, **`buildLinkedNftTokenRegisterFlowTxs`**. Optional schema **`boing.linked_nft_token.v1`** + off-chain keys remain as **cache only** (`linkedNftToken.ts`). Docs: [BOING-LINKED-NFT-TOKEN.md](../docs/BOING-LINKED-NFT-TOKEN.md).
+- **`ContractDeployMetaTxObject.create2_salt`** / **`buildContractDeployMetaTx({ create2SaltHex })`** for Express CREATE2 deploys.
+
 ## [0.5.0] - 2026-10-05
 
 ### Changed
