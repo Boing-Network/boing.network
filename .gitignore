@@ -41,3 +41,11 @@ desktop-hub/src-tauri/gen/
 desktop-hub/*.tsbuildinfo
 desktop-hub/vite.config.js
 desktop-hub/vite.config.d.ts
+
+# Local operator artifacts: never commit secrets or build logs
+**/*secrets*.json
+**/*.err.txt
+# Tutorial bootstrap outputs (local, environment-specific)
+examples/native-boing-tutorial/bootstrap.out.json
+examples/native-boing-tutorial/create2-manifest.json
+
