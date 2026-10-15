@@ -91,8 +91,26 @@ pub fn encode_lp_share_set_minter_once_calldata(minter: &AccountId) -> Vec<u8> {
 }
 
 /// Share token bytecode. CREATE2: [`NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1`].
+///
+/// **Known bug (pinned, unchanged):** `transfer` to the caller doubles the balance. Use
+/// [`lp_share_token_bytecode_v2`] for new deployments.
 #[must_use]
 pub fn lp_share_token_bytecode() -> Vec<u8> {
+    lp_share_token_code(false)
+}
+
+/// CREATE2 salt for [`lp_share_token_bytecode_v2`].
+pub const NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V2: [u8; 32] =
+    *b"BOING_LP_SHARE_TOKEN_V2\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+
+/// v2: identical to v1 except `transfer(to == caller)` is a no-op (fixes the self-transfer
+/// balance doubling).
+#[must_use]
+pub fn lp_share_token_bytecode_v2() -> Vec<u8> {
+    lp_share_token_code(true)
+}
+
+fn lp_share_token_code(self_transfer_guard: bool) -> Vec<u8> {
     let mut c = Vec::new();
 
     push32(&mut c, &word_u64(0));
@@ -218,6 +236,20 @@ pub fn lp_share_token_bytecode() -> Vec<u8> {
     let fix_skip_xfer = c.len();
     push32(&mut c, &[0u8; 32]);
     c.push(Opcode::JumpI as u8);
+    if self_transfer_guard {
+        // v2: `to == caller` is a no-op (v1 credits without debiting -> balance doubles).
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Caller as u8);
+        c.push(Opcode::Eq as u8);
+        c.push(Opcode::IsZero as u8);
+        let fix_not_self = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+        c.push(Opcode::Stop as u8);
+        let off_not_self = c.len();
+        patch_push32_dest(&mut c, fix_not_self, off_not_self);
+    }
 
     push32(&mut c, &word_u64(64));
     c.push(Opcode::MLoad as u8);

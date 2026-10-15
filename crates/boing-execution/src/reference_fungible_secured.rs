@@ -196,8 +196,37 @@ fn emit_skip_unless_flag(code: &mut Vec<u8>, mask: u32) -> usize {
 }
 
 /// Runtime only (stored after init `RETURN`).
+///
+/// **Known bug (pinned, unchanged):** `transfer` to the caller credits without debiting, so the
+/// balance doubles. Use the `_v2` builders for new deployments.
 #[must_use]
 pub fn reference_fungible_secured_runtime_bytecode() -> Vec<u8> {
+    secured_runtime(false)
+}
+
+/// v2 runtime: identical to v1 except `transfer(to == caller)` is a no-op.
+#[must_use]
+pub fn reference_fungible_secured_runtime_bytecode_v2() -> Vec<u8> {
+    secured_runtime(true)
+}
+
+/// v2 deploy payload (`0xFD` || init returning the v2 runtime).
+#[must_use]
+pub fn reference_fungible_secured_deploy_bytecode_v2(config: &ReferenceFungibleSecuredConfig) -> Vec<u8> {
+    let rt = reference_fungible_secured_runtime_bytecode_v2();
+    let init = reference_fungible_secured_init_bytecode(config, &rt);
+    let mut out = vec![CONTRACT_DEPLOY_INIT_CODE_MARKER];
+    out.extend(init);
+    out
+}
+
+/// [`reference_fungible_secured_deploy_bytecode_v2`] with the pinned public default config.
+#[must_use]
+pub fn reference_fungible_secured_pinned_default_deploy_bytecode_v2() -> Vec<u8> {
+    reference_fungible_secured_deploy_bytecode_v2(&ReferenceFungibleSecuredConfig::pinned_public_default())
+}
+
+fn secured_runtime(self_transfer_guard: bool) -> Vec<u8> {
     let mut c = Vec::new();
 
     push32(&mut c, &word_u64(0));
@@ -312,6 +341,20 @@ pub fn reference_fungible_secured_runtime_bytecode() -> Vec<u8> {
     let fix_skip_xfer = c.len();
     push32(&mut c, &[0u8; 32]);
     c.push(Opcode::JumpI as u8);
+    if self_transfer_guard {
+        // v2: `to == caller` is a no-op (v1 credits without debiting -> balance doubles).
+        push32(&mut c, &word_u64(32));
+        c.push(Opcode::MLoad as u8);
+        c.push(Opcode::Caller as u8);
+        c.push(Opcode::Eq as u8);
+        c.push(Opcode::IsZero as u8);
+        let fix_not_self = c.len();
+        push32(&mut c, &[0u8; 32]);
+        c.push(Opcode::JumpI as u8);
+        c.push(Opcode::Stop as u8);
+        let off_not_self = c.len();
+        patch_push32_dest(&mut c, fix_not_self, off_not_self);
+    }
 
     push32(&mut c, &ref_sec_paused_key());
     c.push(Opcode::SLoad as u8);

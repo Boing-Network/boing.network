@@ -2,6 +2,7 @@
 //!
 //! Declared dependencies (access lists) enable deterministic parallel execution.
 
+mod aliasing_audit;
 mod asm;
 mod bytecode;
 mod executor;
@@ -44,7 +45,10 @@ pub use reference_token::{
 };
 pub use reference_fungible_secured::{
     encode_secured_set_deny_calldata, ref_sec_admin_key, ref_sec_flags_key,
-    reference_fungible_secured_deploy_bytecode, reference_fungible_secured_pinned_default_deploy_bytecode,
+    reference_fungible_secured_deploy_bytecode, reference_fungible_secured_deploy_bytecode_v2,
+    reference_fungible_secured_pinned_default_deploy_bytecode,
+    reference_fungible_secured_pinned_default_deploy_bytecode_v2,
+    reference_fungible_secured_runtime_bytecode_v2,
     reference_fungible_secured_runtime_bytecode, ReferenceFungibleSecuredConfig,
     FLAG_ANTI_BOT, FLAG_COOLDOWN, FLAG_DENYLIST, FLAG_MAX_TX, FLAG_MAX_WALLET, FLAG_NO_MINT,
     FLAG_TRANSFER_UNLOCK, REF_SECURED_BALANCE_XOR, REF_SECURED_COOLDOWN_XOR, REF_SECURED_DENY_XOR,
@@ -126,8 +130,8 @@ pub use native_dex_multihop_swap_router::{
 };
 pub use native_lp_share_token::{
     encode_lp_share_mint_calldata, encode_lp_share_set_minter_once_calldata,
-    encode_lp_share_transfer_calldata, lp_share_minter_key, lp_share_token_bytecode, LP_SHARE_BALANCE_XOR,
-    LP_SHARE_MINTER_KEY, NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1, SELECTOR_LP_SHARE_MINT,
+    encode_lp_share_transfer_calldata, lp_share_minter_key, lp_share_token_bytecode, lp_share_token_bytecode_v2, LP_SHARE_BALANCE_XOR,
+    LP_SHARE_MINTER_KEY, NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V1, NATIVE_LP_SHARE_TOKEN_CREATE2_SALT_V2, SELECTOR_LP_SHARE_MINT,
     SELECTOR_LP_SHARE_SET_MINTER_ONCE, SELECTOR_LP_SHARE_TRANSFER,
 };
 pub use native_amm_lp_vault::{
