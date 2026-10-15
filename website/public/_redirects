@@ -5,3 +5,7 @@
 /network/status         /status                 301
 /network/single-vs-multi /single-vs-multi       301
 /network/quests         /testnet/users/quests   301
+
+# Bare /developers has no index page
+/developers             /developers/quickstart  301
+/developers/            /developers/quickstart  301
