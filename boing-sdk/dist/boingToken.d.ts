@@ -19,8 +19,15 @@ export declare const BOING_TOKEN_MAX_NAME_BYTES = 256;
 export declare const BOING_TOKEN_MAX_SYMBOL_BYTES = 32;
 /** `REF_FUNGIBLE_BALANCE_XOR`: ASCII `BOING_REFFUNGIBLE_BAL1` zero-padded to 32 bytes. */
 export declare const REFERENCE_FUNGIBLE_BALANCE_XOR: Uint8Array;
-/** Reference fungible template bytecode hex (what `boing token bytecode` prints). */
-export declare function boingTokenBytecodeHex(): `0x${string}`;
+/** Template version: `2` (default, like the CLI: approve / transfer_from / allowance) or `1`. */
+export type BoingTokenVersion = 1 | 2;
+export declare const BOING_TOKEN_DEFAULT_VERSION: BoingTokenVersion;
+/** `REF_FUNGIBLE_ALLOWANCE_XOR`: ASCII `BOING_REFFUNGIBLE_ALW2` zero-padded to 32 bytes. */
+export declare const REFERENCE_FUNGIBLE_ALLOWANCE_XOR: Uint8Array;
+/** v2 storage key of `allowance[owner][spender]`: `(owner[0..16] ‖ spender[0..16]) ^ ALLOWANCE_XOR`. */
+export declare function boingTokenAllowanceStorageKeyHex(ownerHex: string, spenderHex: string): string;
+/** Reference fungible template bytecode hex (what `boing token bytecode --version vN` prints). */
+export declare function boingTokenBytecodeHex(version?: BoingTokenVersion): `0x${string}`;
 /** `boing_getContractStorage` key for `holder`'s balance (`holder ^ REF_FUNGIBLE_BALANCE_XOR`). */
 export declare function boingTokenBalanceStorageKeyHex(holderHex: string): string;
 /** Decode a 32-byte big-endian storage word to a balance (throws if it exceeds u128). */
@@ -32,6 +39,7 @@ export interface BuildBoingTokenDeployInput {
     senderHex: string;
     name?: string | null;
     symbol?: string | null;
+    version?: BoingTokenVersion;
 }
 /** Unsigned `ContractDeployWithPurposeAndMetadata` (purpose `token`) for the reference template. */
 export declare function buildBoingTokenDeployTransaction(input: BuildBoingTokenDeployInput): TransactionInput;
@@ -46,6 +54,8 @@ export interface BuildBoingTokenCallInput {
 export declare function buildBoingTokenMintTransaction(input: BuildBoingTokenCallInput): TransactionInput;
 /** Unsigned `transfer(to, amount)` call. */
 export declare function buildBoingTokenTransferTransaction(input: BuildBoingTokenCallInput): TransactionInput;
+/** v2: unsigned `approve(spender = toHex, amount)` call (overwrites the allowance). */
+export declare function buildBoingTokenApproveTransaction(input: BuildBoingTokenCallInput): TransactionInput;
 /** A signed token transaction (and whether it was submitted). */
 export interface BoingTokenSignedTx {
     txId: string;
@@ -65,6 +75,8 @@ export interface DeployBoingTokenInput extends BoingTokenSendOptions {
     initialSupply?: bigint;
     /** Mint recipient (default: deployer). */
     mintToHex?: string;
+    /** Template version (default 2, like `boing token deploy`). */
+    version?: BoingTokenVersion;
 }
 export interface DeployBoingTokenResult {
     deployerHex: string;
@@ -89,4 +101,12 @@ export declare function transferBoingToken(client: BoingClient | null, secretKey
 } & BoingTokenSendOptions): Promise<BoingTokenSignedTx>;
 /** `boing token balance`: read a holder's balance via `boing_getContractStorage`. */
 export declare function getBoingTokenBalance(client: BoingClient, tokenHex: string, holderHex: string): Promise<bigint>;
+/** `boing token approve` (v2): let `spenderHex` pull up to `amount` (overwrites). */
+export declare function approveBoingToken(client: BoingClient | null, secretKey32: Ed25519SecretKey32, input: {
+    tokenHex: string;
+    spenderHex: string;
+    amount: bigint;
+} & BoingTokenSendOptions): Promise<BoingTokenSignedTx>;
+/** `boing token allowance` (v2): read `allowance[owner][spender]` via `boing_getContractStorage`. */
+export declare function getBoingTokenAllowance(client: BoingClient, tokenHex: string, ownerHex: string, spenderHex: string): Promise<bigint>;
 //# sourceMappingURL=boingToken.d.ts.map

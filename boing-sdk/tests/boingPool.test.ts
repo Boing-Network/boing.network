@@ -33,6 +33,7 @@ describe('boing pool SDK helpers: byte-identical to the Rust CLI', () => {
       tokenBHex: V.tokenBHex,
       feeAdminHex: V.recipientHex,
       feeBps: 50n,
+      version: 7,
     });
     expect(r.deployerHex).toBe(V.senderHex);
     expect(r.poolHex).toBe(V.poolHex);
@@ -46,20 +47,47 @@ describe('boing pool SDK helpers: byte-identical to the Rust CLI', () => {
   });
 
   it('add / swap / swap_to / remove match CLI', async () => {
-    const add = await addBoingPoolLiquidity(null, SEED, { poolHex: V.poolHex, amountA: 10_000n, amountB: 40_000n, minLiquidity: 9_000n, nonce: 4n, dryRun: true });
+    const add = await addBoingPoolLiquidity(null, SEED, { poolHex: V.poolHex, amountA: 10_000n, amountB: 40_000n, minLiquidity: 9_000n, nonce: 4n, dryRun: true, version: 7 });
     expect(add.signedHex).toBe(V.addLiquidity.signedHex);
-    const sw = await swapBoingPool(null, SEED, { poolHex: V.poolHex, direction: 'a-to-b', amountIn: 1_000n, minOut: 3_600n, extraAccountsHex: [V.tokenBHex, V.tokenAHex], nonce: 5n, dryRun: true });
+    const sw = await swapBoingPool(null, SEED, { poolHex: V.poolHex, direction: 'a-to-b', amountIn: 1_000n, minOut: 3_600n, extraAccountsHex: [V.tokenBHex, V.tokenAHex], nonce: 5n, dryRun: true, version: 7 });
     expect(sw.signedHex).toBe(V.swap.signedHex);
     expect(sw.txId).toBe(V.swap.txId);
-    const st = await swapBoingPool(null, SEED, { poolHex: V.poolHex, direction: 'b-to-a', amountIn: 2_000n, minOut: 400n, toHex: V.recipientHex, extraAccountsHex: [V.tokenAHex, V.tokenBHex], nonce: 6n, dryRun: true });
+    const st = await swapBoingPool(null, SEED, { poolHex: V.poolHex, direction: 'b-to-a', amountIn: 2_000n, minOut: 400n, toHex: V.recipientHex, extraAccountsHex: [V.tokenAHex, V.tokenBHex], nonce: 6n, dryRun: true, version: 7 });
     expect(st.signedHex).toBe(V.swapTo.signedHex);
-    const rm = await removeBoingPoolLiquidity(null, SEED, { poolHex: V.poolHex, liquidity: 2_500n, minA: 2_000n, minB: 9_000n, extraAccountsHex: [V.tokenAHex, V.tokenBHex], nonce: 7n, dryRun: true });
+    const rm = await removeBoingPoolLiquidity(null, SEED, { poolHex: V.poolHex, liquidity: 2_500n, minA: 2_000n, minB: 9_000n, extraAccountsHex: [V.tokenAHex, V.tokenBHex], nonce: 7n, dryRun: true, version: 7 });
     expect(rm.signedHex).toBe(V.removeLiquidity.signedHex);
   });
 
   it('low-level builder agrees with the flow helpers', async () => {
     const tx = buildBoingPoolCallTransaction({ nonce: 1n, senderHex: V.senderHex, poolHex: V.poolHex, calldata: encodeNativeAmmSetTokensCalldata(V.tokenAHex, V.tokenBHex), extraAccountsHex: [V.tokenAHex, V.tokenBHex] });
     expect(await signTransactionInput(tx, SEED)).toBe(V.setTokens.signedHex);
+  });
+
+  it('v8 (default): deploy, approve+add, swap, swap_to, remove match CLI', async () => {
+    const W = V.v8;
+    const c = await createBoingPool(null, SEED, { nonce: 0n, dryRun: true, tokenAHex: V.tokenAHex, tokenBHex: V.tokenBHex });
+    expect(c.txs[0]!.signedHex).toBe(W.deploy.signedHex);
+    expect(c.txs[1]!.signedHex).toBe(V.setTokens.signedHex);
+    const t = { tokenAHex: V.tokenAHex, tokenBHex: V.tokenBHex };
+    const add = await addBoingPoolLiquidity(null, SEED, { poolHex: V.poolHex, amountA: 10_000n, amountB: 40_000n, minLiquidity: 9_000n, nonce: 4n, dryRun: true, ...t });
+    expect(add.approvals.map((x) => x.signedHex)).toEqual([W.approveA.signedHex, W.approveB.signedHex]);
+    expect(add.signedHex).toBe(W.addLiquidity.signedHex);
+    const addDl = await addBoingPoolLiquidity(null, SEED, { poolHex: V.poolHex, amountA: 10_000n, amountB: 40_000n, minLiquidity: 9_000n, nonce: 6n, dryRun: true, noApprove: true, deadlineHeight: 123_456n, ...t });
+    expect(addDl.approvals).toEqual([]);
+    expect(addDl.signedHex).toBe(W.addLiquidityDeadline.signedHex);
+    const sw = await swapBoingPool(null, SEED, { poolHex: V.poolHex, direction: 'a-to-b', amountIn: 1_000n, minOut: 3_600n, nonce: 8n, dryRun: true, noApprove: true, deadlineHeight: 777n, ...t });
+    expect(sw.signedHex).toBe(W.swap.signedHex);
+    const st = await swapBoingPool(null, SEED, { poolHex: V.poolHex, direction: 'b-to-a', amountIn: 2_000n, minOut: 400n, toHex: V.recipientHex, nonce: 9n, dryRun: true, noApprove: true, ...t });
+    expect(st.signedHex).toBe(W.swapTo.signedHex);
+    const rm = await removeBoingPoolLiquidity(null, SEED, { poolHex: V.poolHex, liquidity: 2_500n, minA: 2_000n, minB: 9_000n, nonce: 10n, dryRun: true, deadlineHeight: 99n, ...t });
+    expect(rm.signedHex).toBe(W.removeLiquidity.signedHex);
+  });
+
+  it('v8 swap auto-approves the input token at n, swaps at n+1', async () => {
+    const r = await swapBoingPool(null, SEED, { poolHex: V.poolHex, direction: 'b-to-a', amountIn: 5n, minOut: 1n, nonce: 3n, dryRun: true, tokenAHex: V.tokenAHex, tokenBHex: V.tokenBHex });
+    expect(r.approvals).toHaveLength(1);
+    await expect(createBoingPool(null, SEED, { nonce: 0n, dryRun: true })).rejects.toThrow(/v8 needs/);
+    await expect(swapBoingPool(null, SEED, { poolHex: V.poolHex, direction: 'a-to-b', amountIn: 1n, minOut: 1n, nonce: 0n, dryRun: true })).rejects.toThrow(/tokenAHex/);
   });
 
   it('offline dry-run without bounds is refused', async () => {

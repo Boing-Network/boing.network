@@ -178,7 +178,14 @@ export {
   encodeReferenceTransferCalldata,
   encodeReferenceMintFirstCalldata,
   encodeReferenceTransferCalldataHex,
+  SELECTOR_APPROVE,
+  SELECTOR_TRANSFER_FROM,
+  SELECTOR_ALLOWANCE,
+  encodeReferenceApproveCalldata,
+  encodeReferenceTransferFromCalldata,
+  encodeReferenceAllowanceCalldata,
 } from './referenceToken.js';
+export { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX } from './defaultReferenceFungibleTemplateV2BytecodeHex.js';
 export {
   BOING_TOKEN_PURPOSE,
   BOING_TOKEN_MAX_NAME_BYTES,
@@ -195,6 +202,12 @@ export {
   mintBoingToken,
   transferBoingToken,
   getBoingTokenBalance,
+  BOING_TOKEN_DEFAULT_VERSION,
+  REFERENCE_FUNGIBLE_ALLOWANCE_XOR,
+  boingTokenAllowanceStorageKeyHex,
+  buildBoingTokenApproveTransaction,
+  approveBoingToken,
+  getBoingTokenAllowance,
 } from './boingToken.js';
 export type {
   BuildBoingTokenDeployInput,
@@ -203,6 +216,7 @@ export type {
   BoingTokenSendOptions,
   DeployBoingTokenInput,
   DeployBoingTokenResult,
+  BoingTokenVersion,
 } from './boingToken.js';
 export {
   SELECTOR_NATIVE_AMM_SWAP,
@@ -916,6 +930,11 @@ export {
   boingPoolHasFeeAdmin,
   boingPoolHasRecipientSelectors,
   boingPoolFeeOnInput,
+  boingPoolPullsTokens,
+  encodeBoingPoolV8SwapCalldata,
+  encodeBoingPoolV8SwapToCalldata,
+  encodeBoingPoolV8AddLiquidityCalldata,
+  encodeBoingPoolV8RemoveLiquidityCalldata,
   boingPoolBytecodeHex,
   boingPoolAccessListHex,
   buildBoingPoolDeployTransaction,
@@ -940,5 +959,6 @@ export type {
   BoingPoolSignedTx,
   BoingPoolSendOptions,
   CreateBoingPoolInput,
+  BoingPoolV8Options,
 } from './boingPool.js';
 export { NATIVE_CP_POOL_BYTECODE_HEX } from './defaultNativeCpPoolBytecodeHex.js';

@@ -14,8 +14,13 @@ import type { TransactionInput } from './bincode.js';
 import { transactionIdFromSignedTransactionHex } from './bincode.js';
 import { predictNonceDerivedContractAddress } from './create2.js';
 import { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX } from './defaultReferenceFungibleTemplateBytecodeHex.js';
+import { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX } from './defaultReferenceFungibleTemplateV2BytecodeHex.js';
 import { bytesToHex, hexToAccountId, hexToBytes, validateHex32 } from './hex.js';
-import { encodeReferenceMintFirstCalldata, encodeReferenceTransferCalldata } from './referenceToken.js';
+import {
+  encodeReferenceApproveCalldata,
+  encodeReferenceMintFirstCalldata,
+  encodeReferenceTransferCalldata,
+} from './referenceToken.js';
 import {
   fetchNextNonce,
   senderHexFromSecretKey,
@@ -37,9 +42,32 @@ export const REFERENCE_FUNGIBLE_BALANCE_XOR: Uint8Array = (() => {
   return out;
 })();
 
-/** Reference fungible template bytecode hex (what `boing token bytecode` prints). */
-export function boingTokenBytecodeHex(): `0x${string}` {
-  const h = DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX.trim().toLowerCase();
+/** Template version: `2` (default, like the CLI: approve / transfer_from / allowance) or `1`. */
+export type BoingTokenVersion = 1 | 2;
+export const BOING_TOKEN_DEFAULT_VERSION: BoingTokenVersion = 2;
+
+/** `REF_FUNGIBLE_ALLOWANCE_XOR`: ASCII `BOING_REFFUNGIBLE_ALW2` zero-padded to 32 bytes. */
+export const REFERENCE_FUNGIBLE_ALLOWANCE_XOR: Uint8Array = (() => {
+  const out = new Uint8Array(32);
+  out.set(new TextEncoder().encode('BOING_REFFUNGIBLE_ALW2'));
+  return out;
+})();
+
+/** v2 storage key of `allowance[owner][spender]`: `(owner[0..16] ‖ spender[0..16]) ^ ALLOWANCE_XOR`. */
+export function boingTokenAllowanceStorageKeyHex(ownerHex: string, spenderHex: string): string {
+  const o = hexToAccountId(validateHex32(ownerHex));
+  const s = hexToAccountId(validateHex32(spenderHex));
+  const k = new Uint8Array(32);
+  k.set(o.subarray(0, 16), 0);
+  k.set(s.subarray(0, 16), 16);
+  for (let i = 0; i < 32; i++) k[i] = k[i]! ^ REFERENCE_FUNGIBLE_ALLOWANCE_XOR[i]!;
+  return bytesToHex(k);
+}
+
+/** Reference fungible template bytecode hex (what `boing token bytecode --version vN` prints). */
+export function boingTokenBytecodeHex(version: BoingTokenVersion = BOING_TOKEN_DEFAULT_VERSION): `0x${string}` {
+  const src = version === 1 ? DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX : DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX;
+  const h = src.trim().toLowerCase();
   return (h.startsWith('0x') ? h : `0x${h}`) as `0x${string}`;
 }
 
@@ -84,6 +112,7 @@ export interface BuildBoingTokenDeployInput {
   senderHex: string;
   name?: string | null;
   symbol?: string | null;
+  version?: BoingTokenVersion;
 }
 
 /** Unsigned `ContractDeployWithPurposeAndMetadata` (purpose `token`) for the reference template. */
@@ -95,7 +124,7 @@ export function buildBoingTokenDeployTransaction(input: BuildBoingTokenDeployInp
     sender,
     payload: {
       kind: 'contractDeployWithPurposeAndMetadata',
-      bytecode: hexToBytes(boingTokenBytecodeHex()),
+      bytecode: hexToBytes(boingTokenBytecodeHex(input.version ?? BOING_TOKEN_DEFAULT_VERSION)),
       purposeCategory: BOING_TOKEN_PURPOSE,
       descriptionHash: null,
       assetName: input.name ?? null,
@@ -140,6 +169,12 @@ export function buildBoingTokenTransferTransaction(input: BuildBoingTokenCallInp
   return buildCall(input, encodeReferenceTransferCalldata(validateHex32(input.toHex), input.amount));
 }
 
+/** v2: unsigned `approve(spender = toHex, amount)` call (overwrites the allowance). */
+export function buildBoingTokenApproveTransaction(input: BuildBoingTokenCallInput): TransactionInput {
+  checkU128(input.amount, 'amount');
+  return buildCall(input, encodeReferenceApproveCalldata(validateHex32(input.toHex), input.amount));
+}
+
 /** A signed token transaction (and whether it was submitted). */
 export interface BoingTokenSignedTx {
   txId: string;
@@ -182,6 +217,8 @@ export interface DeployBoingTokenInput extends BoingTokenSendOptions {
   initialSupply?: bigint;
   /** Mint recipient (default: deployer). */
   mintToHex?: string;
+  /** Template version (default 2, like `boing token deploy`). */
+  version?: BoingTokenVersion;
 }
 
 export interface DeployBoingTokenResult {
@@ -205,7 +242,7 @@ export async function deployBoingToken(
   const dryRun = !!input.dryRun;
   const deployTx = await signAndMaybeSubmit(
     client,
-    buildBoingTokenDeployTransaction({ nonce, senderHex: deployerHex, name: input.name, symbol: input.symbol }),
+    buildBoingTokenDeployTransaction({ nonce, senderHex: deployerHex, name: input.name, symbol: input.symbol, version: input.version }),
     secretKey32,
     dryRun,
   );
@@ -259,6 +296,34 @@ export async function transferBoingToken(
 /** `boing token balance`: read a holder's balance via `boing_getContractStorage`. */
 export async function getBoingTokenBalance(client: BoingClient, tokenHex: string, holderHex: string): Promise<bigint> {
   const word = await client.getContractStorage(validateHex32(tokenHex), boingTokenBalanceStorageKeyHex(holderHex));
+  if (typeof word?.value !== 'string') throw new Error('unexpected boing_getContractStorage result');
+  return decodeBoingTokenBalanceWord(word.value);
+}
+
+/** `boing token approve` (v2): let `spenderHex` pull up to `amount` (overwrites). */
+export async function approveBoingToken(
+  client: BoingClient | null,
+  secretKey32: Ed25519SecretKey32,
+  input: { tokenHex: string; spenderHex: string; amount: bigint } & BoingTokenSendOptions,
+): Promise<BoingTokenSignedTx> {
+  const senderHex = await senderHexFromSecretKey(secretKey32);
+  const nonce = await resolveNonce(client, senderHex, input.nonce);
+  return signAndMaybeSubmit(
+    client,
+    buildBoingTokenApproveTransaction({ nonce, senderHex, tokenHex: input.tokenHex, toHex: input.spenderHex, amount: input.amount }),
+    secretKey32,
+    !!input.dryRun,
+  );
+}
+
+/** `boing token allowance` (v2): read `allowance[owner][spender]` via `boing_getContractStorage`. */
+export async function getBoingTokenAllowance(
+  client: BoingClient,
+  tokenHex: string,
+  ownerHex: string,
+  spenderHex: string,
+): Promise<bigint> {
+  const word = await client.getContractStorage(validateHex32(tokenHex), boingTokenAllowanceStorageKeyHex(ownerHex, spenderHex));
   if (typeof word?.value !== 'string') throw new Error('unexpected boing_getContractStorage result');
   return decodeBoingTokenBalanceWord(word.value);
 }
