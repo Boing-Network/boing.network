@@ -1,11 +1,52 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 ---
-<Layout title="Getting Started" description="Build and run a Boing node.">
-  <p class="redirect-msg">Redirecting to <a href="/docs#getting-started">Documentation → Getting Started</a>…</p>
-  <script>window.location.replace('/docs#getting-started');</script>
+<Layout title="Getting Started" description="Start on Boing Network: get a wallet, get testnet BOING, build, or run a node.">
+  <article class="page-wrap-full">
+    <header class="page-hero-full">
+      <div class="page-wrap-inner gs-inner">
+        <span class="stage-badge-global">Testnet</span>
+        <h1>Getting Started</h1>
+        <p class="lead">Pick your path. Everything here runs on Boing Testnet and costs nothing.</p>
+      </div>
+    </header>
+    <div class="page-wrap-inner gs-inner gs-tracks">
+      <section class="track" aria-labelledby="track-user">
+        <h2 id="track-user">I want to use Boing</h2>
+        <ol>
+          <li><a href="https://boing.express" target="_blank" rel="noopener">Create a wallet in Boing Express</a> (web, or the Chrome extension to connect dApps).</li>
+          <li><a href="/faucet">Get testnet BOING</a> from the faucet.</li>
+          <li>Send your first transfer in Boing Express, then find it on <a href="https://boing.observer" target="_blank" rel="noopener">Boing Observer</a>.</li>
+          <li>Swap or provide liquidity on <a href="https://boing.finance" target="_blank" rel="noopener">boing.finance</a> (select Boing Testnet).</li>
+        </ol>
+      </section>
+      <section class="track" aria-labelledby="track-builder">
+        <h2 id="track-builder">I want to build</h2>
+        <ol>
+          <li>Follow the <a href="/developers/quickstart">Developer Quickstart</a>: install the CLI, fund a key, deploy a token with <code>boing token</code>.</li>
+          <li>Integrate wallets and RPC: <a href="/docs#rpc-api">RPC API</a> and the in-repo <code>boing-sdk</code>.</li>
+          <li>No-code token or pool: <a href="https://boing.finance" target="_blank" rel="noopener">boing.finance</a> deploy wizard.</li>
+        </ol>
+      </section>
+      <section class="track" aria-labelledby="track-operator">
+        <h2 id="track-operator">I want to run a node</h2>
+        <ol>
+          <li>Build and run <code>boing-node</code>: <a href="/docs#getting-started">Documentation → Getting Started (node)</a>.</li>
+          <li><a href="/testnet/join">Join the public testnet</a> and register as an operator.</li>
+          <li>Check bootnodes and status: <a href="/bootnodes">Bootnodes</a>, <a href="/status">Status</a>.</li>
+        </ol>
+      </section>
+    </div>
+  </article>
 </Layout>
 <style>
-  .redirect-msg { max-width: 720px; margin: 4rem auto; padding: 2rem; text-align: center; color: var(--text-secondary); }
-  .redirect-msg a { color: var(--accent-neon); }
+  .gs-inner { max-width: 960px; }
+  .lead { color: var(--text-secondary); }
+  .gs-tracks { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; padding-bottom: 3rem; }
+  .track { padding: 1.25rem; border: 1px solid var(--border-color); border-radius: 1rem; background: rgba(18, 24, 41, 0.6); }
+  .track h2 { font-size: 1.1rem; margin: 0 0 0.75rem; color: var(--text-primary); }
+  .track ol { margin: 0; padding-left: 1.1rem; color: var(--text-secondary); }
+  .track li { margin-bottom: 0.6rem; }
+  .track a { color: var(--accent-teal); }
+  .track code { background: var(--bg-tertiary); padding: 0.1em 0.35em; border-radius: 4px; }
 </style>

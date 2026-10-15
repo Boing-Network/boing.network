@@ -9,12 +9,69 @@ import Icon from '../../components/Icon.astro';
       <div class="page-wrap-inner" style="max-width: 800px;">
         <span class="stage-badge-global">Testnet</span>
         <h1 class="quickstart-title"><Icon name="rocket" size={36} class="quickstart-title-icon" /> Developer Quickstart</h1>
-        <p class="lead">Build on Boing with the CLI and RPC. Crates, commands, and default port below.</p>
+        <p class="lead">From zero to your first native token on Boing Testnet in five steps.</p>
       </div>
     </header>
     <div class="page-wrap-inner quickstart-content" style="max-width: 800px;">
-    <section class="section-reveal delay-1">
-      <h2><Icon name="book" size={22} class="section-icon" /> Crates</h2>
+    <section class="section-reveal delay-1" id="steps">
+      <h2><Icon name="rocket" size={22} class="section-icon" /> Five steps</h2>
+      <ol class="steps">
+        <li>
+          <strong>Install the CLI.</strong> Build <code>boing</code> from source (Rust stable). <code>boing token</code> is newer than the latest published release binaries (<a href="https://github.com/Boing-Network/boing.network/releases" target="_blank" rel="noopener">GitHub Releases</a>), so build from <code>main</code> until the next release:
+          <pre><code>git clone https://github.com/Boing-Network/boing.network.git
+cd boing.network
+cargo build --release -p boing-cli   # binary: target/release/boing</code></pre>
+        </li>
+        <li>
+          <strong>Get a signing key.</strong> Create a wallet in <a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a>, then use <em>Settings → Reveal private key</em> (password required) and set it only in your local shell:
+          <pre><code># PowerShell
+$env:BOING_SECRET_HEX = "&lt;64-hex private key&gt;"
+# bash/zsh
+export BOING_SECRET_HEX=&lt;64-hex private key&gt;</code></pre>
+          Never commit it or paste it into chat. Use a dedicated testnet wallet.
+        </li>
+        <li>
+          <strong>Fund it.</strong> Request testnet BOING from the <a href="/faucet">faucet</a>. A token deploy costs about 10–20 BOING, so you may need two requests (one every 60 seconds).
+        </li>
+        <li>
+          <strong>Deploy a token.</strong>
+          <pre><code>boing --rpc-url https://testnet-rpc.boing.network token deploy --symbol TKN --name "My Token" --initial-supply 1000000</code></pre>
+          The CLI prints your token address. Add <code>--dry-run</code> to see the signed transactions without sending them.
+        </li>
+        <li>
+          <strong>Verify.</strong>
+          <pre><code>boing --rpc-url https://testnet-rpc.boing.network token balance --token &lt;token address&gt; --holder &lt;your address&gt;</code></pre>
+          Or look up the token address on <a href="https://boing.observer" target="_blank" rel="noopener">Boing Observer</a>. Transfer with <code>boing token transfer --token … --to … --amount …</code>.
+        </li>
+      </ol>
+    </section>
+
+    <section class="section-reveal delay-2" id="create-token">
+      <h2><Icon name="link" size={22} class="section-icon" /> Ways to create a token</h2>
+      <ul>
+        <li><strong>No code:</strong> the deploy wizard on <a href="https://boing.finance" target="_blank" rel="noopener">boing.finance</a> (Boing Testnet, signed with Boing Express).</li>
+        <li><strong>CLI:</strong> <code>boing token deploy</code>, shown above.</li>
+        <li><strong>TypeScript:</strong> <code>boing-sdk</code> <code>buildReferenceFungibleDeployMetaTx</code> (see the repository <code>boing-sdk/README.md</code>).</li>
+      </ul>
+      <p>All three use the canonical reference fungible template (QA purpose <code>token</code>). The minimal template allows exactly <strong>one</strong> mint (fixed supply), and the first caller becomes admin. Details: repository <code>docs/BOING-REFERENCE-TOKEN.md</code>.</p>
+    </section>
+
+    <section class="section-reveal delay-2">
+      <h2><Icon name="link" size={22} class="section-icon" /> Other CLI commands</h2>
+      <ul>
+        <li><code>boing init</code>: scaffold a dApp project</li>
+        <li><code>boing dev</code>: start a local dev chain (RPC on <code>http://127.0.0.1:8545</code>)</li>
+        <li><code>boing deploy</code>: check RPC reachability before deploying</li>
+        <li><code>boing token mint | transfer | balance | bytecode</code></li>
+      </ul>
+    </section>
+    <section class="section-reveal delay-3">
+      <h2><Icon name="node" size={22} class="section-icon" /> RPC</h2>
+      <p>Default port: <code>8545</code>. Full method list and error codes: <a href="/docs#rpc-api">Documentation → RPC API</a> (mirrors repository <code>docs/RPC-API-SPEC.md</code>). Use <code>boing_health</code> or <code>boing_getNetworkInfo</code> for chain id, limits, and <code>developer.dex_discovery_methods</code>. TypeScript: in-repo <code>boing-sdk/</code> (see repo <code>boing-sdk/README.md</code>).</p>
+    </section>
+
+    <section class="section-reveal delay-4">
+      <h2><Icon name="book" size={22} class="section-icon" /> Crates (reference)</h2>
       <table>
         <thead>
           <tr><th>Crate</th><th>Description</th></tr>
@@ -35,21 +92,6 @@ import Icon from '../../components/Icon.astro';
         </tbody>
       </table>
     </section>
-
-    <section class="section-reveal delay-2">
-      <h2><Icon name="link" size={22} class="section-icon" /> CLI</h2>
-      <ul>
-        <li><code>boing init</code> — Initialize a project</li>
-        <li><code>boing dev</code> — Local development</li>
-        <li><code>boing token deploy --symbol TKN --initial-supply 1000000</code> — Deploy a native fungible token (also <code>mint</code>, <code>transfer</code>, <code>balance</code>)</li>
-        <li><code>boing deploy</code> — Deploy</li>
-      </ul>
-    </section>
-
-    <section class="section-reveal delay-3">
-      <h2><Icon name="node" size={22} class="section-icon" /> RPC</h2>
-      <p>Default port: <code>8545</code>. Full method list and error codes: <a href="/docs#rpc-api">Documentation → RPC API</a> (mirrors repository <code>docs/RPC-API-SPEC.md</code>). Use <code>boing_health</code> or <code>boing_getNetworkInfo</code> for chain id, limits, and <code>developer.dex_discovery_methods</code>. TypeScript: in-repo <code>boing-sdk/</code> (see repo <code>boing-sdk/README.md</code>).</p>
-    </section>
     </div>
   </article>
 </Layout>
@@ -62,6 +104,10 @@ import Icon from '../../components/Icon.astro';
   .quickstart-content section { margin-top: 2.5rem; }
   .quickstart-content h2 { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; color: var(--text-primary); font-size: 1.25rem; }
   .section-icon { color: var(--accent-teal); flex-shrink: 0; }
+  .steps { padding-left: 1.2rem; color: var(--text-secondary); }
+  .steps li { margin-bottom: 1.1rem; }
+  .steps pre { margin: 0.5rem 0; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 6px; overflow-x: auto; }
+  .steps pre code { background: none; padding: 0; white-space: pre; }
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border-color); color: var(--text-secondary); }
   th { color: var(--text-tertiary); font-weight: 600; }
