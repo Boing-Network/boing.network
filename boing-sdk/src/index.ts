@@ -497,18 +497,23 @@ export {
   encodeSignedTransaction,
   signableTransactionHash,
   transactionIdFromSignedTransactionHex,
+  BatchCallVariant,
+  MAX_BATCH_CALLS,
+  MAX_BATCH_CALLDATA_BYTES,
+  validateBatchCalls,
 } from './bincode.js';
-export type { TransactionInput, TransactionPayloadInput } from './bincode.js';
+export type { TransactionInput, TransactionPayloadInput, BatchCallInput } from './bincode.js';
 export {
   buildTransferTransaction,
   buildContractCallTransaction,
   buildDeployWithPurposeTransaction,
+  buildBatchTransaction,
   fetchNextNonce,
   senderHexFromSecretKey,
   signTransactionInput,
   signTransactionInputWithSigner,
 } from './transactionBuilder.js';
-export type { BuildTransferInput, BuildContractCallInput, BuildDeployWithPurposeInput, Ed25519SecretKey32 } from './transactionBuilder.js';
+export type { BuildBatchInput, BuildBatchCall, BuildTransferInput, BuildContractCallInput, BuildDeployWithPurposeInput, Ed25519SecretKey32 } from './transactionBuilder.js';
 export {
   predictCreate2ContractAddress,
   predictNonceDerivedContractAddress,

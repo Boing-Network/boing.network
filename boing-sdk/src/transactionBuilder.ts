@@ -6,6 +6,8 @@
 import * as ed25519 from '@noble/ed25519';
 import type { BoingClient } from './client.js';
 import {
+  validateBatchCalls,
+  type BatchCallInput,
   encodeSignedTransaction,
   signableTransactionHash,
   type TransactionInput,
@@ -75,6 +77,59 @@ export function buildContractCallTransaction(input: BuildContractCallInput): Tra
       contract: hexToAccountId(validateHex32(input.contractHex)),
       calldata: input.calldata,
     },
+    accessList: { read: accountVec(read), write: accountVec(write) },
+  };
+}
+
+/** One step of {@link buildBatchTransaction} (hex addresses). */
+export type BuildBatchCall =
+  | { kind: 'transfer'; toHex: string; amount: bigint }
+  | { kind: 'contractCall'; contractHex: string; calldata: Uint8Array };
+
+export interface BuildBatchInput {
+  nonce: bigint;
+  senderHex: string;
+  /** 1..MAX_BATCH_CALLS steps, applied in order; any failure reverts all of them. */
+  calls: BuildBatchCall[];
+  /** Defaults to sender + every recipient / contract (read and write). */
+  accessList?: { read: string[]; write: string[] };
+}
+
+/**
+ * Native atomic batch (`TransactionPayload::Batch`): BOING transfers and/or contract calls
+ * (e.g. token `transfer`, NFT transfer calldata) under one signature and one nonce.
+ * Requires nodes running the batch-capable release.
+ */
+export function buildBatchTransaction(input: BuildBatchInput): TransactionInput {
+  const sender = validateHex32(input.senderHex);
+  const calls: BatchCallInput[] = input.calls.map((c) =>
+    c.kind === 'transfer'
+      ? { kind: 'transfer', to: hexToAccountId(validateHex32(c.toHex)), amount: c.amount }
+      : {
+          kind: 'contractCall',
+          contract: hexToAccountId(validateHex32(c.contractHex)),
+          calldata: c.calldata,
+        },
+  );
+  validateBatchCalls(calls);
+  let read: string[];
+  let write: string[];
+  if (input.accessList) {
+    read = input.accessList.read;
+    write = input.accessList.write;
+  } else {
+    const ids: string[] = [sender.toLowerCase()];
+    for (const c of input.calls) {
+      const id = validateHex32(c.kind === 'transfer' ? c.toHex : c.contractHex).toLowerCase();
+      if (!ids.includes(id)) ids.push(id);
+    }
+    read = ids;
+    write = ids;
+  }
+  return {
+    nonce: input.nonce,
+    sender: hexToAccountId(sender),
+    payload: { kind: 'batch', calls },
     accessList: { read: accountVec(read), write: accountVec(write) },
   };
 }
