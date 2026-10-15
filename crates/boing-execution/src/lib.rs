@@ -10,6 +10,7 @@ mod gas;
 mod interpreter;
 mod native_amm;
 mod native_amm_v8;
+mod native_dex_custody_router;
 mod native_dex_factory;
 mod linked_nft_token_registry;
 mod builder_attestation_registry;
@@ -149,6 +150,12 @@ pub use native_amm_v8::{
     constant_product_pool_bytecode_v8, encode_v8_add_liquidity_calldata, encode_v8_remove_liquidity_calldata,
     encode_v8_remove_liquidity_to_calldata, encode_v8_swap_calldata, encode_v8_swap_to_calldata,
     pool_v8_lock_key, NATIVE_CP_POOL_CREATE2_SALT_V8,
+    constant_product_pool_bytecode_v9, NATIVE_CP_POOL_CREATE2_SALT_V9,
+};
+pub use native_dex_custody_router::{
+    custody_router_lock_key, encode_custody_router_swap_calldata, native_dex_custody_router_bytecode,
+    CustodyHop, CUSTODY_ROUTER_MAX_HOPS, NATIVE_DEX_CUSTODY_ROUTER_CREATE2_SALT_V1,
+    SELECTOR_CUSTODY_ROUTER_SWAP,
 };
 pub use reference_token_v2::{
     encode_allowance_calldata, encode_approve_calldata, encode_transfer_from_calldata,

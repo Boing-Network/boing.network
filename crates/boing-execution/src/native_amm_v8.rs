@@ -287,6 +287,21 @@ impl P {
 /// Custody-safe native CP pool (**v8**). CREATE2 salt: [`NATIVE_CP_POOL_CREATE2_SALT_V8`].
 #[must_use]
 pub fn constant_product_pool_bytecode_v8() -> Vec<u8> {
+    pool_v8_family(false)
+}
+
+/// CREATE2 salt for **v9** pool bytecode ([`constant_product_pool_bytecode_v9`]).
+pub const NATIVE_CP_POOL_CREATE2_SALT_V9: [u8; 32] =
+    *b"BOING_NATIVECP_C2V9\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+
+/// **v9** = v8 plus `swap` / `swap_to` **return `amount_out`** as one 32-byte word, so a router can
+/// chain hops ([`crate::native_dex_custody_router`]). Everything else is byte-for-byte v8 logic.
+#[must_use]
+pub fn constant_product_pool_bytecode_v9() -> Vec<u8> {
+    pool_v8_family(true)
+}
+
+fn pool_v8_family(swap_returns_out: bool) -> Vec<u8> {
     let mut a = Asm::new();
     let fail = a.label();
     let mut p = P { a, fail };
@@ -562,7 +577,12 @@ pub fn constant_product_pool_bytecode_v8() -> Vec<u8> {
     p.a.mark(stored);
     p.pay(TOUT, RECIP, OUT);
     p.log3(&NATIVE_AMM_TOPIC_SWAP, DIR, AIN, OUT);
-    p.unlock_stop();
+    if swap_returns_out {
+        p.unlock();
+        p.a.return_word(OUT);
+    } else {
+        p.unlock_stop();
+    }
 
     p.a.mark(fail);
     p.a.fault();
