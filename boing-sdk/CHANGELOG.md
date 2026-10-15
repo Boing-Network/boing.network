@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Token helpers mirroring `boing token`: `deployBoingToken`, `mintBoingToken`, `transferBoingToken`, `getBoingTokenBalance`, `boingTokenBytecodeHex` and unsigned builders; byte-identical to the CLI (cross-checked against CLI `--dry-run` vectors).
+
 ## [0.5.3] - 2026-10-13
 
 ### Added

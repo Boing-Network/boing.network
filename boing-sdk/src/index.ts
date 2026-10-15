@@ -180,6 +180,31 @@ export {
   encodeReferenceTransferCalldataHex,
 } from './referenceToken.js';
 export {
+  BOING_TOKEN_PURPOSE,
+  BOING_TOKEN_MAX_NAME_BYTES,
+  BOING_TOKEN_MAX_SYMBOL_BYTES,
+  REFERENCE_FUNGIBLE_BALANCE_XOR,
+  boingTokenBytecodeHex,
+  boingTokenBalanceStorageKeyHex,
+  decodeBoingTokenBalanceWord,
+  validateBoingTokenMetadata,
+  buildBoingTokenDeployTransaction,
+  buildBoingTokenMintTransaction,
+  buildBoingTokenTransferTransaction,
+  deployBoingToken,
+  mintBoingToken,
+  transferBoingToken,
+  getBoingTokenBalance,
+} from './boingToken.js';
+export type {
+  BuildBoingTokenDeployInput,
+  BuildBoingTokenCallInput,
+  BoingTokenSignedTx,
+  BoingTokenSendOptions,
+  DeployBoingTokenInput,
+  DeployBoingTokenResult,
+} from './boingToken.js';
+export {
   SELECTOR_NATIVE_AMM_SWAP,
   SELECTOR_NATIVE_AMM_ADD_LIQUIDITY,
   SELECTOR_NATIVE_AMM_REMOVE_LIQUIDITY,
