@@ -184,6 +184,7 @@ export {
   encodeReferenceApproveCalldata,
   encodeReferenceTransferFromCalldata,
   encodeReferenceAllowanceCalldata,
+  isReferenceSelfTransferCalldata,
 } from './referenceToken.js';
 export { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX } from './defaultReferenceFungibleTemplateV2BytecodeHex.js';
 export {

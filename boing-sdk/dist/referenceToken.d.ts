@@ -21,4 +21,11 @@ export declare function encodeReferenceApproveCalldata(spenderHexAccount32: stri
 export declare function encodeReferenceTransferFromCalldata(fromHex32: string, toHex32: string, amount: bigint): Uint8Array;
 /** v2: 96-byte `allowance(owner, spender)` calldata (returns the allowance word). */
 export declare function encodeReferenceAllowanceCalldata(ownerHex32: string, spenderHex32: string): Uint8Array;
+/**
+ * `true` when `calldata` is a reference-style `transfer(to, amount)` (selector `0x01`, 96 bytes; also the
+ * secured template and LP share token) whose `to` is `senderHex`. On v1 of those templates a
+ * self-transfer credits without debiting (balance doubling, known bug); on v2 it is a no-op.
+ * Wallets should refuse or warn before signing such a call.
+ */
+export declare function isReferenceSelfTransferCalldata(senderHex32: string, calldata: Uint8Array | string): boolean;
 //# sourceMappingURL=referenceToken.d.ts.map

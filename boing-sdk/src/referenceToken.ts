@@ -69,3 +69,26 @@ export function encodeReferenceAllowanceCalldata(ownerHex32: string, spenderHex3
   out.set(calldataAccountIdWord(spenderHex32), 64);
   return out;
 }
+
+/**
+ * `true` when `calldata` is a reference-style `transfer(to, amount)` (selector `0x01`, 96 bytes; also the
+ * secured template and LP share token) whose `to` is `senderHex`. On v1 of those templates a
+ * self-transfer credits without debiting (balance doubling, known bug); on v2 it is a no-op.
+ * Wallets should refuse or warn before signing such a call.
+ */
+export function isReferenceSelfTransferCalldata(senderHex32: string, calldata: Uint8Array | string): boolean {
+  const b = typeof calldata === 'string' ? hexToBytesLoose(calldata) : calldata;
+  if (b == null || b.length !== 96) return false;
+  for (let i = 0; i < 31; i++) if (b[i] !== 0) return false;
+  if (b[31] !== SELECTOR_TRANSFER) return false;
+  const to = bytesToHex(b.subarray(32, 64)).toLowerCase();
+  return to === senderHex32.trim().toLowerCase();
+}
+
+function hexToBytesLoose(h: string): Uint8Array | null {
+  const s = h.trim().replace(/^0x/i, '');
+  if (s.length % 2 !== 0 || /[^0-9a-f]/i.test(s)) return null;
+  const out = new Uint8Array(s.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(s.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}

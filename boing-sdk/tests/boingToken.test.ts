@@ -18,6 +18,7 @@ import {
 } from '../src/boingToken.js';
 import { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX } from '../src/defaultReferenceFungibleTemplateV2BytecodeHex.js';
 import { hexToBytes } from '../src/hex.js';
+import { encodeReferenceMintFirstCalldata, encodeReferenceTransferCalldata, isReferenceSelfTransferCalldata } from '../src/referenceToken.js';
 import type { BoingClient } from '../src/client.js';
 
 /** Vectors produced by `boing token ... --dry-run` (crates/boing-cli) with the public test seed 0x07*32. */
@@ -131,5 +132,16 @@ describe('boing token v2 (approve / allowance): byte-identical to the Rust CLI',
     const client = { getContractStorage } as unknown as BoingClient;
     await expect(getBoingTokenAllowance(client, P.tokenAHex, P.senderHex, P.poolHex)).resolves.toBe(42n);
     expect(getContractStorage).toHaveBeenCalledWith(P.tokenAHex, key);
+  });
+});
+
+describe('self-transfer guard (v1 balance-doubling bug)', () => {
+  it('transfer helpers refuse to = signer; calldata detector flags it', async () => {
+    await expect(transferBoingToken(null, SEED, { nonce: 0n, tokenHex: V.transfer.token, toHex: V.deployer, amount: 5n, dryRun: true })).rejects.toThrow(/self-transfer/);
+    const cd = encodeReferenceTransferCalldata(V.deployer, 5n);
+    expect(isReferenceSelfTransferCalldata(V.deployer, cd)).toBe(true);
+    expect(isReferenceSelfTransferCalldata(V.bob, cd)).toBe(false);
+    expect(isReferenceSelfTransferCalldata(V.deployer, `0x${Buffer.from(cd).toString('hex')}`)).toBe(true);
+    expect(isReferenceSelfTransferCalldata(V.deployer, encodeReferenceMintFirstCalldata(V.deployer, 5n))).toBe(false);
   });
 });

@@ -128,6 +128,9 @@ export function buildBoingTokenTransferTransaction(input) {
     checkU128(input.amount, 'amount');
     if (input.amount === 0n)
         throw new Error('amount must be > 0');
+    if (validateHex32(input.toHex).toLowerCase() === validateHex32(input.senderHex).toLowerCase()) {
+        throw new Error('refusing self-transfer: v1 reference tokens double the balance on self-transfer (known bug); it is a no-op on v2');
+    }
     return buildCall(input, encodeReferenceTransferCalldata(validateHex32(input.toHex), input.amount));
 }
 /** v2: unsigned `approve(spender = toHex, amount)` call (overwrites the allowance). */

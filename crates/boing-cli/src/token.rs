@@ -187,6 +187,18 @@ pub fn build_transfer_tx(
     build_call_tx(key, nonce, token, encode_transfer_calldata(&to, amount))
 }
 
+/// Refuse `transfer` to the signer itself: reference fungible **v1**, the secured template v1 and LP share v1
+/// credit the recipient without debiting when `to == caller` (balance doubling). On v2 it is a
+/// no-op, so refusing is always safe.
+pub fn check_not_self_transfer(sender: &AccountId, to: &AccountId) -> anyhow::Result<()> {
+    if sender == to {
+        anyhow::bail!(
+            "refusing self-transfer (--to is the signer): v1 reference tokens double the balance on self-transfer (known bug); it is a no-op on v2"
+        );
+    }
+    Ok(())
+}
+
 /// v2 `approve(spender, amount)` (overwrites the allowance).
 pub fn build_approve_tx(
     key: &SigningKey,
@@ -353,6 +365,7 @@ pub async fn transfer(
     }
     let key = resolve_signing_key(secret)?;
     let (token, to) = (parse_account(token)?, parse_account(to)?);
+    check_not_self_transfer(&account_of(&key), &to)?;
     let n = nonce_for(rpc_url, &key, nonce).await?;
     submit(
         rpc_url,
@@ -524,6 +537,13 @@ mod tests {
         // v2 fixes v1's self-transfer double credit.
         run(&mut st, &build_transfer_tx(&k, 4, token, me, 100));
         assert_eq!(bal(&st, &token, &me), 500);
+    }
+
+    #[test]
+    fn self_transfer_is_refused() {
+        let me = account_of(&key(7));
+        assert!(check_not_self_transfer(&me, &me).is_err());
+        assert!(check_not_self_transfer(&me, &AccountId([1; 32])).is_ok());
     }
 
     #[test]
