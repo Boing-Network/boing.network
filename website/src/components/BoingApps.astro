@@ -1,0 +1,26 @@
+---
+/** Shared "Boing apps" switcher (same links on boing.network, boing.express, boing.finance, boing.observer). */
+const apps = [
+  { name: 'Boing Network', desc: 'Home, docs, faucet', href: 'https://boing.network' },
+  { name: 'Boing Express', desc: 'Wallet', href: 'https://boing.express' },
+  { name: 'Boing Observer', desc: 'Block explorer', href: 'https://boing.observer' },
+  { name: 'boing.finance', desc: 'Swap, pools, deploy tokens', href: 'https://boing.finance' },
+];
+---
+<details class="boing-apps">
+  <summary aria-label="Boing apps">Apps</summary>
+  <ul>
+    {apps.map((a) => (
+      <li><a href={a.href} rel="noopener"><strong>{a.name}</strong><span>{a.desc}</span></a></li>
+    ))}
+  </ul>
+</details>
+<style>
+  .boing-apps { position: relative; }
+  .boing-apps summary { cursor: pointer; list-style: none; padding: 0.4rem 0.7rem; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-secondary); font-size: 0.9rem; }
+  .boing-apps summary::-webkit-details-marker { display: none; }
+  .boing-apps ul { position: absolute; right: 0; top: calc(100% + 0.4rem); z-index: 50; min-width: 240px; margin: 0; padding: 0.4rem; list-style: none; background: var(--bg-secondary, #0b1020); border: 1px solid var(--border-color); border-radius: 0.75rem; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+  .boing-apps a { display: flex; flex-direction: column; padding: 0.5rem 0.6rem; border-radius: 0.5rem; color: var(--text-primary); text-decoration: none; }
+  .boing-apps a:hover { background: rgba(0, 229, 204, 0.08); }
+  .boing-apps a span { font-size: 0.8rem; color: var(--text-secondary); }
+</style>
