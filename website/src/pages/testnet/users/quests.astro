@@ -43,9 +43,9 @@ import '../../../styles/hub-common.css';
         <p><a href={EXTERNAL_QUEST_FORM_URL} class="btn btn-primary" target="_blank" rel="noopener">Open submission form →</a></p>
       ) : (
         <>
-          <p>Enter your account ID and which quest you completed. For manual quests, add proof (tx hash, Discord handle, or feedback link).</p>
+          <p>Enter your account address and which quest you completed. For manual quests, add proof (tx hash, Discord handle, or feedback link).</p>
           <form id="quest-submit-form" class="quest-form">
-            <label for="account-id">Account ID (32-byte hex)</label>
+            <label for="account-id">Account address (32-byte hex)</label>
             <input id="account-id" name="account_id" type="text" placeholder="0x..." maxlength="66" required />
             <label for="quest-id">Quest</label>
             <select id="quest-id" name="quest_id" required>
@@ -126,7 +126,7 @@ import '../../../styles/hub-common.css';
         e.preventDefault();
         var accountHex = (accountInput && accountInput.value || '').trim();
         if (!accountHex.startsWith('0x')) accountHex = '0x' + accountHex;
-        if (accountHex.length !== 66) { setMessage('Account ID must be 32 bytes (64 hex + 0x).', true); return; }
+        if (accountHex.length !== 66) { setMessage('Account address must be 32 bytes (64 hex + 0x).', true); return; }
         if (submitBtn) submitBtn.disabled = true;
         setMessage('Submitting…');
         fetch('/api/quests/submit', {

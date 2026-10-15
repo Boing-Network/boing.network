@@ -24,7 +24,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
     </header>
     <div class="page-wrap-inner faucet-content">
       <section class="faucet-form">
-      <label for="account-id">Your Boing address (32-byte account ID, hex, with or without 0x)</label>
+      <label for="account-id">Your Boing address (32-byte account address, hex, with or without 0x)</label>
       <div class="input-with-copy">
         <input
           id="account-id"
@@ -76,7 +76,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
       <ul>
         <li>The faucet is an RPC method (<code>boing_faucetRequest</code>) on nodes started with <code>--faucet-enable</code>.</li>
         <li>Use the RPC URL of a testnet node that has the faucet enabled. For local testing, run <code>boing-node --validator --faucet-enable --rpc-port 8545</code> and use <code>http://127.0.0.1:8545</code>.</li>
-        <li>Your account ID is the 32-byte hex representation of your public key (e.g. from your wallet).</li>
+        <li>Your account address is the 32-byte hex representation of your public key (e.g. from your wallet).</li>
       </ul>
     </section>
 
@@ -97,7 +97,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
     const faucetLabel = btn?.querySelector('.faucet-btn-label');
     const faucetLoader = btn?.querySelector('.faucet-inline-loader') as HTMLElement | null;
 
-    // Prefill account ID from ?address= (e.g. from boing.observer or wallet deep link)
+    // Prefill account address from ?address= (e.g. from boing.observer or wallet deep link)
     const params = new URLSearchParams(window.location.search);
     const addressParam = params.get('address');
     if (accountInput && addressParam && /^(0x)?[0-9a-fA-F]{64}$/.test(addressParam.trim())) {
@@ -153,12 +153,12 @@ import { TESTNET_RPC_URL } from '../config/testnet';
         return;
       }
       if (!accountHex) {
-        setMessage('Please enter your account ID (32-byte hex).', true);
+        setMessage('Please enter your account address (32-byte hex).', true);
         return;
       }
       if (!accountHex.startsWith('0x')) accountHex = '0x' + accountHex;
       if (accountHex.length !== 66) {
-        setMessage('Account ID must be 32 bytes (64 hex chars + 0x).', true);
+        setMessage('Account address must be 32 bytes (64 hex chars + 0x).', true);
         return;
       }
 

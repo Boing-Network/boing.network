@@ -19,7 +19,7 @@ import '../../../styles/hub-common.css';
         <h1>My Dashboard</h1>
         <p class="muted">Your contribution as a node operator or miner. Load your account to see registration and stats. For the full operator leaderboard, see <a href="/testnet/operators/leaderboard">Community Leaderboard</a>.</p>
         <div class="dashboard-load" id="dashboard-load">
-          <label for="me-account">Account ID to load</label>
+          <label for="me-account">Account address to load</label>
           <input id="me-account" type="text" placeholder="0x..." maxlength="66" />
           <button type="button" id="me-load-btn">Load dashboard</button>
         </div>
@@ -48,7 +48,7 @@ import '../../../styles/hub-common.css';
       <section id="registration-section" class="section fade-in-up delay-2" style="display: none;">
         <h2>Your registration</h2>
         <div id="registration-content" class="dashboard-placeholder"></div>
-        <p class="muted">To add or update your node multiaddr, <a href="/testnet/register/operator">re-register</a> with the same account ID.</p>
+        <p class="muted">To add or update your node multiaddr, <a href="/testnet/register/operator">re-register</a> with the same account address.</p>
       </section>
 
       <section class="section fade-in-up delay-3">
@@ -193,7 +193,7 @@ import '../../../styles/hub-common.css';
         var hex = (meInput.value || '').trim();
         if (!hex.startsWith('0x')) hex = '0x' + hex;
         if (hex.length !== 66) {
-          registrationContent.innerHTML = '<p class="err">Enter a valid 32-byte hex account ID.</p>';
+          registrationContent.innerHTML = '<p class="err">Enter a valid 32-byte hex account address.</p>';
           registrationSection.style.display = 'block';
           return;
         }

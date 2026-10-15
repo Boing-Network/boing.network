@@ -28,23 +28,23 @@ import Layout from '../../../layouts/Layout.astro';
     <form id="register-form" class="register-form fade-in-up delay-1">
       <input type="hidden" name="role" value="node_operator" />
 
-      <div class="auth-tabs" role="tablist" aria-label="How to provide account ID">
+      <div class="auth-tabs" role="tablist" aria-label="How to provide account address">
         <button type="button" class="auth-tab" role="tab" id="tab-wallet" aria-selected="true" aria-controls="panel-wallet" tabindex="0">Connect wallet</button>
-        <button type="button" class="auth-tab" role="tab" id="tab-account" aria-selected="false" aria-controls="panel-account" tabindex="-1">Enter account ID</button>
+        <button type="button" class="auth-tab" role="tab" id="tab-account" aria-selected="false" aria-controls="panel-account" tabindex="-1">Enter account address</button>
       </div>
       <div id="panel-wallet" role="tabpanel" aria-labelledby="tab-wallet" class="auth-panel">
-        <p class="auth-panel-desc">Connect your Boing wallet (<a href="https://boing.express" rel="noopener noreferrer" target="_blank">Boing Express</a> recommended) to fill your account ID below. You'll approve the connection in your wallet.</p>
+        <p class="auth-panel-desc">Connect your Boing wallet (<a href="https://boing.express" rel="noopener noreferrer" target="_blank">Boing Express</a> recommended) to fill your account address below. You'll approve the connection in your wallet.</p>
         <p class="form-hint"><span id="connect-wallet-wrap"><button type="button" id="connect-wallet-btn" class="link-btn auth-cta">Connect wallet</button></span><span id="wallet-actions"></span></p>
       </div>
       <div id="panel-account" role="tabpanel" aria-labelledby="tab-account" class="auth-panel hidden">
-        <p class="auth-panel-desc">Enter your account ID (32-byte hex) below. You can copy it from your wallet or paste from elsewhere.</p>
+        <p class="auth-panel-desc">Enter your account address (32-byte hex) below. You can copy it from your wallet or paste from elsewhere.</p>
       </div>
 
-      <label for="account-id">Account ID (32-byte hex, with or without 0x) *</label>
+      <label for="account-id">Account address (32-byte hex, with or without 0x) *</label>
       <input id="account-id" name="account_id_hex" type="text" placeholder="0x..." maxlength="66" required />
 
       <div id="register-password-fields" class="register-password-fields hidden">
-        <label for="portal-password">Portal password (for sign-in with account ID later) *</label>
+        <label for="portal-password">Portal password (for sign-in with account address later) *</label>
         <input id="portal-password" name="portal_password" type="password" placeholder="Min 8 characters" minlength="8" autocomplete="new-password" />
         <label for="confirm-password">Confirm password *</label>
         <input id="confirm-password" name="confirm_password" type="password" placeholder="Repeat password" minlength="8" autocomplete="new-password" />
@@ -207,10 +207,10 @@ import Layout from '../../../layouts/Layout.astro';
       const confirmPassword = (form.querySelector('#confirm-password')?.value || '').trim();
       var isWalletTab = document.getElementById('panel-account').classList.contains('hidden');
 
-      if (!accountHex) { setMessage('Please enter your account ID.', true); return; }
+      if (!accountHex) { setMessage('Please enter your account address.', true); return; }
       if (!accountHex.startsWith('0x')) accountHex = '0x' + accountHex;
       if (accountHex.length !== 66) {
-        setMessage('Account ID must be 32 bytes (64 hex chars + 0x).', true);
+        setMessage('Account address must be 32 bytes (64 hex chars + 0x).', true);
         return;
       }
       if (!isWalletTab) {

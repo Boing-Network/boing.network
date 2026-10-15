@@ -19,7 +19,7 @@ import '../../../styles/hub-common.css';
       <h1>Your dashboard</h1>
       <p class="muted">Quest progress and faucet usage appear here once you register and complete tasks. <a href="/testnet/register/user">Register as user</a> if you haven't.</p>
       <div class="dashboard-load" id="dashboard-load">
-        <label for="me-account">Account ID to load progress</label>
+        <label for="me-account">Account address to load progress</label>
         <input id="me-account" type="text" placeholder="0x..." maxlength="66" />
         <button type="button" id="me-load-btn">Load progress</button>
       </div>
@@ -133,7 +133,7 @@ import '../../../styles/hub-common.css';
         if (!hex.startsWith('0x')) hex = '0x' + hex;
         if (hex.length !== 66) {
           placeholder.style.display = 'none';
-          loaded.innerHTML = '<p class="err">Enter a valid 32-byte hex account ID.</p>';
+          loaded.innerHTML = '<p class="err">Enter a valid 32-byte hex account address.</p>';
           loaded.style.display = 'block';
           return;
         }

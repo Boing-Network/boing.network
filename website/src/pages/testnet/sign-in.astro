@@ -4,7 +4,7 @@ import Layout from '../../layouts/Layout.astro';
 
 <Layout
   title="Sign in — Testnet Portal"
-  description="Sign in to the Boing Network testnet portal with your account ID or connect your wallet. Access your developer, user, or operator dashboard."
+  description="Sign in to the Boing Network testnet portal with your account address or connect your wallet. Access your developer, user, or operator dashboard."
 >
   <article class="portal-page sign-in-page page-wrap-full">
     <header class="page-hero-full page-hero-signin">
@@ -13,7 +13,7 @@ import Layout from '../../layouts/Layout.astro';
         <p class="back-link fade-in-up" style="margin-bottom: 1rem;"><a href="/testnet">← Dashboard</a></p>
         <h1 class="sign-in-hero-title">Sign in</h1>
         <p class="lead">
-          Sign in with your wallet (approve in wallet only) or with your account ID and portal password. New? <a href="/testnet/register">Register first</a>.
+          Sign in with your wallet (approve in wallet only) or with your account address and portal password. New? <a href="/testnet/register">Register first</a>.
         </p>
       </div>
     </header>
@@ -21,7 +21,7 @@ import Layout from '../../layouts/Layout.astro';
     <div class="auth-card">
       <div class="auth-tabs" role="tablist" aria-label="Sign in method">
         <button type="button" class="auth-tab" role="tab" id="tab-wallet" aria-selected="true" aria-controls="panel-wallet" tabindex="0">Sign in with wallet</button>
-        <button type="button" class="auth-tab" role="tab" id="tab-account" aria-selected="false" aria-controls="panel-account" tabindex="-1">Sign in with account ID</button>
+        <button type="button" class="auth-tab" role="tab" id="tab-account" aria-selected="false" aria-controls="panel-account" tabindex="-1">Sign in with account address</button>
       </div>
       <div id="panel-wallet" role="tabpanel" aria-labelledby="tab-wallet" class="auth-panel">
         <p class="auth-panel-desc">Use your Boing-compatible wallet (e.g. <a href="https://boing.express" rel="noopener noreferrer" target="_blank">Boing Express</a>). Approve the connection and sign the message — no password needed.</p>
@@ -39,9 +39,9 @@ import Layout from '../../layouts/Layout.astro';
         </div>
       </div>
       <div id="panel-account" role="tabpanel" aria-labelledby="tab-account" class="auth-panel hidden">
-        <p class="auth-panel-desc">Enter your account ID and portal password (set at registration or on Set password).</p>
+        <p class="auth-panel-desc">Enter your account address and portal password (set at registration or on Set password).</p>
         <form id="signin-form" class="auth-form">
-          <label for="account-id">Account ID (0x... 64 hex chars)</label>
+          <label for="account-id">Account address (0x... 64 hex chars)</label>
           <input id="account-id" name="account_id_hex" type="text" placeholder="0x..." maxlength="66" required autocomplete="off" />
           <label for="account-password">Portal password</label>
           <input id="account-password" name="password" type="password" placeholder="Your portal password" autocomplete="current-password" minlength="8" required />
@@ -318,7 +318,7 @@ import Layout from '../../layouts/Layout.astro';
       var accountHex = (accountInput && accountInput.value || '').trim();
       if (!accountHex.startsWith('0x')) accountHex = '0x' + accountHex;
       if (accountHex.length !== 66) {
-        setMessage('Account ID must be 32 bytes (64 hex chars + 0x).', true);
+        setMessage('Account address must be 32 bytes (64 hex chars + 0x).', true);
         return;
       }
 

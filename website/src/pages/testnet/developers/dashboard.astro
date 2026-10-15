@@ -18,7 +18,7 @@ import '../../../styles/hub-common.css';
       <h1>Your dashboard</h1>
       <p class="muted">Register with your testnet account to see your registered dApps here. On mainnet, use <code>boing_registerDappMetrics</code> and the chain indexer for live metrics.</p>
       <div class="dashboard-load" id="dashboard-load">
-        <label for="me-account">Account ID to load dashboard</label>
+        <label for="me-account">Account address to load dashboard</label>
         <input id="me-account" type="text" placeholder="0x..." maxlength="66" />
         <button type="button" id="me-load-btn">Load dashboard</button>
       </div>
@@ -35,9 +35,9 @@ import '../../../styles/hub-common.css';
       <div id="dashboard-loaded" class="dashboard-loaded" style="display: none;"></div>
       <div id="dapp-register" class="subsection">
         <h2>Register a dApp (testnet)</h2>
-        <p>Add a contract address to track it for testnet incentives. Enter your account ID (owner) if you're not logged in. At mainnet, use the RPC method <code>boing_registerDappMetrics</code>.</p>
+        <p>Add a contract address to track it for testnet incentives. Enter your account address (owner) if you're not logged in. At mainnet, use the RPC method <code>boing_registerDappMetrics</code>.</p>
         <form id="dapp-form" class="compact-form">
-          <input id="dapp-owner" type="text" placeholder="Your account ID (0x..., optional if session exists)" title="32-byte hex account ID" />
+          <input id="dapp-owner" type="text" placeholder="Your account address (0x..., optional if session exists)" title="32-byte hex account address" />
           <input id="dapp-contract" type="text" placeholder="Contract address (0x...)" required />
           <input id="dapp-name" type="text" placeholder="dApp name (optional)" />
           <button type="submit">Add dApp</button>
@@ -155,7 +155,7 @@ import '../../../styles/hub-common.css';
         if (!hex.startsWith('0x')) hex = '0x' + hex;
         if (hex.length !== 66) {
           placeholder.style.display = 'none';
-          loaded.innerHTML = '<p class="err">Enter a valid 32-byte hex account ID.</p>';
+          loaded.innerHTML = '<p class="err">Enter a valid 32-byte hex account address.</p>';
           loaded.style.display = 'block';
           return;
         }
@@ -177,7 +177,7 @@ import '../../../styles/hub-common.css';
           return;
         }
         if (ownerHex && ownerHex.length !== 66) {
-          if (msgEl) msgEl.textContent = 'Account ID must be 32 bytes (64 hex + 0x).';
+          if (msgEl) msgEl.textContent = 'Account address must be 32 bytes (64 hex + 0x).';
           return;
         }
         var ownerToUse = ownerHex || (session && session.role === 'developer' ? session.account_id_hex : '');
