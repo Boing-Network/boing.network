@@ -17,10 +17,13 @@ import Icon from '../../components/Icon.astro';
       <h2><Icon name="rocket" size={22} class="section-icon" /> Five steps</h2>
       <ol class="steps">
         <li>
-          <strong>Install the CLI.</strong> Build <code>boing</code> from source (Rust stable). <code>boing token</code> is newer than the latest published release binaries (<a href="https://github.com/Boing-Network/boing.network/releases" target="_blank" rel="noopener">GitHub Releases</a>), so build from <code>main</code> until the next release:
-          <pre><code>git clone https://github.com/Boing-Network/boing.network.git
-cd boing.network
-cargo build --release -p boing-cli   # binary: target/release/boing</code></pre>
+          <strong>Install the CLI.</strong> Download the zip for your platform from the <a href="https://github.com/Boing-Network/boing.network/releases/tag/testnet-v0.1.11" target="_blank" rel="noopener">testnet-v0.1.11 release</a> (<code>release-linux-x86_64.zip</code>, <code>release-macos-aarch64.zip</code>, or <code>release-windows-x86_64.zip</code>), unzip it, and put the <code>boing-&lt;platform&gt;</code> binary on your <code>PATH</code> as <code>boing</code>:
+          <pre><code># Linux example (macOS: release-macos-aarch64.zip / boing-macos-aarch64)
+curl -LO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.11/release-linux-x86_64.zip
+unzip release-linux-x86_64.zip
+chmod +x boing-linux-x86_64 &amp;&amp; sudo mv boing-linux-x86_64 /usr/local/bin/boing
+boing token --help</code></pre>
+          <p>Or build from source (Rust stable): <code>git clone https://github.com/Boing-Network/boing.network.git &amp;&amp; cd boing.network &amp;&amp; cargo build --release -p boing-cli</code> (binary: <code>target/release/boing</code>).</p>
         </li>
         <li>
           <strong>Get a signing key.</strong> Create a wallet in <a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a>, then open the <em>Reveal private key</em> section at the bottom of the <em>Wallet</em> tab (password required) and set it only in your local shell:
