@@ -93,6 +93,8 @@ export { getInjectedEip1193Provider, providerSupportsBoingNativeRpc, boingSendTr
  */
 export declare function createClient(config: string | import('./client.js').BoingClientConfig): BoingClient;
 export { BOING_POOL_PURPOSE, BOING_POOL_DEFAULT_VERSION, boingPoolHasTokenHooks, boingPoolHasStorageFee, boingPoolHasFeeAdmin, boingPoolHasRecipientSelectors, boingPoolFeeOnInput, boingPoolPullsTokens, encodeBoingPoolV8SwapCalldata, encodeBoingPoolV8SwapToCalldata, encodeBoingPoolV8AddLiquidityCalldata, encodeBoingPoolV8RemoveLiquidityCalldata, boingPoolBytecodeHex, boingPoolAccessListHex, buildBoingPoolDeployTransaction, buildBoingPoolCallTransaction, boingPoolEffectiveFeeBps, quoteBoingPoolAmountOut, boingPoolMinOutWithSlippage, quoteBoingPoolLpMinted, quoteBoingPoolRemove, getBoingPoolState, getBoingPoolLpBalance, quoteBoingPoolSwap, createBoingPool, addBoingPoolLiquidity, removeBoingPoolLiquidity, swapBoingPool, } from './boingPool.js';
+export { BOING_CUSTODY_ROUTER_SELECTOR_SWAP, BOING_CUSTODY_ROUTER_MAX_HOPS, BOING_CUSTODY_ROUTER_BYTECODE_HEX, encodeBoingCustodyRouterSwapCalldata, checkBoingRoutePath, boingRouteHop, buildBoingCustodyRouterDeployTransaction, buildBoingCustodyRouterSwapTransaction, quoteBoingRoute, routeBoingSwap, } from './boingRouter.js';
+export type { BoingRouteHop } from './boingRouter.js';
 export type { BoingPoolVersion, BoingPoolState, BoingPoolDirection, BoingPoolSignedTx, BoingPoolSendOptions, CreateBoingPoolInput, BoingPoolV8Options, } from './boingPool.js';
 export { NATIVE_CP_POOL_BYTECODE_HEX } from './defaultNativeCpPoolBytecodeHex.js';
 //# sourceMappingURL=index.d.ts.map

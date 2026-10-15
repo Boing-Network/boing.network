@@ -20,7 +20,7 @@ use boing_execution::{
     constant_product_pool_bytecode_v2, constant_product_pool_bytecode_v3,
     constant_product_pool_bytecode_v4, constant_product_pool_bytecode_v5,
     constant_product_pool_bytecode_v6, constant_product_pool_bytecode_v7,
-    constant_product_pool_bytecode_v8, encode_add_liquidity_calldata,
+    constant_product_pool_bytecode_v8, constant_product_pool_bytecode_v9, encode_add_liquidity_calldata,
     encode_remove_liquidity_calldata, encode_set_fee_admin_calldata,
     encode_set_swap_fee_bps_calldata, encode_set_tokens_calldata, encode_swap_calldata,
     encode_swap_to_calldata, encode_v8_add_liquidity_calldata, encode_v8_remove_liquidity_calldata,
@@ -49,11 +49,11 @@ impl std::str::FromStr for PoolVersion {
             .trim()
             .trim_start_matches(['v', 'V'])
             .parse()
-            .map_err(|_| format!("invalid pool version `{s}` (expected v1..v8)"))?;
-        if (1..=8).contains(&n) {
+            .map_err(|_| format!("invalid pool version `{s}` (expected v1..v9)"))?;
+        if (1..=9).contains(&n) {
             Ok(PoolVersion(n))
         } else {
-            Err(format!("invalid pool version `{s}` (expected v1..v8)"))
+            Err(format!("invalid pool version `{s}` (expected v1..v9)"))
         }
     }
 }
@@ -68,12 +68,13 @@ impl PoolVersion {
             5 => constant_product_pool_bytecode_v5(),
             6 => constant_product_pool_bytecode_v6(),
             7 => constant_product_pool_bytecode_v7(),
-            _ => constant_product_pool_bytecode_v8(),
+            8 => constant_product_pool_bytecode_v8(),
+            _ => constant_product_pool_bytecode_v9(),
         }
     }
     /// v2, v4..v7 pay out through reference-token contracts once `set_tokens` ran.
     pub fn has_token_hooks(self) -> bool {
-        matches!(self.0, 2 | 4..=8)
+        matches!(self.0, 2 | 4..=9)
     }
     /// v3..v7 keep the fee in storage (`set_swap_fee_bps`).
     pub fn has_storage_fee(self) -> bool {
@@ -92,8 +93,9 @@ impl PoolVersion {
         self.0 >= 7
     }
     /// v8 pulls deposits / swap input with reference-token v2 `transfer_from` (needs `approve`).
+    /// v9 = v8 whose swap returns `amount_out` (needed for custody-router intermediate hops).
     pub fn pulls_tokens(self) -> bool {
-        self.0 == 8
+        self.0 >= 8
     }
 }
 
@@ -269,7 +271,7 @@ pub struct PoolState {
     pub token_b: AccountId,
 }
 
-async fn read_state(rpc_url: &str, pool: &AccountId) -> anyhow::Result<PoolState> {
+pub(crate) async fn read_state(rpc_url: &str, pool: &AccountId) -> anyhow::Result<PoolState> {
     Ok(PoolState {
         reserve_a: read_u128(rpc_url, pool, reserve_a_key()).await?,
         reserve_b: read_u128(rpc_url, pool, reserve_b_key()).await?,
@@ -280,7 +282,7 @@ async fn read_state(rpc_url: &str, pool: &AccountId) -> anyhow::Result<PoolState
     })
 }
 
-fn parse_extras(v: &[String]) -> anyhow::Result<Vec<AccountId>> {
+pub(crate) fn parse_extras(v: &[String]) -> anyhow::Result<Vec<AccountId>> {
     v.iter().map(|s| parse_account(s)).collect()
 }
 
@@ -780,7 +782,8 @@ mod tests {
         assert_eq!("v7".parse::<PoolVersion>().unwrap(), PoolVersion(7));
         assert_eq!("3".parse::<PoolVersion>().unwrap(), PoolVersion(3));
         assert_eq!("v8".parse::<PoolVersion>().unwrap(), PoolVersion(8));
-        assert!("v9".parse::<PoolVersion>().is_err());
+        assert_eq!("v9".parse::<PoolVersion>().unwrap(), PoolVersion(9));
+        assert!("v10".parse::<PoolVersion>().is_err());
         assert!(PoolVersion(8).pulls_tokens() && !PoolVersion(7).pulls_tokens());
         assert!(PoolVersion(8).fee_on_input() && PoolVersion(8).has_token_hooks());
         assert_eq!(
@@ -1178,6 +1181,15 @@ mod tests {
                 "removeLiquidity": sig(&build_pool_call_tx(&k, 10, pool, encode_v8_remove_liquidity_calldata(2_500, 2_000, 9_000, 99), &[ta, tb])),
                 "allowanceKeyHex": format!("0x{}", hex::encode(boing_execution::ref_fungible_allowance_key(&me, &pool))),
             },
+            "router": {
+                "deployV9Pool": sig(&build_pool_deploy_tx(&k, 0, PoolVersion(9))),
+                "deploy": sig(&crate::router::build_router_deploy_tx(&k, 1)),
+                "approveRouter": sig(&build_approve_tx(&k, 2, ta, pool, 5_000)),
+                "swap2": sig(&crate::router::build_router_swap_tx(&k, 3, pool, &[
+                    crate::router::RouteHop { pool: ta, direction: 0, token_in: tb, token_out: me },
+                    crate::router::RouteHop { pool: tb, direction: 1, token_in: me, token_out: bob },
+                ], 5_000, 4_000, &bob, 321, &[])),
+            },
         });
         let norm_file = |p: &std::path::Path| {
             std::fs::read_to_string(p)
@@ -1187,15 +1199,19 @@ mod tests {
         let vec_path = root.join("boing-sdk/tests/fixtures/pool-cli-vectors.json");
         let vec_text = format!("{}\n", serde_json::to_string_pretty(&v).unwrap());
         let mut ts = String::from(
-            "// GENERATED by `BOING_WRITE_POOL_VECTORS=1 cargo test -p boing-cli` from\n// boing_execution::constant_product_pool_bytecode{,_v2..v8}. Do not edit.\n\n/** Native constant-product pool template bytecode hex by version (v1..v8). */\nexport const NATIVE_CP_POOL_BYTECODE_HEX: Readonly<Record<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8, `0x${string}`>> = {\n",
+            "// GENERATED by `BOING_WRITE_POOL_VECTORS=1 cargo test -p boing-cli` from\n// boing_execution::constant_product_pool_bytecode{,_v2..v9} + native_dex_custody_router_bytecode. Do not edit.\n\n/** Native constant-product pool template bytecode hex by version (v1..v9). */\nexport const NATIVE_CP_POOL_BYTECODE_HEX: Readonly<Record<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9, `0x${string}`>> = {\n",
         );
-        for n in 1..=8u8 {
+        for n in 1..=9u8 {
             ts.push_str(&format!(
                 "  {n}: '0x{}',\n",
                 hex::encode(PoolVersion(n).bytecode())
             ));
         }
         ts.push_str("};\n");
+        ts.push_str(&format!(
+            "\n/** Custody router v1 (`boing pool router-deploy`), pulls via transfer_from, 1..=4 hops. */\nexport const NATIVE_DEX_CUSTODY_ROUTER_BYTECODE_HEX: `0x${{string}}` =\n  '0x{}';\n",
+            hex::encode(boing_execution::native_dex_custody_router_bytecode())
+        ));
         let ts_path = root.join("boing-sdk/src/defaultNativeCpPoolBytecodeHex.ts");
         let tok_ts = format!(
             "// GENERATED by `BOING_WRITE_POOL_VECTORS=1 cargo test -p boing-cli` from\n// boing_execution::reference_fungible_template_v2_bytecode. Do not edit.\n\n/** Reference fungible template v2 (approve / transfer_from / allowance). */\nexport const DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX: `0x${{string}}` =\n  '0x{}';\n",

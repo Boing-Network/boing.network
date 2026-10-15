@@ -953,6 +953,19 @@ export {
   removeBoingPoolLiquidity,
   swapBoingPool,
 } from './boingPool.js';
+export {
+  BOING_CUSTODY_ROUTER_SELECTOR_SWAP,
+  BOING_CUSTODY_ROUTER_MAX_HOPS,
+  BOING_CUSTODY_ROUTER_BYTECODE_HEX,
+  encodeBoingCustodyRouterSwapCalldata,
+  checkBoingRoutePath,
+  boingRouteHop,
+  buildBoingCustodyRouterDeployTransaction,
+  buildBoingCustodyRouterSwapTransaction,
+  quoteBoingRoute,
+  routeBoingSwap,
+} from './boingRouter.js';
+export type { BoingRouteHop } from './boingRouter.js';
 export type {
   BoingPoolVersion,
   BoingPoolState,

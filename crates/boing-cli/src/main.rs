@@ -11,6 +11,7 @@ mod init;
 mod metrics_register;
 mod pool;
 mod qa_apply;
+mod router;
 mod token;
 
 #[derive(Parser)]
@@ -173,7 +174,7 @@ enum TokenCommands {
 enum PoolCommands {
     /// Deploy a native CP pool template (purpose `dapp`); optionally set tokens / fee admin / fee
     Create {
-        /// Template version v1..v8 (v8 = token-pulling custody; v7 = ledger-only)
+        /// Template version v1..v9 (v8 = token-pulling custody; v9 = v8 + swap returns amount_out; v7 = ledger-only)
         #[arg(long, default_value = "v8")]
         version: pool::PoolVersion,
         /// Reference-token contract for side A (token-hook versions v2, v4..v8; required for v8)
@@ -311,6 +312,41 @@ enum PoolCommands {
     Bytecode {
         #[arg(long, default_value = "v8")]
         version: pool::PoolVersion,
+    },
+    /// Deploy the custody router v1 (pulls swap input from the signer via transfer_from)
+    RouterDeploy {
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Print custody router bytecode hex
+    RouterBytecode,
+    /// Exact-input swap through 1..=4 v8/v9 pools via the custody router (intermediate hops need v9)
+    Route {
+        #[arg(long)]
+        router: String,
+        /// Hop as POOL:DIRECTION (tokens read from the pool) or POOL:DIRECTION:TOKEN_A:TOKEN_B (offline); repeat in order
+        #[arg(long = "hop", required = true)]
+        hops: Vec<String>,
+        #[arg(long)]
+        amount_in: u128,
+        /// Final min_out (default: chained live quote minus --slippage-bps)
+        #[arg(long)]
+        min_out: Option<u128>,
+        #[arg(long, default_value = "50")]
+        slippage_bps: u128,
+        /// Recipient of the final output (default: signer)
+        #[arg(long)]
+        to: Option<String>,
+        #[arg(long = "access-account")]
+        access_accounts: Vec<String>,
+        /// Skip the automatic exact-amount approve of the router
+        #[arg(long)]
+        no_approve: bool,
+        /// Deadline block height (0 = none)
+        #[arg(long, default_value = "0")]
+        deadline_height: u64,
+        #[command(flatten)]
+        signer: SignerArgs,
     },
 }
 #[derive(Subcommand)]
@@ -587,6 +623,40 @@ async fn main() -> anyhow::Result<()> {
                 PoolCommands::Bytecode { version } => {
                     pool::print_bytecode(version);
                     Ok(())
+                }
+                PoolCommands::RouterDeploy { signer } => router::deploy(rpc, sg(signer)).await,
+                PoolCommands::RouterBytecode => {
+                    router::print_bytecode();
+                    Ok(())
+                }
+                PoolCommands::Route {
+                    router: r,
+                    hops,
+                    amount_in,
+                    min_out,
+                    slippage_bps,
+                    to,
+                    access_accounts,
+                    no_approve,
+                    deadline_height,
+                    signer,
+                } => {
+                    router::route(
+                        rpc,
+                        sg(signer),
+                        router::RouteArgs {
+                            router: r,
+                            hops,
+                            amount_in,
+                            min_out,
+                            slippage_bps,
+                            to,
+                            extra: access_accounts,
+                            no_approve,
+                            deadline: deadline_height,
+                        },
+                    )
+                    .await
                 }
             }
         }
