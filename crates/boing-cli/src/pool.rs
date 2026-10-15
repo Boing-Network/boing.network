@@ -11,7 +11,8 @@
 //! trusted/demo liquidity; see `docs/NATIVE-AMM-CLI.md` (custody gap + proposed v8 design).
 
 use crate::token::{
-    account_of, hex_account, nonce_for, parse_account, resolve_signing_key, rpc, submit,
+    account_of, build_approve_tx, hex_account, nonce_for, parse_account, resolve_signing_key, rpc,
+    submit,
 };
 use boing_execution::{
     constant_product_amount_out_after_fee_with_bps,
@@ -19,10 +20,13 @@ use boing_execution::{
     constant_product_pool_bytecode_v2, constant_product_pool_bytecode_v3,
     constant_product_pool_bytecode_v4, constant_product_pool_bytecode_v5,
     constant_product_pool_bytecode_v6, constant_product_pool_bytecode_v7,
-    encode_add_liquidity_calldata, encode_remove_liquidity_calldata, encode_set_fee_admin_calldata,
+    constant_product_pool_bytecode_v8, encode_add_liquidity_calldata,
+    encode_remove_liquidity_calldata, encode_set_fee_admin_calldata,
     encode_set_swap_fee_bps_calldata, encode_set_tokens_calldata, encode_swap_calldata,
-    encode_swap_to_calldata, lp_balance_storage_key, reserve_a_key, reserve_b_key,
-    swap_fee_bps_key, token_a_key, token_b_key, total_lp_supply_key, NATIVE_CP_SWAP_FEE_BPS,
+    encode_swap_to_calldata, encode_v8_add_liquidity_calldata, encode_v8_remove_liquidity_calldata,
+    encode_v8_swap_calldata, encode_v8_swap_to_calldata, lp_balance_storage_key, reserve_a_key,
+    reserve_b_key, swap_fee_bps_key, token_a_key, token_b_key, total_lp_supply_key,
+    NATIVE_CP_SWAP_FEE_BPS,
 };
 use boing_primitives::{
     nonce_derived_contract_address, AccessList, AccountId, SignedTransaction, Transaction,
@@ -34,7 +38,7 @@ use serde_json::{json, Value};
 /// QA purpose category for pool deploys (same default as `deploy-native-amm-pool.mjs`).
 pub const POOL_PURPOSE: &str = "dapp";
 
-/// Pool template version (`v1`..`v7`, see `NATIVE-AMM-CALLDATA.md`).
+/// Pool template version (`v1`..`v8`, see `NATIVE-AMM-CALLDATA.md`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PoolVersion(pub u8);
 
@@ -45,11 +49,11 @@ impl std::str::FromStr for PoolVersion {
             .trim()
             .trim_start_matches(['v', 'V'])
             .parse()
-            .map_err(|_| format!("invalid pool version `{s}` (expected v1..v7)"))?;
-        if (1..=7).contains(&n) {
+            .map_err(|_| format!("invalid pool version `{s}` (expected v1..v8)"))?;
+        if (1..=8).contains(&n) {
             Ok(PoolVersion(n))
         } else {
-            Err(format!("invalid pool version `{s}` (expected v1..v7)"))
+            Err(format!("invalid pool version `{s}` (expected v1..v8)"))
         }
     }
 }
@@ -63,12 +67,13 @@ impl PoolVersion {
             4 => constant_product_pool_bytecode_v4(),
             5 => constant_product_pool_bytecode_v5(),
             6 => constant_product_pool_bytecode_v6(),
-            _ => constant_product_pool_bytecode_v7(),
+            7 => constant_product_pool_bytecode_v7(),
+            _ => constant_product_pool_bytecode_v8(),
         }
     }
     /// v2, v4..v7 pay out through reference-token contracts once `set_tokens` ran.
     pub fn has_token_hooks(self) -> bool {
-        matches!(self.0, 2 | 4 | 5 | 6 | 7)
+        matches!(self.0, 2 | 4..=8)
     }
     /// v3..v7 keep the fee in storage (`set_swap_fee_bps`).
     pub fn has_storage_fee(self) -> bool {
@@ -82,9 +87,13 @@ impl PoolVersion {
     pub fn has_recipient_selectors(self) -> bool {
         self.0 >= 5
     }
-    /// v7 applies the fee to the input (Uniswap style); v1..v6 to the output.
+    /// v7/v8 apply the fee to the input (Uniswap style); v1..v6 to the output.
     pub fn fee_on_input(self) -> bool {
-        self.0 == 7
+        self.0 >= 7
+    }
+    /// v8 pulls deposits / swap input with reference-token v2 `transfer_from` (needs `approve`).
+    pub fn pulls_tokens(self) -> bool {
+        self.0 == 8
     }
 }
 
@@ -291,6 +300,39 @@ async fn extras_with_tokens(
     Ok(v)
 }
 
+/// v8-only options shared by add / remove / swap.
+#[derive(Default)]
+pub struct V8Opts {
+    /// Token ids (needed offline; otherwise read from the pool).
+    pub token_a: Option<String>,
+    pub token_b: Option<String>,
+    /// Skip the automatic exact-amount `approve` transaction(s).
+    pub no_approve: bool,
+    /// Deadline block height (`0` = none).
+    pub deadline: u64,
+}
+
+async fn pool_tokens(
+    rpc_url: &str,
+    pool: &AccountId,
+    o: &V8Opts,
+    offline: bool,
+) -> anyhow::Result<(AccountId, AccountId)> {
+    match (&o.token_a, &o.token_b) {
+        (Some(a), Some(b)) => Ok((parse_account(a)?, parse_account(b)?)),
+        (None, None) if !offline => {
+            let a = AccountId(read_word(rpc_url, pool, token_a_key()).await?);
+            let b = AccountId(read_word(rpc_url, pool, token_b_key()).await?);
+            if a.0 == [0u8; 32] || b.0 == [0u8; 32] {
+                anyhow::bail!("pool has no tokens configured (is it really v8? pass --version)");
+            }
+            Ok((a, b))
+        }
+        (None, None) => anyhow::bail!("offline v8 dry-run needs --token-a and --token-b"),
+        _ => anyhow::bail!("pass both --token-a and --token-b (or neither)"),
+    }
+}
+
 // --- commands ---
 
 pub struct Signer {
@@ -323,7 +365,7 @@ pub async fn create(rpc_url: &str, s: Signer, a: CreateArgs) -> anyhow::Result<(
         (Some(x), Some(y)) => {
             if !v.has_token_hooks() {
                 anyhow::bail!(
-                    "pool v{} has no token hooks; use v2 or v4..v7 with --token-a/--token-b",
+                    "pool v{} has no token hooks; use v2 or v4..v8 with --token-a/--token-b",
                     v.0
                 );
             }
@@ -331,10 +373,13 @@ pub async fn create(rpc_url: &str, s: Signer, a: CreateArgs) -> anyhow::Result<(
         }
         _ => anyhow::bail!("pass both --token-a and --token-b (or neither)"),
     };
+    if v.pulls_tokens() && tokens.is_none() {
+        anyhow::bail!("pool v8 needs --token-a and --token-b (reference fungible v2 tokens)");
+    }
     if let Some(f) = a.fee_bps {
         if !v.has_storage_fee() {
             anyhow::bail!(
-                "pool v{} has a fixed 30 bps fee; --fee-bps needs v3..v7",
+                "pool v{} has a fixed 30 bps fee; --fee-bps needs v3..v8",
                 v.0
             );
         }
@@ -344,7 +389,7 @@ pub async fn create(rpc_url: &str, s: Signer, a: CreateArgs) -> anyhow::Result<(
     }
     let admin = match &a.fee_admin {
         Some(x) if !v.has_fee_admin() => {
-            anyhow::bail!("--fee-admin needs v6 or v7 (got v{}; {x})", v.0)
+            anyhow::bail!("--fee-admin needs v6..v8 (got v{}; {x})", v.0)
         }
         Some(x) => Some(parse_account(x)?),
         None => None,
@@ -379,10 +424,15 @@ pub async fn create(rpc_url: &str, s: Signer, a: CreateArgs) -> anyhow::Result<(
         let tx = build_pool_call_tx(&key, n, pool, encode_set_swap_fee_bps_calldata(f), &[]);
         submit(rpc_url, &tx, s.dry_run).await?;
     }
-    println!("Note: v1..v7 pools are ledger-only on deposits (no token pull). See docs/NATIVE-AMM-CLI.md.");
+    if v.pulls_tokens() {
+        println!("Note: v8 pulls deposits/swap input via transfer_from; tokens must be reference fungible v2.");
+    } else {
+        println!("Note: v1..v7 pools are ledger-only on deposits (no token pull). See docs/NATIVE-AMM-CLI.md.");
+    }
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn add_liquidity(
     rpc_url: &str,
     s: Signer,
@@ -390,6 +440,8 @@ pub async fn add_liquidity(
     amount_a: u128,
     amount_b: u128,
     min_liquidity: Option<u128>,
+    version: PoolVersion,
+    v8: &V8Opts,
 ) -> anyhow::Result<()> {
     if amount_a == 0 || amount_b == 0 {
         anyhow::bail!("amounts must be > 0");
@@ -398,7 +450,7 @@ pub async fn add_liquidity(
     let pool = parse_account(pool)?;
     let min_lp = min_liquidity.unwrap_or(0);
     if !s.offline() {
-        // min_liquidity is not enforced by v1..v7 bytecode: check it client-side before submitting.
+        // v1..v7 ignore min_liquidity on-chain (v8 enforces it): preview it client-side either way.
         let st = read_state(rpc_url, &pool).await?;
         let lp = quote_lp_minted(st.reserve_a, st.reserve_b, st.total_lp, amount_a, amount_b);
         println!("  expected LP minted {lp}");
@@ -409,7 +461,33 @@ pub async fn add_liquidity(
             anyhow::bail!("expected LP {lp} < --min-liquidity {min_lp}; not submitting");
         }
     }
-    let n = nonce_for(rpc_url, &key, s.nonce).await?;
+    let mut n = nonce_for(rpc_url, &key, s.nonce).await?;
+    if version.pulls_tokens() {
+        let (ta, tb) = pool_tokens(rpc_url, &pool, v8, s.offline()).await?;
+        if !v8.no_approve {
+            println!("approve A {amount_a} and B {amount_b} to the pool");
+            submit(
+                rpc_url,
+                &build_approve_tx(&key, n, ta, pool, amount_a),
+                s.dry_run,
+            )
+            .await?;
+            submit(
+                rpc_url,
+                &build_approve_tx(&key, n + 1, tb, pool, amount_b),
+                s.dry_run,
+            )
+            .await?;
+            n += 2;
+        }
+        let cd = encode_v8_add_liquidity_calldata(amount_a, amount_b, min_lp, v8.deadline);
+        return submit(
+            rpc_url,
+            &build_pool_call_tx(&key, n, pool, cd, &[ta, tb]),
+            s.dry_run,
+        )
+        .await;
+    }
     let tx = build_pool_call_tx(
         &key,
         n,
@@ -431,6 +509,7 @@ pub async fn remove_liquidity(
     min_b: Option<u128>,
     slippage_bps: u128,
     extra: &[String],
+    v8: &V8Opts,
 ) -> anyhow::Result<()> {
     if liquidity == 0 {
         anyhow::bail!("--liquidity must be > 0");
@@ -458,15 +537,20 @@ pub async fn remove_liquidity(
         }
     };
     println!("  min_a {min_a} min_b {min_b}");
-    let extras = extras_with_tokens(rpc_url, &pool_id, version, extra, s.offline()).await?;
+    let (extras, calldata) = if version.pulls_tokens() {
+        let (ta, tb) = pool_tokens(rpc_url, &pool_id, v8, s.offline()).await?;
+        let mut ex = parse_extras(extra)?;
+        ex.extend([ta, tb]);
+        let cd = encode_v8_remove_liquidity_calldata(liquidity, min_a, min_b, v8.deadline);
+        (ex, cd)
+    } else {
+        (
+            extras_with_tokens(rpc_url, &pool_id, version, extra, s.offline()).await?,
+            encode_remove_liquidity_calldata(liquidity, min_a, min_b),
+        )
+    };
     let n = nonce_for(rpc_url, &key, s.nonce).await?;
-    let tx = build_pool_call_tx(
-        &key,
-        n,
-        pool_id,
-        encode_remove_liquidity_calldata(liquidity, min_a, min_b),
-        &extras,
-    );
+    let tx = build_pool_call_tx(&key, n, pool_id, calldata, &extras);
     submit(rpc_url, &tx, s.dry_run).await
 }
 
@@ -482,6 +566,7 @@ pub async fn swap(
     slippage_bps: u128,
     to: Option<String>,
     extra: &[String],
+    v8: &V8Opts,
 ) -> anyhow::Result<()> {
     if amount_in == 0 {
         anyhow::bail!("--amount-in must be > 0");
@@ -517,14 +602,40 @@ pub async fn swap(
     let calldata = match to {
         Some(t) => {
             if !version.has_recipient_selectors() {
-                anyhow::bail!("--to needs pool v5..v7 (swap_to)");
+                anyhow::bail!("--to needs pool v5..v8 (swap_to)");
             }
-            encode_swap_to_calldata(dir, amount_in, min_out, &parse_account(&t)?)
+            let r = parse_account(&t)?;
+            if version.pulls_tokens() {
+                encode_v8_swap_to_calldata(dir, amount_in, min_out, &r, v8.deadline)
+            } else {
+                encode_swap_to_calldata(dir, amount_in, min_out, &r)
+            }
+        }
+        None if version.pulls_tokens() => {
+            encode_v8_swap_calldata(dir, amount_in, min_out, v8.deadline)
         }
         None => encode_swap_calldata(dir, amount_in, min_out),
     };
-    let extras = extras_with_tokens(rpc_url, &pool_id, version, extra, s.offline()).await?;
-    let n = nonce_for(rpc_url, &key, s.nonce).await?;
+    let mut n = nonce_for(rpc_url, &key, s.nonce).await?;
+    let extras = if version.pulls_tokens() {
+        let (ta, tb) = pool_tokens(rpc_url, &pool_id, v8, s.offline()).await?;
+        if !v8.no_approve {
+            let tin = if dir == 0 { ta } else { tb };
+            println!("approve {amount_in} of {} to the pool", hex_account(&tin));
+            submit(
+                rpc_url,
+                &build_approve_tx(&key, n, tin, pool_id, amount_in),
+                s.dry_run,
+            )
+            .await?;
+            n += 1;
+        }
+        let mut ex = parse_extras(extra)?;
+        ex.extend([ta, tb]);
+        ex
+    } else {
+        extras_with_tokens(rpc_url, &pool_id, version, extra, s.offline()).await?
+    };
     submit(
         rpc_url,
         &build_pool_call_tx(&key, n, pool_id, calldata, &extras),
@@ -613,17 +724,26 @@ mod tests {
         ret: Option<Vec<u8>>,
     }
 
-    fn run(state: &mut StateStore, stx: &SignedTransaction) -> Run {
+    fn try_run(state: &mut StateStore, stx: &SignedTransaction) -> Result<Run, String> {
         let TransactionPayload::ContractCall { contract, calldata } = &stx.tx.payload else {
             panic!("expected call");
         };
         let code = state.get_contract_code(contract).expect("code").clone();
-        let mut it = Interpreter::new(code, 5_000_000);
-        it.run(stx.tx.sender, *contract, calldata, state).unwrap();
-        Run {
+        let cp = state.checkpoint();
+        let mut it = Interpreter::new(code, 10_000_000);
+        if let Err(e) = it.run(stx.tx.sender, *contract, calldata, state) {
+            // Like the block executor: a VM fault reverts the whole transaction.
+            state.revert(cp);
+            return Err(format!("{e:?}"));
+        }
+        Ok(Run {
             logs: it.logs.len(),
             ret: it.return_data.clone(),
-        }
+        })
+    }
+
+    fn run(state: &mut StateStore, stx: &SignedTransaction) -> Run {
+        try_run(state, stx).unwrap()
     }
 
     fn word(state: &StateStore, c: &AccountId, k: [u8; 32]) -> u128 {
@@ -659,7 +779,14 @@ mod tests {
     fn version_parsing_and_features() {
         assert_eq!("v7".parse::<PoolVersion>().unwrap(), PoolVersion(7));
         assert_eq!("3".parse::<PoolVersion>().unwrap(), PoolVersion(3));
-        assert!("v8".parse::<PoolVersion>().is_err());
+        assert_eq!("v8".parse::<PoolVersion>().unwrap(), PoolVersion(8));
+        assert!("v9".parse::<PoolVersion>().is_err());
+        assert!(PoolVersion(8).pulls_tokens() && !PoolVersion(7).pulls_tokens());
+        assert!(PoolVersion(8).fee_on_input() && PoolVersion(8).has_token_hooks());
+        assert_eq!(
+            PoolVersion(8).bytecode(),
+            constant_product_pool_bytecode_v8()
+        );
         assert!("v0".parse::<PoolVersion>().is_err());
         assert!(PoolVersion(7).fee_on_input() && !PoolVersion(6).fee_on_input());
         assert!(!PoolVersion(3).has_token_hooks() && PoolVersion(4).has_token_hooks());
@@ -945,6 +1072,72 @@ mod tests {
         assert_eq!(bal(&st, &tb, &pool), 200_000 - q);
     }
 
+    /// v8 + reference token v2 through the CLI tx builders: approve -> add pulls, approve -> swap
+    /// pulls, no approve -> rejected, custody: pool token balances == reserves.
+    #[test]
+    fn v8_pool_pulls_tokens_with_v2_approve() {
+        use crate::token::{build_deploy_tx_versioned, TokenVersion};
+        let admin = key(1);
+        let trader = key(3);
+        let (me, tr) = (account_of(&admin), account_of(&trader));
+        let mut st = StateStore::new();
+        let ta = deploy(
+            &mut st,
+            &build_deploy_tx_versioned(&admin, 0, None, None, TokenVersion(2)),
+        );
+        let tb = deploy(
+            &mut st,
+            &build_deploy_tx_versioned(&admin, 1, None, None, TokenVersion(2)),
+        );
+        run(&mut st, &build_mint_tx(&admin, 2, ta, me, 1_000_000));
+        run(&mut st, &build_mint_tx(&admin, 3, tb, me, 1_000_000));
+        let pool = deploy(&mut st, &build_pool_deploy_tx(&admin, 4, PoolVersion(8)));
+        let tok = [ta, tb];
+        run(
+            &mut st,
+            &build_pool_call_tx(&admin, 5, pool, encode_set_tokens_calldata(&ta, &tb), &tok),
+        );
+        let bal = |s: &StateStore, t: &AccountId, w: &AccountId| word(s, t, balance_storage_key(w));
+        // No approval: add is rejected and nothing is credited.
+        let add = encode_v8_add_liquidity_calldata(100_000, 200_000, 1, 0);
+        assert!(try_run(
+            &mut st,
+            &build_pool_call_tx(&admin, 6, pool, add.clone(), &tok)
+        )
+        .is_err());
+        // Approve flow (what `boing pool add-liquidity` submits).
+        run(&mut st, &build_approve_tx(&admin, 6, ta, pool, 100_000));
+        run(&mut st, &build_approve_tx(&admin, 7, tb, pool, 200_000));
+        let r = run(&mut st, &build_pool_call_tx(&admin, 8, pool, add, &tok));
+        assert_eq!(
+            decode_add_liquidity_return_lp_minted(r.ret.as_deref().unwrap()),
+            Some(100_000)
+        );
+        assert_eq!(snap(&st, &pool), (100_000, 200_000, 100_000));
+        assert_eq!(
+            (bal(&st, &ta, &pool), bal(&st, &tb, &pool)),
+            (100_000, 200_000)
+        );
+        assert_eq!(bal(&st, &ta, &me), 900_000);
+        // Trader: fund, approve, swap A->B.
+        run(&mut st, &build_transfer_tx(&admin, 9, ta, tr, 10_000));
+        let q = quote_amount_out(PoolVersion(8), 100_000, 200_000, 5_000, 30).unwrap();
+        let sw = encode_v8_swap_calldata(0, 5_000, q, 0);
+        assert!(try_run(
+            &mut st,
+            &build_pool_call_tx(&trader, 0, pool, sw.clone(), &tok)
+        )
+        .is_err());
+        run(&mut st, &build_approve_tx(&trader, 0, ta, pool, 5_000));
+        run(&mut st, &build_pool_call_tx(&trader, 1, pool, sw, &tok));
+        assert_eq!(bal(&st, &ta, &tr), 5_000);
+        assert_eq!(bal(&st, &tb, &tr), q);
+        let (ra, rb, _) = snap(&st, &pool);
+        assert_eq!((ra, rb), (105_000, 200_000 - q));
+        assert_eq!((bal(&st, &ta, &pool), bal(&st, &tb, &pool)), (ra, rb));
+        assert!(ra * rb >= 100_000 * 200_000);
+    }
+
     /// Cross-check vectors for `boing-sdk` (`tests/boingPool.test.ts`) and the SDK's copy of the
     /// pool template bytecode. Regenerate with `BOING_WRITE_POOL_VECTORS=1 cargo test -p boing-cli`.
     #[test]
@@ -973,13 +1166,30 @@ mod tests {
             "swap": sig(&build_pool_call_tx(&k, 5, pool, encode_swap_calldata(0, 1_000, 3_600), &[tb, ta])),
             "swapTo": sig(&build_pool_call_tx(&k, 6, pool, encode_swap_to_calldata(1, 2_000, 400, &bob), &[ta, tb])),
             "removeLiquidity": sig(&build_pool_call_tx(&k, 7, pool, encode_remove_liquidity_calldata(2_500, 2_000, 9_000), &[ta, tb])),
+            "v8": {
+                "deploy": sig(&build_pool_deploy_tx(&k, 0, PoolVersion(8))),
+                "tokenV2Deploy": sig(&crate::token::build_deploy_tx_versioned(&k, 0, Some("Boing V2".into()), Some("BV2".into()), crate::token::TokenVersion(2))),
+                "approveA": sig(&build_approve_tx(&k, 4, ta, pool, 10_000)),
+                "approveB": sig(&build_approve_tx(&k, 5, tb, pool, 40_000)),
+                "addLiquidity": sig(&build_pool_call_tx(&k, 6, pool, encode_v8_add_liquidity_calldata(10_000, 40_000, 9_000, 0), &[ta, tb])),
+                "addLiquidityDeadline": sig(&build_pool_call_tx(&k, 6, pool, encode_v8_add_liquidity_calldata(10_000, 40_000, 9_000, 123_456), &[ta, tb])),
+                "swap": sig(&build_pool_call_tx(&k, 8, pool, encode_v8_swap_calldata(0, 1_000, 3_600, 777), &[ta, tb])),
+                "swapTo": sig(&build_pool_call_tx(&k, 9, pool, encode_v8_swap_to_calldata(1, 2_000, 400, &bob, 0), &[ta, tb])),
+                "removeLiquidity": sig(&build_pool_call_tx(&k, 10, pool, encode_v8_remove_liquidity_calldata(2_500, 2_000, 9_000, 99), &[ta, tb])),
+                "allowanceKeyHex": format!("0x{}", hex::encode(boing_execution::ref_fungible_allowance_key(&me, &pool))),
+            },
         });
+        let norm_file = |p: &std::path::Path| {
+            std::fs::read_to_string(p)
+                .unwrap_or_default()
+                .replace("\r\n", "\n")
+        };
         let vec_path = root.join("boing-sdk/tests/fixtures/pool-cli-vectors.json");
         let vec_text = format!("{}\n", serde_json::to_string_pretty(&v).unwrap());
         let mut ts = String::from(
-            "// GENERATED by `BOING_WRITE_POOL_VECTORS=1 cargo test -p boing-cli` from\n// boing_execution::constant_product_pool_bytecode{,_v2..v7}. Do not edit.\n\n/** Native constant-product pool template bytecode hex by version (v1..v7). */\nexport const NATIVE_CP_POOL_BYTECODE_HEX: Readonly<Record<1 | 2 | 3 | 4 | 5 | 6 | 7, `0x${string}`>> = {\n",
+            "// GENERATED by `BOING_WRITE_POOL_VECTORS=1 cargo test -p boing-cli` from\n// boing_execution::constant_product_pool_bytecode{,_v2..v8}. Do not edit.\n\n/** Native constant-product pool template bytecode hex by version (v1..v8). */\nexport const NATIVE_CP_POOL_BYTECODE_HEX: Readonly<Record<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8, `0x${string}`>> = {\n",
         );
-        for n in 1..=7u8 {
+        for n in 1..=8u8 {
             ts.push_str(&format!(
                 "  {n}: '0x{}',\n",
                 hex::encode(PoolVersion(n).bytecode())
@@ -987,10 +1197,21 @@ mod tests {
         }
         ts.push_str("};\n");
         let ts_path = root.join("boing-sdk/src/defaultNativeCpPoolBytecodeHex.ts");
+        let tok_ts = format!(
+            "// GENERATED by `BOING_WRITE_POOL_VECTORS=1 cargo test -p boing-cli` from\n// boing_execution::reference_fungible_template_v2_bytecode. Do not edit.\n\n/** Reference fungible template v2 (approve / transfer_from / allowance). */\nexport const DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX: `0x${{string}}` =\n  '0x{}';\n",
+            hex::encode(boing_execution::reference_fungible_template_v2_bytecode())
+        );
+        let tok_path = root.join("boing-sdk/src/defaultReferenceFungibleTemplateV2BytecodeHex.ts");
         if std::env::var("BOING_WRITE_POOL_VECTORS").is_ok() {
             std::fs::write(&vec_path, &vec_text).unwrap();
             std::fs::write(&ts_path, &ts).unwrap();
+            std::fs::write(&tok_path, &tok_ts).unwrap();
         }
+        assert_eq!(
+            norm_file(&tok_path),
+            tok_ts,
+            "defaultReferenceFungibleTemplateV2BytecodeHex.ts out of date"
+        );
         let norm = |s: String| s.replace("\r\n", "\n");
         assert_eq!(
             norm(std::fs::read_to_string(&vec_path).expect("vectors")),

@@ -10,8 +10,9 @@
 //! (same variable the tutorial scripts use). `--dry-run` prints signed tx hex without submitting.
 
 use boing_execution::{
-    encode_mint_first_calldata, encode_transfer_calldata, reference_fungible_template_bytecode,
-    REF_FUNGIBLE_BALANCE_XOR,
+    encode_approve_calldata, encode_mint_first_calldata, encode_transfer_calldata,
+    ref_fungible_allowance_key, reference_fungible_template_bytecode,
+    reference_fungible_template_v2_bytecode, REF_FUNGIBLE_BALANCE_XOR,
 };
 use boing_primitives::{
     nonce_derived_contract_address, AccessList, AccountId, SignedTransaction, Transaction,
@@ -22,6 +23,32 @@ use serde_json::{json, Value};
 
 /// QA purpose category for fungible deploys (`QUALITY-ASSURANCE-NETWORK.md`).
 pub const TOKEN_PURPOSE: &str = "token";
+
+/// Reference fungible template version: `v1` (original) or `v2` (adds approve / transfer_from /
+/// allowance; fixes v1's self-transfer double credit).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TokenVersion(pub u8);
+
+impl std::str::FromStr for TokenVersion {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s.trim().trim_start_matches(['v', 'V']) {
+            "1" => Ok(TokenVersion(1)),
+            "2" => Ok(TokenVersion(2)),
+            _ => Err(format!("invalid token version `{s}` (expected v1 or v2)")),
+        }
+    }
+}
+
+impl TokenVersion {
+    pub fn bytecode(self) -> Vec<u8> {
+        if self.0 == 1 {
+            reference_fungible_template_bytecode()
+        } else {
+            reference_fungible_template_v2_bytecode()
+        }
+    }
+}
 
 pub fn parse_account(s: &str) -> anyhow::Result<AccountId> {
     let b = hex::decode(s.trim().trim_start_matches("0x"))
@@ -91,17 +118,29 @@ fn with_access_list(mut tx: Transaction) -> Transaction {
 }
 
 /// Signed `ContractDeployWithPurposeAndMetadata` for the reference fungible template.
+#[allow(dead_code)] // v1 deploy (tests / back-compat)
 pub fn build_deploy_tx(
     key: &SigningKey,
     nonce: u64,
     name: Option<String>,
     symbol: Option<String>,
 ) -> SignedTransaction {
+    build_deploy_tx_versioned(key, nonce, name, symbol, TokenVersion(1))
+}
+
+/// Deploy tx for the chosen template version.
+pub fn build_deploy_tx_versioned(
+    key: &SigningKey,
+    nonce: u64,
+    name: Option<String>,
+    symbol: Option<String>,
+    version: TokenVersion,
+) -> SignedTransaction {
     let tx = with_access_list(Transaction {
         nonce,
         sender: account_of(key),
         payload: TransactionPayload::ContractDeployWithPurposeAndMetadata {
-            bytecode: reference_fungible_template_bytecode(),
+            bytecode: version.bytecode(),
             purpose_category: TOKEN_PURPOSE.to_string(),
             description_hash: None,
             asset_name: name,
@@ -146,6 +185,17 @@ pub fn build_transfer_tx(
     amount: u128,
 ) -> SignedTransaction {
     build_call_tx(key, nonce, token, encode_transfer_calldata(&to, amount))
+}
+
+/// v2 `approve(spender, amount)` (overwrites the allowance).
+pub fn build_approve_tx(
+    key: &SigningKey,
+    nonce: u64,
+    token: AccountId,
+    spender: AccountId,
+    amount: u128,
+) -> SignedTransaction {
+    build_call_tx(key, nonce, token, encode_approve_calldata(&spender, amount))
 }
 
 pub fn encode_signed(stx: &SignedTransaction) -> anyhow::Result<String> {
@@ -232,16 +282,25 @@ pub async fn deploy(
     mint_to: Option<String>,
     nonce: Option<u64>,
     dry_run: bool,
+    version: TokenVersion,
 ) -> anyhow::Result<()> {
     validate_metadata(&name, &symbol)?;
     let key = resolve_signing_key(secret)?;
     let me = account_of(&key);
     let n = nonce_for(rpc_url, &key, nonce).await?;
     let token = nonce_derived_contract_address(&me, n);
-    println!("Deploying Boing reference fungible token");
+    println!(
+        "Deploying Boing reference fungible token (template v{})",
+        version.0
+    );
     println!("  deployer {}", hex_account(&me));
     println!("  token    {}", hex_account(&token));
-    submit(rpc_url, &build_deploy_tx(&key, n, name, symbol), dry_run).await?;
+    submit(
+        rpc_url,
+        &build_deploy_tx_versioned(&key, n, name, symbol, version),
+        dry_run,
+    )
+    .await?;
     if let Some(supply) = initial_supply.filter(|s| *s > 0) {
         let to = match mint_to {
             Some(s) => parse_account(&s)?,
@@ -320,8 +379,56 @@ pub async fn balance(rpc_url: &str, token: &str, holder: &str) -> anyhow::Result
     Ok(())
 }
 
-pub fn print_bytecode() {
-    println!("0x{}", hex::encode(reference_fungible_template_bytecode()));
+/// `boing token approve` (template v2 only).
+pub async fn approve(
+    rpc_url: &str,
+    secret: Option<String>,
+    token: &str,
+    spender: &str,
+    amount: u128,
+    nonce: Option<u64>,
+    dry_run: bool,
+) -> anyhow::Result<()> {
+    let key = resolve_signing_key(secret)?;
+    let (token, spender) = (parse_account(token)?, parse_account(spender)?);
+    let n = nonce_for(rpc_url, &key, nonce).await?;
+    submit(
+        rpc_url,
+        &build_approve_tx(&key, n, token, spender, amount),
+        dry_run,
+    )
+    .await
+}
+
+/// `boing token allowance` (template v2): read `allowance[owner][spender]` from storage.
+pub async fn allowance(
+    rpc_url: &str,
+    token: &str,
+    owner: &str,
+    spender: &str,
+) -> anyhow::Result<()> {
+    let token = parse_account(token)?;
+    let (owner, spender) = (parse_account(owner)?, parse_account(spender)?);
+    let key = format!(
+        "0x{}",
+        hex::encode(ref_fungible_allowance_key(&owner, &spender))
+    );
+    let r = rpc(
+        rpc_url,
+        "boing_getContractStorage",
+        json!([hex_account(&token), key]),
+    )
+    .await?;
+    let word = r
+        .get("value")
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("unexpected boing_getContractStorage result: {r}"))?;
+    println!("{}", decode_balance_word(word)?);
+    Ok(())
+}
+
+pub fn print_bytecode(version: TokenVersion) {
+    println!("0x{}", hex::encode(version.bytecode()));
 }
 
 #[cfg(test)]
@@ -375,6 +482,48 @@ mod tests {
         let back: SignedTransaction =
             bincode::deserialize(&hex::decode(&hex_tx[2..]).unwrap()).unwrap();
         assert_eq!(back, stx);
+    }
+
+    #[test]
+    fn token_versions_and_v2_approve_allowance() {
+        assert_eq!("v2".parse::<TokenVersion>().unwrap(), TokenVersion(2));
+        assert_eq!("1".parse::<TokenVersion>().unwrap(), TokenVersion(1));
+        assert!("v3".parse::<TokenVersion>().is_err());
+        assert_eq!(
+            TokenVersion(1).bytecode(),
+            reference_fungible_template_bytecode()
+        );
+        assert_eq!(
+            TokenVersion(2).bytecode(),
+            reference_fungible_template_v2_bytecode()
+        );
+        let (k, sp) = (key(1), AccountId([0x0c; 32]));
+        let me = account_of(&k);
+        let mut st = StateStore::new();
+        let stx = build_deploy_tx_versioned(&k, 0, None, Some("V2".into()), TokenVersion(2));
+        let token = nonce_derived_contract_address(&me, 0);
+        st.insert(Account {
+            id: token,
+            state: Default::default(),
+        });
+        let TransactionPayload::ContractDeployWithPurposeAndMetadata { bytecode, .. } =
+            &stx.tx.payload
+        else {
+            panic!("deploy");
+        };
+        st.set_contract_code(token, bytecode.clone());
+        run(&mut st, &build_mint_tx(&k, 1, token, me, 500));
+        run(&mut st, &build_approve_tx(&k, 2, token, sp, 70));
+        let allw = |s: &StateStore| {
+            let w = s.get_contract_storage(&token, &ref_fungible_allowance_key(&me, &sp));
+            decode_balance_word(&hex::encode(w)).unwrap()
+        };
+        assert_eq!(allw(&st), 70);
+        run(&mut st, &build_approve_tx(&k, 3, token, sp, 5));
+        assert_eq!(allw(&st), 5, "approve overwrites");
+        // v2 fixes v1's self-transfer double credit.
+        run(&mut st, &build_transfer_tx(&k, 4, token, me, 100));
+        assert_eq!(bal(&st, &token, &me), 500);
     }
 
     #[test]

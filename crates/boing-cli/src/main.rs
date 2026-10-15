@@ -108,6 +108,9 @@ enum TokenCommands {
         /// Recipient of the initial supply (default: deployer)
         #[arg(long)]
         mint_to: Option<String>,
+        /// Template version: v2 (default; approve/transfer_from) or v1 (original)
+        #[arg(long, default_value = "v2")]
+        version: token::TokenVersion,
         #[command(flatten)]
         signer: SignerArgs,
     },
@@ -140,32 +143,55 @@ enum TokenCommands {
         #[arg(long)]
         holder: String,
     },
+    /// v2: approve `--spender` to pull up to `--amount` (overwrites)
+    Approve {
+        #[arg(long)]
+        token: String,
+        #[arg(long)]
+        spender: String,
+        #[arg(long)]
+        amount: u128,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// v2: read allowance[owner][spender]
+    Allowance {
+        #[arg(long)]
+        token: String,
+        #[arg(long)]
+        owner: String,
+        #[arg(long)]
+        spender: String,
+    },
     /// Print the reference fungible template bytecode hex
-    Bytecode,
+    Bytecode {
+        #[arg(long, default_value = "v2")]
+        version: token::TokenVersion,
+    },
 }
 #[derive(Subcommand)]
 enum PoolCommands {
     /// Deploy a native CP pool template (purpose `dapp`); optionally set tokens / fee admin / fee
     Create {
-        /// Template version v1..v7 (v7 = fee-on-input, fee admin, swap_to, token hooks)
-        #[arg(long, default_value = "v7")]
+        /// Template version v1..v8 (v8 = token-pulling custody; v7 = ledger-only)
+        #[arg(long, default_value = "v8")]
         version: pool::PoolVersion,
-        /// Reference-token contract for side A (token-hook versions v2, v4..v7)
+        /// Reference-token contract for side A (token-hook versions v2, v4..v8; required for v8)
         #[arg(long)]
         token_a: Option<String>,
         /// Reference-token contract for side B
         #[arg(long)]
         token_b: Option<String>,
-        /// Swap fee in bps, 1..=10000 (v3..v7; default 30 set on first add-liquidity)
+        /// Swap fee in bps, 1..=10000 (v3..v8; default 30 set on first add-liquidity)
         #[arg(long)]
         fee_bps: Option<u128>,
-        /// Fee admin allowed to change the fee after liquidity exists (v6/v7)
+        /// Fee admin allowed to change the fee after liquidity exists (v6..v8)
         #[arg(long)]
         fee_admin: Option<String>,
         #[command(flatten)]
         signer: SignerArgs,
     },
-    /// add_liquidity (ledger-only deposit); checks expected LP against --min-liquidity first
+    /// add_liquidity (v8 pulls tokens after auto-approve; v1..v7 ledger-only); checks expected LP against --min-liquidity first
     AddLiquidity {
         #[arg(long)]
         pool: String,
@@ -176,6 +202,19 @@ enum PoolCommands {
         /// Refuse to submit if expected LP minted is below this (checked client-side)
         #[arg(long)]
         min_liquidity: Option<u128>,
+        #[arg(long, default_value = "v8")]
+        version: pool::PoolVersion,
+        /// v8: token ids (default: read from the pool; required offline)
+        #[arg(long)]
+        token_a: Option<String>,
+        #[arg(long)]
+        token_b: Option<String>,
+        /// v8: skip the automatic exact-amount approve tx(s) (approve yourself first)
+        #[arg(long)]
+        no_approve: bool,
+        /// v8: deadline block height (0 = none)
+        #[arg(long, default_value = "0")]
+        deadline_height: u64,
         #[command(flatten)]
         signer: SignerArgs,
     },
@@ -183,7 +222,7 @@ enum PoolCommands {
     RemoveLiquidity {
         #[arg(long)]
         pool: String,
-        #[arg(long, default_value = "v7")]
+        #[arg(long, default_value = "v8")]
         version: pool::PoolVersion,
         /// LP amount to burn
         #[arg(long)]
@@ -198,6 +237,17 @@ enum PoolCommands {
         /// Extra account ids for the access list (repeatable)
         #[arg(long = "access-account")]
         access_accounts: Vec<String>,
+        /// v8: token ids (default: read from the pool; required offline)
+        #[arg(long)]
+        token_a: Option<String>,
+        #[arg(long)]
+        token_b: Option<String>,
+        /// v8: skip the automatic exact-amount approve tx(s) (approve yourself first)
+        #[arg(long)]
+        no_approve: bool,
+        /// v8: deadline block height (0 = none)
+        #[arg(long, default_value = "0")]
+        deadline_height: u64,
         #[command(flatten)]
         signer: SignerArgs,
     },
@@ -205,7 +255,7 @@ enum PoolCommands {
     Swap {
         #[arg(long)]
         pool: String,
-        #[arg(long, default_value = "v7")]
+        #[arg(long, default_value = "v8")]
         version: pool::PoolVersion,
         /// a-to-b or b-to-a
         #[arg(long)]
@@ -216,11 +266,22 @@ enum PoolCommands {
         min_out: Option<u128>,
         #[arg(long, default_value = "50")]
         slippage_bps: u128,
-        /// Recipient of token payout (swap_to, v5..v7)
+        /// Recipient of token payout (swap_to, v5..v8)
         #[arg(long)]
         to: Option<String>,
         #[arg(long = "access-account")]
         access_accounts: Vec<String>,
+        /// v8: token ids (default: read from the pool; required offline)
+        #[arg(long)]
+        token_a: Option<String>,
+        #[arg(long)]
+        token_b: Option<String>,
+        /// v8: skip the automatic exact-amount approve tx(s) (approve yourself first)
+        #[arg(long)]
+        no_approve: bool,
+        /// v8: deadline block height (0 = none)
+        #[arg(long, default_value = "0")]
+        deadline_height: u64,
         #[command(flatten)]
         signer: SignerArgs,
     },
@@ -228,7 +289,7 @@ enum PoolCommands {
     Quote {
         #[arg(long)]
         pool: String,
-        #[arg(long, default_value = "v7")]
+        #[arg(long, default_value = "v8")]
         version: pool::PoolVersion,
         #[arg(long)]
         direction: String,
@@ -241,14 +302,14 @@ enum PoolCommands {
     Reserves {
         #[arg(long)]
         pool: String,
-        #[arg(long, default_value = "v7")]
+        #[arg(long, default_value = "v8")]
         version: pool::PoolVersion,
         #[arg(long)]
         holder: Option<String>,
     },
     /// Print pool template bytecode hex
     Bytecode {
-        #[arg(long, default_value = "v7")]
+        #[arg(long, default_value = "v8")]
         version: pool::PoolVersion,
     },
 }
@@ -302,6 +363,7 @@ async fn main() -> anyhow::Result<()> {
                 symbol,
                 initial_supply,
                 mint_to,
+                version,
                 signer,
             } => {
                 token::deploy(
@@ -313,6 +375,7 @@ async fn main() -> anyhow::Result<()> {
                     mint_to,
                     signer.nonce,
                     signer.dry_run,
+                    version,
                 )
                 .await
             }
@@ -353,8 +416,30 @@ async fn main() -> anyhow::Result<()> {
             TokenCommands::Balance { token: t, holder } => {
                 token::balance(&cli.rpc_url, &t, &holder).await
             }
-            TokenCommands::Bytecode => {
-                token::print_bytecode();
+            TokenCommands::Approve {
+                token: t,
+                spender,
+                amount,
+                signer,
+            } => {
+                token::approve(
+                    &cli.rpc_url,
+                    signer.secret_hex,
+                    &t,
+                    &spender,
+                    amount,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
+            }
+            TokenCommands::Allowance {
+                token: t,
+                owner,
+                spender,
+            } => token::allowance(&cli.rpc_url, &t, &owner, &spender).await,
+            TokenCommands::Bytecode { version } => {
+                token::print_bytecode(version);
                 Ok(())
             }
         },
@@ -392,10 +477,30 @@ async fn main() -> anyhow::Result<()> {
                     amount_a,
                     amount_b,
                     min_liquidity,
+                    version,
+                    token_a,
+                    token_b,
+                    no_approve,
+                    deadline_height,
                     signer,
                 } => {
-                    pool::add_liquidity(rpc, sg(signer), &p, amount_a, amount_b, min_liquidity)
-                        .await
+                    let o = pool::V8Opts {
+                        token_a,
+                        token_b,
+                        no_approve,
+                        deadline: deadline_height,
+                    };
+                    pool::add_liquidity(
+                        rpc,
+                        sg(signer),
+                        &p,
+                        amount_a,
+                        amount_b,
+                        min_liquidity,
+                        version,
+                        &o,
+                    )
+                    .await
                 }
                 PoolCommands::RemoveLiquidity {
                     pool: p,
@@ -405,8 +510,18 @@ async fn main() -> anyhow::Result<()> {
                     min_b,
                     slippage_bps,
                     access_accounts,
+                    token_a,
+                    token_b,
+                    no_approve,
+                    deadline_height,
                     signer,
                 } => {
+                    let o = pool::V8Opts {
+                        token_a,
+                        token_b,
+                        no_approve,
+                        deadline: deadline_height,
+                    };
                     pool::remove_liquidity(
                         rpc,
                         sg(signer),
@@ -417,6 +532,7 @@ async fn main() -> anyhow::Result<()> {
                         min_b,
                         slippage_bps,
                         &access_accounts,
+                        &o,
                     )
                     .await
                 }
@@ -429,8 +545,18 @@ async fn main() -> anyhow::Result<()> {
                     slippage_bps,
                     to,
                     access_accounts,
+                    token_a,
+                    token_b,
+                    no_approve,
+                    deadline_height,
                     signer,
                 } => {
+                    let o = pool::V8Opts {
+                        token_a,
+                        token_b,
+                        no_approve,
+                        deadline: deadline_height,
+                    };
                     pool::swap(
                         rpc,
                         sg(signer),
@@ -442,6 +568,7 @@ async fn main() -> anyhow::Result<()> {
                         slippage_bps,
                         to,
                         &access_accounts,
+                        &o,
                     )
                     .await
                 }
