@@ -18,8 +18,6 @@ primary_region = "iad"
   BOING_CHAIN_DISPLAY_NAME = "Boing Testnet"
   BOING_EXPLORER_URL = "https://boing.observer"
   BOING_FAUCET_URL = "https://boing.network/faucet"
-# testnet USDC / BOING token v2 are whole-unit (listDexPools otherwise defaults unknown tokens to 18)
-BOING_DEX_TOKEN_DECIMALS_JSON = '{"0x6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93":0,"0x6fce9d3e3f13df9fc17e3fd947148a4e6ce6966538b7dd9bf2a891d3b9699c6b":0}'
   BOING_DATA_DIR = "/data"
   BOING_P2P_LISTEN = "/ip4/0.0.0.0/tcp/4001"
   BOING_RPC_PORT = "8545"
@@ -28,7 +26,7 @@ BOING_DEX_TOKEN_DECIMALS_JSON = '{"0x6676f971ade3982406efa3e2cdb0477923f8f2a1562
   BOING_RATE_PROFILE = "dev"
   BOING_DEX_TOKEN_METADATA_SCAN_BLOCKS = "8192"
   BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS = "500000"
-  BOING_DEX_TOKEN_DECIMALS_JSON = "{}"
+  BOING_DEX_TOKEN_DECIMALS_JSON = '{"0x6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93":0,"0x6fce9d3e3f13df9fc17e3fd947148a4e6ce6966538b7dd9bf2a891d3b9699c6b":0}'  # testnet USDC / BOING token v2 are whole-unit
   BOING_RPC_CORS_EXTRA_ORIGINS = "https://boing.network,https://www.boing.network,https://boing.observer,https://boing.express,https://boing.finance,http://localhost:3000,http://localhost:5173,http://localhost:9999"
 
 [http_service]
