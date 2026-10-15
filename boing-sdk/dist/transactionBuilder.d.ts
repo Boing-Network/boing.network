@@ -33,6 +33,48 @@ export interface BuildContractCallInput {
     };
 }
 export declare function buildContractCallTransaction(input: BuildContractCallInput): TransactionInput;
+/** One step of {@link buildBatchTransaction} (hex addresses). */
+export type BuildBatchCall = {
+    kind: 'transfer';
+    toHex: string;
+    amount: bigint;
+} | {
+    kind: 'contractCall';
+    contractHex: string;
+    calldata: Uint8Array;
+};
+export interface BuildBatchInput {
+    nonce: bigint;
+    senderHex: string;
+    /** 1..MAX_BATCH_CALLS steps, applied in order; any failure reverts all of them. */
+    calls: BuildBatchCall[];
+    /** Defaults to sender + every recipient / contract (read and write). */
+    accessList?: {
+        read: string[];
+        write: string[];
+    };
+}
+/**
+ * Native atomic batch (`TransactionPayload::Batch`): BOING transfers and/or contract calls
+ * (e.g. token `transfer`, NFT transfer calldata) under one signature and one nonce.
+ * Requires nodes running the batch-capable release.
+ */
+export declare function buildBatchTransaction(input: BuildBatchInput): TransactionInput;
+/**
+ * `true` when `boing_health.rpc_surface` advertises native batch support. Older nodes omit the
+ * flag (→ `false`), so callers should fall back to sequential transfers.
+ */
+export declare function nodeSupportsNativeBatch(health: {
+    rpc_surface?: {
+        tx_payload_batch?: boolean;
+    } | null;
+} | null | undefined): boolean;
+/** Batch step cap advertised by the node, else the protocol default (16). */
+export declare function nodeBatchMaxCalls(health: {
+    rpc_surface?: {
+        tx_batch_max_calls?: number;
+    } | null;
+} | null | undefined): number;
 export interface BuildDeployWithPurposeInput {
     nonce: bigint;
     senderHex: string;

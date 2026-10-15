@@ -508,6 +508,8 @@ export {
   buildContractCallTransaction,
   buildDeployWithPurposeTransaction,
   buildBatchTransaction,
+  nodeSupportsNativeBatch,
+  nodeBatchMaxCalls,
   fetchNextNonce,
   senderHexFromSecretKey,
   signTransactionInput,

@@ -65,3 +65,15 @@ describe('native batch payload (TransactionPayload::Batch)', () => {
     expect(tx.accessList.read).toHaveLength(3);
   });
 });
+
+import { nodeBatchMaxCalls, nodeSupportsNativeBatch } from '../src/transactionBuilder.js';
+
+describe('batch capability detection', () => {
+  it('reads boing_health.rpc_surface', () => {
+    expect(nodeSupportsNativeBatch({ rpc_surface: { tx_payload_batch: true } })).toBe(true);
+    expect(nodeSupportsNativeBatch({ rpc_surface: {} })).toBe(false);
+    expect(nodeSupportsNativeBatch(null)).toBe(false);
+    expect(nodeBatchMaxCalls({ rpc_surface: { tx_batch_max_calls: 8 } })).toBe(8);
+    expect(nodeBatchMaxCalls({})).toBe(16);
+  });
+});

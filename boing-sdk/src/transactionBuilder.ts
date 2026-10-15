@@ -6,6 +6,7 @@
 import * as ed25519 from '@noble/ed25519';
 import type { BoingClient } from './client.js';
 import {
+  MAX_BATCH_CALLS,
   validateBatchCalls,
   type BatchCallInput,
   encodeSignedTransaction,
@@ -132,6 +133,24 @@ export function buildBatchTransaction(input: BuildBatchInput): TransactionInput 
     payload: { kind: 'batch', calls },
     accessList: { read: accountVec(read), write: accountVec(write) },
   };
+}
+
+/**
+ * `true` when `boing_health.rpc_surface` advertises native batch support. Older nodes omit the
+ * flag (→ `false`), so callers should fall back to sequential transfers.
+ */
+export function nodeSupportsNativeBatch(
+  health: { rpc_surface?: { tx_payload_batch?: boolean } | null } | null | undefined,
+): boolean {
+  return health?.rpc_surface?.tx_payload_batch === true;
+}
+
+/** Batch step cap advertised by the node, else the protocol default (16). */
+export function nodeBatchMaxCalls(
+  health: { rpc_surface?: { tx_batch_max_calls?: number } | null } | null | undefined,
+): number {
+  const n = health?.rpc_surface?.tx_batch_max_calls;
+  return typeof n === 'number' && n > 0 ? Math.min(n, MAX_BATCH_CALLS) : MAX_BATCH_CALLS;
 }
 
 export interface BuildDeployWithPurposeInput {

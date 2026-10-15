@@ -14,7 +14,29 @@ export declare const PayloadVariant: {
     readonly Unbond: 6;
     readonly ClaimUnbond: 7;
     readonly QaPoolVote: 8;
+    /** Atomic batch of transfers / contract calls under one signature + nonce (node ≥ batch release). */
+    readonly Batch: 9;
 };
+/** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
+export declare const BatchCallVariant: {
+    readonly Transfer: 0;
+    readonly ContractCall: 1;
+};
+/** Protocol cap on steps in one batch (`boing_primitives::MAX_BATCH_CALLS`). */
+export declare const MAX_BATCH_CALLS = 16;
+/** Protocol cap on summed contract-call calldata in one batch (`MAX_BATCH_CALLDATA_BYTES`). */
+export declare const MAX_BATCH_CALLDATA_BYTES: number;
+export type BatchCallInput = {
+    kind: 'transfer';
+    to: Uint8Array;
+    amount: bigint;
+} | {
+    kind: 'contractCall';
+    contract: Uint8Array;
+    calldata: Uint8Array;
+};
+/** Throws with the same reasons the node uses (`BatchValidationError`). */
+export declare function validateBatchCalls(calls: BatchCallInput[]): void;
 export declare function concatBytes(...parts: Uint8Array[]): Uint8Array;
 export declare function writeU32Le(n: number): Uint8Array;
 export declare function writeU64Le(n: bigint): Uint8Array;
@@ -69,6 +91,9 @@ export type TransactionPayloadInput = {
     kind: 'qaPoolVote';
     subject: Uint8Array;
     vote: 'allow' | 'reject' | 'abstain';
+} | {
+    kind: 'batch';
+    calls: BatchCallInput[];
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

@@ -19,6 +19,12 @@ export interface BoingHealthRpcSurface {
     get_logs_max_results: number;
     /** Max topic filter entries for `boing_getLogs`. */
     max_log_topic_filters: number;
+    /** `true` when the node accepts native atomic batch txs (`TransactionPayload::Batch`). Absent on older nodes. */
+    tx_payload_batch?: boolean;
+    /** Max steps per batch tx (absent on nodes without batch support). */
+    tx_batch_max_calls?: number;
+    /** Max summed calldata bytes per batch tx. */
+    tx_batch_max_calldata_bytes?: number;
 }
 /** Cumulative counters since node process start (`boing_health.rpc_metrics`). */
 export interface BoingRpcMetrics {
