@@ -6,9 +6,10 @@ use clap::{CommandFactory, Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod deploy;
-mod init;
 mod dev;
+mod init;
 mod metrics_register;
+mod pool;
 mod qa_apply;
 mod token;
 
@@ -56,6 +57,9 @@ enum Commands {
     /// Boing-native fungible token: deploy / mint / transfer / balance (reference template)
     #[command(subcommand)]
     Token(TokenCommands),
+    /// Boing-native constant-product AMM pool: create / add / remove / swap / quote / reserves
+    #[command(subcommand)]
+    Pool(PoolCommands),
     /// Generate shell completion script (bash, zsh, fish, powershell)
     Completions {
         /// Shell: bash, zsh, fish, powershell, elvish
@@ -138,6 +142,115 @@ enum TokenCommands {
     },
     /// Print the reference fungible template bytecode hex
     Bytecode,
+}
+#[derive(Subcommand)]
+enum PoolCommands {
+    /// Deploy a native CP pool template (purpose `dapp`); optionally set tokens / fee admin / fee
+    Create {
+        /// Template version v1..v7 (v7 = fee-on-input, fee admin, swap_to, token hooks)
+        #[arg(long, default_value = "v7")]
+        version: pool::PoolVersion,
+        /// Reference-token contract for side A (token-hook versions v2, v4..v7)
+        #[arg(long)]
+        token_a: Option<String>,
+        /// Reference-token contract for side B
+        #[arg(long)]
+        token_b: Option<String>,
+        /// Swap fee in bps, 1..=10000 (v3..v7; default 30 set on first add-liquidity)
+        #[arg(long)]
+        fee_bps: Option<u128>,
+        /// Fee admin allowed to change the fee after liquidity exists (v6/v7)
+        #[arg(long)]
+        fee_admin: Option<String>,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// add_liquidity (ledger-only deposit); checks expected LP against --min-liquidity first
+    AddLiquidity {
+        #[arg(long)]
+        pool: String,
+        #[arg(long)]
+        amount_a: u128,
+        #[arg(long)]
+        amount_b: u128,
+        /// Refuse to submit if expected LP minted is below this (checked client-side)
+        #[arg(long)]
+        min_liquidity: Option<u128>,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// remove_liquidity: burn LP pro-rata with min_a / min_b slippage guards
+    RemoveLiquidity {
+        #[arg(long)]
+        pool: String,
+        #[arg(long, default_value = "v7")]
+        version: pool::PoolVersion,
+        /// LP amount to burn
+        #[arg(long)]
+        liquidity: u128,
+        #[arg(long)]
+        min_a: Option<u128>,
+        #[arg(long)]
+        min_b: Option<u128>,
+        /// Slippage used to derive min_a / min_b from the pro-rata quote when not given
+        #[arg(long, default_value = "50")]
+        slippage_bps: u128,
+        /// Extra account ids for the access list (repeatable)
+        #[arg(long = "access-account")]
+        access_accounts: Vec<String>,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// swap with on-chain min_out (derived from a live quote and --slippage-bps unless --min-out)
+    Swap {
+        #[arg(long)]
+        pool: String,
+        #[arg(long, default_value = "v7")]
+        version: pool::PoolVersion,
+        /// a-to-b or b-to-a
+        #[arg(long)]
+        direction: String,
+        #[arg(long)]
+        amount_in: u128,
+        #[arg(long)]
+        min_out: Option<u128>,
+        #[arg(long, default_value = "50")]
+        slippage_bps: u128,
+        /// Recipient of token payout (swap_to, v5..v7)
+        #[arg(long)]
+        to: Option<String>,
+        #[arg(long = "access-account")]
+        access_accounts: Vec<String>,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Quote amount_out for a swap from live reserves and fee (read-only)
+    Quote {
+        #[arg(long)]
+        pool: String,
+        #[arg(long, default_value = "v7")]
+        version: pool::PoolVersion,
+        #[arg(long)]
+        direction: String,
+        #[arg(long)]
+        amount_in: u128,
+        #[arg(long, default_value = "50")]
+        slippage_bps: u128,
+    },
+    /// Reserves, total LP, fee, token ids, and optionally a holder's LP balance (read-only)
+    Reserves {
+        #[arg(long)]
+        pool: String,
+        #[arg(long, default_value = "v7")]
+        version: pool::PoolVersion,
+        #[arg(long)]
+        holder: Option<String>,
+    },
+    /// Print pool template bytecode hex
+    Bytecode {
+        #[arg(long, default_value = "v7")]
+        version: pool::PoolVersion,
+    },
 }
 #[derive(Subcommand)]
 enum QaCommands {
@@ -245,6 +358,111 @@ async fn main() -> anyhow::Result<()> {
                 Ok(())
             }
         },
+        Commands::Pool(cmd) => {
+            let sg = |s: SignerArgs| pool::Signer {
+                secret: s.secret_hex,
+                nonce: s.nonce,
+                dry_run: s.dry_run,
+            };
+            let rpc = cli.rpc_url.as_str();
+            match cmd {
+                PoolCommands::Create {
+                    version,
+                    token_a,
+                    token_b,
+                    fee_bps,
+                    fee_admin,
+                    signer,
+                } => {
+                    pool::create(
+                        rpc,
+                        sg(signer),
+                        pool::CreateArgs {
+                            version,
+                            token_a,
+                            token_b,
+                            fee_bps,
+                            fee_admin,
+                        },
+                    )
+                    .await
+                }
+                PoolCommands::AddLiquidity {
+                    pool: p,
+                    amount_a,
+                    amount_b,
+                    min_liquidity,
+                    signer,
+                } => {
+                    pool::add_liquidity(rpc, sg(signer), &p, amount_a, amount_b, min_liquidity)
+                        .await
+                }
+                PoolCommands::RemoveLiquidity {
+                    pool: p,
+                    version,
+                    liquidity,
+                    min_a,
+                    min_b,
+                    slippage_bps,
+                    access_accounts,
+                    signer,
+                } => {
+                    pool::remove_liquidity(
+                        rpc,
+                        sg(signer),
+                        &p,
+                        version,
+                        liquidity,
+                        min_a,
+                        min_b,
+                        slippage_bps,
+                        &access_accounts,
+                    )
+                    .await
+                }
+                PoolCommands::Swap {
+                    pool: p,
+                    version,
+                    direction,
+                    amount_in,
+                    min_out,
+                    slippage_bps,
+                    to,
+                    access_accounts,
+                    signer,
+                } => {
+                    pool::swap(
+                        rpc,
+                        sg(signer),
+                        &p,
+                        version,
+                        &direction,
+                        amount_in,
+                        min_out,
+                        slippage_bps,
+                        to,
+                        &access_accounts,
+                    )
+                    .await
+                }
+                PoolCommands::Quote {
+                    pool: p,
+                    version,
+                    direction,
+                    amount_in,
+                    slippage_bps,
+                } => pool::quote(rpc, &p, version, &direction, amount_in, slippage_bps).await,
+                PoolCommands::Reserves {
+                    pool: p,
+                    version,
+                    holder,
+                } => pool::reserves(rpc, &p, version, holder).await,
+                PoolCommands::Bytecode { version } => {
+                    pool::print_bytecode(version);
+                    Ok(())
+                }
+            }
+        }
         Commands::Completions { shell } => {
             clap_complete::generate(shell, &mut Cli::command(), "boing", &mut std::io::stdout());
             Ok(())

@@ -91,4 +91,7 @@ export { getInjectedEip1193Provider, providerSupportsBoingNativeRpc, boingSendTr
  * @param config - Node URL string (e.g. "http://localhost:8545") or config object (baseUrl, fetch?, timeoutMs?, maxRetries?, …).
  */
 export declare function createClient(config: string | import('./client.js').BoingClientConfig): BoingClient;
+export { BOING_POOL_PURPOSE, BOING_POOL_DEFAULT_VERSION, boingPoolHasTokenHooks, boingPoolHasStorageFee, boingPoolHasFeeAdmin, boingPoolHasRecipientSelectors, boingPoolFeeOnInput, boingPoolBytecodeHex, boingPoolAccessListHex, buildBoingPoolDeployTransaction, buildBoingPoolCallTransaction, boingPoolEffectiveFeeBps, quoteBoingPoolAmountOut, boingPoolMinOutWithSlippage, quoteBoingPoolLpMinted, quoteBoingPoolRemove, getBoingPoolState, getBoingPoolLpBalance, quoteBoingPoolSwap, createBoingPool, addBoingPoolLiquidity, removeBoingPoolLiquidity, swapBoingPool, } from './boingPool.js';
+export type { BoingPoolVersion, BoingPoolState, BoingPoolDirection, BoingPoolSignedTx, BoingPoolSendOptions, CreateBoingPoolInput, } from './boingPool.js';
+export { NATIVE_CP_POOL_BYTECODE_HEX } from './defaultNativeCpPoolBytecodeHex.js';
 //# sourceMappingURL=index.d.ts.map

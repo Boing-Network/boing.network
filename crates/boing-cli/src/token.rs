@@ -174,7 +174,7 @@ pub fn validate_metadata(name: &Option<String>, symbol: &Option<String>) -> anyh
 
 // --- RPC ---
 
-async fn rpc(rpc_url: &str, method: &str, params: Value) -> anyhow::Result<Value> {
+pub(crate) async fn rpc(rpc_url: &str, method: &str, params: Value) -> anyhow::Result<Value> {
     let body = json!({ "jsonrpc": "2.0", "id": 1, "method": method, "params": params });
     let resp = reqwest::Client::new()
         .post(rpc_url)
@@ -194,7 +194,11 @@ async fn fetch_nonce(rpc_url: &str, account: &AccountId) -> anyhow::Result<u64> 
     Ok(r.get("nonce").and_then(Value::as_u64).unwrap_or(0))
 }
 
-async fn submit(rpc_url: &str, stx: &SignedTransaction, dry_run: bool) -> anyhow::Result<()> {
+pub(crate) async fn submit(
+    rpc_url: &str,
+    stx: &SignedTransaction,
+    dry_run: bool,
+) -> anyhow::Result<()> {
     let hex_tx = encode_signed(stx)?;
     let id = format!("0x{}", hex::encode(stx.tx.id().0));
     if dry_run {
@@ -207,7 +211,11 @@ async fn submit(rpc_url: &str, stx: &SignedTransaction, dry_run: bool) -> anyhow
     Ok(())
 }
 
-async fn nonce_for(rpc_url: &str, key: &SigningKey, nonce: Option<u64>) -> anyhow::Result<u64> {
+pub(crate) async fn nonce_for(
+    rpc_url: &str,
+    key: &SigningKey,
+    nonce: Option<u64>,
+) -> anyhow::Result<u64> {
     match nonce {
         Some(n) => Ok(n),
         None => fetch_nonce(rpc_url, &account_of(key)).await,
