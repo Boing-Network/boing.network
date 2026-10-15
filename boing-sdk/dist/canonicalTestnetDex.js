@@ -1,18 +1,18 @@
 /**
- * Last published native DEX aux ids from the **previous** public testnet ledger (chain **6913**).
- * Hosted Fly RPC currently returns null `end_user.canonical_native_*` until ops re-runs
- * `npm run deploy-native-dex-full-stack` and sets `BOING_CANONICAL_NATIVE_*` on the nodes.
+ * Native DEX aux ids on the current public testnet ledger (chain **6913**), verified against
+ * `boing_getNetworkInfo.end_user.canonical_native_*` and the CREATE2 deploy txs (heights 2-8) on 2026-10-15.
+ * Live RPC values always win; these apply only when network info is unavailable.
  *
  * **V1 ledger router** is optional (`BOING_AUX_INCLUDE_LEDGER_V1`).
- * `CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V1_HEX` remains a legacy CREATE2 prediction id — do not assume it is deployed.
+ * `CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V1_HEX` is a legacy CREATE2 prediction id and is **not** deployed on the current ledger.
  */
 import { validateHex32 } from './hex.js';
-export const CANONICAL_BOING_TESTNET_NATIVE_DEX_DEPLOYER_HEX = validateHex32('0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29');
-export const CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX = validateHex32('0x58112627fc84618a27b82e9af82bc9a51761c6d3cca1260c93d56d22b6c481a1');
+export const CANONICAL_BOING_TESTNET_NATIVE_DEX_DEPLOYER_HEX = validateHex32('0x8079f30559c02c5fe087c9ad1bc3b751a29de35992f3f8431734243e825f696e');
+export const CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX = validateHex32('0x7322ccec1ffdbf25d3f60384db0f9a38f8d6121233daccd48d4477d6036aff2a');
 /** Legacy predicted v1 — not deployed on the current testnet-rpc full-stack bundle unless aux includes v1. */
 export const CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V1_HEX = validateHex32('0x371b4cd7e3b88e06e6b89bdc86214918a7e7ec73b62deb7f9975e4166736d54d');
-export const CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V2_HEX = validateHex32('0x33334ff73c44c93335ac5e69938a52ea65fa77b062d1961ed22c131adaa31e0f');
-export const CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V3_HEX = validateHex32('0x2c90ffcddeb2683219b4b8143a91d7b93f249bcb0d9523c8b4f2111de668b79a');
-export const CANONICAL_BOING_TESTNET_NATIVE_DEX_MULTIHOP_SWAP_ROUTER_HEX = validateHex32('0xf801cd1aa5ec402f89a2f394b49e6b0c136264d8945b16a4a6a81a188b18acc1');
-export const CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX = validateHex32('0x937d09ee8e4dcc521c812566ad4930792e74ad004ecb3ae2cc73dc015813aa8d');
-export const CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX = validateHex32('0x101201403f573e5b1d6d5c6b93d52d12c68957f4a228d5dad76e78c747044421');
+export const CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V2_HEX = validateHex32('0xd39d7bb18e986a6e39a69521d9b6f1fe403ff757ee8d409b89f2bcccc4df7980');
+export const CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V3_HEX = validateHex32('0x082a13685fbb69999f2d1378b2f704f3103ae6929b18a87510b513cb790c53c9');
+export const CANONICAL_BOING_TESTNET_NATIVE_DEX_MULTIHOP_SWAP_ROUTER_HEX = validateHex32('0xd8504729900a2d6dc8b8afc7bf24a18dc08732d24a4d2e3555ea5b7f28f3672c');
+export const CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX = validateHex32('0xac7a635931b192f5cff054e9994242f54fbda579a46eba21d9787600971ec90f');
+export const CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX = validateHex32('0x2f460046eb700ff8c7eebe6f4c409465a9111f32210edcc478a2a0de9d0ec2db');

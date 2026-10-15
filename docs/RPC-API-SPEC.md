@@ -500,13 +500,13 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
     "chain_display_name": "Boing Testnet",
     "explorer_url": null,
     "faucet_url": null,
-    "canonical_native_cp_pool": "0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3",
-    "canonical_native_dex_factory": "0x58112627fc84618a27b82e9af82bc9a51761c6d3cca1260c93d56d22b6c481a1",
-    "canonical_native_dex_multihop_swap_router": "0xf801cd1aa5ec402f89a2f394b49e6b0c136264d8945b16a4a6a81a188b18acc1",
-    "canonical_native_dex_ledger_router_v2": "0x33334ff73c44c93335ac5e69938a52ea65fa77b062d1961ed22c131adaa31e0f",
-    "canonical_native_dex_ledger_router_v3": "0x2c90ffcddeb2683219b4b8143a91d7b93f249bcb0d9523c8b4f2111de668b79a",
-    "canonical_native_amm_lp_vault": "0x937d09ee8e4dcc521c812566ad4930792e74ad004ecb3ae2cc73dc015813aa8d",
-    "canonical_native_lp_share_token": "0x101201403f573e5b1d6d5c6b93d52d12c68957f4a228d5dad76e78c747044421"
+    "canonical_native_cp_pool": "0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976",
+    "canonical_native_dex_factory": "0x7322ccec1ffdbf25d3f60384db0f9a38f8d6121233daccd48d4477d6036aff2a",
+    "canonical_native_dex_multihop_swap_router": "0xd8504729900a2d6dc8b8afc7bf24a18dc08732d24a4d2e3555ea5b7f28f3672c",
+    "canonical_native_dex_ledger_router_v2": "0xd39d7bb18e986a6e39a69521d9b6f1fe403ff757ee8d409b89f2bcccc4df7980",
+    "canonical_native_dex_ledger_router_v3": "0x082a13685fbb69999f2d1378b2f704f3103ae6929b18a87510b513cb790c53c9",
+    "canonical_native_amm_lp_vault": "0xac7a635931b192f5cff054e9994242f54fbda579a46eba21d9787600971ec90f",
+    "canonical_native_lp_share_token": "0x2f460046eb700ff8c7eebe6f4c409465a9111f32210edcc478a2a0de9d0ec2db"
   },
   "rpc": {
     "not_available": ["staking_apy"],
@@ -754,7 +754,7 @@ Wallets and dApps still **configure** the pool **`AccountId`** in their own env 
 
 | | |
 |--|--|
-| **Canonical public testnet pool `AccountId`** | **Hosted Fly RPC currently unset** (`end_user.canonical_native_cp_pool` is **`null`** as of 2026-08-24). Historical tunnel-ledger id **`0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3`** (operator-published **2026-05-21**, documented deployer **`0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29`**) is **not** live on this cluster. Read **`boing_getNetworkInfo.end_user`**. After bootstrap, follow [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md). **CREATE2 note:** deployer **`0xc063512f…`** + current-tree bytecode predicts **`0xce4f8193…`** — not the live pool; run **`cargo run -p boing-execution --example verify_canonical_cp_pool_create2_drift`**. |
+| **Canonical public testnet pool `AccountId`** | **Hosted Fly RPC currently unset** (`end_user.canonical_native_cp_pool` is **`null`** as of 2026-08-24). Historical tunnel-ledger id **`0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976`** (operator-published **2026-05-21**, documented deployer **`0x8079f30559c02c5fe087c9ad1bc3b751a29de35992f3f8431734243e825f696e`**) is **not** live on this cluster. Read **`boing_getNetworkInfo.end_user`**. After bootstrap, follow [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md). **CREATE2 note:** deployer **`0xc063512f…`** + current-tree bytecode predicts **`0xce4f8193…`** — not the live pool; run **`cargo run -p boing-execution --example verify_canonical_cp_pool_create2_drift`**. |
 | **boing.finance (separate repo)** | **Source constant:** `frontend/src/config/boingCanonicalTestnetPool.js` → **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**. **Cloudflare Pages / CI build:** **`REACT_APP_BOING_NATIVE_AMM_POOL`** (same 64-hex `AccountId`). Also wire **`nativeConstantProductPool`** (or equivalent in `contracts.js`) for chain **6913**. Redeploy the app after any change to this hex. Optional: depend on npm **`boing-sdk`** and import **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** (mirror of this table — see row below) plus shared RPC helpers / `explainBoingRpcError`. |
 | **boing-sdk** | **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** — exported from [`boing-sdk/src/canonicalTestnet.ts`](../boing-sdk/src/canonicalTestnet.ts); convenience for tutorials and TS apps. **Authoritative** values remain **this spec** and [TESTNET.md](TESTNET.md) §5.3. |
 

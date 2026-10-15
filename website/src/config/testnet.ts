@@ -42,17 +42,17 @@ export const HOSTED_TESTNET_NATIVE_DEX_PUBLISHED = false;
  * Live source of truth: `boing_getNetworkInfo.end_user.canonical_native_cp_pool`.
  */
 export const CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX =
-  '0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3' as const;
+  '0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976' as const;
 
 /**
  * Historical native AMM **LP vault** + **LP share token** (previous full-stack deploy).
  * See docs/NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md Appendix B.
  */
 export const CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX =
-  '0x937d09ee8e4dcc521c812566ad4930792e74ad004ecb3ae2cc73dc015813aa8d' as const;
+  '0xac7a635931b192f5cff054e9994242f54fbda579a46eba21d9787600971ec90f' as const;
 
 export const CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX =
-  '0x101201403f573e5b1d6d5c6b93d52d12c68957f4a228d5dad76e78c747044421' as const;
+  '0x2f460046eb700ff8c7eebe6f4c409465a9111f32210edcc478a2a0de9d0ec2db' as const;
 
 /**
  * Live **linked NFT ↔ fungible token** registry on public testnet (PR #42 / `924c0ba`).

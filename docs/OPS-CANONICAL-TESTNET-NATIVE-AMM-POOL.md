@@ -17,10 +17,10 @@
 
 | Field | Value |
 |-------|--------|
-| **Pool `AccountId`** | `0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3` |
+| **Pool `AccountId`** | `0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976` |
 | **Bytecode** | **v1** constant-product pool (full-stack deploy on public RPC) |
 | **Deploy** | Operator-published id above — **use this hex** for RPC reads, dApp defaults, and **`npm run check-canonical-pool`**. |
-| **Deployer (documented)** | `0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29` |
+| **Deployer (documented)** | `0x8079f30559c02c5fe087c9ad1bc3b751a29de35992f3f8431734243e825f696e` |
 | **Date** | **2026-05-21** (previous public tunnel ledger; **not** currently advertised on hosted Fly `end_user`) |
 | **Verification** | **`npm run check-canonical-pool`** with **`BOING_REQUIRE_NONZERO_RESERVE=1`**; reserves via **`npm run fetch-native-amm-reserves`** with **`BOING_POOL_HEX`**. Deploy record: [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md) **Appendix B**. |
 

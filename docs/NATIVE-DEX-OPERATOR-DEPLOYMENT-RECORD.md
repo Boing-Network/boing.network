@@ -72,6 +72,20 @@ Use **real** reference-token ids for production; synthetic `0xaa…` / `0xbb…`
 - Audit: repo root `npm run audit-native-dex-testnet` ([OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md](OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md) § Verification).
 - **LP vault + share (after deploy):** there is no dedicated “code at address” RPC in the portable surface; treat **successful `deploy-native-dex-lp-aux-contracts`** JSON (**`predictedContractHex`**) plus **`canonical-testnet-dex-predicted.json`** as the source of truth. **Wire the product path:** (1) share token **`set_minter_once`** with minter = vault account, (2) vault **`configure(pool, share_token)`** — see [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md) “End-to-end” and tutorial **`native-lp-share-submit-contract-call`** / **`native-amm-lp-vault-submit-contract-call`**.
 
+## Current public testnet (verified 2026-10-15)
+
+Live `boing_getNetworkInfo.end_user` on `https://testnet-rpc.boing.network`; all deployed via CREATE2 by `0x8079f30559c02c5fe087c9ad1bc3b751a29de35992f3f8431734243e825f696e` at heights 2-8. Appendix A below is an older ledger snapshot kept for history.
+
+| Role | AccountId |
+|------|-----------|
+| CP pool | `0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976` |
+| DEX factory | `0x7322ccec1ffdbf25d3f60384db0f9a38f8d6121233daccd48d4477d6036aff2a` |
+| Multihop swap router | `0xd8504729900a2d6dc8b8afc7bf24a18dc08732d24a4d2e3555ea5b7f28f3672c` |
+| Ledger router v2 | `0xd39d7bb18e986a6e39a69521d9b6f1fe403ff757ee8d409b89f2bcccc4df7980` |
+| Ledger router v3 | `0x082a13685fbb69999f2d1378b2f704f3103ae6929b18a87510b513cb790c53c9` |
+| AMM LP vault | `0xac7a635931b192f5cff054e9994242f54fbda579a46eba21d9787600971ec90f` |
+| LP share token | `0x2f460046eb700ff8c7eebe6f4c409465a9111f32210edcc478a2a0de9d0ec2db` |
+
 ## Appendix A — Example snapshot (public testnet, one operator)
 
 **Not normative.** Illustrates a real path: **pool + directory** used **nonce** deploy (CREATE2 slots busy); **routers** matched **canonical CREATE2** predictions for deployer `0xc063512f…` (same as [`canonical-testnet-dex-predicted.json`](../scripts/canonical-testnet-dex-predicted.json)).
