@@ -2,11 +2,13 @@
 //!
 //! Declared dependencies (access lists) enable deterministic parallel execution.
 
+mod asm;
 mod bytecode;
 mod executor;
 mod gas;
 mod interpreter;
 mod native_amm;
+mod native_amm_v8;
 mod native_dex_factory;
 mod linked_nft_token_registry;
 mod builder_attestation_registry;
@@ -17,6 +19,7 @@ mod native_amm_lp_vault;
 mod parallel;
 pub mod reference_nft;
 pub mod reference_token;
+pub mod reference_token_v2;
 pub mod reference_fungible_secured;
 mod scheduler;
 mod vm;
@@ -138,3 +141,13 @@ pub use vm::{
     VmExecutionResult,
 };
 pub use boing_primitives::{Transaction, AccessList};
+pub use native_amm_v8::{
+    constant_product_pool_bytecode_v8, encode_v8_add_liquidity_calldata, encode_v8_remove_liquidity_calldata,
+    encode_v8_remove_liquidity_to_calldata, encode_v8_swap_calldata, encode_v8_swap_to_calldata,
+    pool_v8_lock_key, NATIVE_CP_POOL_CREATE2_SALT_V8,
+};
+pub use reference_token_v2::{
+    encode_allowance_calldata, encode_approve_calldata, encode_transfer_from_calldata,
+    ref_fungible_allowance_key, reference_fungible_template_v2_bytecode, REF_FUNGIBLE_ALLOWANCE_XOR,
+    SELECTOR_ALLOWANCE, SELECTOR_APPROVE, SELECTOR_TRANSFER_FROM,
+};
