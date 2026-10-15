@@ -2,8 +2,8 @@
 
 use boing_primitives::{
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
-    nonce_derived_contract_address, AccountId, AccountState, ExecutionLog, Hash, QaPoolVoteKind,
-    Transaction, TransactionPayload,
+    nonce_derived_contract_address, validate_batch_calls, AccountId, AccountState, BatchCall,
+    ExecutionLog, Hash, QaPoolVoteKind, Transaction, TransactionPayload,
 };
 use boing_qa::{
     check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaPoolGovernanceConfig,
@@ -22,6 +22,16 @@ pub const GAS_PER_CONTRACT_DEPLOY_INIT: u64 = 5_000_000;
 pub const GAS_PER_CONTRACT_DEPLOY: u64 = 200_000;
 /// Gas for an on-chain [`boing_primitives::TransactionPayload::QaPoolVote`].
 pub const GAS_PER_QA_POOL_VOTE: u64 = base::QA_POOL_VOTE;
+/// Fixed gas for a [`TransactionPayload::Batch`] envelope (signature, nonce, bookkeeping) — same as one transfer.
+pub const GAS_BATCH_BASE: u64 = GAS_PER_TRANSFER;
+/// Gas per native-transfer step inside a batch (cheaper than a standalone transfer: no extra
+/// signature check or nonce bump). 16 transfers ≈ 133k gas vs 336k as separate txs.
+pub const GAS_PER_BATCH_TRANSFER: u64 = 7_000;
+/// Gas per contract-call step inside a batch, on top of the interpreter gas the call consumed.
+pub const GAS_PER_BATCH_CONTRACT_CALL_STEP: u64 = 7_000;
+/// Total interpreter gas shared by **all** contract-call steps of one batch (one call's worth),
+/// so a batch can never consume more VM work than a single `ContractCall`.
+pub const GAS_BATCH_CONTRACT_BUDGET: u64 = GAS_PER_CONTRACT_CALL;
 
 /// Successful VM / tx application outcome (for receipts and simulation).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -264,6 +274,9 @@ impl Vm {
             }
             TransactionPayload::QaPoolVote { subject, vote } => {
                 return self.execute_qa_pool_vote(state, tx, *subject, *vote, exec_ctx);
+            }
+            TransactionPayload::Batch { calls } => {
+                return self.execute_batch(state, tx, calls, exec_ctx);
             }
         };
         Ok(VmExecutionResult {
@@ -529,6 +542,75 @@ impl Vm {
         };
         state.set_contract_code(contract_addr, stored_code);
         Ok(())
+    }
+
+    /// Apply every batch step in order. Any error aborts with `Err`; the block executor reverts the
+    /// whole tx to its checkpoint (all-or-nothing) and consumes the nonce.
+    fn execute_batch(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        calls: &[BatchCall],
+        exec_ctx: VmExecutionContext,
+    ) -> Result<VmExecutionResult, VmError> {
+        validate_batch_calls(calls).map_err(|e| VmError::InvalidBatch(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+
+        let mut gas_used = GAS_BATCH_BASE;
+        let mut vm_budget = GAS_BATCH_CONTRACT_BUDGET;
+        let mut logs = Vec::new();
+        let mut return_data = Vec::new();
+        for (index, call) in calls.iter().enumerate() {
+            let step_err = |e: VmError| VmError::BatchStepFailed {
+                index,
+                reason: e.to_string(),
+            };
+            match call {
+                BatchCall::Transfer { to, amount } => {
+                    let s = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+                    s.balance = s
+                        .balance
+                        .checked_sub(*amount)
+                        .ok_or_else(|| step_err(VmError::InsufficientBalance))?;
+                    match state.get_mut(to) {
+                        Some(r) => r.balance = r.balance.saturating_add(*amount),
+                        None => state.insert(boing_primitives::Account {
+                            id: *to,
+                            state: AccountState {
+                                balance: *amount,
+                                ..Default::default()
+                            },
+                        }),
+                    }
+                    gas_used = gas_used.saturating_add(GAS_PER_BATCH_TRANSFER);
+                }
+                BatchCall::ContractCall { contract, calldata } => {
+                    let code = state
+                        .get_contract_code(contract)
+                        .ok_or_else(|| step_err(VmError::AccountNotFound))?
+                        .clone();
+                    let mut interpreter = Interpreter::new(code, vm_budget);
+                    let g = interpreter
+                        .run_with_qa(tx.sender, *contract, calldata, state, &self.qa_registry, exec_ctx)
+                        .map_err(step_err)?;
+                    vm_budget = vm_budget.saturating_sub(g);
+                    logs.append(&mut interpreter.logs);
+                    return_data = interpreter.return_data.take().unwrap_or_default();
+                    gas_used = gas_used
+                        .saturating_add(GAS_PER_BATCH_CONTRACT_CALL_STEP)
+                        .saturating_add(g);
+                }
+            }
+        }
+        Ok(VmExecutionResult {
+            gas_used,
+            return_data,
+            logs,
+        })
     }
 
     fn execute_contract_call(
@@ -977,6 +1059,10 @@ pub enum VmError {
     Create2NotSupported,
     #[error("CREATE2 init code size is zero")]
     Create2InitCodeEmpty,
+    #[error("Invalid batch: {0}")]
+    InvalidBatch(String),
+    #[error("Batch step {index} failed: {reason} (whole batch reverted)")]
+    BatchStepFailed { index: usize, reason: String },
 }
 
 /// Apply CREATE2-style deploy from inside a contract: QA, address derivation, account insert, optional init, runtime install.

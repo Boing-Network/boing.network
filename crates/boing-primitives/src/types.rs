@@ -131,6 +131,20 @@ impl Transaction {
             TransactionPayload::QaPoolVote { subject, vote } => {
                 format!("QA pool vote {:?} on {}", vote, hex::encode(&subject.0[..8]))
             }
+            TransactionPayload::Batch { calls } => {
+                let steps: Vec<String> = calls
+                    .iter()
+                    .map(|c| match c {
+                        BatchCall::Transfer { to, amount } => {
+                            format!("Transfer {} to {}", amount, hex::encode(&to.0[..8]))
+                        }
+                        BatchCall::ContractCall { contract, .. } => {
+                            format!("Call contract {}", hex::encode(&contract.0[..8]))
+                        }
+                    })
+                    .collect();
+                format!("Batch of {} (atomic): {}", calls.len(), steps.join("; "))
+            }
         };
         if self.payload.deploy_create2_salt().is_some() {
             payload_str = format!("{payload_str} (salt-derived)");
@@ -181,6 +195,19 @@ impl Transaction {
             | TransactionPayload::ClaimUnbond
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
+            }
+            TransactionPayload::Batch { calls } => {
+                let mut ids = vec![self.sender];
+                for c in calls {
+                    let id = match c {
+                        BatchCall::Transfer { to, .. } => *to,
+                        BatchCall::ContractCall { contract, .. } => *contract,
+                    };
+                    if !ids.contains(&id) {
+                        ids.push(id);
+                    }
+                }
+                AccessList::new(ids.clone(), ids)
             }
         }
     }
@@ -238,6 +265,71 @@ pub enum TransactionPayload {
         subject: Hash,
         vote: QaPoolVoteKind,
     },
+    /// Atomic batch: up to [`MAX_BATCH_CALLS`] native transfers and/or contract calls applied in
+    /// order under **one** signature and **one** nonce. If any step fails, the whole batch is
+    /// reverted (the nonce is still consumed, like any failed tx). Appended last so existing
+    /// bincode discriminants stay stable (variant index 9).
+    Batch { calls: Vec<BatchCall> },
+}
+
+/// One step inside [`TransactionPayload::Batch`]. Contract calls run with `CALLER` = tx sender,
+/// so token / NFT `transfer` calldata works exactly as in a standalone `ContractCall`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BatchCall {
+    Transfer { to: AccountId, amount: u128 },
+    ContractCall { contract: AccountId, calldata: Vec<u8> },
+}
+
+/// Maximum steps in one [`TransactionPayload::Batch`].
+pub const MAX_BATCH_CALLS: usize = 16;
+/// Maximum summed calldata bytes across all contract-call steps of one batch.
+pub const MAX_BATCH_CALLDATA_BYTES: usize = 64 * 1024;
+
+/// Structural problems with a [`TransactionPayload::Batch`] (checked at admission and execution).
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+pub enum BatchValidationError {
+    #[error("batch has no calls")]
+    Empty,
+    #[error("batch has {got} calls (max {max})")]
+    TooManyCalls { got: usize, max: usize },
+    #[error("batch calldata is {got} bytes (max {max})")]
+    CalldataTooLarge { got: usize, max: usize },
+    #[error("batch transfer total overflows u128")]
+    AmountOverflow,
+}
+
+/// Validate batch shape: non-empty, at most [`MAX_BATCH_CALLS`], bounded calldata, no u128 overflow.
+pub fn validate_batch_calls(calls: &[BatchCall]) -> Result<(), BatchValidationError> {
+    if calls.is_empty() {
+        return Err(BatchValidationError::Empty);
+    }
+    if calls.len() > MAX_BATCH_CALLS {
+        return Err(BatchValidationError::TooManyCalls {
+            got: calls.len(),
+            max: MAX_BATCH_CALLS,
+        });
+    }
+    let mut calldata = 0usize;
+    let mut total: u128 = 0;
+    for c in calls {
+        match c {
+            BatchCall::Transfer { amount, .. } => {
+                total = total
+                    .checked_add(*amount)
+                    .ok_or(BatchValidationError::AmountOverflow)?;
+            }
+            BatchCall::ContractCall { calldata: d, .. } => {
+                calldata = calldata.saturating_add(d.len());
+            }
+        }
+    }
+    if calldata > MAX_BATCH_CALLDATA_BYTES {
+        return Err(BatchValidationError::CalldataTooLarge {
+            got: calldata,
+            max: MAX_BATCH_CALLDATA_BYTES,
+        });
+    }
+    Ok(())
 }
 
 /// Allow / Reject / Abstain for [`TransactionPayload::QaPoolVote`].
@@ -266,6 +358,30 @@ impl TransactionPayload {
             TransactionPayload::ContractDeployWithPurpose { create2_salt, .. } => *create2_salt,
             TransactionPayload::ContractDeployWithPurposeAndMetadata { create2_salt, .. } => *create2_salt,
             _ => None,
+        }
+    }
+
+    /// Structural check for [`TransactionPayload::Batch`]; `Ok(())` for every other variant.
+    pub fn validate_batch(&self) -> Result<(), BatchValidationError> {
+        match self {
+            TransactionPayload::Batch { calls } => validate_batch_calls(calls),
+            _ => Ok(()),
+        }
+    }
+
+    /// Native BOING moved by this payload (Transfer amount, or sum of batch transfer steps).
+    /// Used by the optional transfer-amount fee so batching cannot dodge it.
+    pub fn native_transfer_total(&self) -> u128 {
+        match self {
+            TransactionPayload::Transfer { amount, .. } => *amount,
+            TransactionPayload::Batch { calls } => calls
+                .iter()
+                .map(|c| match c {
+                    BatchCall::Transfer { amount, .. } => *amount,
+                    BatchCall::ContractCall { .. } => 0,
+                })
+                .fold(0u128, |a, b| a.saturating_add(b)),
+            _ => 0,
         }
     }
 

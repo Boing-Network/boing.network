@@ -27,6 +27,7 @@ pub use types::{
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
     nonce_derived_contract_address, receipt_leaf_hash, receipts_root, tx_root, AccountId, Block,
     BlockHeader, ExecutionLog, ExecutionReceipt, QaPoolVoteKind, Transaction, TransactionPayload, AccessList,
+    validate_batch_calls, BatchCall, BatchValidationError, MAX_BATCH_CALLDATA_BYTES, MAX_BATCH_CALLS,
     CONTRACT_DEPLOY_INIT_CODE_MARKER, MAX_EXECUTION_LOG_DATA_BYTES, MAX_EXECUTION_LOGS_PER_TX,
     MAX_EXECUTION_LOG_TOPICS, MAX_RECEIPT_ERROR_STRING_BYTES, MAX_RECEIPT_RETURN_DATA_BYTES,
 };

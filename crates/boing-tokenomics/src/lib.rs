@@ -205,8 +205,13 @@ pub fn network_fee_amount(
 ) -> u128 {
     let gas_fee = fee_for_gas(gas_used);
     let bps_fee = match payload {
-        TransactionPayload::Transfer { amount, .. } if policy.transfer_amount_bps > 0 => {
-            amount.saturating_mul(policy.transfer_amount_bps as u128) / 10_000
+        TransactionPayload::Transfer { .. } | TransactionPayload::Batch { .. }
+            if policy.transfer_amount_bps > 0 =>
+        {
+            payload
+                .native_transfer_total()
+                .saturating_mul(policy.transfer_amount_bps as u128)
+                / 10_000
         }
         _ => 0,
     };

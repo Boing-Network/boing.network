@@ -671,6 +671,7 @@ name = "boing-execution"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bincode",
  "boing-primitives",
  "boing-qa",
  "boing-state",

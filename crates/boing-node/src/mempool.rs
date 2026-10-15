@@ -112,6 +112,11 @@ impl Mempool {
         signed
             .verify()
             .map_err(|_| MempoolError::InvalidSignature)?;
+        signed
+            .tx
+            .payload
+            .validate_batch()
+            .map_err(MempoolError::InvalidBatch)?;
         if qa_mode != DeployQaMode::Skip {
             if let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) =
                 signed.tx.payload.as_contract_deploy()
@@ -245,6 +250,8 @@ pub enum MempoolError {
     Duplicate,
     #[error("Invalid signature")]
     InvalidSignature,
+    #[error("Invalid batch: {0}")]
+    InvalidBatch(boing_primitives::BatchValidationError),
     #[error("Pending limit exceeded: sender has too many pending txs (max {limit})")]
     PendingLimitExceeded { sender: AccountId, limit: usize },
     #[error("insufficient balance for fee: have {have}, need {need}")]

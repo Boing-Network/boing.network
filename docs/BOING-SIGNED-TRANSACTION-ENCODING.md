@@ -49,6 +49,9 @@ Variant discriminant is **`u32` LE**, in this **exact** declaration order (must 
 | 4 | `ContractDeployWithPurposeAndMetadata` | bytecode vec, purpose string, `description_hash` option, `asset_name: Option<String>`, `asset_symbol: Option<String>`, `create2_salt` |
 | 5 | `Bond` | `amount: u128` |
 | 6 | `Unbond` | `amount: u128` |
+| 7 | `ClaimUnbond` | (none) |
+| 8 | `QaPoolVote` | `subject` (32 B), `vote` (`u32` LE: 0 allow, 1 reject, 2 abstain) |
+| 9 | `Batch` | `calls: Vec<BatchCall>` (`u64` count, then each: `u32` 0 = Transfer `to`+`amount`, 1 = ContractCall `contract`+`calldata` vec). Max 16 calls; see [NATIVE-BATCH-TRANSACTIONS.md](NATIVE-BATCH-TRANSACTIONS.md) |
 
 ### `Vec<u8>`
 
