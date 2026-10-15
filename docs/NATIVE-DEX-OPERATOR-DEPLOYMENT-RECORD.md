@@ -86,6 +86,16 @@ Live `boing_getNetworkInfo.end_user` on `https://testnet-rpc.boing.network`; all
 | AMM LP vault | `0xac7a635931b192f5cff054e9994242f54fbda579a46eba21d9787600971ec90f` |
 | LP share token | `0x2f460046eb700ff8c7eebe6f4c409465a9111f32210edcc478a2a0de9d0ec2db` |
 
+### USDC / BOING-token pair (created 2026-10-15)
+
+Created by the same deployer with `boing token deploy` (v2) and [`scripts/create-canonical-usdc-boing-pool.mjs`](../scripts/create-canonical-usdc-boing-pool.mjs). Tokens are whole-unit (no decimals), fixed supply 1,000,000,000 each. The pool is a **v9** CP pool that holds real token balances; it was seeded 100,000 : 100,000 (fee 30 bps) and registered in the factory (`boing_listDexPools` returns it). The v1 CP pool above is still the pool the ledger routers and LP vault are wired to, and stays `canonical_native_cp_pool`.
+
+| Role | AccountId | Tx |
+|------|-----------|----|
+| Testnet USD Coin (USDC) token v2 | `0x6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93` | deploy `0xdf9024ed…de2e`, mint `0x2d23b6b9…6456` |
+| Boing Token (BOING) token v2 | `0x6fce9d3e3f13df9fc17e3fd947148a4e6ce6966538b7dd9bf2a891d3b9699c6b` | deploy `0x50ea3d7b…c202`, mint `0xeea5ace1…63d3` |
+| USDC/BOING pool v9 | `0x2ad75c2e11b1e93761f4f8df39502deecbe7148324e5a80a951798142b2c5b61` | deploy `0xcf015db3…6ac1`, set_tokens `0x229e741d…81c6`, add_liquidity `0xc1e1c66d…ce64`, register_pair `0x0e57a0e5…7cf3` |
+
 ## Appendix A — Example snapshot (public testnet, one operator)
 
 **Not normative.** Illustrates a real path: **pool + directory** used **nonce** deploy (CREATE2 slots busy); **routers** matched **canonical CREATE2** predictions for deployer `0xc063512f…` (same as [`canonical-testnet-dex-predicted.json`](../scripts/canonical-testnet-dex-predicted.json)).

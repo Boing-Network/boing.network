@@ -41,3 +41,22 @@ export const CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX = validateHex32(
 export const CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX = validateHex32(
   '0x2f460046eb700ff8c7eebe6f4c409465a9111f32210edcc478a2a0de9d0ec2db',
 );
+
+/**
+ * Public-testnet USDC / BOING-token pair (created 2026-10-15, block 94, by the deployer above).
+ * Both tokens are reference fungible **v2** templates with a fixed 1e9 supply (whole units, no decimals);
+ * the pool is a **v9** native CP pool that holds real token balances (`transfer_from` custody), seeded 100k : 100k
+ * and listed in the canonical factory, so it is what `boing_listDexPools` returns.
+ * The v1 ledger-only `canonical_native_cp_pool` stays the pool the ledger routers / LP vault are wired to.
+ */
+export const CANONICAL_BOING_TESTNET_USDC_TOKEN_HEX = validateHex32(
+  '0x6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93',
+);
+
+export const CANONICAL_BOING_TESTNET_BOING_TOKEN_HEX = validateHex32(
+  '0x6fce9d3e3f13df9fc17e3fd947148a4e6ce6966538b7dd9bf2a891d3b9699c6b',
+);
+
+export const CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX = validateHex32(
+  '0x2ad75c2e11b1e93761f4f8df39502deecbe7148324e5a80a951798142b2c5b61',
+);

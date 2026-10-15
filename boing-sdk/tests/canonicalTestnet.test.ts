@@ -12,3 +12,13 @@ describe('canonicalTestnet', () => {
     );
   });
 });
+
+describe('canonicalTestnetDex USDC/BOING pair', () => {
+  it('exports normalized ids for the live USDC / BOING tokens and v9 pool', async () => {
+    const m = await import('../src/index.js');
+    for (const id of [m.CANONICAL_BOING_TESTNET_USDC_TOKEN_HEX, m.CANONICAL_BOING_TESTNET_BOING_TOKEN_HEX, m.CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX]) {
+      expect(validateHex32(id)).toBe(id);
+    }
+    expect(m.CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX).toBe('0x2ad75c2e11b1e93761f4f8df39502deecbe7148324e5a80a951798142b2c5b61');
+  });
+});

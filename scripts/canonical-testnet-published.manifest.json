@@ -8,5 +8,8 @@
   "native_dex_ledger_router_v3": "0x082a13685fbb69999f2d1378b2f704f3103ae6929b18a87510b513cb790c53c9",
   "native_dex_multihop_swap_router": "0xd8504729900a2d6dc8b8afc7bf24a18dc08732d24a4d2e3555ea5b7f28f3672c",
   "native_amm_lp_vault": "0xac7a635931b192f5cff054e9994242f54fbda579a46eba21d9787600971ec90f",
-  "native_lp_share_token": "0x2f460046eb700ff8c7eebe6f4c409465a9111f32210edcc478a2a0de9d0ec2db"
+  "native_lp_share_token": "0x2f460046eb700ff8c7eebe6f4c409465a9111f32210edcc478a2a0de9d0ec2db",
+  "usdc_token_v2": "0x6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93",
+  "boing_token_v2": "0x6fce9d3e3f13df9fc17e3fd947148a4e6ce6966538b7dd9bf2a891d3b9699c6b",
+  "usdc_boing_pool_v9": "0x2ad75c2e11b1e93761f4f8df39502deecbe7148324e5a80a951798142b2c5b61"
 }
