@@ -675,8 +675,8 @@ fn well_known_boing_rpc_document() -> serde_json::Value {
 
 /// Optional 32-byte `AccountId` from env for **`boing_getNetworkInfo.end_user`** (lowercase `0x` + 64 hex).
 /// Malformed values are logged and ignored so a typo does not break JSON-RPC.
-fn env_optional_account_id_hex(var: &'static str) -> Option<String> {
-    let Ok(raw) = std::env::var(var) else {
+fn optional_account_id_hex(var: &'static str, raw: Option<String>) -> Option<String> {
+    let Some(raw) = raw else {
         return None;
     };
     let trimmed = raw.trim();
@@ -699,30 +699,57 @@ fn env_optional_account_id_hex(var: &'static str) -> Option<String> {
 }
 
 fn end_user_network_hints() -> serde_json::Value {
-    let chain_display_name = std::env::var("BOING_CHAIN_DISPLAY_NAME")
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
-    let explorer_url = std::env::var("BOING_EXPLORER_URL")
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
-    let faucet_url = std::env::var("BOING_FAUCET_URL")
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+    end_user_network_hints_from(|k| std::env::var(k).ok())
+}
+
+/// Builds `boing_getNetworkInfo.end_user` from a variable lookup (the process env in production).
+/// Text hints: `BOING_CHAIN_DISPLAY_NAME`, `BOING_EXPLORER_URL`, `BOING_FAUCET_URL` (blank = null).
+fn end_user_network_hints_from(get: impl Fn(&str) -> Option<String>) -> serde_json::Value {
+    let text = |k: &str| get(k).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let acct = |k: &'static str| optional_account_id_hex(k, get(k));
     serde_json::json!({
-        "chain_display_name": chain_display_name,
-        "explorer_url": explorer_url,
-        "faucet_url": faucet_url,
-        "canonical_native_cp_pool": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_CP_POOL"),
-        "canonical_native_dex_factory": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_DEX_FACTORY"),
-        "canonical_native_dex_multihop_swap_router": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_DEX_MULTIHOP_SWAP_ROUTER"),
-        "canonical_native_dex_ledger_router_v2": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_DEX_LEDGER_ROUTER_V2"),
-        "canonical_native_dex_ledger_router_v3": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_DEX_LEDGER_ROUTER_V3"),
-        "canonical_native_amm_lp_vault": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_AMM_LP_VAULT"),
-        "canonical_native_lp_share_token": env_optional_account_id_hex("BOING_CANONICAL_NATIVE_LP_SHARE_TOKEN"),
+        "chain_display_name": text("BOING_CHAIN_DISPLAY_NAME"),
+        "explorer_url": text("BOING_EXPLORER_URL"),
+        "faucet_url": text("BOING_FAUCET_URL"),
+        "canonical_native_cp_pool": acct("BOING_CANONICAL_NATIVE_CP_POOL"),
+        "canonical_native_dex_factory": acct("BOING_CANONICAL_NATIVE_DEX_FACTORY"),
+        "canonical_native_dex_multihop_swap_router": acct("BOING_CANONICAL_NATIVE_DEX_MULTIHOP_SWAP_ROUTER"),
+        "canonical_native_dex_ledger_router_v2": acct("BOING_CANONICAL_NATIVE_DEX_LEDGER_ROUTER_V2"),
+        "canonical_native_dex_ledger_router_v3": acct("BOING_CANONICAL_NATIVE_DEX_LEDGER_ROUTER_V3"),
+        "canonical_native_amm_lp_vault": acct("BOING_CANONICAL_NATIVE_AMM_LP_VAULT"),
+        "canonical_native_lp_share_token": acct("BOING_CANONICAL_NATIVE_LP_SHARE_TOKEN"),
     })
+}
+
+#[cfg(test)]
+mod end_user_hints_tests {
+    use super::end_user_network_hints_from;
+    use std::collections::HashMap;
+
+    #[test]
+    fn urls_and_display_name_come_from_config() {
+        let m: HashMap<&str, &str> = HashMap::from([
+            ("BOING_CHAIN_DISPLAY_NAME", " Boing Testnet "),
+            ("BOING_EXPLORER_URL", "https://boing.observer"),
+            ("BOING_FAUCET_URL", "https://boing.network/faucet"),
+            ("BOING_CANONICAL_NATIVE_CP_POOL", "0X5B60D6F8514D1A8A40340FA354951D778B0821CD3FF7E534D0BEA50F67D38976"),
+            ("BOING_CANONICAL_NATIVE_DEX_FACTORY", "not-hex"),
+        ]);
+        let v = end_user_network_hints_from(|k| m.get(k).map(|s| s.to_string()));
+        assert_eq!(v["chain_display_name"], "Boing Testnet");
+        assert_eq!(v["explorer_url"], "https://boing.observer");
+        assert_eq!(v["faucet_url"], "https://boing.network/faucet");
+        assert_eq!(v["canonical_native_cp_pool"], "0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976");
+        assert!(v["canonical_native_dex_factory"].is_null());
+    }
+
+    #[test]
+    fn unset_or_blank_is_null() {
+        let v = end_user_network_hints_from(|k| (k == "BOING_FAUCET_URL").then(|| "  ".to_string()));
+        assert!(v["faucet_url"].is_null());
+        assert!(v["explorer_url"].is_null());
+        assert!(v["chain_display_name"].is_null());
+    }
 }
 
 /// One-line effective RPC config after env parsing (complements per-var logs from limit helpers).
@@ -1733,8 +1760,9 @@ async fn dispatch_jsonrpc_request(
                         "model": "hotstuff_bft"
                     },
                     "native_currency": {
+                        // Native amounts are whole BOING (no sub-units); matches wallets/explorer.
                         "symbol": "BOING",
-                        "decimals": 18
+                        "decimals": 0
                     },
                     "chain_native": {
                         "account_count": agg.account_count,

@@ -17,6 +17,17 @@ import { TESTNET_RPC_URL } from '../config/testnet';
       </div>
     </header>
     <div class="page-wrap-inner status-content">
+      <section class="live-status" aria-live="polite" data-rpc={TESTNET_RPC_URL} id="live-status">
+        <h2>Live testnet</h2>
+        <p class="live-state" data-field="state">Checking the public RPC…</p>
+        <dl class="live-grid">
+          <div><dt>Block height</dt><dd data-field="height">–</dd></div>
+          <div><dt>Validators</dt><dd data-field="validators">–</dd></div>
+          <div><dt>Total staked</dt><dd data-field="stake">–</dd></div>
+          <div><dt>Chain ID</dt><dd data-field="chain">–</dd></div>
+          <div><dt>Node version</dt><dd data-field="version">–</dd></div>
+        </dl>
+      </section>
       <ul class="status-links">
         <li><a href="https://boing.observer">Block explorer (boing.observer)</a></li>
         <li><a href="https://boing.observer/qa">QA transparency</a></li>
@@ -34,7 +45,49 @@ import { TESTNET_RPC_URL } from '../config/testnet';
   </article>
 </Layout>
 
+<script>
+  const box = document.getElementById('live-status');
+  const set = (k: string, v: string) => {
+    const el = box?.querySelector('[data-field="' + k + '"]');
+    if (el) el.textContent = v;
+  };
+  async function refresh() {
+    const rpc = box?.getAttribute('data-rpc');
+    if (!rpc) return;
+    try {
+      const res = await fetch(rpc, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'boing_getNetworkInfo', params: [] }),
+      });
+      const j = await res.json();
+      const r = j && j.result;
+      if (!r) throw new Error('no result');
+      set('height', String(r.head_height ?? '–'));
+      set('validators', String(r.consensus?.validator_count ?? '–'));
+      const stake = r.chain_native?.total_stake;
+      set('stake', stake != null ? Number(stake).toLocaleString('en-US') + ' BOING' : '–');
+      set('chain', r.chain_id != null ? r.chain_id + ' (0x' + Number(r.chain_id).toString(16) + ')' : '–');
+      set('version', String(r.client_version ?? '–'));
+      set('state', 'RPC reachable · updated ' + new Date().toLocaleTimeString());
+      box?.setAttribute('data-state', 'ok');
+    } catch {
+      set('state', 'The public RPC is not responding right now. Wallets and the faucet will fail until it is back; check again in a minute.');
+      box?.setAttribute('data-state', 'down');
+    }
+  }
+  refresh();
+  setInterval(refresh, 30000);
+</script>
+
 <style>
+  .live-status { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 1rem 1.25rem; margin: 0 0 2rem; }
+  .live-status h2 { margin: 0 0 0.25rem; font-size: 1.1rem; }
+  .live-state { font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .live-status[data-state='down'] .live-state { color: #ffb4a8; }
+  .live-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin: 0; }
+  .live-grid dt { font-size: 0.8rem; color: var(--text-secondary); }
+  .live-grid dd { margin: 0.15rem 0 0; font-size: 1.05rem; font-variant-numeric: tabular-nums; word-break: break-word; }
   .status-content { padding: 2rem 0 3rem; }
   .status-content p { color: var(--text-secondary); }
   .status-content a { color: var(--accent-teal); }

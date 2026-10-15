@@ -460,7 +460,7 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
   },
   "native_currency": {
     "symbol": "BOING",
-    "decimals": 18
+    "decimals": 0
   },
   "chain_native": {
     "account_count": 42,
@@ -519,7 +519,7 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
 - **`end_user`:** Wallet-facing strings and optional **32-byte hex** hints when operators set the matching **`BOING_CANONICAL_NATIVE_*`** env vars on the node: **`canonical_native_cp_pool`**, **`canonical_native_dex_factory`**, **`canonical_native_dex_multihop_swap_router`**, **`canonical_native_dex_ledger_router_v2`**, **`canonical_native_dex_ledger_router_v3`**, **`canonical_native_amm_lp_vault`**, **`canonical_native_lp_share_token`**. Omitted keys are JSON **`null`**. **`boing-sdk`** **`mergeNativeDexIntegrationDefaults`** merges these with app overrides; historical embedded **6913** constants apply **only** when network info is omitted (offline). A live snapshot with null canonical fields means the hosted chain has not published those contracts ([BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md), [dApp network discovery](#dapp-network-discovery)).
 - **`chain_id` / `chain_name`:** From **`BOING_CHAIN_ID`** / **`BOING_CHAIN_NAME`** when set on the node process; **`chain_id`** is **`null`** when not configured.
 - **`validator_count`:** Size of this node’s in-process validator set (HotStuff BFT); not a network-wide discovery endpoint for all operators.
-- **`native_currency.decimals`:** Display hint for integrators; balances on **`boing_getBalance`** / **`boing_getAccount`** are still whole-unit u128 strings per those methods.
+- **`native_currency.decimals`:** **0** - native BOING has no sub-units (a balance of `10` is 10 BOING); nodes before 2026-10-15 reported 18 here by mistake. Display hint for integrators; balances on **`boing_getBalance`** / **`boing_getAccount`** are still whole-unit u128 strings per those methods.
 - **`chain_native`:** Sums over this node’s committed account table; see [dApp network discovery](#dapp-network-discovery).
 - **`developer`:** Stable links and discovery hints for integrators. URLs default to the public GitHub tree; operators may override with environment variables (see table below).
 
