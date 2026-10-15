@@ -135,6 +135,26 @@ try {
 
 All 32-byte IDs (account, hash) are hex strings with or without `0x` prefix. Invalid hex or wrong length throws before the request.
 
+## Tokens (mirrors `boing token`)
+
+Deploy, mint, transfer and read the canonical reference fungible token. Output is byte-identical to the Rust CLI (see [BOING-REFERENCE-TOKEN.md](../docs/BOING-REFERENCE-TOKEN.md#sdk-token-helpers-boing-sdk-mirrors-boing-token)).
+
+```ts
+import { createClient, deployBoingToken, transferBoingToken, getBoingTokenBalance, hexToBytes } from 'boing-sdk';
+
+const client = createClient('https://testnet-rpc.boing.network');
+const seed = hexToBytes(process.env.BOING_SECRET_HEX!); // 32-byte Ed25519 seed; never hard-code or commit it
+
+const { tokenHex, deployerHex } = await deployBoingToken(client, seed, {
+  symbol: 'TKN',
+  name: 'My Token',
+  initialSupply: 1_000_000n, // one-time mint_first at nonce + 1 (fixed supply)
+});
+await transferBoingToken(client, seed, { tokenHex, toHex: '0x…', amount: 250_000n });
+console.log(await getBoingTokenBalance(client, tokenHex, deployerHex));
+```
+
+Pass `dryRun: true` (and `nonce`) to get `{ txId, signedHex }` without submitting. Unsigned builders (`buildBoingTokenDeployTransaction`, `buildBoingTokenMintTransaction`, `buildBoingTokenTransferTransaction`) work with `signTransactionInputWithSigner` or a wallet.
 ## Submitting transactions
 
 The node expects **hex-encoded bincode-serialized `SignedTransaction`**. Encoding matches Rust `boing-primitives` (bincode 1.3); see [BOING-SIGNED-TRANSACTION-ENCODING.md](../docs/BOING-SIGNED-TRANSACTION-ENCODING.md).

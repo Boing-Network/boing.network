@@ -71,6 +71,20 @@ For dApps that want the **same 96-byte** `transfer` / `mint_first` layout but **
 | `boing token bytecode` | Prints the template hex. |
 
 Signer is a 32-byte Ed25519 seed from `--secret-hex` or `BOING_SECRET_HEX`. `--nonce` overrides the `boing_getAccount` lookup; `--dry-run` prints signed tx hex instead of calling `boing_submitTransaction`. Global `--rpc-url` selects the node.
+
+## SDK: token helpers (`boing-sdk`, mirrors `boing token`)
+
+`boing-sdk` exports the same flow for TypeScript (`src/boingToken.ts`). Signed transactions are **byte-identical** to the CLI for the same seed, nonce and arguments; `boing-sdk/tests/boingToken.test.ts` checks this against vectors captured from `boing token ... --dry-run` (`boing-sdk/tests/fixtures/token-cli-vectors.json`, public test seed `0x07…07`).
+
+| CLI | SDK |
+|-----|-----|
+| `boing token deploy` | `deployBoingToken(client, secretKey32, { name, symbol, initialSupply, mintToHex, nonce?, dryRun? })` returns `{ deployerHex, tokenHex, deployTx, mintTx }` |
+| `boing token mint` | `mintBoingToken(client, secretKey32, { tokenHex, toHex?, amount, nonce?, dryRun? })` |
+| `boing token transfer` | `transferBoingToken(client, secretKey32, { tokenHex, toHex, amount, nonce?, dryRun? })` |
+| `boing token balance` | `getBoingTokenBalance(client, tokenHex, holderHex)` returns `bigint` |
+| `boing token bytecode` | `boingTokenBytecodeHex()` |
+
+Lower level: `buildBoingTokenDeployTransaction`, `buildBoingTokenMintTransaction`, `buildBoingTokenTransferTransaction` (unsigned `TransactionInput` for `signTransactionInput` or a wallet signer), `boingTokenBalanceStorageKeyHex`, `decodeBoingTokenBalanceWord`, `validateBoingTokenMetadata`, `BOING_TOKEN_PURPOSE`. Each tx result is `{ txId, signedHex, submitted }`; with `dryRun` nothing is submitted, and `client` may be `null` if `nonce` is given.
 ## Smoke contract
 
 `boing_execution::smoke_contract_bytecode()` is a minimal program used in tests: it stores the caller, emits `LOG0` over the first four calldata bytes, and returns the caller id. It is **not** a token.
