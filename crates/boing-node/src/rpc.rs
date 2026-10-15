@@ -643,6 +643,10 @@ fn rpc_surface_capabilities(state: &RpcState) -> serde_json::Value {
         "get_logs_max_block_range": GET_LOGS_MAX_BLOCK_RANGE,
         "get_logs_max_results": GET_LOGS_MAX_RESULTS,
         "max_log_topic_filters": MAX_EXECUTION_LOG_TOPICS,
+        // Native atomic batch tx (`TransactionPayload::Batch`, variant 9) is accepted by this node.
+        "tx_payload_batch": true,
+        "tx_batch_max_calls": boing_primitives::MAX_BATCH_CALLS,
+        "tx_batch_max_calldata_bytes": boing_primitives::MAX_BATCH_CALLDATA_BYTES,
     })
 }
 

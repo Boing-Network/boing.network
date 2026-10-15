@@ -390,7 +390,10 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
     "http_max_body_megabytes": 8,
     "get_logs_max_block_range": 128,
     "get_logs_max_results": 2048,
-    "max_log_topic_filters": 4
+    "max_log_topic_filters": 4,
+    "tx_payload_batch": true,
+    "tx_batch_max_calls": 16,
+    "tx_batch_max_calldata_bytes": 65536
   },
   "rpc_metrics": {
     "rate_limited_total": 0,

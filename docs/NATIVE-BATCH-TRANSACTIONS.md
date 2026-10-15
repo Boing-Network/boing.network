@@ -83,6 +83,13 @@ const signedHex = await signTransactionInput(tx, secretKey);
 `validateBatchCalls`, `MAX_BATCH_CALLS`, `MAX_BATCH_CALLDATA_BYTES` and `PayloadVariant.Batch`
 are exported for UI pre-validation.
 
+## Capability detection
+
+Batch-capable nodes advertise it in `boing_health.rpc_surface`:
+`tx_payload_batch: true`, `tx_batch_max_calls`, `tx_batch_max_calldata_bytes`. Older nodes omit
+these keys. SDK: `nodeSupportsNativeBatch(await client.health())` / `nodeBatchMaxCalls(health)`.
+Boing Express uses this to pick batch vs sequential bulk sends.
+
 ## Known gaps / follow-ups
 
 - **Receipt log attribution:** logs from several contracts are concatenated; RPC's
