@@ -58,17 +58,33 @@ For dApps that want the **same 96-byte** `transfer` / `mint_first` layout but **
   | `0x07` | **Set transfer-unlock height** — amount word carries **u64** BE in low **8** bytes (requires transfer-unlock flag). |
 - **SDK:** `resolveReferenceFungibleSecuredTemplateBytecodeHex`, `buildReferenceFungibleSecuredDeployMetaTx` (with **`nativeTokenSecurity`** to encode wizard toggles into **`0xFD` init**; **`chainContext.chainHeight`** required when **`timelock`** is on; **`mintFirstTotalSupplyWei`** for **`maxWalletPercentage`**), `referenceFungibleSecuredConfigFromNativeTokenSecurity`, env `BOING_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX` (+ `VITE_` / `REACT_APP_` variants). **Pinned default** (no `nativeTokenSecurity`) keeps enforcement flags **off**. Custom Rust configs remain available via `reference_fungible_secured_deploy_bytecode`.
 
+## Reference fungible **v2** (`reference_fungible_template_v2_bytecode`)
+
+New, versioned template; the v1 bytecode above is unchanged. Same lazy admin, one-time `mint_first`, `transfer` and balance layout (`holder ^ REF_FUNGIBLE_BALANCE_XOR`), plus:
+
+| Selector | Calldata | Behaviour |
+|---|---|---|
+| `0x08` `approve` | `sel ‖ spender ‖ amount` (96 B) | Sets `allowance[caller][spender] = amount` (overwrites; no increase/decrease race helper). Returns word `1`. |
+| `0x09` `transfer_from` | `sel ‖ from ‖ to ‖ amount` (128 B) | Requires `amount > 0`, `from ≠ to`, allowance ≥ amount and balance ≥ amount; decrements both and credits `to`. Returns word `1`; on any failure it stops with **no** return data and no state change (callers such as pool v8 check for word `1`). |
+| `0x0a` `allowance` | `sel ‖ owner ‖ spender` (96 B) | Returns the allowance word. |
+
+Allowance slot: `(owner[0..16] ‖ spender[0..16]) ^ REF_FUNGIBLE_ALLOWANCE_XOR` (ASCII `BOING_REFFUNGIBLE_ALW2`, zero-padded), readable with `boing_getContractStorage`.
+
+**v1 self-transfer bug (fixed in v2):** in the v1 template, `transfer` to yourself credits the new balance without debiting first, so a holder doubles their balance (mint 100, self-transfer 100 → 200). This is pinned by the test `v1_template_self_transfer_double_credits_known_bug`. The v1 bytecode is left untouched (deployed tokens can't change), so **treat supply of v1 tokens as untrusted** and use v2 for new tokens. In v2 a self-transfer is a no-op. The secured template (`0xFD`) has not been re-checked for the same pattern.
+
 ## CLI: `boing token` (Rust, no SDK required)
 
 `boing-cli` ships a Boing-native token flow built only on `boing-primitives` + `boing-execution` (no EVM / Solana runtimes):
 
 | Command | What it does |
 |---------|--------------|
-| `boing token deploy --symbol TKN [--name ...] [--initial-supply N] [--mint-to <id>]` | Signs `ContractDeployWithPurposeAndMetadata` (purpose **`token`**) with the canonical template; prints the nonce-derived token address; optionally sends `mint_first` at nonce+1 (fixed supply). |
+| `boing token deploy --symbol TKN [--name ...] [--initial-supply N] [--mint-to <id>] [--version v2\|v1]` | Signs `ContractDeployWithPurposeAndMetadata` (purpose **`token`**) with the reference template (**v2 by default**; `--version v1` for the original); prints the nonce-derived token address; optionally sends `mint_first` at nonce+1 (fixed supply). |
 | `boing token mint --token <id> --amount N [--to <id>]` | One-time `mint_first` (admin = first caller). |
 | `boing token transfer --token <id> --to <id> --amount N` | Reference `transfer`. |
 | `boing token balance --token <id> --holder <id>` | Reads `boing_getContractStorage` at `holder ^ REF_FUNGIBLE_BALANCE_XOR` and prints the `u128` balance. |
-| `boing token bytecode` | Prints the template hex. |
+| `boing token approve --token <id> --spender <id> --amount N` | v2 `approve` (overwrites). |
+| `boing token allowance --token <id> --owner <id> --spender <id>` | Reads the v2 allowance slot. |
+| `boing token bytecode [--version v2\|v1]` | Prints the template hex. |
 
 Signer is a 32-byte Ed25519 seed from `--secret-hex` or `BOING_SECRET_HEX`. `--nonce` overrides the `boing_getAccount` lookup; `--dry-run` prints signed tx hex instead of calling `boing_submitTransaction`. Global `--rpc-url` selects the node.
 
@@ -82,7 +98,11 @@ Signer is a 32-byte Ed25519 seed from `--secret-hex` or `BOING_SECRET_HEX`. `--n
 | `boing token mint` | `mintBoingToken(client, secretKey32, { tokenHex, toHex?, amount, nonce?, dryRun? })` |
 | `boing token transfer` | `transferBoingToken(client, secretKey32, { tokenHex, toHex, amount, nonce?, dryRun? })` |
 | `boing token balance` | `getBoingTokenBalance(client, tokenHex, holderHex)` returns `bigint` |
-| `boing token bytecode` | `boingTokenBytecodeHex()` |
+| `boing token approve` | `approveBoingToken(client, secretKey32, { tokenHex, spenderHex, amount, nonce?, dryRun? })` |
+| `boing token allowance` | `getBoingTokenAllowance(client, tokenHex, ownerHex, spenderHex)` |
+| `boing token bytecode` | `boingTokenBytecodeHex(version = 2)` |
+
+`deployBoingToken` / `buildBoingTokenDeployTransaction` take `version` (default **2**, like the CLI). The original `token-cli-vectors.json` vectors are v1 (`version: 1`); v2 deploy/approve vectors and the allowance key come from the CLI's Rust test (`pool-cli-vectors.json`, `v8` block).
 
 Lower level: `buildBoingTokenDeployTransaction`, `buildBoingTokenMintTransaction`, `buildBoingTokenTransferTransaction` (unsigned `TransactionInput` for `signTransactionInput` or a wallet signer), `boingTokenBalanceStorageKeyHex`, `decodeBoingTokenBalanceWord`, `validateBoingTokenMetadata`, `BOING_TOKEN_PURPOSE`. Each tx result is `{ txId, signedHex, submitted }`; with `dryRun` nothing is submitted, and `client` may be `null` if `nonce` is given.
 ## Smoke contract

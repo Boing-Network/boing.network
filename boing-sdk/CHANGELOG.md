@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking defaults:** `deployBoingToken` / `boingTokenBytecodeHex` now default to reference fungible **v2**, and the pool helpers default to pool **v8**. Pass `version: 1` / `version: 7` for the old behaviour.
+- Reference fungible v2: `approveBoingToken`, `getBoingTokenAllowance`, `buildBoingTokenApproveTransaction`, `boingTokenAllowanceStorageKeyHex`, `encodeReference{Approve,TransferFrom,Allowance}Calldata`, `DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX`.
+- Pool v8 (token-pulling custody): `boingPoolPullsTokens`, `encodeBoingPoolV8*Calldata`, `BoingPoolV8Options` (`tokenAHex`, `tokenBHex`, `noApprove`, `deadlineHeight`); add/swap send exact-amount approvals first and return them in `approvals`. Byte-identical to `boing pool` / `boing token` (`tests/fixtures/pool-cli-vectors.json`).
 - Native AMM pool helpers mirroring the new `boing pool` CLI: `createBoingPool`, `addBoingPoolLiquidity`, `removeBoingPoolLiquidity`, `swapBoingPool` (slippage `minOut`), `quoteBoingPoolSwap`, `getBoingPoolState`, `getBoingPoolLpBalance`, unsigned builders, pure quote/LP math and `NATIVE_CP_POOL_BYTECODE_HEX` (v1..v7); byte-identical to the CLI (`tests/fixtures/pool-cli-vectors.json`). See `docs/NATIVE-AMM-CLI.md`.
 - Token helpers mirroring `boing token`: `deployBoingToken`, `mintBoingToken`, `transferBoingToken`, `getBoingTokenBalance`, `boingTokenBytecodeHex` and unsigned builders; byte-identical to the CLI (cross-checked against CLI `--dry-run` vectors).
 
