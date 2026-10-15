@@ -114,7 +114,7 @@ When the node is started with **`--faucet-enable`**, it accepts:
 
 | Method | Params | Description |
 |--------|--------|-------------|
-| `boing_faucetRequest` | `[hex_account_id]` | Send **10** testnet BOING to the given account (32-byte hex; native units are 1:1 with BOING) — enough for several transfers (a transfer is **1 BOING**; a token deploy is typically **~10–20 BOING** and may need a second request). Not enough for min validator stake (10,000). Rate limit: **1 request per 60 seconds per account**. |
+| `boing_faucetRequest` | `[hex_account_id]` | Send **20** testnet BOING (node builds from Oct 15, 2026; the public node still sends **10** until it is redeployed) to the given account (32-byte hex; native units are 1:1 with BOING) — enough for several transfers (a transfer is **1 BOING**; a token deploy is typically **~10–20 BOING** and may need a second request). Not enough for min validator stake (10,000). Rate limit: **1 request per 60 seconds per account**. |
 
 **Example (curl):**
 
@@ -198,7 +198,7 @@ For users who prefer a **desktop UI** instead of the terminal, Boing testnet can
 
 ## 8. Incentivized testnet (summary)
 
-When the Boing team runs an **incentivized testnet** (rewarding validators, developers, and users), the same testnet setup applies: use the published bootnodes and public RPC, get testnet BOING from the faucet, and stake to validate. For incentive rules, duration (e.g. 2–4 weeks), launch checklist, promotion, and mainnet migration, see [Part 3 — Incentivized Testnet](#part-3--incentivized-testnet) below. Check the website and announcements for the current phase and any leaderboards or reward criteria.
+When the Boing team runs an **incentivized testnet** (rewarding validators, developers, and users), the same testnet setup applies: use the published bootnodes and public RPC, get testnet BOING from the faucet for fees, and stake to validate (min **10,000** BOING, which the faucet does not cover; validator stake comes from an operator allocation). For incentive rules, duration (e.g. 2–4 weeks), launch checklist, promotion, and mainnet migration, see [Part 3 — Incentivized Testnet](#part-3--incentivized-testnet) below. Check the website and announcements for the current phase and any leaderboards or reward criteria.
 
 ## 9. Ship a new testnet node binary (release tags)
 

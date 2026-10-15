@@ -87,7 +87,7 @@ No separate "miner" binary: **validating** is done by running `boing-node --vali
    - **Option B:** Link to the web faucet [boing.network/faucet](https://boing.network/faucet).
 
 7. **Staking (public stake-derived validator set)**  
-   VibeMiner’s **`*-public-validator`** presets are one-click: the desktop app generates a persistent Ed25519 key (`BOING_VALIDATOR_KEY` via env, never argv), starts `boing-node --validator` with **`BOING_VALIDATOR_SET=stake`** and **`BOING_LEADER_ELECTION=vrf`**, then calls public RPC `boing_faucetRequest` + submits a signed **`Bond`** for **`MIN_VALIDATOR_STAKE` (10_000)**. Local **`*-validator`** presets remain solo/dev (`--validator` only). Top-N epoch inclusion still depends on stake ranking after Bond. See VibeMiner `docs/NODE_RUNNING.md`.
+   VibeMiner’s **`*-public-validator`** presets are one-click: the desktop app generates a persistent Ed25519 key (`BOING_VALIDATOR_KEY` via env, never argv), starts `boing-node --validator` with **`BOING_VALIDATOR_SET=stake`** and **`BOING_LEADER_ELECTION=vrf`**, then calls public RPC `boing_faucetRequest` + submits a signed **`Bond`** for **`MIN_VALIDATOR_STAKE` (10_000)**. **Note:** the faucet sends 10-20 BOING per request (60 s cooldown), so a fresh key cannot reach 10,000 from the faucet alone; the Bond fails until the key is funded by an operator allocation. Local **`*-validator`** presets remain solo/dev (`--validator` only). Top-N epoch inclusion still depends on stake ranking after Bond. See VibeMiner `docs/NODE_RUNNING.md`.
 
 ---
 
