@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Native AMM pool helpers mirroring the new `boing pool` CLI: `createBoingPool`, `addBoingPoolLiquidity`, `removeBoingPoolLiquidity`, `swapBoingPool` (slippage `minOut`), `quoteBoingPoolSwap`, `getBoingPoolState`, `getBoingPoolLpBalance`, unsigned builders, pure quote/LP math and `NATIVE_CP_POOL_BYTECODE_HEX` (v1..v7); byte-identical to the CLI (`tests/fixtures/pool-cli-vectors.json`). See `docs/NATIVE-AMM-CLI.md`.
 - Token helpers mirroring `boing token`: `deployBoingToken`, `mintBoingToken`, `transferBoingToken`, `getBoingTokenBalance`, `boingTokenBytecodeHex` and unsigned builders; byte-identical to the CLI (cross-checked against CLI `--dry-run` vectors).
 
 ## [0.5.3] - 2026-10-13

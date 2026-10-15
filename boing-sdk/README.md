@@ -155,6 +155,20 @@ console.log(await getBoingTokenBalance(client, tokenHex, deployerHex));
 ```
 
 Pass `dryRun: true` (and `nonce`) to get `{ txId, signedHex }` without submitting. Unsigned builders (`buildBoingTokenDeployTransaction`, `buildBoingTokenMintTransaction`, `buildBoingTokenTransferTransaction`) work with `signTransactionInputWithSigner` or a wallet.
+## Native AMM pools (mirrors `boing pool`)
+
+Create, fund, swap with slippage protection, and read native constant-product pools (templates v1..v7). Byte-identical to the Rust CLI; see [NATIVE-AMM-CLI.md](../docs/NATIVE-AMM-CLI.md), including the **custody caveat** (deposits and swap inputs are ledger-only in v1..v7).
+
+```ts
+import { createClient, createBoingPool, addBoingPoolLiquidity, swapBoingPool, getBoingPoolState, hexToBytes } from 'boing-sdk';
+
+const client = createClient('http://127.0.0.1:8545');
+const seed = hexToBytes(process.env.BOING_SECRET_HEX!);
+const { poolHex } = await createBoingPool(client, seed, { version: 7, feeBps: 30n });
+await addBoingPoolLiquidity(client, seed, { poolHex, amountA: 10_000n, amountB: 40_000n });
+await swapBoingPool(client, seed, { poolHex, direction: 'a-to-b', amountIn: 1_000n, slippageBps: 50n });
+console.log(await getBoingPoolState(client, poolHex));
+```
 ## Submitting transactions
 
 The node expects **hex-encoded bincode-serialized `SignedTransaction`**. Encoding matches Rust `boing-primitives` (bincode 1.3); see [BOING-SIGNED-TRANSACTION-ENCODING.md](../docs/BOING-SIGNED-TRANSACTION-ENCODING.md).
