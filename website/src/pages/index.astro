@@ -50,9 +50,10 @@ import Layout from '../layouts/Layout.astro';
         <span class="hero-highlight"><span class="hl-icon">🛡</span> Quality Assurance</span>
       </div>
       <div class="cta">
-        <a href="/testnet" class="btn btn-testnet">Open Dashboard</a>
-        <a href="/testnet/join" class="btn btn-secondary">Join Testnet</a>
-        <a href="/resources" class="btn btn-outline">Resources</a>
+        <a href="https://boing.express" class="btn btn-testnet" target="_blank" rel="noopener">Get a wallet</a>
+        <a href="/faucet" class="btn btn-secondary">Get testnet BOING</a>
+        <a href="/developers/quickstart" class="btn btn-outline">Build</a>
+        <a href="/testnet/join" class="btn btn-outline">Run a node</a>
       </div>
     </div>
   </section>
@@ -150,7 +151,22 @@ import Layout from '../layouts/Layout.astro';
     </div>
     <h2 class="section-subtitle section-reveal delay-9">Ecosystem</h2>
     <p class="section-lead section-reveal delay-10">Applications building on Boing Network.</p>
+    <ol class="first-steps section-reveal delay-10" aria-label="First steps on Boing Testnet">
+      <li><a href="https://boing.express" target="_blank" rel="noopener"><strong>1. Get a wallet</strong><span>Create a Boing Express wallet (web or Chrome extension).</span></a></li>
+      <li><a href="/faucet"><strong>2. Get testnet BOING</strong><span>Request free testnet BOING for fees.</span></a></li>
+      <li><a href="https://boing.observer" target="_blank" rel="noopener"><strong>3. Send and verify</strong><span>Send your first transaction, then find it on Boing Observer.</span></a></li>
+    </ol>
     <div class="apps-row">
+      <a href="https://boing.express" class="app-card section-reveal delay-11" target="_blank" rel="noopener">
+        <h3>Boing Express</h3>
+        <p>Get a wallet: non-custodial Boing wallet for the web and Chrome. Send BOING, use the faucet, connect dApps.</p>
+        <span class="app-status live">Live</span>
+      </a>
+      <a href="https://boing.observer" class="app-card section-reveal delay-11" target="_blank" rel="noopener">
+        <h3>Boing Observer</h3>
+        <p>Explore the chain: blocks, transactions, accounts, and tokens on Boing.</p>
+        <span class="app-status live">Live</span>
+      </a>
       <a href="https://boing.finance" class="app-card featured section-reveal delay-11" target="_blank" rel="noopener">
         <h3>boing.finance</h3>
         <p>Swap, bridge, deploy tokens, and manage liquidity—native Boing L1 plus bridged networks where boing.finance routes.</p>
@@ -580,6 +596,12 @@ import Layout from '../layouts/Layout.astro';
   .app-status { font-size: 0.75rem; text-transform: uppercase; font-weight: 600; }
   .app-status.live { color: var(--success-color); }
   .app-status.build { color: var(--accent-teal); }
+
+  .first-steps { list-style: none; padding: 0; margin: 0 0 1.25rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
+  .first-steps a { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.9rem 1rem; border-radius: 0.75rem; border: 1px dashed var(--accent-teal); color: inherit; text-decoration: none; background: rgba(18, 24, 41, 0.6); }
+  .first-steps a:hover, .first-steps a:focus-visible { border-style: solid; box-shadow: 0 8px 24px var(--glow-cyan); }
+  .first-steps strong { color: var(--text-primary); font-size: 0.95rem; }
+  .first-steps span { color: var(--text-secondary); font-size: 0.85rem; }
 
   /* Innovations grid */
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
