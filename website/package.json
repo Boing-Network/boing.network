@@ -24,6 +24,9 @@
   "devDependencies": {
     "md-to-pdf": "^5.2.5",
     "sharp": "^0.35.5",
-    "wrangler": "^4.147.0"
+    "wrangler": "^4.151.0"
+  },
+  "overrides": {
+    "postcss-selector-parser": "^7.1.6"
   }
 }
