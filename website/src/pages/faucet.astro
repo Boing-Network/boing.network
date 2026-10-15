@@ -15,12 +15,30 @@ import { TESTNET_RPC_URL } from '../config/testnet';
         <span class="stage-badge-global">Testnet</span>
         <h1 class="page-title"><Icon name="faucet" size={32} class="title-icon" /> Testnet Faucet</h1>
         <p class="lead">
-          Get testnet BOING to pay for gas. Enter your account ID (32-byte hex) and the faucet will send <strong>10</strong> testnet BOING to your account (enough for several transfers; a native token deploy is typically ~10–20 BOING and may need a second request). Rate limit: 1 request per 60 seconds per account.
+          Get free testnet BOING to pay for fees. Paste your Boing address (or connect Boing Express) and request. Each request sends a fixed amount (currently <strong>10</strong> testnet BOING on the public testnet), limited to <strong>1 request per 60 seconds</strong> per address. A transfer costs about 1 BOING; deploying a native token costs about 10–20 BOING, so <strong>builders should plan on two requests</strong>.
+        </p>
+        <p class="lead no-wallet">
+          No wallet yet? <a href="https://boing.express" target="_blank" rel="noopener">Create one at Boing Express</a> (web or Chrome extension), then come back. This is the canonical Boing faucet; the wallet and Boing Observer link here.
         </p>
       </div>
     </header>
     <div class="page-wrap-inner faucet-content">
       <section class="faucet-form">
+      <label for="account-id">Your Boing address (32-byte account ID, hex, with or without 0x)</label>
+      <div class="input-with-copy">
+        <input
+          id="account-id"
+          type="text"
+          placeholder="0x..."
+          maxlength="66"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button id="connect-btn" type="button" class="secondary-btn">Use my Boing Express address</button>
+      </div>
+      <p id="connect-hint" class="hint" hidden></p>
+      <details class="advanced">
+        <summary>Advanced: RPC endpoint</summary>
       <div class="copy-wrapper input-group">
         <label for="rpc-url">Testnet RPC URL</label>
         <div class="input-with-copy">
@@ -33,22 +51,24 @@ import { TESTNET_RPC_URL } from '../config/testnet';
           <CopyButton label="Copy" copiedLabel="Copied!" />
         </div>
       </div>
-      <label for="account-id">Your account ID (32-byte hex, with or without 0x)</label>
-      <input
-        id="account-id"
-        type="text"
-        placeholder="0x..."
-        maxlength="66"
-      />
+      </details>
       <button id="request-btn" type="button" aria-busy="false">
         <span class="faucet-btn-inner">
-          <span class="faucet-btn-label">Request 10 testnet BOING</span>
+          <span class="faucet-btn-label">Request testnet BOING</span>
           <span class="boing-loader boing-loader--sm faucet-inline-loader" hidden aria-hidden="true">
             <span class="boing-loader__dot"></span><span class="boing-loader__dot"></span><span class="boing-loader__dot"></span>
           </span>
         </span>
       </button>
       <p id="message" class="message" aria-live="polite" data-state=""></p>
+      <div id="next-steps" class="next-steps" hidden>
+        <strong>Next steps</strong>
+        <ul>
+          <li>Funds arrive in the next block (about 2 seconds). Check your balance in <a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a>.</li>
+          <li><a data-observer href="https://boing.observer" target="_blank" rel="noopener">View your account on Boing Observer</a>.</li>
+          <li>Building? <a href="/developers/quickstart">Deploy a token with the <code>boing token</code> CLI</a>.</li>
+        </ul>
+      </div>
     </section>
 
     <section class="section">
@@ -83,6 +103,41 @@ import { TESTNET_RPC_URL } from '../config/testnet';
     if (accountInput && addressParam && /^(0x)?[0-9a-fA-F]{64}$/.test(addressParam.trim())) {
       accountInput.value = addressParam.trim().toLowerCase().startsWith('0x') ? addressParam.trim() : '0x' + addressParam.trim();
     }
+
+    const nextEl = document.getElementById('next-steps') as HTMLElement | null;
+    function showNextSteps(acct: string) {
+      if (!nextEl) return;
+      const link = nextEl.querySelector('a[data-observer]') as HTMLAnchorElement | null;
+      if (link) link.href = 'https://boing.observer/account/' + encodeURIComponent(acct);
+      nextEl.hidden = false;
+    }
+
+    const connectBtn = document.getElementById('connect-btn') as HTMLButtonElement | null;
+    const connectHint = document.getElementById('connect-hint') as HTMLElement | null;
+    connectBtn?.addEventListener('click', async () => {
+      const provider = (window as unknown as { boing?: { request: (a: { method: string }) => Promise<unknown> } }).boing;
+      if (!provider) {
+        if (connectHint) {
+          connectHint.hidden = false;
+          connectHint.innerHTML =
+            'Boing Express isn&#39;t installed in this browser. <a href="https://chromewebstore.google.com/detail/boing-express/hhknjdhknnghccmfnfafbkapjljicbfh" target="_blank" rel="noopener">Install the Chrome extension</a>, or open <a href="https://boing.express" target="_blank" rel="noopener">boing.express</a> and copy your address here.';
+        }
+        return;
+      }
+      try {
+        const accounts = (await provider.request({ method: 'boing_requestAccounts' })) as string[];
+        const first = Array.isArray(accounts) ? accounts[0] : undefined;
+        if (first && accountInput) {
+          accountInput.value = first.startsWith('0x') ? first : '0x' + first;
+          if (connectHint) connectHint.hidden = true;
+        }
+      } catch (e) {
+        if (connectHint) {
+          connectHint.hidden = false;
+          connectHint.textContent = 'Connection was cancelled or failed: ' + (e instanceof Error ? e.message : String(e));
+        }
+      }
+    });
 
     function setMessage(text: string, isError = false) {
       messageEl.textContent = text;
@@ -138,6 +193,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
             : '';
           const base = `Faucet accepted ${data.result.amount} testnet BOING into the mempool. ${data.result.message || ''}${tip}${warn}`;
           setMessage(base, Boolean(data.result.warning));
+          showNextSteps(accountHex);
         } else {
           setMessage(data.result?.message || 'Request may have succeeded; check your wallet.', false);
         }
@@ -146,7 +202,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
       } finally {
         btn.disabled = false;
         btn.setAttribute('aria-busy', 'false');
-        if (faucetLabel) (faucetLabel as HTMLElement).textContent = 'Request 10 testnet BOING';
+        if (faucetLabel) (faucetLabel as HTMLElement).textContent = 'Request testnet BOING';
         if (faucetLoader) {
           faucetLoader.hidden = true;
           faucetLoader.setAttribute('aria-hidden', 'true');
@@ -223,6 +279,13 @@ import { TESTNET_RPC_URL } from '../config/testnet';
   .faucet-inline-loader:not([hidden]) {
     display: inline-flex !important;
   }
+  .secondary-btn { margin-top: 0.25rem !important; background: transparent !important; border: 1px solid var(--accent-teal) !important; color: var(--accent-teal) !important; font-size: 0.85rem !important; padding: 0.55rem 0.9rem !important; white-space: nowrap; }
+  .hint { margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); }
+  .advanced { margin-top: 1rem; color: var(--text-secondary); }
+  .advanced summary { cursor: pointer; font-size: 0.9rem; }
+  .next-steps { margin-top: 1rem; padding: 0.9rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-secondary); }
+  .next-steps ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+  .no-wallet { font-size: 0.95rem; }
   .message { margin-top: 1rem; min-height: 1.5em; font-size: 0.95rem; }
   .message[data-state="success"] { color: var(--accent-teal); font-weight: 500; }
   .message[data-state="error"] { color: var(--error-color, #f87171); }
