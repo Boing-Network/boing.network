@@ -168,6 +168,33 @@ The node already implements stake-based selection; the public testnet will turn 
   the required release and values; do not enable stake mode early on your own.
 
 Planning to stop validating? Keep the node online until the boundary after your unbond has removed you.
+
+## Open validator registration (coming soon)
+
+> **Status: not active yet.** The node supports it, but the testnet keeps its current set until an
+> activation height is announced. Registration transactions are rejected before then.
+
+Once activated (`BOING_VALIDATOR_SET=open` on all nodes), anyone can join without permission:
+
+- **Register:** `boing validator register --node-key-hex <node seed>` (or `BOING_VALIDATOR_KEY`). The owner
+  (`--secret-hex` / `BOING_SECRET_HEX`, defaulting to the node key) pays and locks a **100 BOING bond**.
+  The node key signs a proof of possession binding it to the owner, so nobody can register a key they don't hold.
+  One validator per owner.
+- **Join:** you enter the set at the next **epoch boundary (every 100 blocks)**. The set is capped
+  (default 20 open validators), ordered by registration height then id, identical on every node.
+- **Liveness:** each produced block records the expected leader and the actual proposer. Missing more than
+  **10%** of your scheduled proposals over the last **1,000 produced blocks** (at least 10 samples) gets you
+  **jailed** at the next boundary. Only produced blocks count; idle time with no transactions never penalizes you.
+  Jailing keeps your bond (no slashing on testnet). After the cooldown (500 blocks), run
+  `boing validator unjail` to rejoin at the next boundary.
+- **Leave:** `boing validator deregister`. You stay in the set until the next boundary; the bond unlocks after
+  100 blocks and is claimed with `ClaimUnbond`.
+- **Status:** `boing validator status [--node <id>]` (RPC `boing_getValidators`) shows each validator's status,
+  uptime %, missed/scheduled proposals and bond.
+- **Anchors:** the operator-run bootstrap validators are permanent and are never dropped. Commits need a quorum of
+  the anchors; open validators propose and vote but can't stall the chain if they go offline (an anchor takes over
+  a missed slot after ~3 s).
+
 ## 9. Duties
 
 - Keep the node **online and in sync**; missed rounds hurt the network and your leaderboard standing.

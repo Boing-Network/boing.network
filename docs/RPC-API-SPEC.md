@@ -872,6 +872,19 @@ Request testnet BOING for an account. Only available when the node is started wi
 
 ---
 
+### boing_getValidators
+
+List the current validator set and (in open mode) every registered validator.
+
+**Params:** `[]`
+
+**Result:** `{ mode: "static"|"stake"|"open", height, quorum, validator_count, open: null | { activation_height, activated_at, bond, epoch_len, next_epoch_height, max_open_validators, liveness_window, miss_threshold_bps, jail_cooldown, ... }, validators: [ { id, kind: "anchor"|"static"|"open", status: "active"|"pending"|"jailed"|"exiting", in_set, bond (string, whole BOING), owner?, jailed_until, scheduled_proposals, missed_proposals, uptime_pct } ] }`
+
+- Liveness counts proposals only over produced blocks in the window (votes are not on-chain); idle periods are not counted.
+- Open-mode transactions (`ValidatorRegister` = payload 10, `ValidatorDeregister` = 11, `ValidatorUnjail` = 12) are rejected by the mempool until the mode is active.
+
+---
+
 ## Error Codes
 
 | Code | Meaning |

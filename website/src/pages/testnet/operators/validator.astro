@@ -151,6 +151,18 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
       </ul>
       <p>Stopping? Keep your node online until the boundary after your unbond has removed you.</p>
     </section>
+    <section class="section" id="open-registration">
+      <h2>Open validator registration (coming soon)</h2>
+      <p><strong>Not active yet.</strong> The node supports permissionless registration; it switches on at an announced activation height. Until then registration transactions are rejected. Once active:</p>
+      <ul>
+        <li><strong>Register:</strong> <code>boing validator register --node-key-hex &lt;node seed&gt;</code> locks a <strong>100 BOING</strong> bond. Your node key signs a proof that binds it to your account. One validator per account.</li>
+        <li><strong>Join:</strong> at the next epoch boundary (every 100 blocks), up to a capped set size, in deterministic order.</li>
+        <li><strong>Liveness:</strong> miss more than 10% of your scheduled proposals over the last 1,000 produced blocks and you're jailed at the next boundary. Idle periods never count. Your bond is kept; after a cooldown run <code>boing validator unjail</code>.</li>
+        <li><strong>Leave:</strong> <code>boing validator deregister</code>; the bond unlocks after 100 blocks (claim with <code>ClaimUnbond</code>).</li>
+        <li><strong>Status:</strong> <code>boing validator status</code> or RPC <code>boing_getValidators</code>: status, uptime %, missed count and bond.</li>
+        <li><strong>Anchors:</strong> the permanent bootstrap validators keep the chain producing even if every open validator is offline.</li>
+      </ul>
+    </section>
     <section class="section" id="duties">
       <h2>9. Duties</h2>
       <ul>
