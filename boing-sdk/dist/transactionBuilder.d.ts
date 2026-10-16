@@ -88,10 +88,28 @@ export interface BuildDeployWithPurposeInput {
     };
 }
 export declare function buildDeployWithPurposeTransaction(input: BuildDeployWithPurposeInput): TransactionInput;
-export declare function signTransactionInput(tx: TransactionInput, secretKey32: Ed25519SecretKey32): Promise<string>;
+/** Signing options. `chainId` selects the v2 (chain-bound) domain; `null` forces the legacy format. */
+export interface SignOptions {
+    chainId?: bigint | number | null;
+}
+/**
+ * Process default chain id for v2 signing (used when `SignOptions.chainId` is omitted).
+ * `null` = legacy (pre-chain-id) signatures, which nodes reject after their v2 activation height.
+ */
+export declare function setDefaultSigningChainId(chainId: bigint | number | null): void;
+export declare function getDefaultSigningChainId(): bigint | null;
+/** Chain id a node advertises for v2 signing (`boing_health.tx_signing`), or `null` (older node). */
+export declare function fetchSigningChainId(client: BoingClient): Promise<bigint | null>;
+/** Sets the default signing chain id from the node once (no-op when a default is already set). */
+export declare function configureSigningFromNode(client: BoingClient): Promise<bigint | null>;
+/** Digest to sign for `tx` under `opts` (v2 when a chain id is known, else legacy). */
+export declare function signingHashFor(tx: TransactionInput, opts?: SignOptions): Uint8Array;
+/** Like `signTransactionInput`, but first adopts the node's advertised chain id (v2) when `client` is given. */
+export declare function signTransactionInputForClient(client: BoingClient | null | undefined, tx: TransactionInput, secretKey32: Ed25519SecretKey32): Promise<string>;
+export declare function signTransactionInput(tx: TransactionInput, secretKey32: Ed25519SecretKey32, opts?: SignOptions): Promise<string>;
 /**
  * Sign with a custom async signer (e.g. hardware wallet or IPC to Boing Express).
  * Caller must ensure the signer corresponds to `tx.sender`; no verification here.
  */
-export declare function signTransactionInputWithSigner(tx: TransactionInput, signHash: (hash32: Uint8Array) => Promise<Uint8Array>): Promise<string>;
+export declare function signTransactionInputWithSigner(tx: TransactionInput, signHash: (hash32: Uint8Array) => Promise<Uint8Array>, opts?: SignOptions): Promise<string>;
 //# sourceMappingURL=transactionBuilder.d.ts.map

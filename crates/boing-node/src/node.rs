@@ -1190,7 +1190,20 @@ impl BoingNode {
     }
 
     /// Submit a signed transaction to the mempool.
+    /// Update the process-wide tx signature policy for the next block height (v2 chain-id signatures
+    /// are required from the activation height; before it either format is accepted).
+    pub fn refresh_tx_sig_policy(&self) -> boing_primitives::TxSigPolicy {
+        let p = crate::network_preset::tx_sig_policy(
+            crate::network_preset::configured_chain_id(),
+            self.executor.execution_history(),
+            self.chain.height().saturating_add(1),
+        );
+        boing_primitives::set_tx_verify_policy(p);
+        p
+    }
+
     pub fn submit_transaction(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
+        self.refresh_tx_sig_policy();
         self.precheck_open_validator_tx(&signed)?;
         self.precheck_name_tx(&signed)?;
         self.precheck_sender_can_pay_fee(&signed)?;

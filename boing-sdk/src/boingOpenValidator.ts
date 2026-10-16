@@ -19,6 +19,7 @@ import {
   fetchNextNonce,
   senderHexFromSecretKey,
   signTransactionInput,
+  signTransactionInputForClient,
   type Ed25519SecretKey32,
 } from './transactionBuilder.js';
 
@@ -178,7 +179,7 @@ export function boingOpenRegistrationOpen(report: BoingValidatorsReport): boolea
 }
 
 async function signAndSubmit(client: BoingClient, tx: TransactionInput, secret: Ed25519SecretKey32) {
-  const hex = await signTransactionInput(tx, secret);
+  const hex = await signTransactionInputForClient(client, tx, secret);
   return client.submitTransaction(hex);
 }
 

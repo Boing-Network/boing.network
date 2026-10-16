@@ -22,6 +22,10 @@ pub const BOING_TESTNET_GENESIS_ACCOUNT: AccountId = AccountId([1u8; 32]);
 pub const BOING_TESTNET_GENESIS_BALANCE: u128 = 1_000_000;
 /// First testnet height executed with treasury-first fees (heights 1..=26 used the legacy split).
 pub const BOING_TESTNET_TREASURY_FEES_FROM: u64 = 27;
+/// Testnet activation height of security fixes #2 (v2 chain-id signatures required for admission)
+/// and #3 (failed txs pay the failed-tx fee). Below it the network runs the historical rules, so
+/// replay from genesis stays exact.
+pub const BOING_TESTNET_SECURITY_V2_FROM: u64 = 900;
 
 /// Genesis block proposer plus the accounts funded at height 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -58,6 +62,38 @@ pub fn boing_testnet_history() -> ExecutionHistory {
             remainder: FeeRemainder::Validators,
         }],
         current_from: BOING_TESTNET_TREASURY_FEES_FROM,
+        failed_tx_fee_from: BOING_TESTNET_SECURITY_V2_FROM,
+        tx_v2_from: BOING_TESTNET_SECURITY_V2_FROM,
+    }
+}
+
+/// Chain id from `BOING_CHAIN_ID` (None when unset: local dev, legacy signatures only).
+pub fn configured_chain_id() -> Option<u64> {
+    std::env::var("BOING_CHAIN_ID").ok()?.trim().parse().ok()
+}
+
+/// First height at which v2 (chain-id) signatures are required: `BOING_TX_V2_FROM`, else the
+/// network history (testnet: [`BOING_TESTNET_SECURITY_V2_FROM`]), else 0 (new chains / mainnet:
+/// from genesis).
+pub fn tx_v2_from(history: Option<&ExecutionHistory>) -> u64 {
+    if let Some(h) = std::env::var("BOING_TX_V2_FROM").ok().and_then(|s| s.trim().parse().ok()) {
+        return h;
+    }
+    history.map(|h| h.tx_v2_from).unwrap_or(0)
+}
+
+/// Signature policy for a tx that would land in block `next_height`.
+pub fn tx_sig_policy(
+    chain_id: Option<u64>,
+    history: Option<&ExecutionHistory>,
+    next_height: u64,
+) -> boing_primitives::TxSigPolicy {
+    match chain_id {
+        None => boing_primitives::TxSigPolicy::default(),
+        Some(c) => boing_primitives::TxSigPolicy {
+            chain_id: Some(c),
+            require_v2: next_height >= tx_v2_from(history),
+        },
     }
 }
 

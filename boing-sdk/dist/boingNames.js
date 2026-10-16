@@ -8,7 +8,7 @@
  */
 import { blake3 } from '@noble/hashes/blake3';
 import { bytesToHex, hexToAccountId, validateHex32 } from './hex.js';
-import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput, } from './transactionBuilder.js';
+import { fetchNextNonce, senderHexFromSecretKey, signTransactionInputForClient, } from './transactionBuilder.js';
 export const BOING_NAME_SUFFIX = '.boing';
 export const BOING_NAME_MIN_LEN = 3;
 export const BOING_NAME_MAX_LEN = 32;
@@ -161,7 +161,7 @@ export async function resolveBoingRecipient(client, input) {
     return rec ? { address: rec.target.toLowerCase(), name: v.label } : null;
 }
 async function signAndSubmit(client, tx, secret) {
-    const hex = await signTransactionInput(tx, secret);
+    const hex = await signTransactionInputForClient(client, tx, secret);
     return client.submitTransaction(hex);
 }
 /**

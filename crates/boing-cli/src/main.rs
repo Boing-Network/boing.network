@@ -28,6 +28,38 @@ struct Cli {
     /// RPC URL (default: http://127.0.0.1:8545)
     #[arg(long, global = true, default_value = "http://127.0.0.1:8545")]
     rpc_url: String,
+
+    /// Chain id to sign for (v2 chain-bound signatures). Default: the chain id the node advertises in
+    /// `boing_health.tx_signing`; legacy signing when the node advertises none.
+    #[arg(long, global = true)]
+    chain_id: Option<u64>,
+
+    /// Sign with the legacy (pre-chain-id) format. Testing only: nodes reject it after activation.
+    #[arg(long, global = true)]
+    legacy_signing: bool,
+}
+
+/// Chain id the node advertises for v2 signing (`None` if unreachable or not supported).
+async fn node_signing_chain_id(rpc_url: &str) -> Option<u64> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(8))
+        .build()
+        .ok()?;
+    let v: serde_json::Value = client
+        .post(rpc_url)
+        .json(&serde_json::json!({"jsonrpc":"2.0","id":1,"method":"boing_health","params":[]}))
+        .send()
+        .await
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+    let ts = v.get("result")?.get("tx_signing")?;
+    if ts.get("v2_supported")?.as_bool()? {
+        ts.get("chain_id")?.as_u64()
+    } else {
+        None
+    }
 }
 
 #[derive(Subcommand)]
@@ -582,6 +614,19 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cli = Cli::parse();
+
+    // Security review #2: sign with the chain-bound (v2) domain whenever the chain id is known.
+    let needs_rpc = !matches!(cli.command, Commands::Init { .. } | Commands::Dev { .. });
+    let sign_chain = if cli.legacy_signing {
+        None
+    } else if cli.chain_id.is_some() {
+        cli.chain_id
+    } else if needs_rpc {
+        node_signing_chain_id(&cli.rpc_url).await
+    } else {
+        None
+    };
+    boing_primitives::set_default_signing_chain_id(sign_chain);
 
     let result = match cli.command {
         Commands::Init { name, output } => init::run(name, output),

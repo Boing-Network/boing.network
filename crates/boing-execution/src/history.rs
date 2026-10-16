@@ -24,6 +24,12 @@ pub struct ExecutionHistory {
     pub fee_eras: Vec<FeeEra>,
     /// First height executed with the current rules (no era applies at/after it).
     pub current_from: u64,
+    /// First height at which a failed tx (nonce matched) is charged the failed-tx fee (security review
+    /// #3). Below it a failed tx only consumes its nonce, as the network did historically.
+    pub failed_tx_fee_from: u64,
+    /// First height whose txs must carry v2 (chain-id) signatures (security review #2). Mempool
+    /// admission rule only: block bodies carry no signatures, so this never changes execution.
+    pub tx_v2_from: u64,
 }
 
 impl ExecutionHistory {
@@ -33,5 +39,9 @@ impl ExecutionHistory {
             return None;
         }
         self.fee_eras.iter().rev().find(|e| e.from_height <= height)
+    }
+
+    pub fn failed_tx_fee_active(&self, height: u64) -> bool {
+        height >= self.failed_tx_fee_from
     }
 }

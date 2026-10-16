@@ -107,3 +107,35 @@ fn replay_without_preset_fails_in_legacy_fee_era() {
     let err = replay(&mut node, &blocks).expect_err("current rules must not match legacy blocks");
     assert!(err.0 < network_preset::BOING_TESTNET_TREASURY_FEES_FROM, "failed at {}", err.0);
 }
+
+/// Security fixes #2/#3 activate at a fixed testnet height. Every recorded block below it must still
+/// replay with the historical rules (checked by the replays above); this pins the gates themselves.
+#[test]
+fn security_v2_gates_follow_the_activation_height() {
+    let h = network_preset::BOING_TESTNET_SECURITY_V2_FROM;
+    let hist = network_preset::boing_testnet_history();
+    let node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    assert!(!node.executor.failed_tx_fee_active(h - 1));
+    assert!(node.executor.failed_tx_fee_active(h));
+    let p = |next| network_preset::tx_sig_policy(Some(6913), Some(&hist), next);
+    assert!(!p(h - 1).require_v2, "either signature format before activation");
+    assert!(p(h).require_v2, "v2 required from activation");
+    assert_eq!(p(h).chain_id, Some(6913));
+    // Without a chain id (local dev) nothing is required.
+    assert!(!network_preset::tx_sig_policy(None, Some(&hist), h + 5).require_v2);
+}
+
+/// Replays the recorded blocks twice in independent nodes and compares every state root along the
+/// way (determinism across nodes, including blocks with failed receipts after activation when the
+/// fixture covers them).
+#[test]
+fn replay_is_deterministic_across_nodes() {
+    let blocks = load_blocks();
+    let mut a = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    let mut b = testnet_node(AccountId([7u8; 32]), true);
+    for (block, _) in blocks.iter().skip(1) {
+        a.import_network_block_catchup(block).unwrap();
+        b.import_network_block_catchup(block).unwrap();
+        assert_eq!(a.chain.latest_hash(), b.chain.latest_hash());
+    }
+}

@@ -84,6 +84,11 @@ impl BlockExecutor {
         (self.fee_policy.clone(), boing_tokenomics::FeeRemainder::Treasury)
     }
 
+    /// Whether failed txs pay the failed-tx fee at `height` (always, for chains without history).
+    pub fn failed_tx_fee_active(&self, height: u64) -> bool {
+        self.history.as_ref().map(|h| h.failed_tx_fee_active(height)).unwrap_or(true)
+    }
+
     pub fn vm(&self) -> &Vm {
         &self.vm
     }
@@ -107,6 +112,11 @@ impl BlockExecutor {
             block_timestamp,
         };
         let (fee_policy, fee_remainder) = self.fee_rule_at(block_height);
+        let failed_fee = self.failed_tx_fee_active(block_height).then(|| FailedTxFee {
+            policy: &fee_policy,
+            remainder: fee_remainder,
+            recipient: fee_recipient,
+        });
         let batches = self.scheduler.schedule(txs);
         let mut total_gas = 0u64;
         let mut receipts: Vec<Option<ExecutionReceipt>> = vec![None; txs.len()];
@@ -244,7 +254,7 @@ impl BlockExecutor {
                                     ));
                                 }
                                 Err(e) => {
-                                    apply_failed_tx_consuming_nonce(
+                                    total_gas = total_gas.saturating_add(apply_failed_tx_consuming_nonce(
                                         state,
                                         tx,
                                         tx_ckpt,
@@ -252,12 +262,13 @@ impl BlockExecutor {
                                         idx as u32,
                                         format!("{}", e),
                                         &mut receipts[idx],
-                                    );
+                                        failed_fee.as_ref(),
+                                    ));
                                 }
                             }
                         }
                         Err(e) => {
-                            apply_failed_tx_consuming_nonce(
+                            total_gas = total_gas.saturating_add(apply_failed_tx_consuming_nonce(
                                 state,
                                 tx,
                                 tx_ckpt,
@@ -265,7 +276,8 @@ impl BlockExecutor {
                                 idx as u32,
                                 format!("{}", e),
                                 &mut receipts[idx],
-                            );
+                                failed_fee.as_ref(),
+                            ));
                         }
                     }
                 }
@@ -280,8 +292,30 @@ impl BlockExecutor {
     }
 }
 
+/// Gas recorded (and charged) for a failed tx once the failed-tx fee is active: the intrinsic
+/// transfer gas, so a failing tx costs at least as much as the cheapest successful one.
+pub const FAILED_TX_GAS: u64 = crate::vm::GAS_PER_TRANSFER;
+
+/// Fee charged for a failed tx: `fee_for_gas(FAILED_TX_GAS) + extra_fixed_fee` (no amount-bps part:
+/// nothing was transferred).
+pub fn failed_tx_fee_amount(policy: &NetworkFeePolicy) -> u128 {
+    boing_tokenomics::fee_for_gas(FAILED_TX_GAS).saturating_add(policy.extra_fixed_fee)
+}
+
+/// Fee rule for failed txs in one block (`None` before the activation height).
+struct FailedTxFee<'a> {
+    policy: &'a NetworkFeePolicy,
+    remainder: boing_tokenomics::FeeRemainder,
+    recipient: AccountId,
+}
+
 /// Revert a failed tx's state, still consume the sender nonce so the same payload cannot
 /// stall block production (mempool re-insert of a fee-underfunded deploy).
+///
+/// When the failed-tx fee is active and the tx passed the nonce check (its nonce equals the sender's),
+/// the sender also pays `min(balance, failed_tx_fee_amount)`. The charge is capped at the balance, so
+/// this step can never error and a failing tx can never fail (stall) the block. Returns gas used.
+#[allow(clippy::too_many_arguments)]
 fn apply_failed_tx_consuming_nonce(
     state: &mut StateStore,
     tx: &Transaction,
@@ -290,11 +324,31 @@ fn apply_failed_tx_consuming_nonce(
     tx_index: u32,
     error: String,
     slot: &mut Option<ExecutionReceipt>,
-) {
+    failed_fee: Option<&FailedTxFee<'_>>,
+) -> u64 {
     state.revert(tx_ckpt);
+    let mut gas_used = 0u64;
+    let mut charge = 0u128;
     if let Some(sender_state) = state.get_mut(&tx.sender) {
         if sender_state.nonce == tx.nonce {
             sender_state.nonce = sender_state.nonce.saturating_add(1);
+            if let Some(f) = failed_fee {
+                charge = failed_tx_fee_amount(f.policy).min(sender_state.balance);
+                gas_used = FAILED_TX_GAS;
+            }
+        }
+    }
+    if let Some(f) = failed_fee {
+        if charge > 0 {
+            // Cannot fail: the sender exists and `charge <= balance`.
+            let _ = boing_tokenomics::charge_and_distribute_fee_with_remainder(
+                state,
+                &tx.sender,
+                charge,
+                &f.recipient,
+                f.policy,
+                f.remainder,
+            );
         }
     }
     *slot = Some(ExecutionReceipt::from_tx_outcome(
@@ -302,11 +356,12 @@ fn apply_failed_tx_consuming_nonce(
         block_height,
         tx_index,
         false,
-        0,
+        gas_used,
         Vec::new(),
         vec![],
         Some(error),
     ));
+    gas_used
 }
 
 impl Default for BlockExecutor {
@@ -382,7 +437,12 @@ mod tests {
     /// whole block (the producer used to re-insert the same txs forever, stalling the chain).
     #[test]
     fn failing_tx_in_parallel_batch_does_not_fail_block() {
-        let exec = BlockExecutor::new();
+        // Pre-#3 rules (failed txs only consume the nonce), as on testnet below the activation height.
+        let mut exec = BlockExecutor::new();
+        exec.set_execution_history(Some(crate::history::ExecutionHistory {
+            failed_tx_fee_from: u64::MAX,
+            ..Default::default()
+        }));
         let a = AccountId::from_bytes([1u8; 32]);
         let b = AccountId::from_bytes([2u8; 32]);
         let c = AccountId::from_bytes([3u8; 32]);
@@ -415,6 +475,107 @@ mod tests {
         let (_g, r2) = exec.execute_block(1, 0, &[t0, tx(c, d, 0, 50), tx(e, f, 0, 1)], &mut seq, proposer).unwrap();
         assert_eq!(r2.iter().map(|r| r.success).collect::<Vec<_>>(), vec![true, false, false]);
         assert_eq!(seq.state_root(), state.state_root());
+    }
+
+    /// Security review #3: after activation a failed tx (nonce matched) is charged the failed-tx fee,
+    /// its nonce advances, its state changes are reverted and its receipt is a failure with gas used.
+    /// Stale-nonce txs pay nothing. Applies on both the parallel and the sequential path.
+    #[test]
+    fn failed_tx_pays_fee_after_activation() {
+        let mut exec = BlockExecutor::new();
+        exec.set_execution_history(Some(crate::history::ExecutionHistory {
+            failed_tx_fee_from: 5,
+            ..Default::default()
+        }));
+        let fee = failed_tx_fee_amount(exec.fee_policy());
+        assert!(fee >= 1);
+        let a = AccountId::from_bytes([1u8; 32]);
+        let b = AccountId::from_bytes([2u8; 32]);
+        let c = AccountId::from_bytes([3u8; 32]);
+        let d = AccountId::from_bytes([4u8; 32]);
+        let e = AccountId::from_bytes([5u8; 32]);
+        let f = AccountId::from_bytes([6u8; 32]);
+        let proposer = AccountId::from_bytes([9u8; 32]);
+        let mk = || {
+            let mut s = StateStore::new();
+            s.insert(Account { id: a, state: AccountState { balance: 100_000, ..Default::default() } });
+            s.insert(Account { id: c, state: AccountState { balance: 50, ..Default::default() } });
+            s.insert(Account { id: e, state: AccountState { balance: 100_000, nonce: 3, ..Default::default() } });
+            s
+        };
+        let txs = [tx(a, b, 0, 5), tx(c, d, 0, 50), tx(e, f, 0, 1)];
+        let treasury_before = mk().get(&boing_tokenomics::PROTOCOL_TREASURY).map(|x| x.balance).unwrap_or(0);
+
+        // Before activation (height 4): legacy behaviour.
+        let mut s4 = mk();
+        exec.execute_block(4, 0, &txs, &mut s4, proposer).unwrap();
+        assert_eq!(s4.get(&c).unwrap().balance, 50);
+
+        // After activation (height 5), parallel-safe batch.
+        let mut s5 = mk();
+        let (gas, r) = exec.execute_block(5, 0, &txs, &mut s5, proposer).unwrap();
+        assert_eq!(r.iter().map(|r| r.success).collect::<Vec<_>>(), vec![true, false, false]);
+        assert_eq!(s5.get(&c).unwrap().balance, 50 - fee, "failed tx charged the failed-tx fee");
+        assert_eq!(s5.get(&c).unwrap().nonce, 1, "nonce advances");
+        assert!(s5.get(&d).is_none(), "state reverted");
+        assert_eq!(r[1].gas_used, FAILED_TX_GAS);
+        assert!(r[1].error.is_some());
+        // stale nonce: nothing charged, nonce unchanged
+        assert_eq!(s5.get(&e).unwrap().balance, 100_000);
+        assert_eq!(s5.get(&e).unwrap().nonce, 3);
+        assert_eq!(r[2].gas_used, 0);
+        assert_eq!(gas, r.iter().map(|r| r.gas_used).sum::<u64>());
+        let treasury_after = s5.get(&boing_tokenomics::PROTOCOL_TREASURY).map(|x| x.balance).unwrap_or(0);
+        assert!(treasury_after >= treasury_before + fee, "failed-tx fee is distributed");
+
+        // Sequential path gives the identical state root (determinism).
+        let mut seq = mk();
+        let mut t0 = tx(a, b, 0, 5);
+        t0.access_list = AccessList::default();
+        exec.execute_block(5, 0, &[t0, tx(c, d, 0, 50), tx(e, f, 0, 1)], &mut seq, proposer).unwrap();
+        assert_eq!(seq.state_root(), s5.state_root());
+        // Re-executing the same block from the same state is deterministic.
+        let mut again = mk();
+        exec.execute_block(5, 0, &txs, &mut again, proposer).unwrap();
+        assert_eq!(again.state_root(), s5.state_root());
+    }
+
+    /// The failed-tx fee is capped at the balance (never errors, never stalls the block), and a
+    /// failing Native Batch is atomic: every call is reverted and the fee is charged once.
+    #[test]
+    fn failed_batch_is_atomic_and_fee_capped_at_balance() {
+        use boing_primitives::BatchCall;
+        let exec = BlockExecutor::new(); // no history: rule active from genesis (new chains, mainnet)
+        let fee = failed_tx_fee_amount(exec.fee_policy());
+        let a = AccountId::from_bytes([1u8; 32]);
+        let b = AccountId::from_bytes([2u8; 32]);
+        let c = AccountId::from_bytes([3u8; 32]);
+        let z = AccountId::from_bytes([7u8; 32]);
+        let proposer = AccountId::from_bytes([9u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account { id: a, state: AccountState { balance: 1_000, ..Default::default() } });
+        state.insert(Account { id: z, state: AccountState { balance: 0, ..Default::default() } });
+        // second call overdraws: the whole batch must revert (b gets nothing)
+        let batch = Transaction {
+            nonce: 0,
+            sender: a,
+            payload: TransactionPayload::Batch {
+                calls: vec![
+                    BatchCall::Transfer { to: b, amount: 100 },
+                    BatchCall::Transfer { to: c, amount: 10_000 },
+                ],
+            },
+            access_list: AccessList::new(vec![a, b, c], vec![a, b, c]),
+        };
+        // z has a zero balance: its failing tx is included, nonce advances, nothing to charge.
+        let zt = tx(z, b, 0, 1);
+        let (_g, r) = exec.execute_block(1, 0, &[batch, zt], &mut state, proposer).expect("block executes");
+        assert!(!r[0].success && !r[1].success);
+        assert!(state.get(&b).is_none() && state.get(&c).is_none(), "batch reverted atomically");
+        assert_eq!(state.get(&a).unwrap().balance, 1_000 - fee);
+        assert_eq!(state.get(&a).unwrap().nonce, 1);
+        assert_eq!(state.get(&z).unwrap().balance, 0);
+        assert_eq!(state.get(&z).unwrap().nonce, 1);
     }
 
     #[test]
@@ -563,7 +724,8 @@ mod tests {
             .contains("insufficient balance for fee"));
         assert!(receipts[1].success);
         assert_eq!(state.get(&deployer).unwrap().nonce, 1);
-        assert_eq!(state.get(&deployer).unwrap().balance, 1 + 10);
+        // Failed-tx fee (#3) takes the deployer's whole 1 BOING (capped at the balance).
+        assert_eq!(state.get(&deployer).unwrap().balance, 10);
         assert_eq!(state.get(&payee).unwrap().nonce, 1);
     }
 

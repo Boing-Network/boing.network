@@ -163,6 +163,15 @@ export declare function encodeSignedTransaction(tx: TransactionInput, signature6
  * preimage = nonce_le || sender(32) || bincode(payload) || bincode(access_list)
  */
 export declare function signableTransactionHash(tx: TransactionInput): Uint8Array;
+/** Domain tag of the v2 (chain-bound) signing preimage. */
+export declare const TX_SIGNING_DOMAIN_V2: Uint8Array<ArrayBuffer>;
+/**
+ * v2 signable hash (security fix #2, cross-chain replay): BLAKE3( "BOING_TX_V2" || chain_id_le(8) ||
+ * nonce_le || sender(32) || bincode(payload) || bincode(access_list) ). Matches Rust
+ * `signable_transaction_hash_v2`. Required by nodes after the network's v2 activation height
+ * (testnet 6913: height 900; mainnet 6914: genesis).
+ */
+export declare function signableTransactionHashV2(tx: TransactionInput, chainId: bigint | number): Uint8Array;
 /**
  * Derives the mempool / receipt **`tx_id`** (32-byte BLAKE3) from **`0x` + bincode(`SignedTransaction`)** hex
  * returned by Boing Express after `boing_signTransaction`. Matches **`Transaction::id()`** / **`boing_getTransactionReceipt`** param

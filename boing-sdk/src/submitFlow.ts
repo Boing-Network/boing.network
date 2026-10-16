@@ -14,6 +14,7 @@ import {
   buildTransferTransaction,
   fetchNextNonce,
   signTransactionInput,
+  signTransactionInputForClient,
   type Ed25519SecretKey32,
 } from './transactionBuilder.js';
 
@@ -79,7 +80,7 @@ export async function submitTransferWithSimulationRetry(
       amount: opts.amount,
       accessList: { read, write },
     });
-    const signedHex = await signTransactionInput(tx, opts.secretKey32);
+    const signedHex = await signTransactionInputForClient(opts.client, tx, opts.secretKey32);
     lastSim = await opts.client.simulateTransaction(signedHex);
 
     if (lastSim.success) {
@@ -126,7 +127,7 @@ export async function submitContractCallWithSimulationRetry(
       calldata: opts.calldata,
       accessList: { read, write },
     });
-    const signedHex = await signTransactionInput(tx, opts.secretKey32);
+    const signedHex = await signTransactionInputForClient(opts.client, tx, opts.secretKey32);
     lastSim = await opts.client.simulateTransaction(signedHex);
 
     if (lastSim.success) {
@@ -200,7 +201,7 @@ export async function submitDeployWithPurposeFlow(opts: {
       create2Salt: opts.create2Salt ?? null,
       accessList: { read, write },
     });
-    const signedHex = await signTransactionInput(tx, opts.secretKey32);
+    const signedHex = await signTransactionInputForClient(opts.client, tx, opts.secretKey32);
     lastSim = await opts.client.simulateTransaction(signedHex);
 
     if (lastSim.success) {

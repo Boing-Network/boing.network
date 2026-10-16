@@ -110,6 +110,44 @@ BLAKE3( nonce_le_8_bytes
 
 32-byte BLAKE3 output is the message passed to Ed25519. Rust: `signable_transaction_hash` in `boing-primitives::signature`. TS: `signableTransactionHash()` in `boing-sdk`.
 
+### v2: chain-bound signatures (required after activation)
+
+The legacy hash above has no chain id, so a tx signed for one Boing chain is valid on every other
+chain with the same account and nonce (security review 2026-10-16, #2). The v2 hash adds a domain tag
+and the chain id:
+
+```text
+BLAKE3( "BOING_TX_V2"            (11 ASCII bytes)
+     || chain_id_le_8_bytes      (testnet 6913, mainnet 6914)
+     || nonce_le_8_bytes
+     || sender_32_bytes
+     || bincode(payload)
+     || bincode(access_list) )
+```
+
+The `SignedTransaction` bytes and the tx id (`Transaction::id()`) are unchanged; only what the
+signature covers changes.
+
+| Network | v2 accepted | Legacy rejected from |
+|---|---|---|
+| Testnet (6913) | now | block height **900** (`BOING_TESTNET_SECURITY_V2_FROM`) |
+| Mainnet (6914) / new chains with `BOING_CHAIN_ID` | genesis | genesis |
+| Local dev without `BOING_CHAIN_ID` | no (unknown chain) | never |
+
+Before activation a node accepts either format, so upgraded wallets sign v2 right away. The rule is
+checked at admission (`boing_submitTransaction`, P2P gossip, QA votes). Override the height with
+`BOING_TX_V2_FROM`. Nodes advertise the rule in `boing_health.tx_signing`:
+`{ v2_supported, domain, chain_id, v2_from_height, v2_required, failed_tx_fee_from_height }`.
+
+- Rust: `signable_transaction_hash_v2`, `SignedTransaction::new_for_chain`; `SignedTransaction::new`
+  signs v2 when `set_default_signing_chain_id` is set (the CLI sets it from the node; `--chain-id`,
+  `--legacy-signing`).
+- TS (`boing-sdk`): `signableTransactionHashV2(tx, chainId)`, `signTransactionInput(tx, key, { chainId })`,
+  `setDefaultSigningChainId`, `configureSigningFromNode(client)`. Helpers that take a client adopt the
+  node's chain id automatically.
+- Golden vector: seed `[7; 32]`, nonce 3, transfer 5 to `[9; 32]`, empty access list, chain 6913 →
+  `d88a23702aa0c376d9e0f3b6a2c2948058fecda14b95d26843f5f902ece87899`.
+
 ---
 
 ## Golden vectors

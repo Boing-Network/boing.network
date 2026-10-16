@@ -360,6 +360,27 @@ export function signableTransactionHash(tx: TransactionInput): Uint8Array {
   return blake3(preimage);
 }
 
+/** Domain tag of the v2 (chain-bound) signing preimage. */
+export const TX_SIGNING_DOMAIN_V2 = new TextEncoder().encode('BOING_TX_V2');
+
+/**
+ * v2 signable hash (security fix #2, cross-chain replay): BLAKE3( "BOING_TX_V2" || chain_id_le(8) ||
+ * nonce_le || sender(32) || bincode(payload) || bincode(access_list) ). Matches Rust
+ * `signable_transaction_hash_v2`. Required by nodes after the network's v2 activation height
+ * (testnet 6913: height 900; mainnet 6914: genesis).
+ */
+export function signableTransactionHashV2(tx: TransactionInput, chainId: bigint | number): Uint8Array {
+  const preimage = concatBytes(
+    TX_SIGNING_DOMAIN_V2,
+    writeU64Le(BigInt(chainId)),
+    writeU64Le(tx.nonce),
+    tx.sender,
+    encodeTransactionPayload(tx.payload),
+    encodeAccessList(tx.accessList.read, tx.accessList.write),
+  );
+  return blake3(preimage);
+}
+
 const SIGNED_TX_SIGNATURE_TRAIL_BYTES = 8 + 64;
 
 /**

@@ -16,7 +16,7 @@ import { calldataU128BeWord } from './calldata.js';
 import { buildBoingTokenApproveTransaction } from './boingToken.js';
 import { NATIVE_CP_SWAP_FEE_BPS, constantProductAmountOutFeeOnInputWithFeeBps, constantProductAmountOutWithFeeBps, encodeNativeAmmAddLiquidityCalldata, encodeNativeAmmRemoveLiquidityCalldata, encodeNativeAmmSetFeeAdminCalldata, encodeNativeAmmSetSwapFeeBpsCalldata, encodeNativeAmmSetTokensCalldata, encodeNativeAmmSwapCalldata, encodeNativeAmmSwapToCalldata, } from './nativeAmm.js';
 import { NATIVE_CONSTANT_PRODUCT_RESERVE_A_KEY_HEX, NATIVE_CONSTANT_PRODUCT_RESERVE_B_KEY_HEX, NATIVE_CONSTANT_PRODUCT_SWAP_FEE_BPS_KEY_HEX, NATIVE_CONSTANT_PRODUCT_TOKEN_A_KEY_HEX, NATIVE_CONSTANT_PRODUCT_TOKEN_B_KEY_HEX, NATIVE_CONSTANT_PRODUCT_TOTAL_LP_KEY_HEX, decodeBoingStorageWordU128, nativeAmmLpBalanceStorageKeyHex, } from './nativeAmmPool.js';
-import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput, } from './transactionBuilder.js';
+import { fetchNextNonce, senderHexFromSecretKey, signTransactionInputForClient, } from './transactionBuilder.js';
 import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 /** QA purpose category for pool deploys (CLI `POOL_PURPOSE`). */
 export const BOING_POOL_PURPOSE = 'dapp';
@@ -165,7 +165,7 @@ export async function quoteBoingPoolSwap(client, input) {
     return { amountOut, feeBps, minOut: m < amountOut ? m : amountOut };
 }
 async function send(client, tx, secretKey32, dryRun) {
-    const signedHex = await signTransactionInput(tx, secretKey32);
+    const signedHex = await signTransactionInputForClient(client, tx, secretKey32);
     const txId = transactionIdFromSignedTransactionHex(signedHex);
     if (!dryRun) {
         if (!client)

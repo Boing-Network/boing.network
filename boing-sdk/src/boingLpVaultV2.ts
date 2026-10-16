@@ -12,7 +12,8 @@ import { bytesToHex, hexToAccountId, hexToBytes, validateHex32 } from './hex.js'
 import { calldataAccountIdWord, calldataSelectorLastByte, calldataU128BeWord, concatCalldata } from './calldata.js';
 import { buildBoingTokenApproveTransaction, decodeBoingTokenBalanceWord } from './boingToken.js';
 import { BOING_POOL_PURPOSE, buildBoingPoolCallTransaction, getBoingPoolState, quoteBoingPoolLpMinted, type BoingPoolSignedTx, type BoingPoolSendOptions } from './boingPool.js';
-import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput, type Ed25519SecretKey32 } from './transactionBuilder.js';
+import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput,
+  signTransactionInputForClient, type Ed25519SecretKey32 } from './transactionBuilder.js';
 import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 
 export const BOING_LP_VAULT_V2_BYTECODE_HEX = NATIVE_LP_VAULT_V2_BYTECODE_HEX;
@@ -145,7 +146,7 @@ export async function getBoingLpVaultV2State(client: BoingClient, vaultHex: stri
 async function signAll(client: BoingClient | null, txs: TransactionInput[], key: Ed25519SecretKey32, dry: boolean): Promise<BoingPoolSignedTx[]> {
   const out: BoingPoolSignedTx[] = [];
   for (const tx of txs) {
-    const signedHex = await signTransactionInput(tx, key);
+    const signedHex = await signTransactionInputForClient(client, tx, key);
     const txId = transactionIdFromSignedTransactionHex(signedHex);
     if (!dry) {
       if (!client) throw new Error('a BoingClient is required to submit');

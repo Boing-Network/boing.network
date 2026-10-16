@@ -25,6 +25,7 @@ import {
   fetchNextNonce,
   senderHexFromSecretKey,
   signTransactionInput,
+  signTransactionInputForClient,
   type Ed25519SecretKey32,
 } from './transactionBuilder.js';
 import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
@@ -199,7 +200,7 @@ async function signAndMaybeSubmit(
   secretKey32: Ed25519SecretKey32,
   dryRun: boolean,
 ): Promise<BoingTokenSignedTx> {
-  const signedHex = await signTransactionInput(tx, secretKey32);
+  const signedHex = await signTransactionInputForClient(client, tx, secretKey32);
   const txId = transactionIdFromSignedTransactionHex(signedHex);
   if (!dryRun) {
     if (!client) throw new Error('a BoingClient is required to submit');

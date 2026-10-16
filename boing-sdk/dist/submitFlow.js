@@ -5,7 +5,7 @@ import { mergeAccessListWithSimulation } from './accessList.js';
 import { BoingRpcError } from './errors.js';
 import { bytesToHex } from './hex.js';
 import { submittedTxHash } from './submitIdempotent.js';
-import { buildContractCallTransaction, buildDeployWithPurposeTransaction, buildTransferTransaction, fetchNextNonce, signTransactionInput, } from './transactionBuilder.js';
+import { buildContractCallTransaction, buildDeployWithPurposeTransaction, buildTransferTransaction, fetchNextNonce, signTransactionInputForClient, } from './transactionBuilder.js';
 /** Thrown when simulation fails and access-list widening cannot proceed (or retries exhausted). */
 export class SimulationFailedError extends Error {
     constructor(message, simulation, attempt) {
@@ -33,7 +33,7 @@ export async function submitTransferWithSimulationRetry(opts) {
             amount: opts.amount,
             accessList: { read, write },
         });
-        const signedHex = await signTransactionInput(tx, opts.secretKey32);
+        const signedHex = await signTransactionInputForClient(opts.client, tx, opts.secretKey32);
         lastSim = await opts.client.simulateTransaction(signedHex);
         if (lastSim.success) {
             const sub = await opts.client.submitTransaction(signedHex);
@@ -64,7 +64,7 @@ export async function submitContractCallWithSimulationRetry(opts) {
             calldata: opts.calldata,
             accessList: { read, write },
         });
-        const signedHex = await signTransactionInput(tx, opts.secretKey32);
+        const signedHex = await signTransactionInputForClient(opts.client, tx, opts.secretKey32);
         lastSim = await opts.client.simulateTransaction(signedHex);
         if (lastSim.success) {
             const sub = await opts.client.submitTransaction(signedHex);
@@ -104,7 +104,7 @@ export async function submitDeployWithPurposeFlow(opts) {
             create2Salt: opts.create2Salt ?? null,
             accessList: { read, write },
         });
-        const signedHex = await signTransactionInput(tx, opts.secretKey32);
+        const signedHex = await signTransactionInputForClient(opts.client, tx, opts.secretKey32);
         lastSim = await opts.client.simulateTransaction(signedHex);
         if (lastSim.success) {
             const sub = await opts.client.submitTransaction(signedHex);

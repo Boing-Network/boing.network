@@ -33,7 +33,7 @@ mod scheduler;
 mod vm;
 
 pub use bytecode::{gas as bytecode_gas, Opcode};
-pub use executor::{BlockExecutor, ExecutionError};
+pub use executor::{failed_tx_fee_amount, BlockExecutor, ExecutionError, FAILED_TX_GAS};
 pub use gas::GasConfig;
 pub use interpreter::{Interpreter, StorageAccess, VmExecutionContext, MAX_CALL_DEPTH};
 pub use parallel::ExecutionView;

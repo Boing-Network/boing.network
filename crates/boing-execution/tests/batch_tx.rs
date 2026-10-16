@@ -157,7 +157,10 @@ fn failing_step_reverts_the_whole_batch_in_block_execution() {
     assert!(err.contains("step 2"), "error names the failing step: {err}");
     assert!(state.get(&bob).is_none(), "no BOING moved");
     assert_eq!(token_balance(&state, &token, &bob), 0, "no token moved");
-    assert_eq!(state.get(&alice).unwrap().balance, before);
+    // Security review #3: the failed batch pays the failed-tx fee once (all steps reverted).
+    let fee = boing_execution::failed_tx_fee_amount(exec.fee_policy());
+    assert_eq!(state.get(&alice).unwrap().balance, before - fee);
+    assert_eq!(receipts[0].gas_used, boing_execution::FAILED_TX_GAS);
     assert_eq!(state.get(&alice).unwrap().nonce, 3, "failed tx still consumes the nonce");
 }
 

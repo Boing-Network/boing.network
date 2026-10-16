@@ -384,6 +384,14 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
   "chain_id": 6913,
   "chain_name": "Boing Testnet",
   "head_height": 42,
+  "tx_signing": {
+    "v2_supported": true,
+    "domain": "BOING_TX_V2",
+    "chain_id": 6913,
+    "v2_from_height": 900,
+    "v2_required": false,
+    "failed_tx_fee_from_height": 900
+  },
   "rpc_surface": {
     "jsonrpc_batch_max": 32,
     "websocket_max_connections": 0,
@@ -649,6 +657,13 @@ Lookup execution outcome for an included transaction (same id as `Transaction::i
 **Result:** Receipt object or `null` if unknown (e.g. not yet included, or node predates receipt persistence).
 
 Receipt: `{ tx_id, block_height, tx_index, success, gas_used, return_data, logs, error }` — `return_data` is hex; `logs` is an array of `{ topics: string[], data: string }` (each topic is `0x` + 32-byte hex, `data` is hex). Logs are populated for `ContractCall` and for **`ContractDeploy` only when bytecode uses init-code mode** (leading `0xFD` prefix; see `TECHNICAL-SPECIFICATION.md` §4.4). `error` is set when `success` is false.
+
+**Failed transactions** (security review #3; testnet from height 900, mainnet from genesis): a tx that
+passes admission (signature, nonce, fee balance) but fails in execution is still included. Its state
+changes are reverted, the sender's nonce advances, and the sender pays the failed-tx fee
+(`fee_for_gas(21000)` + any fixed fee, capped at the balance; 1 BOING today). The receipt has
+`success: false`, `error`, and `gas_used: 21000`. A failing Native Batch reverts every step and pays the
+fee once. Below the activation height a failed tx paid nothing (`gas_used: 0`).
 
 ---
 

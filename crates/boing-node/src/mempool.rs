@@ -112,9 +112,12 @@ impl Mempool {
         signed: SignedTransaction,
         qa_mode: DeployQaMode,
     ) -> Result<(), MempoolError> {
-        signed
-            .verify()
-            .map_err(|_| MempoolError::InvalidSignature)?;
+        signed.verify().map_err(|e| match e {
+            boing_primitives::SignatureError::LegacySignatureRejected => {
+                MempoolError::LegacySignature
+            }
+            _ => MempoolError::InvalidSignature,
+        })?;
         signed
             .tx
             .payload
@@ -253,6 +256,8 @@ pub enum MempoolError {
     Duplicate,
     #[error("Invalid signature")]
     InvalidSignature,
+    #[error("Legacy signature rejected: sign with the chain id (v2 signing domain) after the activation height")]
+    LegacySignature,
     #[error("Invalid batch: {0}")]
     InvalidBatch(boing_primitives::BatchValidationError),
     #[error("Pending limit exceeded: sender has too many pending txs (max {limit})")]

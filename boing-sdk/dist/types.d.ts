@@ -47,6 +47,21 @@ export interface BoingHealth {
     rpc_surface?: BoingHealthRpcSurface;
     /** Present on current `boing-node`; omit on older binaries. */
     rpc_metrics?: BoingRpcMetrics;
+    /** Signing rules (security fixes #2/#3); omitted by older nodes (legacy signing only). */
+    tx_signing?: BoingTxSigningInfo;
+}
+export interface BoingTxSigningInfo {
+    /** Node knows its chain id and verifies v2 (chain-bound) signatures. */
+    v2_supported: boolean;
+    /** `"BOING_TX_V2"`. */
+    domain: string;
+    chain_id: number | null;
+    /** Height from which legacy signatures are rejected. */
+    v2_from_height: number | null;
+    /** True once the next block is at/after `v2_from_height`. */
+    v2_required: boolean;
+    /** Height from which failed txs pay the failed-tx fee. */
+    failed_tx_fee_from_height: number;
 }
 /** Result of `BoingClient.preflightRpc()` — one-shot readiness for dashboards and CI. */
 export interface BoingRpcPreflightResult {

@@ -12,7 +12,7 @@
 import * as ed25519 from '@noble/ed25519';
 import { blake3 } from '@noble/hashes/blake3';
 import { bytesToHex, hexToAccountId, validateHex32 } from './hex.js';
-import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput, } from './transactionBuilder.js';
+import { fetchNextNonce, senderHexFromSecretKey, signTransactionInputForClient, } from './transactionBuilder.js';
 export const BOING_VALIDATOR_REGISTRATION_DOMAIN = 'BOING_OPEN_VALIDATOR_REGISTER_V1';
 /** 32-byte message the node key signs (matches Rust `validator_registration_message`). */
 export function validatorRegistrationMessage(ownerHex, nodeIdHex) {
@@ -88,7 +88,7 @@ export function boingOpenRegistrationOpen(report) {
     return report.mode === 'open' && !!report.open && report.height + 1 >= report.open.activation_height;
 }
 async function signAndSubmit(client, tx, secret) {
-    const hex = await signTransactionInput(tx, secret);
+    const hex = await signTransactionInputForClient(client, tx, secret);
     return client.submitTransaction(hex);
 }
 /**

@@ -3,7 +3,7 @@
  * Produces hex `SignedTransaction` for `boing_submitTransaction`.
  */
 import * as ed25519 from '@noble/ed25519';
-import { MAX_BATCH_CALLS, validateBatchCalls, encodeSignedTransaction, signableTransactionHash, } from './bincode.js';
+import { MAX_BATCH_CALLS, validateBatchCalls, encodeSignedTransaction, signableTransactionHash, signableTransactionHashV2, } from './bincode.js';
 import { bytesToHex, hexToAccountId, validateHex32 } from './hex.js';
 /** Derive Boing `AccountId` hex (0x + 64 hex) from a 32-byte Ed25519 secret seed. */
 export async function senderHexFromSecretKey(secretKey32) {
@@ -125,14 +125,61 @@ function bytesEqual(a, b) {
             return false;
     return true;
 }
-export async function signTransactionInput(tx, secretKey32) {
+let defaultSigningChainId = null;
+/**
+ * Process default chain id for v2 signing (used when `SignOptions.chainId` is omitted).
+ * `null` = legacy (pre-chain-id) signatures, which nodes reject after their v2 activation height.
+ */
+export function setDefaultSigningChainId(chainId) {
+    defaultSigningChainId = chainId == null ? null : BigInt(chainId);
+}
+export function getDefaultSigningChainId() {
+    return defaultSigningChainId;
+}
+/** Chain id a node advertises for v2 signing (`boing_health.tx_signing`), or `null` (older node). */
+export async function fetchSigningChainId(client) {
+    try {
+        const h = await client.health();
+        const ts = h.tx_signing;
+        if (ts && ts.v2_supported && ts.chain_id != null)
+            return BigInt(ts.chain_id);
+    }
+    catch {
+        /* unreachable / old node: legacy */
+    }
+    return null;
+}
+const detected = new WeakMap();
+/** Sets the default signing chain id from the node once (no-op when a default is already set). */
+export async function configureSigningFromNode(client) {
+    if (defaultSigningChainId != null)
+        return defaultSigningChainId;
+    if (!detected.has(client))
+        detected.set(client, await fetchSigningChainId(client));
+    const c = detected.get(client) ?? null;
+    if (c != null)
+        defaultSigningChainId = c;
+    return c;
+}
+/** Digest to sign for `tx` under `opts` (v2 when a chain id is known, else legacy). */
+export function signingHashFor(tx, opts) {
+    const cid = opts && opts.chainId !== undefined ? opts.chainId : defaultSigningChainId;
+    return cid == null ? signableTransactionHash(tx) : signableTransactionHashV2(tx, cid);
+}
+/** Like `signTransactionInput`, but first adopts the node's advertised chain id (v2) when `client` is given. */
+export async function signTransactionInputForClient(client, tx, secretKey32) {
+    if (client)
+        await configureSigningFromNode(client);
+    return signTransactionInput(tx, secretKey32);
+}
+export async function signTransactionInput(tx, secretKey32, opts) {
     if (secretKey32.length !== 32)
         throw new Error('secret key must be 32 bytes');
     const pub = await ed25519.getPublicKeyAsync(secretKey32);
     if (!bytesEqual(pub, tx.sender)) {
         throw new Error('tx.sender must equal the Ed25519 public key derived from the secret key');
     }
-    const hash = signableTransactionHash(tx);
+    const hash = signingHashFor(tx, opts);
     const sig = await ed25519.signAsync(hash, secretKey32);
     const raw = encodeSignedTransaction(tx, sig);
     return bytesToHex(raw);
@@ -141,8 +188,8 @@ export async function signTransactionInput(tx, secretKey32) {
  * Sign with a custom async signer (e.g. hardware wallet or IPC to Boing Express).
  * Caller must ensure the signer corresponds to `tx.sender`; no verification here.
  */
-export async function signTransactionInputWithSigner(tx, signHash) {
-    const hash = signableTransactionHash(tx);
+export async function signTransactionInputWithSigner(tx, signHash, opts) {
+    const hash = signingHashFor(tx, opts);
     const sig = await signHash(hash);
     if (sig.length !== 64)
         throw new Error('Ed25519 signature must be 64 bytes');

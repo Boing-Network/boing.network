@@ -391,6 +391,7 @@ async fn main() -> anyhow::Result<()> {
                             }
                         }
                         boing_p2p::P2pEvent::TransactionReceived(signed) => {
+                            node_clone.read().await.refresh_tx_sig_policy();
                             if let Err(e) = signed.verify() {
                                 logging::log_p2p_event_warn("gossip_tx_bad_signature", &e);
                                 continue;

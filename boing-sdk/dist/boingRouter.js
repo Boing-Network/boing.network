@@ -4,7 +4,7 @@ import { hexToAccountId, hexToBytes, validateHex32 } from './hex.js';
 import { calldataAccountIdWord, calldataSelectorLastByte, calldataU128BeWord, concatCalldata } from './calldata.js';
 import { buildBoingTokenApproveTransaction } from './boingToken.js';
 import { BOING_POOL_PURPOSE, boingPoolEffectiveFeeBps, boingPoolMinOutWithSlippage, buildBoingPoolCallTransaction, getBoingPoolState, quoteBoingPoolAmountOut, } from './boingPool.js';
-import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput } from './transactionBuilder.js';
+import { fetchNextNonce, senderHexFromSecretKey, signTransactionInputForClient } from './transactionBuilder.js';
 import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 export const BOING_CUSTODY_ROUTER_SELECTOR_SWAP = 0xf1;
 export const BOING_CUSTODY_ROUTER_MAX_HOPS = 4;
@@ -79,7 +79,7 @@ export async function quoteBoingRoute(client, hops, amountIn) {
     return amt;
 }
 async function sign(client, tx, key, dry) {
-    const signedHex = await signTransactionInput(tx, key);
+    const signedHex = await signTransactionInputForClient(client, tx, key);
     const txId = transactionIdFromSignedTransactionHex(signedHex);
     if (!dry) {
         if (!client)

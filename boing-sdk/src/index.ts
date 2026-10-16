@@ -130,6 +130,7 @@ export type {
   SyncState,
   NetworkInfo,
   BoingHealth,
+  BoingTxSigningInfo,
   BoingHealthRpcSurface,
   BoingRpcMetrics,
   ChainNativeAggregates,
@@ -504,6 +505,8 @@ export {
   encodeSignature,
   encodeSignedTransaction,
   signableTransactionHash,
+  signableTransactionHashV2,
+  TX_SIGNING_DOMAIN_V2,
   transactionIdFromSignedTransactionHex,
   BatchCallVariant,
   MAX_BATCH_CALLS,
@@ -522,7 +525,14 @@ export {
   senderHexFromSecretKey,
   signTransactionInput,
   signTransactionInputWithSigner,
+  signTransactionInputForClient,
+  setDefaultSigningChainId,
+  getDefaultSigningChainId,
+  fetchSigningChainId,
+  configureSigningFromNode,
+  signingHashFor,
 } from './transactionBuilder.js';
+export type { SignOptions } from './transactionBuilder.js';
 export type { BuildBatchInput, BuildBatchCall, BuildTransferInput, BuildContractCallInput, BuildDeployWithPurposeInput, Ed25519SecretKey32 } from './transactionBuilder.js';
 export {
   predictCreate2ContractAddress,

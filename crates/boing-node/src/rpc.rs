@@ -446,6 +446,21 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_verifyAccountProof",
 ];
 
+/// Advertised signing rules (security review #2/#3), so wallets know to sign with the chain id.
+fn tx_signing_info(n: &crate::node::BoingNode) -> serde_json::Value {
+    let history = n.executor.execution_history();
+    let chain_id = crate::network_preset::configured_chain_id();
+    let policy = crate::network_preset::tx_sig_policy(chain_id, history, n.chain.height() + 1);
+    serde_json::json!({
+        "v2_supported": chain_id.is_some(),
+        "domain": "BOING_TX_V2",
+        "chain_id": chain_id,
+        "v2_from_height": chain_id.map(|_| crate::network_preset::tx_v2_from(history)),
+        "v2_required": policy.require_v2,
+        "failed_tx_fee_from_height": history.map(|h| h.failed_tx_fee_from).unwrap_or(0),
+    })
+}
+
 static DEVELOPER_API_DOCUMENT: OnceLock<serde_json::Value> = OnceLock::new();
 
 fn developer_api_document() -> &'static serde_json::Value {
@@ -1549,6 +1564,7 @@ async fn dispatch_jsonrpc_request(
                         )
                     }
                 };
+                node.read().await.refresh_tx_sig_policy();
                 if signed.verify().is_err() {
                     return (
                         StatusCode::OK,
@@ -1758,6 +1774,7 @@ async fn dispatch_jsonrpc_request(
                     "chain_id": chain_id,
                     "chain_name": chain_name,
                     "head_height": n.chain.height(),
+                    "tx_signing": tx_signing_info(&n),
                     "rpc_surface": rpc_surface_capabilities(state),
                     "rpc_metrics": rpc_metrics_snapshot(state),
                 }),
