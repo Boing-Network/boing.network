@@ -18,6 +18,10 @@ export const PayloadVariant = {
     QaPoolVote: 8,
     /** Atomic batch of transfers / contract calls under one signature + nonce (node ≥ batch release). */
     Batch: 9,
+    /** Open validator registration (owner signs tx; node key signs the registration proof). */
+    ValidatorRegister: 10,
+    ValidatorDeregister: 11,
+    ValidatorUnjail: 12,
 };
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
 export const BatchCallVariant = {
@@ -162,6 +166,20 @@ export function encodeTransactionPayload(payload) {
         case 'batch':
             validateBatchCalls(payload.calls);
             return concatBytes(writeU32Le(PayloadVariant.Batch), writeU64Le(BigInt(payload.calls.length)), ...payload.calls.map(encodeBatchCall));
+        case 'validatorRegister':
+            if (payload.nodeId.length !== 32)
+                throw new Error('validator nodeId must be 32 bytes');
+            if (payload.nodeSignature.length !== 64)
+                throw new Error('validator nodeSignature must be 64 bytes');
+            return concatBytes(writeU32Le(PayloadVariant.ValidatorRegister), payload.nodeId, encodeByteVec(payload.nodeSignature));
+        case 'validatorDeregister':
+            if (payload.nodeId.length !== 32)
+                throw new Error('validator nodeId must be 32 bytes');
+            return concatBytes(writeU32Le(PayloadVariant.ValidatorDeregister), payload.nodeId);
+        case 'validatorUnjail':
+            if (payload.nodeId.length !== 32)
+                throw new Error('validator nodeId must be 32 bytes');
+            return concatBytes(writeU32Le(PayloadVariant.ValidatorUnjail), payload.nodeId);
         default: {
             const _x = payload;
             return _x;

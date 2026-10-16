@@ -64,4 +64,19 @@ mod tests {
         assert!(!verify_validator_registration(&owner, &node_id, &fake_sig));
         assert!(!verify_validator_registration(&owner, &node_id, &sig[..63]));
     }
+
+    /// Golden vector shared with `boing-sdk/tests/boingOpenValidator.test.ts`.
+    #[test]
+    fn golden_message() {
+        let node = SigningKey::from_bytes(&[7u8; 32]);
+        let node_id = AccountId(node.verifying_key().to_bytes());
+        assert_eq!(
+            hex::encode(node_id.0),
+            "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c"
+        );
+        assert_eq!(
+            hex::encode(validator_registration_message(&AccountId([9u8; 32]), &node_id)),
+            "f8bbe9cbc961743405a6154a8dd07192efa73a3e9368271ec4b11dd0b66562b5"
+        );
+    }
 }

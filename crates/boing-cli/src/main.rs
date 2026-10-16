@@ -13,6 +13,7 @@ mod pool;
 mod qa_apply;
 mod router;
 mod token;
+mod validator;
 
 #[derive(Parser)]
 #[command(name = "boing")]
@@ -61,6 +62,9 @@ enum Commands {
     /// Boing-native constant-product AMM pool: create / add / remove / swap / quote / reserves
     #[command(subcommand)]
     Pool(PoolCommands),
+    /// Open validator set: register / deregister / unjail / status
+    #[command(subcommand)]
+    Validator(ValidatorCommands),
     /// Generate shell completion script (bash, zsh, fish, powershell)
     Completions {
         /// Shell: bash, zsh, fish, powershell, elvish
@@ -349,6 +353,55 @@ enum PoolCommands {
         signer: SignerArgs,
     },
 }
+#[derive(clap::Args)]
+struct ValidatorSignerArgs {
+    /// Owner (bond payer) secret seed hex (default: BOING_SECRET_HEX; falls back to the node key)
+    #[arg(long)]
+    secret_hex: Option<String>,
+    /// Node consensus secret seed hex (default: BOING_VALIDATOR_KEY)
+    #[arg(long)]
+    node_key_hex: Option<String>,
+    /// Override owner nonce (default: fetched via boing_getAccount)
+    #[arg(long)]
+    nonce: Option<u64>,
+    /// Print signed transaction hex instead of submitting
+    #[arg(long)]
+    dry_run: bool,
+}
+
+#[derive(Subcommand)]
+enum ValidatorCommands {
+    /// Register the node key as an open validator (locks the bond; joins at the next epoch)
+    Register {
+        #[command(flatten)]
+        signer: ValidatorSignerArgs,
+    },
+    /// Leave the set; the bond becomes claimable with ClaimUnbond after the delay
+    Deregister {
+        /// Node id hex (default: derived from the node key)
+        #[arg(long)]
+        node: Option<String>,
+        #[command(flatten)]
+        signer: ValidatorSignerArgs,
+    },
+    /// Request re-admission after a liveness jail (after the cooldown)
+    Unjail {
+        #[arg(long)]
+        node: Option<String>,
+        #[command(flatten)]
+        signer: ValidatorSignerArgs,
+    },
+    /// Show validators with status, uptime, missed proposals and bond (boing_getValidators)
+    Status {
+        /// Only this node id
+        #[arg(long)]
+        node: Option<String>,
+        /// Raw JSON
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 #[derive(Subcommand)]
 enum QaCommands {
     /// Push `qa_registry.json` and `qa_pool_config.json` via RPC (requires X-Boing-Operator when the node sets BOING_OPERATOR_RPC_TOKEN)
@@ -660,6 +713,21 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         }
+        Commands::Validator(cmd) => match cmd {
+            ValidatorCommands::Register { signer } => {
+                let (owner, node) = validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                validator::register(&cli.rpc_url, owner, node, signer.nonce, signer.dry_run).await
+            }
+            ValidatorCommands::Deregister { node, signer } => {
+                let (owner, node_key) = validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                validator::deregister(&cli.rpc_url, owner, node_key, node, signer.nonce, signer.dry_run).await
+            }
+            ValidatorCommands::Unjail { node, signer } => {
+                let (owner, node_key) = validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                validator::unjail(&cli.rpc_url, owner, node_key, node, signer.nonce, signer.dry_run).await
+            }
+            ValidatorCommands::Status { node, json } => validator::status(&cli.rpc_url, node, json).await,
+        },
         Commands::Completions { shell } => {
             clap_complete::generate(shell, &mut Cli::command(), "boing", &mut std::io::stdout());
             Ok(())

@@ -16,6 +16,10 @@ export declare const PayloadVariant: {
     readonly QaPoolVote: 8;
     /** Atomic batch of transfers / contract calls under one signature + nonce (node ≥ batch release). */
     readonly Batch: 9;
+    /** Open validator registration (owner signs tx; node key signs the registration proof). */
+    readonly ValidatorRegister: 10;
+    readonly ValidatorDeregister: 11;
+    readonly ValidatorUnjail: 12;
 };
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
 export declare const BatchCallVariant: {
@@ -94,6 +98,16 @@ export type TransactionPayloadInput = {
 } | {
     kind: 'batch';
     calls: BatchCallInput[];
+} | {
+    kind: 'validatorRegister';
+    nodeId: Uint8Array;
+    nodeSignature: Uint8Array;
+} | {
+    kind: 'validatorDeregister';
+    nodeId: Uint8Array;
+} | {
+    kind: 'validatorUnjail';
+    nodeId: Uint8Array;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

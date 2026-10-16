@@ -20,6 +20,10 @@ export const PayloadVariant = {
   QaPoolVote: 8,
   /** Atomic batch of transfers / contract calls under one signature + nonce (node ≥ batch release). */
   Batch: 9,
+  /** Open validator registration (owner signs tx; node key signs the registration proof). */
+  ValidatorRegister: 10,
+  ValidatorDeregister: 11,
+  ValidatorUnjail: 12,
 } as const;
 
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
@@ -173,7 +177,10 @@ export type TransactionPayloadInput =
   | { kind: 'unbond'; amount: bigint }
   | { kind: 'claimUnbond' }
   | { kind: 'qaPoolVote'; subject: Uint8Array; vote: 'allow' | 'reject' | 'abstain' }
-  | { kind: 'batch'; calls: BatchCallInput[] };
+  | { kind: 'batch'; calls: BatchCallInput[] }
+  | { kind: 'validatorRegister'; nodeId: Uint8Array; nodeSignature: Uint8Array }
+  | { kind: 'validatorDeregister'; nodeId: Uint8Array }
+  | { kind: 'validatorUnjail'; nodeId: Uint8Array };
 
 export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array {
   switch (payload.kind) {
@@ -238,6 +245,20 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
         writeU64Le(BigInt(payload.calls.length)),
         ...payload.calls.map(encodeBatchCall),
       );
+    case 'validatorRegister':
+      if (payload.nodeId.length !== 32) throw new Error('validator nodeId must be 32 bytes');
+      if (payload.nodeSignature.length !== 64) throw new Error('validator nodeSignature must be 64 bytes');
+      return concatBytes(
+        writeU32Le(PayloadVariant.ValidatorRegister),
+        payload.nodeId,
+        encodeByteVec(payload.nodeSignature),
+      );
+    case 'validatorDeregister':
+      if (payload.nodeId.length !== 32) throw new Error('validator nodeId must be 32 bytes');
+      return concatBytes(writeU32Le(PayloadVariant.ValidatorDeregister), payload.nodeId);
+    case 'validatorUnjail':
+      if (payload.nodeId.length !== 32) throw new Error('validator nodeId must be 32 bytes');
+      return concatBytes(writeU32Le(PayloadVariant.ValidatorUnjail), payload.nodeId);
     default: {
       const _x: never = payload;
       return _x;

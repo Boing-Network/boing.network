@@ -94,3 +94,4 @@ export { BOING_WEB_WALLET_DEFAULT_URL, BoingWebWalletError, createBoingWebReques
 export { isAlreadyInMempoolError, submitSignedTransactionIdempotent } from './submitIdempotent.js';
 export * from './boingCustodySwap.js';
 export * from './boingLpVaultV2.js';
+export * from './boingOpenValidator.js';

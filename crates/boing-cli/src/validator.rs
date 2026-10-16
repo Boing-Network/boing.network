@@ -1,0 +1,239 @@
+//! `boing validator register | deregister | unjail | status` — open validator set (permissionless).
+//!
+//! Keys: the **owner** (pays the 100 BOING bond, signs the tx) comes from `--secret-hex` /
+//! `BOING_SECRET_HEX`; the **node** key (consensus key the node runs with) from `--node-key-hex` /
+//! `BOING_VALIDATOR_KEY`. If no owner key is given, the node key owns itself. Keys are never printed.
+
+use boing_primitives::{
+    sign_validator_registration, AccessList, AccountId, SignedTransaction, Transaction,
+    TransactionPayload,
+};
+use ed25519_dalek::SigningKey;
+use serde_json::{json, Value};
+
+use crate::token::{account_of, hex_account, nonce_for, parse_account, parse_signing_key, rpc, submit};
+
+/// Resolve (owner, node) keys. The node key is optional for deregister/unjail when `--node` is given.
+pub fn resolve_keys(
+    owner_hex: Option<String>,
+    node_key_hex: Option<String>,
+) -> anyhow::Result<(Option<SigningKey>, Option<SigningKey>)> {
+    let node = node_key_hex
+        .or_else(|| std::env::var("BOING_VALIDATOR_KEY").ok())
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| parse_signing_key(&s))
+        .transpose()?;
+    let owner = owner_hex
+        .or_else(|| std::env::var("BOING_SECRET_HEX").ok())
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| parse_signing_key(&s))
+        .transpose()?;
+    Ok((owner, node))
+}
+
+fn tx(owner: &SigningKey, nonce: u64, payload: TransactionPayload) -> SignedTransaction {
+    let mut tx = Transaction {
+        nonce,
+        sender: account_of(owner),
+        payload,
+        access_list: AccessList::default(),
+    };
+    tx.access_list = tx.suggested_parallel_access_list();
+    SignedTransaction::new(tx, owner)
+}
+
+pub fn build_register_tx(owner: &SigningKey, node: &SigningKey, nonce: u64) -> SignedTransaction {
+    let owner_id = account_of(owner);
+    tx(
+        owner,
+        nonce,
+        TransactionPayload::ValidatorRegister {
+            node_id: account_of(node),
+            node_signature: sign_validator_registration(&owner_id, node),
+        },
+    )
+}
+
+pub fn build_deregister_tx(owner: &SigningKey, node_id: AccountId, nonce: u64) -> SignedTransaction {
+    tx(owner, nonce, TransactionPayload::ValidatorDeregister { node_id })
+}
+
+pub fn build_unjail_tx(owner: &SigningKey, node_id: AccountId, nonce: u64) -> SignedTransaction {
+    tx(owner, nonce, TransactionPayload::ValidatorUnjail { node_id })
+}
+
+async fn require_open_mode(rpc_url: &str) -> anyhow::Result<Value> {
+    let report = rpc(rpc_url, "boing_getValidators", json!([])).await?;
+    if report.get("mode").and_then(Value::as_str) != Some("open") {
+        anyhow::bail!(
+            "this node is not running the open validator-set mode (mode = {}); registration is not available yet",
+            report.get("mode").cloned().unwrap_or(Value::Null)
+        );
+    }
+    Ok(report)
+}
+
+pub async fn register(
+    rpc_url: &str,
+    owner: Option<SigningKey>,
+    node: Option<SigningKey>,
+    nonce: Option<u64>,
+    dry_run: bool,
+) -> anyhow::Result<()> {
+    let node = node.ok_or_else(|| anyhow::anyhow!("no node key: pass --node-key-hex or set BOING_VALIDATOR_KEY"))?;
+    let owner = owner.unwrap_or_else(|| node.clone());
+    if !dry_run {
+        let report = require_open_mode(rpc_url).await?;
+        if let Some(open) = report.get("open") {
+            println!(
+                "Open validator set: bond {} BOING, joins at the next epoch boundary (every {} blocks, next {})",
+                open.get("bond").and_then(Value::as_str).unwrap_or("?"),
+                open.get("epoch_len").cloned().unwrap_or(Value::Null),
+                open.get("next_epoch_height").cloned().unwrap_or(Value::Null),
+            );
+        }
+    }
+    println!("Registering node {} (owner {})", hex_account(&account_of(&node)), hex_account(&account_of(&owner)));
+    let n = nonce_for(rpc_url, &owner, nonce).await?;
+    submit(rpc_url, &build_register_tx(&owner, &node, n), dry_run).await
+}
+
+fn node_id_from(node_arg: Option<String>, node_key: &Option<SigningKey>) -> anyhow::Result<AccountId> {
+    match (node_arg, node_key) {
+        (Some(s), _) => parse_account(&s),
+        (None, Some(k)) => Ok(account_of(k)),
+        (None, None) => anyhow::bail!("pass --node <hex id> or a node key (--node-key-hex / BOING_VALIDATOR_KEY)"),
+    }
+}
+
+pub async fn deregister(
+    rpc_url: &str,
+    owner: Option<SigningKey>,
+    node_key: Option<SigningKey>,
+    node_arg: Option<String>,
+    nonce: Option<u64>,
+    dry_run: bool,
+) -> anyhow::Result<()> {
+    let node_id = node_id_from(node_arg, &node_key)?;
+    let owner = owner.or(node_key).ok_or_else(|| anyhow::anyhow!("no owner key: pass --secret-hex or set BOING_SECRET_HEX"))?;
+    println!("Deregistering node {} (bond claimable with ClaimUnbond after the delay)", hex_account(&node_id));
+    let n = nonce_for(rpc_url, &owner, nonce).await?;
+    submit(rpc_url, &build_deregister_tx(&owner, node_id, n), dry_run).await
+}
+
+pub async fn unjail(
+    rpc_url: &str,
+    owner: Option<SigningKey>,
+    node_key: Option<SigningKey>,
+    node_arg: Option<String>,
+    nonce: Option<u64>,
+    dry_run: bool,
+) -> anyhow::Result<()> {
+    let node_id = node_id_from(node_arg, &node_key)?;
+    let owner = owner.or(node_key).ok_or_else(|| anyhow::anyhow!("no owner key: pass --secret-hex or set BOING_SECRET_HEX"))?;
+    println!("Unjailing node {}", hex_account(&node_id));
+    let n = nonce_for(rpc_url, &owner, nonce).await?;
+    submit(rpc_url, &build_unjail_tx(&owner, node_id, n), dry_run).await
+}
+
+/// Render `boing_getValidators` (optionally one node).
+pub fn format_status(report: &Value, only: Option<&str>) -> String {
+    let mut out = String::new();
+    out.push_str(&format!(
+        "mode={} height={} validators={} quorum={}\n",
+        report["mode"].as_str().unwrap_or("?"),
+        report["height"],
+        report["validator_count"],
+        report["quorum"]
+    ));
+    if let Some(open) = report.get("open").filter(|v| !v.is_null()) {
+        out.push_str(&format!(
+            "open: activation_height={} activated_at={} bond={} epoch_len={} next_epoch={} max_open={} window={} threshold={}bps cooldown={}\n",
+            open["activation_height"], open["activated_at"], open["bond"].as_str().unwrap_or("?"),
+            open["epoch_len"], open["next_epoch_height"], open["max_open_validators"],
+            open["liveness_window"], open["miss_threshold_bps"], open["jail_cooldown"]
+        ));
+    }
+    out.push_str("id                                                                  kind    status   in_set  bond  uptime   missed/scheduled\n");
+    for v in report["validators"].as_array().into_iter().flatten() {
+        let id = v["id"].as_str().unwrap_or("");
+        if let Some(f) = only {
+            if !id.eq_ignore_ascii_case(f) {
+                continue;
+            }
+        }
+        let mut status = v["status"].as_str().unwrap_or("?").to_string();
+        if let Some(u) = v["jailed_until"].as_u64() {
+            status = format!("{status}(until {u})");
+        }
+        out.push_str(&format!(
+            "{id:<68}  {:<6}  {:<8} {:<6}  {:<4}  {:>6.1}%  {}/{}\n",
+            v["kind"].as_str().unwrap_or("?"),
+            status,
+            v["in_set"].as_bool().unwrap_or(false),
+            v["bond"].as_str().unwrap_or("0"),
+            v["uptime_pct"].as_f64().unwrap_or(0.0),
+            v["missed_proposals"],
+            v["scheduled_proposals"],
+        ));
+    }
+    out
+}
+
+pub async fn status(rpc_url: &str, node: Option<String>, json_out: bool) -> anyhow::Result<()> {
+    let report = rpc(rpc_url, "boing_getValidators", json!([])).await?;
+    if json_out {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+        return Ok(());
+    }
+    let only = node.map(|n| parse_account(&n).map(|a| hex_account(&a))).transpose()?;
+    print!("{}", format_status(&report, only.as_deref()));
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn register_tx_is_bound_and_verifies() {
+        let owner = SigningKey::from_bytes(&[9u8; 32]);
+        let node = SigningKey::from_bytes(&[7u8; 32]);
+        let stx = build_register_tx(&owner, &node, 4);
+        assert!(stx.verify().is_ok());
+        assert_eq!(stx.tx.sender, account_of(&owner));
+        match &stx.tx.payload {
+            TransactionPayload::ValidatorRegister { node_id, node_signature } => {
+                assert_eq!(*node_id, account_of(&node));
+                assert!(boing_primitives::verify_validator_registration(&account_of(&owner), node_id, node_signature));
+            }
+            _ => panic!("wrong payload"),
+        }
+        let d = build_deregister_tx(&owner, account_of(&node), 5);
+        assert!(matches!(d.tx.payload, TransactionPayload::ValidatorDeregister { .. }));
+        let u = build_unjail_tx(&owner, account_of(&node), 6);
+        assert!(matches!(u.tx.payload, TransactionPayload::ValidatorUnjail { .. }));
+    }
+
+    #[test]
+    fn status_formatting() {
+        let report = json!({
+            "mode": "open", "height": 12, "validator_count": 2, "quorum": 1,
+            "open": {"activation_height": 5, "activated_at": 10, "bond": "100", "epoch_len": 5,
+                     "next_epoch_height": 15, "max_open_validators": 20, "liveness_window": 1000,
+                     "miss_threshold_bps": 1000, "jail_cooldown": 500},
+            "validators": [
+                {"id": "0xaa", "kind": "anchor", "status": "active", "in_set": true, "bond": "0",
+                 "uptime_pct": 100.0, "missed_proposals": 0, "scheduled_proposals": 3, "jailed_until": null},
+                {"id": "0xbb", "kind": "open", "status": "jailed", "in_set": false, "bond": "100",
+                 "uptime_pct": 0.0, "missed_proposals": 2, "scheduled_proposals": 2, "jailed_until": 25}
+            ]
+        });
+        let s = format_status(&report, None);
+        assert!(s.contains("mode=open"));
+        assert!(s.contains("jailed(until 25)"));
+        assert!(s.contains("2/2"));
+        let one = format_status(&report, Some("0xAA"));
+        assert!(one.contains("0xaa") && !one.contains("0xbb"));
+    }
+}

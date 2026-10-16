@@ -102,4 +102,5 @@ export type { BoingWebRequest, BoingWebResponse, BoingWebMethod, BoingWebWalletP
 export { isAlreadyInMempoolError, submitSignedTransactionIdempotent } from './submitIdempotent.js';
 export * from './boingCustodySwap.js';
 export * from './boingLpVaultV2.js';
+export * from './boingOpenValidator.js';
 //# sourceMappingURL=index.d.ts.map

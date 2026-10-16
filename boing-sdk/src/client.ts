@@ -633,6 +633,14 @@ export class BoingClient {
   }
 
   /**
+   * Validator set with status, proposal uptime, missed count and bond (`boing_getValidators`, params `[]`).
+   * `mode` is `static`, `stake` or `open`; open-mode details are under `open`.
+   */
+  async getValidators(): Promise<import('./boingOpenValidator.js').BoingValidatorsReport> {
+    return this.request('boing_getValidators', []);
+  }
+
+  /**
    * Network + tip snapshot for dApps (params `[]`). Includes `chain_native` (sums over committed accounts) and
    * `rpc.not_available` for capabilities this surface does not expose (e.g. staking APY).
    * See RPC-API-SPEC.md — `chain_id` / `chain_name` require node env `BOING_CHAIN_ID` / `BOING_CHAIN_NAME`.
