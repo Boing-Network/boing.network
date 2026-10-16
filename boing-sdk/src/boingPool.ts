@@ -45,6 +45,7 @@ import {
   signTransactionInput,
   type Ed25519SecretKey32,
 } from './transactionBuilder.js';
+import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 
 /** QA purpose category for pool deploys (CLI `POOL_PURPOSE`). */
 export const BOING_POOL_PURPOSE = 'dapp';
@@ -276,7 +277,7 @@ async function send(
   const txId = transactionIdFromSignedTransactionHex(signedHex);
   if (!dryRun) {
     if (!client) throw new Error('a BoingClient is required to submit');
-    await client.submitTransaction(signedHex);
+    await submitSignedTransactionIdempotent(client, signedHex);
   }
   return { txId, signedHex, submitted: !dryRun };
 }

@@ -268,9 +268,20 @@ pub(crate) async fn submit(
         println!("  signed {hex_tx}");
         return Ok(());
     }
-    rpc(rpc_url, "boing_submitTransaction", json!([hex_tx])).await?;
-    println!("  submitted tx_id {id}");
+    match rpc(rpc_url, "boing_submitTransaction", json!([hex_tx])).await {
+        Ok(_) => println!("  submitted tx_id {id}"),
+        // Same signed bytes already in the mempool (e.g. gateway fan-out raced P2P gossip): it was accepted.
+        Err(e) if is_already_in_mempool(&e.to_string()) => {
+            println!("  submitted tx_id {id} (already pending in mempool)")
+        }
+        Err(e) => return Err(e),
+    }
     Ok(())
+}
+
+/// The node's duplicate-signed-payload rejection (`-32000`, `data.reason = "already_in_mempool"`).
+pub(crate) fn is_already_in_mempool(err: &str) -> bool {
+    err.contains("already_in_mempool") || err.contains("Duplicate transaction")
 }
 
 pub(crate) async fn nonce_for(
@@ -450,6 +461,30 @@ mod tests {
     use boing_execution::Interpreter;
     use boing_primitives::Account;
     use boing_state::StateStore;
+
+    /// Dry runs must never touch the network: point at a live listener and assert nothing connects.
+    #[test]
+    fn dry_run_submit_never_calls_rpc() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let stx = build_deploy_tx(&key(9), 0, Some("Dry".into()), Some("DRY".into()));
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        rt.block_on(submit(&url, &stx, true)).expect("dry run is offline");
+        assert!(listener.accept().is_err(), "dry run opened a connection to the RPC");
+        // Control: a real submit does connect (and fails, since nobody answers JSON-RPC).
+        let _ = rt.block_on(async {
+            tokio::time::timeout(std::time::Duration::from_millis(300), submit(&url, &stx, false)).await
+        });
+        assert!(listener.accept().is_ok(), "non-dry submit should reach the RPC");
+    }
+
+    #[test]
+    fn duplicate_mempool_error_is_treated_as_accepted() {
+        let e = r#"boing_submitTransaction failed: {"code":-32000,"data":{"reason":"already_in_mempool"},"message":"Duplicate transaction"}"#;
+        assert!(is_already_in_mempool(e));
+        assert!(!is_already_in_mempool(r#"boing_submitTransaction failed: {"code":-32000,"message":"insufficient balance"}"#));
+    }
 
     fn key(b: u8) -> SigningKey {
         SigningKey::from_bytes(&[b; 32])

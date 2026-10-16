@@ -27,6 +27,7 @@ import {
   signTransactionInput,
   type Ed25519SecretKey32,
 } from './transactionBuilder.js';
+import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 
 /** QA purpose category for fungible deploys (same as CLI `TOKEN_PURPOSE`). */
 export const BOING_TOKEN_PURPOSE = 'token';
@@ -202,7 +203,7 @@ async function signAndMaybeSubmit(
   const txId = transactionIdFromSignedTransactionHex(signedHex);
   if (!dryRun) {
     if (!client) throw new Error('a BoingClient is required to submit');
-    await client.submitTransaction(signedHex);
+    await submitSignedTransactionIdempotent(client, signedHex);
   }
   return { txId, signedHex, submitted: !dryRun };
 }

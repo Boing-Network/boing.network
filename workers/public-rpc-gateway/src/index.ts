@@ -178,6 +178,19 @@ function corsJsonResponse(attempt: FanoutAttempt): Response {
  * Prefer the validator's JSON-RPC success or application error; only use another
  * backend when the validator times out or returns HTTP 5xx.
  */
+/** JSON-RPC error body for the node's duplicate-signed-payload rejection (`data.reason = already_in_mempool`). */
+export function isAlreadyInMempoolBody(text: string): boolean {
+  try {
+    const v = JSON.parse(text) as { error?: { message?: unknown; data?: { reason?: unknown } } };
+    const err = v?.error;
+    if (!err) return false;
+    if (err.data && err.data.reason === "already_in_mempool") return true;
+    return typeof err.message === "string" && /duplicate transaction/i.test(err.message);
+  } catch {
+    return false;
+  }
+}
+
 async function proxySubmitFanout(origins: string[], req: Request, body: ArrayBuffer | null): Promise<Response> {
   const settled = await Promise.all(
     origins.map(async (origin): Promise<FanoutAttempt> => {
@@ -211,6 +224,13 @@ async function proxySubmitFanout(origins: string[], req: Request, body: ArrayBuf
 
   const validator = origins[0];
   const fromValidator = settled.find((a) => a.origin === validator);
+  // Fan-out race: a full node accepts the tx and gossips it to the validator before the validator's own copy
+  // arrives, so the validator says "Duplicate transaction" (already_in_mempool) although the tx WAS accepted.
+  // Prefer any backend's success in that case instead of surfacing a misleading failure.
+  if (fromValidator && fromValidator.kind === "rpc_error" && isAlreadyInMempoolBody(fromValidator.text)) {
+    const ok = settled.find((a) => a.kind === "success");
+    if (ok) return corsJsonResponse(ok);
+  }
   if (fromValidator && (fromValidator.kind === "success" || fromValidator.kind === "rpc_error")) {
     return corsJsonResponse(fromValidator);
   }

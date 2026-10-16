@@ -22,6 +22,7 @@ import {
   type BoingPoolSendOptions,
 } from './boingPool.js';
 import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput, type Ed25519SecretKey32 } from './transactionBuilder.js';
+import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 
 export const BOING_CUSTODY_ROUTER_SELECTOR_SWAP = 0xf1;
 export const BOING_CUSTODY_ROUTER_MAX_HOPS = 4;
@@ -126,7 +127,7 @@ async function sign(client: BoingClient | null, tx: TransactionInput, key: Ed255
   const txId = transactionIdFromSignedTransactionHex(signedHex);
   if (!dry) {
     if (!client) throw new Error('a BoingClient is required to submit');
-    await client.submitTransaction(signedHex);
+    await submitSignedTransactionIdempotent(client, signedHex);
   }
   return { txId, signedHex, submitted: !dry };
 }
