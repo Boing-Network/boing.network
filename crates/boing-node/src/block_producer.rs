@@ -58,8 +58,24 @@ impl BlockProducer {
         executor: &BlockExecutor,
         consensus: &ConsensusEngine,
     ) -> Option<ProducedProposal> {
+        self.produce_proposal_with_fallback(chain, mempool, state, executor, consensus, false)
+    }
+
+    /// Like [`Self::produce_proposal`]; with `anchor_fallback`, an anchor validator may propose even
+    /// when it is not the scheduled leader (open validator-set mode, leader presumed offline).
+    pub fn produce_proposal_with_fallback(
+        &self,
+        chain: &ChainState,
+        mempool: &Mempool,
+        state: &mut StateStore,
+        executor: &BlockExecutor,
+        consensus: &ConsensusEngine,
+        anchor_fallback: bool,
+    ) -> Option<ProducedProposal> {
         let next_height = chain.height() + 1;
-        if consensus.leader(next_height) != self.proposer {
+        let is_leader = consensus.leader(next_height) == self.proposer;
+        let fallback_ok = anchor_fallback && consensus.may_propose(next_height, &self.proposer);
+        if !is_leader && !fallback_ok {
             return None; // Not our turn to propose
         }
         let signed_txs = mempool.drain_for_block(self.max_txs_per_block);
@@ -114,6 +130,8 @@ impl BlockProducer {
                 }
             }
         }
+
+        state.apply_open_validator_block_hook(height, self.proposer);
 
         let state_root = state.state_root();
         let rr = receipts_root(&receipts);

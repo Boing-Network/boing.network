@@ -23,6 +23,7 @@ const QA_REGISTRY_FILE: &str = "qa_registry.json";
 const QA_POOL_CONFIG_FILE: &str = "qa_pool_config.json";
 const NETWORK_FEE_CONFIG_FILE: &str = "network_fee_config.json";
 const QA_PENDING_FILE: &str = "qa_pending.bin";
+const OPEN_VALIDATORS_FILE: &str = "open_validators.bin";
 const SLASH_REGISTRY_FILE: &str = "slash_registry.json";
 
 /// Chain metadata stored on disk.
@@ -171,6 +172,18 @@ impl Persistence {
         let pending_bytes = bincode::serialize(&state.export_qa_pending())
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
         std::fs::write(pending_path, pending_bytes)?;
+        let ov_path = self.state_dir().join(OPEN_VALIDATORS_FILE);
+        if state.open_validators().is_empty() {
+            if ov_path.exists() {
+                std::fs::remove_file(&ov_path)?;
+            }
+        } else {
+            let ov_bytes = bincode::serialize(state.open_validators())
+                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let tmp = ov_path.with_extension("bin.tmp");
+            std::fs::write(&tmp, ov_bytes)?;
+            std::fs::rename(tmp, &ov_path)?;
+        }
         Ok(())
     }
 
@@ -228,11 +241,18 @@ impl Persistence {
         let persisted: PersistedState = bincode::deserialize(&bytes)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
 
-        let state = StateStore::load_from_persistence(
+        let mut state = StateStore::load_from_persistence(
             persisted.accounts,
             persisted.contract_code,
             persisted.contract_storage,
         );
+        let ov_path = self.state_dir().join(OPEN_VALIDATORS_FILE);
+        if ov_path.exists() {
+            let ov_bytes = std::fs::read(&ov_path)?;
+            let reg: boing_state::OpenValidatorRegistry = bincode::deserialize(&ov_bytes)
+                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            state.load_open_validators(reg);
+        }
         Ok(Some(state))
     }
 

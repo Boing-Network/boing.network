@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use boing_primitives::{Account, AccountId, AccountState, Hash};
 
+use crate::open_validators::{OpenValidatorParams, OpenValidatorRegistry};
 use crate::qa_pending::QaPendingRecord;
 use crate::sparse_merkle::{
     hash_account_leaf, hash_contract_code, SparseMerkleTree,
@@ -39,6 +40,7 @@ pub struct StateCheckpoint {
     contract_code: HashMap<AccountId, Vec<u8>>,
     contract_storage: HashMap<(AccountId, [u8; 32]), [u8; 32]>,
     qa_pending: HashMap<Hash, QaPendingRecord>,
+    open_validators: OpenValidatorRegistry,
 }
 
 /// State store with Sparse Merkle tree for state_root.
@@ -52,6 +54,10 @@ pub struct StateStore {
     pub contract_storage: HashMap<(AccountId, [u8; 32]), [u8; 32]>,
     /// On-chain Unsure QA items (public-membership path).
     qa_pending: HashMap<Hash, QaPendingRecord>,
+    /// Open validator registry (committed once non-empty).
+    open_validators: OpenValidatorRegistry,
+    /// Node config for open validator mode (not committed; `None` = mode off).
+    open_validator_params: Option<OpenValidatorParams>,
 }
 
 impl StateStore {
@@ -144,6 +150,12 @@ impl StateStore {
             self.tree
                 .insert_leaf_hash(QaPendingRecord::smt_key(subject), rec.commitment_hash());
         }
+        if !self.open_validators.is_empty() {
+            self.tree.insert_leaf_hash(
+                OpenValidatorRegistry::smt_key(),
+                Hash(self.open_validators.commitment()),
+            );
+        }
         self.tree.root()
     }
 
@@ -170,6 +182,8 @@ impl StateStore {
             out.merge_contract_storage(*contract, *key, *value);
         }
         out.qa_pending = self.qa_pending.clone();
+        out.open_validators = self.open_validators.clone();
+        out.open_validator_params = self.open_validator_params.clone();
         out
     }
 
@@ -180,6 +194,7 @@ impl StateStore {
             contract_code: self.contract_code.iter().map(|(k, v)| (*k, v.clone())).collect(),
             contract_storage: self.contract_storage.iter().map(|(k, v)| (*k, *v)).collect(),
             qa_pending: self.qa_pending.clone(),
+            open_validators: self.open_validators.clone(),
         }
     }
 
@@ -195,6 +210,7 @@ impl StateStore {
         self.contract_code = cp.contract_code;
         self.contract_storage = cp.contract_storage;
         self.qa_pending = cp.qa_pending;
+        self.open_validators = cp.open_validators;
         self.tree = SparseMerkleTree::new();
         let _ = self.state_root();
     }
@@ -273,6 +289,37 @@ impl StateStore {
 
     pub fn load_qa_pending(&mut self, items: Vec<(Hash, QaPendingRecord)>) {
         self.qa_pending = items.into_iter().collect();
+    }
+
+    /// Open validator registry (read).
+    pub fn open_validators(&self) -> &OpenValidatorRegistry {
+        &self.open_validators
+    }
+
+    pub fn open_validators_mut(&mut self) -> &mut OpenValidatorRegistry {
+        &mut self.open_validators
+    }
+
+    /// Replace the registry (persistence load).
+    pub fn load_open_validators(&mut self, reg: OpenValidatorRegistry) {
+        self.open_validators = reg;
+    }
+
+    /// Open-mode node config (`None` = open mode off).
+    pub fn open_validator_params(&self) -> Option<&OpenValidatorParams> {
+        self.open_validator_params.as_ref()
+    }
+
+    pub fn set_open_validator_params(&mut self, params: Option<OpenValidatorParams>) {
+        self.open_validator_params = params;
+    }
+
+    /// Deterministic end-of-block hook for open validator mode (no-op when off). Producers and
+    /// importers call this after execution + block reward and before computing the state root.
+    pub fn apply_open_validator_block_hook(&mut self, height: u64, proposer: AccountId) {
+        if let Some(p) = self.open_validator_params.clone() {
+            self.open_validators.on_block(&p, height, proposer);
+        }
     }
 
     /// Top N accounts by stake (for validator set derivation).

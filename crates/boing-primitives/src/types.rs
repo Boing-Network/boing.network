@@ -122,6 +122,15 @@ impl Transaction {
             TransactionPayload::Bond { amount } => format!("Bond {} stake", amount),
             TransactionPayload::Unbond { amount } => format!("Unbond {} stake", amount),
             TransactionPayload::ClaimUnbond => "Claim unbonded stake".into(),
+            TransactionPayload::ValidatorRegister { node_id, .. } => {
+                format!("Register validator node {}", hex::encode(&node_id.0[..8]))
+            }
+            TransactionPayload::ValidatorDeregister { node_id } => {
+                format!("Deregister validator node {}", hex::encode(&node_id.0[..8]))
+            }
+            TransactionPayload::ValidatorUnjail { node_id } => {
+                format!("Unjail validator node {}", hex::encode(&node_id.0[..8]))
+            }
             TransactionPayload::ContractCall { contract, .. } => {
                 format!("Call contract {}", hex::encode(&contract.0[..8]))
             }
@@ -193,6 +202,9 @@ impl Transaction {
             TransactionPayload::Bond { .. }
             | TransactionPayload::Unbond { .. }
             | TransactionPayload::ClaimUnbond
+            | TransactionPayload::ValidatorRegister { .. }
+            | TransactionPayload::ValidatorDeregister { .. }
+            | TransactionPayload::ValidatorUnjail { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -270,6 +282,19 @@ pub enum TransactionPayload {
     /// reverted (the nonce is still consumed, like any failed tx). Appended last so existing
     /// bincode discriminants stay stable (variant index 9).
     Batch { calls: Vec<BatchCall> },
+    /// Open validator registration (variant index 10). The tx signer (`sender`) is the **owner** and
+    /// pays the configured bond; `node_signature` is the node key's signature over
+    /// [`crate::validator_registration_message`]`(sender, node_id)`. Rejected unless the network has
+    /// activated the `open` validator-set mode.
+    ValidatorRegister {
+        node_id: AccountId,
+        node_signature: Vec<u8>,
+    },
+    /// Leave the open validator set (index 11). Owner only. The bond moves to `pending_unbond` and is
+    /// claimable with [`TransactionPayload::ClaimUnbond`] after the deregistration delay.
+    ValidatorDeregister { node_id: AccountId },
+    /// Request re-admission after a liveness jail once the cooldown has passed (index 12). Owner only.
+    ValidatorUnjail { node_id: AccountId },
 }
 
 /// One step inside [`TransactionPayload::Batch`]. Contract calls run with `CALLER` = tx sender,

@@ -278,6 +278,52 @@ impl Vm {
             TransactionPayload::Batch { calls } => {
                 return self.execute_batch(state, tx, calls, exec_ctx);
             }
+            TransactionPayload::ValidatorRegister { node_id, node_signature } => {
+                let params = open_validator_params_at(state, exec_ctx.block_height)?;
+                if !boing_primitives::verify_validator_registration(&tx.sender, node_id, node_signature) {
+                    return Err(VmError::OpenValidator(
+                        boing_state::OpenValidatorError::InvalidNodeSignature.to_string(),
+                    ));
+                }
+                let balance = state.get(&tx.sender).map(|s| s.balance).unwrap_or(0);
+                if balance < params.bond {
+                    return Err(VmError::InsufficientBalance);
+                }
+                state
+                    .open_validators_mut()
+                    .register(&params, exec_ctx.block_height, tx.sender, *node_id)
+                    .map_err(|e| VmError::OpenValidator(e.to_string()))?;
+                let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+                sender_state.balance -= params.bond;
+                sender_state.nonce = sender_state.nonce.checked_add(1).ok_or(VmError::NonceOverflow)?;
+                base::BOND
+            }
+            TransactionPayload::ValidatorDeregister { node_id } => {
+                let params = open_validator_params_at(state, exec_ctx.block_height)?;
+                let refund = state
+                    .open_validators_mut()
+                    .deregister(tx.sender, *node_id)
+                    .map_err(|e| VmError::OpenValidator(e.to_string()))?;
+                let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+                if refund > 0 {
+                    sender_state.pending_unbond = sender_state.pending_unbond.saturating_add(refund);
+                    sender_state.unbond_unlock_height = sender_state
+                        .unbond_unlock_height
+                        .max(exec_ctx.block_height.saturating_add(params.deregister_delay));
+                }
+                sender_state.nonce = sender_state.nonce.checked_add(1).ok_or(VmError::NonceOverflow)?;
+                base::UNBOND
+            }
+            TransactionPayload::ValidatorUnjail { node_id } => {
+                let _ = open_validator_params_at(state, exec_ctx.block_height)?;
+                state
+                    .open_validators_mut()
+                    .unjail(tx.sender, *node_id, exec_ctx.block_height)
+                    .map_err(|e| VmError::OpenValidator(e.to_string()))?;
+                let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+                sender_state.nonce = sender_state.nonce.checked_add(1).ok_or(VmError::NonceOverflow)?;
+                base::UNBOND
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -1012,6 +1058,25 @@ mod tests {
     }
 }
 
+/// Open validator params when the mode is configured and `height` is at/after activation.
+fn open_validator_params_at(
+    state: &StateStore,
+    height: u64,
+) -> Result<boing_state::OpenValidatorParams, VmError> {
+    let params = state.open_validator_params().cloned().ok_or_else(|| {
+        VmError::OpenValidator(boing_state::OpenValidatorError::Disabled.to_string())
+    })?;
+    if height < params.activation_height {
+        return Err(VmError::OpenValidator(
+            boing_state::OpenValidatorError::NotYetActive {
+                activation_height: params.activation_height,
+            }
+            .to_string(),
+        ));
+    }
+    Ok(params)
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum VmError {
     #[error("Account not found")]
@@ -1063,6 +1128,8 @@ pub enum VmError {
     InvalidBatch(String),
     #[error("Batch step {index} failed: {reason} (whole batch reverted)")]
     BatchStepFailed { index: usize, reason: String },
+    #[error("Open validator: {0}")]
+    OpenValidator(String),
 }
 
 /// Apply CREATE2-style deploy from inside a contract: QA, address derivation, account insert, optional init, runtime install.

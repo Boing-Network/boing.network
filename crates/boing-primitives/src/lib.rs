@@ -12,6 +12,7 @@ pub mod randomness;
 pub mod recovery;
 pub mod signature;
 pub mod types;
+pub mod validator_registration;
 pub mod vrf_proof;
 
 pub use consensus_vote::{
@@ -38,6 +39,10 @@ pub use randomness::{
     verify_vrf_output, vrf_round_alpha, vrf_round_seed, ECVRF_PROOF_LEN, VdfOutput, VrfOutput,
 };
 pub use vrf_proof::VrfProofGossip;
+pub use validator_registration::{
+    sign_validator_registration, validator_registration_message, verify_validator_registration,
+    VALIDATOR_REGISTRATION_DOMAIN,
+};
 pub use paymaster::{PaymasterConfig, SponsoredTransaction};
 pub use recovery::{Guardian, RecoveryRequest};
 pub use hd::HdPath;

@@ -39,6 +39,13 @@ pub struct ConsensusEngine {
     last_committed_voters: Vec<AccountId>,
     /// Verified ECVRF outputs keyed by round → validator (VRF leader mode).
     vrf_proofs: HashMap<u64, HashMap<AccountId, VrfOutput>>,
+    /// Anchor validators (open validator-set mode), sorted. When non-empty:
+    /// - the commit quorum is a BFT quorum over **anchors only** (`floor((a+f_a)/2)+1` of the `a`
+    ///   anchors, `f_a = (a-1)/3`), so open validators can never stall commits however many are offline;
+    /// - the designated fallback anchor for a round (`anchors[round % a]`) may propose in place of
+    ///   the scheduled leader (exactly one fallback proposer per height, so anchors never compete);
+    /// - that fallback proposal supersedes a pending non-anchor proposal at the same height.
+    anchors: Vec<AccountId>,
 }
 
 impl ConsensusEngine {
@@ -52,6 +59,58 @@ impl ConsensusEngine {
             leader_election: LeaderElection::RoundRobin,
             last_committed_voters: Vec::new(),
             vrf_proofs: HashMap::new(),
+            anchors: Vec::new(),
+        }
+    }
+
+    /// Configure anchor validators (empty = classic 2f+1 over all validators).
+    pub fn set_anchors(&mut self, mut anchors: Vec<AccountId>) {
+        anchors.sort();
+        anchors.dedup();
+        self.anchors = anchors;
+        self.votes.clear();
+    }
+
+    /// Anchors that are members of the current validator set.
+    fn active_anchors(&self) -> Vec<AccountId> {
+        self.anchors
+            .iter()
+            .filter(|a| self.validators.contains(a))
+            .copied()
+            .collect()
+    }
+
+    /// The single anchor allowed to propose at `round` when the scheduled leader does not.
+    pub fn fallback_anchor(&self, round: u64) -> Option<AccountId> {
+        let a = self.active_anchors();
+        if a.is_empty() {
+            return None;
+        }
+        Some(a[(round as usize) % a.len()])
+    }
+
+    pub fn anchors(&self) -> &[AccountId] {
+        &self.anchors
+    }
+
+    pub fn is_anchor(&self, id: &AccountId) -> bool {
+        self.anchors.contains(id)
+    }
+
+    /// Whether `who` may propose at `round`: the scheduled leader, or (anchor mode) the round's fallback anchor.
+    pub fn may_propose(&self, round: u64, who: &AccountId) -> bool {
+        if !self.validators.contains(who) {
+            return false;
+        }
+        self.leader(round) == *who || self.fallback_anchor(round) == Some(*who)
+    }
+
+    /// Count of current votes that count toward the quorum.
+    fn counted_votes(&self) -> usize {
+        if self.anchors.is_empty() {
+            self.votes.len()
+        } else {
+            self.votes.keys().filter(|v| self.anchors.contains(v)).count()
         }
     }
 
@@ -132,9 +191,15 @@ impl ConsensusEngine {
         (self.validators.len().saturating_sub(1)) / 3
     }
 
-    /// Quorum size (2f+1).
+    /// Quorum size (2f+1). In anchor mode: `floor((a + f_a) / 2) + 1` over the `a` anchors in the set,
+    /// which keeps any two quorums intersecting in an honest anchor for every `a` (1→1, 2→2, 3→2, 4→3).
     fn quorum(&self) -> usize {
-        2 * self.f() + 1
+        if self.anchors.is_empty() {
+            return 2 * self.f() + 1;
+        }
+        let a = self.active_anchors().len().max(1);
+        let f = (a - 1) / 3;
+        (a + f) / 2 + 1
     }
 
     /// Leader for round `r`.
@@ -169,7 +234,9 @@ impl ConsensusEngine {
             )));
         }
         let expected_leader = self.leader(self.round);
-        if block.header.proposer != expected_leader {
+        if block.header.proposer != expected_leader
+            && self.fallback_anchor(self.round) != Some(block.header.proposer)
+        {
             return Err(ConsensusError::InvalidBlock(format!(
                 "Proposer {:?} is not the round leader {:?}",
                 block.header.proposer, expected_leader
@@ -204,6 +271,13 @@ impl ConsensusEngine {
         // If we already have this pending block, keep existing votes (idempotent re-gossip).
         if let Some(pending) = &self.pending_block {
             if pending.hash() == block.hash() {
+                return Ok(());
+            }
+            // Anchor fallback proposal replaces a (late / offline) non-anchor leader's proposal.
+            if self.fallback_anchor(self.round) == Some(block.header.proposer)
+                && !self.is_anchor(&pending.header.proposer)
+            {
+                self.enter_voting_phase(block);
                 return Ok(());
             }
             return Err(ConsensusError::InvalidBlock(
@@ -254,7 +328,7 @@ impl ConsensusEngine {
         self.votes.insert(validator, block_hash);
         debug!("Consensus: vote from {:?}, {}/{}", validator, self.votes.len(), self.quorum());
 
-        if self.votes.len() >= self.quorum() {
+        if self.counted_votes() >= self.quorum() {
             let h = block.hash();
             info!("Consensus: committed block {} at round {}", h, self.round);
             self.last_committed_voters = self.votes.keys().copied().collect();
@@ -465,6 +539,85 @@ mod tests {
         assert!(engine.pending_block().is_none());
         assert_eq!(engine.num_validators(), 3);
         assert_eq!(engine.leader(0), v1);
+    }
+
+    #[test]
+    fn anchor_quorum_ignores_offline_open_majority() {
+        let anchor = AccountId::from_bytes([1u8; 32]);
+        let opens: Vec<AccountId> = (2u8..=7).map(|i| AccountId::from_bytes([i; 32])).collect();
+        let mut set = vec![anchor];
+        set.extend(opens.iter().copied());
+        let mut engine = ConsensusEngine::new(set);
+        engine.set_anchors(vec![anchor]);
+        assert_eq!(engine.quorum_size(), 1);
+        // Round 1's leader is an (offline) open validator; the anchor proposes as fallback.
+        assert_ne!(engine.leader(1), anchor);
+        engine.sync_round(1);
+        let block = mk_block(1, anchor, Hash::ZERO);
+        engine.propose(block.clone()).unwrap();
+        assert_eq!(engine.vote(block.hash(), anchor).unwrap(), Some(block.hash()));
+    }
+
+    #[test]
+    fn open_votes_alone_never_commit_in_anchor_mode() {
+        let anchors = vec![AccountId::from_bytes([1u8; 32]), AccountId::from_bytes([2u8; 32])];
+        let opens: Vec<AccountId> = (3u8..=9).map(|i| AccountId::from_bytes([i; 32])).collect();
+        let mut set = anchors.clone();
+        set.extend(opens.iter().copied());
+        let mut engine = ConsensusEngine::new(set);
+        engine.set_anchors(anchors.clone());
+        assert_eq!(engine.quorum_size(), 2); // a=2 → both anchors (quorums must intersect)
+        engine.sync_round(0);
+        let leader = engine.leader(0);
+        let block = mk_block(0, leader, Hash::ZERO);
+        engine.propose(block.clone()).unwrap();
+        for o in &opens {
+            assert_eq!(engine.vote(block.hash(), *o).unwrap(), None);
+        }
+        assert_eq!(engine.vote(block.hash(), anchors[1]).unwrap(), None);
+        assert_eq!(engine.vote(block.hash(), anchors[0]).unwrap(), Some(block.hash()));
+    }
+
+    #[test]
+    fn anchor_quorum_sizes_and_single_fallback_proposer() {
+        let ids: Vec<AccountId> = (1u8..=12).map(|i| AccountId::from_bytes([i; 32])).collect();
+        for (a, q) in [(1usize, 1usize), (2, 2), (3, 2), (4, 3), (7, 5)] {
+            let mut e = ConsensusEngine::new(ids.clone());
+            e.set_anchors(ids[..a].to_vec());
+            assert_eq!(e.quorum_size(), q, "a={a}");
+            // Exactly one fallback anchor per round, rotating over the anchors.
+            for r in 0..20u64 {
+                let fb = e.fallback_anchor(r).unwrap();
+                assert!(ids[..a].contains(&fb));
+                let others = ids[..a].iter().filter(|x| **x != fb && **x != e.leader(r));
+                for o in others {
+                    assert!(!e.may_propose(r, o));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn anchor_proposal_supersedes_open_pending() {
+        let anchor = AccountId::from_bytes([1u8; 32]);
+        let open = AccountId::from_bytes([2u8; 32]);
+        let mut engine = ConsensusEngine::new(vec![anchor, open]);
+        engine.set_anchors(vec![anchor]);
+        engine.sync_round(1); // leader(1) = open
+        assert_eq!(engine.leader(1), open);
+        let open_block = mk_block(1, open, Hash::ZERO);
+        engine.accept_proposal(open_block).unwrap();
+        let anchor_block = mk_block(1, anchor, Hash([3u8; 32]));
+        engine.accept_proposal(anchor_block.clone()).unwrap();
+        assert_eq!(engine.pending_block().unwrap().hash(), anchor_block.hash());
+        // A non-anchor proposal cannot replace an anchor's.
+        let stranger = mk_block(1, open, Hash([4u8; 32]));
+        assert!(engine.accept_proposal(stranger).is_err());
+        // Non-leader, non-anchor proposers are still rejected.
+        let mut e2 = ConsensusEngine::new(vec![anchor, open]);
+        e2.set_anchors(vec![anchor]);
+        e2.sync_round(0); // leader(0) = anchor
+        assert!(e2.propose(mk_block(0, open, Hash::ZERO)).is_err());
     }
 
     #[test]

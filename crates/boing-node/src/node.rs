@@ -91,7 +91,18 @@ pub struct BoingNode {
     pub liveness_miss_streak: HashMap<AccountId, u32>,
     /// When the local node started waiting for the current round's leader (non-leader path).
     pub leader_wait_started: Option<(u64, Instant)>,
+    /// Open validator-set mode config (`None` = static/stake modes). See [`Self::enable_open_validator_set`].
+    pub open_validator_params: Option<boing_state::OpenValidatorParams>,
+    /// Open mode: how long an anchor waits for an offline scheduled leader before proposing itself.
+    pub anchor_fallback_timeout: Duration,
+    /// Open mode: (height, since) the local anchor has been waiting on a non-anchor leader.
+    pub anchor_fallback_wait: Option<(u64, Instant)>,
+    /// Round in which this node last cast its own vote (never vote twice in one round).
+    pub last_local_vote_round: Option<u64>,
 }
+
+/// Default wait before an anchor proposes in place of an offline open-validator leader.
+pub const DEFAULT_ANCHOR_FALLBACK_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// Result of recording a vote and resolving the pool item when possible.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -126,10 +137,8 @@ impl BoingNode {
         signing_key: Option<SigningKey>,
     ) -> Self {
         assert!(!validators.is_empty(), "validator set must be non-empty");
-        assert!(
-            validators.contains(&local_validator),
-            "local validator must be in the validator set"
-        );
+        // The local identity may be outside the set (open-mode candidate / follower): it then only
+        // follows the chain until the on-chain registry admits it.
         if let Some(ref key) = signing_key {
             let derived = AccountId(key.verifying_key().to_bytes());
             assert_eq!(
@@ -142,6 +151,8 @@ impl BoingNode {
         let chain = ChainState::from_genesis(genesis.clone());
         let mut consensus = ConsensusEngine::new(validators);
         let _ = consensus.propose_and_commit(genesis);
+        // Genesis commit only succeeds when `local` leads round 0; either way the next block is height 1.
+        consensus.sync_round(1);
 
         let mut state = StateStore::new();
         state.insert(Account {
@@ -181,6 +192,160 @@ impl BoingNode {
             slash_registry: SlashRegistry::new(),
             liveness_miss_streak: HashMap::new(),
             leader_wait_started: None,
+            open_validator_params: None,
+            anchor_fallback_timeout: DEFAULT_ANCHOR_FALLBACK_TIMEOUT,
+            anchor_fallback_wait: None,
+            last_local_vote_round: None,
+        }
+    }
+
+    /// Turn on the `open` validator-set mode. `params.anchors` must be the static validator list all
+    /// nodes were started with. Nothing changes on-chain before `params.activation_height`; the
+    /// on-chain set takes over at the first epoch boundary at/after it. Call after loading persisted
+    /// state (it re-applies the persisted registry to consensus, so restarts are deterministic).
+    pub fn enable_open_validator_set(&mut self, params: boing_state::OpenValidatorParams) {
+        self.state.set_open_validator_params(Some(params.clone()));
+        self.open_validator_params = Some(params);
+        self.sync_open_validator_set();
+    }
+
+    /// Apply the on-chain open validator set (anchors ∪ active) and anchor quorum to consensus.
+    /// No-op before activation or when open mode is off.
+    pub fn sync_open_validator_set(&mut self) {
+        let Some(params) = self.open_validator_params.clone() else {
+            return;
+        };
+        // Committed state must carry the params (they are not persisted with state).
+        if self.state.open_validator_params().is_none() {
+            self.state.set_open_validator_params(Some(params.clone()));
+        }
+        let Some(set) = self.state.open_validators().consensus_set(&params) else {
+            return;
+        };
+        if set.as_slice() != self.consensus.validators() {
+            info!(
+                "Open validator set: n={} (anchors={}, open={}) local_in_set={}",
+                set.len(),
+                params.anchors.len(),
+                self.state.open_validators().active.len(),
+                set.contains(&self.producer.proposer())
+            );
+            self.consensus.set_validators(set);
+        }
+        if self.consensus.anchors() != params.anchors.as_slice() {
+            self.consensus.set_anchors(params.anchors.clone());
+        }
+    }
+
+    /// JSON report for `boing_getValidators`: every validator with status, uptime and bond.
+    pub fn validators_report(&self) -> serde_json::Value {
+        let hex = |a: &AccountId| format!("0x{}", hex::encode(a.0));
+        let reg = self.state.open_validators();
+        let mode = if self.open_validator_params.is_some() {
+            "open"
+        } else if self.stake_validator_set.is_some() {
+            "stake"
+        } else {
+            "static"
+        };
+        let set = self.consensus.validators();
+        let mut out = Vec::new();
+        let anchors: Vec<AccountId> = self
+            .open_validator_params
+            .as_ref()
+            .map(|p| p.anchors.clone())
+            .unwrap_or_default();
+        for v in set {
+            if reg.records.contains_key(v) {
+                continue;
+            }
+            let s = reg.stats(v);
+            out.push(serde_json::json!({
+                "id": hex(v),
+                "kind": if anchors.contains(v) || self.open_validator_params.is_none() { "anchor" } else { "static" },
+                "status": "active",
+                "in_set": true,
+                "owner": null,
+                "bond": "0",
+                "registered_at": null,
+                "jailed_until": null,
+                "jail_count": 0,
+                "scheduled_proposals": s.scheduled,
+                "missed_proposals": s.missed,
+                "uptime_pct": s.uptime_pct(),
+            }));
+        }
+        for (id, r) in &reg.records {
+            let s = reg.stats(id);
+            let jailed_until = match r.status {
+                boing_state::ValidatorStatus::Jailed { until } => Some(until),
+                _ => None,
+            };
+            out.push(serde_json::json!({
+                "id": hex(id),
+                "kind": "open",
+                "status": r.status.as_str(),
+                "in_set": set.contains(id),
+                "owner": hex(&r.owner),
+                "bond": r.bond.to_string(),
+                "registered_at": r.registered_at,
+                "jailed_until": jailed_until,
+                "jail_count": r.jail_count,
+                "scheduled_proposals": s.scheduled,
+                "missed_proposals": s.missed,
+                "uptime_pct": s.uptime_pct(),
+            }));
+        }
+        let height = self.chain.height();
+        let params = self.open_validator_params.as_ref().map(|p| {
+            let next_epoch = height
+                .checked_div(p.epoch_len)
+                .map(|e| (e + 1) * p.epoch_len);
+            serde_json::json!({
+                "activation_height": p.activation_height,
+                "activated_at": reg.activated_at,
+                "bond": p.bond.to_string(),
+                "deregister_delay": p.deregister_delay,
+                "epoch_len": p.epoch_len,
+                "next_epoch_height": next_epoch,
+                "max_open_validators": p.max_open_validators,
+                "liveness_window": p.liveness_window,
+                "miss_threshold_bps": p.miss_threshold_bps,
+                "min_liveness_samples": p.min_liveness_samples,
+                "jail_cooldown": p.jail_cooldown,
+                "anchors": p.anchors.iter().map(hex).collect::<Vec<_>>(),
+            })
+        });
+        serde_json::json!({
+            "mode": mode,
+            "height": height,
+            "quorum": self.consensus.quorum_size(),
+            "validator_count": set.len(),
+            "open": params,
+            "liveness_note": "Uptime counts scheduled proposals over the last liveness_window produced blocks (idle time is not counted). Votes are not recorded on-chain and do not affect jailing.",
+            "validators": out,
+        })
+    }
+
+    /// Open mode: whether the local anchor should now propose in place of the scheduled leader.
+    fn anchor_fallback_due(&mut self) -> bool {
+        let local = self.producer.proposer();
+        let next_height = self.chain.height().saturating_add(1);
+        if self.consensus.fallback_anchor(next_height) != Some(local) {
+            self.anchor_fallback_wait = None;
+            return false;
+        }
+        if self.consensus.leader(next_height) == local || self.mempool.is_empty() {
+            self.anchor_fallback_wait = None;
+            return false;
+        }
+        let now = Instant::now();
+        match self.anchor_fallback_wait {
+            Some((h, since)) if h == next_height => now.duration_since(since) >= self.anchor_fallback_timeout,
+            _ => {
+                self.anchor_fallback_wait = Some((next_height, now));
+                self.anchor_fallback_timeout.is_zero()
+            }
         }
     }
 
@@ -424,6 +589,8 @@ impl BoingNode {
         self.refresh_native_aggregates();
         self.emit_head_subscriber_event();
         self.maybe_refresh_stake_validators(height);
+        self.sync_open_validator_set();
+        self.anchor_fallback_wait = None;
         // Successful commit clears leader-timeout accounting for this height's proposer.
         self.liveness_miss_streak
             .insert(pending.block.header.proposer, 0);
@@ -553,8 +720,17 @@ impl BoingNode {
     fn vote_locally_and_maybe_broadcast(&mut self, block_hash: Hash) -> Option<Hash> {
         let voter = self.producer.proposer();
         let round = self.consensus.round();
+        if !self.consensus.validators().contains(&voter) {
+            return None; // follower / not-yet-admitted open candidate
+        }
+        if self.last_local_vote_round == Some(round) {
+            // Already voted this round (e.g. for a proposal an anchor fallback replaced). Voting again
+            // would be equivocation; anchor quorum does not need our vote.
+            return None;
+        }
         match self.consensus.vote(block_hash, voter) {
             Ok(committed) => {
+                self.last_local_vote_round = Some(round);
                 if let Some(ref key) = self.validator_signing_key {
                     let vote = ConsensusVote::sign(round, block_hash, key);
                     self.note_signed_vote_and_maybe_slash(&vote);
@@ -818,6 +994,7 @@ impl BoingNode {
         self.refresh_native_aggregates();
         self.emit_head_subscriber_event();
         self.maybe_refresh_stake_validators(block.header.height);
+        self.sync_open_validator_set();
         self.maybe_publish_vrf_proof_for_current_round();
         Ok(())
     }
@@ -878,8 +1055,37 @@ impl BoingNode {
         Ok(())
     }
 
+    /// Open validator txs are admitted only when open mode is configured and active at the next height,
+    /// and only if they would execute (bad node signature, duplicates, wrong owner, cooldown → rejected
+    /// up front instead of wasting a block slot). Keeps pre-activation chains free of the new variants.
+    fn precheck_open_validator_tx(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
+        if !matches!(
+            signed.tx.payload,
+            TransactionPayload::ValidatorRegister { .. }
+                | TransactionPayload::ValidatorDeregister { .. }
+                | TransactionPayload::ValidatorUnjail { .. }
+        ) {
+            return Ok(());
+        }
+        let mut state_copy = self.state.snapshot();
+        if state_copy.open_validator_params().is_none() {
+            state_copy.set_open_validator_params(self.open_validator_params.clone());
+        }
+        let exec_ctx = boing_execution::VmExecutionContext {
+            block_height: self.chain.height().saturating_add(1),
+            block_timestamp: 0,
+        };
+        let vm = Vm::with_qa_registry(self.mempool.qa_registry().clone());
+        match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
+            Ok(_) => Ok(()),
+            Err(boing_execution::VmError::InvalidNonce { .. }) => Ok(()), // queued behind earlier txs
+            Err(e) => Err(MempoolError::OpenValidatorRejected(e.to_string())),
+        }
+    }
+
     /// Submit a signed transaction to the mempool.
     pub fn submit_transaction(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
+        self.precheck_open_validator_tx(&signed)?;
         self.precheck_sender_can_pay_fee(&signed)?;
         match self.mempool.insert(signed.clone()) {
             Ok(()) => {
@@ -977,6 +1183,11 @@ impl BoingNode {
         if self.consensus.num_validators() <= 1 {
             return;
         }
+        // Open mode tracks liveness deterministically on-chain (jail, no slashing); skip local slashing.
+        if !self.consensus.anchors().is_empty() || self.open_validator_params.is_some() {
+            self.leader_wait_started = None;
+            return;
+        }
         if self.pending_commit.is_some() {
             self.leader_wait_started = None;
             return;
@@ -1044,13 +1255,19 @@ impl BoingNode {
         if self.pending_commit.is_some() {
             return None;
         }
+        let round = self.chain.height().saturating_add(1);
+        if self.last_local_vote_round == Some(round) {
+            return None; // already voted at this height; proposing now would equivocate
+        }
+        let anchor_fallback = self.anchor_fallback_due();
 
-        let proposal = self.producer.produce_proposal(
+        let proposal = self.producer.produce_proposal_with_fallback(
             &self.chain,
             &self.mempool,
             &mut self.state,
             &self.executor,
             &self.consensus,
+            anchor_fallback,
         )?;
 
         if let Err(e) = self.consensus.propose(proposal.block.clone()) {

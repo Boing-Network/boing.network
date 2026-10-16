@@ -63,6 +63,9 @@ pub fn validate_and_execute_block(
         }
     }
 
+    // 4b. Open validator-set bookkeeping (no-op unless open mode is configured).
+    state.apply_open_validator_block_hook(block.header.height, block.header.proposer);
+
     // 5. Receipts root
     let expected_receipts_root = receipts_root(&receipts);
     if block.header.receipts_root != expected_receipts_root {
@@ -105,7 +108,12 @@ pub fn import_block(
     if validator_set.is_empty() {
         return Err(BlockValidationError::NoValidators);
     }
-    let expected_leader = consensus.leader(block.header.height);
+    // Anchor mode: an anchor may propose at any height (fallback for an offline scheduled leader).
+    let expected_leader = if consensus.may_propose(block.header.height, &block.header.proposer) {
+        block.header.proposer
+    } else {
+        consensus.leader(block.header.height)
+    };
     validate_and_execute_block(
         block,
         parent_state,

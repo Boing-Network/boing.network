@@ -110,7 +110,9 @@ struct Args {
     #[arg(long)]
     validator_key: Option<String>,
 
-    /// Validator set mode: `static` (default, CLI/env list) or `stake` (refresh from top stakers each epoch). Overrides **`BOING_VALIDATOR_SET`**.
+    /// Validator set mode: `static` (default, CLI/env list), `stake` (refresh from top stakers each epoch)
+    /// or `open` (permissionless on-chain registration; `--validators` become the permanent anchors).
+    /// Overrides **`BOING_VALIDATOR_SET`**.
     #[arg(long)]
     validator_set: Option<String>,
 
@@ -131,9 +133,22 @@ struct Args {
     #[arg(long)]
     stake_validator_activation_height: Option<u64>,
 
+    /// When `--validator-set open`: height from which registrations are accepted; the on-chain set takes
+    /// over at the first epoch boundary at/after it. Required in open mode. Overrides
+    /// **`BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT`** (other knobs: `BOING_OPEN_VALIDATOR_*`, see docs).
+    #[arg(long)]
+    open_validator_activation_height: Option<u64>,
+
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
+}
+
+fn leader_election_is_vrf(cli: Option<&str>) -> bool {
+    matches!(
+        validator_config::resolve_leader_election(cli),
+        Ok(boing_consensus::LeaderElection::Vrf)
+    )
 }
 
 #[tokio::main]
@@ -146,12 +161,33 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let args = Args::parse();
+    let open_set = validator_config::resolve_open_validator_set_config(
+        args.validator_set.as_deref(),
+        args.open_validator_activation_height,
+    )
+    .map_err(|e| anyhow::anyhow!("open validator-set config: {e}"))?;
     let (validators, local_validator, validator_key) =
-        validator_config::resolve_validator_config(
+        validator_config::resolve_validator_config_with(
             args.validators.as_deref(),
             args.validator_key.as_deref(),
+            open_set.is_some(),
         )
         .map_err(|e| anyhow::anyhow!("validator config: {e}"))?;
+    if open_set.is_some() && leader_election_is_vrf(args.leader_election.as_deref()) {
+        anyhow::bail!("open validator-set mode requires round_robin leader election");
+    }
+    let open_params = open_set.as_ref().map(|c| {
+        let mut p = c.params.clone();
+        p.anchors = validators.clone();
+        (p, Duration::from_millis(c.fallback_timeout_ms))
+    });
+    if let Some((p, t)) = &open_params {
+        tracing::info!(
+            "Open validator set: activation_height={} anchors={} bond={} epoch_len={} max_open={} window={} threshold_bps={} jail_cooldown={} fallback={:?}",
+            p.activation_height, p.anchors.len(), p.bond, p.epoch_len, p.max_open_validators,
+            p.liveness_window, p.miss_threshold_bps, p.jail_cooldown, t
+        );
+    }
     let stake_set = validator_config::resolve_stake_validator_set_config(
         args.validator_set.as_deref(),
         args.stake_validator_top_n,
@@ -204,6 +240,10 @@ async fn main() -> anyhow::Result<()> {
                     bootstrap: validators.clone(),
                 });
                 n.restore_stake_validator_set();
+            }
+            if let Some((p, t)) = &open_params {
+                n.anchor_fallback_timeout = *t;
+                n.enable_open_validator_set(p.clone());
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -345,6 +385,10 @@ async fn main() -> anyhow::Result<()> {
                     bootstrap: validators.clone(),
                 });
                 n.restore_stake_validator_set();
+            }
+            if let Some((p, t)) = &open_params {
+                n.anchor_fallback_timeout = *t;
+                n.enable_open_validator_set(p.clone());
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();

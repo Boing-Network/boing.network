@@ -1,0 +1,67 @@
+//! Open validator registration: proof that the node (consensus) key consents to being bonded by `owner`.
+//!
+//! The registering transaction is signed by `owner` (who pays the bond). The payload carries
+//! `node_signature`, an Ed25519 signature by the **node key** over
+//! [`validator_registration_message`]`(owner, node_id)`, so a node key can only be registered by
+//! the owner it signed for and nobody can register someone else's node.
+
+use ed25519_dalek::{Signature as Ed25519Signature, Signer, SigningKey, VerifyingKey};
+
+use crate::hash::hasher;
+use crate::types::AccountId;
+
+/// Domain separator for the node-key proof of possession.
+pub const VALIDATOR_REGISTRATION_DOMAIN: &[u8] = b"BOING_OPEN_VALIDATOR_REGISTER_V1";
+
+/// BLAKE3(`domain || owner || node_id`) — the 32-byte message the node key signs.
+pub fn validator_registration_message(owner: &AccountId, node_id: &AccountId) -> [u8; 32] {
+    let mut h = hasher();
+    h.update(VALIDATOR_REGISTRATION_DOMAIN);
+    h.update(&owner.0);
+    h.update(&node_id.0);
+    *h.finalize().as_bytes()
+}
+
+/// Sign the registration proof with the node's consensus key.
+pub fn sign_validator_registration(owner: &AccountId, node_key: &SigningKey) -> Vec<u8> {
+    let node_id = AccountId(node_key.verifying_key().to_bytes());
+    let msg = validator_registration_message(owner, &node_id);
+    node_key.sign(&msg).to_bytes().to_vec()
+}
+
+/// Verify `node_signature` was produced by `node_id` for `owner`.
+pub fn verify_validator_registration(owner: &AccountId, node_id: &AccountId, node_signature: &[u8]) -> bool {
+    if node_signature.len() != 64 {
+        return false;
+    }
+    let Ok(pk) = VerifyingKey::from_bytes(&node_id.0) else {
+        return false;
+    };
+    let mut arr = [0u8; 64];
+    arr.copy_from_slice(node_signature);
+    let sig = Ed25519Signature::from_bytes(&arr);
+    pk.verify_strict(&validator_registration_message(owner, node_id), &sig)
+        .is_ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn proof_roundtrip_and_binding() {
+        let node = SigningKey::from_bytes(&[7u8; 32]);
+        let node_id = AccountId(node.verifying_key().to_bytes());
+        let owner = AccountId([9u8; 32]);
+        let other = AccountId([8u8; 32]);
+        let sig = sign_validator_registration(&owner, &node);
+        assert!(verify_validator_registration(&owner, &node_id, &sig));
+        // Bound to owner: replaying for another owner fails.
+        assert!(!verify_validator_registration(&other, &node_id, &sig));
+        // Wrong node key fails.
+        let fake = SigningKey::from_bytes(&[6u8; 32]);
+        let fake_sig = sign_validator_registration(&owner, &fake);
+        assert!(!verify_validator_registration(&owner, &node_id, &fake_sig));
+        assert!(!verify_validator_registration(&owner, &node_id, &sig[..63]));
+    }
+}

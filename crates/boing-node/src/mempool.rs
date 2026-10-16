@@ -270,6 +270,9 @@ pub enum MempoolError {
     QaPoolFull,
     #[error("QA pool deployer pending limit exceeded")]
     QaPoolDeployerCap,
+    /// Open validator registration / deregistration / unjail would fail (or the mode is not active).
+    #[error("open validator tx rejected: {0}")]
+    OpenValidatorRejected(String),
 }
 
 #[cfg(test)]

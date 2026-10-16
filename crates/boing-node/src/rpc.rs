@@ -414,6 +414,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getRpcOpenApi",
     "boing_getSyncState",
     "boing_getTransactionReceipt",
+    "boing_getValidators",
     "boing_health",
     "boing_listDexPools",
     "boing_listDexTokens",
@@ -1720,6 +1721,10 @@ async fn dispatch_jsonrpc_request(
                     .collect(),
             ),
         ),
+        "boing_getValidators" => {
+            let n = node.read().await;
+            rpc_ok(id, n.validators_report())
+        }
         "boing_getSyncState" => {
             let n = node.read().await;
             let head_height = n.chain.height();

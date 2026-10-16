@@ -64,6 +64,10 @@ fn node_with_validators(validators: Vec<AccountId>, stakes: &[(AccountId, u128)]
         slash_registry: boing_governance::SlashRegistry::new(),
         liveness_miss_streak: HashMap::new(),
         leader_wait_started: None,
+        open_validator_params: None,
+        anchor_fallback_timeout: boing_node::node::DEFAULT_ANCHOR_FALLBACK_TIMEOUT,
+        anchor_fallback_wait: None,
+        last_local_vote_round: None,
     }
 }
 
