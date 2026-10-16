@@ -187,6 +187,12 @@ async fn rpc_batch_success_then_failing_batch_reverts_and_consumes_nonce() {
     let ok_id = ok.tx.id();
     let v = rpc(&app, "boing_submitTransaction", serde_json::json!([hex_tx(&ok)])).await;
     assert!(v.get("error").is_none(), "{v:?}");
+    // Submit returns the real tx id (not the legacy "ok" ack).
+    let want = format!("0x{}", hex::encode(ok_id.0));
+    assert_eq!(v["result"]["tx_hash"], serde_json::json!(want), "{v:?}");
+    assert_eq!(v["result"]["tx_id"], serde_json::json!(want), "{v:?}");
+    let dup = rpc(&app, "boing_submitTransaction", serde_json::json!([hex_tx(&ok)])).await;
+    assert_eq!(dup["error"]["data"]["tx_hash"], serde_json::json!(want), "{dup:?}");
     node.write().await.produce_block_if_ready().expect("block with batch");
 
     let r = rpc(

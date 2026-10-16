@@ -266,6 +266,7 @@ impl BoingNode {
                 "status": "active",
                 "in_set": true,
                 "owner": null,
+                "last_jail": null,
                 "bond": "0",
                 "registered_at": null,
                 "jailed_until": null,
@@ -284,6 +285,14 @@ impl BoingNode {
             out.push(serde_json::json!({
                 "id": hex(id),
                 "kind": "open",
+                // Liveness at the most recent jailing (the live window is reset on jailing). Node-local
+                // display data; null if this node never observed a jailing (e.g. jailed before upgrade).
+                "last_jail": reg.last_jail.get(id).map(|j| serde_json::json!({
+                    "jailed_at": j.jailed_at,
+                    "scheduled_proposals": j.scheduled,
+                    "missed_proposals": j.missed,
+                    "uptime_pct": j.stats().uptime_pct(),
+                })),
                 "status": r.status.as_str(),
                 "in_set": set.contains(id),
                 "owner": hex(&r.owner),

@@ -1148,18 +1148,21 @@ async fn dispatch_jsonrpc_request(
                 Ok(bytes) => match bincode::deserialize::<SignedTransaction>(&bytes) {
                     Ok(signed) => {
                         let gossip_copy = signed.clone();
+                        // Real tx id (same as receipts' `tx_id` / boing_getTransactionReceipt key).
+                        let tx_hash = format!("0x{}", hex::encode(signed.tx.id().0));
                         let n = node.read().await;
                         match n.submit_transaction(signed) {
                             Ok(()) => {
                                 let _ = n.p2p.broadcast_signed_transaction(&gossip_copy);
-                                info!("RPC: transaction submitted");
-                                rpc_ok(id, serde_json::json!({"tx_hash": "ok"}))
+                                info!("RPC: transaction submitted {}", tx_hash);
+                                rpc_ok(id, serde_json::json!({"tx_hash": tx_hash, "tx_id": tx_hash}))
                             }
                             Err(MempoolError::Duplicate) => rpc_error_with_data(
                                 id,
                                 -32000,
                                 "Duplicate transaction".into(),
                                 serde_json::json!({
+                                    "tx_hash": tx_hash,
                                     "reason": "already_in_mempool",
                                     "hint": "This exact signed payload is already pending. Wait for a block or change nonce/metadata; do not resubmit the same token.",
                                 }),

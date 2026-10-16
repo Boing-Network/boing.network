@@ -437,6 +437,13 @@ fn offline_validator_is_jailed_keeps_bond_and_can_unjail_after_cooldown() {
     let v = report["validators"].as_array().unwrap().iter().find(|v| v["status"] == "jailed").unwrap().clone();
     assert_eq!(v["jailed_until"], 25);
     assert_eq!(v["jail_count"], 1);
+    // Last liveness at jailing is kept and shown (the live window was purged).
+    let lj = &v["last_jail"];
+    assert_eq!(lj["jailed_at"], 15, "{v}");
+    assert!(lj["scheduled_proposals"].as_u64().unwrap() >= 1, "{v}");
+    assert_eq!(lj["missed_proposals"], lj["scheduled_proposals"], "{v}");
+    assert_eq!(lj["uptime_pct"], 0.0, "{v}");
+    assert_eq!(v["scheduled_proposals"], 0, "current window is fresh");
 
     let owner0 = idk(&owner_key(0));
     let early = net.signed(owner0, TransactionPayload::ValidatorUnjail { node_id: node0 });
@@ -670,7 +677,15 @@ fn open_mode_config_mismatch_is_detected_by_state_root() {
     let b = (1..=4).map(|h| other.anchor0().chain.get_block_by_height(h).unwrap().header.state_root).collect::<Vec<_>>();
     let mine = (1..=4).map(|h| net.anchor0().chain.get_block_by_height(h).unwrap().header.state_root).collect::<Vec<_>>();
     assert_eq!(b, mine, "identical before activation");
-    let err = other.members[0].node.import_network_block_catchup(&b5).unwrap_err();
+    // Import the open net's own blocks 1..4 into a static-mode node (block hashes include timestamps,
+    // so the separately produced `other` chain may not be a valid parent for b5; that made this flaky).
+    let mut stat = BoingNode::with_validators(vec![a], idk(&open_key(5)), Some(open_key(5)));
+    stat.chain = ChainState::from_genesis(net.anchor0().chain.get_block_by_height(0).unwrap());
+    stat.state = genesis_state(&funded_ids(0));
+    for h in 1..=4 {
+        stat.import_network_block_catchup(&net.anchor0().chain.get_block_by_height(h).unwrap()).unwrap();
+    }
+    let err = stat.import_network_block_catchup(&b5).unwrap_err();
     assert!(err.to_string().contains("state root"), "{err}");
     let _ = &net.params;
 }

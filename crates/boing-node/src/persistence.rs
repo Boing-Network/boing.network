@@ -24,6 +24,8 @@ const QA_POOL_CONFIG_FILE: &str = "qa_pool_config.json";
 const NETWORK_FEE_CONFIG_FILE: &str = "network_fee_config.json";
 const QA_PENDING_FILE: &str = "qa_pending.bin";
 const OPEN_VALIDATORS_FILE: &str = "open_validators.bin";
+/// Node-local jailing snapshots (not committed to the state root).
+const OPEN_VALIDATOR_JAIL_STATS_FILE: &str = "open_validator_jail_stats.bin";
 const SLASH_REGISTRY_FILE: &str = "slash_registry.json";
 
 /// Chain metadata stored on disk.
@@ -184,6 +186,18 @@ impl Persistence {
             std::fs::write(&tmp, ov_bytes)?;
             std::fs::rename(tmp, &ov_path)?;
         }
+        let js_path = self.state_dir().join(OPEN_VALIDATOR_JAIL_STATS_FILE);
+        if state.open_validators().last_jail.is_empty() {
+            if js_path.exists() {
+                std::fs::remove_file(&js_path)?;
+            }
+        } else {
+            let bytes = bincode::serialize(&state.open_validators().last_jail)
+                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let tmp = js_path.with_extension("bin.tmp");
+            std::fs::write(&tmp, bytes)?;
+            std::fs::rename(tmp, &js_path)?;
+        }
         Ok(())
     }
 
@@ -249,8 +263,15 @@ impl Persistence {
         let ov_path = self.state_dir().join(OPEN_VALIDATORS_FILE);
         if ov_path.exists() {
             let ov_bytes = std::fs::read(&ov_path)?;
-            let reg: boing_state::OpenValidatorRegistry = bincode::deserialize(&ov_bytes)
+            let mut reg: boing_state::OpenValidatorRegistry = bincode::deserialize(&ov_bytes)
                 .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let js_path = self.state_dir().join(OPEN_VALIDATOR_JAIL_STATS_FILE);
+            if js_path.exists() {
+                // Optional, node-local: a missing/corrupt file only loses the display snapshot.
+                if let Ok(m) = std::fs::read(&js_path).map(|b| bincode::deserialize(&b)) {
+                    reg.last_jail = m.unwrap_or_default();
+                }
+            }
             state.load_open_validators(reg);
         }
         Ok(Some(state))

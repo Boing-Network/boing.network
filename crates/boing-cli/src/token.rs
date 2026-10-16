@@ -269,7 +269,15 @@ pub(crate) async fn submit(
         return Ok(());
     }
     match rpc(rpc_url, "boing_submitTransaction", json!([hex_tx])).await {
-        Ok(_) => println!("  submitted tx_id {id}"),
+        Ok(v) => {
+            // Current nodes return the real id; older ones returned "ok" (ignored).
+            if let Some(h) = v.get("tx_hash").and_then(|h| h.as_str()) {
+                if h.starts_with("0x") && !h.eq_ignore_ascii_case(&id) {
+                    eprintln!("  warning: node reported tx_hash {h}, expected {id}");
+                }
+            }
+            println!("  submitted tx_id {id}")
+        }
         // Same signed bytes already in the mempool (e.g. gateway fan-out raced P2P gossip): it was accepted.
         Err(e) if is_already_in_mempool(&e.to_string()) => {
             println!("  submitted tx_id {id} (already pending in mempool)")

@@ -176,6 +176,20 @@ pub fn format_status(report: &Value, only: Option<&str>) -> String {
             v["missed_proposals"],
             v["scheduled_proposals"],
         ));
+        if v["status"] == "jailed" {
+            let lj = &v["last_jail"];
+            if lj.is_object() {
+                out.push_str(&format!(
+                    "    at jailing (block {}): uptime {:.1}%, missed {}/{} (current window reset)\n",
+                    lj["jailed_at"],
+                    lj["uptime_pct"].as_f64().unwrap_or(0.0),
+                    lj["missed_proposals"],
+                    lj["scheduled_proposals"]
+                ));
+            } else {
+                out.push_str("    at jailing: not recorded by this node (jailed before it tracked jail stats)\n");
+            }
+        }
     }
     out
 }
@@ -226,13 +240,14 @@ mod tests {
                 {"id": "0xaa", "kind": "anchor", "status": "active", "in_set": true, "bond": "0",
                  "uptime_pct": 100.0, "missed_proposals": 0, "scheduled_proposals": 3, "jailed_until": null},
                 {"id": "0xbb", "kind": "open", "status": "jailed", "in_set": false, "bond": "100",
-                 "uptime_pct": 0.0, "missed_proposals": 2, "scheduled_proposals": 2, "jailed_until": 25}
+                 "uptime_pct": 100.0, "missed_proposals": 0, "scheduled_proposals": 0, "jailed_until": 25,
+                 "last_jail": {"jailed_at": 15, "uptime_pct": 0.0, "missed_proposals": 2, "scheduled_proposals": 2}}
             ]
         });
         let s = format_status(&report, None);
         assert!(s.contains("mode=open"));
         assert!(s.contains("jailed(until 25)"));
-        assert!(s.contains("2/2"));
+        assert!(s.contains("at jailing (block 15): uptime 0.0%, missed 2/2"), "{s}");
         let one = format_status(&report, Some("0xAA"));
         assert!(one.contains("0xaa") && !one.contains("0xbb"));
     }

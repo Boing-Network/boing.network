@@ -163,6 +163,8 @@ Submit a signed transaction to the mempool.
 {"jsonrpc":"2.0","id":1,"method":"boing_submitTransaction","params":["0x..."]}
 ```
 
+**Result:** `{ tx_hash: "0x<64 hex>", tx_id: "0x<64 hex>" }`: the transaction id (BLAKE3 of the unsigned tx; the key for `boing_getTransactionReceipt`). Nodes before 2026-10-16 returned `{ tx_hash: "ok" }`; clients should fall back to deriving the id from the signed bytes (SDK `submittedTxHash`). A duplicate submit (`-32000`, `data.reason = "already_in_mempool"`) also carries `data.tx_hash`.
+
 **P2P:** When **`--p2p-listen`** is set and the tx is **admitted** to the mempool, the node also **gossips** the same `SignedTransaction` on libp2p topic **`boing/transactions`** so peers can verify and enqueue it locally ([TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3, [RUNBOOK.md](RUNBOOK.md) §8.1).
 
 **Result (success):** `{ "tx_hash": "ok" }` — current **`boing-node`** uses the literal **`"ok"`** when the tx is accepted into the mempool (not a 32-byte transaction id). Track inclusion via **`boing_getTransactionReceipt`** using **`tx_id = Transaction::id()`** (BLAKE3 of the unsigned tx bincode). Wallets (Boing Express `boing_sendTransaction`) should return **`{ "tx_hash": "ok", "tx_id": "0x…" }`** so dApps can poll receipts. Do not treat `"ok"` as a receipt key.
@@ -881,6 +883,7 @@ List the current validator set and (in open mode) every registered validator.
 **Result:** `{ mode: "static"|"stake"|"open", height, quorum, validator_count, open: null | { activation_height, activated_at, bond, epoch_len, next_epoch_height, max_open_validators, liveness_window, miss_threshold_bps, jail_cooldown, ... }, validators: [ { id, kind: "anchor"|"static"|"open", status: "active"|"pending"|"jailed"|"exiting", in_set, bond (string, whole BOING), owner?, jailed_until, scheduled_proposals, missed_proposals, uptime_pct } ] }`
 
 - Liveness counts proposals only over produced blocks in the window (votes are not on-chain); idle periods are not counted.
+- The window is reset when a validator is jailed. `last_jail` (`{ jailed_at, scheduled_proposals, missed_proposals, uptime_pct }` or `null`) keeps the stats at the most recent jailing. It is node-local display data (not part of the state root); `null` means this node did not record it (e.g. jailed before the node was upgraded).
 - Open-mode transactions (`ValidatorRegister` = payload 10, `ValidatorDeregister` = 11, `ValidatorUnjail` = 12) are rejected by the mempool until the mode is active.
 
 ---

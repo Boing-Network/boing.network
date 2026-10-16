@@ -155,6 +155,21 @@ impl LivenessStats {
     }
 }
 
+/// Liveness at the moment a validator was jailed (the window entries are purged on jailing so an
+/// unjailed validator starts fresh). Node-local, derived data: **not** part of the state commitment.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JailSnapshot {
+    pub jailed_at: u64,
+    pub scheduled: u32,
+    pub missed: u32,
+}
+
+impl JailSnapshot {
+    pub fn stats(&self) -> LivenessStats {
+        LivenessStats { scheduled: self.scheduled, missed: self.missed }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OpenValidatorRegistry {
     /// First epoch boundary at which the open set took over (None = static set still in force).
@@ -163,6 +178,11 @@ pub struct OpenValidatorRegistry {
     /// Open validators currently in the set (sorted by id).
     pub active: Vec<AccountId>,
     pub liveness: VecDeque<LivenessEntry>,
+    /// Last jailing snapshot per validator. `#[serde(skip)]` keeps it out of the bincode encoding, so the
+    /// registry commitment (state root) and `open_validators.bin` are byte-identical to before; it is
+    /// persisted in its own file. Deterministic (computed in `on_block`), so replaying nodes agree.
+    #[serde(skip)]
+    pub last_jail: BTreeMap<AccountId, JailSnapshot>,
 }
 
 impl OpenValidatorRegistry {
@@ -317,6 +337,8 @@ impl OpenValidatorRegistry {
             }
         }
         for id in &jailed {
+            let s = self.stats(id);
+            self.last_jail.insert(*id, JailSnapshot { jailed_at: height, scheduled: s.scheduled, missed: s.missed });
             if let Some(rec) = self.records.get_mut(id) {
                 if rec.status == ValidatorStatus::Active {
                     rec.status = ValidatorStatus::Jailed {
@@ -330,6 +352,8 @@ impl OpenValidatorRegistry {
         }
         // 2. Exiting validators leave now.
         self.records.retain(|_, r| r.status != ValidatorStatus::Exiting);
+        let records = &self.records;
+        self.last_jail.retain(|id, _| records.contains_key(id));
         // 3. Select the next open set: earliest registration first, then node id; capped.
         let mut eligible: Vec<(u64, AccountId)> = self
             .records
@@ -460,5 +484,23 @@ mod tests {
         }
         assert!(r.active.is_empty());
         assert!(!r.records.contains_key(&id(5)));
+    }
+}
+
+#[cfg(test)]
+mod jail_snapshot_compat_tests {
+    use super::*;
+
+    /// `last_jail` must not change the registry encoding (state root / open_validators.bin), so nodes
+    /// upgraded after block 400 stay on the same chain.
+    #[test]
+    fn last_jail_is_not_committed_or_encoded() {
+        let mut a = OpenValidatorRegistry { activated_at: Some(400), ..Default::default() };
+        let b = a.clone();
+        a.last_jail.insert(AccountId([7u8; 32]), JailSnapshot { jailed_at: 600, scheduled: 50, missed: 50 });
+        assert_eq!(a.commitment(), b.commitment());
+        assert_eq!(bincode::serialize(&a).unwrap(), bincode::serialize(&b).unwrap());
+        let back: OpenValidatorRegistry = bincode::deserialize(&bincode::serialize(&a).unwrap()).unwrap();
+        assert!(back.last_jail.is_empty());
     }
 }
