@@ -103,4 +103,5 @@ export { isAlreadyInMempoolError, submitSignedTransactionIdempotent, submitSigne
 export * from './boingCustodySwap.js';
 export * from './boingLpVaultV2.js';
 export * from './boingOpenValidator.js';
+export * from './boingNames.js';
 //# sourceMappingURL=index.d.ts.map

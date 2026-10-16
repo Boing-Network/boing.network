@@ -100,7 +100,10 @@ impl Mempool {
     }
 
     /// Admit an Unsure deploy so the producer can register it on-chain (public membership).
-    pub fn insert_unsure_for_inclusion(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
+    pub fn insert_unsure_for_inclusion(
+        &self,
+        signed: SignedTransaction,
+    ) -> Result<(), MempoolError> {
         self.insert_with_qa_mode(signed, DeployQaMode::AdmitUnsure)
     }
 
@@ -273,6 +276,9 @@ pub enum MempoolError {
     /// Open validator registration / deregistration / unjail would fail (or the mode is not active).
     #[error("open validator tx rejected: {0}")]
     OpenValidatorRejected(String),
+    /// Name registry tx would fail (or the registry is not active yet).
+    #[error("name tx rejected: {0}")]
+    NameRejected(String),
 }
 
 #[cfg(test)]

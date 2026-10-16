@@ -73,6 +73,36 @@
         "result": { "type": "string" }
       },
       {
+        "name": "boing_resolveName",
+        "summary": "Resolve an active name (alice or alice.boing) to {target, owner, expires_at, status}; null if unregistered, in grace or expired.",
+        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "result": {}
+      },
+      {
+        "name": "boing_reverseName",
+        "summary": "Verified primary name of an address (set by that address and resolving back to it), or null.",
+        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "result": {}
+      },
+      {
+        "name": "boing_getNameInfo",
+        "summary": "Name validity, availability, yearly rent (burned), record in any status and registry params.",
+        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "result": {}
+      },
+      {
+        "name": "boing_checkNames",
+        "summary": "Availability and yearly rent for 1-25 names: params [[name, ...]].",
+        "params": { "type": "array", "minItems": 1 },
+        "result": {}
+      },
+      {
+        "name": "boing_namesOwnedBy",
+        "summary": "Names owned by an address (active or in grace).",
+        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "result": {}
+      },
+      {
         "name": "boing_getSyncState",
         "summary": "Committed tip: head/finalized height and latest block hash.",
         "params": { "type": "array", "maxItems": 0 },

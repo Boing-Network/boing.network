@@ -42,6 +42,9 @@ pub fn touched_accounts(tx: &Transaction, log_topics: &[[u8; 32]]) -> Vec<Accoun
         TransactionPayload::ValidatorRegister { node_id, .. }
         | TransactionPayload::ValidatorDeregister { node_id }
         | TransactionPayload::ValidatorUnjail { node_id } => out.push(*node_id),
+        TransactionPayload::NameRegister { target, .. }
+        | TransactionPayload::NameSetTarget { target, .. } => out.push(*target),
+        TransactionPayload::NameTransfer { new_owner, .. } => out.push(*new_owner),
         _ => {}
     }
     for t in log_topics {
@@ -56,7 +59,8 @@ impl AccountTxIndex {
     pub fn catch_up(&mut self, node: &BoingNode) {
         let head = node.chain.height();
         if let (Some(h), Some(hash)) = (self.indexed_to, self.indexed_hash) {
-            let same = h <= head && node.chain.get_block_by_height(h).map(|b| b.hash()) == Some(hash);
+            let same =
+                h <= head && node.chain.get_block_by_height(h).map(|b| b.hash()) == Some(hash);
             if !same {
                 *self = AccountTxIndex::default();
             }
@@ -73,7 +77,12 @@ impl AccountTxIndex {
                 let topics: Vec<[u8; 32]> = node
                     .receipts
                     .get(&tx.id())
-                    .map(|r| r.logs.iter().flat_map(|l| l.topics.iter().copied()).collect())
+                    .map(|r| {
+                        r.logs
+                            .iter()
+                            .flat_map(|l| l.topics.iter().copied())
+                            .collect()
+                    })
                     .unwrap_or_default();
                 for acct in touched_accounts(tx, &topics) {
                     self.by_account.entry(acct).or_default().push((h, i as u32));
@@ -85,7 +94,12 @@ impl AccountTxIndex {
     }
 
     /// Positions for `account`, newest first, strictly older than `before`.
-    pub fn page(&self, account: &AccountId, before: Option<(u64, u32)>, limit: usize) -> (Vec<(u64, u32)>, bool) {
+    pub fn page(
+        &self,
+        account: &AccountId,
+        before: Option<(u64, u32)>,
+        limit: usize,
+    ) -> (Vec<(u64, u32)>, bool) {
         let Some(list) = self.by_account.get(account) else {
             return (Vec::new(), false);
         };
@@ -117,13 +131,21 @@ fn hex0x(b: &[u8]) -> String {
 fn payload_json(p: &TransactionPayload) -> serde_json::Value {
     use serde_json::json;
     match p {
-        TransactionPayload::Transfer { to, amount } => json!({"kind":"transfer","to":hex0x(&to.0),"amount":amount.to_string()}),
-        TransactionPayload::ContractCall { contract, calldata } => json!({"kind":"contract_call","contract":hex0x(&contract.0),"calldata_len":calldata.len()}),
+        TransactionPayload::Transfer { to, amount } => {
+            json!({"kind":"transfer","to":hex0x(&to.0),"amount":amount.to_string()})
+        }
+        TransactionPayload::ContractCall { contract, calldata } => {
+            json!({"kind":"contract_call","contract":hex0x(&contract.0),"calldata_len":calldata.len()})
+        }
         TransactionPayload::ContractDeploy { .. }
         | TransactionPayload::ContractDeployWithPurpose { .. }
-        | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => json!({"kind":"contract_deploy"}),
+        | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
+            json!({"kind":"contract_deploy"})
+        }
         TransactionPayload::Bond { amount } => json!({"kind":"bond","amount":amount.to_string()}),
-        TransactionPayload::Unbond { amount } => json!({"kind":"unbond","amount":amount.to_string()}),
+        TransactionPayload::Unbond { amount } => {
+            json!({"kind":"unbond","amount":amount.to_string()})
+        }
         TransactionPayload::ClaimUnbond => json!({"kind":"claim_unbond"}),
         TransactionPayload::QaPoolVote { .. } => json!({"kind":"qa_pool_vote"}),
         TransactionPayload::Batch { calls } => {
@@ -136,9 +158,35 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
                 .collect();
             json!({"kind":"batch","steps":steps})
         }
-        TransactionPayload::ValidatorRegister { node_id, .. } => json!({"kind":"validator_register","node_id":hex0x(&node_id.0)}),
-        TransactionPayload::ValidatorDeregister { node_id } => json!({"kind":"validator_deregister","node_id":hex0x(&node_id.0)}),
-        TransactionPayload::ValidatorUnjail { node_id } => json!({"kind":"validator_unjail","node_id":hex0x(&node_id.0)}),
+        TransactionPayload::ValidatorRegister { node_id, .. } => {
+            json!({"kind":"validator_register","node_id":hex0x(&node_id.0)})
+        }
+        TransactionPayload::ValidatorDeregister { node_id } => {
+            json!({"kind":"validator_deregister","node_id":hex0x(&node_id.0)})
+        }
+        TransactionPayload::ValidatorUnjail { node_id } => {
+            json!({"kind":"validator_unjail","node_id":hex0x(&node_id.0)})
+        }
+        TransactionPayload::NameCommit { .. } => json!({"kind":"name_commit"}),
+        TransactionPayload::NameRegister {
+            name,
+            target,
+            years,
+            ..
+        } => json!({"kind":"name_register","name":name,"target":hex0x(&target.0),"years":years}),
+        TransactionPayload::NameRenew { name, years } => {
+            json!({"kind":"name_renew","name":name,"years":years})
+        }
+        TransactionPayload::NameTransfer { name, new_owner } => {
+            json!({"kind":"name_transfer","name":name,"new_owner":hex0x(&new_owner.0)})
+        }
+        TransactionPayload::NameSetTarget { name, target } => {
+            json!({"kind":"name_set_target","name":name,"target":hex0x(&target.0)})
+        }
+        TransactionPayload::NameSetPrimary { name } => {
+            json!({"kind":"name_set_primary","name":name})
+        }
+        TransactionPayload::NameRelease { name } => json!({"kind":"name_release","name":name}),
     }
 }
 
@@ -163,8 +211,12 @@ pub fn account_transactions_json(
         if block_cache.as_ref().map(|(bh, _)| *bh) != Some(*h) {
             block_cache = node.chain.get_block_by_height(*h).map(|b| (*h, b));
         }
-        let Some((_, block)) = block_cache.as_ref() else { continue };
-        let Some(tx) = block.transactions.get(*i as usize) else { continue };
+        let Some((_, block)) = block_cache.as_ref() else {
+            continue;
+        };
+        let Some(tx) = block.transactions.get(*i as usize) else {
+            continue;
+        };
         let tid = tx.id();
         let r = node.receipts.get(&tid);
         let roles: Vec<&str> = {
@@ -212,7 +264,8 @@ mod tests {
     fn page_is_newest_first_with_strict_cursor() {
         let mut idx = AccountTxIndex::default();
         let a = AccountId([7u8; 32]);
-        idx.by_account.insert(a, vec![(1, 0), (2, 0), (2, 1), (5, 3)]);
+        idx.by_account
+            .insert(a, vec![(1, 0), (2, 0), (2, 1), (5, 3)]);
         let (p, more) = idx.page(&a, None, 2);
         assert_eq!(p, vec![(5, 3), (2, 1)]);
         assert!(more);

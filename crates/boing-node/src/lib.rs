@@ -13,6 +13,8 @@ pub mod dapp_registry;
 pub mod intent_pool;
 pub mod logging;
 pub mod mempool;
+pub mod name_config;
+pub mod names_rpc;
 pub mod native_dex_discovery;
 pub mod node;
 pub mod rpc;

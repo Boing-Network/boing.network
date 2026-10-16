@@ -160,7 +160,9 @@ impl BoingNode {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
         let native_aggregates = state.compute_native_aggregates();
 
@@ -350,7 +352,9 @@ impl BoingNode {
         }
         let now = Instant::now();
         match self.anchor_fallback_wait {
-            Some((h, since)) if h == next_height => now.duration_since(since) >= self.anchor_fallback_timeout,
+            Some((h, since)) if h == next_height => {
+                now.duration_since(since) >= self.anchor_fallback_timeout
+            }
             _ => {
                 self.anchor_fallback_wait = Some((next_height, now));
                 self.anchor_fallback_timeout.is_zero()
@@ -648,7 +652,11 @@ impl BoingNode {
         if !cfg.is_refresh_height(committed_height) {
             return;
         }
-        let next = crate::stake_validator_set::next_validator_set(&self.state, &cfg, self.consensus.validators());
+        let next = crate::stake_validator_set::next_validator_set(
+            &self.state,
+            &cfg,
+            self.consensus.validators(),
+        );
         if let Some(ref p) = self.persistence {
             if let Err(e) = p.save_stake_validator_set(committed_height, &next) {
                 logging::log_persistence_warn("save_stake_validator_set", &e);
@@ -689,11 +697,19 @@ impl BoingNode {
                     boundary,
                     tip
                 );
-                crate::stake_validator_set::next_validator_set(&self.state, &cfg, self.consensus.validators())
+                crate::stake_validator_set::next_validator_set(
+                    &self.state,
+                    &cfg,
+                    self.consensus.validators(),
+                )
             }
         };
         if set.as_slice() != self.consensus.validators() {
-            info!("Restored stake validator set (boundary {}): n={}", boundary, set.len());
+            info!(
+                "Restored stake validator set (boundary {}): n={}",
+                boundary,
+                set.len()
+            );
             self.consensus.set_validators(set.clone());
         }
         Some(set)
@@ -786,9 +802,7 @@ impl BoingNode {
             .map(|p| p.block.hash() == vote.block_hash)
             .unwrap_or(false);
         if !have_pending || self.consensus.round() != vote.round {
-            if self.consensus.round() == vote.round
-                || self.consensus.pending_block().is_none()
-            {
+            if self.consensus.round() == vote.round || self.consensus.pending_block().is_none() {
                 self.early_votes
                     .entry((vote.round, vote.block_hash))
                     .or_default()
@@ -856,7 +870,10 @@ impl BoingNode {
                 "boing_node::node",
                 "consensus",
                 "equivocation_no_stake",
-                format!("validator={:?} round={round} slash_id={slash_id}", validator),
+                format!(
+                    "validator={:?} round={round} slash_id={slash_id}",
+                    validator
+                ),
             );
             true // still mark as processed so we do not retry forever
         }
@@ -928,9 +945,7 @@ impl BoingNode {
         let key = (vote.round, vote.validator);
         if let Some(prev) = self.observed_votes.get(&key) {
             if prev.block_hash != vote.block_hash {
-                if let Ok(ev) =
-                    EquivocationEvidence::try_from_votes(prev.clone(), vote.clone())
-                {
+                if let Ok(ev) = EquivocationEvidence::try_from_votes(prev.clone(), vote.clone()) {
                     if self.apply_equivocation_slash(ev.validator(), ev.round()) {
                         let _ = self.p2p.broadcast_equivocation(&ev);
                     }
@@ -1048,11 +1063,8 @@ impl BoingNode {
             block_timestamp: ts,
         };
         if let Ok(out) = vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
-            let need = network_fee_amount(
-                out.gas_used,
-                &signed.tx.payload,
-                self.executor.fee_policy(),
-            );
+            let need =
+                network_fee_amount(out.gas_used, &signed.tx.payload, self.executor.fee_policy());
             let remaining = state_copy
                 .get(&signed.tx.sender)
                 .map(|s| s.balance)
@@ -1092,9 +1104,55 @@ impl BoingNode {
         }
     }
 
+    /// Name registry txs are admitted only when the registry is configured and active at the next
+    /// height, and only if they would execute (bad label, unmatured commit, taken name, not owner, rent
+    /// unaffordable → rejected up front). Keeps pre-activation chains free of the new variants.
+    fn precheck_name_tx(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
+        if !matches!(
+            signed.tx.payload,
+            TransactionPayload::NameCommit { .. }
+                | TransactionPayload::NameRegister { .. }
+                | TransactionPayload::NameRenew { .. }
+                | TransactionPayload::NameTransfer { .. }
+                | TransactionPayload::NameSetTarget { .. }
+                | TransactionPayload::NameSetPrimary { .. }
+                | TransactionPayload::NameRelease { .. }
+        ) {
+            return Ok(());
+        }
+        let mut state_copy = self.state.snapshot();
+        let exec_ctx = boing_execution::VmExecutionContext {
+            block_height: self.chain.height().saturating_add(1),
+            block_timestamp: 0,
+        };
+        let vm = Vm::with_qa_registry(self.mempool.qa_registry().clone());
+        match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
+            Ok(_) => Ok(()),
+            Err(boing_execution::VmError::InvalidNonce { .. }) => Ok(()), // queued behind earlier txs
+            Err(e) => Err(MempoolError::NameRejected(e.to_string())),
+        }
+    }
+
+    /// Turn on the name registry with `params` (all nodes must use the same values). Call after loading
+    /// persisted state; nothing changes on-chain before `params.activation_height`.
+    pub fn enable_name_registry(&mut self, params: boing_state::NameRegistryParams) {
+        self.state.set_name_registry_params(Some(params));
+    }
+
+    /// Name registry JSON-RPC (`boing_resolveName`, `boing_reverseName`, `boing_getNameInfo`,
+    /// `boing_checkNames`, `boing_namesOwnedBy`). `Err((code, message))` on bad params.
+    pub fn names_rpc(
+        &self,
+        method: &str,
+        params: &serde_json::Value,
+    ) -> Result<serde_json::Value, (i32, String)> {
+        crate::names_rpc::dispatch(self, method, params)
+    }
+
     /// Submit a signed transaction to the mempool.
     pub fn submit_transaction(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
         self.precheck_open_validator_tx(&signed)?;
+        self.precheck_name_tx(&signed)?;
         self.precheck_sender_can_pay_fee(&signed)?;
         match self.mempool.insert(signed.clone()) {
             Ok(()) => {

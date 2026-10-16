@@ -46,15 +46,18 @@ use crate::node::{BoingNode, QaPoolVoteResult};
 use crate::security::RateLimitConfig;
 use boing_primitives::{
     create2_contract_address, nonce_derived_contract_address, AccessList, Account, AccountId,
-    AccountState, ExecutionLog, ExecutionReceipt, Hash, QaPoolVoteKind, SignedIntent, SignedTransaction,
-    Transaction, TransactionPayload, MAX_EXECUTION_LOG_TOPICS,
+    AccountState, ExecutionLog, ExecutionReceipt, Hash, QaPoolVoteKind, SignedIntent,
+    SignedTransaction, Transaction, TransactionPayload, MAX_EXECUTION_LOG_TOPICS,
 };
 use boing_qa::pool::{PoolError, QaPoolVote};
 use boing_qa::{
     check_contract_deploy_full_with_metadata, qa_pool_config_from_json, rule_registry_from_json,
     QaPoolExpiryPolicy, QaResult,
 };
-use boing_tokenomics::{network_fee_policy_from_json, NetworkFeePolicy, BLOCK_TIME_SECS, PROTOCOL_TREASURY, PROTOCOL_TREASURY_HEX};
+use boing_tokenomics::{
+    network_fee_policy_from_json, NetworkFeePolicy, BLOCK_TIME_SECS, PROTOCOL_TREASURY,
+    PROTOCOL_TREASURY_HEX,
+};
 
 /// Shared node state for RPC and validator loop.
 pub type NodeState = Arc<RwLock<BoingNode>>;
@@ -397,6 +400,7 @@ const GET_LOGS_MAX_RESULTS: usize = 2048;
 /// Keep sorted and in sync with `rpc_router` match arms for `boing_*` methods.
 const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_chainHeight",
+    "boing_checkNames",
     "boing_clientVersion",
     "boing_faucetRequest",
     "boing_getAccount",
@@ -408,6 +412,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getDexToken",
     "boing_getLogs",
     "boing_getNetworkFeePolicy",
+    "boing_getNameInfo",
     "boing_getNetworkInfo",
     "boing_getQaRegistry",
     "boing_getRpcMethodCatalog",
@@ -420,6 +425,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_listDexPools",
     "boing_listDexTokens",
     "boing_listSlashRecords",
+    "boing_namesOwnedBy",
     "boing_operatorApplyFeePolicy",
     "boing_operatorApplyQaPolicy",
     "boing_qaCheck",
@@ -427,7 +433,9 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_qaPoolList",
     "boing_qaPoolVote",
     "boing_registerDappMetrics",
+    "boing_resolveName",
     "boing_resolveSlashAppeal",
+    "boing_reverseName",
     "boing_rpcSupportedMethods",
     "boing_simulateContractCall",
     "boing_simulateTransaction",
@@ -707,7 +715,11 @@ fn end_user_network_hints() -> serde_json::Value {
 /// Builds `boing_getNetworkInfo.end_user` from a variable lookup (the process env in production).
 /// Text hints: `BOING_CHAIN_DISPLAY_NAME`, `BOING_EXPLORER_URL`, `BOING_FAUCET_URL` (blank = null).
 fn end_user_network_hints_from(get: impl Fn(&str) -> Option<String>) -> serde_json::Value {
-    let text = |k: &str| get(k).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let text = |k: &str| {
+        get(k)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
     let acct = |k: &'static str| optional_account_id_hex(k, get(k));
     serde_json::json!({
         "chain_display_name": text("BOING_CHAIN_DISPLAY_NAME"),
@@ -734,20 +746,27 @@ mod end_user_hints_tests {
             ("BOING_CHAIN_DISPLAY_NAME", " Boing Testnet "),
             ("BOING_EXPLORER_URL", "https://boing.observer"),
             ("BOING_FAUCET_URL", "https://boing.network/faucet"),
-            ("BOING_CANONICAL_NATIVE_CP_POOL", "0X5B60D6F8514D1A8A40340FA354951D778B0821CD3FF7E534D0BEA50F67D38976"),
+            (
+                "BOING_CANONICAL_NATIVE_CP_POOL",
+                "0X5B60D6F8514D1A8A40340FA354951D778B0821CD3FF7E534D0BEA50F67D38976",
+            ),
             ("BOING_CANONICAL_NATIVE_DEX_FACTORY", "not-hex"),
         ]);
         let v = end_user_network_hints_from(|k| m.get(k).map(|s| s.to_string()));
         assert_eq!(v["chain_display_name"], "Boing Testnet");
         assert_eq!(v["explorer_url"], "https://boing.observer");
         assert_eq!(v["faucet_url"], "https://boing.network/faucet");
-        assert_eq!(v["canonical_native_cp_pool"], "0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976");
+        assert_eq!(
+            v["canonical_native_cp_pool"],
+            "0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976"
+        );
         assert!(v["canonical_native_dex_factory"].is_null());
     }
 
     #[test]
     fn unset_or_blank_is_null() {
-        let v = end_user_network_hints_from(|k| (k == "BOING_FAUCET_URL").then(|| "  ".to_string()));
+        let v =
+            end_user_network_hints_from(|k| (k == "BOING_FAUCET_URL").then(|| "  ".to_string()));
         assert!(v["faucet_url"].is_null());
         assert!(v["explorer_url"].is_null());
         assert!(v["chain_display_name"].is_null());
@@ -1300,14 +1319,17 @@ async fn dispatch_jsonrpc_request(
             let params = req.params.unwrap_or(serde_json::Value::Null);
             let (slash_id, evidence_hex) = match &params {
                 serde_json::Value::Array(arr) if arr.len() >= 2 => {
-                    let sid = arr[0].as_u64().or_else(|| arr[0].as_str().and_then(|s| s.parse().ok()));
+                    let sid = arr[0]
+                        .as_u64()
+                        .or_else(|| arr[0].as_str().and_then(|s| s.parse().ok()));
                     let ev = arr[1].as_str().unwrap_or("").to_string();
                     (sid, ev)
                 }
                 serde_json::Value::Object(map) => {
-                    let sid = map
-                        .get("slash_id")
-                        .and_then(|v| v.as_u64().or_else(|| v.as_str().and_then(|s| s.parse().ok())));
+                    let sid = map.get("slash_id").and_then(|v| {
+                        v.as_u64()
+                            .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                    });
                     let ev = map
                         .get("evidence")
                         .and_then(|v| v.as_str())
@@ -1365,16 +1387,24 @@ async fn dispatch_jsonrpc_request(
             let params = req.params.unwrap_or(serde_json::Value::Null);
             let (appeal_id, approved) = match &params {
                 serde_json::Value::Array(arr) if arr.len() >= 2 => {
-                    let aid = arr[0].as_u64().or_else(|| arr[0].as_str().and_then(|s| s.parse().ok()));
+                    let aid = arr[0]
+                        .as_u64()
+                        .or_else(|| arr[0].as_str().and_then(|s| s.parse().ok()));
                     let ap = arr[1].as_bool().or_else(|| {
-                        arr[1].as_str().map(|s| matches!(s.to_ascii_lowercase().as_str(), "true" | "approve" | "approved" | "1"))
+                        arr[1].as_str().map(|s| {
+                            matches!(
+                                s.to_ascii_lowercase().as_str(),
+                                "true" | "approve" | "approved" | "1"
+                            )
+                        })
                     });
                     (aid, ap)
                 }
                 serde_json::Value::Object(map) => {
-                    let aid = map
-                        .get("appeal_id")
-                        .and_then(|v| v.as_u64().or_else(|| v.as_str().and_then(|s| s.parse().ok())));
+                    let aid = map.get("appeal_id").and_then(|v| {
+                        v.as_u64()
+                            .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                    });
                     let ap = map.get("approved").and_then(|v| {
                         v.as_bool().or_else(|| {
                             v.as_str().map(|s| {
@@ -1459,12 +1489,9 @@ async fn dispatch_jsonrpc_request(
                 .params
                 .and_then(|p| serde_json::from_value::<Vec<String>>(p).ok());
             let (tx_hex, voter_hex, vote_s, signed_hex) = match params {
-                Some(v) if v.len() >= 4 => (
-                    v[0].clone(),
-                    v[1].clone(),
-                    v[2].clone(),
-                    Some(v[3].clone()),
-                ),
+                Some(v) if v.len() >= 4 => {
+                    (v[0].clone(), v[1].clone(), v[2].clone(), Some(v[3].clone()))
+                }
                 Some(v) if v.len() >= 3 => (v[0].clone(), v[1].clone(), v[2].clone(), None),
                 _ => {
                     return (StatusCode::OK, rpc_error(
@@ -1514,13 +1541,24 @@ async fn dispatch_jsonrpc_request(
                 };
                 let signed: SignedTransaction = match bincode::deserialize(&bytes) {
                     Ok(s) => s,
-                    Err(e) => return (StatusCode::OK, rpc_error(id, -32602, format!("invalid signed vote tx: {e}"))),
+                    Err(e) => {
+                        return (
+                            StatusCode::OK,
+                            rpc_error(id, -32602, format!("invalid signed vote tx: {e}")),
+                        )
+                    }
                 };
                 if signed.verify().is_err() {
-                    return (StatusCode::OK, rpc_error(id, -32602, "invalid vote transaction signature".into()));
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "invalid vote transaction signature".into()),
+                    );
                 }
                 if signed.tx.sender != voter {
-                    return (StatusCode::OK, rpc_error(id, -32602, "signed vote sender must equal voter_hex".into()));
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "signed vote sender must equal voter_hex".into()),
+                    );
                 }
                 let expected_kind = match vote {
                     QaPoolVote::Allow => QaPoolVoteKind::Allow,
@@ -1528,14 +1566,20 @@ async fn dispatch_jsonrpc_request(
                     QaPoolVote::Abstain => QaPoolVoteKind::Abstain,
                 };
                 match &signed.tx.payload {
-                    TransactionPayload::QaPoolVote { subject, vote: kind }
-                        if *subject == tx_hash && *kind == expected_kind => {}
+                    TransactionPayload::QaPoolVote {
+                        subject,
+                        vote: kind,
+                    } if *subject == tx_hash && *kind == expected_kind => {}
                     _ => {
-                        return (StatusCode::OK, rpc_error(
-                            id,
-                            -32602,
-                            "signed payload must be QaPoolVote matching tx_hash and vote".into(),
-                        ));
+                        return (
+                            StatusCode::OK,
+                            rpc_error(
+                                id,
+                                -32602,
+                                "signed payload must be QaPoolVote matching tx_hash and vote"
+                                    .into(),
+                            ),
+                        );
                     }
                 }
                 let gossip = signed.clone();
@@ -1660,7 +1704,9 @@ async fn dispatch_jsonrpc_request(
             let json = match params {
                 Some(v) if !v.is_empty() => v[0].clone(),
                 _ => {
-                    return (StatusCode::OK, rpc_error(
+                    return (
+                        StatusCode::OK,
+                        rpc_error(
                             id,
                             -32602,
                             "Invalid params: expected [network_fee_config_json]".into(),
@@ -1673,7 +1719,11 @@ async fn dispatch_jsonrpc_request(
                 Err(e) => {
                     return (
                         StatusCode::OK,
-                        rpc_error(id, -32602, format!("Invalid network_fee_config JSON: {}", e)),
+                        rpc_error(
+                            id,
+                            -32602,
+                            format!("Invalid network_fee_config JSON: {}", e),
+                        ),
                     );
                 }
             };
@@ -1734,7 +1784,11 @@ async fn dispatch_jsonrpc_request(
             let Some(acct_hex) = params.first().and_then(|v| v.as_str()) else {
                 return (
                     StatusCode::OK,
-                    rpc_error(id, -32602, "Invalid params: expected [hex_account, {cursor?, limit?}]".into()),
+                    rpc_error(
+                        id,
+                        -32602,
+                        "Invalid params: expected [hex_account, {cursor?, limit?}]".into(),
+                    ),
                 );
             };
             let account = match parse_account_id_hex(acct_hex) {
@@ -1754,7 +1808,11 @@ async fn dispatch_jsonrpc_request(
                     None => {
                         return (
                             StatusCode::OK,
-                            rpc_error(id, -32602, "Invalid cursor: expected \"<height>:<index>\"".into()),
+                            rpc_error(
+                                id,
+                                -32602,
+                                "Invalid cursor: expected \"<height>:<index>\"".into(),
+                            ),
                         );
                     }
                 },
@@ -1763,12 +1821,26 @@ async fn dispatch_jsonrpc_request(
             let n = node.read().await;
             rpc_ok(
                 id,
-                crate::account_tx_index::account_transactions_json(&n, key, &account, cursor, limit),
+                crate::account_tx_index::account_transactions_json(
+                    &n, key, &account, cursor, limit,
+                ),
             )
         }
         "boing_getValidators" => {
             let n = node.read().await;
             rpc_ok(id, n.validators_report())
+        }
+        "boing_resolveName" | "boing_reverseName" | "boing_getNameInfo" | "boing_checkNames"
+        | "boing_namesOwnedBy" => {
+            let params = req
+                .params
+                .clone()
+                .unwrap_or(serde_json::Value::Array(vec![]));
+            let n = node.read().await;
+            match n.names_rpc(req.method.as_str(), &params) {
+                Ok(v) => rpc_ok(id, v),
+                Err((code, msg)) => rpc_error(id, code, msg),
+            }
         }
         "boing_getSyncState" => {
             let n = node.read().await;
@@ -2302,7 +2374,9 @@ async fn dispatch_jsonrpc_request(
                         state: AccountState {
                             balance: 0,
                             nonce: 0,
-                            stake: 0, ..Default::default() },
+                            stake: 0,
+                            ..Default::default()
+                        },
                     });
                 }
             } else if state_copy.get(&sender).is_none() {

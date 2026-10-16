@@ -20,6 +20,14 @@ export declare const PayloadVariant: {
     readonly ValidatorRegister: 10;
     readonly ValidatorDeregister: 11;
     readonly ValidatorUnjail: 12;
+    /** Name registry (`label.boing`), see `boingNames.ts`. */
+    readonly NameCommit: 13;
+    readonly NameRegister: 14;
+    readonly NameRenew: 15;
+    readonly NameTransfer: 16;
+    readonly NameSetTarget: 17;
+    readonly NameSetPrimary: 18;
+    readonly NameRelease: 19;
 };
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
 export declare const BatchCallVariant: {
@@ -108,6 +116,33 @@ export type TransactionPayloadInput = {
 } | {
     kind: 'validatorUnjail';
     nodeId: Uint8Array;
+} | {
+    kind: 'nameCommit';
+    commitment: Uint8Array;
+} | {
+    kind: 'nameRegister';
+    name: string;
+    salt: Uint8Array;
+    target: Uint8Array;
+    years: number;
+} | {
+    kind: 'nameRenew';
+    name: string;
+    years: number;
+} | {
+    kind: 'nameTransfer';
+    name: string;
+    newOwner: Uint8Array;
+} | {
+    kind: 'nameSetTarget';
+    name: string;
+    target: Uint8Array;
+} | {
+    kind: 'nameSetPrimary';
+    name: string | null;
+} | {
+    kind: 'nameRelease';
+    name: string;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

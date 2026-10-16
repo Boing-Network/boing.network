@@ -33,7 +33,9 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         state: AccountState {
             balance,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let native_aggregates = state.compute_native_aggregates();
@@ -54,8 +56,8 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
-    validator_signing_key: None,
-    pending_commit: None,
+        validator_signing_key: None,
+        pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
         slashed_equivocations: HashMap::new(),
@@ -67,7 +69,7 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         anchor_fallback_timeout: boing_node::node::DEFAULT_ANCHOR_FALLBACK_TIMEOUT,
         anchor_fallback_wait: None,
         last_local_vote_round: None,
-}
+    }
 }
 
 /// Runtime code: return 32-byte word with low byte `0x42`.
@@ -271,8 +273,14 @@ async fn rpc_get_network_info_shape() {
         .get("consensus")
         .and_then(|x| x.as_object())
         .expect("consensus");
-    assert_eq!(consensus.get("model"), Some(&serde_json::json!("hotstuff_bft")));
-    assert_eq!(consensus.get("validator_count"), Some(&serde_json::json!(1)));
+    assert_eq!(
+        consensus.get("model"),
+        Some(&serde_json::json!("hotstuff_bft"))
+    );
+    assert_eq!(
+        consensus.get("validator_count"),
+        Some(&serde_json::json!(1))
+    );
     let rpc = info.get("rpc").and_then(|x| x.as_object()).expect("rpc");
     let na = rpc
         .get("not_available")
@@ -291,13 +299,19 @@ async fn rpc_get_network_info_shape() {
     assert_eq!(cn.get("account_count"), Some(&serde_json::json!(1)));
     assert_eq!(cn.get("total_balance"), Some(&serde_json::json!("1000000")));
     assert_eq!(cn.get("total_stake"), Some(&serde_json::json!("0")));
-    assert_eq!(cn.get("total_native_held"), Some(&serde_json::json!("1000000")));
+    assert_eq!(
+        cn.get("total_native_held"),
+        Some(&serde_json::json!("1000000"))
+    );
     assert_eq!(cn.get("as_of_height"), Some(&serde_json::json!(0)));
     let dev = info
         .get("developer")
         .and_then(|x| x.as_object())
         .expect("developer");
-    assert_eq!(dev.get("sdk_npm_package"), Some(&serde_json::json!("boing-sdk")));
+    assert_eq!(
+        dev.get("sdk_npm_package"),
+        Some(&serde_json::json!("boing-sdk"))
+    );
     assert_eq!(
         dev.get("websocket")
             .and_then(|w| w.get("path"))
@@ -317,7 +331,10 @@ async fn rpc_get_network_info_shape() {
     let dex_names: Vec<&str> = dex_disc.iter().filter_map(|x| x.as_str()).collect();
     assert!(dex_names.contains(&"boing_listDexPools"));
     assert!(dex_names.contains(&"boing_listDexTokens"));
-    let http = dev.get("http").and_then(|x| x.as_object()).expect("developer.http");
+    let http = dev
+        .get("http")
+        .and_then(|x| x.as_object())
+        .expect("developer.http");
     assert_eq!(
         http.get("live_path").and_then(|x| x.as_str()),
         Some("/live")
@@ -352,10 +369,7 @@ async fn http_get_root_is_method_not_allowed_with_allow_post() {
     let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 1_000_000)));
     let app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
 
-    let req = Request::builder()
-        .uri("/")
-        .body(Body::empty())
-        .unwrap();
+    let req = Request::builder().uri("/").body(Body::empty()).unwrap();
     let res = app.clone().oneshot(req).await.unwrap();
     assert_eq!(res.status(), StatusCode::METHOD_NOT_ALLOWED);
     assert_eq!(
@@ -397,8 +411,7 @@ async fn http_options_root_lists_post_or_cors_methods() {
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     assert!(
-        allow.contains("POST")
-            || acm.to_ascii_uppercase().contains("POST"),
+        allow.contains("POST") || acm.to_ascii_uppercase().contains("POST"),
         "expected POST in Allow or Access-Control-Allow-Methods: allow={allow:?} acm={acm:?}"
     );
 }
@@ -467,10 +480,7 @@ async fn http_live_and_ready_plain_get() {
     let app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
 
     for path in ["/live", "/ready"] {
-        let req = Request::builder()
-            .uri(path)
-            .body(Body::empty())
-            .unwrap();
+        let req = Request::builder().uri(path).body(Body::empty()).unwrap();
         let res = app.clone().oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
         let bytes = res.into_body().collect().await.unwrap().to_bytes();
@@ -584,15 +594,13 @@ async fn rpc_client_version_and_supported_methods() {
     let mut app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
 
     let cv = rpc_call(&mut app, "boing_clientVersion", serde_json::json!([])).await;
-    let ver = cv.get("result").and_then(|x| x.as_str()).expect("clientVersion");
+    let ver = cv
+        .get("result")
+        .and_then(|x| x.as_str())
+        .expect("clientVersion");
     assert!(ver.starts_with("boing-node/"));
 
-    let sm = rpc_call(
-        &mut app,
-        "boing_rpcSupportedMethods",
-        serde_json::json!([]),
-    )
-    .await;
+    let sm = rpc_call(&mut app, "boing_rpcSupportedMethods", serde_json::json!([])).await;
     let arr = sm
         .get("result")
         .and_then(|x| x.as_array())
@@ -608,6 +616,23 @@ async fn rpc_client_version_and_supported_methods() {
     assert!(names.contains(&"boing_getRpcMethodCatalog"));
     assert!(names.contains(&"boing_getRpcOpenApi"));
     assert!(names.contains(&"boing_listSlashRecords"));
+    for m in boing_node::names_rpc::NAME_RPC_METHODS {
+        assert!(
+            names.contains(m),
+            "{m} missing from boing_rpcSupportedMethods"
+        );
+    }
+    // Name registry off on this node: resolve is null, info reports disabled.
+    let r = rpc_call(
+        &mut app,
+        "boing_resolveName",
+        serde_json::json!(["alice.boing"]),
+    )
+    .await;
+    assert!(r.get("result").map(|v| v.is_null()).unwrap_or(false), "{r}");
+    let i = rpc_call(&mut app, "boing_getNameInfo", serde_json::json!(["alice"])).await;
+    assert_eq!(i["result"]["registry"]["enabled"], false);
+    assert_eq!(i["result"]["rent_per_year"], "2");
 }
 
 #[tokio::test]
@@ -616,12 +641,7 @@ async fn rpc_unknown_method_includes_data() {
     let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 1_000_000)));
     let mut app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
 
-    let v = rpc_call(
-        &mut app,
-        "boing_methodDoesNotExist",
-        serde_json::json!([]),
-    )
-    .await;
+    let v = rpc_call(&mut app, "boing_methodDoesNotExist", serde_json::json!([])).await;
     let err = v.get("error").expect("error");
     assert_eq!(err.get("code"), Some(&serde_json::json!(-32601)));
     let data = err.get("data").expect("data");
@@ -637,20 +657,21 @@ async fn rpc_catalog_and_openapi_embedded() {
     let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 1_000_000)));
     let mut app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
 
-    let cat = rpc_call(
-        &mut app,
-        "boing_getRpcMethodCatalog",
-        serde_json::json!([]),
-    )
-    .await;
+    let cat = rpc_call(&mut app, "boing_getRpcMethodCatalog", serde_json::json!([])).await;
     let c = cat.get("result").expect("result").as_object().unwrap();
-    let m = c.get("methods").and_then(|x| x.as_array()).expect("methods");
+    let m = c
+        .get("methods")
+        .and_then(|x| x.as_array())
+        .expect("methods");
     assert!(m.len() >= 10, "embedded catalog should list many methods");
 
     let oa = rpc_call(&mut app, "boing_getRpcOpenApi", serde_json::json!([])).await;
     let root = oa.get("result").expect("result").as_object().unwrap();
     assert_eq!(root.get("openapi").and_then(|x| x.as_str()), Some("3.1.0"));
-    let paths = root.get("paths").and_then(|x| x.as_object()).expect("paths");
+    let paths = root
+        .get("paths")
+        .and_then(|x| x.as_object())
+        .expect("paths");
     assert!(paths.contains_key("/"));
     let root_path = paths.get("/").and_then(|x| x.as_object()).expect("paths./");
     assert!(root_path.contains_key("get"));
@@ -680,12 +701,18 @@ async fn rpc_health_shape() {
     assert_eq!(h.get("head_height"), Some(&serde_json::json!(0)));
     assert!(h.get("chain_id").is_some());
     assert!(h.get("chain_name").is_some());
-    let surf = h.get("rpc_surface").and_then(|x| x.as_object()).expect("rpc_surface");
+    let surf = h
+        .get("rpc_surface")
+        .and_then(|x| x.as_object())
+        .expect("rpc_surface");
     assert_eq!(
         surf.get("http_rate_limit_requests_per_sec"),
         Some(&serde_json::json!(0))
     );
-    assert!(surf.get("jsonrpc_batch_max").and_then(|x| x.as_u64()).is_some());
+    assert!(surf
+        .get("jsonrpc_batch_max")
+        .and_then(|x| x.as_u64())
+        .is_some());
     assert_eq!(
         surf.get("websocket_max_connections"),
         Some(&serde_json::json!(0))
@@ -699,7 +726,10 @@ async fn rpc_health_shape() {
         surf.get("get_logs_max_block_range"),
         Some(&serde_json::json!(128))
     );
-    let m = h.get("rpc_metrics").and_then(|x| x.as_object()).expect("rpc_metrics");
+    let m = h
+        .get("rpc_metrics")
+        .and_then(|x| x.as_object())
+        .expect("rpc_metrics");
     assert!(m.contains_key("rate_limited_total"));
     assert!(m.contains_key("method_not_found_total"));
 }
@@ -1035,14 +1065,20 @@ async fn rpc_receipt_init_deploy_includes_logs() {
     .await;
     let rec = rec_v.get("result").expect("result");
     assert_eq!(rec.get("success"), Some(&serde_json::json!(true)));
-    let logs = rec.get("logs").and_then(|x| x.as_array()).expect("logs array");
+    let logs = rec
+        .get("logs")
+        .and_then(|x| x.as_array())
+        .expect("logs array");
     assert_eq!(logs.len(), 1);
     assert_eq!(logs[0].get("topics"), Some(&serde_json::json!([])));
     assert_eq!(logs[0].get("data"), Some(&serde_json::json!("0x")));
 
     let contract = nonce_derived_contract_address(&proposer, 0);
     let addr_hex = format!("0x{}", hex::encode(contract.0));
-    let height = rec.get("block_height").and_then(|h| h.as_u64()).expect("height");
+    let height = rec
+        .get("block_height")
+        .and_then(|h| h.as_u64())
+        .expect("height");
     let gl = rpc_call(
         &mut app,
         "boing_getLogs",
@@ -1053,7 +1089,10 @@ async fn rpc_receipt_init_deploy_includes_logs() {
         }]),
     )
     .await;
-    let rows = gl.get("result").and_then(|x| x.as_array()).expect("log rows");
+    let rows = gl
+        .get("result")
+        .and_then(|x| x.as_array())
+        .expect("log rows");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].get("address"), Some(&serde_json::json!(addr_hex)));
 }

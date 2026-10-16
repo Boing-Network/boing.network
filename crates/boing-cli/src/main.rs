@@ -9,6 +9,7 @@ mod deploy;
 mod dev;
 mod init;
 mod metrics_register;
+mod name;
 mod pool;
 mod qa_apply;
 mod router;
@@ -65,6 +66,9 @@ enum Commands {
     /// Open validator set: register / deregister / unjail / status
     #[command(subcommand)]
     Validator(ValidatorCommands),
+    /// Name registry (label.boing): resolve / reverse / check / claim / renew / transfer / ...
+    #[command(subcommand)]
+    Name(NameCommands),
     /// Generate shell completion script (bash, zsh, fish, powershell)
     Completions {
         /// Shell: bash, zsh, fish, powershell, elvish
@@ -367,6 +371,104 @@ struct ValidatorSignerArgs {
     /// Print signed transaction hex instead of submitting
     #[arg(long)]
     dry_run: bool,
+}
+
+#[derive(clap::Args)]
+struct NameSignerArgs {
+    /// Signer secret seed hex (default: BOING_SECRET_HEX). Never printed.
+    #[arg(long)]
+    secret_hex: Option<String>,
+    /// Override the first nonce (default: fetched via boing_getAccount)
+    #[arg(long)]
+    nonce: Option<u64>,
+    /// Show the plan and print the signed (first) transaction instead of submitting
+    #[arg(long)]
+    dry_run: bool,
+}
+
+#[derive(Subcommand)]
+enum NameCommands {
+    /// Resolve a name to its target address (active names only)
+    Resolve {
+        name: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Verified primary name of an address
+    Reverse {
+        address: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Full info: validity, availability, rent, record, registry params
+    Info { name: String },
+    /// Availability and yearly rent for up to 25 names
+    Check {
+        #[arg(required = true)]
+        names: Vec<String>,
+    },
+    /// Names owned by an address
+    Owned { address: String },
+    /// Commit, wait, then register a name (rent is burned); optionally set it as your primary name
+    Claim {
+        name: String,
+        /// Address the name resolves to (default: the signer)
+        #[arg(long)]
+        target: Option<String>,
+        #[arg(long, default_value_t = 1)]
+        years: u8,
+        /// Also set it as the signer's primary (reverse) name
+        #[arg(long)]
+        primary: bool,
+        #[command(flatten)]
+        signer: NameSignerArgs,
+    },
+    /// Extend a name you own (also during the grace period)
+    Renew {
+        name: String,
+        #[arg(long, default_value_t = 1)]
+        years: u8,
+        #[command(flatten)]
+        signer: NameSignerArgs,
+    },
+    /// Give a name to another owner (its target is kept)
+    Transfer {
+        name: String,
+        to: String,
+        #[command(flatten)]
+        signer: NameSignerArgs,
+    },
+    /// Point a name you own at another address
+    SetTarget {
+        name: String,
+        target: String,
+        #[command(flatten)]
+        signer: NameSignerArgs,
+    },
+    /// Set (or with --clear remove) your primary name; it must resolve to you
+    SetPrimary {
+        name: Option<String>,
+        #[arg(long)]
+        clear: bool,
+        #[command(flatten)]
+        signer: NameSignerArgs,
+    },
+    /// Give up a name early (no refund)
+    Release {
+        name: String,
+        #[command(flatten)]
+        signer: NameSignerArgs,
+    },
+}
+
+fn name_signer(s: &NameSignerArgs) -> anyhow::Result<ed25519_dalek::SigningKey> {
+    let raw = s
+        .secret_hex
+        .clone()
+        .or_else(|| std::env::var("BOING_SECRET_HEX").ok())
+        .filter(|v| !v.trim().is_empty())
+        .ok_or_else(|| anyhow::anyhow!("no signer: pass --secret-hex or set BOING_SECRET_HEX"))?;
+    token::parse_signing_key(&raw)
 }
 
 #[derive(Subcommand)]
@@ -713,20 +815,141 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         }
+        Commands::Name(cmd) => match cmd {
+            NameCommands::Resolve { name, json } => name::resolve(&cli.rpc_url, &name, json).await,
+            NameCommands::Reverse { address, json } => {
+                name::reverse(&cli.rpc_url, &address, json).await
+            }
+            NameCommands::Info { name } => name::info(&cli.rpc_url, &name).await,
+            NameCommands::Check { names } => name::check(&cli.rpc_url, &names).await,
+            NameCommands::Owned { address } => name::owned(&cli.rpc_url, &address).await,
+            NameCommands::Claim {
+                name,
+                target,
+                years,
+                primary,
+                signer,
+            } => {
+                let key = name_signer(&signer)?;
+                name::claim(
+                    &cli.rpc_url,
+                    &key,
+                    &name,
+                    target,
+                    years,
+                    primary,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
+            }
+            NameCommands::Renew {
+                name,
+                years,
+                signer,
+            } => {
+                let key = name_signer(&signer)?;
+                name::simple(
+                    &cli.rpc_url,
+                    &key,
+                    name::payload_renew(&name, years)?,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
+            }
+            NameCommands::Transfer { name, to, signer } => {
+                let key = name_signer(&signer)?;
+                name::simple(
+                    &cli.rpc_url,
+                    &key,
+                    name::payload_transfer(&name, &to)?,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
+            }
+            NameCommands::SetTarget {
+                name,
+                target,
+                signer,
+            } => {
+                let key = name_signer(&signer)?;
+                name::simple(
+                    &cli.rpc_url,
+                    &key,
+                    name::payload_set_target(&name, &target)?,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
+            }
+            NameCommands::SetPrimary {
+                name,
+                clear,
+                signer,
+            } => {
+                let key = name_signer(&signer)?;
+                if name.is_none() && !clear {
+                    anyhow::bail!("pass a name, or --clear to remove your primary name");
+                }
+                let n = if clear { None } else { name.as_deref() };
+                name::simple(
+                    &cli.rpc_url,
+                    &key,
+                    name::payload_set_primary(n)?,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
+            }
+            NameCommands::Release { name, signer } => {
+                let key = name_signer(&signer)?;
+                name::simple(
+                    &cli.rpc_url,
+                    &key,
+                    name::payload_release(&name)?,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
+            }
+        },
         Commands::Validator(cmd) => match cmd {
             ValidatorCommands::Register { signer } => {
-                let (owner, node) = validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                let (owner, node) =
+                    validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
                 validator::register(&cli.rpc_url, owner, node, signer.nonce, signer.dry_run).await
             }
             ValidatorCommands::Deregister { node, signer } => {
-                let (owner, node_key) = validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
-                validator::deregister(&cli.rpc_url, owner, node_key, node, signer.nonce, signer.dry_run).await
+                let (owner, node_key) =
+                    validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                validator::deregister(
+                    &cli.rpc_url,
+                    owner,
+                    node_key,
+                    node,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
             }
             ValidatorCommands::Unjail { node, signer } => {
-                let (owner, node_key) = validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
-                validator::unjail(&cli.rpc_url, owner, node_key, node, signer.nonce, signer.dry_run).await
+                let (owner, node_key) =
+                    validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                validator::unjail(
+                    &cli.rpc_url,
+                    owner,
+                    node_key,
+                    node,
+                    signer.nonce,
+                    signer.dry_run,
+                )
+                .await
             }
-            ValidatorCommands::Status { node, json } => validator::status(&cli.rpc_url, node, json).await,
+            ValidatorCommands::Status { node, json } => {
+                validator::status(&cli.rpc_url, node, json).await
+            }
         },
         Commands::Completions { shell } => {
             clap_complete::generate(shell, &mut Cli::command(), "boing", &mut std::io::stdout());

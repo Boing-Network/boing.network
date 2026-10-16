@@ -4,11 +4,10 @@ use std::collections::HashMap;
 
 use boing_primitives::{Account, AccountId, AccountState, Hash};
 
+use crate::names::{NameRegistry, NameRegistryParams};
 use crate::open_validators::{OpenValidatorParams, OpenValidatorRegistry};
 use crate::qa_pending::QaPendingRecord;
-use crate::sparse_merkle::{
-    hash_account_leaf, hash_contract_code, SparseMerkleTree,
-};
+use crate::sparse_merkle::{hash_account_leaf, hash_contract_code, SparseMerkleTree};
 
 /// Type alias for persisted contract storage entries: ((contract, key), value).
 pub type ContractStorageEntry = ((AccountId, [u8; 32]), [u8; 32]);
@@ -41,6 +40,7 @@ pub struct StateCheckpoint {
     contract_storage: HashMap<(AccountId, [u8; 32]), [u8; 32]>,
     qa_pending: HashMap<Hash, QaPendingRecord>,
     open_validators: OpenValidatorRegistry,
+    names: NameRegistry,
 }
 
 /// State store with Sparse Merkle tree for state_root.
@@ -58,6 +58,10 @@ pub struct StateStore {
     open_validators: OpenValidatorRegistry,
     /// Node config for open validator mode (not committed; `None` = mode off).
     open_validator_params: Option<OpenValidatorParams>,
+    /// Name registry (committed once non-empty).
+    names: NameRegistry,
+    /// Node config for the name registry (not committed; `None` = registry off).
+    name_registry_params: Option<NameRegistryParams>,
 }
 
 impl StateStore {
@@ -124,8 +128,7 @@ impl StateStore {
     /// Also includes accounts that have code or storage but no balance entry yet.
     pub fn state_root(&mut self) -> Hash {
         self.tree = SparseMerkleTree::new();
-        let mut ids: std::collections::HashSet<AccountId> =
-            self.accounts.keys().copied().collect();
+        let mut ids: std::collections::HashSet<AccountId> = self.accounts.keys().copied().collect();
         for id in self.contract_code.keys() {
             ids.insert(*id);
         }
@@ -133,14 +136,12 @@ impl StateStore {
             ids.insert(*c);
         }
         for id in ids {
-            let state = self
-                .accounts
-                .get(&id)
-                .cloned()
-                .unwrap_or(AccountState {
-                    balance: 0,
-                    nonce: 0,
-                    stake: 0, ..Default::default() });
+            let state = self.accounts.get(&id).cloned().unwrap_or(AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            });
             let code_hash = self.code_hash_of(&id);
             let storage_root = self.storage_root_of(&id);
             let leaf = hash_account_leaf(&state, &code_hash, &storage_root);
@@ -155,6 +156,10 @@ impl StateStore {
                 OpenValidatorRegistry::smt_key(),
                 Hash(self.open_validators.commitment()),
             );
+        }
+        if !self.names.is_empty() {
+            self.tree
+                .insert_leaf_hash(NameRegistry::smt_key(), Hash(self.names.commitment()));
         }
         self.tree.root()
     }
@@ -173,7 +178,10 @@ impl StateStore {
     pub fn snapshot(&self) -> StateStore {
         let mut out = StateStore::new();
         for (id, st) in &self.accounts {
-            out.insert(boing_primitives::Account { id: *id, state: st.clone() });
+            out.insert(boing_primitives::Account {
+                id: *id,
+                state: st.clone(),
+            });
         }
         for (id, code) in &self.contract_code {
             out.set_contract_code(*id, code.clone());
@@ -184,6 +192,8 @@ impl StateStore {
         out.qa_pending = self.qa_pending.clone();
         out.open_validators = self.open_validators.clone();
         out.open_validator_params = self.open_validator_params.clone();
+        out.names = self.names.clone();
+        out.name_registry_params = self.name_registry_params.clone();
         out
     }
 
@@ -191,10 +201,19 @@ impl StateStore {
     pub fn checkpoint(&self) -> StateCheckpoint {
         StateCheckpoint {
             accounts: self.accounts.iter().map(|(k, v)| (*k, v.clone())).collect(),
-            contract_code: self.contract_code.iter().map(|(k, v)| (*k, v.clone())).collect(),
-            contract_storage: self.contract_storage.iter().map(|(k, v)| (*k, *v)).collect(),
+            contract_code: self
+                .contract_code
+                .iter()
+                .map(|(k, v)| (*k, v.clone()))
+                .collect(),
+            contract_storage: self
+                .contract_storage
+                .iter()
+                .map(|(k, v)| (*k, *v))
+                .collect(),
             qa_pending: self.qa_pending.clone(),
             open_validators: self.open_validators.clone(),
+            names: self.names.clone(),
         }
     }
 
@@ -211,6 +230,7 @@ impl StateStore {
         self.contract_storage = cp.contract_storage;
         self.qa_pending = cp.qa_pending;
         self.open_validators = cp.open_validators;
+        self.names = cp.names;
         self.tree = SparseMerkleTree::new();
         let _ = self.state_root();
     }
@@ -243,8 +263,16 @@ impl StateStore {
     /// Export state for disk persistence.
     pub fn export_for_persistence(&self) -> PersistenceExport {
         let accounts: Vec<_> = self.accounts.iter().map(|(k, v)| (*k, v.clone())).collect();
-        let contract_code: Vec<_> = self.contract_code.iter().map(|(k, v)| (*k, v.clone())).collect();
-        let contract_storage: Vec<_> = self.contract_storage.iter().map(|(k, v)| (*k, *v)).collect();
+        let contract_code: Vec<_> = self
+            .contract_code
+            .iter()
+            .map(|(k, v)| (*k, v.clone()))
+            .collect();
+        let contract_storage: Vec<_> = self
+            .contract_storage
+            .iter()
+            .map(|(k, v)| (*k, *v))
+            .collect();
         (accounts, contract_code, contract_storage)
     }
 
@@ -256,7 +284,10 @@ impl StateStore {
     ) -> Self {
         let mut state = StateStore::new();
         for (id, account_state) in accounts {
-            state.insert(Account { id, state: account_state });
+            state.insert(Account {
+                id,
+                state: account_state,
+            });
         }
         for (id, code) in contract_code {
             state.set_contract_code(id, code);
@@ -284,7 +315,10 @@ impl StateStore {
     }
 
     pub fn export_qa_pending(&self) -> Vec<(Hash, QaPendingRecord)> {
-        self.qa_pending.iter().map(|(k, v)| (*k, v.clone())).collect()
+        self.qa_pending
+            .iter()
+            .map(|(k, v)| (*k, v.clone()))
+            .collect()
     }
 
     pub fn load_qa_pending(&mut self, items: Vec<(Hash, QaPendingRecord)>) {
@@ -303,6 +337,29 @@ impl StateStore {
     /// Replace the registry (persistence load).
     pub fn load_open_validators(&mut self, reg: OpenValidatorRegistry) {
         self.open_validators = reg;
+    }
+
+    /// Name registry (read).
+    pub fn names(&self) -> &NameRegistry {
+        &self.names
+    }
+
+    pub fn names_mut(&mut self) -> &mut NameRegistry {
+        &mut self.names
+    }
+
+    /// Replace the registry (persistence load).
+    pub fn load_names(&mut self, reg: NameRegistry) {
+        self.names = reg;
+    }
+
+    /// Name registry node config (`None` = registry off).
+    pub fn name_registry_params(&self) -> Option<&NameRegistryParams> {
+        self.name_registry_params.as_ref()
+    }
+
+    pub fn set_name_registry_params(&mut self, params: Option<NameRegistryParams>) {
+        self.name_registry_params = params;
     }
 
     /// Open-mode node config (`None` = open mode off).
@@ -358,11 +415,35 @@ mod tests {
         let mut state = StateStore::new();
         let a = AccountId([1u8; 32]);
         let b = AccountId([2u8; 32]);
-        state.insert(Account { id: a, state: AccountState { balance: 100, nonce: 0, stake: 0, ..Default::default() } });
-        state.insert(Account { id: b, state: AccountState { balance: 50, nonce: 0, stake: 0, ..Default::default() } });
+        state.insert(Account {
+            id: a,
+            state: AccountState {
+                balance: 100,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: b,
+            state: AccountState {
+                balance: 50,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
         let cp = state.checkpoint();
         state.get_mut(&a).unwrap().balance = 90;
-        state.insert(Account { id: AccountId([3u8; 32]), state: AccountState { balance: 10, nonce: 0, stake: 0, ..Default::default() } });
+        state.insert(Account {
+            id: AccountId([3u8; 32]),
+            state: AccountState {
+                balance: 10,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
         assert_eq!(state.get(&a).unwrap().balance, 90);
         state.revert(cp);
         assert_eq!(state.get(&a).unwrap().balance, 100);
@@ -375,9 +456,33 @@ mod tests {
         let a = AccountId([1u8; 32]);
         let b = AccountId([2u8; 32]);
         let c = AccountId([3u8; 32]);
-        state.insert(Account { id: a, state: AccountState { balance: 0, nonce: 0, stake: 100, ..Default::default() } });
-        state.insert(Account { id: b, state: AccountState { balance: 0, nonce: 0, stake: 500, ..Default::default() } });
-        state.insert(Account { id: c, state: AccountState { balance: 0, nonce: 0, stake: 200, ..Default::default() } });
+        state.insert(Account {
+            id: a,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 100,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: b,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 500,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: c,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 200,
+                ..Default::default()
+            },
+        });
         let top = state.top_stakers(2);
         assert_eq!(top.len(), 2);
         assert_eq!(top[0], b);
@@ -404,7 +509,9 @@ mod tests {
             state: AccountState {
                 balance: 0,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
         let root_empty = state.state_root();
 
@@ -435,14 +542,18 @@ mod tests {
             state: AccountState {
                 balance: 100,
                 nonce: 0,
-                stake: 50, ..Default::default() },
+                stake: 50,
+                ..Default::default()
+            },
         });
         state.insert(Account {
             id: b,
             state: AccountState {
                 balance: 25,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
         let agg = state.compute_native_aggregates();
         assert_eq!(agg.account_count, 2);

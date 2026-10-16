@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::hash::{Hash, hasher};
+use crate::hash::{hasher, Hash};
 
 /// Account identifier (32 bytes, typically derived from pubkey).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -48,7 +48,11 @@ const CREATE2_DOMAIN: &[u8] = b"boing.create2.v1\0";
 
 /// Salt-derived contract address: `BLAKE3(domain || deployer || salt || BLAKE3(bytecode))`.
 /// Shares the same 32-byte [`AccountId`] space as Ed25519-derived accounts; accidental collision is negligible.
-pub fn create2_contract_address(deployer: &AccountId, salt: &[u8; 32], bytecode: &[u8]) -> AccountId {
+pub fn create2_contract_address(
+    deployer: &AccountId,
+    salt: &[u8; 32],
+    bytecode: &[u8],
+) -> AccountId {
     let mut ch = hasher();
     ch.update(bytecode);
     let code_hash = ch.finalize();
@@ -131,14 +135,46 @@ impl Transaction {
             TransactionPayload::ValidatorUnjail { node_id } => {
                 format!("Unjail validator node {}", hex::encode(&node_id.0[..8]))
             }
+            TransactionPayload::NameCommit { .. } => "Commit to a name registration".into(),
+            TransactionPayload::NameRegister { name, years, .. } => {
+                format!("Register name {}.boing for {} year(s)", name, years)
+            }
+            TransactionPayload::NameRenew { name, years } => {
+                format!("Renew name {}.boing for {} year(s)", name, years)
+            }
+            TransactionPayload::NameTransfer { name, new_owner } => {
+                format!(
+                    "Transfer name {}.boing to {}",
+                    name,
+                    hex::encode(&new_owner.0[..8])
+                )
+            }
+            TransactionPayload::NameSetTarget { name, target } => {
+                format!(
+                    "Point name {}.boing at {}",
+                    name,
+                    hex::encode(&target.0[..8])
+                )
+            }
+            TransactionPayload::NameSetPrimary { name: Some(n) } => {
+                format!("Set primary name {}.boing", n)
+            }
+            TransactionPayload::NameSetPrimary { name: None } => "Clear primary name".into(),
+            TransactionPayload::NameRelease { name } => format!("Release name {}.boing", name),
             TransactionPayload::ContractCall { contract, .. } => {
                 format!("Call contract {}", hex::encode(&contract.0[..8]))
             }
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
-            | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => "Deploy contract".into(),
+            | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
+                "Deploy contract".into()
+            }
             TransactionPayload::QaPoolVote { subject, vote } => {
-                format!("QA pool vote {:?} on {}", vote, hex::encode(&subject.0[..8]))
+                format!(
+                    "QA pool vote {:?} on {}",
+                    vote,
+                    hex::encode(&subject.0[..8])
+                )
             }
             TransactionPayload::Batch { calls } => {
                 let steps: Vec<String> = calls
@@ -181,10 +217,9 @@ impl Transaction {
             TransactionPayload::Transfer { to, .. } => {
                 AccessList::new(vec![self.sender, *to], vec![self.sender, *to])
             }
-            TransactionPayload::ContractCall { contract, .. } => AccessList::new(
-                vec![self.sender, *contract],
-                vec![self.sender, *contract],
-            ),
+            TransactionPayload::ContractCall { contract, .. } => {
+                AccessList::new(vec![self.sender, *contract], vec![self.sender, *contract])
+            }
             TransactionPayload::ContractDeploy {
                 bytecode,
                 create2_salt,
@@ -205,6 +240,13 @@ impl Transaction {
             | TransactionPayload::ValidatorRegister { .. }
             | TransactionPayload::ValidatorDeregister { .. }
             | TransactionPayload::ValidatorUnjail { .. }
+            | TransactionPayload::NameCommit { .. }
+            | TransactionPayload::NameRegister { .. }
+            | TransactionPayload::NameRenew { .. }
+            | TransactionPayload::NameTransfer { .. }
+            | TransactionPayload::NameSetTarget { .. }
+            | TransactionPayload::NameSetPrimary { .. }
+            | TransactionPayload::NameRelease { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -236,8 +278,14 @@ impl Transaction {
 /// Transaction payload (extensible).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TransactionPayload {
-    Transfer { to: AccountId, amount: u128 },
-    ContractCall { contract: AccountId, calldata: Vec<u8> },
+    Transfer {
+        to: AccountId,
+        amount: u128,
+    },
+    ContractCall {
+        contract: AccountId,
+        calldata: Vec<u8>,
+    },
     /// Contract deploy (legacy; no purpose declaration).
     ContractDeploy {
         bytecode: Vec<u8>,
@@ -266,9 +314,13 @@ pub enum TransactionPayload {
         create2_salt: Option<[u8; 32]>,
     },
     /// Bond stake to become/remain a validator.
-    Bond { amount: u128 },
+    Bond {
+        amount: u128,
+    },
     /// Begin unbonding: move `amount` from `stake` into `pending_unbond` (unlock after delay).
-    Unbond { amount: u128 },
+    Unbond {
+        amount: u128,
+    },
     /// Claim matured `pending_unbond` into `balance` once `unbond_unlock_height` is reached.
     ClaimUnbond,
     /// Signed QA pool vote on a pending Unsure deploy (`subject` = that deploy's `tx.id()`).
@@ -281,7 +333,9 @@ pub enum TransactionPayload {
     /// order under **one** signature and **one** nonce. If any step fails, the whole batch is
     /// reverted (the nonce is still consumed, like any failed tx). Appended last so existing
     /// bincode discriminants stay stable (variant index 9).
-    Batch { calls: Vec<BatchCall> },
+    Batch {
+        calls: Vec<BatchCall>,
+    },
     /// Open validator registration (variant index 10). The tx signer (`sender`) is the **owner** and
     /// pays the configured bond; `node_signature` is the node key's signature over
     /// [`crate::validator_registration_message`]`(sender, node_id)`. Rejected unless the network has
@@ -292,17 +346,64 @@ pub enum TransactionPayload {
     },
     /// Leave the open validator set (index 11). Owner only. The bond moves to `pending_unbond` and is
     /// claimable with [`TransactionPayload::ClaimUnbond`] after the deregistration delay.
-    ValidatorDeregister { node_id: AccountId },
+    ValidatorDeregister {
+        node_id: AccountId,
+    },
     /// Request re-admission after a liveness jail once the cooldown has passed (index 12). Owner only.
-    ValidatorUnjail { node_id: AccountId },
+    ValidatorUnjail {
+        node_id: AccountId,
+    },
+    /// Name registry (index 13): commit to `name_commitment(label, sender, salt)` before registering,
+    /// so the label is not visible in the mempool. See `crate::names`.
+    NameCommit {
+        commitment: [u8; 32],
+    },
+    /// Register `name` (index 14) for `years`, revealing the salt of an earlier matured `NameCommit` by
+    /// the same sender. The sender becomes the owner; the name resolves to `target`. Rent is burned.
+    NameRegister {
+        name: String,
+        salt: [u8; 32],
+        target: AccountId,
+        years: u8,
+    },
+    /// Extend a name (index 15) by `years` (owner only; allowed during the grace period). Rent is burned.
+    NameRenew {
+        name: String,
+        years: u8,
+    },
+    /// Give a name to `new_owner` (index 16). Owner only; the target is kept.
+    NameTransfer {
+        name: String,
+        new_owner: AccountId,
+    },
+    /// Point a name at another address (index 17). Owner only.
+    NameSetTarget {
+        name: String,
+        target: AccountId,
+    },
+    /// Set (or clear with `None`) the sender's primary / reverse name (index 18). The name must be
+    /// active and resolve to the sender.
+    NameSetPrimary {
+        name: Option<String>,
+    },
+    /// Release a name early (index 19). Owner only; no refund.
+    NameRelease {
+        name: String,
+    },
 }
 
 /// One step inside [`TransactionPayload::Batch`]. Contract calls run with `CALLER` = tx sender,
 /// so token / NFT `transfer` calldata works exactly as in a standalone `ContractCall`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BatchCall {
-    Transfer { to: AccountId, amount: u128 },
-    ContractCall { contract: AccountId, calldata: Vec<u8> },
+    Transfer {
+        to: AccountId,
+        amount: u128,
+    },
+    ContractCall {
+        contract: AccountId,
+        calldata: Vec<u8>,
+    },
 }
 
 /// Maximum steps in one [`TransactionPayload::Batch`].
@@ -381,7 +482,9 @@ impl TransactionPayload {
         match self {
             TransactionPayload::ContractDeploy { create2_salt, .. } => *create2_salt,
             TransactionPayload::ContractDeployWithPurpose { create2_salt, .. } => *create2_salt,
-            TransactionPayload::ContractDeployWithPurposeAndMetadata { create2_salt, .. } => *create2_salt,
+            TransactionPayload::ContractDeployWithPurposeAndMetadata { create2_salt, .. } => {
+                *create2_salt
+            }
             _ => None,
         }
     }
@@ -680,19 +783,13 @@ mod receipt_root_tests {
         let tx1 = Transaction {
             nonce: 0,
             sender: id,
-            payload: TransactionPayload::Transfer {
-                to: id,
-                amount: 1,
-            },
+            payload: TransactionPayload::Transfer { to: id, amount: 1 },
             access_list: AccessList::default(),
         };
         let tx2 = Transaction {
             nonce: 1,
             sender: id,
-            payload: TransactionPayload::Transfer {
-                to: id,
-                amount: 2,
-            },
+            payload: TransactionPayload::Transfer { to: id, amount: 2 },
             access_list: AccessList::default(),
         };
         let r1 = ExecutionReceipt::from_tx_outcome(&tx1, 1, 0, true, 100, vec![], vec![], None);

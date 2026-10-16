@@ -899,6 +899,33 @@ List the current validator set and (in open mode) every registered validator.
 
 ---
 
+### Name registry (`.boing` names)
+
+Native name registry (see `NAME-REGISTRY-PROPOSAL.md`). Disabled unless the node is started with
+`--name-registry-activation-height <H>` or `BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=<H>`; before height `H`
+name transactions are rejected and these reads return `null` / `[]` / `"registry": {"enabled": false}`.
+All reads are evaluated at `head + 1` (the height a transaction submitted now would execute at).
+Names are normalized: trimmed, lowercased, optional `.boing` suffix stripped; 3-32 chars of `a-z 0-9 -`.
+
+| Method | Params | Result |
+|--------|--------|--------|
+| `boing_resolveName` | `[name]` | `null` or `{ name, display, owner, target, registered_at, expires_at, status }` (only **active** names resolve; names in grace do not) |
+| `boing_reverseName` | `[address]` | `null` or `{ name, display, address, verified: true }`; only returned when the primary name is active and still resolves to `address` |
+| `boing_getNameInfo` | `[name]` | `{ input, name, display, valid, reserved, available, status, rent_per_year, record?, registry, head_height }` |
+| `boing_checkNames` | `[[name, ...]]` (1-25) | `{ registry, results: [ <same shape as getNameInfo without record> ] }` |
+| `boing_namesOwnedBy` | `[address]` | array of records (active and grace) owned by `address` |
+
+Name transactions (payload variants 13-19, all sender-only access list, base gas 21,000):
+`NameCommit{commitment}`, `NameRegister{name, salt, target, years}`, `NameRenew{name, years}`,
+`NameTransfer{name, new_owner}`, `NameSetTarget{name, target}`, `NameSetPrimary{name|null}`, `NameRelease{name}`.
+Registration is commit-reveal: `commitment = blake3("BOING_NAME_COMMIT_V1" || u32le(len) || label || owner || salt)`;
+the register must land at least `commit_min_age` and at most `commit_max_age` blocks after the commit.
+Rent (burned): 10 / 5 / 2 / 1 BOING per year for 3 / 4 / 5 / 6+ character labels, 1-10 years.
+After `expires_at` a name has a grace period (`grace_blocks`) during which only the owner can renew; then anyone can register it.
+
+CLI: `boing name resolve|reverse|info|check|owned|claim|renew|transfer|set-target|set-primary|release`
+(`claim` runs commit → register, optionally `--primary`; signing commands take `--secret-hex` or `BOING_SECRET_HEX`, and `--dry-run`).
+SDK: `boing-sdk` `boingNames` helpers (`resolveBoingRecipient`, `commitBoingName`, `registerBoingName`, ...) and `BoingClient.resolveName` / `reverseName` / `getNameInfo` / `checkNames` / `namesOwnedBy`.
 ## Error Codes
 
 | Code | Meaning |

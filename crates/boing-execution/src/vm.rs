@@ -11,8 +11,8 @@ use boing_qa::{
 };
 use boing_state::{unpaid_counted_voters, QaPendingRecord, StateStore};
 
-use crate::gas::base;
 use super::interpreter::{Interpreter, VmExecutionContext};
+use crate::gas::base;
 
 /// Gas used by a transaction.
 pub const GAS_PER_TRANSFER: u64 = 21_000;
@@ -101,7 +101,10 @@ impl Vm {
     }
 
     /// Registry + pool governance (public membership, voter rewards).
-    pub fn with_qa_policies(qa_registry: RuleRegistry, qa_pool_config: QaPoolGovernanceConfig) -> Self {
+    pub fn with_qa_policies(
+        qa_registry: RuleRegistry,
+        qa_pool_config: QaPoolGovernanceConfig,
+    ) -> Self {
         Self {
             qa_registry,
             qa_pool_config,
@@ -151,7 +154,9 @@ impl Vm {
                     state: boing_primitives::AccountState {
                         balance: *amount,
                         nonce: 0,
-                        stake: 0, ..Default::default() },
+                        stake: 0,
+                        ..Default::default()
+                    },
                 });
             }
         }
@@ -163,7 +168,11 @@ impl Vm {
     }
 
     /// Execute a single transaction against the state (block height / timestamp default to zero).
-    pub fn execute(&self, tx: &Transaction, state: &mut StateStore) -> Result<VmExecutionResult, VmError> {
+    pub fn execute(
+        &self,
+        tx: &Transaction,
+        state: &mut StateStore,
+    ) -> Result<VmExecutionResult, VmError> {
         self.execute_with_context(tx, state, VmExecutionContext::default())
     }
 
@@ -258,7 +267,9 @@ impl Vm {
                             state: boing_primitives::AccountState {
                                 balance: *amount,
                                 nonce: 0,
-                                stake: 0, ..Default::default() },
+                                stake: 0,
+                                ..Default::default()
+                            },
                         });
                     }
                 }
@@ -278,9 +289,16 @@ impl Vm {
             TransactionPayload::Batch { calls } => {
                 return self.execute_batch(state, tx, calls, exec_ctx);
             }
-            TransactionPayload::ValidatorRegister { node_id, node_signature } => {
+            TransactionPayload::ValidatorRegister {
+                node_id,
+                node_signature,
+            } => {
                 let params = open_validator_params_at(state, exec_ctx.block_height)?;
-                if !boing_primitives::verify_validator_registration(&tx.sender, node_id, node_signature) {
+                if !boing_primitives::verify_validator_registration(
+                    &tx.sender,
+                    node_id,
+                    node_signature,
+                ) {
                     return Err(VmError::OpenValidator(
                         boing_state::OpenValidatorError::InvalidNodeSignature.to_string(),
                     ));
@@ -295,7 +313,10 @@ impl Vm {
                     .map_err(|e| VmError::OpenValidator(e.to_string()))?;
                 let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
                 sender_state.balance -= params.bond;
-                sender_state.nonce = sender_state.nonce.checked_add(1).ok_or(VmError::NonceOverflow)?;
+                sender_state.nonce = sender_state
+                    .nonce
+                    .checked_add(1)
+                    .ok_or(VmError::NonceOverflow)?;
                 base::BOND
             }
             TransactionPayload::ValidatorDeregister { node_id } => {
@@ -306,12 +327,18 @@ impl Vm {
                     .map_err(|e| VmError::OpenValidator(e.to_string()))?;
                 let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
                 if refund > 0 {
-                    sender_state.pending_unbond = sender_state.pending_unbond.saturating_add(refund);
-                    sender_state.unbond_unlock_height = sender_state
-                        .unbond_unlock_height
-                        .max(exec_ctx.block_height.saturating_add(params.deregister_delay));
+                    sender_state.pending_unbond =
+                        sender_state.pending_unbond.saturating_add(refund);
+                    sender_state.unbond_unlock_height = sender_state.unbond_unlock_height.max(
+                        exec_ctx
+                            .block_height
+                            .saturating_add(params.deregister_delay),
+                    );
                 }
-                sender_state.nonce = sender_state.nonce.checked_add(1).ok_or(VmError::NonceOverflow)?;
+                sender_state.nonce = sender_state
+                    .nonce
+                    .checked_add(1)
+                    .ok_or(VmError::NonceOverflow)?;
                 base::UNBOND
             }
             TransactionPayload::ValidatorUnjail { node_id } => {
@@ -321,8 +348,20 @@ impl Vm {
                     .unjail(tx.sender, *node_id, exec_ctx.block_height)
                     .map_err(|e| VmError::OpenValidator(e.to_string()))?;
                 let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
-                sender_state.nonce = sender_state.nonce.checked_add(1).ok_or(VmError::NonceOverflow)?;
+                sender_state.nonce = sender_state
+                    .nonce
+                    .checked_add(1)
+                    .ok_or(VmError::NonceOverflow)?;
                 base::UNBOND
+            }
+            TransactionPayload::NameCommit { .. }
+            | TransactionPayload::NameRegister { .. }
+            | TransactionPayload::NameRenew { .. }
+            | TransactionPayload::NameTransfer { .. }
+            | TransactionPayload::NameSetTarget { .. }
+            | TransactionPayload::NameSetPrimary { .. }
+            | TransactionPayload::NameRelease { .. } => {
+                execute_name_tx(state, tx, exec_ctx.block_height)?
             }
         };
         Ok(VmExecutionResult {
@@ -340,7 +379,8 @@ impl Vm {
     ) -> Result<VmExecutionResult, VmError> {
         // Defense in depth: same full QA path as mempool (`Mempool::insert`), using payload fields.
         // Malicious blocks must not apply deploys that honest mempools would reject.
-        let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) = tx.payload.as_contract_deploy()
+        let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) =
+            tx.payload.as_contract_deploy()
         else {
             return Err(VmError::NotImplemented("Not a contract deploy"));
         };
@@ -380,7 +420,8 @@ impl Vm {
         } else {
             nonce_derived_contract_address(&tx.sender, tx.nonce)
         };
-        if state.get(&contract_addr).is_some() || state.get_contract_code(&contract_addr).is_some() {
+        if state.get(&contract_addr).is_some() || state.get_contract_code(&contract_addr).is_some()
+        {
             return Err(VmError::DeploymentAddressInUse);
         }
 
@@ -392,13 +433,19 @@ impl Vm {
 
         state.insert(boing_primitives::Account {
             id: contract_addr,
-            state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() },
+            state: boing_primitives::AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
         });
 
         let uses_init = contract_deploy_uses_init_code(bytecode);
         let init_body = contract_deploy_init_body(bytecode);
         let (gas_used, logs, stored_code) = if uses_init {
-            let mut interpreter = Interpreter::new(init_body.to_vec(), GAS_PER_CONTRACT_DEPLOY_INIT);
+            let mut interpreter =
+                Interpreter::new(init_body.to_vec(), GAS_PER_CONTRACT_DEPLOY_INIT);
             let g_init = interpreter.run_with_qa(
                 tx.sender,
                 contract_addr,
@@ -412,11 +459,7 @@ impl Vm {
             let gas = GAS_PER_CONTRACT_DEPLOY.saturating_add(g_init);
             (gas, logs, runtime)
         } else {
-            (
-                GAS_PER_CONTRACT_DEPLOY,
-                Vec::new(),
-                bytecode.to_vec(),
-            )
+            (GAS_PER_CONTRACT_DEPLOY, Vec::new(), bytecode.to_vec())
         };
 
         state.set_contract_code(contract_addr, stored_code);
@@ -469,9 +512,9 @@ impl Vm {
         self.qa_pool_config
             .voter_eligibility(voter, Some(deployer), Some(voter_stake))
             .map_err(|e| match e {
-                boing_qa::QaVoterIneligible::DeployerConflict => VmError::QaVoterIneligible(
-                    "deployer cannot vote on their own Unsure deploy",
-                ),
+                boing_qa::QaVoterIneligible::DeployerConflict => {
+                    VmError::QaVoterIneligible("deployer cannot vote on their own Unsure deploy")
+                }
                 boing_qa::QaVoterIneligible::InsufficientStake => {
                     VmError::QaVoterIneligible("voter stake below min_voter_stake")
                 }
@@ -558,7 +601,8 @@ impl Vm {
         } else {
             nonce_derived_contract_address(&tx.sender, tx.nonce)
         };
-        if state.get(&contract_addr).is_some() || state.get_contract_code(&contract_addr).is_some() {
+        if state.get(&contract_addr).is_some() || state.get_contract_code(&contract_addr).is_some()
+        {
             return Err(VmError::DeploymentAddressInUse);
         }
         state.insert(boing_primitives::Account {
@@ -573,7 +617,8 @@ impl Vm {
         let uses_init = contract_deploy_uses_init_code(bytecode);
         let init_body = contract_deploy_init_body(bytecode);
         let stored_code = if uses_init {
-            let mut interpreter = Interpreter::new(init_body.to_vec(), GAS_PER_CONTRACT_DEPLOY_INIT);
+            let mut interpreter =
+                Interpreter::new(init_body.to_vec(), GAS_PER_CONTRACT_DEPLOY_INIT);
             let _g_init = interpreter.run_with_qa(
                 tx.sender,
                 contract_addr,
@@ -641,7 +686,14 @@ impl Vm {
                         .clone();
                     let mut interpreter = Interpreter::new(code, vm_budget);
                     let g = interpreter
-                        .run_with_qa(tx.sender, *contract, calldata, state, &self.qa_registry, exec_ctx)
+                        .run_with_qa(
+                            tx.sender,
+                            *contract,
+                            calldata,
+                            state,
+                            &self.qa_registry,
+                            exec_ctx,
+                        )
                         .map_err(step_err)?;
                     vm_budget = vm_budget.saturating_sub(g);
                     logs.append(&mut interpreter.logs);
@@ -673,7 +725,10 @@ impl Vm {
             .checked_add(1)
             .ok_or(VmError::NonceOverflow)?;
 
-        let code = state.get_contract_code(contract).ok_or(VmError::AccountNotFound)?.clone();
+        let code = state
+            .get_contract_code(contract)
+            .ok_or(VmError::AccountNotFound)?
+            .clone();
         let mut interpreter = Interpreter::new(code, GAS_PER_CONTRACT_CALL);
         let gas_used = interpreter.run_with_qa(
             tx.sender,
@@ -702,9 +757,7 @@ impl Default for Vm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use boing_primitives::{
-        AccessList, Account, AccountState, CONTRACT_DEPLOY_INIT_CODE_MARKER,
-    };
+    use boing_primitives::{AccessList, Account, AccountState, CONTRACT_DEPLOY_INIT_CODE_MARKER};
     use ed25519_dalek::SigningKey;
     use rand::rngs::OsRng;
 
@@ -719,7 +772,9 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
         let tx = Transaction {
             nonce: 0,
@@ -748,7 +803,9 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
         let tx = Transaction {
             nonce: 0,
@@ -778,7 +835,9 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
         // Init: LOG0 (empty data), MSTORE zero word at 0, RETURN 1 byte → runtime STOP (0x00).
         let init = vec![
@@ -802,7 +861,10 @@ mod tests {
         assert!(out.logs[0].topics.is_empty());
         assert!(out.logs[0].data.is_empty());
         let contract = nonce_derived_contract_address(&sender, 0);
-        assert_eq!(state.get_contract_code(&contract).unwrap().as_slice(), &[0x00]);
+        assert_eq!(
+            state.get_contract_code(&contract).unwrap().as_slice(),
+            &[0x00]
+        );
     }
 
     #[test]
@@ -816,7 +878,9 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
         let code = crate::reference_token::smoke_contract_bytecode();
         let deploy = Transaction {
@@ -859,7 +923,9 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
 
         let smoke_code = crate::reference_token::smoke_contract_bytecode();
@@ -941,7 +1007,9 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
         let code = vec![0x00, 0x00];
         let salt = [7u8; 32];
@@ -971,7 +1039,9 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
         let code = vec![0x00];
         let salt = [9u8; 32];
@@ -1014,13 +1084,21 @@ mod tests {
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
 
         let salt = [1u8; 32];
         // Factory: MSTORE 0,0 (runtime byte 0x00 at mem[0]); CREATE2 with offset 0 size 1.
         let mut factory = Vec::new();
-        factory.extend([Opcode::Push1 as u8, 0x00, Opcode::Push1 as u8, 0x00, Opcode::MStore as u8]);
+        factory.extend([
+            Opcode::Push1 as u8,
+            0x00,
+            Opcode::Push1 as u8,
+            0x00,
+            Opcode::MStore as u8,
+        ]);
         // Stack before CREATE2: offset (bottom), size, salt (top) — pops salt, size, offset.
         factory.extend([Opcode::Push1 as u8, 0x00, Opcode::Push1 as u8, 0x01]);
         factory.push(Opcode::Push32 as u8);
@@ -1054,8 +1132,136 @@ mod tests {
             state.get_contract_code(&expected_child).unwrap().as_slice(),
             &[0x00]
         );
-        assert_eq!(state.get(&factory_addr).unwrap().nonce, 0, "factory nonce unchanged");
+        assert_eq!(
+            state.get(&factory_addr).unwrap().nonce,
+            0,
+            "factory nonce unchanged"
+        );
     }
+}
+
+/// Name registry params when the registry is configured and `height` is at/after activation.
+fn name_params_at(
+    state: &StateStore,
+    height: u64,
+) -> Result<boing_state::NameRegistryParams, VmError> {
+    let params = state
+        .name_registry_params()
+        .cloned()
+        .ok_or_else(|| VmError::Name(boing_state::NameRegistryError::Disabled.to_string()))?;
+    if height < params.activation_height {
+        return Err(VmError::Name(
+            boing_state::NameRegistryError::NotYetActive {
+                activation_height: params.activation_height,
+            }
+            .to_string(),
+        ));
+    }
+    Ok(params)
+}
+
+/// Name registry transactions (`Name*` payloads). Mutates the registry, burns rent from the sender and
+/// bumps the nonce. All failures leave the state untouched (the caller reverts via checkpoint anyway).
+fn execute_name_tx(state: &mut StateStore, tx: &Transaction, height: u64) -> Result<u64, VmError> {
+    let params = name_params_at(state, height)?;
+    let me = tx.sender;
+    let name_err = |e: boing_state::NameRegistryError| VmError::Name(e.to_string());
+    let label = |raw: &str| -> Result<String, VmError> {
+        boing_primitives::normalize_name(raw)
+            .map_err(|e| name_err(boing_state::NameRegistryError::InvalidName(e.to_string())))
+    };
+    let balance = state.get(&me).map(|s| s.balance).unwrap_or(0);
+    let rent: u128 = match &tx.payload {
+        TransactionPayload::NameCommit { commitment } => {
+            state
+                .names_mut()
+                .commit(&params, height, me, *commitment)
+                .map_err(name_err)?;
+            0
+        }
+        TransactionPayload::NameRegister {
+            name,
+            salt,
+            target,
+            years,
+        } => {
+            let l = label(name)?;
+            let rent = state
+                .names()
+                .check_register(&params, height, me, &l, salt, *years)
+                .map_err(name_err)?;
+            if balance < rent {
+                return Err(name_err(
+                    boing_state::NameRegistryError::InsufficientBalance { rent },
+                ));
+            }
+            state
+                .names_mut()
+                .register(&params, height, me, &l, salt, *target, *years)
+                .map_err(name_err)?
+        }
+        TransactionPayload::NameRenew { name, years } => {
+            let l = label(name)?;
+            let mut probe = state.names().clone();
+            let rent = probe
+                .renew(&params, height, me, &l, *years)
+                .map_err(name_err)?;
+            if balance < rent {
+                return Err(name_err(
+                    boing_state::NameRegistryError::InsufficientBalance { rent },
+                ));
+            }
+            state.load_names(probe);
+            rent
+        }
+        TransactionPayload::NameTransfer { name, new_owner } => {
+            let l = label(name)?;
+            state
+                .names_mut()
+                .transfer(&params, height, me, &l, *new_owner)
+                .map_err(name_err)?;
+            0
+        }
+        TransactionPayload::NameSetTarget { name, target } => {
+            let l = label(name)?;
+            state
+                .names_mut()
+                .set_target(&params, height, me, &l, *target)
+                .map_err(name_err)?;
+            0
+        }
+        TransactionPayload::NameSetPrimary { name } => {
+            let l = match name {
+                Some(n) => Some(label(n)?),
+                None => None,
+            };
+            state
+                .names_mut()
+                .set_primary(&params, height, me, l.as_deref())
+                .map_err(name_err)?;
+            0
+        }
+        TransactionPayload::NameRelease { name } => {
+            let l = label(name)?;
+            state
+                .names_mut()
+                .release(&params, height, me, &l)
+                .map_err(name_err)?;
+            0
+        }
+        _ => unreachable!("execute_name_tx called with a non-name payload"),
+    };
+    let sender_state = state.get_mut(&me).ok_or(VmError::AccountNotFound)?;
+    // Rent is burned: removed from the payer, credited to nobody.
+    sender_state.balance = sender_state
+        .balance
+        .checked_sub(rent)
+        .ok_or(VmError::InsufficientBalance)?;
+    sender_state.nonce = sender_state
+        .nonce
+        .checked_add(1)
+        .ok_or(VmError::NonceOverflow)?;
+    Ok(base::NAME)
 }
 
 /// Open validator params when the mode is configured and `height` is at/after activation.
@@ -1130,6 +1336,8 @@ pub enum VmError {
     BatchStepFailed { index: usize, reason: String },
     #[error("Open validator: {0}")]
     OpenValidator(String),
+    #[error("Name registry: {0}")]
+    Name(String),
 }
 
 /// Apply CREATE2-style deploy from inside a contract: QA, address derivation, account insert, optional init, runtime install.
@@ -1175,7 +1383,12 @@ pub(crate) fn apply_in_tx_create2(
 
     state.insert(boing_primitives::Account {
         id: contract_addr,
-        state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() },
+        state: boing_primitives::AccountState {
+            balance: 0,
+            nonce: 0,
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let uses_init = contract_deploy_uses_init_code(&bytecode);

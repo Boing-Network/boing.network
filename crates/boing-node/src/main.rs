@@ -139,6 +139,11 @@ struct Args {
     #[arg(long)]
     open_validator_activation_height: Option<u64>,
 
+    /// Enable the on-chain name registry from this height (all nodes must agree). Overrides
+    /// **`BOING_NAME_REGISTRY_ACTIVATION_HEIGHT`**. Unset = registry off.
+    #[arg(long)]
+    name_registry_activation_height: Option<u64>,
+
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
@@ -161,6 +166,19 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let args = Args::parse();
+    let name_params =
+        boing_node::name_config::resolve_name_registry_params(args.name_registry_activation_height)
+            .map_err(|e| anyhow::anyhow!("name registry config: {e}"))?;
+    if let Some(p) = &name_params {
+        tracing::info!(
+            "Name registry: activation_height={} blocks_per_year={} grace={} commit_age={}..={}",
+            p.activation_height,
+            p.blocks_per_year,
+            p.grace_blocks,
+            p.commit_min_age,
+            p.commit_max_age
+        );
+    }
     let open_set = validator_config::resolve_open_validator_set_config(
         args.validator_set.as_deref(),
         args.open_validator_activation_height,
@@ -196,8 +214,9 @@ async fn main() -> anyhow::Result<()> {
         args.stake_validator_activation_height,
     )
     .map_err(|e| anyhow::anyhow!("validator-set config: {e}"))?;
-    let leader_election = validator_config::resolve_leader_election(args.leader_election.as_deref())
-        .map_err(|e| anyhow::anyhow!("leader-election config: {e}"))?;
+    let leader_election =
+        validator_config::resolve_leader_election(args.leader_election.as_deref())
+            .map_err(|e| anyhow::anyhow!("leader-election config: {e}"))?;
     tracing::info!(
         "Consensus validators={} local={} stake_set={} leader_election={:?}",
         validators.len(),
@@ -244,6 +263,9 @@ async fn main() -> anyhow::Result<()> {
             if let Some((p, t)) = &open_params {
                 n.anchor_fallback_timeout = *t;
                 n.enable_open_validator_set(p.clone());
+            }
+            if let Some(p) = &name_params {
+                n.enable_name_registry(p.clone());
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -390,6 +412,9 @@ async fn main() -> anyhow::Result<()> {
                 n.anchor_fallback_timeout = *t;
                 n.enable_open_validator_set(p.clone());
             }
+            if let Some(p) = &name_params {
+                n.enable_name_registry(p.clone());
+            }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
             Arc::new(RwLock::new(n))
@@ -452,7 +477,9 @@ async fn main() -> anyhow::Result<()> {
                 state: AccountState {
                     balance: faucet::FAUCET_INITIAL_BALANCE,
                     nonce: 0,
-                    stake: 0, ..Default::default() },
+                    stake: 0,
+                    ..Default::default()
+                },
             });
             n.refresh_native_aggregates();
             tracing::info!(

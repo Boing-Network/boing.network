@@ -7,6 +7,7 @@ pub mod equivocation;
 pub mod hash;
 pub mod hd;
 pub mod intent;
+pub mod names;
 pub mod paymaster;
 pub mod randomness;
 pub mod recovery;
@@ -15,37 +16,41 @@ pub mod types;
 pub mod validator_registration;
 pub mod vrf_proof;
 
-pub use consensus_vote::{
-    consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN,
-};
+pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};
-pub use hash::{Hash, hasher};
+pub use hash::{hasher, Hash};
+pub use hd::HdPath;
+pub use intent::{Intent, IntentKind, SignedIntent};
+pub use names::{
+    check_registrable, display_name, is_reserved, name_commitment, name_rent, name_rent_per_year,
+    normalize_name, validate_label, NameError, NAME_MAX_LEN, NAME_MAX_YEARS, NAME_MIN_LEN,
+    NAME_MIN_YEARS, NAME_SUFFIX, RESERVED_NAMES,
+};
+pub use paymaster::{PaymasterConfig, SponsoredTransaction};
+pub use randomness::{
+    dummy_vrf_output, ecvrf_prove, leader_from_ecvrf_proofs, leader_from_vrf, verify_ecvrf_output,
+    verify_vrf_output, vrf_round_alpha, vrf_round_seed, VdfOutput, VrfOutput, ECVRF_PROOF_LEN,
+};
+pub use recovery::{Guardian, RecoveryRequest};
 pub use signature::{
     sign_transaction, signable_transaction_hash, verify_signature, Signature, SignatureError,
     SignedTransaction,
 };
 pub use types::{
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
-    nonce_derived_contract_address, receipt_leaf_hash, receipts_root, tx_root, AccountId, Block,
-    BlockHeader, ExecutionLog, ExecutionReceipt, QaPoolVoteKind, Transaction, TransactionPayload, AccessList,
-    validate_batch_calls, BatchCall, BatchValidationError, MAX_BATCH_CALLDATA_BYTES, MAX_BATCH_CALLS,
-    CONTRACT_DEPLOY_INIT_CODE_MARKER, MAX_EXECUTION_LOG_DATA_BYTES, MAX_EXECUTION_LOGS_PER_TX,
-    MAX_EXECUTION_LOG_TOPICS, MAX_RECEIPT_ERROR_STRING_BYTES, MAX_RECEIPT_RETURN_DATA_BYTES,
+    nonce_derived_contract_address, receipt_leaf_hash, receipts_root, tx_root,
+    validate_batch_calls, AccessList, AccountId, BatchCall, BatchValidationError, Block,
+    BlockHeader, ExecutionLog, ExecutionReceipt, QaPoolVoteKind, Transaction, TransactionPayload,
+    CONTRACT_DEPLOY_INIT_CODE_MARKER, MAX_BATCH_CALLDATA_BYTES, MAX_BATCH_CALLS,
+    MAX_EXECUTION_LOGS_PER_TX, MAX_EXECUTION_LOG_DATA_BYTES, MAX_EXECUTION_LOG_TOPICS,
+    MAX_RECEIPT_ERROR_STRING_BYTES, MAX_RECEIPT_RETURN_DATA_BYTES,
 };
 pub use types::{Account, AccountState};
-pub use intent::{Intent, IntentKind, SignedIntent};
-pub use randomness::{
-    dummy_vrf_output, ecvrf_prove, leader_from_ecvrf_proofs, leader_from_vrf, verify_ecvrf_output,
-    verify_vrf_output, vrf_round_alpha, vrf_round_seed, ECVRF_PROOF_LEN, VdfOutput, VrfOutput,
-};
-pub use vrf_proof::VrfProofGossip;
 pub use validator_registration::{
     sign_validator_registration, validator_registration_message, verify_validator_registration,
     VALIDATOR_REGISTRATION_DOMAIN,
 };
-pub use paymaster::{PaymasterConfig, SponsoredTransaction};
-pub use recovery::{Guardian, RecoveryRequest};
-pub use hd::HdPath;
+pub use vrf_proof::VrfProofGossip;
 
 #[cfg(test)]
 mod tests {
@@ -111,7 +116,10 @@ mod tests {
     #[test]
     fn contract_deploy_init_marker_helpers() {
         assert!(!contract_deploy_uses_init_code(&[0x00]));
-        assert!(contract_deploy_uses_init_code(&[CONTRACT_DEPLOY_INIT_CODE_MARKER, 0x00]));
+        assert!(contract_deploy_uses_init_code(&[
+            CONTRACT_DEPLOY_INIT_CODE_MARKER,
+            0x00
+        ]));
         assert_eq!(contract_deploy_init_body(&[0x60, 0]), &[0x60, 0]);
         assert_eq!(
             contract_deploy_init_body(&[CONTRACT_DEPLOY_INIT_CODE_MARKER, 0x60, 0]),

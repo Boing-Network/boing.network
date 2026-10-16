@@ -22,6 +22,14 @@ export const PayloadVariant = {
     ValidatorRegister: 10,
     ValidatorDeregister: 11,
     ValidatorUnjail: 12,
+    /** Name registry (`label.boing`), see `boingNames.ts`. */
+    NameCommit: 13,
+    NameRegister: 14,
+    NameRenew: 15,
+    NameTransfer: 16,
+    NameSetTarget: 17,
+    NameSetPrimary: 18,
+    NameRelease: 19,
 };
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
 export const BatchCallVariant = {
@@ -138,6 +146,16 @@ export function encodeOptionString(opt) {
         return new Uint8Array([0]);
     return concatBytes(new Uint8Array([1]), encodeBincodeString(opt));
 }
+function need32(b, what) {
+    if (b.length !== 32)
+        throw new Error(`${what} must be 32 bytes`);
+    return b;
+}
+function yearsByte(years) {
+    if (!Number.isInteger(years) || years < 1 || years > 10)
+        throw new Error('years must be 1-10');
+    return Uint8Array.of(years);
+}
 export function encodeTransactionPayload(payload) {
     switch (payload.kind) {
         case 'transfer':
@@ -180,6 +198,20 @@ export function encodeTransactionPayload(payload) {
             if (payload.nodeId.length !== 32)
                 throw new Error('validator nodeId must be 32 bytes');
             return concatBytes(writeU32Le(PayloadVariant.ValidatorUnjail), payload.nodeId);
+        case 'nameCommit':
+            return concatBytes(writeU32Le(PayloadVariant.NameCommit), need32(payload.commitment, 'commitment'));
+        case 'nameRegister':
+            return concatBytes(writeU32Le(PayloadVariant.NameRegister), encodeBincodeString(payload.name), need32(payload.salt, 'salt'), need32(payload.target, 'target'), yearsByte(payload.years));
+        case 'nameRenew':
+            return concatBytes(writeU32Le(PayloadVariant.NameRenew), encodeBincodeString(payload.name), yearsByte(payload.years));
+        case 'nameTransfer':
+            return concatBytes(writeU32Le(PayloadVariant.NameTransfer), encodeBincodeString(payload.name), need32(payload.newOwner, 'newOwner'));
+        case 'nameSetTarget':
+            return concatBytes(writeU32Le(PayloadVariant.NameSetTarget), encodeBincodeString(payload.name), need32(payload.target, 'target'));
+        case 'nameSetPrimary':
+            return concatBytes(writeU32Le(PayloadVariant.NameSetPrimary), encodeOptionString(payload.name));
+        case 'nameRelease':
+            return concatBytes(writeU32Le(PayloadVariant.NameRelease), encodeBincodeString(payload.name));
         default: {
             const _x = payload;
             return _x;

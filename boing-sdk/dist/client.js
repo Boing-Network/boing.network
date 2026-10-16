@@ -485,6 +485,26 @@ export class BoingClient {
     async getValidators() {
         return this.request('boing_getValidators', []);
     }
+    /** Active record for `name` (`alice` or `alice.boing`), or null (`boing_resolveName`). */
+    async resolveName(name) {
+        return this.request('boing_resolveName', [name]);
+    }
+    /** Verified primary name of an address, or null (`boing_reverseName`). */
+    async reverseName(addressHex) {
+        return this.request('boing_reverseName', [addressHex]);
+    }
+    /** Validity, availability, rent, record (any status) and registry params (`boing_getNameInfo`). */
+    async getNameInfo(name) {
+        return this.request('boing_getNameInfo', [name]);
+    }
+    /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
+    async checkNames(names) {
+        return this.request('boing_checkNames', [names]);
+    }
+    /** Names owned by an address (active or in grace) (`boing_namesOwnedBy`). */
+    async namesOwnedBy(addressHex) {
+        return this.request('boing_namesOwnedBy', [addressHex]);
+    }
     /**
      * Committed transactions touching an account (sender, transfer / batch-step recipient, called contract,
      * or a log topic equal to the account), newest first (`boing_getAccountTransactions`).

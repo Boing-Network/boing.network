@@ -2,18 +2,22 @@
 //!
 //! Enables stateless clients and compact proofs.
 
+pub mod names;
+pub mod open_validators;
+mod qa_pending;
 mod sparse_merkle;
 mod store;
-mod qa_pending;
-pub mod open_validators;
 
-pub use sparse_merkle::{
-    hash_account_leaf, hash_contract_code, MerkleProof, ProofStep, SparseMerkleTree,
+pub use boing_primitives::{Account, AccountId, AccountState, Hash};
+pub use names::{
+    CommitRecord, NameRecord, NameRegistry, NameRegistryError, NameRegistryParams, NameStatus,
 };
-pub use store::{ChainNativeAggregates, ContractStorageEntry, StateCheckpoint, StateStore};
-pub use qa_pending::{unpaid_counted_voters, QaPendingRecord};
 pub use open_validators::{
     LivenessEntry, LivenessStats, OpenValidatorError, OpenValidatorParams, OpenValidatorRegistry,
     ValidatorRecord, ValidatorStatus,
 };
-pub use boing_primitives::{Account, AccountId, AccountState, Hash};
+pub use qa_pending::{unpaid_counted_voters, QaPendingRecord};
+pub use sparse_merkle::{
+    hash_account_leaf, hash_contract_code, MerkleProof, ProofStep, SparseMerkleTree,
+};
+pub use store::{ChainNativeAggregates, ContractStorageEntry, StateCheckpoint, StateStore};

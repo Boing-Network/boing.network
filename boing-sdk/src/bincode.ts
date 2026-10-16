@@ -24,6 +24,14 @@ export const PayloadVariant = {
   ValidatorRegister: 10,
   ValidatorDeregister: 11,
   ValidatorUnjail: 12,
+  /** Name registry (`label.boing`), see `boingNames.ts`. */
+  NameCommit: 13,
+  NameRegister: 14,
+  NameRenew: 15,
+  NameTransfer: 16,
+  NameSetTarget: 17,
+  NameSetPrimary: 18,
+  NameRelease: 19,
 } as const;
 
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
@@ -180,7 +188,24 @@ export type TransactionPayloadInput =
   | { kind: 'batch'; calls: BatchCallInput[] }
   | { kind: 'validatorRegister'; nodeId: Uint8Array; nodeSignature: Uint8Array }
   | { kind: 'validatorDeregister'; nodeId: Uint8Array }
-  | { kind: 'validatorUnjail'; nodeId: Uint8Array };
+  | { kind: 'validatorUnjail'; nodeId: Uint8Array }
+  | { kind: 'nameCommit'; commitment: Uint8Array }
+  | { kind: 'nameRegister'; name: string; salt: Uint8Array; target: Uint8Array; years: number }
+  | { kind: 'nameRenew'; name: string; years: number }
+  | { kind: 'nameTransfer'; name: string; newOwner: Uint8Array }
+  | { kind: 'nameSetTarget'; name: string; target: Uint8Array }
+  | { kind: 'nameSetPrimary'; name: string | null }
+  | { kind: 'nameRelease'; name: string };
+
+function need32(b: Uint8Array, what: string): Uint8Array {
+  if (b.length !== 32) throw new Error(`${what} must be 32 bytes`);
+  return b;
+}
+
+function yearsByte(years: number): Uint8Array {
+  if (!Number.isInteger(years) || years < 1 || years > 10) throw new Error('years must be 1-10');
+  return Uint8Array.of(years);
+}
 
 export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array {
   switch (payload.kind) {
@@ -259,6 +284,34 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
     case 'validatorUnjail':
       if (payload.nodeId.length !== 32) throw new Error('validator nodeId must be 32 bytes');
       return concatBytes(writeU32Le(PayloadVariant.ValidatorUnjail), payload.nodeId);
+    case 'nameCommit':
+      return concatBytes(writeU32Le(PayloadVariant.NameCommit), need32(payload.commitment, 'commitment'));
+    case 'nameRegister':
+      return concatBytes(
+        writeU32Le(PayloadVariant.NameRegister),
+        encodeBincodeString(payload.name),
+        need32(payload.salt, 'salt'),
+        need32(payload.target, 'target'),
+        yearsByte(payload.years),
+      );
+    case 'nameRenew':
+      return concatBytes(writeU32Le(PayloadVariant.NameRenew), encodeBincodeString(payload.name), yearsByte(payload.years));
+    case 'nameTransfer':
+      return concatBytes(
+        writeU32Le(PayloadVariant.NameTransfer),
+        encodeBincodeString(payload.name),
+        need32(payload.newOwner, 'newOwner'),
+      );
+    case 'nameSetTarget':
+      return concatBytes(
+        writeU32Le(PayloadVariant.NameSetTarget),
+        encodeBincodeString(payload.name),
+        need32(payload.target, 'target'),
+      );
+    case 'nameSetPrimary':
+      return concatBytes(writeU32Le(PayloadVariant.NameSetPrimary), encodeOptionString(payload.name));
+    case 'nameRelease':
+      return concatBytes(writeU32Le(PayloadVariant.NameRelease), encodeBincodeString(payload.name));
     default: {
       const _x: never = payload;
       return _x;

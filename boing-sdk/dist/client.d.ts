@@ -116,6 +116,16 @@ export declare class BoingClient {
      * `mode` is `static`, `stake` or `open`; open-mode details are under `open`.
      */
     getValidators(): Promise<import('./boingOpenValidator.js').BoingValidatorsReport>;
+    /** Active record for `name` (`alice` or `alice.boing`), or null (`boing_resolveName`). */
+    resolveName(name: string): Promise<import('./boingNames.js').BoingNameRecord | null>;
+    /** Verified primary name of an address, or null (`boing_reverseName`). */
+    reverseName(addressHex: string): Promise<import('./boingNames.js').BoingReverseName | null>;
+    /** Validity, availability, rent, record (any status) and registry params (`boing_getNameInfo`). */
+    getNameInfo(name: string): Promise<import('./boingNames.js').BoingNameInfo>;
+    /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
+    checkNames(names: string[]): Promise<import('./boingNames.js').BoingCheckNamesResult>;
+    /** Names owned by an address (active or in grace) (`boing_namesOwnedBy`). */
+    namesOwnedBy(addressHex: string): Promise<import('./boingNames.js').BoingNameRecord[]>;
     /**
      * Committed transactions touching an account (sender, transfer / batch-step recipient, called contract,
      * or a log topic equal to the account), newest first (`boing_getAccountTransactions`).

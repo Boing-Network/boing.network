@@ -11,6 +11,8 @@ pub mod base {
     pub const UNBOND: u64 = 21_000;
     pub const CLAIM_UNBOND: u64 = 21_000;
     pub const QA_POOL_VOTE: u64 = 21_000;
+    /// Every name registry tx (commit, register, renew, transfer, set target / primary, release).
+    pub const NAME: u64 = 21_000;
 }
 
 /// Maximum gas multiplier (e.g. 2x under heavy load).
@@ -60,6 +62,10 @@ impl GasConfig {
 
     /// Upper bound for any single tx (predictable cap).
     pub fn max_tx_gas(&self) -> u64 {
-        self.gas(base::CONTRACT_CALL.max(base::CONTRACT_DEPLOY).saturating_mul(2))
+        self.gas(
+            base::CONTRACT_CALL
+                .max(base::CONTRACT_DEPLOY)
+                .saturating_mul(2),
+        )
     }
 }

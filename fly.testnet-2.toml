@@ -25,6 +25,8 @@ primary_region = "iad"
   # Same faucet account as node 1 so imported blocks that spend faucet funds can execute.
   BOING_FAUCET_ENABLE = "1"
   BOING_RATE_PROFILE = "dev"
+  # Native name registry (.boing): activates at this height on every node (must match across nodes)
+  BOING_NAME_REGISTRY_ACTIVATION_HEIGHT = "640"
   BOING_DEX_TOKEN_METADATA_SCAN_BLOCKS = "8192"
   BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS = "500000"
   BOING_DEX_TOKEN_DECIMALS_JSON = '{"0x6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93":0,"0x6fce9d3e3f13df9fc17e3fd947148a4e6ce6966538b7dd9bf2a891d3b9699c6b":0}'  # testnet USDC / BOING token v2 are whole-unit
