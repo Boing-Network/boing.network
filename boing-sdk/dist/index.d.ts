@@ -14,7 +14,7 @@ export { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from './canonicalTestnet.j
 export { CANONICAL_BOING_TESTNET_NATIVE_DEX_DEPLOYER_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_FACTORY_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V1_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V2_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_LEDGER_ROUTER_V3_HEX, CANONICAL_BOING_TESTNET_NATIVE_DEX_MULTIHOP_SWAP_ROUTER_HEX, CANONICAL_BOING_TESTNET_NATIVE_AMM_LP_VAULT_HEX, CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX, CANONICAL_BOING_TESTNET_USDC_TOKEN_HEX, CANONICAL_BOING_TESTNET_BOING_TOKEN_HEX, CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX, CANONICAL_BOING_TESTNET_CUSTODY_ROUTER_HEX, CANONICAL_BOING_TESTNET_LP_VAULT_V2_HEX, } from './canonicalTestnetDex.js';
 import { BoingClient } from './client.js';
 export { BoingClient, BOING_SDK_DEFAULT_USER_AGENT } from './client.js';
-export type { BoingClientConfig } from './client.js';
+export type { BoingClientConfig, BoingAccountTransaction, BoingAccountTransactionsPage } from './client.js';
 export { BoingRpcError, explainBoingRpcError, isBoingRpcMethodNotFound, isRetriableBoingRpcError, } from './errors.js';
 export { parseRetryAfterMs } from './retryAfter.js';
 export { probeBoingRpcCapabilities, countAvailableBoingRpcMethods, explainBoingRpcProbeGaps, type BoingRpcCapabilities, type BoingRpcMethodProbe, type BoingRpcProbeBundle, } from './rpcCapabilities.js';

@@ -486,6 +486,17 @@ export class BoingClient {
         return this.request('boing_getValidators', []);
     }
     /**
+     * Committed transactions touching an account (sender, transfer / batch-step recipient, called contract,
+     * or a log topic equal to the account), newest first (`boing_getAccountTransactions`).
+     * Page with `next_cursor` (opaque `"<height>:<index>"`); `limit` 1..100 (default 25).
+     */
+    async getAccountTransactions(accountHex, opts = {}) {
+        return this.request('boing_getAccountTransactions', [
+            validateHex32(accountHex),
+            { cursor: opts.cursor ?? null, limit: opts.limit ?? 25 },
+        ]);
+    }
+    /**
      * Network + tip snapshot for dApps (params `[]`). Includes `chain_native` (sums over committed accounts) and
      * `rpc.not_available` for capabilities this surface does not expose (e.g. staking APY).
      * See RPC-API-SPEC.md — `chain_id` / `chain_name` require node env `BOING_CHAIN_ID` / `BOING_CHAIN_NAME`.

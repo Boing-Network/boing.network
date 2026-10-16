@@ -117,6 +117,15 @@ export declare class BoingClient {
      */
     getValidators(): Promise<import('./boingOpenValidator.js').BoingValidatorsReport>;
     /**
+     * Committed transactions touching an account (sender, transfer / batch-step recipient, called contract,
+     * or a log topic equal to the account), newest first (`boing_getAccountTransactions`).
+     * Page with `next_cursor` (opaque `"<height>:<index>"`); `limit` 1..100 (default 25).
+     */
+    getAccountTransactions(accountHex: string, opts?: {
+        cursor?: string | null;
+        limit?: number;
+    }): Promise<BoingAccountTransactionsPage>;
+    /**
      * Network + tip snapshot for dApps (params `[]`). Includes `chain_native` (sums over committed accounts) and
      * `rpc.not_available` for capabilities this surface does not expose (e.g. staking APY).
      * See RPC-API-SPEC.md — `chain_id` / `chain_name` require node env `BOING_CHAIN_ID` / `BOING_CHAIN_NAME`.
@@ -246,5 +255,40 @@ export declare class BoingClient {
     qaCheck(hexBytecode: string, purposeCategory?: string, descriptionHash?: string, assetName?: string, assetSymbol?: string): Promise<QaCheckResponse>;
     /** Request testnet BOING (only when node is started with --faucet-enable). Params: 32-byte account ID (hex). Rate limited per account. */
     faucetRequest(hexAccountId: string): Promise<FaucetResult>;
+}
+/** One row of `boing_getAccountTransactions`. */
+export interface BoingAccountTransaction {
+    tx_id: string;
+    block_height: number;
+    tx_index: number;
+    timestamp: number;
+    sender: string;
+    nonce: number;
+    direction: 'in' | 'out';
+    roles: string[];
+    payload: {
+        kind: string;
+        to?: string;
+        amount?: string;
+        contract?: string;
+        calldata_len?: number;
+        node_id?: string;
+        steps?: Array<{
+            kind: string;
+            to?: string;
+            amount?: string;
+            contract?: string;
+            calldata_len?: number;
+        }>;
+    };
+    success: boolean | null;
+    error: string | null;
+    gas_used: number | null;
+}
+export interface BoingAccountTransactionsPage {
+    account: string;
+    head_height: number;
+    transactions: BoingAccountTransaction[];
+    next_cursor: string | null;
 }
 //# sourceMappingURL=client.d.ts.map
