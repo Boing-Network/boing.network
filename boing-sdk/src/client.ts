@@ -31,6 +31,7 @@ import type {
   RpcOpenApiDocument,
   BoingRpcPreflightResult,
   ContractStorageWord,
+  ContractCode,
   DexPoolListPage,
   DexTokenListPage,
   DexTokenListRow,
@@ -754,6 +755,15 @@ export class BoingClient {
 
   /** Read one 32-byte VM storage slot for a contract (`SLOAD` semantics; missing → zero word). */
   async getContractStorage(hexContractId: string, hexKey32: string): Promise<ContractStorageWord> {
+    return this.getContractStorageInner(hexContractId, hexKey32);
+  }
+
+  /** Deployed bytecode + BLAKE3 code hash (`boing_getContractCode`); `null` for accounts without code. */
+  async getContractCode(hexContractId: string): Promise<ContractCode | null> {
+    return this.request<ContractCode | null>('boing_getContractCode', [validateHex32(hexContractId)]);
+  }
+
+  private async getContractStorageInner(hexContractId: string, hexKey32: string): Promise<ContractStorageWord> {
     return this.request<ContractStorageWord>('boing_getContractStorage', [
       validateHex32(hexContractId),
       validateHex32(hexKey32),

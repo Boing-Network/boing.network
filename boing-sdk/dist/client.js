@@ -580,6 +580,13 @@ export class BoingClient {
     }
     /** Read one 32-byte VM storage slot for a contract (`SLOAD` semantics; missing → zero word). */
     async getContractStorage(hexContractId, hexKey32) {
+        return this.getContractStorageInner(hexContractId, hexKey32);
+    }
+    /** Deployed bytecode + BLAKE3 code hash (`boing_getContractCode`); `null` for accounts without code. */
+    async getContractCode(hexContractId) {
+        return this.request('boing_getContractCode', [validateHex32(hexContractId)]);
+    }
+    async getContractStorageInner(hexContractId, hexKey32) {
         return this.request('boing_getContractStorage', [
             validateHex32(hexContractId),
             validateHex32(hexKey32),

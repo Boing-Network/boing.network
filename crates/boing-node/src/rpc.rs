@@ -408,6 +408,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getBalance",
     "boing_getBlockByHash",
     "boing_getBlockByHeight",
+    "boing_getContractCode",
     "boing_getContractStorage",
     "boing_getDexToken",
     "boing_getLogs",
@@ -2008,6 +2009,48 @@ async fn dispatch_jsonrpc_request(
                     -32602,
                     "Invalid account id: expected 32 bytes hex".into(),
                 ),
+            }
+        }
+        "boing_getContractCode" => {
+            // Read-only: deployed bytecode + BLAKE3 code hash (the `code_hash` folded into the account leaf).
+            let params = req
+                .params
+                .and_then(|p| serde_json::from_value::<Vec<String>>(p).ok());
+            let hex_contract = match params.as_ref().and_then(|v| v.first()) {
+                Some(h) => h.clone(),
+                None => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "Invalid params: expected [hex_contract_id]".into()),
+                    );
+                }
+            };
+            let contract_bytes = match hex::decode(hex_contract.trim_start_matches("0x")) {
+                Ok(b) if b.len() == 32 => b,
+                _ => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "Invalid contract id: expected 32 bytes hex".into()),
+                    )
+                }
+            };
+            let mut contract_arr = [0u8; 32];
+            contract_arr.copy_from_slice(&contract_bytes);
+            let contract_id = boing_primitives::AccountId(contract_arr);
+            let n = node.read().await;
+            match n.state.get_contract_code(&contract_id) {
+                Some(code) if !code.is_empty() => {
+                    let hash = boing_state::hash_contract_code(code);
+                    rpc_ok(
+                        id,
+                        serde_json::json!({
+                            "bytecode": format!("0x{}", hex::encode(code)),
+                            "code_hash": format!("0x{}", hex::encode(hash.as_bytes())),
+                            "size": code.len(),
+                        }),
+                    )
+                }
+                _ => rpc_ok(id, serde_json::Value::Null),
             }
         }
         "boing_getContractStorage" => {

@@ -242,3 +242,46 @@ async fn rpc_supported_methods_includes_simulate_contract_call() {
     let names: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
     assert!(names.contains(&"boing_simulateContractCall"));
 }
+
+#[tokio::test]
+async fn rpc_get_contract_code() {
+    let signing_key = SigningKey::generate(&mut OsRng);
+    let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 1_000_000)));
+    let mut app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
+
+    let v = rpc_call(&mut app, "boing_getContractCode", serde_json::json!([])).await;
+    assert_eq!(v["error"]["code"], serde_json::json!(-32602));
+    let v = rpc_call(&mut app, "boing_getContractCode", serde_json::json!(["0x12"])).await;
+    assert_eq!(v["error"]["code"], serde_json::json!(-32602));
+
+    // Non-contract (EOA with balance) and unknown accounts -> null.
+    let proposer = AccountId(signing_key.verifying_key().to_bytes());
+    for who in [proposer, AccountId([0xab; 32])] {
+        let v = rpc_call(
+            &mut app,
+            "boing_getContractCode",
+            serde_json::json!([format!("0x{}", hex::encode(who.0))]),
+        )
+        .await;
+        assert!(v.get("error").is_none(), "{v:?}");
+        assert_eq!(v["result"], serde_json::Value::Null);
+    }
+
+    let contract = AccountId([0xcd; 32]);
+    let code = return_42_runtime_bytecode();
+    node.write().await.state.set_contract_code(contract, code.clone());
+    let v = rpc_call(
+        &mut app,
+        "boing_getContractCode",
+        serde_json::json!([format!("0x{}", hex::encode(contract.0))]),
+    )
+    .await;
+    let r = &v["result"];
+    assert_eq!(r["bytecode"], serde_json::json!(format!("0x{}", hex::encode(&code))));
+    assert_eq!(r["size"], serde_json::json!(code.len()));
+    let expected = boing_state::hash_contract_code(&code);
+    assert_eq!(r["code_hash"], serde_json::json!(format!("0x{}", hex::encode(expected.as_bytes()))));
+
+    let sm = rpc_call(&mut app, "boing_rpcSupportedMethods", serde_json::json!([])).await;
+    assert!(sm["result"].as_array().unwrap().iter().any(|m| m == "boing_getContractCode"));
+}

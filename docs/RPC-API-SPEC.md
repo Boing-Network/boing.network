@@ -144,7 +144,7 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 
 Current `boing-node` implements these JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
 
-`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkFeePolicy`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_resolveSlashAppeal`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`.
+`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractCode`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkFeePolicy`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_resolveSlashAppeal`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`.
 
 **Implementation:** `BOING_RPC_SUPPORTED_METHODS` in `crates/boing-node/src/rpc.rs` — keep this list, the router match arms, and this spec in sync when adding a method.
 
@@ -712,6 +712,18 @@ Verify an account Merkle proof.
 **Result:** `{ valid: boolean }`
 
 ---
+
+### boing_getContractCode
+
+Read-only. Returns the deployed bytecode of a contract account and its code hash.
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `hex_contract_id` | string | 32-byte account id (`0x` + 64 hex). |
+
+**Result:** `{ "bytecode": "0x…", "code_hash": "0x…", "size": <bytes> }`, or **`null`** when the account has no bytecode (EOA or unknown account). `code_hash` is BLAKE3(bytecode), the same `code_hash` folded into the account state leaf. Invalid params → `-32602`.
+
+SDK: `client.getContractCode(hexContractId)` → `ContractCode | null`.
 
 ### boing_getContractStorage
 

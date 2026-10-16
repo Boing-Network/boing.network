@@ -378,6 +378,15 @@ export interface SimulateResult {
 export interface ContractStorageWord {
     value: string;
 }
+/** `boing_getContractCode` result (`null` from the RPC when the account has no bytecode). */
+export interface ContractCode {
+    /** `0x` + deployed bytecode hex. */
+    bytecode: string;
+    /** `0x` + BLAKE3(bytecode), the `code_hash` folded into the account state leaf. */
+    code_hash: string;
+    /** Bytecode length in bytes. */
+    size: number;
+}
 export interface SubmitTransactionResult {
     /**
      * Real tx id (`0x` + 64 hex, same as receipts' `tx_id`) on current nodes. Older nodes returned the

@@ -246,6 +246,12 @@
         "result": { "type": "object" }
       },
       {
+        "name": "boing_getContractCode",
+        "summary": "Deployed bytecode and BLAKE3 code hash for a contract; JSON null when the account has no code.",
+        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "result": { "description": "{ bytecode, code_hash, size } or null", "type": ["object", "null"] }
+      },
+      {
         "name": "boing_getContractStorage",
         "summary": "Single 32-byte storage slot for a contract.",
         "params": { "type": "array", "minItems": 1 },

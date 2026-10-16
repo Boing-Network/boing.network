@@ -142,6 +142,7 @@ export type {
   BoingRpcPreflightResult,
   AccessListJson,
   ContractStorageWord,
+  ContractCode,
   DexPoolListPage,
   DexPoolListRow,
   DexDiscoveryPoolDiagnostics,

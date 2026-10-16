@@ -1,7 +1,7 @@
 /**
  * Boing JSON-RPC client — typed methods for all node RPCs.
  */
-import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, NetworkFeePolicyResult, JsonRpcBatchResponseItem } from './types.js';
+import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, ContractCode, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, NetworkFeePolicyResult, JsonRpcBatchResponseItem } from './types.js';
 /**
  * Default UA for Node/CLI calls to public RPC (some CDN/WAF edges return HTTP 403 for empty/bot UA).
  * Overridable via {@link BoingClientConfig.extraHeaders}.
@@ -162,6 +162,9 @@ export declare class BoingClient {
     verifyAccountProof(hexProof: string, hexStateRoot: string): Promise<VerifyProofResult>;
     /** Read one 32-byte VM storage slot for a contract (`SLOAD` semantics; missing → zero word). */
     getContractStorage(hexContractId: string, hexKey32: string): Promise<ContractStorageWord>;
+    /** Deployed bytecode + BLAKE3 code hash (`boing_getContractCode`); `null` for accounts without code. */
+    getContractCode(hexContractId: string): Promise<ContractCode | null>;
+    private getContractStorageInner;
     /**
      * Cursor-paginated native DEX pools (`boing_listDexPools`).
      * Factory: **`params.factory`** (32-byte hex) overrides **`BOING_CANONICAL_NATIVE_DEX_FACTORY`**.
