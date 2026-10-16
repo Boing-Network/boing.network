@@ -126,6 +126,11 @@ struct Args {
     #[arg(long)]
     stake_validator_min_stake: Option<u128>,
 
+    /// When `--validator-set stake`, the first height whose epoch boundary may switch from the static
+    /// `--validators` list to the stake-derived set (default 0). Overrides **`BOING_STAKE_VALIDATOR_ACTIVATION_HEIGHT`**.
+    #[arg(long)]
+    stake_validator_activation_height: Option<u64>,
+
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
@@ -152,6 +157,7 @@ async fn main() -> anyhow::Result<()> {
         args.stake_validator_top_n,
         args.stake_validator_epoch_len,
         args.stake_validator_min_stake,
+        args.stake_validator_activation_height,
     )
     .map_err(|e| anyhow::anyhow!("validator-set config: {e}"))?;
     let leader_election = validator_config::resolve_leader_election(args.leader_election.as_deref())
@@ -163,8 +169,8 @@ async fn main() -> anyhow::Result<()> {
         stake_set
             .as_ref()
             .map(|c| format!(
-                "top_n={} epoch_len={} min_stake={}",
-                c.top_n, c.epoch_len, c.min_stake
+                "top_n={} epoch_len={} min_stake={} activation_height={}",
+                c.top_n, c.epoch_len, c.min_stake, c.activation_height
             ))
             .unwrap_or_else(|| "off".into()),
         leader_election
@@ -194,7 +200,10 @@ async fn main() -> anyhow::Result<()> {
                     top_n: cfg.top_n,
                     epoch_len: cfg.epoch_len,
                     min_stake: cfg.min_stake,
+                    activation_height: cfg.activation_height,
+                    bootstrap: validators.clone(),
                 });
+                n.restore_stake_validator_set();
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -322,7 +331,7 @@ async fn main() -> anyhow::Result<()> {
         None => {
             let mut n = node::BoingNode::with_data_dir_and_validators(
                 Some(&args.data_dir),
-                validators,
+                validators.clone(),
                 local_validator,
                 validator_key,
             )
@@ -332,7 +341,10 @@ async fn main() -> anyhow::Result<()> {
                     top_n: cfg.top_n,
                     epoch_len: cfg.epoch_len,
                     min_stake: cfg.min_stake,
+                    activation_height: cfg.activation_height,
+                    bootstrap: validators.clone(),
                 });
+                n.restore_stake_validator_set();
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();

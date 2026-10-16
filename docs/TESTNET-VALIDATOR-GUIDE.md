@@ -144,6 +144,30 @@ Watch: `head_height` keeps pace with the public RPC, peer count ≥ 1, disk spac
 Use a process supervisor (systemd `Restart=always`, or Docker `--restart unless-stopped`) and alert on `/live` failing.
 The [operator dashboard and leaderboard](https://boing.network/testnet/operators) show your node once registered.
 
+## Stake-based validator set (once activated)
+
+The node already implements stake-based selection; the public testnet will turn it on at an announced
+**activation height**. Until then the static set above applies. Once active:
+
+- **Joining.** At each epoch boundary (every **100** committed blocks, heights that are multiples of 100 at or
+  after the activation height) every node recomputes the set from chain state: all accounts with at least
+  **10,000 BOING** bonded, highest stake first (ties broken by AccountId), capped at the **top 21**. If your
+  bonded stake qualifies, you become a validator at the next boundary. Your node must be running and synced
+  with `BOING_VALIDATOR=1` *before* that boundary, otherwise the network is waiting on a signer that is offline.
+- **Leaving.** Unbonding reduces your active stake immediately; if you drop below 10,000 BOING (or out of the
+  top 21) you leave the set at the next boundary. Unbonded funds still unlock after the usual delay.
+- **Determinism.** Every node computes the same set from the same committed state; the local node is never
+  added just because it is running. The set is persisted in the data directory (`stake_validator_set.json`)
+  and restored on restart.
+- **Bootstrap fallback.** If no account qualifies at a boundary, the static bootstrap list is used, so the chain
+  never ends up with an empty set. Before the activation height the static list is used unconditionally.
+- **Operator flags** (all nodes must use identical values): `--validator-set stake`
+  (`BOING_VALIDATOR_SET=stake`), `--stake-validator-activation-height <H>`
+  (`BOING_STAKE_VALIDATOR_ACTIVATION_HEIGHT`), and optionally `BOING_STAKE_VALIDATOR_TOP_N`,
+  `BOING_STAKE_VALIDATOR_EPOCH_LEN`, `BOING_STAKE_VALIDATOR_MIN_STAKE`. The activation will be announced with
+  the required release and values; do not enable stake mode early on your own.
+
+Planning to stop validating? Keep the node online until the boundary after your unbond has removed you.
 ## 9. Duties
 
 - Keep the node **online and in sync**; missed rounds hurt the network and your leaderboard standing.

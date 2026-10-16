@@ -111,16 +111,7 @@ pub fn pending_qa_pool_default() -> PendingQaQueue {
     PendingQaQueue::from_governance_config(QaPoolGovernanceConfig::development_default())
 }
 
-/// Opt-in stake-derived validator set (epoch refresh from `StateStore::top_stakers`).
-#[derive(Clone, Debug)]
-pub struct StakeValidatorSetConfig {
-    /// How many top stakers form the set (at least 1).
-    pub top_n: usize,
-    /// Refresh when `height % epoch_len == 0` after a commit (height ≥ epoch_len).
-    pub epoch_len: u64,
-    /// Minimum active `stake` to enter the set (default [`boing_tokenomics::MIN_VALIDATOR_STAKE`]).
-    pub min_stake: u128,
-}
+pub use crate::stake_validator_set::StakeValidatorSetConfig;
 
 impl BoingNode {
     /// Create a node with inert P2P (for tests). Single-validator default.
@@ -472,48 +463,64 @@ impl BoingNode {
             .insert_vrf_proof(proof.validator, proof.round, proof.vrf)
     }
 
-    /// Refresh consensus validators from top stakers when configured and at an epoch boundary.
+    /// Refresh consensus validators from stake when configured and `committed_height` is an epoch
+    /// boundary at/after activation (see [`crate::stake_validator_set`]). Deterministic: no node-local input.
     fn maybe_refresh_stake_validators(&mut self, committed_height: u64) {
         let Some(cfg) = self.stake_validator_set.clone() else {
             return;
         };
-        if cfg.epoch_len == 0 || cfg.top_n == 0 {
+        if !cfg.is_refresh_height(committed_height) {
             return;
         }
-        if committed_height < cfg.epoch_len || committed_height % cfg.epoch_len != 0 {
-            return;
-        }
-        let mut next: Vec<AccountId> = self
-            .state
-            .top_stakers(cfg.top_n.saturating_mul(4).max(cfg.top_n))
-            .into_iter()
-            .filter(|id| {
-                self.state
-                    .get(id)
-                    .map(|a| a.stake >= cfg.min_stake)
-                    .unwrap_or(false)
-            })
-            .take(cfg.top_n)
-            .collect();
-        if next.is_empty() {
-            // Nobody meets min stake — keep current set.
-            return;
-        }
-        // Ensure local identity remains in the set so this node can still vote/produce.
-        let local = self.producer.proposer();
-        if !next.contains(&local) {
-            next.push(local);
+        let next = crate::stake_validator_set::next_validator_set(&self.state, &cfg, self.consensus.validators());
+        if let Some(ref p) = self.persistence {
+            if let Err(e) = p.save_stake_validator_set(committed_height, &next) {
+                logging::log_persistence_warn("save_stake_validator_set", &e);
+            }
         }
         if next.as_slice() == self.consensus.validators() {
             return;
         }
+        let local = self.producer.proposer();
         info!(
-            "Stake validator set refresh at height={}: n={}",
+            "Stake validator set refresh at height={}: n={} local_in_set={}",
             committed_height,
-            next.len()
+            next.len(),
+            next.contains(&local)
         );
         self.consensus.set_validators(next);
         self.maybe_publish_vrf_proof_for_current_round();
+    }
+
+    /// After a restart, re-apply the stake-derived set that was active at the tip. Uses the set persisted
+    /// at the last epoch boundary; if it is missing (e.g. first start with stake mode on an advanced chain)
+    /// it is recomputed from the current committed state and a warning is logged. Returns the applied set.
+    pub fn restore_stake_validator_set(&mut self) -> Option<Vec<AccountId>> {
+        let cfg = self.stake_validator_set.clone()?;
+        let tip = self.chain.height();
+        let boundary = cfg.last_refresh_height(tip)?;
+        let persisted = self
+            .persistence
+            .as_ref()
+            .and_then(|p| p.load_stake_validator_set().ok().flatten())
+            .filter(|(h, set)| *h == boundary && !set.is_empty())
+            .map(|(_, set)| set);
+        let set = match persisted {
+            Some(set) => set,
+            None => {
+                tracing::warn!(
+                    "stake validator set for boundary {} not persisted; recomputing from state at tip {} (peers must agree)",
+                    boundary,
+                    tip
+                );
+                crate::stake_validator_set::next_validator_set(&self.state, &cfg, self.consensus.validators())
+            }
+        };
+        if set.as_slice() != self.consensus.validators() {
+            info!("Restored stake validator set (boundary {}): n={}", boundary, set.len());
+            self.consensus.set_validators(set.clone());
+        }
+        Some(set)
     }
 
     /// Apply any buffered votes for the current pending proposal; returns commit hash if quorum hit.

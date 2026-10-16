@@ -139,6 +139,18 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
       <p>Watch that <code>head_height</code> keeps pace with the public RPC, you have at least one peer, and disk has room. Run under a supervisor (systemd <code>Restart=always</code> or Docker <code>--restart unless-stopped</code>) and alert when <code>/live</code> fails.</p>
     </section>
 
+    <section class="section" id="stake-set">
+      <h2>Stake-based validator set (once activated)</h2>
+      <p>The node already implements stake-based selection; the testnet will switch to it at an announced <strong>activation height</strong>. Until then the static set applies. Once active:</p>
+      <ul>
+        <li><strong>Joining:</strong> every 100 committed blocks (epoch boundary) all nodes recompute the set from chain state: accounts with at least <strong>10,000 BOING</strong> bonded, highest stake first (ties by AccountId), top <strong>21</strong>. Qualify and you join at the next boundary, so have your node synced and running with <code>BOING_VALIDATOR=1</code> before then.</li>
+        <li><strong>Leaving:</strong> unbonding lowers active stake immediately; below 10,000 BOING (or outside the top 21) you leave at the next boundary.</li>
+        <li><strong>Deterministic and persistent:</strong> every node derives the same set; it is saved as <code>stake_validator_set.json</code> in the data directory and restored on restart.</li>
+        <li><strong>Bootstrap fallback:</strong> if nobody qualifies, the static bootstrap list is used, so the chain never runs with an empty set.</li>
+        <li><strong>Flags</strong> (identical on all nodes): <code>BOING_VALIDATOR_SET=stake</code> and <code>BOING_STAKE_VALIDATOR_ACTIVATION_HEIGHT</code>. Wait for the announcement; don't enable stake mode early.</li>
+      </ul>
+      <p>Stopping? Keep your node online until the boundary after your unbond has removed you.</p>
+    </section>
     <section class="section" id="duties">
       <h2>9. Duties</h2>
       <ul>

@@ -60,6 +60,8 @@ pub struct StakeValidatorSetCli {
     pub top_n: usize,
     pub epoch_len: u64,
     pub min_stake: u128,
+    /// First height whose epoch boundary may switch to the stake set (`0` = first boundary).
+    pub activation_height: u64,
 }
 
 /// Parse `--validator-set` / `BOING_VALIDATOR_SET`: `static` (default) or `stake`.
@@ -83,6 +85,7 @@ pub fn resolve_stake_validator_set_config(
     top_n_cli: Option<usize>,
     epoch_len_cli: Option<u64>,
     min_stake_cli: Option<u128>,
+    activation_height_cli: Option<u64>,
 ) -> Result<Option<StakeValidatorSetCli>, String> {
     let mode_str = validator_set_cli
         .map(|s| s.to_string())
@@ -114,6 +117,14 @@ pub fn resolve_stake_validator_set_config(
         })
         .unwrap_or(boing_tokenomics::MIN_VALIDATOR_STAKE);
 
+    let activation_height = activation_height_cli
+        .or_else(|| {
+            std::env::var("BOING_STAKE_VALIDATOR_ACTIVATION_HEIGHT")
+                .ok()
+                .and_then(|s| s.trim().parse().ok())
+        })
+        .unwrap_or(0);
+
     if top_n == 0 {
         return Err("stake validator top_n must be >= 1".into());
     }
@@ -128,6 +139,7 @@ pub fn resolve_stake_validator_set_config(
         top_n,
         epoch_len,
         min_stake,
+        activation_height,
     }))
 }
 
@@ -216,22 +228,24 @@ mod tests {
 
     #[test]
     fn stake_mode_defaults() {
-        assert!(resolve_stake_validator_set_config(Some("static"), None, None, None)
+        assert!(resolve_stake_validator_set_config(Some("static"), None, None, None, None)
             .unwrap()
             .is_none());
-        let cfg = resolve_stake_validator_set_config(Some("stake"), None, None, None)
+        let cfg = resolve_stake_validator_set_config(Some("stake"), None, None, None, None)
             .unwrap()
             .expect("stake mode");
         assert_eq!(cfg.top_n, 21);
         assert_eq!(cfg.epoch_len, 100);
         assert_eq!(cfg.min_stake, boing_tokenomics::MIN_VALIDATOR_STAKE);
         let cfg2 =
-            resolve_stake_validator_set_config(Some("stake"), Some(5), Some(10), Some(1_000))
+            resolve_stake_validator_set_config(Some("stake"), Some(5), Some(10), Some(1_000), Some(500))
                 .unwrap()
                 .unwrap();
         assert_eq!(cfg2.top_n, 5);
         assert_eq!(cfg2.epoch_len, 10);
         assert_eq!(cfg2.min_stake, 1_000);
+        assert_eq!(cfg2.activation_height, 500);
+        assert_eq!(cfg.activation_height, 0);
     }
 
     #[test]

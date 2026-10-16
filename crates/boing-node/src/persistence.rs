@@ -236,6 +236,43 @@ impl Persistence {
         Ok(Some(state))
     }
 
+    fn stake_validator_set_path(&self) -> PathBuf {
+        self.chain_dir().join("stake_validator_set.json")
+    }
+
+    /// Persist the stake-derived validator set chosen at epoch boundary `height`.
+    pub fn save_stake_validator_set(&self, height: u64, set: &[AccountId]) -> Result<(), PersistenceError> {
+        self.ensure_dirs()?;
+        let v = serde_json::json!({
+            "height": height,
+            "validators": set.iter().map(|a| hex::encode(a.0)).collect::<Vec<_>>(),
+        });
+        let bytes = serde_json::to_vec_pretty(&v).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let tmp = self.stake_validator_set_path().with_extension("json.tmp");
+        std::fs::write(&tmp, bytes)?;
+        std::fs::rename(tmp, self.stake_validator_set_path())?;
+        Ok(())
+    }
+
+    /// Load `(boundary_height, validators)` saved by [`Self::save_stake_validator_set`].
+    pub fn load_stake_validator_set(&self) -> Result<Option<(u64, Vec<AccountId>)>, PersistenceError> {
+        let path = self.stake_validator_set_path();
+        if !path.exists() {
+            return Ok(None);
+        }
+        let v: serde_json::Value = serde_json::from_slice(&std::fs::read(path)?)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let bad = || PersistenceError::Serialization("bad stake_validator_set.json".into());
+        let height = v.get("height").and_then(serde_json::Value::as_u64).ok_or_else(bad)?;
+        let mut out = Vec::new();
+        for s in v.get("validators").and_then(serde_json::Value::as_array).ok_or_else(bad)? {
+            let b = hex::decode(s.as_str().ok_or_else(bad)?).map_err(|_| bad())?;
+            let arr: [u8; 32] = b.try_into().map_err(|_| bad())?;
+            out.push(AccountId(arr));
+        }
+        Ok(Some((height, out)))
+    }
+
     /// Check if persisted data exists (we can resume).
     pub fn has_persisted_data(&self) -> bool {
         self.chain_dir().join(CHAIN_META_FILE).exists()
