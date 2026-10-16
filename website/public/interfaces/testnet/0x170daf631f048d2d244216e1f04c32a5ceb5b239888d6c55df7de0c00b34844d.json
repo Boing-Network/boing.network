@@ -1,0 +1,101 @@
+{
+  "schema": "boing-interface/v1",
+  "network": "boing-testnet",
+  "contract": "0x170daf631f048d2d244216e1f04c32a5ceb5b239888d6c55df7de0c00b34844d",
+  "name": "Reference fungible token v2 (canonical template)",
+  "summary": "Reference token v1 plus allowances (approve / transfer_from), required by custody pools, routers and vaults.",
+  "functions": [
+    {
+      "selector": 1,
+      "name": "transfer",
+      "params": [
+        {
+          "name": "to",
+          "type": "account"
+        },
+        {
+          "name": "amount",
+          "type": "u128"
+        }
+      ],
+      "kind": "write",
+      "description": "Move `amount` from the caller's balance to `to`.",
+      "access": "Anyone (spends the caller's own balance)."
+    },
+    {
+      "selector": 2,
+      "name": "mint_first",
+      "params": [
+        {
+          "name": "to",
+          "type": "account"
+        },
+        {
+          "name": "amount",
+          "type": "u128"
+        }
+      ],
+      "kind": "write",
+      "description": "One-time initial mint of the supply to `to`.",
+      "access": "Admin only, once. The admin is the first account to call the contract."
+    },
+    {
+      "selector": 8,
+      "name": "approve",
+      "params": [
+        {
+          "name": "spender",
+          "type": "account"
+        },
+        {
+          "name": "amount",
+          "type": "u128"
+        }
+      ],
+      "kind": "write",
+      "description": "Set (overwrite) how much `spender` may move from the caller with transfer_from.",
+      "access": "Anyone (sets the caller's own allowance).",
+      "returns": "word 1"
+    },
+    {
+      "selector": 9,
+      "name": "transfer_from",
+      "params": [
+        {
+          "name": "from",
+          "type": "account"
+        },
+        {
+          "name": "to",
+          "type": "account"
+        },
+        {
+          "name": "amount",
+          "type": "u128"
+        }
+      ],
+      "kind": "write",
+      "description": "Move `amount` from `from` to `to` using the caller's allowance; decrements the allowance.",
+      "access": "Any spender with allowance[from][caller] >= amount. Fails with no return data otherwise.",
+      "returns": "word 1 on success"
+    },
+    {
+      "selector": 10,
+      "name": "allowance",
+      "params": [
+        {
+          "name": "owner",
+          "type": "account"
+        },
+        {
+          "name": "spender",
+          "type": "account"
+        }
+      ],
+      "kind": "read",
+      "description": "How much `spender` may still move from `owner`.",
+      "access": "Anyone.",
+      "returns": "u128 allowance"
+    }
+  ]
+}
