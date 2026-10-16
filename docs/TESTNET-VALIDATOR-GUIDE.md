@@ -3,12 +3,11 @@
 Public testnet: chain **6913** (`0x1b01`), RPC `https://testnet-rpc.boing.network/`, explorer <https://boing.observer>.
 Website version: <https://boing.network/testnet/operators/validator>.
 
-> **How the validator set works today.** The public testnet currently runs a **static validator set**
-> (one operator validator, `boing-testnet-1`, plus the full node `boing-testnet-2`). Your node syncs and serves
-> RPC as soon as it is up; it **signs blocks only once its AccountId is in the set**. Stake is handed out
-> manually and admission is coordinated with the operator (see [Request stake](#4-request-stake)). The node
-> also supports a stake-weighted set (`--validator-set stake`, top 21 stakers with at least **10,000 BOING**,
-> refreshed every 100 blocks); the public testnet will switch to it once enough operators are bonded.
+> **How to become a validator today: open registration.** Anyone can join: run a synced node, then
+> **register it with a 100 BOING bond** (Boing Express **Validate** tab, or `boing validator register`). You join
+> the set at the next epoch (every 100 blocks) and must **stay online**: missing more than 10% of your scheduled
+> proposals jails you (bond kept; unjail after a cooldown). No operator approval and no 10,000 BOING stake are
+> needed. See [Open validator registration](#open-validator-registration).
 
 ## 1. Hardware and network
 
@@ -55,13 +54,11 @@ Your validator identity is an Ed25519 key; its public key is your **AccountId** 
 Store the secret in a file only you can read (`chmod 600`), never in a shell history, repo or chat.
 Use a dedicated key for the validator, not your everyday wallet.
 
-## 4. Request stake
+## 4. Fund the bond
 
-Validators need at least **10,000 BOING** bonded. The faucet (20 BOING per request) is for gas, not stake;
-stake is **allocated manually** by the testnet operator.
-
-Send your request with: your **AccountId**, node P2P multiaddr (`/ip4/<public-ip>/tcp/4001`), hardware/location,
-and how long you plan to run it.
+Registering locks a **100 BOING** bond; keep a few BOING extra for fees (about 1 BOING per transaction).
+The faucet sends 20 BOING per request (once a minute), so a few requests cover the bond. Need help? Reach out with
+your **AccountId** and node P2P multiaddr (`/ip4/<public-ip>/tcp/4001`):
 
 - Email: [nico.builds@boing.network](mailto:nico.builds@boing.network?subject=Boing%20testnet%20validator%20stake%20request)
 - Discord: <https://discord.gg/boing> (operators channel)
@@ -101,27 +98,27 @@ docker run -d --name boing-node --restart unless-stopped \
 Check it is syncing: `boing_getSyncState` / `boing_health` on your node should report the same `head_height`
 as `https://testnet-rpc.boing.network/` within a few blocks.
 
-## 6. Bond (stake)
+## 6. Register
 
-Once you have received stake on your validator AccountId, bond it from the same account. The `boing` CLI has no
-staking command yet; bond from **Boing Express → Staking**:
+From **Boing Express, Validate tab** with the owner wallet (or `boing validator register --node-key-hex <node key>`):
 
-1. Unlock the validator wallet in Boing Express on Boing Testnet.
-2. Staking → enter the amount (at least **10,000**) → **Bond**. Keep a few BOING unbonded for fees.
-3. Confirm with `boing_getAccount` (`stake` field) or on boing.observer.
+1. Unlock the owner wallet on Boing Testnet and open **Validate**.
+2. Paste your node key (or generate one locally), check the node id, then **Register validator (100 BOING bond)**.
+3. The validator shows as **pending** and joins at the next epoch; the tab shows status, uptime, missed blocks, bond and jail stats.
 
-**Unbond** from the same Staking section; unbonded BOING unlocks after the unbonding period
-(`unbond_unlock_height` in `boing_getAccount`), then use **Claim**.
+To leave: **Deregister**; the bond unlocks after about 100 blocks, then **Claim unbond**. Jailed? **Unjail** after the cooldown.
 
 ## 7. Run as a validator
 
-After the operator confirms your AccountId has been added to the validator set, restart with the validator flags
-(keep the key in an env file, not on the command line):
+Run with the validator flags and the open-mode settings used by the public nodes (keep the key in an env
+file, not on the command line), synced before your registration's epoch boundary:
 
 ```bash
 # validator.env (chmod 600)
 BOING_CHAIN_ID=6913
-BOING_VALIDATOR_KEY=<32-byte secret hex>
+BOING_VALIDATOR_SET=open
+BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400
+BOING_VALIDATOR_KEY=<32-byte node key hex>
 
 set -a; . ./validator.env; set +a
 ./boing-node --validator --data-dir ./boing-data \
@@ -144,10 +141,10 @@ Watch: `head_height` keeps pace with the public RPC, peer count ≥ 1, disk spac
 Use a process supervisor (systemd `Restart=always`, or Docker `--restart unless-stopped`) and alert on `/live` failing.
 The [operator dashboard and leaderboard](https://boing.network/testnet/operators) show your node once registered.
 
-## Stake-based validator set (once activated)
+## Future: stake-based validator set (not active)
 
-The node already implements stake-based selection; the public testnet will turn it on at an announced
-**activation height**. Until then the static set above applies. Once active:
+The node also implements a stake-weighted mode that may be enabled later at an announced **activation
+height**. It is **not active**: today validators join through open registration (100 BOING bond). If enabled:
 
 - **Joining.** At each epoch boundary (every **100** committed blocks, heights that are multiples of 100 at or
   after the activation height) every node recomputes the set from chain state: all accounts with at least
@@ -173,7 +170,7 @@ Planning to stop validating? Keep the node online until the boundary after your 
 
 > **Status: live on testnet since block 400.** The public testnet nodes run with `BOING_VALIDATOR_SET=open`
 > and `BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400`; your node needs the **same** values (and the default
-> knobs) or it will disagree on the state root. You can also register from the boing.express **Validator** tab.
+> knobs) or it will disagree on the state root. You can also register from the boing.express **Validate** tab.
 
 Anyone can join without permission:
 

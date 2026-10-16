@@ -32,7 +32,9 @@ const syncDocker = `docker run -d --name boing-node --restart unless-stopped \\
   boing-node`;
 const runValidator = `# validator.env  (chmod 600; never commit or share)
 BOING_CHAIN_ID=6913
-BOING_VALIDATOR_KEY=<32-byte secret hex>
+BOING_VALIDATOR_SET=open
+BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400
+BOING_VALIDATOR_KEY=<32-byte node key hex>
 
 set -a; . ./validator.env; set +a
 ./boing-node --validator --data-dir ./boing-data \\
@@ -46,7 +48,7 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
 
 <Layout
   title="Run a validator · Operator Hub · Testnet Portal"
-  description="How to run a Boing Network testnet validator: hardware, node setup, keys, bootnodes, stake, bonding, monitoring and duties."
+  description="How to run a Boing Network testnet validator: open registration with a 100 BOING bond, hardware, node setup, keys, bootnodes, uptime, monitoring and duties."
 >
   <article class="portal-page role-hub operators-hub hub-page hub-operator validator-guide" data-hub="node_operator">
     <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Operator Hub', href: '/testnet/operators' }, { label: 'Run a validator' }]} />
@@ -59,11 +61,12 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
         explorer <a href="https://boing.observer" target="_blank" rel="noopener">boing.observer</a>.
       </p>
       <div class="vg-note">
-        <strong>How the validator set works today.</strong> The public testnet runs a <strong>static validator set</strong>
-        (one operator validator plus a full node). Your node syncs and serves RPC as soon as it is up; it
-        <strong>signs blocks once its AccountId is added to the set</strong>. Stake is handed out manually and admission is
-        coordinated with the operator. The node also supports a stake-weighted set (top 21 stakers with at least
-        <strong>10,000 BOING</strong>, refreshed every 100 blocks), which the testnet will switch to once enough operators are bonded.
+        <strong>How to become a validator today: open registration.</strong> Anyone can join: run a synced node, then
+        <strong>register it with a 100 BOING bond</strong> (Boing Express → <strong>Validate</strong> tab, or
+        <code>boing validator register</code>). You join the set at the next epoch (every 100 blocks) and must
+        <strong>stay online</strong>: missing more than 10% of your scheduled proposals jails you (bond kept; unjail after a
+        cooldown). No operator approval and no 10,000 BOING stake are needed. Details in
+        <a href="#open-registration">Open validator registration</a>.
       </div>
     </section>
 
@@ -88,15 +91,14 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
       <h2>3. Keys</h2>
       <ol>
         <li>Open <a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a> and <strong>Create wallet</strong> (or import a key) on Boing Testnet. Use a dedicated key for the validator.</li>
-        <li>Copy the <strong>AccountId</strong>: this is your validator address.</li>
-        <li>Use <strong>Reveal private key</strong> to get the 32-byte secret for the node (<code>BOING_VALIDATOR_KEY</code>). Keep it in a file only you can read; never paste it into chat, a repo or shell history.</li>
+        <li>This wallet is the validator <strong>owner</strong>: it pays and holds the 100 BOING bond and signs register / deregister / unjail / claim.</li>
+        <li>Create a separate <strong>node key</strong> (<code>BOING_VALIDATOR_KEY</code>, 32-byte hex): use <strong>Generate a new node key</strong> in the Validate tab (generated locally, never sent anywhere). Keep it in a file only you can read; never paste it into chat, a repo or shell history.</li>
       </ol>
     </section>
 
     <section class="section" id="stake">
-      <h2>4. Request stake</h2>
-      <p>Validators need at least <strong>10,000 BOING</strong> bonded. The <a href="/faucet">faucet</a> (20 BOING per request) covers fees, not stake: stake is <strong>allocated manually</strong> by the testnet operator.</p>
-      <p>Send your <strong>AccountId</strong>, node multiaddr (<code>/ip4/&lt;public-ip&gt;/tcp/4001</code>), hardware/location and how long you plan to run:</p>
+      <h2>4. Fund the bond</h2>
+      <p>Registering locks a <strong>100 BOING</strong> bond; keep a few BOING extra for fees (about 1 BOING per transaction). The <a href="/faucet">faucet</a> sends 20 BOING per request, once a minute, so a few requests cover the bond. Stuck or want help? Reach out with your <strong>AccountId</strong> and node multiaddr (<code>/ip4/&lt;public-ip&gt;/tcp/4001</code>):</p>
       <ul>
         <li>Email: <a href={`mailto:${contactEmail}?subject=Boing%20testnet%20validator%20stake%20request`}>{contactEmail}</a></li>
         <li>Discord: <a href={discordUrl} target="_blank" rel="noopener">{discordUrl}</a> (operators channel)</li>
@@ -116,19 +118,19 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
     </section>
 
     <section class="section" id="bond">
-      <h2>6. Bond (stake)</h2>
-      <p>The <code>boing</code> CLI has no staking command yet; bond from <strong>Boing Express → Staking</strong> with the validator wallet:</p>
+      <h2>6. Register</h2>
+      <p>From <strong>Boing Express → Validate</strong> with the owner wallet (or <code>boing validator register --node-key-hex &lt;node key&gt;</code>):</p>
       <ol>
-        <li>Unlock the validator wallet on Boing Testnet.</li>
-        <li>Staking → amount (at least 10,000) → <strong>Bond</strong>. Keep a few BOING unbonded for fees.</li>
-        <li>Check the <code>stake</code> field of <code>boing_getAccount</code> or your account on boing.observer.</li>
+        <li>Unlock the owner wallet on Boing Testnet and open the <strong>Validate</strong> tab.</li>
+        <li>Paste your node key (or generate one), check the node id, then <strong>Register validator (100 BOING bond)</strong>.</li>
+        <li>Your validator shows as <strong>pending</strong> and joins at the next epoch. The tab shows its status, uptime, missed blocks, bond and jail stats.</li>
       </ol>
-      <p><strong>Unbond</strong> from the same section; stake unlocks after about 100 blocks, then use <strong>Claim unbond</strong>.</p>
+      <p>To leave: <strong>Deregister</strong>; the bond unlocks after about 100 blocks, then <strong>Claim unbond</strong>. Jailed? <strong>Unjail</strong> after the cooldown.</p>
     </section>
 
     <section class="section" id="validate">
       <h2>7. Run as a validator</h2>
-      <p>After the operator confirms your AccountId is in the validator set, restart with the validator flags (key in an env file, not on the command line):</p>
+      <p>Run with the validator flags and the open-mode settings used by the public nodes (key in an env file, not on the command line). Have it synced and running before your registration's epoch boundary:</p>
       <pre><code>{runValidator}</code></pre>
       <p>Docker: add <code>--env-file validator.env -e BOING_VALIDATOR=1</code>.</p>
     </section>
@@ -139,21 +141,9 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
       <p>Watch that <code>head_height</code> keeps pace with the public RPC, you have at least one peer, and disk has room. Run under a supervisor (systemd <code>Restart=always</code> or Docker <code>--restart unless-stopped</code>) and alert when <code>/live</code> fails.</p>
     </section>
 
-    <section class="section" id="stake-set">
-      <h2>Stake-based validator set (once activated)</h2>
-      <p>The node already implements stake-based selection; the testnet will switch to it at an announced <strong>activation height</strong>. Until then the static set applies. Once active:</p>
-      <ul>
-        <li><strong>Joining:</strong> every 100 committed blocks (epoch boundary) all nodes recompute the set from chain state: accounts with at least <strong>10,000 BOING</strong> bonded, highest stake first (ties by AccountId), top <strong>21</strong>. Qualify and you join at the next boundary, so have your node synced and running with <code>BOING_VALIDATOR=1</code> before then.</li>
-        <li><strong>Leaving:</strong> unbonding lowers active stake immediately; below 10,000 BOING (or outside the top 21) you leave at the next boundary.</li>
-        <li><strong>Deterministic and persistent:</strong> every node derives the same set; it is saved as <code>stake_validator_set.json</code> in the data directory and restored on restart.</li>
-        <li><strong>Bootstrap fallback:</strong> if nobody qualifies, the static bootstrap list is used, so the chain never runs with an empty set.</li>
-        <li><strong>Flags</strong> (identical on all nodes): <code>BOING_VALIDATOR_SET=stake</code> and <code>BOING_STAKE_VALIDATOR_ACTIVATION_HEIGHT</code>. Wait for the announcement; don't enable stake mode early.</li>
-      </ul>
-      <p>Stopping? Keep your node online until the boundary after your unbond has removed you.</p>
-    </section>
     <section class="section" id="open-registration">
       <h2>Open validator registration</h2>
-      <p><strong>Live on testnet since block 400.</strong> Run your node with <code>BOING_VALIDATOR_SET=open</code> and <code>BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400</code> (the same values as the public nodes), then register from the CLI or the boing.express <strong>Validator</strong> tab:</p>
+      <p><strong>Live on testnet since block 400.</strong> Run your node with <code>BOING_VALIDATOR_SET=open</code> and <code>BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400</code> (the same values as the public nodes), then register from the CLI or the boing.express <strong>Validate</strong> tab:</p>
       <ul>
         <li><strong>Register:</strong> <code>boing validator register --node-key-hex &lt;node seed&gt;</code> locks a <strong>100 BOING</strong> bond. Your node key signs a proof that binds it to your account. One validator per account.</li>
         <li><strong>Join:</strong> at the next epoch boundary (every 100 blocks), up to a capped set size, in deterministic order.</li>
@@ -162,6 +152,18 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
         <li><strong>Status:</strong> <code>boing validator status</code> or RPC <code>boing_getValidators</code>: status, uptime %, missed count and bond.</li>
         <li><strong>Anchors:</strong> the permanent bootstrap validators keep the chain producing even if every open validator is offline.</li>
       </ul>
+    </section>
+    <section class="section" id="stake-set">
+      <h2>Future: stake-based validator set (not active)</h2>
+      <p>The node also implements a stake-weighted mode that may be enabled later at an announced <strong>activation height</strong>. It is <strong>not active</strong>: today validators join through open registration (100 BOING bond, above). If it is ever enabled:</p>
+      <ul>
+        <li><strong>Joining:</strong> every 100 committed blocks (epoch boundary) all nodes recompute the set from chain state: accounts with at least <strong>10,000 BOING</strong> bonded, highest stake first (ties by AccountId), top <strong>21</strong>. Qualify and you join at the next boundary, so have your node synced and running with <code>BOING_VALIDATOR=1</code> before then.</li>
+        <li><strong>Leaving:</strong> unbonding lowers active stake immediately; below 10,000 BOING (or outside the top 21) you leave at the next boundary.</li>
+        <li><strong>Deterministic and persistent:</strong> every node derives the same set; it is saved as <code>stake_validator_set.json</code> in the data directory and restored on restart.</li>
+        <li><strong>Bootstrap fallback:</strong> if nobody qualifies, the static bootstrap list is used, so the chain never runs with an empty set.</li>
+        <li><strong>Flags</strong> (identical on all nodes): <code>BOING_VALIDATOR_SET=stake</code> and <code>BOING_STAKE_VALIDATOR_ACTIVATION_HEIGHT</code>. Wait for the announcement; don't enable stake mode early.</li>
+      </ul>
+      <p>Stopping? Keep your node online until the boundary after your unbond has removed you.</p>
     </section>
     <section class="section" id="duties">
       <h2>9. Duties</h2>
