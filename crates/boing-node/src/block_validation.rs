@@ -23,6 +23,11 @@ pub fn validate_and_execute_block(
         return Err(BlockValidationError::InvalidTxRoot);
     }
 
+    // 1b. Transaction signatures (security review #16): from the activation height every tx must
+    // carry a valid signature in the format required at this height; signatures present below it
+    // must be valid too. Without this an importer cannot tell a forged tx from a real one.
+    verify_block_tx_signatures(block, executor)?;
+
     // 2. Proposer in validator set and is the round leader for this height
     if !validator_set.contains(&block.header.proposer) {
         return Err(BlockValidationError::InvalidProposer);
@@ -87,6 +92,33 @@ pub fn validate_and_execute_block(
     Ok((state, receipts))
 }
 
+/// Verify the block's tx signatures against the rules in force at its height.
+pub fn verify_block_tx_signatures(block: &Block, executor: &BlockExecutor) -> Result<(), BlockValidationError> {
+    let history = executor.execution_history();
+    let height = block.header.height;
+    let required = height >= crate::network_preset::block_sigs_from(history);
+    if !required && block.signatures.is_empty() {
+        return Ok(());
+    }
+    if block.signatures.len() != block.transactions.len() {
+        return Err(BlockValidationError::MissingTxSignatures {
+            expected: block.transactions.len(),
+            found: block.signatures.len(),
+        });
+    }
+    let policy = crate::network_preset::tx_sig_policy(
+        crate::network_preset::effective_chain_id(history),
+        history,
+        height,
+    );
+    for (index, (tx, sig)) in block.transactions.iter().zip(&block.signatures).enumerate() {
+        boing_primitives::verify_signature_with(tx, sig, &tx.sender, policy).map_err(|e| {
+            BlockValidationError::InvalidTxSignature { index, reason: e.to_string() }
+        })?;
+    }
+    Ok(())
+}
+
 /// Check that a block chains to our tip. Does not execute.
 pub fn chains_to(block: &Block, our_latest_hash: Hash, our_height: u64) -> bool {
     block.header.parent_hash == our_latest_hash && block.header.height == our_height + 1
@@ -144,4 +176,8 @@ pub enum BlockValidationError {
     InvalidStateRoot { expected: Hash, computed: Hash },
     #[error("No validators configured")]
     NoValidators,
+    #[error("Block must carry one signature per transaction: {expected} txs, {found} signatures")]
+    MissingTxSignatures { expected: usize, found: usize },
+    #[error("Transaction {index} has an invalid signature: {reason}")]
+    InvalidTxSignature { index: usize, reason: String },
 }

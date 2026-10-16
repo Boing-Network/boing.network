@@ -34,6 +34,7 @@ impl ChainState {
                 state_root: Hash::ZERO,
             },
             transactions: vec![],
+            signatures: vec![],
         }
     }
 

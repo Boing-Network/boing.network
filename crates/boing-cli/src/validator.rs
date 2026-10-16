@@ -42,6 +42,15 @@ fn tx(owner: &SigningKey, nonce: u64, payload: TransactionPayload) -> SignedTran
     SignedTransaction::new(tx, owner)
 }
 
+/// Node-key proof for `owner`: the chain-bound v2 proof when the signing chain id is known (from the
+/// node's `boing_health.tx_signing` or `--chain-id`; security review #14), else the v1 proof.
+pub fn registration_proof(owner_id: &AccountId, node: &SigningKey) -> Vec<u8> {
+    match boing_primitives::default_signing_chain_id() {
+        Some(c) => boing_primitives::sign_validator_registration_v2(owner_id, node, c),
+        None => sign_validator_registration(owner_id, node),
+    }
+}
+
 pub fn build_register_tx(owner: &SigningKey, node: &SigningKey, nonce: u64) -> SignedTransaction {
     let owner_id = account_of(owner);
     tx(
@@ -49,7 +58,7 @@ pub fn build_register_tx(owner: &SigningKey, node: &SigningKey, nonce: u64) -> S
         nonce,
         TransactionPayload::ValidatorRegister {
             node_id: account_of(node),
-            node_signature: sign_validator_registration(&owner_id, node),
+            node_signature: registration_proof(&owner_id, node),
         },
     )
 }

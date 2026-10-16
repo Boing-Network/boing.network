@@ -30,6 +30,13 @@ pub struct ExecutionHistory {
     /// First height whose txs must carry v2 (chain-id) signatures (security review #2). Mempool
     /// admission rule only: block bodies carry no signatures, so this never changes execution.
     pub tx_v2_from: u64,
+    /// First height whose blocks must carry one valid signature per transaction, checked by every
+    /// importing node (security review #16). Below it blocks carry none (historical encoding).
+    pub block_sigs_from: u64,
+    /// First height at which an open-validator registration proof must be the chain-bound v2
+    /// message (security review #14). Below it the v1 proof (and v2, when the chain id is known)
+    /// is accepted.
+    pub registration_proof_v2_from: u64,
 }
 
 impl ExecutionHistory {

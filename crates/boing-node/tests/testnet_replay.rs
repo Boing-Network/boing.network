@@ -125,6 +125,42 @@ fn security_v2_gates_follow_the_activation_height() {
     assert!(!network_preset::tx_sig_policy(None, Some(&hist), h + 5).require_v2);
 }
 
+/// Security fixes #16 (blocks carry verified tx signatures) and #14 (chain-bound registration proof)
+/// activate at a later fixed height. Every recorded block is below it and carries no signatures, so
+/// the replays above prove history still imports unchanged under the new import rule.
+#[test]
+fn security_v3_gates_follow_the_activation_height() {
+    let h = network_preset::BOING_TESTNET_SECURITY_V3_FROM;
+    assert!(h > network_preset::BOING_TESTNET_SECURITY_V2_FROM);
+    let hist = network_preset::boing_testnet_history();
+    assert_eq!(network_preset::block_sigs_from(Some(&hist)), h);
+    assert_eq!(hist.registration_proof_v2_from, h);
+    assert_eq!(network_preset::effective_chain_id(Some(&hist)), Some(6913));
+    let blocks = load_blocks();
+    assert!(blocks.last().unwrap().0.header.height < h, "fixture predates the activation");
+    assert!(blocks.iter().all(|(b, _)| b.signatures.is_empty()));
+}
+
+/// A recorded block given a bogus signature list must
+/// be rejected even before activation (signatures, when present, are always verified), while the
+/// same block as recorded imports.
+#[test]
+fn bogus_signatures_on_recorded_blocks_are_rejected() {
+    let blocks = load_blocks();
+    let (idx, _) = blocks
+        .iter()
+        .enumerate()
+        .skip(1)
+        .find(|(_, (b, _))| !b.transactions.is_empty())
+        .expect("fixture has a block with transactions");
+    let mut node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    replay(&mut node, &blocks[..idx]).unwrap();
+    let mut bogus = blocks[idx].0.clone();
+    bogus.signatures = vec![boing_primitives::Signature([0u8; 64]); bogus.transactions.len()];
+    assert!(node.import_network_block_catchup(&bogus).is_err());
+    node.import_network_block_catchup(&blocks[idx].0).expect("recorded block imports");
+}
+
 /// Replays the recorded blocks twice in independent nodes and compares every state root along the
 /// way (determinism across nodes, including blocks with failed receipts after activation when the
 /// fixture covers them).

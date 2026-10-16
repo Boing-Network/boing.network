@@ -20,13 +20,28 @@ impl Serialize for Signature {
 
 impl<'de> Deserialize<'de> for Signature {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let bytes: Vec<u8> = serde::de::Deserialize::deserialize(d)?;
-        if bytes.len() != 64 {
-            return Err(serde::de::Error::invalid_length(bytes.len(), &"64"));
+        // Accepts a byte string (bincode, CBOR) or a sequence of numbers (JSON, legacy encoders).
+        struct V;
+        impl<'de> serde::de::Visitor<'de> for V {
+            type Value = Signature;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("64 signature bytes")
+            }
+            fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Signature, E> {
+                Signature::from_slice(v).ok_or_else(|| E::invalid_length(v.len(), &"64"))
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Signature, A::Error> {
+                let mut bytes = Vec::with_capacity(64);
+                while let Some(b) = seq.next_element::<u8>()? {
+                    if bytes.len() == 64 {
+                        return Err(serde::de::Error::invalid_length(65, &"64"));
+                    }
+                    bytes.push(b);
+                }
+                Signature::from_slice(&bytes).ok_or_else(|| serde::de::Error::invalid_length(bytes.len(), &"64"))
+            }
         }
-        let mut arr = [0u8; 64];
-        arr.copy_from_slice(&bytes);
-        Ok(Signature(arr))
+        d.deserialize_bytes(V)
     }
 }
 

@@ -172,7 +172,7 @@ impl BoingNode {
             chain,
             consensus,
             state,
-            executor: BlockExecutor::with_qa_registry(qa_registry.clone()),
+            executor: with_chain_id_rules(BlockExecutor::with_qa_registry(qa_registry.clone())),
             producer: BlockProducer::new(local_validator).with_max_txs(100),
             vm: Vm::with_qa_registry(qa_registry.clone()),
             scheduler: TransactionScheduler::new(),
@@ -494,7 +494,7 @@ impl BoingNode {
         self.mempool.set_qa_registry(registry.clone());
         let fee = self.executor.fee_policy().clone();
         let history = self.executor.execution_history().cloned();
-        self.executor = BlockExecutor::with_policies(registry.clone(), pool_config.clone(), fee);
+        self.executor = with_chain_id_rules(BlockExecutor::with_policies(registry.clone(), pool_config.clone(), fee));
         self.executor.set_execution_history(history);
         self.vm = Vm::with_qa_policies(registry, pool_config.clone());
         self.qa_pool.set_governance_config(pool_config);
@@ -1419,4 +1419,14 @@ impl Default for BoingNode {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Chain-bound validator registration proofs (security review #14) for a node with a chain id and no
+/// network history (new chains): v2 only from genesis. A network history, when installed, overrides
+/// this with its own chain id and activation height.
+fn with_chain_id_rules(mut executor: BlockExecutor) -> BlockExecutor {
+    if let Some(c) = crate::network_preset::configured_chain_id() {
+        executor.set_registration_proof_rule(Some(c), 0);
+    }
+    executor
 }

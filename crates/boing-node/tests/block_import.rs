@@ -9,6 +9,16 @@ use boing_primitives::{
     Transaction, TransactionPayload,
 };
 use boing_state::StateStore;
+use ed25519_dalek::SigningKey;
+
+/// Proposer/sender key: blocks must carry a valid signature per tx (security review #16).
+fn key() -> SigningKey {
+    SigningKey::from_bytes(&[1u8; 32])
+}
+
+fn sigs(txs: &[Transaction]) -> Vec<boing_primitives::Signature> {
+    txs.iter().map(|t| boing_primitives::sign_transaction(t, &key())).collect()
+}
 
 fn mk_transfer(from: AccountId, to: AccountId, nonce: u64, amount: u128) -> Transaction {
     Transaction {
@@ -34,6 +44,7 @@ fn test_chains_to() {
             state_root: boing_primitives::Hash::ZERO,
         },
         transactions: vec![],
+        signatures: vec![],
     };
     assert!(chains_to(&block, chain.latest_hash(), chain.height()));
     assert!(!chains_to(&block, chain.latest_hash(), chain.height() + 1));
@@ -41,7 +52,7 @@ fn test_chains_to() {
 
 #[test]
 fn test_validate_and_execute_block() {
-    let proposer = AccountId([1u8; 32]);
+    let proposer = AccountId(key().verifying_key().to_bytes());
     let to = AccountId([2u8; 32]);
     let mut parent = StateStore::new();
     parent.insert(Account {
@@ -82,6 +93,7 @@ fn test_validate_and_execute_block() {
             receipts_root: rr,
             state_root,
         },
+        signatures: sigs(&txs),
         transactions: txs,
     };
 
@@ -103,7 +115,7 @@ fn test_validate_and_execute_block() {
 
 #[test]
 fn test_import_block() {
-    let proposer = AccountId([1u8; 32]);
+    let proposer = AccountId(key().verifying_key().to_bytes());
     let genesis = ChainState::genesis(proposer);
     let chain = ChainState::from_genesis(genesis.clone());
     let mut consensus = ConsensusEngine::single_validator(proposer);
@@ -149,6 +161,7 @@ fn test_import_block() {
             receipts_root: rr,
             state_root,
         },
+        signatures: sigs(&txs),
         transactions: txs,
     };
 

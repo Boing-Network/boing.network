@@ -66,6 +66,12 @@ export interface BoingTxSigningInfo {
   v2_required: boolean;
   /** Height from which failed txs pay the failed-tx fee. */
   failed_tx_fee_from_height: number;
+  /** Height from which blocks carry a verified signature per tx (security review #16). */
+  block_signatures_from_height?: number;
+  /** `"BOING_OPEN_VALIDATOR_REGISTER_V2"`. */
+  registration_proof_domain?: string;
+  /** Height from which only the chain-bound v2 validator registration proof is accepted (#14). */
+  registration_proof_v2_from_height?: number | null;
 }
 
 /** Result of `BoingClient.preflightRpc()` — one-shot readiness for dashboards and CI. */
@@ -383,6 +389,8 @@ export interface Block {
   hash?: string;
   header: BlockHeader;
   transactions: unknown[];
+  /** Sender signature per transaction (64 bytes each), present from the block-signature activation. */
+  signatures?: number[][];
   /** Present when fetched with `include_receipts: true` on `boing_getBlockByHeight`. */
   receipts?: (ExecutionReceipt | null)[];
 }

@@ -137,7 +137,7 @@ signature covers changes.
 Before activation a node accepts either format, so upgraded wallets sign v2 right away. The rule is
 checked at admission (`boing_submitTransaction`, P2P gossip, QA votes). Override the height with
 `BOING_TX_V2_FROM`. Nodes advertise the rule in `boing_health.tx_signing`:
-`{ v2_supported, domain, chain_id, v2_from_height, v2_required, failed_tx_fee_from_height }`.
+`{ v2_supported, domain, chain_id, v2_from_height, v2_required, failed_tx_fee_from_height, block_signatures_from_height, registration_proof_domain, registration_proof_v2_from_height }`.
 
 - Rust: `signable_transaction_hash_v2`, `SignedTransaction::new_for_chain`; `SignedTransaction::new`
   signs v2 when `set_default_signing_chain_id` is set (the CLI sets it from the node; `--chain-id`,
@@ -147,6 +147,32 @@ checked at admission (`boing_submitTransaction`, P2P gossip, QA votes). Override
   node's chain id automatically.
 - Golden vector: seed `[7; 32]`, nonce 3, transfer 5 to `[9; 32]`, empty access list, chain 6913 →
   `d88a23702aa0c376d9e0f3b6a2c2948058fecda14b95d26843f5f902ece87899`.
+
+### Signatures in blocks (security review #16)
+
+`Block` is `{ header, transactions, signatures }`. `signatures[i]` is the sender's `Signature` over
+`transactions[i]`. From the network's block-signature activation height (testnet: **920**; new chains:
+genesis; `boing_health.tx_signing.block_signatures_from_height`) every block must carry exactly one
+signature per transaction, and **every importing node verifies them** with the format required at that
+height (v2 for the chain after the v2 activation). A block with a missing, forged, legacy-format or
+other-chain signature is rejected. Signatures that appear below the activation height are verified too.
+
+Signatures are not part of the header or the block hash, so `tx_root` and block hashes are unchanged.
+When `signatures` is empty the field is omitted, so historical blocks keep their exact bincode, JSON
+and CBOR encodings. Decoders accept both the historical `(header, transactions)` bincode layout and
+the new one (`Block::from_bincode`). JSON (`boing_getBlockByHeight`) shows `signatures` as an array
+of 64-number arrays.
+
+### Validator registration proof v2 (security review #14)
+
+The node-key proof in `ValidatorRegister` is
+`BLAKE3("BOING_OPEN_VALIDATOR_REGISTER_V2" || chain_id_le8 || owner || node_id)` from the activation
+height (testnet: **920**; `registration_proof_v2_from_height`). Before it, the v1 proof
+`BLAKE3("BOING_OPEN_VALIDATOR_REGISTER_V1" || owner || node_id)` (or v2) is accepted. Golden vector:
+node seed `[7; 32]`, owner `[9; 32]`, chain 6913 →
+`2d9b960878d673d6e84ded770590a0242fdc66ac4f34ca9d158078c7bf4b59d9`. Rust:
+`sign_validator_registration_v2`; TS: `signValidatorRegistration(owner, nodeKey, { chainId })`; the CLI
+and Boing Express use v2 when the node advertises a chain id.
 
 ---
 

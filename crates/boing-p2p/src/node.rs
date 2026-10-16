@@ -441,7 +441,7 @@ impl P2pNode {
                             })) = ev {
                             let topic = message.topic.as_str();
                             if topic == BLOCKS_TOPIC {
-                                if let Ok(block) = bincode::deserialize(&message.data) {
+                                if let Ok(block) = boing_primitives::Block::from_bincode(&message.data) {
                                     let _ = event_tx.send(P2pEvent::BlockReceived(block));
                                 }
                             } else if topic == TRANSACTIONS_TOPIC {

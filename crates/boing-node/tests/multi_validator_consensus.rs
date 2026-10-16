@@ -246,6 +246,7 @@ async fn four_validators_quorum_commit_via_votes() {
             state_root: boing_primitives::Hash::ZERO,
         },
         transactions: vec![],
+        signatures: vec![],
     };
     let err = victim.write().await.handle_network_block(&forged);
     assert!(err.is_err(), "non-leader proposal must be rejected");

@@ -642,14 +642,52 @@ pub struct BlockHeader {
     pub state_root: Hash,
 }
 
-/// Block — header + transactions.
+/// Block — header + transactions (+ the transactions' signatures from the block-signature activation).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Block {
     pub header: BlockHeader,
     pub transactions: Vec<Transaction>,
+    /// Sender signature of each transaction, same order as `transactions` (security review #16).
+    /// Required (one per tx, verified on import) from the network's block-signature activation
+    /// height; empty before it. Not part of the header or the block hash, and omitted when empty so
+    /// historical blocks keep their exact encoding (bincode, JSON and CBOR).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub signatures: Vec<crate::signature::Signature>,
+}
+
+#[derive(Deserialize)]
+struct LegacyBlockEncoding {
+    header: BlockHeader,
+    transactions: Vec<Transaction>,
 }
 
 impl Block {
+    /// Decode a bincode-encoded block in either layout: with signatures, or the historical
+    /// `(header, transactions)` encoding (which every block without signatures still uses).
+    pub fn from_bincode(bytes: &[u8]) -> Result<Block, bincode::Error> {
+        match bincode::deserialize::<Block>(bytes) {
+            Ok(b) => Ok(b),
+            Err(e) => bincode::deserialize::<LegacyBlockEncoding>(bytes)
+                .map(|l| Block { header: l.header, transactions: l.transactions, signatures: Vec::new() })
+                .map_err(|_| e),
+        }
+    }
+
+    /// The transactions paired with their signatures (`None` when the block carries none or the
+    /// counts differ).
+    pub fn signed_transactions(&self) -> Option<Vec<crate::signature::SignedTransaction>> {
+        if self.signatures.len() != self.transactions.len() {
+            return None;
+        }
+        Some(
+            self.transactions
+                .iter()
+                .zip(&self.signatures)
+                .map(|(tx, sig)| crate::signature::SignedTransaction { tx: tx.clone(), signature: *sig })
+                .collect(),
+        )
+    }
+
     pub fn hash(&self) -> Hash {
         let mut h = hasher();
         h.update(&bincode::serialize(&self.header).unwrap_or_default());
@@ -765,6 +803,54 @@ impl ExecutionReceipt {
             logs: sanitize_logs(logs),
             error,
         }
+    }
+}
+
+#[cfg(test)]
+mod block_encoding_tests {
+    use super::*;
+    use crate::signature::Signature;
+
+    fn header() -> BlockHeader {
+        BlockHeader {
+            parent_hash: Hash::ZERO,
+            height: 7,
+            timestamp: 1,
+            proposer: AccountId([1; 32]),
+            tx_root: Hash::ZERO,
+            receipts_root: Hash::ZERO,
+            state_root: Hash::ZERO,
+        }
+    }
+
+    #[test]
+    fn unsigned_block_keeps_historical_encoding() {
+        let b = Block { header: header(), transactions: vec![], signatures: vec![] };
+        #[derive(Serialize)]
+        struct Old<'a> { header: &'a BlockHeader, transactions: &'a Vec<Transaction> }
+        let old = bincode::serialize(&Old { header: &b.header, transactions: &b.transactions }).unwrap();
+        assert_eq!(bincode::serialize(&b).unwrap(), old);
+        assert_eq!(Block::from_bincode(&old).unwrap(), b);
+        let j = serde_json::to_value(&b).unwrap();
+        assert!(j.get("signatures").is_none());
+        let back: Block = serde_json::from_value(j).unwrap();
+        assert_eq!(back, b);
+    }
+
+    #[test]
+    fn signed_block_roundtrips() {
+        let tx = Transaction {
+            nonce: 0,
+            sender: AccountId([2; 32]),
+            payload: TransactionPayload::Transfer { to: AccountId([3; 32]), amount: 1 },
+            access_list: AccessList::default(),
+        };
+        let b = Block { header: header(), transactions: vec![tx], signatures: vec![Signature([5; 64])] };
+        let enc = bincode::serialize(&b).unwrap();
+        assert_eq!(Block::from_bincode(&enc).unwrap(), b);
+        let back: Block = serde_json::from_str(&serde_json::to_string(&b).unwrap()).unwrap();
+        assert_eq!(back, b);
+        assert_eq!(b.hash(), Block { signatures: vec![], ..b.clone() }.hash(), "signatures are not in the hash");
     }
 }
 

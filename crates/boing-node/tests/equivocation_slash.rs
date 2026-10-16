@@ -94,6 +94,7 @@ fn equivocation_slash_burns_half_active_stake() {
             state_root: Hash::ZERO,
         },
         transactions: vec![],
+        signatures: vec![],
     };
     node.consensus.propose(block.clone()).unwrap();
     let good = block.hash();

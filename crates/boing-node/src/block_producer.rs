@@ -78,14 +78,25 @@ impl BlockProducer {
         if !is_leader && !fallback_ok {
             return None; // Not our turn to propose
         }
-        let signed_txs = mempool.drain_for_block(self.max_txs_per_block);
+        let mut signed_txs = mempool.drain_for_block(self.max_txs_per_block);
+        let parent_hash = chain.parent_hash();
+        let height = chain.height() + 1;
+        // Importers verify every tx signature against the rule for this height (security review
+        // #16). A tx admitted under an earlier rule (e.g. a legacy signature before the v2
+        // activation) would make the whole block invalid, so drop such txs here.
+        let history = executor.execution_history();
+        let policy = crate::network_preset::tx_sig_policy(
+            crate::network_preset::effective_chain_id(history),
+            history,
+            height,
+        );
+        signed_txs.retain(|s| s.verify_with(policy).is_ok());
         if signed_txs.is_empty() {
             return None;
         }
         let txs: Vec<Transaction> = signed_txs.iter().map(|s| s.tx.clone()).collect();
+        let signatures: Vec<boing_primitives::Signature> = signed_txs.iter().map(|s| s.signature).collect();
 
-        let parent_hash = chain.parent_hash();
-        let height = chain.height() + 1;
         let block_timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -147,6 +158,7 @@ impl BlockProducer {
                 state_root,
             },
             transactions: txs,
+            signatures,
         };
 
         let new_state = state.snapshot();

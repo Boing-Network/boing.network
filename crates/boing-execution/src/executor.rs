@@ -69,7 +69,17 @@ impl BlockExecutor {
     /// Install historical (height-gated) execution rules so already-committed blocks of a live
     /// network replay byte-identically. Heights at/after the last era use the current rules.
     pub fn set_execution_history(&mut self, history: Option<crate::history::ExecutionHistory>) {
+        if let Some(h) = &history {
+            let cid = (h.chain_id != 0).then_some(h.chain_id);
+            self.vm.set_registration_proof_rule(cid, h.registration_proof_v2_from);
+        }
         self.history = history.map(std::sync::Arc::new);
+    }
+
+    /// Chain id for the validator registration proof (security review #14) and the height from
+    /// which only the chain-bound v2 proof is accepted. `None` = v1 proof only (local dev).
+    pub fn set_registration_proof_rule(&mut self, chain_id: Option<u64>, v2_from: u64) {
+        self.vm.set_registration_proof_rule(chain_id, v2_from);
     }
 
     pub fn execution_history(&self) -> Option<&crate::history::ExecutionHistory> {

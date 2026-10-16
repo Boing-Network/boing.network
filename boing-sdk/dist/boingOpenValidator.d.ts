@@ -4,7 +4,10 @@
  *
  * The **owner** account signs the transaction and pays the bond (default 100 BOING). The **node**
  * (consensus) key signs a proof `BLAKE3("BOING_OPEN_VALIDATOR_REGISTER_V1" || owner || nodeId)`, which
- * binds that node key to that owner. Owner and node may be the same key.
+ * binds that node key to that owner. Owner and node may be the same key. Nodes that advertise a chain id
+ * (`boing_health.tx_signing`) use the chain-bound v2 proof
+ * `BLAKE3("BOING_OPEN_VALIDATOR_REGISTER_V2" || chain_id_le8 || owner || nodeId)`, required from
+ * `registration_proof_v2_from_height` (security review #14).
  *
  * Only accepted once the network has activated the `open` validator-set mode; check
  * `getBoingValidators(client).mode === 'open'` and `open.activation_height`.
@@ -15,13 +18,21 @@ import { type Ed25519SecretKey32 } from './transactionBuilder.js';
 export declare const BOING_VALIDATOR_REGISTRATION_DOMAIN = "BOING_OPEN_VALIDATOR_REGISTER_V1";
 /** 32-byte message the node key signs (matches Rust `validator_registration_message`). */
 export declare function validatorRegistrationMessage(ownerHex: string, nodeIdHex: string): Uint8Array;
-/** Node-key proof of possession for `ownerHex`. Returns the node id and the 64-byte signature. */
-export declare function signValidatorRegistration(ownerHex: string, nodeSecretKey32: Ed25519SecretKey32): Promise<{
+export declare const BOING_VALIDATOR_REGISTRATION_DOMAIN_V2 = "BOING_OPEN_VALIDATOR_REGISTER_V2";
+/** Chain-bound (v2) message (matches Rust `validator_registration_message_v2`). */
+export declare function validatorRegistrationMessageV2(ownerHex: string, nodeIdHex: string, chainId: bigint | number): Uint8Array;
+/**
+ * Node-key proof of possession for `ownerHex`. Returns the node id and the 64-byte signature.
+ * With `chainId` the chain-bound v2 proof is produced (what nodes with a chain id require).
+ */
+export declare function signValidatorRegistration(ownerHex: string, nodeSecretKey32: Ed25519SecretKey32, opts?: {
+    chainId?: bigint | number | null;
+}): Promise<{
     nodeIdHex: string;
     nodeSignature: Uint8Array;
 }>;
-/** Verify a registration proof (same check the node runs). */
-export declare function verifyValidatorRegistration(ownerHex: string, nodeIdHex: string, nodeSignature: Uint8Array): Promise<boolean>;
+/** Verify a registration proof (v2 for `chainId` when given, else v1). */
+export declare function verifyValidatorRegistration(ownerHex: string, nodeIdHex: string, nodeSignature: Uint8Array, chainId?: bigint | number | null): Promise<boolean>;
 export declare function buildValidatorRegisterTransaction(input: {
     nonce: bigint;
     ownerHex: string;

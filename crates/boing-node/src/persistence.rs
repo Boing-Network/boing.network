@@ -235,7 +235,7 @@ impl Persistence {
         }
 
         let genesis_bytes = std::fs::read(&genesis_path)?;
-        let genesis: Block = bincode::deserialize(&genesis_bytes)
+        let genesis: Block = Block::from_bincode(&genesis_bytes)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
 
         let chain = ChainState::from_genesis(genesis.clone());
@@ -248,7 +248,7 @@ impl Persistence {
                 )));
             }
             let block_bytes = std::fs::read(&block_path)?;
-            let block: Block = bincode::deserialize(&block_bytes)
+            let block: Block = Block::from_bincode(&block_bytes)
                 .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
             chain
                 .append(block)

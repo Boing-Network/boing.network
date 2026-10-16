@@ -7,6 +7,7 @@ import {
   findBoingValidator,
   signValidatorRegistration,
   validatorRegistrationMessage,
+  validatorRegistrationMessageV2,
   verifyValidatorRegistration,
 } from '../src/boingOpenValidator.js';
 import { encodeTransactionPayload, PayloadVariant } from '../src/bincode.js';
@@ -21,6 +22,16 @@ const MSG = '0xf8bbe9cbc961743405a6154a8dd07192efa73a3e9368271ec4b11dd0b66562b5'
 describe('open validator registration', () => {
   it('message matches the Rust golden vector', () => {
     expect(bytesToHex(validatorRegistrationMessage(OWNER, NODE7))).toBe(MSG);
+  });
+
+  it('v2 message matches the Rust golden vector and is chain-bound', async () => {
+    expect(bytesToHex(validatorRegistrationMessageV2(OWNER, NODE7, 6913))).toBe(
+      '0x2d9b960878d673d6e84ded770590a0242fdc66ac4f34ca9d158078c7bf4b59d9',
+    );
+    const { nodeIdHex, nodeSignature } = await signValidatorRegistration(OWNER, seed(7), { chainId: 6913n });
+    expect(await verifyValidatorRegistration(OWNER, nodeIdHex, nodeSignature, 6913)).toBe(true);
+    expect(await verifyValidatorRegistration(OWNER, nodeIdHex, nodeSignature, 6914)).toBe(false);
+    expect(await verifyValidatorRegistration(OWNER, nodeIdHex, nodeSignature)).toBe(false);
   });
 
   it('signs and verifies a proof bound to the owner', async () => {

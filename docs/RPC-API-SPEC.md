@@ -390,7 +390,10 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
     "chain_id": 6913,
     "v2_from_height": 900,
     "v2_required": false,
-    "failed_tx_fee_from_height": 900
+    "failed_tx_fee_from_height": 900,
+    "block_signatures_from_height": 920,
+    "registration_proof_domain": "BOING_OPEN_VALIDATOR_REGISTER_V2",
+    "registration_proof_v2_from_height": 920
   },
   "rpc_surface": {
     "jsonrpc_batch_max": 32,

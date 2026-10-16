@@ -536,6 +536,9 @@ fn tx_signing_info(n: &crate::node::BoingNode) -> serde_json::Value {
         "v2_from_height": chain_id.map(|_| crate::network_preset::tx_v2_from(history)),
         "v2_required": policy.require_v2,
         "failed_tx_fee_from_height": history.map(|h| h.failed_tx_fee_from).unwrap_or(0),
+        "block_signatures_from_height": crate::network_preset::block_sigs_from(history),
+        "registration_proof_domain": "BOING_OPEN_VALIDATOR_REGISTER_V2",
+        "registration_proof_v2_from_height": chain_id.map(|_| history.map(|h| h.registration_proof_v2_from).unwrap_or(0)),
     })
 }
 

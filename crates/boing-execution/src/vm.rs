@@ -82,13 +82,34 @@ pub struct Vm {
     qa_registry: RuleRegistry,
     /// Pool membership / quorum / voter-reward knobs (execution-time public votes).
     qa_pool_config: QaPoolGovernanceConfig,
+    /// Chain id for v2 validator registration proofs (security review #14); `None` = v1 only.
+    registration_chain_id: Option<u64>,
+    /// From this height only the v2 (chain-bound) registration proof is accepted.
+    registration_v2_from: u64,
 }
 
 impl Vm {
+    pub fn set_registration_proof_rule(&mut self, chain_id: Option<u64>, v2_from: u64) {
+        self.registration_chain_id = chain_id;
+        self.registration_v2_from = v2_from;
+    }
+
+    fn registration_proof_ok(&self, height: u64, owner: &AccountId, node_id: &AccountId, sig: &[u8]) -> bool {
+        let v2 = self
+            .registration_chain_id
+            .is_some_and(|c| boing_primitives::verify_validator_registration_v2(owner, node_id, sig, c));
+        match self.registration_chain_id {
+            Some(_) if height >= self.registration_v2_from => v2,
+            _ => v2 || boing_primitives::verify_validator_registration(owner, node_id, sig),
+        }
+    }
+
     pub fn new() -> Self {
         Self {
             qa_registry: default_qa_registry(),
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
+            registration_chain_id: None,
+            registration_v2_from: 0,
         }
     }
 
@@ -97,6 +118,8 @@ impl Vm {
         Self {
             qa_registry,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
+            registration_chain_id: None,
+            registration_v2_from: 0,
         }
     }
 
@@ -108,6 +131,8 @@ impl Vm {
         Self {
             qa_registry,
             qa_pool_config,
+            registration_chain_id: None,
+            registration_v2_from: 0,
         }
     }
 
@@ -294,11 +319,7 @@ impl Vm {
                 node_signature,
             } => {
                 let params = open_validator_params_at(state, exec_ctx.block_height)?;
-                if !boing_primitives::verify_validator_registration(
-                    &tx.sender,
-                    node_id,
-                    node_signature,
-                ) {
+                if !self.registration_proof_ok(exec_ctx.block_height, &tx.sender, node_id, node_signature) {
                     return Err(VmError::OpenValidator(
                         boing_state::OpenValidatorError::InvalidNodeSignature.to_string(),
                     ));
@@ -1417,4 +1438,33 @@ pub(crate) fn apply_in_tx_create2(
 
     state.set_contract_code(contract_addr, stored_code);
     Ok((contract_addr, init_gas))
+}
+
+#[cfg(test)]
+mod registration_proof_rule_tests {
+    use super::*;
+    use ed25519_dalek::SigningKey;
+
+    /// Security review #14: before the activation height the v1 proof (and v2 for the right chain)
+    /// is accepted; from it only the v2 proof for this chain.
+    #[test]
+    fn registration_proof_is_height_gated_and_chain_bound() {
+        let node = SigningKey::from_bytes(&[7u8; 32]);
+        let node_id = AccountId(node.verifying_key().to_bytes());
+        let owner = AccountId([9u8; 32]);
+        let v1 = boing_primitives::sign_validator_registration(&owner, &node);
+        let v2 = boing_primitives::sign_validator_registration_v2(&owner, &node, 6913);
+        let other = boing_primitives::sign_validator_registration_v2(&owner, &node, 6914);
+        let mut vm = Vm::new();
+        assert!(vm.registration_proof_ok(5, &owner, &node_id, &v1), "no chain id: v1");
+        assert!(!vm.registration_proof_ok(5, &owner, &node_id, &v2));
+        vm.set_registration_proof_rule(Some(6913), 10);
+        assert!(vm.registration_proof_ok(9, &owner, &node_id, &v1), "v1 before activation");
+        assert!(vm.registration_proof_ok(9, &owner, &node_id, &v2), "v2 before activation");
+        assert!(!vm.registration_proof_ok(9, &owner, &node_id, &other));
+        assert!(!vm.registration_proof_ok(10, &owner, &node_id, &v1), "v1 rejected from activation");
+        assert!(vm.registration_proof_ok(10, &owner, &node_id, &v2));
+        assert!(!vm.registration_proof_ok(10, &owner, &node_id, &other), "other chain rejected");
+        assert!(!vm.registration_proof_ok(10, &AccountId([8u8; 32]), &node_id, &v2), "bound to owner");
+    }
 }

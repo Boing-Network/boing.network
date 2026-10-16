@@ -49,8 +49,9 @@ pub use types::{
 };
 pub use types::{Account, AccountState};
 pub use validator_registration::{
-    sign_validator_registration, validator_registration_message, verify_validator_registration,
-    VALIDATOR_REGISTRATION_DOMAIN,
+    sign_validator_registration, sign_validator_registration_v2, validator_registration_message,
+    validator_registration_message_v2, verify_validator_registration, verify_validator_registration_v2,
+    VALIDATOR_REGISTRATION_DOMAIN, VALIDATOR_REGISTRATION_DOMAIN_V2,
 };
 pub use vrf_proof::VrfProofGossip;
 

@@ -41,6 +41,7 @@ fn test_persistence_roundtrip() {
             state_root: boing_primitives::Hash::ZERO,
         },
         transactions: vec![],
+        signatures: vec![],
     };
     chain.append(block1.clone()).unwrap();
     state.get_mut(&proposer).unwrap().nonce = 1;
@@ -78,6 +79,7 @@ fn load_chain_recovers_when_genesis_file_was_never_written() {
             state_root: boing_primitives::Hash::ZERO,
         },
         transactions: vec![],
+        signatures: vec![],
     };
     chain.append(block1.clone()).unwrap();
 

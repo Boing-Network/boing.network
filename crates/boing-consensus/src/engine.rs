@@ -395,6 +395,7 @@ mod tests {
                 state_root: Hash::ZERO,
             },
             transactions: vec![],
+            signatures: vec![],
         }
     }
 

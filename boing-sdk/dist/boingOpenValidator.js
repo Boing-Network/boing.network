@@ -4,7 +4,10 @@
  *
  * The **owner** account signs the transaction and pays the bond (default 100 BOING). The **node**
  * (consensus) key signs a proof `BLAKE3("BOING_OPEN_VALIDATOR_REGISTER_V1" || owner || nodeId)`, which
- * binds that node key to that owner. Owner and node may be the same key.
+ * binds that node key to that owner. Owner and node may be the same key. Nodes that advertise a chain id
+ * (`boing_health.tx_signing`) use the chain-bound v2 proof
+ * `BLAKE3("BOING_OPEN_VALIDATOR_REGISTER_V2" || chain_id_le8 || owner || nodeId)`, required from
+ * `registration_proof_v2_from_height` (security review #14).
  *
  * Only accepted once the network has activated the `open` validator-set mode; check
  * `getBoingValidators(client).mode === 'open'` and `open.activation_height`.
@@ -12,7 +15,7 @@
 import * as ed25519 from '@noble/ed25519';
 import { blake3 } from '@noble/hashes/blake3';
 import { bytesToHex, hexToAccountId, validateHex32 } from './hex.js';
-import { fetchNextNonce, senderHexFromSecretKey, signTransactionInputForClient, } from './transactionBuilder.js';
+import { fetchNextNonce, fetchSigningChainId, senderHexFromSecretKey, signTransactionInputForClient, } from './transactionBuilder.js';
 export const BOING_VALIDATOR_REGISTRATION_DOMAIN = 'BOING_OPEN_VALIDATOR_REGISTER_V1';
 /** 32-byte message the node key signs (matches Rust `validator_registration_message`). */
 export function validatorRegistrationMessage(ownerHex, nodeIdHex) {
@@ -25,18 +28,39 @@ export function validatorRegistrationMessage(ownerHex, nodeIdHex) {
     pre.set(node, dom.length + 32);
     return blake3(pre);
 }
-/** Node-key proof of possession for `ownerHex`. Returns the node id and the 64-byte signature. */
-export async function signValidatorRegistration(ownerHex, nodeSecretKey32) {
+export const BOING_VALIDATOR_REGISTRATION_DOMAIN_V2 = 'BOING_OPEN_VALIDATOR_REGISTER_V2';
+/** Chain-bound (v2) message (matches Rust `validator_registration_message_v2`). */
+export function validatorRegistrationMessageV2(ownerHex, nodeIdHex, chainId) {
+    const dom = new TextEncoder().encode(BOING_VALIDATOR_REGISTRATION_DOMAIN_V2);
+    const owner = hexToAccountId(validateHex32(ownerHex));
+    const node = hexToAccountId(validateHex32(nodeIdHex));
+    const pre = new Uint8Array(dom.length + 8 + 64);
+    pre.set(dom, 0);
+    new DataView(pre.buffer).setBigUint64(dom.length, BigInt(chainId), true);
+    pre.set(owner, dom.length + 8);
+    pre.set(node, dom.length + 40);
+    return blake3(pre);
+}
+function registrationMessage(ownerHex, nodeIdHex, chainId) {
+    return chainId == null
+        ? validatorRegistrationMessage(ownerHex, nodeIdHex)
+        : validatorRegistrationMessageV2(ownerHex, nodeIdHex, chainId);
+}
+/**
+ * Node-key proof of possession for `ownerHex`. Returns the node id and the 64-byte signature.
+ * With `chainId` the chain-bound v2 proof is produced (what nodes with a chain id require).
+ */
+export async function signValidatorRegistration(ownerHex, nodeSecretKey32, opts = {}) {
     const nodeIdHex = await senderHexFromSecretKey(nodeSecretKey32);
-    const sig = await ed25519.signAsync(validatorRegistrationMessage(ownerHex, nodeIdHex), nodeSecretKey32);
+    const sig = await ed25519.signAsync(registrationMessage(ownerHex, nodeIdHex, opts.chainId), nodeSecretKey32);
     return { nodeIdHex, nodeSignature: sig };
 }
-/** Verify a registration proof (same check the node runs). */
-export async function verifyValidatorRegistration(ownerHex, nodeIdHex, nodeSignature) {
+/** Verify a registration proof (v2 for `chainId` when given, else v1). */
+export async function verifyValidatorRegistration(ownerHex, nodeIdHex, nodeSignature, chainId) {
     if (nodeSignature.length !== 64)
         return false;
     try {
-        return await ed25519.verifyAsync(nodeSignature, validatorRegistrationMessage(ownerHex, nodeIdHex), hexToAccountId(validateHex32(nodeIdHex)));
+        return await ed25519.verifyAsync(nodeSignature, registrationMessage(ownerHex, nodeIdHex, chainId), hexToAccountId(validateHex32(nodeIdHex)));
     }
     catch {
         return false;
@@ -97,7 +121,8 @@ async function signAndSubmit(client, tx, secret) {
  */
 export async function registerBoingValidator(client, ownerSecretKey32, nodeSecretKey32) {
     const ownerHex = await senderHexFromSecretKey(ownerSecretKey32);
-    const { nodeIdHex, nodeSignature } = await signValidatorRegistration(ownerHex, nodeSecretKey32);
+    const chainId = await fetchSigningChainId(client);
+    const { nodeIdHex, nodeSignature } = await signValidatorRegistration(ownerHex, nodeSecretKey32, { chainId });
     const nonce = await fetchNextNonce(client, ownerHex);
     const tx = buildValidatorRegisterTransaction({ nonce, ownerHex, nodeIdHex, nodeSignature });
     return { nodeIdHex, result: await signAndSubmit(client, tx, ownerSecretKey32) };

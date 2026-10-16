@@ -26,6 +26,9 @@ pub const BOING_TESTNET_TREASURY_FEES_FROM: u64 = 27;
 /// and #3 (failed txs pay the failed-tx fee). Below it the network runs the historical rules, so
 /// replay from genesis stays exact.
 pub const BOING_TESTNET_SECURITY_V2_FROM: u64 = 900;
+/// Testnet activation height of security fixes #16 (blocks carry tx signatures and importers verify
+/// them) and #14 (chain-bound validator registration proof). Below it history replays unchanged.
+pub const BOING_TESTNET_SECURITY_V3_FROM: u64 = 920;
 
 /// Genesis block proposer plus the accounts funded at height 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -64,6 +67,8 @@ pub fn boing_testnet_history() -> ExecutionHistory {
         current_from: BOING_TESTNET_TREASURY_FEES_FROM,
         failed_tx_fee_from: BOING_TESTNET_SECURITY_V2_FROM,
         tx_v2_from: BOING_TESTNET_SECURITY_V2_FROM,
+        block_sigs_from: BOING_TESTNET_SECURITY_V3_FROM,
+        registration_proof_v2_from: BOING_TESTNET_SECURITY_V3_FROM,
     }
 }
 
@@ -80,6 +85,20 @@ pub fn tx_v2_from(history: Option<&ExecutionHistory>) -> u64 {
         return h;
     }
     history.map(|h| h.tx_v2_from).unwrap_or(0)
+}
+
+/// First height whose blocks must carry verified tx signatures: `BOING_BLOCK_SIGS_FROM`, else the
+/// network history (testnet: [`BOING_TESTNET_SECURITY_V3_FROM`]), else 0 (new chains: genesis).
+pub fn block_sigs_from(history: Option<&ExecutionHistory>) -> u64 {
+    if let Some(h) = std::env::var("BOING_BLOCK_SIGS_FROM").ok().and_then(|s| s.trim().parse().ok()) {
+        return h;
+    }
+    history.map(|h| h.block_sigs_from).unwrap_or(0)
+}
+
+/// Chain id used for signature checks: the installed network history's, else `BOING_CHAIN_ID`.
+pub fn effective_chain_id(history: Option<&ExecutionHistory>) -> Option<u64> {
+    history.map(|h| h.chain_id).filter(|c| *c != 0).or_else(configured_chain_id)
 }
 
 /// Signature policy for a tx that would land in block `next_height`.
