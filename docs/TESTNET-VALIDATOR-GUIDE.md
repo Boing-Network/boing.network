@@ -9,13 +9,6 @@ Website version: <https://boing.network/testnet/operators/validator>.
 > proposals jails you (bond kept; unjail after a cooldown). No operator approval and no 10,000 BOING stake are
 > needed. See [Open validator registration](#open-validator-registration).
 
-> **Known issue (verified 2026-10-16): a fresh node cannot sync the public testnet from genesis yet.**
-> Following this guide on a clean machine, block 1 is rejected with `Invalid state root` (the
-> receipts root matches once `--faucet-enable` is set). The live nodes were upgraded in place, and their
-> early blocks predate the current state-root layout. A height-gated fix or a state snapshot is being worked on.
-> Until then a new node stays at height 0, so **don't register a validator yet**: an unsynced validator
-> would be jailed. Everything else in this guide (keys, bond, CLI commands, monitoring) has been checked.
-
 ## 1. Hardware and network
 
 | | Minimum | Recommended |
@@ -29,23 +22,26 @@ RPC port **8545** only needs to be public if you want to serve RPC to others.
 
 ## 2. Get the node
 
-**Build from source (required today).** The published release zips (up to `testnet-v0.1.13`) predate open
-validator mode: their `boing-node` rejects `BOING_VALIDATOR_SET=open` and their `boing` CLI has no `validator`
-command. Build `main` until the next release is cut:
+**Release binaries (recommended):** download `testnet-v0.1.14` (or newer) from
+<https://github.com/Boing-Network/boing.network/releases>. The zip contains `boing-node-<platform>` and
+`boing-<platform>`, so rename them after unzipping (there is no `--version` flag; use `./boing-node --help`):
+
+```bash
+curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.14/release-linux-x86_64.zip
+unzip release-linux-x86_64.zip && mv boing-node-linux-x86_64 boing-node && mv boing-linux-x86_64 boing && chmod +x boing-node boing
+./boing validator --help
+```
+
+Other platforms: `release-macos-aarch64.zip`, `release-windows-x86_64.zip`. Releases older than `testnet-v0.1.14`
+lack open validator mode and fresh-node sync; don't use them.
+
+**Build from source (alternative):**
 
 ```bash
 # Ubuntu / WSL: sudo apt install -y build-essential pkg-config libssl-dev clang git; install Rust via https://rustup.rs
 git clone https://github.com/Boing-Network/boing.network && cd boing.network
 cargo build --release -p boing-node -p boing-cli
 cp target/release/boing-node target/release/boing .
-./boing validator --help
-```
-
-**Release zip (once a release newer than v0.1.13 is out):** the zip contains `boing-node-<platform>` and
-`boing-<platform>`, so rename them after unzipping (there is no `--version` flag; use `./boing-node --help`):
-
-```bash
-unzip release-linux-x86_64.zip && mv boing-node-linux-x86_64 boing-node && mv boing-linux-x86_64 boing && chmod +x boing-node boing
 ```
 
 **Docker (build from source):**
@@ -94,9 +90,9 @@ Official bootnodes (also on <https://boing.network/bootnodes>):
 # These must match the public nodes or your node computes different roots:
 export BOING_CHAIN_ID=6913 BOING_VALIDATOR_SET=open BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 \
        BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
-# --faucet-enable seeds the testnet faucet account that genesis-era blocks spend from (and serves
-# boing_faucetRequest on your RPC; keep 8545 private if you don't want that).
-./boing-node --faucet-enable \
+# With BOING_CHAIN_ID=6913 the node applies the testnet network preset (genesis allocations, historical
+# fee rules, anchor validator), so it replays from genesis with identical roots. No --faucet-enable needed.
+./boing-node \
   --data-dir ./boing-data \
   --p2p-listen /ip4/0.0.0.0/tcp/4001 \
   --bootnodes /ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001 \
@@ -110,13 +106,14 @@ docker run -d --name boing-node --restart unless-stopped \
   -p 4001:4001 -p 127.0.0.1:8545:8545 \
   -v boing-data:/data \
   -e BOING_CHAIN_ID=6913 -e BOING_VALIDATOR_SET=open -e BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 \
-  -e BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640 -e BOING_FAUCET_ENABLE=1 \
+  -e BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640 \
   -e BOING_BOOTNODES=/ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001 \
   boing-node
 ```
 
 Check it is syncing: `boing_getSyncState` / `boing_health` on your node should report the same `head_height`
-as `https://testnet-rpc.boing.network/` within a few blocks.
+as `https://testnet-rpc.boing.network/` within a few blocks. A fresh node syncs the whole chain from genesis
+(about a minute for the first ~700 blocks). Don't set `--validators` / `BOING_VALIDATORS`; the preset supplies the anchors.
 
 ## 6. Register
 
@@ -142,7 +139,7 @@ BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
 BOING_VALIDATOR_KEY=<32-byte node key hex>
 
 set -a; . ./validator.env; set +a
-./boing-node --validator --faucet-enable --data-dir ./boing-data \
+./boing-node --validator --data-dir ./boing-data \
   --p2p-listen /ip4/0.0.0.0/tcp/4001 \
   --bootnodes /ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001 \
   --rpc-port 8545
@@ -155,7 +152,7 @@ extras. Keep the `[env]` consensus values above, add `BOING_VALIDATOR_SET=open`,
 `BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400` and `BOING_BOOTNODES=...`, and put the key in a secret:
 `fly secrets set BOING_VALIDATOR_KEY=...` (type it at the prompt or read it from a file; never commit it). Then run
 `fly volumes create boing_data --size 10` and `fly deploy --remote-only`. The image entrypoint maps
-`BOING_VALIDATOR=1` / `BOING_FAUCET_ENABLE=1` to the CLI flags.
+`BOING_VALIDATOR=1` to the CLI flag.
 
 **Unjail:** `boing validator status --node <id> --rpc-url https://testnet-rpc.boing.network` shows `jailed`
 and the release height. After the 500-block cooldown run `BOING_SECRET_HEX=... boing validator unjail --rpc-url ...`
