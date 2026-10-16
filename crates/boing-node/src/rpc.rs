@@ -2354,9 +2354,7 @@ async fn dispatch_jsonrpc_request(
                                 .unwrap_or(0);
                             (
                                 n.state.snapshot(),
-                                boing_execution::Vm::with_qa_registry(
-                                    n.mempool.qa_registry().clone(),
-                                ),
+                                n.admission_vm(),
                                 boing_execution::VmExecutionContext {
                                     block_height: h,
                                     block_timestamp: ts,
@@ -2545,7 +2543,7 @@ async fn dispatch_jsonrpc_request(
             };
             let sug = tx.suggested_parallel_access_list();
             let covers = tx.access_list_covers_parallel_suggestion();
-            let vm = boing_execution::Vm::with_qa_registry(n.mempool.qa_registry().clone());
+            let vm = n.admission_vm();
             let exec_ctx = boing_execution::VmExecutionContext {
                 block_height: tip_height,
                 block_timestamp: ts,

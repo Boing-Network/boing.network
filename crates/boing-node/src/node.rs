@@ -1059,7 +1059,7 @@ impl BoingNode {
             .get_block_by_height(height)
             .map(|b| b.header.timestamp)
             .unwrap_or(0);
-        let vm = Vm::with_qa_registry(self.mempool.qa_registry().clone());
+        let vm = self.admission_vm();
         let exec_ctx = boing_execution::VmExecutionContext {
             block_height: height.saturating_add(1),
             block_timestamp: ts,
@@ -1098,7 +1098,7 @@ impl BoingNode {
             block_height: self.chain.height().saturating_add(1),
             block_timestamp: 0,
         };
-        let vm = Vm::with_qa_registry(self.mempool.qa_registry().clone());
+        let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
             Ok(_) => Ok(()),
             Err(boing_execution::VmError::InvalidNonce { .. }) => Ok(()), // queued behind earlier txs
@@ -1127,7 +1127,7 @@ impl BoingNode {
             block_height: self.chain.height().saturating_add(1),
             block_timestamp: 0,
         };
-        let vm = Vm::with_qa_registry(self.mempool.qa_registry().clone());
+        let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
             Ok(_) => Ok(()),
             Err(boing_execution::VmError::InvalidNonce { .. }) => Ok(()), // queued behind earlier txs
@@ -1192,6 +1192,15 @@ impl BoingNode {
     /// Submit a signed transaction to the mempool.
     /// Update the process-wide tx signature policy for the next block height (v2 chain-id signatures
     /// are required from the activation height; before it either format is accepted).
+    /// VM for admission checks and simulation, with the same validator registration proof rule as
+    /// block execution (security review #14), so the mempool accepts exactly what blocks will.
+    pub fn admission_vm(&self) -> Vm {
+        let mut vm = Vm::with_qa_registry(self.mempool.qa_registry().clone());
+        let (chain_id, from) = self.executor.registration_proof_rule();
+        vm.set_registration_proof_rule(chain_id, from);
+        vm
+    }
+
     pub fn refresh_tx_sig_policy(&self) -> boing_primitives::TxSigPolicy {
         let p = crate::network_preset::tx_sig_policy(
             crate::network_preset::configured_chain_id(),

@@ -136,6 +136,10 @@ fn security_v3_gates_follow_the_activation_height() {
     assert_eq!(network_preset::block_sigs_from(Some(&hist)), h);
     assert_eq!(hist.registration_proof_v2_from, h);
     assert_eq!(network_preset::effective_chain_id(Some(&hist)), Some(6913));
+    // Admission/simulation use the same registration proof rule as block execution.
+    let node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    assert_eq!(node.executor.registration_proof_rule(), (Some(6913), h));
+    assert_eq!(node.admission_vm().registration_proof_rule(), (Some(6913), h));
     let blocks = load_blocks();
     assert!(blocks.last().unwrap().0.header.height < h, "fixture predates the activation");
     assert!(blocks.iter().all(|(b, _)| b.signatures.is_empty()));

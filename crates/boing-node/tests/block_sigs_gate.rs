@@ -73,6 +73,10 @@ fn block_signatures_follow_the_activation_height() {
         n
     };
     let mut leader = mk(vid, Some(v.clone()));
+    // #14: with a chain id and no network history the chain-bound registration proof applies from
+    // genesis, identically for block execution and for admission/simulation.
+    assert_eq!(leader.executor.registration_proof_rule(), (Some(6913), 0));
+    assert_eq!(leader.admission_vm().registration_proof_rule(), (Some(6913), 0));
     let mut follower = mk(AccountId([0x77; 32]), None);
     let to = AccountId([2; 32]);
     let v2 = |tx: &Transaction| boing_primitives::sign_transaction_v2(tx, &user, 6913);

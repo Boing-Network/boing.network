@@ -82,6 +82,10 @@ impl BlockExecutor {
         self.vm.set_registration_proof_rule(chain_id, v2_from);
     }
 
+    pub fn registration_proof_rule(&self) -> (Option<u64>, u64) {
+        self.vm.registration_proof_rule()
+    }
+
     pub fn execution_history(&self) -> Option<&crate::history::ExecutionHistory> {
         self.history.as_deref()
     }

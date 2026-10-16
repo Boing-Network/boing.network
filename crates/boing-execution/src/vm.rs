@@ -94,6 +94,11 @@ impl Vm {
         self.registration_v2_from = v2_from;
     }
 
+    /// `(chain id, v2-only-from height)` of the validator registration proof rule.
+    pub fn registration_proof_rule(&self) -> (Option<u64>, u64) {
+        (self.registration_chain_id, self.registration_v2_from)
+    }
+
     fn registration_proof_ok(&self, height: u64, owner: &AccountId, node_id: &AccountId, sig: &[u8]) -> bool {
         let v2 = self
             .registration_chain_id
