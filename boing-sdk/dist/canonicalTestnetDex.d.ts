@@ -25,4 +25,11 @@ export declare const CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX: string;
 export declare const CANONICAL_BOING_TESTNET_USDC_TOKEN_HEX: string;
 export declare const CANONICAL_BOING_TESTNET_BOING_TOKEN_HEX: string;
 export declare const CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX: string;
+/**
+ * Custody router v1 (`boing pool router-deploy`, block 97) for v8/v9 pools such as the USDC/BOING pool:
+ * pulls the input with `transfer_from` and chains 1..=4 `swap_to` hops (see `routeBoingSwap`).
+ * Stateless: the pool is passed per call. The ledger routers v2/v3 and multihop router above only drive
+ * ledger-only (v1..v7) pools and cannot route the v9 pool.
+ */
+export declare const CANONICAL_BOING_TESTNET_CUSTODY_ROUTER_HEX: string;
 //# sourceMappingURL=canonicalTestnetDex.d.ts.map

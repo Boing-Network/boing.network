@@ -60,3 +60,13 @@ export const CANONICAL_BOING_TESTNET_BOING_TOKEN_HEX = validateHex32(
 export const CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX = validateHex32(
   '0x2ad75c2e11b1e93761f4f8df39502deecbe7148324e5a80a951798142b2c5b61',
 );
+
+/**
+ * Custody router v1 (`boing pool router-deploy`, block 97) for v8/v9 pools such as the USDC/BOING pool:
+ * pulls the input with `transfer_from` and chains 1..=4 `swap_to` hops (see `routeBoingSwap`).
+ * Stateless: the pool is passed per call. The ledger routers v2/v3 and multihop router above only drive
+ * ledger-only (v1..v7) pools and cannot route the v9 pool.
+ */
+export const CANONICAL_BOING_TESTNET_CUSTODY_ROUTER_HEX = validateHex32(
+  '0x806b2462b28f2f5772bbf5ae2628ad3a333bd2c5fa341144e0400ef5c2f1e4c6',
+);

@@ -11,5 +11,6 @@
   "native_lp_share_token": "0x2f460046eb700ff8c7eebe6f4c409465a9111f32210edcc478a2a0de9d0ec2db",
   "usdc_token_v2": "0x6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93",
   "boing_token_v2": "0x6fce9d3e3f13df9fc17e3fd947148a4e6ce6966538b7dd9bf2a891d3b9699c6b",
-  "usdc_boing_pool_v9": "0x2ad75c2e11b1e93761f4f8df39502deecbe7148324e5a80a951798142b2c5b61"
+  "usdc_boing_pool_v9": "0x2ad75c2e11b1e93761f4f8df39502deecbe7148324e5a80a951798142b2c5b61",
+  "custody_router_v1": "0x806b2462b28f2f5772bbf5ae2628ad3a333bd2c5fa341144e0400ef5c2f1e4c6"
 }
