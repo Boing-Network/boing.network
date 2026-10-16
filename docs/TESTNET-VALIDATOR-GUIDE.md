@@ -22,18 +22,21 @@ RPC port **8545** only needs to be public if you want to serve RPC to others.
 
 ## 2. Get the node
 
-**Release binaries (recommended):** download `testnet-v0.1.14` (or newer) from
+**Release binaries (recommended):** download `testnet-v0.1.15` (or newer) from
 <https://github.com/Boing-Network/boing.network/releases>. The zip contains `boing-node-<platform>` and
 `boing-<platform>`, so rename them after unzipping (there is no `--version` flag; use `./boing-node --help`):
 
 ```bash
-curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.14/release-linux-x86_64.zip
+curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.15/release-linux-x86_64.zip
 unzip release-linux-x86_64.zip && mv boing-node-linux-x86_64 boing-node && mv boing-linux-x86_64 boing && chmod +x boing-node boing
 ./boing validator --help
 ```
 
-Other platforms: `release-macos-aarch64.zip`, `release-windows-x86_64.zip`. Releases older than `testnet-v0.1.14`
-lack open validator mode and fresh-node sync; don't use them.
+Other platforms: `release-macos-aarch64.zip`, `release-windows-x86_64.zip`. **Use `testnet-v0.1.15` or newer.**
+Older releases cannot follow the chain: from height 900 transactions must be signed with the chain id
+(v2) and failed transactions pay a fee; from height 920 blocks carry a signature per transaction that
+every node verifies, and the validator registration proof is bound to the chain id (security fixes
+#2, #3, #14, #16). Upgrade by replacing the binary and restarting; your data directory is kept.
 
 **Build from source (alternative):**
 
@@ -205,7 +208,9 @@ Anyone can join without permission:
 
 - **Register:** `boing validator register --node-key-hex <node seed>` (or `BOING_VALIDATOR_KEY`). The owner
   (`--secret-hex` / `BOING_SECRET_HEX`, defaulting to the node key) pays and locks a **100 BOING bond**.
-  The node key signs a proof of possession binding it to the owner, so nobody can register a key they don't hold.
+  The node key signs a proof of possession binding it to the owner and to this chain (chain id 6913; required from
+  height 920), so nobody can register a key they don't hold or replay a proof from another network. Use
+  `testnet-v0.1.15` or newer (older CLIs sign the old proof, which is rejected).
   One validator per owner.
 - **Join:** you enter the set at the next **epoch boundary (every 100 blocks)**. The set is capped
   (default 20 open validators), ordered by registration height then id, identical on every node.
