@@ -97,4 +97,5 @@ export * from './boingLpVaultV2.js';
 export * from './boingOpenValidator.js';
 export * from './boingNames.js';
 export * from './interfaceRegistry.js';
+export * from './interfaceBlobStore.js';
 export { DEFAULT_INTERFACE_REGISTRY_BYTECODE_HEX } from './defaultInterfaceRegistryBytecodeHex.js';

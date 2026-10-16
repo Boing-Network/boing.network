@@ -90,6 +90,13 @@ enum IfaceCommands {
     },
     /// Print interface registry bytecode hex
     Bytecode,
+    /// Deploy the interface blob store (built-in hosting, CREATE2 salt BOING_IFACE_BLOB_STORE_V1)
+    DeployBlobStore {
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Print interface blob store bytecode hex
+    BlobStoreBytecode,
     /// Validate an interface JSON file and print its BLAKE3 hash
     Hash { file: String },
     /// Show the published interface for a contract
@@ -866,6 +873,11 @@ async fn main() -> anyhow::Result<()> {
                 IfaceCommands::Deploy { signer } => iface::deploy(rpc, sg(signer)).await,
                 IfaceCommands::Bytecode => {
                     iface::print_bytecode();
+                    Ok(())
+                }
+                IfaceCommands::DeployBlobStore { signer } => iface::deploy_blob_store(rpc, sg(signer)).await,
+                IfaceCommands::BlobStoreBytecode => {
+                    iface::print_blob_store_bytecode();
                     Ok(())
                 }
                 IfaceCommands::Hash { file } => iface::hash_file(&file),

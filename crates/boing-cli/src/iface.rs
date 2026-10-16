@@ -12,6 +12,7 @@ use crate::token::{
     account_of, hex_account, nonce_for, parse_account, resolve_signing_key, rpc, submit,
 };
 use boing_execution::{
+    interface_blob_store_bytecode, INTERFACE_BLOB_STORE_CREATE2_SALT_V1,
     encode_iface_claim_asset_calldata, encode_iface_set_interface_calldata, interface_json_hash,
     interface_registry_bytecode, interface_registry_claimer_storage_key,
     interface_registry_field_storage_key, InterfaceRecord, IFACE_FIELD_HASH, IFACE_FIELD_PUBLISHER,
@@ -186,6 +187,54 @@ pub async fn deploy(rpc_url: &str, s: Signer) -> anyhow::Result<()> {
     }
     let n = nonce_for(rpc_url, &key, s.nonce).await?;
     submit(rpc_url, &build_registry_deploy_tx(&key, n), s.dry_run).await
+}
+
+/// Built-in hosting: CREATE2 address of the interface blob store for `deployer`.
+pub fn blob_store_address_for(deployer: &AccountId) -> AccountId {
+    create2_contract_address(
+        deployer,
+        &INTERFACE_BLOB_STORE_CREATE2_SALT_V1,
+        &interface_blob_store_bytecode(),
+    )
+}
+
+pub fn build_blob_store_deploy_tx(key: &SigningKey, nonce: u64) -> SignedTransaction {
+    let mut tx = Transaction {
+        nonce,
+        sender: account_of(key),
+        payload: TransactionPayload::ContractDeployWithPurpose {
+            bytecode: interface_blob_store_bytecode(),
+            purpose_category: "dapp".to_string(),
+            description_hash: None,
+            create2_salt: Some(INTERFACE_BLOB_STORE_CREATE2_SALT_V1),
+        },
+        access_list: AccessList::default(),
+    };
+    tx.access_list = tx.suggested_parallel_access_list();
+    SignedTransaction::new(tx, key)
+}
+
+/// Deploy the interface blob store (built-in hosting for interface JSON; CREATE2, salt BOING_IFACE_BLOB_STORE_V1).
+pub async fn deploy_blob_store(rpc_url: &str, s: Signer) -> anyhow::Result<()> {
+    let key = resolve_signing_key(s.secret.clone())?;
+    let addr = blob_store_address_for(&account_of(&key));
+    println!("Interface blob store (CREATE2, salt BOING_IFACE_BLOB_STORE_V1)");
+    println!("  deployer {}", hex_account(&account_of(&key)));
+    println!("  store    {}", hex_account(&addr));
+    if !s.dry_run {
+        if let Ok(v) = rpc(rpc_url, "boing_getContractCode", json!([hex_account(&addr)])).await {
+            if !v.is_null() {
+                println!("  already deployed; nothing to do");
+                return Ok(());
+            }
+        }
+    }
+    let n = nonce_for(rpc_url, &key, s.nonce).await?;
+    submit(rpc_url, &build_blob_store_deploy_tx(&key, n), s.dry_run).await
+}
+
+pub fn print_blob_store_bytecode() {
+    println!("0x{}", hex::encode(interface_blob_store_bytecode()));
 }
 
 pub fn print_bytecode() {

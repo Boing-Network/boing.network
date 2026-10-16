@@ -16,6 +16,7 @@ pub use native_lp_vault_v2::*;
 mod native_dex_factory;
 mod linked_nft_token_registry;
 mod builder_attestation_registry;
+mod interface_blob_store;
 mod interface_registry;
 mod native_dex_ledger_router;
 mod native_dex_multihop_swap_router;
@@ -97,6 +98,14 @@ pub use linked_nft_token_registry::{
     LINKED_NFT_TOKEN_TOPIC_UNLINK, SELECTOR_CLAIM_ASSET, SELECTOR_GET_ASSET_CLAIMER,
     SELECTOR_GET_LINK_AT, SELECTOR_LINKS_COUNT, SELECTOR_REGISTER_LINK,
     SELECTOR_TRANSFER_ASSET_CLAIMER, SELECTOR_UNLINK_AT,
+};
+pub use interface_blob_store::{
+    decode_interface_blob_words, encode_iface_blob_put_calldatas, interface_blob_id,
+    interface_blob_storage_key, interface_blob_store_bytecode, interface_blob_uri,
+    interface_blob_words, parse_interface_blob_uri, IFACE_BLOB_ENCODING_DEFLATE_RAW,
+    IFACE_BLOB_ENCODING_RAW, IFACE_BLOB_MAGIC, IFACE_BLOB_MAX_STORED_BYTES,
+    IFACE_BLOB_MAX_WORDS_PER_PUT, IFACE_BLOB_TAG, IFACE_BLOB_URI_PREFIX,
+    INTERFACE_BLOB_STORE_CREATE2_SALT_V1, SELECTOR_IFACE_BLOB_PUT,
 };
 pub use interface_registry::{
     decode_iface_get_interface_return, encode_iface_claim_asset_calldata,
