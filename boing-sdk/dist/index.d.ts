@@ -99,4 +99,6 @@ export type { BoingPoolVersion, BoingPoolState, BoingPoolDirection, BoingPoolSig
 export { NATIVE_CP_POOL_BYTECODE_HEX } from './defaultNativeCpPoolBytecodeHex.js';
 export { BOING_WEB_WALLET_DEFAULT_URL, BoingWebWalletError, createBoingWebRequest, validateBoingWebResponse, requestViaBoingWebPopup, startBoingWebRedirect, consumeBoingWebRedirectResponse, createBoingWebWalletProvider, } from './boingWebWallet.js';
 export type { BoingWebRequest, BoingWebResponse, BoingWebMethod, BoingWebWalletProvider, BoingWebWalletProviderOptions } from './boingWebWallet.js';
+export { isAlreadyInMempoolError, submitSignedTransactionIdempotent } from './submitIdempotent.js';
+export * from './boingCustodySwap.js';
 //# sourceMappingURL=index.d.ts.map

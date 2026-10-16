@@ -5,6 +5,7 @@ import { calldataAccountIdWord, calldataSelectorLastByte, calldataU128BeWord, co
 import { buildBoingTokenApproveTransaction } from './boingToken.js';
 import { BOING_POOL_PURPOSE, boingPoolEffectiveFeeBps, boingPoolMinOutWithSlippage, buildBoingPoolCallTransaction, getBoingPoolState, quoteBoingPoolAmountOut, } from './boingPool.js';
 import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput } from './transactionBuilder.js';
+import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 export const BOING_CUSTODY_ROUTER_SELECTOR_SWAP = 0xf1;
 export const BOING_CUSTODY_ROUTER_MAX_HOPS = 4;
 export const BOING_CUSTODY_ROUTER_BYTECODE_HEX = NATIVE_DEX_CUSTODY_ROUTER_BYTECODE_HEX;
@@ -83,7 +84,7 @@ async function sign(client, tx, key, dry) {
     if (!dry) {
         if (!client)
             throw new Error('a BoingClient is required to submit');
-        await client.submitTransaction(signedHex);
+        await submitSignedTransactionIdempotent(client, signedHex);
     }
     return { txId, signedHex, submitted: !dry };
 }

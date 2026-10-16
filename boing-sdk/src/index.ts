@@ -999,3 +999,4 @@ export {
 } from './boingWebWallet.js';
 export type { BoingWebRequest, BoingWebResponse, BoingWebMethod, BoingWebWalletProvider, BoingWebWalletProviderOptions } from './boingWebWallet.js';
 export { isAlreadyInMempoolError, submitSignedTransactionIdempotent } from './submitIdempotent.js';
+export * from './boingCustodySwap.js';

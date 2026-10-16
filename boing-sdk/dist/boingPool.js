@@ -17,6 +17,7 @@ import { buildBoingTokenApproveTransaction } from './boingToken.js';
 import { NATIVE_CP_SWAP_FEE_BPS, constantProductAmountOutFeeOnInputWithFeeBps, constantProductAmountOutWithFeeBps, encodeNativeAmmAddLiquidityCalldata, encodeNativeAmmRemoveLiquidityCalldata, encodeNativeAmmSetFeeAdminCalldata, encodeNativeAmmSetSwapFeeBpsCalldata, encodeNativeAmmSetTokensCalldata, encodeNativeAmmSwapCalldata, encodeNativeAmmSwapToCalldata, } from './nativeAmm.js';
 import { NATIVE_CONSTANT_PRODUCT_RESERVE_A_KEY_HEX, NATIVE_CONSTANT_PRODUCT_RESERVE_B_KEY_HEX, NATIVE_CONSTANT_PRODUCT_SWAP_FEE_BPS_KEY_HEX, NATIVE_CONSTANT_PRODUCT_TOKEN_A_KEY_HEX, NATIVE_CONSTANT_PRODUCT_TOKEN_B_KEY_HEX, NATIVE_CONSTANT_PRODUCT_TOTAL_LP_KEY_HEX, decodeBoingStorageWordU128, nativeAmmLpBalanceStorageKeyHex, } from './nativeAmmPool.js';
 import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput, } from './transactionBuilder.js';
+import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 /** QA purpose category for pool deploys (CLI `POOL_PURPOSE`). */
 export const BOING_POOL_PURPOSE = 'dapp';
 export const BOING_POOL_DEFAULT_VERSION = 8;
@@ -169,7 +170,7 @@ async function send(client, tx, secretKey32, dryRun) {
     if (!dryRun) {
         if (!client)
             throw new Error('a BoingClient is required to submit');
-        await client.submitTransaction(signedHex);
+        await submitSignedTransactionIdempotent(client, signedHex);
     }
     return { txId, signedHex, submitted: !dryRun };
 }

@@ -15,6 +15,7 @@ import { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX } from './defaultRe
 import { bytesToHex, hexToAccountId, hexToBytes, validateHex32 } from './hex.js';
 import { encodeReferenceApproveCalldata, encodeReferenceMintFirstCalldata, encodeReferenceTransferCalldata, } from './referenceToken.js';
 import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput, } from './transactionBuilder.js';
+import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 /** QA purpose category for fungible deploys (same as CLI `TOKEN_PURPOSE`). */
 export const BOING_TOKEN_PURPOSE = 'token';
 /** `TransactionPayload::MAX_ASSET_NAME_LEN` (UTF-8 bytes). */
@@ -144,7 +145,7 @@ async function signAndMaybeSubmit(client, tx, secretKey32, dryRun) {
     if (!dryRun) {
         if (!client)
             throw new Error('a BoingClient is required to submit');
-        await client.submitTransaction(signedHex);
+        await submitSignedTransactionIdempotent(client, signedHex);
     }
     return { txId, signedHex, submitted: !dryRun };
 }
