@@ -446,6 +446,84 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_verifyAccountProof",
 ];
 
+/// `serde_json::to_value`, except that integers above `u64::MAX` (u128 amounts) become decimal
+/// strings instead of failing. Previously a block holding such an amount (e.g. a failed transfer of
+/// 1e30) was returned without `header` / `transactions`.
+pub(crate) fn json_value_lossless<T: serde::Serialize>(v: &T) -> serde_json::Value {
+    if let Ok(val) = serde_json::to_value(v) {
+        return val;
+    }
+    let Ok(text) = serde_json::to_string(v) else {
+        return serde_json::Value::Null;
+    };
+    serde_json::from_str(&quote_big_json_ints(&text)).unwrap_or(serde_json::Value::Null)
+}
+
+/// Wraps bare JSON integers that do not fit in u64 in quotes (outside strings only).
+fn quote_big_json_ints(text: &str) -> String {
+    let b = text.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(text.len() + 16);
+    let (mut i, mut in_str) = (0usize, false);
+    while i < b.len() {
+        let c = b[i];
+        if in_str {
+            out.push(c);
+            if c == b'\\' && i + 1 < b.len() {
+                out.push(b[i + 1]);
+                i += 2;
+                continue;
+            }
+            if c == b'"' {
+                in_str = false;
+            }
+            i += 1;
+            continue;
+        }
+        if c == b'"' {
+            in_str = true;
+            out.push(b'"');
+            i += 1;
+            continue;
+        }
+        if c.is_ascii_digit() {
+            let start = i;
+            while i < b.len() && b[i].is_ascii_digit() {
+                i += 1;
+            }
+            let tok = &text[start..i];
+            let is_int = i >= b.len() || !matches!(b[i], b'.' | b'e' | b'E');
+            if is_int && tok.parse::<u64>().is_err() {
+                out.push(b'"');
+                out.extend_from_slice(tok.as_bytes());
+                out.push(b'"');
+            } else {
+                out.extend_from_slice(tok.as_bytes());
+            }
+            continue;
+        }
+        out.push(c);
+        i += 1;
+    }
+    String::from_utf8(out).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod json_lossless_tests {
+    #[test]
+    fn big_u128_becomes_string_small_stays_number() {
+        #[derive(serde::Serialize)]
+        struct T {
+            a: u128,
+            b: u64,
+            s: &'static str,
+        }
+        let v = super::json_value_lossless(&T { a: 10u128.pow(30), b: 7, s: "é x\\\"99999999999999999999999" });
+        assert_eq!(v["a"], serde_json::json!("1000000000000000000000000000000"));
+        assert_eq!(v["b"], serde_json::json!(7));
+        assert_eq!(v["s"], serde_json::json!("é x\\\"99999999999999999999999"));
+    }
+}
+
 /// Advertised signing rules (security review #2/#3), so wallets know to sign with the chain id.
 fn tx_signing_info(n: &crate::node::BoingNode) -> serde_json::Value {
     let history = n.executor.execution_history();
@@ -2533,7 +2611,7 @@ async fn dispatch_jsonrpc_request(
                 Some(block) => {
                     let hash = block.hash();
                     let block_json =
-                        serde_json::to_value(&block).unwrap_or(serde_json::Value::Null);
+                        json_value_lossless(&block);
                     let mut obj = block_json.as_object().cloned().unwrap_or_default();
                     obj.insert("hash".to_string(), serde_json::json!(hex::encode(hash.0)));
                     if include_receipts {
@@ -2749,7 +2827,7 @@ async fn dispatch_jsonrpc_request(
             match n.chain.get_block_by_hash(&hash) {
                 Some(block) => {
                     let block_json =
-                        serde_json::to_value(&block).unwrap_or(serde_json::Value::Null);
+                        json_value_lossless(&block);
                     let mut obj = block_json.as_object().cloned().unwrap_or_default();
                     obj.insert(
                         "hash".to_string(),

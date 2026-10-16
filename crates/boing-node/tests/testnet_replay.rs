@@ -4,7 +4,7 @@
 //! added as a height-gated era in `network_preset` instead.
 //!
 //! Fixture: `tests/fixtures/testnet_blocks.jsonl` (one `boing_getBlockByHeight(h, true)` result per
-//! line, heights 0..=671). Override with `BOING_REPLAY_BLOCKS=<path>` to check a fresh dump of the
+//! line, heights 0..=899: the whole history before the security #2/#3 activation at 900). Override with `BOING_REPLAY_BLOCKS=<path>` to check a fresh dump of the
 //! live chain.
 
 use std::io::{BufRead, BufReader};
