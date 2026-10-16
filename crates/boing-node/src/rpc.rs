@@ -3118,7 +3118,13 @@ async fn dispatch_jsonrpc_request(
                 },
                 access_list: AccessList::new(vec![faucet_id, to_id], vec![faucet_id, to_id]),
             };
-            let signed = SignedTransaction::new(tx, faucet_signer.as_ref());
+            // The faucet signs v2 for the node's chain: after the v2 activation a legacy signature is
+            // rejected by the node's own admission check (faucet was failing on testnet since 900).
+            let signed = crate::network_preset::sign_for_chain(
+                tx,
+                faucet_signer.as_ref(),
+                crate::network_preset::effective_chain_id(n.executor.execution_history()),
+            );
             let gossip_copy = signed.clone();
             drop(n);
             let n = node.write().await;

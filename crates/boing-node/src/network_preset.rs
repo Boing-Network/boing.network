@@ -101,6 +101,19 @@ pub fn effective_chain_id(history: Option<&ExecutionHistory>) -> Option<u64> {
     history.map(|h| h.chain_id).filter(|c| *c != 0).or_else(configured_chain_id)
 }
 
+/// Sign a node-originated tx (faucet): v2 for `chain_id` when known (accepted before and after the v2
+/// activation), else the legacy format (local dev without a chain id).
+pub fn sign_for_chain(
+    tx: boing_primitives::Transaction,
+    key: &ed25519_dalek::SigningKey,
+    chain_id: Option<u64>,
+) -> boing_primitives::SignedTransaction {
+    match chain_id {
+        Some(c) => boing_primitives::SignedTransaction::new_for_chain(tx, key, c),
+        None => boing_primitives::SignedTransaction::new_legacy(tx, key),
+    }
+}
+
 /// Signature policy for a tx that would land in block `next_height`.
 pub fn tx_sig_policy(
     chain_id: Option<u64>,
@@ -162,4 +175,26 @@ pub fn preset_from_env() -> Option<NetworkPreset> {
 pub fn apply_preset(node: &mut BoingNode, preset: &NetworkPreset) -> bool {
     node.executor.set_execution_history(Some(preset.history.clone()));
     node.apply_genesis_spec(&preset.genesis)
+}
+
+#[cfg(test)]
+mod sign_for_chain_tests {
+    use super::*;
+
+    /// Node-signed txs (faucet) must pass the node's own admission policy after the v2 activation.
+    #[test]
+    fn faucet_signature_passes_policy_after_activation() {
+        let key = ed25519_dalek::SigningKey::from_bytes(&[3u8; 32]);
+        let me = AccountId(key.verifying_key().to_bytes());
+        let tx = boing_primitives::Transaction {
+            nonce: 0,
+            sender: me,
+            payload: boing_primitives::TransactionPayload::Transfer { to: AccountId([4; 32]), amount: 1 },
+            access_list: boing_primitives::AccessList::default(),
+        };
+        let required = boing_primitives::TxSigPolicy { chain_id: Some(6913), require_v2: true };
+        assert!(sign_for_chain(tx.clone(), &key, Some(6913)).verify_with(required).is_ok());
+        assert!(sign_for_chain(tx.clone(), &key, None).verify_with(required).is_err());
+        assert!(sign_for_chain(tx, &key, None).verify_with(boing_primitives::TxSigPolicy::default()).is_ok());
+    }
 }
