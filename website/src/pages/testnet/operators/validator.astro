@@ -152,8 +152,8 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
       <p>Stopping? Keep your node online until the boundary after your unbond has removed you.</p>
     </section>
     <section class="section" id="open-registration">
-      <h2>Open validator registration (coming soon)</h2>
-      <p><strong>Not active yet.</strong> The node supports permissionless registration; it switches on at an announced activation height. Until then registration transactions are rejected. Once active:</p>
+      <h2>Open validator registration</h2>
+      <p><strong>Live on testnet since block 400.</strong> Run your node with <code>BOING_VALIDATOR_SET=open</code> and <code>BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400</code> (the same values as the public nodes), then register from the CLI or the boing.express <strong>Validator</strong> tab:</p>
       <ul>
         <li><strong>Register:</strong> <code>boing validator register --node-key-hex &lt;node seed&gt;</code> locks a <strong>100 BOING</strong> bond. Your node key signs a proof that binds it to your account. One validator per account.</li>
         <li><strong>Join:</strong> at the next epoch boundary (every 100 blocks), up to a capped set size, in deterministic order.</li>

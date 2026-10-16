@@ -169,12 +169,13 @@ The node already implements stake-based selection; the public testnet will turn 
 
 Planning to stop validating? Keep the node online until the boundary after your unbond has removed you.
 
-## Open validator registration (coming soon)
+## Open validator registration
 
-> **Status: not active yet.** The node supports it, but the testnet keeps its current set until an
-> activation height is announced. Registration transactions are rejected before then.
+> **Status: live on testnet since block 400.** The public testnet nodes run with `BOING_VALIDATOR_SET=open`
+> and `BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400`; your node needs the **same** values (and the default
+> knobs) or it will disagree on the state root. You can also register from the boing.express **Validator** tab.
 
-Once activated (`BOING_VALIDATOR_SET=open` on all nodes), anyone can join without permission:
+Anyone can join without permission:
 
 - **Register:** `boing validator register --node-key-hex <node seed>` (or `BOING_VALIDATOR_KEY`). The owner
   (`--secret-hex` / `BOING_SECRET_HEX`, defaulting to the node key) pays and locks a **100 BOING bond**.
