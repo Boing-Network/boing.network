@@ -184,9 +184,20 @@ async fn main() -> anyhow::Result<()> {
         args.open_validator_activation_height,
     )
     .map_err(|e| anyhow::anyhow!("open validator-set config: {e}"))?;
+    // Known network (e.g. public testnet): default the validator list to its bootstrap anchors, so a
+    // node started with only its own key still follows the real chain.
+    let preset_validators = boing_node::network_preset::preset_from_env()
+        .filter(|_| args.validators.is_none() && std::env::var("BOING_VALIDATORS").is_err())
+        .map(|p| {
+            p.anchors
+                .iter()
+                .map(|a| hex::encode(a.0))
+                .collect::<Vec<_>>()
+                .join(",")
+        });
     let (validators, local_validator, validator_key) =
         validator_config::resolve_validator_config_with(
-            args.validators.as_deref(),
+            args.validators.as_deref().or(preset_validators.as_deref()),
             args.validator_key.as_deref(),
             open_set.is_some(),
         )
@@ -250,6 +261,15 @@ async fn main() -> anyhow::Result<()> {
                 validator_key.clone(),
             )
             .map_err(|e| anyhow::anyhow!("P2P init: {}", e))?;
+            if let Some(preset) = boing_node::network_preset::preset_from_env() {
+                let rewrote = boing_node::network_preset::apply_preset(&mut n, &preset);
+                tracing::info!(
+                    "Network preset: chain {} (historical execution eras until height {}; genesis {})",
+                    preset.chain_id,
+                    preset.history.current_from,
+                    if rewrote { "set from preset" } else { "unchanged" }
+                );
+            }
             if let Some(cfg) = &stake_set {
                 n.stake_validator_set = Some(node::StakeValidatorSetConfig {
                     top_n: cfg.top_n,
@@ -305,6 +325,7 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
 
+            let p2p_fetch = p2p.clone();
             tokio::spawn(async move {
                 while let Some(ev) = p2p_rx.recv().await {
                     match ev {
@@ -324,14 +345,31 @@ async fn main() -> anyhow::Result<()> {
                             }
                         }
                         boing_p2p::P2pEvent::BlockFetched(block) => {
-                            let mut n = node_clone.write().await;
-                            if let Err(e) = n.import_network_block_catchup(&block) {
-                                logging::log_p2p_event_warn("block_catchup", &e);
-                            } else {
-                                tracing::info!(
-                                    "P2P: catch-up imported block height={}",
-                                    block.header.height
-                                );
+                            let imported = {
+                                let mut n = node_clone.write().await;
+                                match n.import_network_block_catchup(&block) {
+                                    Err(e) => {
+                                        logging::log_p2p_event_warn("block_catchup", &e);
+                                        false
+                                    }
+                                    Ok(()) => {
+                                        tracing::info!(
+                                            "P2P: catch-up imported block height={}",
+                                            block.header.height
+                                        );
+                                        true
+                                    }
+                                }
+                            };
+                            // Keep catching up without waiting for the next sync tick.
+                            if imported {
+                                let peers = p2p_fetch.connected_peers().await;
+                                if let Some(peer) = peers.choose(&mut rand::rngs::OsRng) {
+                                    let next = block.header.height.saturating_add(1);
+                                    if let Err(e) = p2p_fetch.request_block(*peer, BlockRequest::ByHeight(next)) {
+                                        logging::log_p2p_event_warn("sync_block_request", &e);
+                                    }
+                                }
                             }
                         }
                         boing_p2p::P2pEvent::VoteReceived(vote) => {
@@ -398,6 +436,15 @@ async fn main() -> anyhow::Result<()> {
                 validator_key,
             )
             .expect("node init");
+            if let Some(preset) = boing_node::network_preset::preset_from_env() {
+                let rewrote = boing_node::network_preset::apply_preset(&mut n, &preset);
+                tracing::info!(
+                    "Network preset: chain {} (historical execution eras until height {}; genesis {})",
+                    preset.chain_id,
+                    preset.history.current_from,
+                    if rewrote { "set from preset" } else { "unchanged" }
+                );
+            }
             if let Some(cfg) = &stake_set {
                 n.stake_validator_set = Some(node::StakeValidatorSetConfig {
                     top_n: cfg.top_n,

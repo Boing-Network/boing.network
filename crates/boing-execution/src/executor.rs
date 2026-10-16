@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use boing_primitives::{AccountId, ExecutionReceipt, Transaction, TransactionPayload};
 use boing_state::{StateCheckpoint, StateStore};
 use boing_tokenomics::{
-    charge_and_distribute_fee_with_policy, network_fee_amount, NetworkFeePolicy,
+    network_fee_amount, NetworkFeePolicy,
 };
 
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
@@ -22,6 +22,7 @@ pub struct BlockExecutor {
     vm: Vm,
     scheduler: TransactionScheduler,
     fee_policy: NetworkFeePolicy,
+    history: Option<std::sync::Arc<crate::history::ExecutionHistory>>,
 }
 
 impl BlockExecutor {
@@ -30,6 +31,7 @@ impl BlockExecutor {
             vm: Vm::new(),
             scheduler: TransactionScheduler::new(),
             fee_policy: NetworkFeePolicy::treasury_default(),
+            history: None,
         }
     }
 
@@ -39,6 +41,7 @@ impl BlockExecutor {
             vm: Vm::with_qa_registry(registry),
             scheduler: TransactionScheduler::new(),
             fee_policy: NetworkFeePolicy::treasury_default(),
+            history: None,
         }
     }
 
@@ -51,6 +54,7 @@ impl BlockExecutor {
             vm: Vm::with_qa_policies(registry, pool_config),
             scheduler: TransactionScheduler::new(),
             fee_policy,
+            history: None,
         }
     }
 
@@ -60,6 +64,24 @@ impl BlockExecutor {
 
     pub fn set_fee_policy(&mut self, policy: NetworkFeePolicy) {
         self.fee_policy = policy;
+    }
+
+    /// Install historical (height-gated) execution rules so already-committed blocks of a live
+    /// network replay byte-identically. Heights at/after the last era use the current rules.
+    pub fn set_execution_history(&mut self, history: Option<crate::history::ExecutionHistory>) {
+        self.history = history.map(std::sync::Arc::new);
+    }
+
+    pub fn execution_history(&self) -> Option<&crate::history::ExecutionHistory> {
+        self.history.as_deref()
+    }
+
+    /// Fee policy + remainder rule in force at `height`.
+    pub fn fee_rule_at(&self, height: u64) -> (NetworkFeePolicy, boing_tokenomics::FeeRemainder) {
+        if let Some(era) = self.history.as_ref().and_then(|h| h.fee_era_at(height)) {
+            return (era.policy.clone(), era.remainder);
+        }
+        (self.fee_policy.clone(), boing_tokenomics::FeeRemainder::Treasury)
     }
 
     pub fn vm(&self) -> &Vm {
@@ -84,6 +106,7 @@ impl BlockExecutor {
             block_height,
             block_timestamp,
         };
+        let (fee_policy, fee_remainder) = self.fee_rule_at(block_height);
         let batches = self.scheduler.schedule(txs);
         let mut total_gas = 0u64;
         let mut receipts: Vec<Option<ExecutionReceipt>> = vec![None; txs.len()];
@@ -142,13 +165,14 @@ impl BlockExecutor {
                 }
                 for (idx, view, gas) in batch_results {
                     view.merge_into(state);
-                    let fee = network_fee_amount(gas, &txs[idx].payload, &self.fee_policy);
-                    charge_and_distribute_fee_with_policy(
+                    let fee = network_fee_amount(gas, &txs[idx].payload, &fee_policy);
+                    boing_tokenomics::charge_and_distribute_fee_with_remainder(
                         state,
                         &txs[idx].sender,
                         fee,
                         &fee_recipient,
-                        &self.fee_policy,
+                        &fee_policy,
+                        fee_remainder,
                     )
                     .map_err(ExecutionError::Fee)?;
                     receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
@@ -171,13 +195,14 @@ impl BlockExecutor {
                     let tx_ckpt = state.checkpoint();
                     match self.vm.execute_with_context(tx, state, exec_ctx) {
                         Ok(out) => {
-                            let fee = network_fee_amount(out.gas_used, &tx.payload, &self.fee_policy);
-                            match charge_and_distribute_fee_with_policy(
+                            let fee = network_fee_amount(out.gas_used, &tx.payload, &fee_policy);
+                            match boing_tokenomics::charge_and_distribute_fee_with_remainder(
                                 state,
                                 &tx.sender,
                                 fee,
                                 &fee_recipient,
-                                &self.fee_policy,
+                                &fee_policy,
+                                fee_remainder,
                             ) {
                                 Ok(()) => {
                                     total_gas = total_gas.saturating_add(out.gas_used);

@@ -189,12 +189,35 @@ pub fn split_fee(fee: u128) -> (u128, u128, u128) {
 
 /// Split `fee` using an explicit [`NetworkFeePolicy`]. Remainder goes to treasury.
 pub fn split_fee_with_policy(fee: u128, policy: &NetworkFeePolicy) -> (u128, u128, u128) {
+    split_fee_with_remainder(fee, policy, FeeRemainder::Treasury)
+}
+
+/// Who receives the integer-division remainder of a fee split.
+///
+/// Current rule: [`FeeRemainder::Treasury`]. [`FeeRemainder::Validators`] (remainder to the block
+/// proposer) is the historical rule kept only to replay early public-testnet blocks; see
+/// `boing_execution::ExecutionHistory`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum FeeRemainder {
+    Treasury,
+    Validators,
+}
+
+/// Split `fee` per `policy`, sending the rounding remainder to `remainder`.
+pub fn split_fee_with_remainder(
+    fee: u128,
+    policy: &NetworkFeePolicy,
+    remainder: FeeRemainder,
+) -> (u128, u128, u128) {
     let validators = fee.saturating_mul(policy.fee_validators_bps as u128) / 10_000;
     let treasury = fee.saturating_mul(policy.fee_treasury_bps as u128) / 10_000;
     let burn = fee.saturating_mul(policy.fee_burn_bps as u128) / 10_000;
     let allocated = validators.saturating_add(treasury).saturating_add(burn);
-    let treasury = treasury.saturating_add(fee.saturating_sub(allocated));
-    (validators, treasury, burn)
+    let rest = fee.saturating_sub(allocated);
+    match remainder {
+        FeeRemainder::Treasury => (validators, treasury.saturating_add(rest), burn),
+        FeeRemainder::Validators => (validators.saturating_add(rest), treasury, burn),
+    }
 }
 
 /// Total native fee for a successful included tx: gas fee + extra fixed + optional transfer BPS.
@@ -278,6 +301,25 @@ pub fn charge_and_distribute_fee_with_policy(
     fee_recipient: &AccountId,
     policy: &NetworkFeePolicy,
 ) -> Result<(), FeeError> {
+    charge_and_distribute_fee_with_remainder(
+        state,
+        sender,
+        fee,
+        fee_recipient,
+        policy,
+        FeeRemainder::Treasury,
+    )
+}
+
+/// [`charge_and_distribute_fee_with_policy`] with an explicit remainder rule.
+pub fn charge_and_distribute_fee_with_remainder(
+    state: &mut StateStore,
+    sender: &AccountId,
+    fee: u128,
+    fee_recipient: &AccountId,
+    policy: &NetworkFeePolicy,
+    remainder: FeeRemainder,
+) -> Result<(), FeeError> {
     if fee == 0 {
         return Ok(());
     }
@@ -289,7 +331,7 @@ pub fn charge_and_distribute_fee_with_policy(
         });
     }
     sender_state.balance -= fee;
-    let (to_validators, to_treasury, to_burn) = split_fee_with_policy(fee, policy);
+    let (to_validators, to_treasury, to_burn) = split_fee_with_remainder(fee, policy, remainder);
     credit_account(state, *fee_recipient, to_validators);
     credit_account(state, PROTOCOL_TREASURY, to_treasury);
     credit_account(state, FEE_BURN_SINK, to_burn);

@@ -493,7 +493,9 @@ impl BoingNode {
     ) {
         self.mempool.set_qa_registry(registry.clone());
         let fee = self.executor.fee_policy().clone();
+        let history = self.executor.execution_history().cloned();
         self.executor = BlockExecutor::with_policies(registry.clone(), pool_config.clone(), fee);
+        self.executor.set_execution_history(history);
         self.vm = Vm::with_qa_policies(registry, pool_config.clone());
         self.qa_pool.set_governance_config(pool_config);
     }
@@ -1137,6 +1139,44 @@ impl BoingNode {
     /// persisted state; nothing changes on-chain before `params.activation_height`.
     pub fn enable_name_registry(&mut self, params: boing_state::NameRegistryParams) {
         self.state.set_name_registry_params(Some(params));
+    }
+
+    /// Use a network's genesis (proposer + height-0 allocations) instead of the local-identity
+    /// default. Only acts while the node is at height 0 (nothing committed beyond genesis), so it can
+    /// never alter an existing chain. Call right after construction, before enabling optional
+    /// registries. Returns true if block 0 changed.
+    pub fn apply_genesis_spec(&mut self, spec: &crate::network_preset::GenesisSpec) -> bool {
+        if self.chain.height() != 0 {
+            return false;
+        }
+        let genesis = ChainState::genesis(spec.proposer);
+        let changed = self.chain.latest_hash() != genesis.hash();
+        if changed {
+            self.chain = ChainState::from_genesis(genesis.clone());
+        }
+        let mut state = StateStore::new();
+        for (id, balance) in &spec.allocations {
+            state.insert(Account {
+                id: *id,
+                state: AccountState {
+                    balance: *balance,
+                    ..Default::default()
+                },
+            });
+        }
+        self.state = state;
+        if let Some(p) = &self.persistence {
+            if changed {
+                if let Err(e) = p.save_block(&genesis).and_then(|_| p.save_chain_meta(0, genesis.hash())) {
+                    tracing::warn!("Persistence: could not rewrite genesis: {e}");
+                }
+            }
+            if let Err(e) = p.save_state(&self.state) {
+                tracing::warn!("Persistence: could not save genesis state: {e}");
+            }
+        }
+        self.refresh_native_aggregates();
+        changed
     }
 
     /// Name registry JSON-RPC (`boing_resolveName`, `boing_reverseName`, `boing_getNameInfo`,

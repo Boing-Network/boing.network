@@ -17,6 +17,8 @@ mod native_dex_factory;
 mod linked_nft_token_registry;
 mod builder_attestation_registry;
 mod interface_blob_store;
+pub mod history;
+pub use history::{ExecutionHistory, FeeEra};
 mod interface_registry;
 mod native_dex_ledger_router;
 mod native_dex_multihop_swap_router;

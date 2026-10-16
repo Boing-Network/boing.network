@@ -16,6 +16,7 @@ pub mod mempool;
 pub mod name_config;
 pub mod names_rpc;
 pub mod native_dex_discovery;
+pub mod network_preset;
 pub mod node;
 pub mod rpc;
 pub mod rpc_ws;
