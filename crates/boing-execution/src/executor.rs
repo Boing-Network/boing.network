@@ -93,7 +93,13 @@ impl BlockExecutor {
                 matches!(&txs[i].payload, TransactionPayload::Transfer { .. })
             });
 
-            if all_transfer && batch.len() > 1 {
+            // The parallel path only sees the accounts each tx declares, so it is used only when every
+            // transfer's access list covers its sender and recipient (read + write) and the batch's
+            // touched accounts are pairwise disjoint. Otherwise (e.g. an SDK transfer with an empty
+            // access list next to a faucet transfer) fall back to the sequential path, which yields the
+            // same result. Previously such a block failed with "Account not found" and the producer
+            // re-inserted the txs forever, stalling the chain.
+            if all_transfer && batch.len() > 1 && parallel_transfer_batch_is_safe(&batch, txs) {
                 // Parallel path: copy state slice per tx (sequential read), execute in parallel, merge
                 let snapshots: Vec<_> = batch
                     .iter()
@@ -258,10 +264,80 @@ impl Default for BlockExecutor {
     }
 }
 
+/// True when every transfer in `batch` declares its sender and recipient for read and write and no two
+/// transfers touch the same account, so per-tx snapshots are complete and merges cannot collide.
+fn parallel_transfer_batch_is_safe(batch: &[usize], txs: &[Transaction]) -> bool {
+    let mut touched = std::collections::HashSet::new();
+    for &i in batch {
+        let tx = &txs[i];
+        let TransactionPayload::Transfer { to, .. } = &tx.payload else {
+            return false;
+        };
+        for id in [tx.sender, *to] {
+            if !tx.access_list.read.contains(&id) || !tx.access_list.write.contains(&id) {
+                return false;
+            }
+        }
+        let own: std::collections::HashSet<AccountId> = tx.access_list.all().copied().collect();
+        for id in own {
+            if !touched.insert(id) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use boing_primitives::{AccessList, Account, AccountId, AccountState, Transaction, TransactionPayload};
+
+    /// Regression (testnet stall at height 217): a transfer with an empty access list in the same block
+    /// as a properly declared transfer must execute (sequentially), not fail the whole block.
+    #[test]
+    fn transfer_with_empty_access_list_next_to_declared_transfer_executes() {
+        let exec = BlockExecutor::new();
+        let a = AccountId::from_bytes([1u8; 32]);
+        let b = AccountId::from_bytes([2u8; 32]);
+        let c = AccountId::from_bytes([3u8; 32]);
+        let d = AccountId::from_bytes([4u8; 32]);
+        let proposer = AccountId::from_bytes([9u8; 32]);
+        let mut state = StateStore::new();
+        for id in [a, c] {
+            state.insert(Account { id, state: AccountState { balance: 100_000, ..Default::default() } });
+        }
+        let mut t1 = tx(a, b, 0, 5);
+        t1.access_list = AccessList::default();
+        let t2 = tx(c, d, 0, 7);
+        let (_gas, receipts) = exec.execute_block(1, 0, &[t1, t2], &mut state, proposer).unwrap();
+        assert!(receipts.iter().all(|r| r.success));
+        assert_eq!(state.get(&b).unwrap().balance, 5);
+        assert_eq!(state.get(&d).unwrap().balance, 7);
+        // Same result regardless of order.
+        let mut s2 = StateStore::new();
+        for id in [a, c] {
+            s2.insert(Account { id, state: AccountState { balance: 100_000, ..Default::default() } });
+        }
+        let mut t1b = tx(a, b, 0, 5);
+        t1b.access_list = AccessList::default();
+        exec.execute_block(1, 0, &[tx(c, d, 0, 7), t1b], &mut s2, proposer).unwrap();
+        assert_eq!(s2.get(&b).unwrap().balance, 5);
+        assert_eq!(s2.get(&d).unwrap().balance, 7);
+    }
+
+    #[test]
+    fn parallel_safety_check() {
+        let a = AccountId::from_bytes([1u8; 32]);
+        let b = AccountId::from_bytes([2u8; 32]);
+        let c = AccountId::from_bytes([3u8; 32]);
+        let d = AccountId::from_bytes([4u8; 32]);
+        assert!(parallel_transfer_batch_is_safe(&[0, 1], &[tx(a, b, 0, 1), tx(c, d, 0, 1)]));
+        let mut bad = tx(a, b, 0, 1);
+        bad.access_list = AccessList::new(vec![a], vec![a]);
+        assert!(!parallel_transfer_batch_is_safe(&[0, 1], &[bad, tx(c, d, 0, 1)]));
+        assert!(!parallel_transfer_batch_is_safe(&[0, 1], &[tx(a, b, 0, 1), tx(c, b, 0, 1)]));
+    }
 
     fn tx(sender: AccountId, to: AccountId, nonce: u64, amount: u128) -> Transaction {
         Transaction {
