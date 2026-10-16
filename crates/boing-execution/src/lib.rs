@@ -16,6 +16,7 @@ pub use native_lp_vault_v2::*;
 mod native_dex_factory;
 mod linked_nft_token_registry;
 mod builder_attestation_registry;
+mod interface_registry;
 mod native_dex_ledger_router;
 mod native_dex_multihop_swap_router;
 mod native_lp_share_token;
@@ -96,6 +97,17 @@ pub use linked_nft_token_registry::{
     LINKED_NFT_TOKEN_TOPIC_UNLINK, SELECTOR_CLAIM_ASSET, SELECTOR_GET_ASSET_CLAIMER,
     SELECTOR_GET_LINK_AT, SELECTOR_LINKS_COUNT, SELECTOR_REGISTER_LINK,
     SELECTOR_TRANSFER_ASSET_CLAIMER, SELECTOR_UNLINK_AT,
+};
+pub use interface_registry::{
+    decode_iface_get_interface_return, encode_iface_claim_asset_calldata,
+    encode_iface_get_claimer_calldata, encode_iface_get_interface_calldata,
+    encode_iface_set_interface_calldata, encode_iface_transfer_claimer_calldata,
+    interface_json_hash, interface_registry_bytecode, interface_registry_claimer_storage_key,
+    interface_registry_field_storage_key, interface_registry_uri_words, InterfaceRecord,
+    IFACE_CLAIMER_XOR, IFACE_FIELD_HASH, IFACE_FIELD_PUBLISHER, IFACE_FIELD_URI0, IFACE_FIELD_URI_LEN,
+    IFACE_FIELD_XOR_BASE, IFACE_TOPIC_SET, INTERFACE_REGISTRY_CREATE2_SALT_V1,
+    INTERFACE_REGISTRY_MAX_URI_BYTES, SELECTOR_IFACE_CLAIM_ASSET, SELECTOR_IFACE_GET_CLAIMER,
+    SELECTOR_IFACE_GET_INTERFACE, SELECTOR_IFACE_SET_INTERFACE, SELECTOR_IFACE_TRANSFER_CLAIMER,
 };
 pub use builder_attestation_registry::{
     builder_attestation_claimer_storage_key, builder_attestation_registry_bytecode,

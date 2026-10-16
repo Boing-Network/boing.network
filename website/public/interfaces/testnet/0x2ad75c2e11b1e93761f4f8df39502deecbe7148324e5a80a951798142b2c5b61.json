@@ -1,0 +1,201 @@
+{
+  "schema": "boing-interface/v1",
+  "network": "boing-testnet",
+  "contract": "0x2ad75c2e11b1e93761f4f8df39502deecbe7148324e5a80a951798142b2c5b61",
+  "name": "USDC / tBOING pool (native CP pool v9)",
+  "interfaceId": "pool-custody",
+  "summary": "Token-pulling AMM pool over two reference-v2 tokens. Rejections fault (whole tx reverts), reentrancy lock, optional deadlines. v9 also returns amount_out from swaps.",
+  "docsUrl": "https://github.com/Boing-Network/boing.network/blob/main/docs/NATIVE-AMM-CALLDATA.md",
+  "functions": [
+    {
+      "selector": 16,
+      "name": "swap",
+      "params": [
+        {
+          "name": "direction",
+          "type": "u128",
+          "note": "0 = A to B, 1 = B to A"
+        },
+        {
+          "name": "amount_in",
+          "type": "u128"
+        },
+        {
+          "name": "min_out",
+          "type": "u128"
+        },
+        {
+          "name": "deadline",
+          "type": "u64",
+          "note": "block height; 0 = none"
+        }
+      ],
+      "kind": "write",
+      "description": "Swap tokens. The pool pulls `amount_in` from the caller with transfer_from and pays the output to the caller.",
+      "access": "Anyone who approved the pool for `amount_in`. Faults if output < min_out or past the deadline.",
+      "returns": "amount_out (v9)"
+    },
+    {
+      "selector": 21,
+      "name": "swap_to",
+      "params": [
+        {
+          "name": "direction",
+          "type": "u128"
+        },
+        {
+          "name": "amount_in",
+          "type": "u128"
+        },
+        {
+          "name": "min_out",
+          "type": "u128"
+        },
+        {
+          "name": "recipient",
+          "type": "account"
+        },
+        {
+          "name": "deadline",
+          "type": "u64",
+          "note": "block height; 0 = none"
+        }
+      ],
+      "kind": "write",
+      "description": "Swap and pay the output to `recipient` (used by routers).",
+      "access": "Anyone who approved the pool for `amount_in`.",
+      "returns": "amount_out (v9)"
+    },
+    {
+      "selector": 17,
+      "name": "add_liquidity",
+      "params": [
+        {
+          "name": "amount_a",
+          "type": "u128"
+        },
+        {
+          "name": "amount_b",
+          "type": "u128"
+        },
+        {
+          "name": "min_liquidity",
+          "type": "u128"
+        },
+        {
+          "name": "deadline",
+          "type": "u64",
+          "note": "block height; 0 = none"
+        }
+      ],
+      "kind": "write",
+      "description": "Deposit both tokens (pulled with transfer_from) and mint LP shares to the caller.",
+      "access": "Anyone who approved the pool for both amounts. Tokens must be set first.",
+      "returns": "LP minted"
+    },
+    {
+      "selector": 18,
+      "name": "remove_liquidity",
+      "params": [
+        {
+          "name": "liquidity",
+          "type": "u128"
+        },
+        {
+          "name": "min_a",
+          "type": "u128"
+        },
+        {
+          "name": "min_b",
+          "type": "u128"
+        },
+        {
+          "name": "deadline",
+          "type": "u64",
+          "note": "block height; 0 = none"
+        }
+      ],
+      "kind": "write",
+      "description": "Burn the caller's LP shares and pay out both tokens to the caller.",
+      "access": "LP holders (burns the caller's own shares)."
+    },
+    {
+      "selector": 22,
+      "name": "remove_liquidity_to",
+      "params": [
+        {
+          "name": "liquidity",
+          "type": "u128"
+        },
+        {
+          "name": "min_a",
+          "type": "u128"
+        },
+        {
+          "name": "min_b",
+          "type": "u128"
+        },
+        {
+          "name": "recipient_a",
+          "type": "account"
+        },
+        {
+          "name": "recipient_b",
+          "type": "account"
+        },
+        {
+          "name": "deadline",
+          "type": "u64",
+          "note": "block height; 0 = none"
+        }
+      ],
+      "kind": "write",
+      "description": "Burn the caller's LP shares and pay each token to its own recipient.",
+      "access": "LP holders (burns the caller's own shares)."
+    },
+    {
+      "selector": 19,
+      "name": "set_tokens",
+      "params": [
+        {
+          "name": "token_a",
+          "type": "account"
+        },
+        {
+          "name": "token_b",
+          "type": "account"
+        }
+      ],
+      "kind": "write",
+      "description": "Bind the pool to its two token contracts.",
+      "access": "Once per pool, before any liquidity (later calls are rejected)."
+    },
+    {
+      "selector": 20,
+      "name": "set_swap_fee_bps",
+      "params": [
+        {
+          "name": "fee_bps",
+          "type": "u128",
+          "note": "1..10000"
+        }
+      ],
+      "kind": "write",
+      "description": "Change the swap fee in basis points (default 30).",
+      "access": "Fee admin (or anyone while total LP supply is 0, depending on version)."
+    },
+    {
+      "selector": 23,
+      "name": "set_fee_admin",
+      "params": [
+        {
+          "name": "admin",
+          "type": "account"
+        }
+      ],
+      "kind": "write",
+      "description": "Set the account allowed to change the swap fee.",
+      "access": "Only while total LP supply is 0."
+    }
+  ]
+}

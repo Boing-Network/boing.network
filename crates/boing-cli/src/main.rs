@@ -7,6 +7,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod deploy;
 mod dev;
+mod iface;
 mod init;
 mod metrics_register;
 mod name;
@@ -69,11 +70,50 @@ enum Commands {
     /// Name registry (label.boing): resolve / reverse / check / claim / renew / transfer / ...
     #[command(subcommand)]
     Name(NameCommands),
+    /// Interface registry: publish a contract interface JSON (hash + URI) as its deployer
+    #[command(subcommand)]
+    Iface(IfaceCommands),
     /// Generate shell completion script (bash, zsh, fish, powershell)
     Completions {
         /// Shell: bash, zsh, fish, powershell, elvish
         #[arg(value_enum)]
         shell: clap_complete::Shell,
+    },
+}
+
+#[derive(Subcommand)]
+enum IfaceCommands {
+    /// Deploy the interface registry (CREATE2, salt BOING_INTERFACE_REGISTRY_V1)
+    Deploy {
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Print interface registry bytecode hex
+    Bytecode,
+    /// Validate an interface JSON file and print its BLAKE3 hash
+    Hash { file: String },
+    /// Show the published interface for a contract
+    Get {
+        contract: String,
+        /// Registry AccountId (default: public testnet registry)
+        #[arg(long)]
+        registry: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Claim the contract (if unclaimed) and record the interface JSON hash + URI
+    Publish {
+        contract: String,
+        /// Local copy of the interface JSON (hashed exactly as served at --uri)
+        #[arg(long)]
+        file: String,
+        /// Stable URL where the same JSON bytes are served (max 192 bytes)
+        #[arg(long)]
+        uri: String,
+        #[arg(long)]
+        registry: Option<String>,
+        #[command(flatten)]
+        signer: SignerArgs,
     },
 }
 
@@ -812,6 +852,28 @@ async fn main() -> anyhow::Result<()> {
                         },
                     )
                     .await
+                }
+            }
+        }
+        Commands::Iface(cmd) => {
+            let sg = |s: SignerArgs| pool::Signer {
+                secret: s.secret_hex,
+                nonce: s.nonce,
+                dry_run: s.dry_run,
+            };
+            let rpc = cli.rpc_url.as_str();
+            match cmd {
+                IfaceCommands::Deploy { signer } => iface::deploy(rpc, sg(signer)).await,
+                IfaceCommands::Bytecode => {
+                    iface::print_bytecode();
+                    Ok(())
+                }
+                IfaceCommands::Hash { file } => iface::hash_file(&file),
+                IfaceCommands::Get { contract, registry, json } => {
+                    iface::get(rpc, registry.as_deref(), &contract, json).await
+                }
+                IfaceCommands::Publish { contract, file, uri, registry, signer } => {
+                    iface::publish(rpc, sg(signer), registry.as_deref(), &contract, &file, &uri).await
                 }
             }
         }

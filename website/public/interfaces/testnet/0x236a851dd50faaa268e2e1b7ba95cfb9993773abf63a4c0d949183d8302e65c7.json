@@ -1,0 +1,102 @@
+{
+  "schema": "boing-interface/v1",
+  "network": "boing-testnet",
+  "contract": "0x236a851dd50faaa268e2e1b7ba95cfb9993773abf63a4c0d949183d8302e65c7",
+  "name": "LP vault v2 (canonical, USDC / tBOING pool)",
+  "interfaceId": "lp-vault-v2",
+  "summary": "Deposit both tokens, the vault adds liquidity to a v8/v9 pool and mints vault shares 1:1 with the LP; withdraw burns shares and the pool pays you directly.",
+  "docsUrl": null,
+  "functions": [
+    {
+      "selector": 192,
+      "name": "configure",
+      "params": [
+        {
+          "name": "pool",
+          "type": "account"
+        },
+        {
+          "name": "token_a",
+          "type": "account"
+        },
+        {
+          "name": "token_b",
+          "type": "account"
+        }
+      ],
+      "kind": "write",
+      "description": "Bind the vault to its pool and token pair.",
+      "access": "Once (non-zero, distinct tokens)."
+    },
+    {
+      "selector": 193,
+      "name": "deposit",
+      "params": [
+        {
+          "name": "amount_a",
+          "type": "u128"
+        },
+        {
+          "name": "amount_b",
+          "type": "u128"
+        },
+        {
+          "name": "min_shares",
+          "type": "u128"
+        },
+        {
+          "name": "deadline",
+          "type": "u64",
+          "note": "block height; 0 = none"
+        }
+      ],
+      "kind": "write",
+      "description": "Pull both amounts from the caller, add liquidity to the pool, mint shares.",
+      "access": "Anyone who approved the vault for both amounts.",
+      "returns": "shares minted"
+    },
+    {
+      "selector": 194,
+      "name": "withdraw",
+      "params": [
+        {
+          "name": "shares",
+          "type": "u128"
+        },
+        {
+          "name": "min_a",
+          "type": "u128"
+        },
+        {
+          "name": "min_b",
+          "type": "u128"
+        },
+        {
+          "name": "deadline",
+          "type": "u64",
+          "note": "block height; 0 = none"
+        }
+      ],
+      "kind": "write",
+      "description": "Burn shares; the pool pays both tokens straight to the caller.",
+      "access": "Share holders (burns the caller's own shares)."
+    },
+    {
+      "selector": 195,
+      "name": "transfer_shares",
+      "params": [
+        {
+          "name": "to",
+          "type": "account"
+        },
+        {
+          "name": "amount",
+          "type": "u128"
+        }
+      ],
+      "kind": "write",
+      "description": "Move vault shares to another account.",
+      "access": "Share holders."
+    }
+  ]
+}

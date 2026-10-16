@@ -1,0 +1,43 @@
+{
+  "schema": "boing-interface/v1",
+  "network": "boing-testnet",
+  "contract": "0x806b2462b28f2f5772bbf5ae2628ad3a333bd2c5fa341144e0400ef5c2f1e4c6",
+  "name": "Custody router v1 (canonical)",
+  "interfaceId": "custody-router",
+  "summary": "Pulls the input token from the signer, then runs 1..4 sequential swap_to hops across v8/v9 pools. Every failure reverts all hops.",
+  "docsUrl": null,
+  "functions": [
+    {
+      "selector": 241,
+      "name": "swap",
+      "params": [
+        {
+          "name": "hops",
+          "type": "u128",
+          "note": "1..4"
+        },
+        {
+          "name": "amount_in",
+          "type": "u128"
+        },
+        {
+          "name": "min_out",
+          "type": "u128"
+        },
+        {
+          "name": "recipient",
+          "type": "account"
+        },
+        {
+          "name": "deadline",
+          "type": "u64",
+          "note": "block height; 0 = none"
+        }
+      ],
+      "kind": "write",
+      "description": "Multi-hop swap; intermediate hops pay the router and must be v9 pools, the last hop pays `recipient`.",
+      "access": "Anyone who approved the router for amount_in on the first input token. Only ever pulls from the caller.",
+      "returns": "amount_out of the last hop (v9)"
+    }
+  ]
+}
