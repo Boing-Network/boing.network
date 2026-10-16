@@ -5,21 +5,34 @@ import HubNav from '../../../components/HubNav.astro';
 import { BOOTNODES, TESTNET_RPC_URL } from '../../../config/testnet';
 import '../../../styles/hub-common.css';
 
-const REL = 'testnet-v0.1.12';
+const REL = 'testnet-v0.1.13';
 const relUrl = `https://github.com/Boing-Network/boing.network/releases/tag/${REL}`;
 const boot = BOOTNODES.join(',');
 const contactEmail = 'nico.builds@boing.network';
 const discordUrl = 'https://discord.gg/boing';
 const guideUrl = 'https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET-VALIDATOR-GUIDE.md';
 
-const getBinary = `curl -LO https://github.com/Boing-Network/boing.network/releases/download/${REL}/release-linux-x86_64.zip
-unzip release-linux-x86_64.zip && chmod +x boing-node boing
-./boing-node --version`;
+const getBinary = `# Ubuntu / WSL: sudo apt install -y build-essential pkg-config libssl-dev clang git; Rust via https://rustup.rs
+git clone https://github.com/Boing-Network/boing.network && cd boing.network
+cargo build --release -p boing-node -p boing-cli
+cp target/release/boing-node target/release/boing .
+./boing validator --help`;
+const consensusEnv = `BOING_CHAIN_ID=6913 BOING_VALIDATOR_SET=open BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640`;
+const flyNotes = `cp fly.testnet-2.toml fly.toml      # set app = "<your-app>", drop the public RPC/CORS extras
+# [env] keep BOING_CHAIN_ID / BOING_NAME_REGISTRY_ACTIVATION_HEIGHT, add:
+#   BOING_VALIDATOR_SET = "open"   BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT = "400"
+#   BOING_VALIDATOR = "1"          BOING_FAUCET_ENABLE = "1"   BOING_BOOTNODES = "${boot}"
+fly volumes create boing_data --size 10
+fly secrets set BOING_VALIDATOR_KEY="$(cat node.key)"   # from a chmod 600 file, never committed
+fly deploy --remote-only`;
+const unjail = `boing validator status --node <node id> --rpc-url ${TESTNET_RPC_URL}
+# after the 500-block cooldown (owner key via env only, dry run first):
+boing validator unjail --dry-run --rpc-url ${TESTNET_RPC_URL}
+boing validator unjail --rpc-url ${TESTNET_RPC_URL}`;
 const getDocker = `git clone https://github.com/Boing-Network/boing.network && cd boing.network
-git checkout ${REL}
 docker build -t boing-node .`;
-const syncBinary = `export BOING_CHAIN_ID=6913
-./boing-node \\
+const syncBinary = `export ${consensusEnv}
+./boing-node --faucet-enable \\
   --data-dir ./boing-data \\
   --p2p-listen /ip4/0.0.0.0/tcp/4001 \\
   --bootnodes ${boot} \\
@@ -27,17 +40,19 @@ const syncBinary = `export BOING_CHAIN_ID=6913
 const syncDocker = `docker run -d --name boing-node --restart unless-stopped \\
   -p 4001:4001 -p 127.0.0.1:8545:8545 \\
   -v boing-data:/data \\
-  -e BOING_CHAIN_ID=6913 \\
+  -e BOING_CHAIN_ID=6913 -e BOING_VALIDATOR_SET=open -e BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 \\
+  -e BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640 -e BOING_FAUCET_ENABLE=1 \\
   -e BOING_BOOTNODES=${boot} \\
   boing-node`;
 const runValidator = `# validator.env  (chmod 600; never commit or share)
 BOING_CHAIN_ID=6913
 BOING_VALIDATOR_SET=open
 BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400
+BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
 BOING_VALIDATOR_KEY=<32-byte node key hex>
 
 set -a; . ./validator.env; set +a
-./boing-node --validator --data-dir ./boing-data \\
+./boing-node --validator --faucet-enable --data-dir ./boing-data \\
   --p2p-listen /ip4/0.0.0.0/tcp/4001 \\
   --bootnodes ${boot} \\
   --rpc-port 8545`;
@@ -70,6 +85,15 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
       </div>
     </section>
 
+    <section class="section" id="known-issue">
+      <div class="vg-note" data-testid="vg-known-issue">
+        <strong>Known issue (verified 2026-10-16):</strong> a fresh node can't sync the public testnet from genesis yet.
+        Block 1 is rejected with <code>Invalid state root</code>, because the live nodes were upgraded in place and their early blocks
+        predate the current state-root layout. A fix (height-gated roots or a state snapshot) is in progress. Until it ships, a new
+        node stays at height 0, so <strong>don't register yet</strong>: an unsynced validator gets jailed.
+      </div>
+    </section>
+
     <section class="section" id="hardware">
       <h2>1. Hardware and network</h2>
       <ul>
@@ -81,7 +105,7 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
 
     <section class="section" id="node">
       <h2>2. Get the node</h2>
-      <p><strong>Binary</strong> (Linux x86_64, macOS arm64, Windows x86_64) from the <a href={relUrl} target="_blank" rel="noopener">{REL} release</a>; the zip contains <code>boing-node</code> and the <code>boing</code> CLI.</p>
+      <p><strong>Build from source (required today).</strong> The release zips up to <a href={relUrl} target="_blank" rel="noopener">{REL}</a> predate open validator mode: their node rejects <code>BOING_VALIDATOR_SET=open</code> and their CLI has no <code>validator</code> command. When a newer release is out, note that the zip holds <code>boing-node-&lt;platform&gt;</code> and <code>boing-&lt;platform&gt;</code>, so rename them; there is no <code>--version</code> flag.</p>
       <pre><code>{getBinary}</code></pre>
       <p><strong>Docker</strong> (build from source):</p>
       <pre><code>{getDocker}</code></pre>
@@ -133,6 +157,12 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
       <p>Run with the validator flags and the open-mode settings used by the public nodes (key in an env file, not on the command line). Have it synced and running before your registration's epoch boundary:</p>
       <pre><code>{runValidator}</code></pre>
       <p>Docker: add <code>--env-file validator.env -e BOING_VALIDATOR=1</code>.</p>
+      <h3 id="fly">Fly.io</h3>
+      <pre><code>{flyNotes}</code></pre>
+      <h3 id="unjail">Unjail</h3>
+      <p>Jailed for missing more than 10% of your scheduled proposals? Your bond is kept. Fix the node first, then:</p>
+      <pre><code>{unjail}</code></pre>
+      <p>Why <code>--faucet-enable</code>? Genesis-era blocks spend from the deterministic testnet faucet account, which only exists in state when this flag is set. It also serves <code>boing_faucetRequest</code> on your RPC, so keep 8545 private.</p>
     </section>
 
     <section class="section" id="monitoring">
