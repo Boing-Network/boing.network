@@ -6,6 +6,7 @@ import { mergeAccessListWithSimulation } from './accessList.js';
 import type { BoingClient } from './client.js';
 import { BoingRpcError } from './errors.js';
 import { bytesToHex } from './hex.js';
+import { submittedTxHash } from './submitIdempotent.js';
 import type { SimulateResult } from './types.js';
 import {
   buildContractCallTransaction,
@@ -83,7 +84,7 @@ export async function submitTransferWithSimulationRetry(
 
     if (lastSim.success) {
       const sub = await opts.client.submitTransaction(signedHex);
-      return { tx_hash: sub.tx_hash, lastSimulation: lastSim, attempts: attempt + 1 };
+      return { tx_hash: submittedTxHash(sub, signedHex), lastSimulation: lastSim, attempts: attempt + 1 };
     }
 
     if (lastSim.access_list_covers_suggestion === false && lastSim.suggested_access_list) {
@@ -130,7 +131,7 @@ export async function submitContractCallWithSimulationRetry(
 
     if (lastSim.success) {
       const sub = await opts.client.submitTransaction(signedHex);
-      return { tx_hash: sub.tx_hash, lastSimulation: lastSim, attempts: attempt + 1 };
+      return { tx_hash: submittedTxHash(sub, signedHex), lastSimulation: lastSim, attempts: attempt + 1 };
     }
 
     if (lastSim.access_list_covers_suggestion === false && lastSim.suggested_access_list) {
@@ -204,7 +205,7 @@ export async function submitDeployWithPurposeFlow(opts: {
 
     if (lastSim.success) {
       const sub = await opts.client.submitTransaction(signedHex);
-      return { tx_hash: sub.tx_hash, lastSimulation: lastSim, attempts: attempt + 1 };
+      return { tx_hash: submittedTxHash(sub, signedHex), lastSimulation: lastSim, attempts: attempt + 1 };
     }
 
     if (lastSim.access_list_covers_suggestion === false && lastSim.suggested_access_list) {

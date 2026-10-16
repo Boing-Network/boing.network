@@ -4,6 +4,7 @@
 import { mergeAccessListWithSimulation } from './accessList.js';
 import { BoingRpcError } from './errors.js';
 import { bytesToHex } from './hex.js';
+import { submittedTxHash } from './submitIdempotent.js';
 import { buildContractCallTransaction, buildDeployWithPurposeTransaction, buildTransferTransaction, fetchNextNonce, signTransactionInput, } from './transactionBuilder.js';
 /** Thrown when simulation fails and access-list widening cannot proceed (or retries exhausted). */
 export class SimulationFailedError extends Error {
@@ -36,7 +37,7 @@ export async function submitTransferWithSimulationRetry(opts) {
         lastSim = await opts.client.simulateTransaction(signedHex);
         if (lastSim.success) {
             const sub = await opts.client.submitTransaction(signedHex);
-            return { tx_hash: sub.tx_hash, lastSimulation: lastSim, attempts: attempt + 1 };
+            return { tx_hash: submittedTxHash(sub, signedHex), lastSimulation: lastSim, attempts: attempt + 1 };
         }
         if (lastSim.access_list_covers_suggestion === false && lastSim.suggested_access_list) {
             const m = mergeAccessListWithSimulation(read, write, lastSim);
@@ -67,7 +68,7 @@ export async function submitContractCallWithSimulationRetry(opts) {
         lastSim = await opts.client.simulateTransaction(signedHex);
         if (lastSim.success) {
             const sub = await opts.client.submitTransaction(signedHex);
-            return { tx_hash: sub.tx_hash, lastSimulation: lastSim, attempts: attempt + 1 };
+            return { tx_hash: submittedTxHash(sub, signedHex), lastSimulation: lastSim, attempts: attempt + 1 };
         }
         if (lastSim.access_list_covers_suggestion === false && lastSim.suggested_access_list) {
             const m = mergeAccessListWithSimulation(read, write, lastSim);
@@ -107,7 +108,7 @@ export async function submitDeployWithPurposeFlow(opts) {
         lastSim = await opts.client.simulateTransaction(signedHex);
         if (lastSim.success) {
             const sub = await opts.client.submitTransaction(signedHex);
-            return { tx_hash: sub.tx_hash, lastSimulation: lastSim, attempts: attempt + 1 };
+            return { tx_hash: submittedTxHash(sub, signedHex), lastSimulation: lastSim, attempts: attempt + 1 };
         }
         if (lastSim.access_list_covers_suggestion === false && lastSim.suggested_access_list) {
             const m = mergeAccessListWithSimulation(read, write, lastSim);

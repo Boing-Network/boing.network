@@ -379,7 +379,13 @@ export interface ContractStorageWord {
     value: string;
 }
 export interface SubmitTransactionResult {
+    /**
+     * Real tx id (`0x` + 64 hex, same as receipts' `tx_id`) on current nodes. Older nodes returned the
+     * literal `"ok"`; use {@link submittedTxHash} to always get the id.
+     */
     tx_hash: string;
+    /** Same as `tx_hash` on current nodes (absent on older ones). */
+    tx_id?: string;
 }
 export interface RegisterDappResult {
     registered: true;

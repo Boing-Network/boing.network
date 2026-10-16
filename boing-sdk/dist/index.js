@@ -91,7 +91,7 @@ export { BOING_POOL_PURPOSE, BOING_POOL_DEFAULT_VERSION, boingPoolHasTokenHooks,
 export { BOING_CUSTODY_ROUTER_SELECTOR_SWAP, BOING_CUSTODY_ROUTER_MAX_HOPS, BOING_CUSTODY_ROUTER_BYTECODE_HEX, encodeBoingCustodyRouterSwapCalldata, checkBoingRoutePath, boingRouteHop, buildBoingCustodyRouterDeployTransaction, buildBoingCustodyRouterSwapTransaction, quoteBoingRoute, routeBoingSwap, } from './boingRouter.js';
 export { NATIVE_CP_POOL_BYTECODE_HEX } from './defaultNativeCpPoolBytecodeHex.js';
 export { BOING_WEB_WALLET_DEFAULT_URL, BoingWebWalletError, createBoingWebRequest, validateBoingWebResponse, requestViaBoingWebPopup, startBoingWebRedirect, consumeBoingWebRedirectResponse, createBoingWebWalletProvider, } from './boingWebWallet.js';
-export { isAlreadyInMempoolError, submitSignedTransactionIdempotent } from './submitIdempotent.js';
+export { isAlreadyInMempoolError, submitSignedTransactionIdempotent, submitSignedTransactionWithHash, submittedTxHash, } from './submitIdempotent.js';
 export * from './boingCustodySwap.js';
 export * from './boingLpVaultV2.js';
 export * from './boingOpenValidator.js';

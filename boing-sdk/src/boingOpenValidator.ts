@@ -126,6 +126,8 @@ export interface BoingValidatorInfo {
   registered_at: number | null;
   jailed_until: number | null;
   jail_count: number;
+  /** Liveness at the most recent jailing (current nodes; null if not recorded). The live window resets on jailing. */
+  last_jail?: { jailed_at: number; scheduled_proposals: number; missed_proposals: number; uptime_pct: number } | null;
   scheduled_proposals: number;
   missed_proposals: number;
   uptime_pct: number;
