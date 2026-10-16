@@ -2,6 +2,7 @@
 //!
 //! Provides BoingNode for running a validator or full node.
 
+pub mod account_tx_index;
 pub mod block_producer;
 pub mod block_validation;
 pub mod chain;

@@ -415,6 +415,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getSyncState",
     "boing_getTransactionReceipt",
     "boing_getValidators",
+    "boing_getAccountTransactions",
     "boing_health",
     "boing_listDexPools",
     "boing_listDexTokens",
@@ -1724,6 +1725,47 @@ async fn dispatch_jsonrpc_request(
                     .collect(),
             ),
         ),
+        "boing_getAccountTransactions" => {
+            // Params: [hex_account] or [hex_account, { "cursor"?: "<height>:<index>", "limit"?: n }]
+            let params = req
+                .params
+                .and_then(|p| serde_json::from_value::<Vec<serde_json::Value>>(p).ok())
+                .unwrap_or_default();
+            let Some(acct_hex) = params.first().and_then(|v| v.as_str()) else {
+                return (
+                    StatusCode::OK,
+                    rpc_error(id, -32602, "Invalid params: expected [hex_account, {cursor?, limit?}]".into()),
+                );
+            };
+            let account = match parse_account_id_hex(acct_hex) {
+                Ok(a) => a,
+                Err(e) => return (StatusCode::OK, rpc_error(id, -32602, e)),
+            };
+            let opts = params.get(1);
+            let limit = opts
+                .and_then(|o| o.get("limit"))
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize)
+                .unwrap_or(crate::account_tx_index::DEFAULT_LIMIT);
+            let cursor = match opts.and_then(|o| o.get("cursor")).filter(|v| !v.is_null()) {
+                None => None,
+                Some(v) => match v.as_str().and_then(crate::account_tx_index::parse_cursor) {
+                    Some(c) => Some(c),
+                    None => {
+                        return (
+                            StatusCode::OK,
+                            rpc_error(id, -32602, "Invalid cursor: expected \"<height>:<index>\"".into()),
+                        );
+                    }
+                },
+            };
+            let key = std::sync::Arc::as_ptr(node) as usize;
+            let n = node.read().await;
+            rpc_ok(
+                id,
+                crate::account_tx_index::account_transactions_json(&n, key, &account, cursor, limit),
+            )
+        }
         "boing_getValidators" => {
             let n = node.read().await;
             rpc_ok(id, n.validators_report())

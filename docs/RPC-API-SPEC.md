@@ -874,6 +874,17 @@ Request testnet BOING for an account. Only available when the node is started wi
 
 ---
 
+### boing_getAccountTransactions
+
+Committed transactions that touch an account, newest first. A transaction touches an account when the account is the **sender**, a native **transfer** recipient, a **batch step** recipient / called contract, the **called contract**, an open-validator `node_id`, or equals any **log topic** in its receipt (token / NFT transfer events, registry events). Faucet payouts are plain transfers, so they appear for the recipient.
+
+| Params | `[hex_account]` or `[hex_account, { "cursor"?: string \| null, "limit"?: number }]` |
+|--------|------|
+| Result | `{ account, head_height, transactions: [...], next_cursor: string \| null }` |
+
+Each row: `tx_id`, `block_height`, `tx_index`, `timestamp`, `sender`, `nonce`, `direction` (`out` when the account sent it, else `in`), `roles`, `payload` (`kind` plus `to` / `amount` / `contract` / `steps`), `success`, `error`, `gas_used`.
+
+Paging is deterministic: rows are ordered by `(block_height, tx_index)` descending; pass `next_cursor` (opaque `"<height>:<index>"`, meaning strictly older) to fetch the next page. `limit` is clamped to 1..100 (default 25). The index is built in memory from committed blocks and caught up on each call (rebuilt after a restart).
 ### boing_getValidators
 
 List the current validator set and (in open mode) every registered validator.
