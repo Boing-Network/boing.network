@@ -1,4 +1,4 @@
-//! `boing validator register | deregister | unjail | status` — open validator set (permissionless).
+//! `boing validator register | deregister | unjail | claim-unbond | status` — open validator set (permissionless).
 //!
 //! Keys: the **owner** (pays the 100 BOING bond, signs the tx) comes from `--secret-hex` /
 //! `BOING_SECRET_HEX`; the **node** key (consensus key the node runs with) from `--node-key-hex` /
@@ -136,6 +136,42 @@ pub async fn unjail(
     submit(rpc_url, &build_unjail_tx(&owner, node_id, n), dry_run).await
 }
 
+pub fn build_claim_unbond_tx(owner: &SigningKey, nonce: u64) -> SignedTransaction {
+    tx(owner, nonce, TransactionPayload::ClaimUnbond)
+}
+
+/// `ClaimUnbond`: move a matured pending unbond (validator bond after deregister, or a staking unbond)
+/// back to the owner's spendable balance. Without `--dry-run` the account is checked first so an
+/// immature claim fails locally instead of burning a fee.
+pub async fn claim_unbond(
+    rpc_url: &str,
+    owner: Option<SigningKey>,
+    node_key: Option<SigningKey>,
+    nonce: Option<u64>,
+    dry_run: bool,
+) -> anyhow::Result<()> {
+    let owner = owner.or(node_key).ok_or_else(|| anyhow::anyhow!("no owner key: pass --secret-hex or set BOING_SECRET_HEX"))?;
+    let id = account_of(&owner);
+    if !dry_run {
+        let acct = rpc(rpc_url, "boing_getAccount", json!([hex_account(&id)])).await?;
+        let pending = acct.get("pending_unbond").and_then(Value::as_str).unwrap_or("0").to_string();
+        let unlock = acct.get("unbond_unlock_height").and_then(Value::as_u64).unwrap_or(0);
+        let height = rpc(rpc_url, "boing_chainHeight", json!([])).await?.as_u64().unwrap_or(0);
+        if pending == "0" {
+            anyhow::bail!("nothing to claim: {} has no pending unbond", hex_account(&id));
+        }
+        // The claim executes in the next block (height + 1).
+        if height + 1 < unlock {
+            anyhow::bail!("unbond of {pending} BOING unlocks at height {unlock} (chain is at {height})");
+        }
+        println!("Claiming {pending} BOING unbond for {} (unlocked at {unlock}, chain at {height})", hex_account(&id));
+    } else {
+        println!("Claiming unbond for {}", hex_account(&id));
+    }
+    let n = nonce_for(rpc_url, &owner, nonce).await?;
+    submit(rpc_url, &build_claim_unbond_tx(&owner, n), dry_run).await
+}
+
 /// Render `boing_getValidators` (optionally one node).
 pub fn format_status(report: &Value, only: Option<&str>) -> String {
     let mut out = String::new();
@@ -203,6 +239,20 @@ pub async fn status(rpc_url: &str, node: Option<String>, json_out: bool) -> anyh
     let only = node.map(|n| parse_account(&n).map(|a| hex_account(&a))).transpose()?;
     print!("{}", format_status(&report, only.as_deref()));
     Ok(())
+}
+
+#[cfg(test)]
+mod claim_tests {
+    use super::*;
+    #[test]
+    fn claim_unbond_tx_is_signed_by_owner() {
+        let owner = SigningKey::from_bytes(&[9u8; 32]);
+        let t = build_claim_unbond_tx(&owner, 7);
+        assert_eq!(t.tx.nonce, 7);
+        assert_eq!(t.tx.sender, account_of(&owner));
+        assert!(matches!(t.tx.payload, TransactionPayload::ClaimUnbond));
+        assert!(t.verify().is_ok());
+    }
 }
 
 #[cfg(test)]

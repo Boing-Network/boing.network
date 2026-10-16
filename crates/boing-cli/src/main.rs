@@ -540,6 +540,11 @@ enum ValidatorCommands {
         #[command(flatten)]
         signer: ValidatorSignerArgs,
     },
+    /// Claim a matured bond/unbond back to the owner's balance (ClaimUnbond, after the deregister delay)
+    ClaimUnbond {
+        #[command(flatten)]
+        signer: ValidatorSignerArgs,
+    },
     /// Show validators with status, uptime, missed proposals and bond (boing_getValidators)
     Status {
         /// Only this node id
@@ -1020,6 +1025,12 @@ async fn main() -> anyhow::Result<()> {
                     signer.dry_run,
                 )
                 .await
+            }
+            ValidatorCommands::ClaimUnbond { signer } => {
+                let (owner, node_key) =
+                    validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                validator::claim_unbond(&cli.rpc_url, owner, node_key, signer.nonce, signer.dry_run)
+                    .await
             }
             ValidatorCommands::Status { node, json } => {
                 validator::status(&cli.rpc_url, node, json).await

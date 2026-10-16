@@ -122,7 +122,18 @@ impl BlockExecutor {
             // access list next to a faucet transfer) fall back to the sequential path, which yields the
             // same result. Previously such a block failed with "Account not found" and the producer
             // re-inserted the txs forever, stalling the chain.
+            // Parallel attempt. Any failure inside it (bad nonce, insufficient balance, fee shortfall,
+            // conflict) reverts the attempt and re-runs the batch on the sequential path, which records
+            // the failing tx as a failed receipt instead of failing the whole block. Successful parallel
+            // execution is identical to sequential, so blocks that executed before are unaffected; before
+            // this, such a block errored and the producer re-inserted the same txs forever (chain stall).
+            let mut parallel_done = false;
             if all_transfer && batch.len() > 1 && parallel_transfer_batch_is_safe(&batch, txs) {
+                let par_ckpt = state.checkpoint();
+                let par_receipts_before: Vec<Option<ExecutionReceipt>> =
+                    batch.iter().map(|&i| receipts[i].clone()).collect();
+                let attempt = (|| -> Result<u64, ExecutionError> {
+                let mut par_gas = 0u64;
                 // Parallel path: copy state slice per tx (sequential read), execute in parallel, merge
                 let snapshots: Vec<_> = batch
                     .iter()
@@ -185,9 +196,24 @@ impl BlockExecutor {
                         vec![],
                         None,
                     ));
-                    total_gas = total_gas.saturating_add(gas);
+                    par_gas = par_gas.saturating_add(gas);
                 }
-            } else {
+                Ok(par_gas)
+                })();
+                match attempt {
+                    Ok(g) => {
+                        total_gas = total_gas.saturating_add(g);
+                        parallel_done = true;
+                    }
+                    Err(_) => {
+                        state.revert(par_ckpt);
+                        for (k, &i) in batch.iter().enumerate() {
+                            receipts[i] = par_receipts_before[k].clone();
+                        }
+                    }
+                }
+            }
+            if !parallel_done {
                 // Sequential path: isolate each tx so a fee/VM failure cannot abort the block
                 // (and poison the mempool by re-inserting the same deploy forever).
                 for &idx in &batch {
@@ -349,6 +375,46 @@ mod tests {
         exec.execute_block(1, 0, &[tx(c, d, 0, 7), t1b], &mut s2, proposer).unwrap();
         assert_eq!(s2.get(&b).unwrap().balance, 5);
         assert_eq!(s2.get(&d).unwrap().balance, 7);
+    }
+
+    /// Security review 2026-10-16: a failing transfer inside an otherwise parallel-safe batch (here: the
+    /// sender cannot cover amount + fee; also a stale nonce) must become a failed receipt, not fail the
+    /// whole block (the producer used to re-insert the same txs forever, stalling the chain).
+    #[test]
+    fn failing_tx_in_parallel_batch_does_not_fail_block() {
+        let exec = BlockExecutor::new();
+        let a = AccountId::from_bytes([1u8; 32]);
+        let b = AccountId::from_bytes([2u8; 32]);
+        let c = AccountId::from_bytes([3u8; 32]);
+        let d = AccountId::from_bytes([4u8; 32]);
+        let e = AccountId::from_bytes([5u8; 32]);
+        let f = AccountId::from_bytes([6u8; 32]);
+        let proposer = AccountId::from_bytes([9u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account { id: a, state: AccountState { balance: 100_000, ..Default::default() } });
+        state.insert(Account { id: c, state: AccountState { balance: 50, ..Default::default() } });
+        state.insert(Account { id: e, state: AccountState { balance: 100_000, nonce: 3, ..Default::default() } });
+        // c sends its whole balance (cannot pay the fee); e uses a stale nonce.
+        let txs = [tx(a, b, 0, 5), tx(c, d, 0, 50), tx(e, f, 0, 1)];
+        assert!(parallel_transfer_batch_is_safe(&[0, 1, 2], &txs));
+        let (_gas, receipts) = exec.execute_block(1, 0, &txs, &mut state, proposer).expect("block must execute");
+        assert!(receipts[0].success);
+        assert!(!receipts[1].success);
+        assert!(!receipts[2].success);
+        assert_eq!(state.get(&b).unwrap().balance, 5);
+        assert!(state.get(&d).is_none(), "failed transfer is reverted");
+        assert_eq!(state.get(&c).unwrap().balance, 50);
+        assert_eq!(state.get(&c).unwrap().nonce, 1, "nonce consumed like the sequential path");
+        // Identical to executing the same txs one block-tx at a time on the sequential path.
+        let mut seq = StateStore::new();
+        seq.insert(Account { id: a, state: AccountState { balance: 100_000, ..Default::default() } });
+        seq.insert(Account { id: c, state: AccountState { balance: 50, ..Default::default() } });
+        seq.insert(Account { id: e, state: AccountState { balance: 100_000, nonce: 3, ..Default::default() } });
+        let mut t0 = tx(a, b, 0, 5);
+        t0.access_list = AccessList::default(); // forces the sequential path
+        let (_g, r2) = exec.execute_block(1, 0, &[t0, tx(c, d, 0, 50), tx(e, f, 0, 1)], &mut seq, proposer).unwrap();
+        assert_eq!(r2.iter().map(|r| r.success).collect::<Vec<_>>(), vec![true, false, false]);
+        assert_eq!(seq.state_root(), state.state_root());
     }
 
     #[test]
