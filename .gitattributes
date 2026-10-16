@@ -7,3 +7,5 @@
 desktop-hub/src-tauri/** text eol=lf
 # Icons are binary — the rule above must not apply to them (PNG signature includes 0x0D 0x0A; text eol=lf corrupts it).
 desktop-hub/src-tauri/icons/** binary
+# Shell scripts run inside Linux images (Fly entrypoint): CRLF breaks the shebang
+*.sh text eol=lf
