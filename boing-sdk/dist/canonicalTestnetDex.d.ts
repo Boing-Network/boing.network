@@ -32,4 +32,10 @@ export declare const CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX: string;
  * ledger-only (v1..v7) pools and cannot route the v9 pool.
  */
 export declare const CANONICAL_BOING_TESTNET_CUSTODY_ROUTER_HEX: string;
+/**
+ * LP vault v2 for the USDC/BOING v9 pool (`scripts/lp-vault-v2-testnet.mjs deploy`, blocks 101-102): deposit both
+ * tokens -> add_liquidity -> vault shares (1:1 with LP); withdraw burns shares and the pool pays the user.
+ * Configured once to (USDC/BOING pool, USDC, BOING). See `docs/NATIVE-LP-VAULT-V2.md` and `boingLpVaultV2.ts`.
+ */
+export declare const CANONICAL_BOING_TESTNET_LP_VAULT_V2_HEX: string;
 //# sourceMappingURL=canonicalTestnetDex.d.ts.map

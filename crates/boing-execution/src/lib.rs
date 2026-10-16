@@ -11,6 +11,8 @@ mod interpreter;
 mod native_amm;
 mod native_amm_v8;
 mod native_dex_custody_router;
+mod native_lp_vault_v2;
+pub use native_lp_vault_v2::*;
 mod native_dex_factory;
 mod linked_nft_token_registry;
 mod builder_attestation_registry;

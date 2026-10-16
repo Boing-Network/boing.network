@@ -26,6 +26,7 @@ export {
   CANONICAL_BOING_TESTNET_BOING_TOKEN_HEX,
   CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX,
   CANONICAL_BOING_TESTNET_CUSTODY_ROUTER_HEX,
+  CANONICAL_BOING_TESTNET_LP_VAULT_V2_HEX,
 } from './canonicalTestnetDex.js';
 
 import { BoingClient } from './client.js';
@@ -1000,3 +1001,4 @@ export {
 export type { BoingWebRequest, BoingWebResponse, BoingWebMethod, BoingWebWalletProvider, BoingWebWalletProviderOptions } from './boingWebWallet.js';
 export { isAlreadyInMempoolError, submitSignedTransactionIdempotent } from './submitIdempotent.js';
 export * from './boingCustodySwap.js';
+export * from './boingLpVaultV2.js';

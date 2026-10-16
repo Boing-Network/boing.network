@@ -20,6 +20,7 @@ describe('canonicalTestnetDex USDC/BOING pair', () => {
       expect(validateHex32(id)).toBe(id);
     }
     expect(validateHex32(m.CANONICAL_BOING_TESTNET_CUSTODY_ROUTER_HEX)).toBe(m.CANONICAL_BOING_TESTNET_CUSTODY_ROUTER_HEX);
+    expect(validateHex32(m.CANONICAL_BOING_TESTNET_LP_VAULT_V2_HEX)).toBe(m.CANONICAL_BOING_TESTNET_LP_VAULT_V2_HEX);
     expect(m.CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX).toBe('0x2ad75c2e11b1e93761f4f8df39502deecbe7148324e5a80a951798142b2c5b61');
   });
 });
