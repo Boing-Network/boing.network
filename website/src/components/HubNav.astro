@@ -2,11 +2,11 @@
 /**
  * In-hub navigation for testnet portal. Renders consistent links so users can move
  * between Hub home, My Dashboard, Community/Leaderboard, and Resources/Quests without going back.
- * current: 'index' | 'dashboard' | 'community' | 'resources' | 'quests' | 'leaderboard'
+ * current: 'index' | 'dashboard' | 'community' | 'resources' | 'quests' | 'leaderboard' | 'validator'
  */
 interface Props {
   hub: 'developer' | 'user' | 'operator';
-  current: 'index' | 'dashboard' | 'community' | 'resources' | 'quests' | 'leaderboard';
+  current: 'index' | 'dashboard' | 'community' | 'resources' | 'quests' | 'leaderboard' | 'validator';
 }
 const { hub, current } = Astro.props;
 
@@ -26,6 +26,7 @@ const userLinks = [
 
 const operatorLinks = [
   { slug: 'index', label: 'Hub', href: '/testnet/operators' },
+  { slug: 'validator', label: 'Run a validator', href: '/testnet/operators/validator' },
   { slug: 'dashboard', label: 'My Dashboard', href: '/testnet/operators/dashboard' },
   { slug: 'leaderboard', label: 'Leaderboard', href: '/testnet/operators/leaderboard' },
   { slug: 'resources', label: 'Resources', href: '/testnet/operators/resources' },

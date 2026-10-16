@@ -1,0 +1,176 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import HubNav from '../../../components/HubNav.astro';
+import { BOOTNODES, TESTNET_RPC_URL } from '../../../config/testnet';
+import '../../../styles/hub-common.css';
+
+const REL = 'testnet-v0.1.12';
+const relUrl = `https://github.com/Boing-Network/boing.network/releases/tag/${REL}`;
+const boot = BOOTNODES.join(',');
+const contactEmail = 'nico.builds@boing.network';
+const discordUrl = 'https://discord.gg/boing';
+const guideUrl = 'https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET-VALIDATOR-GUIDE.md';
+
+const getBinary = `curl -LO https://github.com/Boing-Network/boing.network/releases/download/${REL}/release-linux-x86_64.zip
+unzip release-linux-x86_64.zip && chmod +x boing-node boing
+./boing-node --version`;
+const getDocker = `git clone https://github.com/Boing-Network/boing.network && cd boing.network
+git checkout ${REL}
+docker build -t boing-node .`;
+const syncBinary = `export BOING_CHAIN_ID=6913
+./boing-node \\
+  --data-dir ./boing-data \\
+  --p2p-listen /ip4/0.0.0.0/tcp/4001 \\
+  --bootnodes ${boot} \\
+  --rpc-port 8545`;
+const syncDocker = `docker run -d --name boing-node --restart unless-stopped \\
+  -p 4001:4001 -p 127.0.0.1:8545:8545 \\
+  -v boing-data:/data \\
+  -e BOING_CHAIN_ID=6913 \\
+  -e BOING_BOOTNODES=${boot} \\
+  boing-node`;
+const runValidator = `# validator.env  (chmod 600; never commit or share)
+BOING_CHAIN_ID=6913
+BOING_VALIDATOR_KEY=<32-byte secret hex>
+
+set -a; . ./validator.env; set +a
+./boing-node --validator --data-dir ./boing-data \\
+  --p2p-listen /ip4/0.0.0.0/tcp/4001 \\
+  --bootnodes ${boot} \\
+  --rpc-port 8545`;
+const monitor = `curl -fsS http://127.0.0.1:8545/live
+curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"boing_health","params":[]}'`;
+---
+
+<Layout
+  title="Run a validator · Operator Hub · Testnet Portal"
+  description="How to run a Boing Network testnet validator: hardware, node setup, keys, bootnodes, stake, bonding, monitoring and duties."
+>
+  <article class="portal-page role-hub operators-hub hub-page hub-operator validator-guide" data-hub="node_operator">
+    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Operator Hub', href: '/testnet/operators' }, { label: 'Run a validator' }]} />
+    <div class="hub-page-main">
+    <HubNav hub="operator" current="validator" />
+    <section class="section fade-in-up">
+      <h1>Run a testnet validator</h1>
+      <p class="lead">
+        Public testnet: chain <strong>6913</strong> (<code>0x1b01</code>), RPC <code>{TESTNET_RPC_URL}</code>,
+        explorer <a href="https://boing.observer" target="_blank" rel="noopener">boing.observer</a>.
+      </p>
+      <div class="vg-note">
+        <strong>How the validator set works today.</strong> The public testnet runs a <strong>static validator set</strong>
+        (one operator validator plus a full node). Your node syncs and serves RPC as soon as it is up; it
+        <strong>signs blocks once its AccountId is added to the set</strong>. Stake is handed out manually and admission is
+        coordinated with the operator. The node also supports a stake-weighted set (top 21 stakers with at least
+        <strong>10,000 BOING</strong>, refreshed every 100 blocks), which the testnet will switch to once enough operators are bonded.
+      </div>
+    </section>
+
+    <section class="section" id="hardware">
+      <h2>1. Hardware and network</h2>
+      <ul>
+        <li><strong>Minimum:</strong> 2 vCPU (x86_64 or arm64), 2 GB RAM, 10 GB SSD.</li>
+        <li><strong>Recommended:</strong> 4 vCPU, 4 GB RAM, 50 GB SSD, static public IPv4.</li>
+        <li>Inbound <strong>TCP 4001</strong> (P2P) must be reachable. RPC 8545 only needs to be public if you serve RPC to others.</li>
+      </ul>
+    </section>
+
+    <section class="section" id="node">
+      <h2>2. Get the node</h2>
+      <p><strong>Binary</strong> (Linux x86_64, macOS arm64, Windows x86_64) from the <a href={relUrl} target="_blank" rel="noopener">{REL} release</a>; the zip contains <code>boing-node</code> and the <code>boing</code> CLI.</p>
+      <pre><code>{getBinary}</code></pre>
+      <p><strong>Docker</strong> (build from source):</p>
+      <pre><code>{getDocker}</code></pre>
+    </section>
+
+    <section class="section" id="keys">
+      <h2>3. Keys</h2>
+      <ol>
+        <li>Open <a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a> and <strong>Create wallet</strong> (or import a key) on Boing Testnet. Use a dedicated key for the validator.</li>
+        <li>Copy the <strong>AccountId</strong>: this is your validator address.</li>
+        <li>Use <strong>Reveal private key</strong> to get the 32-byte secret for the node (<code>BOING_VALIDATOR_KEY</code>). Keep it in a file only you can read; never paste it into chat, a repo or shell history.</li>
+      </ol>
+    </section>
+
+    <section class="section" id="stake">
+      <h2>4. Request stake</h2>
+      <p>Validators need at least <strong>10,000 BOING</strong> bonded. The <a href="/faucet">faucet</a> (20 BOING per request) covers fees, not stake: stake is <strong>allocated manually</strong> by the testnet operator.</p>
+      <p>Send your <strong>AccountId</strong>, node multiaddr (<code>/ip4/&lt;public-ip&gt;/tcp/4001</code>), hardware/location and how long you plan to run:</p>
+      <ul>
+        <li>Email: <a href={`mailto:${contactEmail}?subject=Boing%20testnet%20validator%20stake%20request`}>{contactEmail}</a></li>
+        <li>Discord: <a href={discordUrl} target="_blank" rel="noopener">{discordUrl}</a> (operators channel)</li>
+        <li>Also <a href="/testnet/register/operator">register as an operator</a> so your node shows on the leaderboard.</li>
+      </ul>
+    </section>
+
+    <section class="section" id="sync">
+      <h2>5. Sync from the testnet bootnodes</h2>
+      <p>Official bootnodes (see <a href="/bootnodes">Bootnodes</a>):</p>
+      <pre><code>{BOOTNODES.join('\n')}</code></pre>
+      <p><strong>Binary:</strong></p>
+      <pre><code>{syncBinary}</code></pre>
+      <p><strong>Docker:</strong></p>
+      <pre><code>{syncDocker}</code></pre>
+      <p>Your node is synced when <code>boing_health</code> reports the same <code>head_height</code> as the public RPC.</p>
+    </section>
+
+    <section class="section" id="bond">
+      <h2>6. Bond (stake)</h2>
+      <p>The <code>boing</code> CLI has no staking command yet; bond from <strong>Boing Express → Staking</strong> with the validator wallet:</p>
+      <ol>
+        <li>Unlock the validator wallet on Boing Testnet.</li>
+        <li>Staking → amount (at least 10,000) → <strong>Bond</strong>. Keep a few BOING unbonded for fees.</li>
+        <li>Check the <code>stake</code> field of <code>boing_getAccount</code> or your account on boing.observer.</li>
+      </ol>
+      <p><strong>Unbond</strong> from the same section; stake unlocks after about 100 blocks, then use <strong>Claim unbond</strong>.</p>
+    </section>
+
+    <section class="section" id="validate">
+      <h2>7. Run as a validator</h2>
+      <p>After the operator confirms your AccountId is in the validator set, restart with the validator flags (key in an env file, not on the command line):</p>
+      <pre><code>{runValidator}</code></pre>
+      <p>Docker: add <code>--env-file validator.env -e BOING_VALIDATOR=1</code>.</p>
+    </section>
+
+    <section class="section" id="monitoring">
+      <h2>8. Monitoring</h2>
+      <pre><code>{monitor}</code></pre>
+      <p>Watch that <code>head_height</code> keeps pace with the public RPC, you have at least one peer, and disk has room. Run under a supervisor (systemd <code>Restart=always</code> or Docker <code>--restart unless-stopped</code>) and alert when <code>/live</code> fails.</p>
+    </section>
+
+    <section class="section" id="duties">
+      <h2>9. Duties</h2>
+      <ul>
+        <li>Keep the node online and in sync; missed rounds hurt the network and your leaderboard standing.</li>
+        <li>Upgrade promptly when a new <code>testnet-v*</code> release is announced; consensus changes are coordinated in an announced window.</li>
+        <li>Protect the validator key and report a suspected compromise immediately.</li>
+        <li>Keep TCP 4001 reachable so other nodes can peer with you.</li>
+        <li>This is a testnet: BOING has no monetary value and the chain may be reset.</li>
+      </ul>
+      <p class="muted">Full guide in the repo: <a href={guideUrl} target="_blank" rel="noopener">docs/TESTNET-VALIDATOR-GUIDE.md</a>.</p>
+    </section>
+    </div>
+  </article>
+</Layout>
+
+<style>
+  .validator-guide pre {
+    overflow-x: auto;
+    padding: 0.9rem 1rem;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .validator-guide .vg-note {
+    margin-top: 1rem;
+    padding: 0.9rem 1rem;
+    border-left: 3px solid var(--accent-teal, #2dd4bf);
+    background: rgba(45, 212, 191, 0.08);
+    border-radius: 6px;
+  }
+  .validator-guide section h2 { margin-top: 0.5rem; }
+  .validator-guide ol, .validator-guide ul { padding-left: 1.25rem; }
+</style>
