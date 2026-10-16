@@ -24,6 +24,12 @@ export declare const CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX: string;
  */
 export declare const CANONICAL_BOING_TESTNET_USDC_TOKEN_HEX: string;
 export declare const CANONICAL_BOING_TESTNET_BOING_TOKEN_HEX: string;
+/**
+ * Display label for {@link CANONICAL_BOING_TESTNET_BOING_TOKEN_HEX}. It is a reference *contract* token, not the
+ * native BOING coin, so UIs must never show it as plain "BOING".
+ */
+export declare const CANONICAL_BOING_TESTNET_BOING_TOKEN_SYMBOL = "tBOING";
+export declare const CANONICAL_BOING_TESTNET_BOING_TOKEN_NAME = "Boing Token (test)";
 export declare const CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX: string;
 /**
  * Custody router v1 (`boing pool router-deploy`, block 97) for v8/v9 pools such as the USDC/BOING pool:

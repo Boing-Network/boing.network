@@ -25,6 +25,12 @@ export const CANONICAL_BOING_TESTNET_NATIVE_LP_SHARE_TOKEN_HEX = validateHex32('
  */
 export const CANONICAL_BOING_TESTNET_USDC_TOKEN_HEX = validateHex32('0x6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93');
 export const CANONICAL_BOING_TESTNET_BOING_TOKEN_HEX = validateHex32('0x6fce9d3e3f13df9fc17e3fd947148a4e6ce6966538b7dd9bf2a891d3b9699c6b');
+/**
+ * Display label for {@link CANONICAL_BOING_TESTNET_BOING_TOKEN_HEX}. It is a reference *contract* token, not the
+ * native BOING coin, so UIs must never show it as plain "BOING".
+ */
+export const CANONICAL_BOING_TESTNET_BOING_TOKEN_SYMBOL = 'tBOING';
+export const CANONICAL_BOING_TESTNET_BOING_TOKEN_NAME = 'Boing Token (test)';
 export const CANONICAL_BOING_TESTNET_USDC_BOING_POOL_HEX = validateHex32('0x2ad75c2e11b1e93761f4f8df39502deecbe7148324e5a80a951798142b2c5b61');
 /**
  * Custody router v1 (`boing pool router-deploy`, block 97) for v8/v9 pools such as the USDC/BOING pool:
