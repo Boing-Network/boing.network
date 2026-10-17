@@ -6,9 +6,12 @@
 //! `docs/HANDOFF_Boing_Network_Global_Token_Discovery.md`).
 
 use std::collections::{HashMap, HashSet};
+use std::sync::OnceLock;
 
 use boing_execution::{
-    native_dex_factory_count_key, native_dex_factory_triplet_storage_key, reserve_a_key,
+    native_dex_factory_count_key, native_dex_factory_triplet_storage_key,
+    reference_fungible_secured_runtime_bytecode, reference_fungible_secured_runtime_bytecode_v2,
+    reference_fungible_template_bytecode, reference_fungible_template_v2_bytecode, reserve_a_key,
     reserve_b_key, swap_fee_bps_key, token_a_key, token_b_key, NATIVE_CP_SWAP_FEE_BPS,
     NATIVE_DEX_FACTORY_MAX_PAIRS, NATIVE_DEX_FACTORY_TOPIC_REGISTER,
 };
@@ -163,12 +166,18 @@ fn max_receipt_scans_limit() -> Option<usize> {
     }
 }
 
-/// Optional JSON object: **`"0x" + 64 hex` → decimals** (0–255). Unlisted tokens default to **18** (used for
-/// **`boing_listDexPools`** leg fields, **`boing_listDexTokens`**, **`boing_getDexToken`**).
+/// Optional JSON object: **`"0x" + 64 hex` → decimals** (0–255), the operator override for
+/// **`boing_listDexPools`** leg fields, **`boing_listDexTokens`** and **`boing_getDexToken`**.
 fn parse_token_decimals_json() -> HashMap<String, u8> {
-    let Ok(raw) = std::env::var("BOING_DEX_TOKEN_DECIMALS_JSON") else {
-        return HashMap::new();
-    };
+    match std::env::var("BOING_DEX_TOKEN_DECIMALS_JSON") {
+        Ok(raw) => parse_token_decimals_map(&raw),
+        Err(_) => HashMap::new(),
+    }
+}
+
+/// Parse the decimals override map. Entries with a bad id or a non-integer / out-of-range value are
+/// skipped (never coerced to a guessed default).
+fn parse_token_decimals_map(raw: &str) -> HashMap<String, u8> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return HashMap::new();
@@ -184,20 +193,60 @@ fn parse_token_decimals_json() -> HashMap<String, u8> {
         let Ok(id) = parse_account_id_hex(k) else {
             continue;
         };
-        let key = account_id_hex_lower(&id);
         let n = match val {
-            Value::Number(num) => num.as_u64().unwrap_or(18),
-            Value::String(s) => s.trim().parse::<u64>().unwrap_or(18),
-            _ => 18,
+            Value::Number(num) => num.as_u64(),
+            Value::String(s) => s.trim().parse::<u64>().ok(),
+            _ => None,
         };
-        let dec = u8::try_from(n.min(255)).unwrap_or(255);
-        m.insert(key, dec);
+        let Some(dec) = n.and_then(|n| u8::try_from(n).ok()) else {
+            continue;
+        };
+        m.insert(account_id_hex_lower(&id), dec);
     }
     m
 }
 
-fn token_decimals_for(map: &HashMap<String, u8>, id: &AccountId) -> u8 {
-    map.get(&account_id_hex_lower(id)).copied().unwrap_or(18)
+/// Deployed code of the reference fungible templates. None of them has a decimals slot: balances are
+/// whole units, so a token running one of these has **0** decimals (v2 is what boing.finance deploys
+/// and what the v8 / v9 custody pools hold). Name and symbol live in the deploy metadata, not in storage.
+fn whole_unit_token_codes() -> &'static [Vec<u8>] {
+    static CODES: OnceLock<Vec<Vec<u8>>> = OnceLock::new();
+    CODES.get_or_init(|| {
+        vec![
+            reference_fungible_template_v2_bytecode(),
+            reference_fungible_template_bytecode(),
+            reference_fungible_secured_runtime_bytecode_v2(),
+            reference_fungible_secured_runtime_bytecode(),
+        ]
+    })
+}
+
+/// Token decimals and where they came from:
+/// 1. **`env`**: the operator map (**`BOING_DEX_TOKEN_DECIMALS_JSON`**);
+/// 2. **`template`**: the token's deployed code is a reference fungible template (whole units, **0**);
+/// 3. otherwise unknown (**`None`**, JSON **`null`**); the node does not guess.
+fn resolve_token_decimals(
+    state: &StateStore,
+    map: &HashMap<String, u8>,
+    id: &AccountId,
+) -> (Option<u8>, Option<&'static str>) {
+    if let Some(d) = map.get(&account_id_hex_lower(id)) {
+        return (Some(*d), Some("env"));
+    }
+    if let Some(code) = state.get_contract_code(id) {
+        if whole_unit_token_codes().iter().any(|t| t == code) {
+            return (Some(0), Some("template"));
+        }
+    }
+    (None, None)
+}
+
+fn decimals_json(d: Option<u8>) -> Value {
+    d.map(Value::from).unwrap_or(Value::Null)
+}
+
+fn source_json(s: Option<&'static str>) -> Value {
+    s.map(Value::from).unwrap_or(Value::Null)
 }
 
 fn parse_u128_opt(m: &serde_json::Map<String, Value>, key: &str) -> Option<u128> {
@@ -528,14 +577,14 @@ pub fn list_dex_pools(
         let (ra, rb) = pool_reserves(state, &pool);
         let fee_bps = pool_fee_bps(state, &pool);
         let created = pool_heights.get(&pool).copied();
-        let dec_a = token_decimals_for(&decimals_map, &token_a);
-        let dec_b = token_decimals_for(&decimals_map, &token_b);
+        let (dec_a, _) = resolve_token_decimals(state, &decimals_map, &token_a);
+        let (dec_b, _) = resolve_token_decimals(state, &decimals_map, &token_b);
         pools.push(json!({
             "poolHex": account_id_hex_lower(&pool),
             "tokenAHex": account_id_hex_lower(&token_a),
             "tokenBHex": account_id_hex_lower(&token_b),
-            "tokenADecimals": dec_a,
-            "tokenBDecimals": dec_b,
+            "tokenADecimals": decimals_json(dec_a),
+            "tokenBDecimals": decimals_json(dec_b),
             "feeBps": fee_bps,
             "reserveA": ra.to_string(),
             "reserveB": rb.to_string(),
@@ -656,12 +705,13 @@ pub fn list_dex_tokens(
         .map(|(id, agg)| {
             let (sym, name, m_src) = merge_token_display(&id, &meta);
             let first = token_first_seen_height(&id, &directory, &pool_heights);
-            let dec = token_decimals_for(&decimals_map, &id);
+            let (dec, dec_src) = resolve_token_decimals(state, &decimals_map, &id);
             json!({
                 "id": account_id_hex_lower(&id),
                 "symbol": sym,
                 "name": name,
-                "decimals": dec,
+                "decimals": decimals_json(dec),
+                "decimalsSource": source_json(dec_src),
                 "poolCount": agg.pool_count,
                 "firstSeenHeight": first.map(Value::from).unwrap_or(Value::Null),
                 "metadataSource": m_src,
@@ -732,14 +782,15 @@ pub fn get_dex_token(
     };
     let (sym, name, m_src) = merge_token_display(&want, &meta);
     let first = token_first_seen_height(&want, &directory, &pool_heights);
-    let dec = token_decimals_for(&decimals_map, &want);
+    let (dec, dec_src) = resolve_token_decimals(state, &decimals_map, &want);
 
     if diag {
         return Ok(json!({
             "id": account_id_hex_lower(&want),
             "symbol": sym,
             "name": name,
-            "decimals": dec,
+            "decimals": decimals_json(dec),
+            "decimalsSource": source_json(dec_src),
             "poolCount": agg.pool_count,
             "firstSeenHeight": first.map(Value::from).unwrap_or(Value::Null),
             "metadataSource": m_src,
@@ -756,9 +807,108 @@ pub fn get_dex_token(
         "id": account_id_hex_lower(&want),
         "symbol": sym,
         "name": name,
-        "decimals": dec,
+        "decimals": decimals_json(dec),
+        "decimalsSource": source_json(dec_src),
         "poolCount": agg.pool_count,
         "firstSeenHeight": first.map(Value::from).unwrap_or(Value::Null),
         "metadataSource": m_src,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const V2_TOKEN: AccountId = AccountId([0x31; 32]);
+    const V1_TOKEN: AccountId = AccountId([0x32; 32]);
+    const SECURED_TOKEN: AccountId = AccountId([0x33; 32]);
+    const OTHER_CONTRACT: AccountId = AccountId([0x34; 32]);
+    const NO_CODE: AccountId = AccountId([0x35; 32]);
+
+    fn state() -> StateStore {
+        let mut s = StateStore::new();
+        s.set_contract_code(V2_TOKEN, reference_fungible_template_v2_bytecode());
+        s.set_contract_code(V1_TOKEN, reference_fungible_template_bytecode());
+        s.set_contract_code(
+            SECURED_TOKEN,
+            reference_fungible_secured_runtime_bytecode_v2(),
+        );
+        let mut other = reference_fungible_template_v2_bytecode();
+        other.push(0x00);
+        s.set_contract_code(OTHER_CONTRACT, other);
+        s
+    }
+
+    #[test]
+    fn reference_template_tokens_are_whole_units() {
+        let s = state();
+        let none = HashMap::new();
+        assert_eq!(
+            resolve_token_decimals(&s, &none, &V2_TOKEN),
+            (Some(0), Some("template"))
+        );
+        assert_eq!(
+            resolve_token_decimals(&s, &none, &V1_TOKEN),
+            (Some(0), Some("template"))
+        );
+        assert_eq!(
+            resolve_token_decimals(&s, &none, &SECURED_TOKEN),
+            (Some(0), Some("template"))
+        );
+    }
+
+    #[test]
+    fn unknown_tokens_are_null_not_18() {
+        let s = state();
+        let none = HashMap::new();
+        assert_eq!(
+            resolve_token_decimals(&s, &none, &OTHER_CONTRACT),
+            (None, None)
+        );
+        assert_eq!(resolve_token_decimals(&s, &none, &NO_CODE), (None, None));
+        assert_eq!(decimals_json(None), Value::Null);
+        assert_eq!(decimals_json(Some(0)), json!(0));
+    }
+
+    #[test]
+    fn operator_map_wins_and_keeps_listed_tokens() {
+        let s = state();
+        let raw = format!(
+            r#"{{"{}":0,"{}":6,"{}":"9"}}"#,
+            account_id_hex_lower(&V2_TOKEN),
+            account_id_hex_lower(&NO_CODE),
+            account_id_hex_lower(&OTHER_CONTRACT)
+        );
+        let m = parse_token_decimals_map(&raw);
+        assert_eq!(
+            resolve_token_decimals(&s, &m, &V2_TOKEN),
+            (Some(0), Some("env"))
+        );
+        assert_eq!(
+            resolve_token_decimals(&s, &m, &NO_CODE),
+            (Some(6), Some("env"))
+        );
+        assert_eq!(
+            resolve_token_decimals(&s, &m, &OTHER_CONTRACT),
+            (Some(9), Some("env"))
+        );
+        // Template detection still applies to tokens the map does not list.
+        assert_eq!(
+            resolve_token_decimals(&s, &m, &V1_TOKEN),
+            (Some(0), Some("template"))
+        );
+    }
+
+    #[test]
+    fn bad_map_entries_are_skipped_not_defaulted() {
+        let a = account_id_hex_lower(&V2_TOKEN);
+        let b = account_id_hex_lower(&NO_CODE);
+        let c = account_id_hex_lower(&OTHER_CONTRACT);
+        let raw = format!(r#"{{"{a}":"x","{b}":256,"{c}":-1,"0x12":3}}"#);
+        assert!(parse_token_decimals_map(&raw).is_empty());
+        assert!(parse_token_decimals_map("").is_empty());
+        assert!(parse_token_decimals_map("[1,2]").is_empty());
+        let upper = format!(r#"{{"0x{}":2}}"#, a.trim_start_matches("0x").to_uppercase());
+        assert_eq!(parse_token_decimals_map(&upper).get(&a), Some(&2));
+    }
 }

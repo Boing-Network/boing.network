@@ -70,8 +70,9 @@ describe('nativeDexDiscovery', () => {
             poolHex: '0x' + 'aa'.repeat(32),
             tokenAHex: '0x' + 'bb'.repeat(32),
             tokenBHex: '0x' + 'cc'.repeat(32),
-            tokenADecimals: 18,
-            tokenBDecimals: 18,
+            // Newer nodes: 0 for reference-template tokens, null when unknown (no guessed 18).
+            tokenADecimals: 0,
+            tokenBDecimals: null,
             feeBps: 30,
             reserveA: '1',
             reserveB: '2',
@@ -93,6 +94,8 @@ describe('nativeDexDiscovery', () => {
     const all = await d.collectAllPools();
     expect(all.source).toBe('rpc');
     expect(all.pools).toHaveLength(1);
+    expect(all.pools[0].tokenADecimals).toBe(0);
+    expect(all.pools[0].tokenBDecimals).toBeNull();
   });
 
   it('createNativeDexDiscovery falls back to http when rpc missing but base URL set', async () => {

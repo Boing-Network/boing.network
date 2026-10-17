@@ -165,7 +165,7 @@ Until L1 RPC exists end-to-end:
 - **`createdAtHeight` / `firstSeenHeight`:** filled from committed receipts (factory **`Log3`**) when **`light`** is not set; **`light: true`** or **`enrich: false`** skips scans.
 - **Token labels:** recent blocks (env **`BOING_DEX_TOKEN_METADATA_SCAN_BLOCKS`**, default **8192**) are scanned newest-first for **`ContractDeployWithPurposeAndMetadata`**; response includes **`metadataSource`** (`deploy` \| `abbrev`).
 - **Receipt scan cap:** env **`BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS`** (default **500000** per RPC call; **`0`** = unlimited). **`includeDiagnostics: true`** returns counters (**`receiptScans`**, **`receiptScanCapped`**, deploy scan stats on token methods).
-- **Decimals override:** env **`BOING_DEX_TOKEN_DECIMALS_JSON`** — JSON object of **`"0x" + 64 hex` → number** for **`boing_listDexPools`** (**`tokenADecimals`** / **`tokenBDecimals`** per leg), **`boing_listDexTokens`**, and **`boing_getDexToken`** (default **18** when omitted).
+- **Decimals override:** env **`BOING_DEX_TOKEN_DECIMALS_JSON`** — JSON object of **`"0x" + 64 hex` → number** for **`boing_listDexPools`** (**`tokenADecimals`** / **`tokenBDecimals`** per leg), **`boing_listDexTokens`**, and **`boing_getDexToken`**. Unlisted tokens: **0** when the deployed code is a reference fungible template (v2 etc., whole units), else **`null`** (unknown; older nodes guessed **18**).
 - **Indexer / SDK:** **`buildNativeDexIndexerStatsForClient`** merges **`createdAtHeight`**, **`tokenADecimals`**, and **`tokenBDecimals`** from **`boing_listDexPools`** per canonical factory when RPC supports it.
 
 **Cross-repo handoff** for **`boing.finance`**, **`boing.observer`**, **`boing.express`**: § **Consumer apps** below.

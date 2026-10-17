@@ -366,14 +366,9 @@ async fn native_dex_factory_deploy_register_and_query_via_rpc() {
         pools[0].get("tokenAHex").and_then(|x| x.as_str()),
         Some(token_a_hex.as_str())
     );
-    assert_eq!(
-        pools[0].get("tokenADecimals").and_then(|x| x.as_u64()),
-        Some(18)
-    );
-    assert_eq!(
-        pools[0].get("tokenBDecimals").and_then(|x| x.as_u64()),
-        Some(18)
-    );
+    // No code at these ids and no operator map: decimals are unknown (null), never a guessed 18.
+    assert!(pools[0].get("tokenADecimals").expect("tokenADecimals").is_null());
+    assert!(pools[0].get("tokenBDecimals").expect("tokenBDecimals").is_null());
     assert_eq!(
         pools[0].get("createdAtHeight").and_then(|x| x.as_u64()),
         Some(register_block_height)
@@ -401,7 +396,8 @@ async fn native_dex_factory_deploy_register_and_query_via_rpc() {
             t.get("metadataSource").and_then(|x| x.as_str()),
             Some("abbrev")
         );
-        assert_eq!(t.get("decimals").and_then(|x| x.as_u64()), Some(18));
+        assert!(t.get("decimals").expect("decimals").is_null());
+        assert!(t.get("decimalsSource").expect("decimalsSource").is_null());
     }
 
     let lt_diag = rpc_call(
@@ -440,6 +436,7 @@ async fn native_dex_factory_deploy_register_and_query_via_rpc() {
         .find(|t| t.get("id").and_then(|x| x.as_str()) == Some(token_a_hex.as_str()))
         .expect("token a row");
     assert_eq!(row_a.get("decimals").and_then(|x| x.as_u64()), Some(6));
+    assert_eq!(row_a.get("decimalsSource").and_then(|x| x.as_str()), Some("env"));
 
     let lp_dec = rpc_call(
         &mut app,
@@ -457,10 +454,7 @@ async fn native_dex_factory_deploy_register_and_query_via_rpc() {
         pools_dec[0].get("tokenADecimals").and_then(|x| x.as_u64()),
         Some(6)
     );
-    assert_eq!(
-        pools_dec[0].get("tokenBDecimals").and_then(|x| x.as_u64()),
-        Some(18)
-    );
+    assert!(pools_dec[0].get("tokenBDecimals").expect("tokenBDecimals").is_null());
 
     let _ = std::env::remove_var("BOING_DEX_TOKEN_DECIMALS_JSON");
 

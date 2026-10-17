@@ -259,13 +259,13 @@
       },
       {
         "name": "boing_getDexToken",
-        "summary": "Single token row from the DEX-derived discovery universe. Factory: params.factory or BOING_CANONICAL_NATIVE_DEX_FACTORY. Optional light / enrich; includeDiagnostics for scan counters; BOING_DEX_TOKEN_DECIMALS_JSON overrides decimals.",
+        "summary": "Single token row from the DEX-derived discovery universe. Factory: params.factory or BOING_CANONICAL_NATIVE_DEX_FACTORY. Optional light / enrich; includeDiagnostics for scan counters; decimals: BOING_DEX_TOKEN_DECIMALS_JSON, else 0 for reference fungible template code (v2 etc.), else null.",
         "params": { "type": "array", "minItems": 1, "maxItems": 1 },
         "result": { "description": "Token object or JSON null when unknown", "type": ["object", "null"] }
       },
       {
         "name": "boing_listDexPools",
-        "summary": "Cursor-paginated native DEX pools (directory + live reserves). Each row includes tokenADecimals/tokenBDecimals from BOING_DEX_TOKEN_DECIMALS_JSON (default 18). Factory: params.factory or env. Receipt-backed createdAtHeight unless light=true; BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS; includeDiagnostics.",
+        "summary": "Cursor-paginated native DEX pools (directory + live reserves). Each row includes tokenADecimals/tokenBDecimals (BOING_DEX_TOKEN_DECIMALS_JSON, else 0 for reference fungible template code, else null). Factory: params.factory or env. Receipt-backed createdAtHeight unless light=true; BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS; includeDiagnostics.",
         "params": { "type": "array", "minItems": 1, "maxItems": 1 },
         "result": { "type": "object" }
       },
@@ -586,8 +586,8 @@
             "poolHex": { "type": "string" },
             "tokenAHex": { "type": "string" },
             "tokenBHex": { "type": "string" },
-            "tokenADecimals": { "type": "integer", "minimum": 0, "maximum": 255 },
-            "tokenBDecimals": { "type": "integer", "minimum": 0, "maximum": 255 },
+            "tokenADecimals": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+            "tokenBDecimals": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
             "feeBps": { "type": "integer" },
             "reserveA": { "type": "string" },
             "reserveB": { "type": "string" },
@@ -601,7 +601,8 @@
             "id": { "type": "string" },
             "symbol": { "type": "string" },
             "name": { "type": "string" },
-            "decimals": { "type": "integer", "minimum": 0, "maximum": 255 },
+            "decimals": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+            "decimalsSource": { "type": ["string", "null"], "enum": ["env", "template", null] },
             "poolCount": { "type": "integer", "minimum": 0 },
             "firstSeenHeight": { "type": ["integer", "null"] },
             "metadataSource": { "type": "string", "enum": ["deploy", "abbrev"] },

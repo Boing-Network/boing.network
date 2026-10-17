@@ -774,7 +774,7 @@ export class BoingClient {
    * Cursor-paginated native DEX pools (`boing_listDexPools`).
    * Factory: **`params.factory`** (32-byte hex) overrides **`BOING_CANONICAL_NATIVE_DEX_FACTORY`**.
    * Set **`light`** / **`enrich: false`** to skip receipt scan (**`createdAtHeight`** stays null).
-   * Each pool row includes **`tokenADecimals`** / **`tokenBDecimals`** (**`BOING_DEX_TOKEN_DECIMALS_JSON`**, default **18**).
+   * Each pool row includes **`tokenADecimals`** / **`tokenBDecimals`** (**`BOING_DEX_TOKEN_DECIMALS_JSON`**, else **0** for reference fungible template code, else **`null`**).
    */
   async listDexPoolsPage(params?: {
     cursor?: string | null;
