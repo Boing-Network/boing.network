@@ -732,7 +732,8 @@ impl StorageAccess for StateStore {
     }
 
     fn sstore(&mut self, contract: AccountId, key: [u8; 32], value: [u8; 32]) {
-        self.contract_storage.insert((contract, key), value);
+        // Journaled so checkpoints can undo it.
+        self.merge_contract_storage(contract, key, value);
     }
 
     fn get_contract_code(&self, contract: AccountId) -> Option<Vec<u8>> {

@@ -1,6 +1,7 @@
 //! State store — Sparse Merkle tree for compact proofs.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 
 use boing_primitives::{Account, AccountId, AccountState, Hash};
 
@@ -33,14 +34,29 @@ pub type PersistenceExport = (
 );
 
 /// Checkpoint handle for revert. Created by `checkpoint()`.
+///
+/// Journaled (security review #4): a checkpoint is a position in the store's undo journal, so taking
+/// one is O(1) and reverting costs O(writes since the checkpoint) instead of cloning the whole state
+/// and rebuilding the SMT. Dropping a checkpoint without reverting keeps the writes (same as before).
+/// While no checkpoint is alive, writes are not journaled and the journal is cleared.
 #[derive(Clone)]
 pub struct StateCheckpoint {
-    accounts: HashMap<AccountId, AccountState>,
-    contract_code: HashMap<AccountId, Vec<u8>>,
-    contract_storage: HashMap<(AccountId, [u8; 32]), [u8; 32]>,
-    qa_pending: HashMap<Hash, QaPendingRecord>,
-    open_validators: OpenValidatorRegistry,
-    names: NameRegistry,
+    pos: usize,
+    /// Ties the handle to its store and keeps journaling on while the handle lives.
+    token: Arc<()>,
+}
+
+/// One undo record: the value before a write (`None` = absent).
+#[derive(Debug)]
+enum Undo {
+    Account(AccountId, Option<AccountState>),
+    Code(AccountId, Option<Vec<u8>>),
+    Storage((AccountId, [u8; 32]), Option<[u8; 32]>),
+    QaPending(Hash, Option<QaPendingRecord>),
+    /// Whole-registry snapshot, taken at most once per checkpoint level (registries are small and
+    /// capped / paid; recorded only when a tx actually touches them).
+    OpenValidators(Box<OpenValidatorRegistry>),
+    Names(Box<NameRegistry>),
 }
 
 /// State store with Sparse Merkle tree for state_root.
@@ -62,6 +78,15 @@ pub struct StateStore {
     names: NameRegistry,
     /// Node config for the name registry (not committed; `None` = registry off).
     name_registry_params: Option<NameRegistryParams>,
+    /// Undo journal for live checkpoints (see [`StateCheckpoint`]).
+    journal: Vec<Undo>,
+    /// Shared with every live checkpoint; `strong_count > 1` means journaling is on.
+    cp_token: Arc<()>,
+    /// Journal position of the most recently created live checkpoint (upper bound of live ones).
+    last_cp_pos: usize,
+    /// Journal index of the registry snapshot taken since `last_cp_pos`, if any.
+    ov_snap_pos: Option<usize>,
+    names_snap_pos: Option<usize>,
 }
 
 impl StateStore {
@@ -73,16 +98,70 @@ impl StateStore {
         self.accounts.get(id)
     }
 
+    /// True when a checkpoint is alive (writes must be journaled). With none alive the journal is
+    /// dropped so it never grows beyond the writes of the outermost live checkpoint.
+    fn journaling(&mut self) -> bool {
+        if Arc::strong_count(&self.cp_token) > 1 {
+            return true;
+        }
+        if !self.journal.is_empty() {
+            self.journal = Vec::new();
+        }
+        self.last_cp_pos = 0;
+        self.ov_snap_pos = None;
+        self.names_snap_pos = None;
+        false
+    }
+
+    fn record_account(&mut self, id: &AccountId) {
+        if self.journaling() {
+            let prev = self.accounts.get(id).cloned();
+            self.journal.push(Undo::Account(*id, prev));
+        }
+    }
+
+    fn record_storage(&mut self, contract: AccountId, key: [u8; 32]) {
+        if self.journaling() {
+            let prev = self.contract_storage.get(&(contract, key)).copied();
+            self.journal.push(Undo::Storage((contract, key), prev));
+        }
+    }
+
+    fn record_qa(&mut self, subject: &Hash) {
+        if self.journaling() {
+            let prev = self.qa_pending.get(subject).cloned();
+            self.journal.push(Undo::QaPending(*subject, prev));
+        }
+    }
+
+    /// A snapshot at index `>= last_cp_pos` already restores the registry for every live checkpoint.
+    fn snapshot_needed(&self, snap: Option<usize>) -> bool {
+        !matches!(snap, Some(p) if p >= self.last_cp_pos && p < self.journal.len())
+    }
+
+    /// Number of undo records currently held (diagnostics / tests).
+    pub fn journal_len(&self) -> usize {
+        self.journal.len()
+    }
+
     pub fn get_mut(&mut self, id: &AccountId) -> Option<&mut AccountState> {
+        if self.accounts.contains_key(id) {
+            self.record_account(id);
+        }
         self.accounts.get_mut(id)
     }
 
     pub fn insert(&mut self, account: Account) {
+        self.record_account(&account.id);
         self.accounts.insert(account.id, account.state);
         // Tree is rebuilt on `state_root()` so code/storage commitments stay consistent.
     }
 
     pub fn set_contract_code(&mut self, account: AccountId, bytecode: Vec<u8>) {
+        if self.journaling() {
+            let prev = self.contract_code.get(&account).cloned();
+            self.journal.push(Undo::Code(account, prev));
+        }
         self.contract_code.insert(account, bytecode);
     }
 
@@ -132,8 +211,11 @@ impl StateStore {
         for id in self.contract_code.keys() {
             ids.insert(*id);
         }
-        for ((c, _), _) in &self.contract_storage {
+        // Group storage by contract in one pass (was a full storage scan per account: O(accounts x slots)).
+        let mut slots_by_contract: BTreeMap<AccountId, Vec<([u8; 32], [u8; 32])>> = BTreeMap::new();
+        for ((c, key), value) in &self.contract_storage {
             ids.insert(*c);
+            slots_by_contract.entry(*c).or_default().push((*key, *value));
         }
         for id in ids {
             let state = self.accounts.get(&id).cloned().unwrap_or(AccountState {
@@ -143,7 +225,16 @@ impl StateStore {
                 ..Default::default()
             });
             let code_hash = self.code_hash_of(&id);
-            let storage_root = self.storage_root_of(&id);
+            let storage_root = match slots_by_contract.get(&id) {
+                Some(slots) => {
+                    let mut tree = SparseMerkleTree::new();
+                    for (key, value) in slots {
+                        tree.insert_storage_slot(*key, value);
+                    }
+                    tree.root()
+                }
+                None => Hash::ZERO,
+            };
             let leaf = hash_account_leaf(&state, &code_hash, &storage_root);
             self.tree.insert_leaf_hash(id.0, leaf);
         }
@@ -166,11 +257,13 @@ impl StateStore {
 
     /// Merge account state from parallel execution view.
     pub fn merge_account(&mut self, id: AccountId, state: AccountState) {
+        self.record_account(&id);
         self.accounts.insert(id, state);
     }
 
-    /// Merge contract storage from parallel execution view.
+    /// Merge contract storage from parallel execution view (also the VM `SSTORE` path).
     pub fn merge_contract_storage(&mut self, contract: AccountId, key: [u8; 32], value: [u8; 32]) {
+        self.record_storage(contract, key);
         self.contract_storage.insert((contract, key), value);
     }
 
@@ -197,42 +290,70 @@ impl StateStore {
         out
     }
 
-    /// Create a checkpoint of current state for revert.
-    pub fn checkpoint(&self) -> StateCheckpoint {
+    /// Create a checkpoint for revert. O(1): it marks the current journal position.
+    pub fn checkpoint(&mut self) -> StateCheckpoint {
+        // Drops a stale journal first when no other checkpoint is alive.
+        let _ = self.journaling();
+        let pos = self.journal.len();
+        self.last_cp_pos = pos;
         StateCheckpoint {
-            accounts: self.accounts.iter().map(|(k, v)| (*k, v.clone())).collect(),
-            contract_code: self
-                .contract_code
-                .iter()
-                .map(|(k, v)| (*k, v.clone()))
-                .collect(),
-            contract_storage: self
-                .contract_storage
-                .iter()
-                .map(|(k, v)| (*k, *v))
-                .collect(),
-            qa_pending: self.qa_pending.clone(),
-            open_validators: self.open_validators.clone(),
-            names: self.names.clone(),
+            pos,
+            token: self.cp_token.clone(),
         }
     }
 
-    /// Revert state to checkpoint (e.g. after failed block execution).
+    /// Revert state to checkpoint (e.g. after a failed tx or block). Undoes the journaled writes
+    /// made since the checkpoint, newest first: O(writes), no full-state copy, no SMT rebuild (the
+    /// tree is rebuilt from current state by `state_root()` when needed).
     pub fn revert(&mut self, cp: StateCheckpoint) {
+        assert!(
+            Arc::ptr_eq(&cp.token, &self.cp_token),
+            "StateCheckpoint used on a different StateStore"
+        );
         boing_telemetry::component_debug(
             "boing_state::store",
             "state",
             "reverted_to_checkpoint",
             "state store reverted to checkpoint",
         );
-        self.accounts = cp.accounts;
-        self.contract_code = cp.contract_code;
-        self.contract_storage = cp.contract_storage;
-        self.qa_pending = cp.qa_pending;
-        self.open_validators = cp.open_validators;
-        self.names = cp.names;
-        self.tree = SparseMerkleTree::new();
-        let _ = self.state_root();
+        while self.journal.len() > cp.pos {
+            match self.journal.pop().expect("len > pos") {
+                Undo::Account(id, Some(st)) => {
+                    self.accounts.insert(id, st);
+                }
+                Undo::Account(id, None) => {
+                    self.accounts.remove(&id);
+                }
+                Undo::Code(id, Some(code)) => {
+                    self.contract_code.insert(id, code);
+                }
+                Undo::Code(id, None) => {
+                    self.contract_code.remove(&id);
+                }
+                Undo::Storage(k, Some(v)) => {
+                    self.contract_storage.insert(k, v);
+                }
+                Undo::Storage(k, None) => {
+                    self.contract_storage.remove(&k);
+                }
+                Undo::QaPending(k, Some(r)) => {
+                    self.qa_pending.insert(k, r);
+                }
+                Undo::QaPending(k, None) => {
+                    self.qa_pending.remove(&k);
+                }
+                Undo::OpenValidators(reg) => self.open_validators = *reg,
+                Undo::Names(reg) => self.names = *reg,
+            }
+        }
+        // Checkpoints created after `cp` are dead (nested scopes); keep the live-position bound.
+        self.last_cp_pos = self.last_cp_pos.min(cp.pos);
+        if matches!(self.ov_snap_pos, Some(p) if p >= cp.pos) {
+            self.ov_snap_pos = None;
+        }
+        if matches!(self.names_snap_pos, Some(p) if p >= cp.pos) {
+            self.names_snap_pos = None;
+        }
     }
 
     /// Generate Merkle proof for an account. Ensures tree is synced (includes code/storage).
@@ -303,14 +424,21 @@ impl StateStore {
     }
 
     pub fn qa_pending_mut(&mut self, subject: &Hash) -> Option<&mut QaPendingRecord> {
+        if self.qa_pending.contains_key(subject) {
+            self.record_qa(subject);
+        }
         self.qa_pending.get_mut(subject)
     }
 
     pub fn insert_qa_pending(&mut self, subject: Hash, record: QaPendingRecord) {
+        self.record_qa(&subject);
         self.qa_pending.insert(subject, record);
     }
 
     pub fn remove_qa_pending(&mut self, subject: &Hash) -> Option<QaPendingRecord> {
+        if self.qa_pending.contains_key(subject) {
+            self.record_qa(subject);
+        }
         self.qa_pending.remove(subject)
     }
 
@@ -322,6 +450,12 @@ impl StateStore {
     }
 
     pub fn load_qa_pending(&mut self, items: Vec<(Hash, QaPendingRecord)>) {
+        if self.journaling() {
+            let subjects: Vec<Hash> = self.qa_pending.keys().chain(items.iter().map(|(k, _)| k)).copied().collect();
+            for s in subjects {
+                self.record_qa(&s);
+            }
+        }
         self.qa_pending = items.into_iter().collect();
     }
 
@@ -331,12 +465,17 @@ impl StateStore {
     }
 
     pub fn open_validators_mut(&mut self) -> &mut OpenValidatorRegistry {
+        if self.journaling() && self.snapshot_needed(self.ov_snap_pos) {
+            self.ov_snap_pos = Some(self.journal.len());
+            self.journal
+                .push(Undo::OpenValidators(Box::new(self.open_validators.clone())));
+        }
         &mut self.open_validators
     }
 
     /// Replace the registry (persistence load).
     pub fn load_open_validators(&mut self, reg: OpenValidatorRegistry) {
-        self.open_validators = reg;
+        *self.open_validators_mut() = reg;
     }
 
     /// Name registry (read).
@@ -345,12 +484,16 @@ impl StateStore {
     }
 
     pub fn names_mut(&mut self) -> &mut NameRegistry {
+        if self.journaling() && self.snapshot_needed(self.names_snap_pos) {
+            self.names_snap_pos = Some(self.journal.len());
+            self.journal.push(Undo::Names(Box::new(self.names.clone())));
+        }
         &mut self.names
     }
 
     /// Replace the registry (persistence load).
     pub fn load_names(&mut self, reg: NameRegistry) {
-        self.names = reg;
+        *self.names_mut() = reg;
     }
 
     /// Name registry node config (`None` = registry off).
@@ -375,7 +518,7 @@ impl StateStore {
     /// importers call this after execution + block reward and before computing the state root.
     pub fn apply_open_validator_block_hook(&mut self, height: u64, proposer: AccountId) {
         if let Some(p) = self.open_validator_params.clone() {
-            self.open_validators.on_block(&p, height, proposer);
+            self.open_validators_mut().on_block(&p, height, proposer);
         }
     }
 
@@ -448,6 +591,213 @@ mod tests {
         state.revert(cp);
         assert_eq!(state.get(&a).unwrap().balance, 100);
         assert!(state.get(&AccountId([3u8; 32])).is_none());
+    }
+
+    fn acct(b: u8, balance: u128) -> Account {
+        Account {
+            id: AccountId([b; 32]),
+            state: AccountState {
+                balance,
+                ..Default::default()
+            },
+        }
+    }
+
+    /// Security review #4: journaled checkpoints restore every state component exactly (same root
+    /// as never having written), nest correctly, and leave no journal once no checkpoint is alive.
+    #[test]
+    fn journaled_revert_restores_everything_and_nests() {
+        let mut state = StateStore::new();
+        state.insert(acct(1, 100));
+        state.set_contract_code(AccountId([9; 32]), vec![1, 2, 3]);
+        state.merge_contract_storage(AccountId([9; 32]), [1; 32], [2; 32]);
+        state.insert_qa_pending(
+            Hash([5; 32]),
+            QaPendingRecord {
+                deployer: AccountId([1; 32]),
+                deploy_nonce: 0,
+                tx: boing_primitives::Transaction {
+                    nonce: 0,
+                    sender: AccountId([1; 32]),
+                    payload: boing_primitives::TransactionPayload::Transfer {
+                        to: AccountId([2; 32]),
+                        amount: 1,
+                    },
+                    access_list: boing_primitives::AccessList {
+                        read: vec![],
+                        write: vec![],
+                    },
+                },
+                votes: Default::default(),
+                rewarded: Default::default(),
+                entered_height: 1,
+            },
+        );
+        let params = NameRegistryParams::default();
+        state
+            .names_mut()
+            .commit(&params, 1, AccountId([1; 32]), [7; 32])
+            .unwrap();
+        let root0 = state.state_root();
+        assert_eq!(state.journal_len(), 0, "no journal without live checkpoints");
+
+        let outer = state.checkpoint();
+        state.get_mut(&AccountId([1; 32])).unwrap().balance = 1;
+        state.insert(acct(2, 5));
+        let inner = state.checkpoint();
+        state.set_contract_code(AccountId([9; 32]), vec![9]);
+        state.set_contract_code(AccountId([8; 32]), vec![8]);
+        state.merge_contract_storage(AccountId([9; 32]), [1; 32], [3; 32]);
+        state.merge_contract_storage(AccountId([9; 32]), [4; 32], [4; 32]);
+        state.remove_qa_pending(&Hash([5; 32]));
+        state
+            .names_mut()
+            .commit(&params, 2, AccountId([2; 32]), [8; 32])
+            .unwrap();
+        state
+            .names_mut()
+            .commit(&params, 2, AccountId([2; 32]), [9; 32])
+            .unwrap();
+        state.revert(inner);
+        // Inner writes undone, outer writes kept.
+        assert_eq!(state.get(&AccountId([1; 32])).unwrap().balance, 1);
+        assert_eq!(state.get(&AccountId([2; 32])).unwrap().balance, 5);
+        assert_eq!(state.get_contract_code(&AccountId([9; 32])), Some(&vec![1, 2, 3]));
+        assert!(state.get_contract_code(&AccountId([8; 32])).is_none());
+        assert_eq!(state.get_contract_storage(&AccountId([9; 32]), &[1; 32]), [2; 32]);
+        assert_eq!(state.get_contract_storage(&AccountId([9; 32]), &[4; 32]), [0; 32]);
+        assert!(state.qa_pending(&Hash([5; 32])).is_some());
+
+        state.revert(outer);
+        assert_eq!(state.state_root(), root0);
+        assert!(state.get(&AccountId([2; 32])).is_none());
+        assert_eq!(state.journal_len(), 0);
+    }
+
+    #[test]
+    fn dropped_checkpoint_keeps_writes_and_clears_journal() {
+        let mut state = StateStore::new();
+        state.insert(acct(1, 100));
+        {
+            let _cp = state.checkpoint();
+            state.get_mut(&AccountId([1; 32])).unwrap().balance = 7;
+            assert!(state.journal_len() > 0);
+        }
+        // Next write with no live checkpoint drops the journal.
+        state.insert(acct(3, 1));
+        assert_eq!(state.journal_len(), 0);
+        assert_eq!(state.get(&AccountId([1; 32])).unwrap().balance, 7);
+        // A checkpoint taken later only undoes writes made after it.
+        let cp = state.checkpoint();
+        state.insert(acct(4, 1));
+        state.revert(cp);
+        assert_eq!(state.get(&AccountId([1; 32])).unwrap().balance, 7);
+        assert!(state.get(&AccountId([4; 32])).is_none());
+    }
+
+    /// Registry snapshots are taken at most once per checkpoint level, not once per mutation.
+    #[test]
+    fn registry_snapshot_once_per_checkpoint_level() {
+        let mut state = StateStore::new();
+        let params = NameRegistryParams::default();
+        let cp = state.checkpoint();
+        for i in 0..50u8 {
+            state
+                .names_mut()
+                .commit(&params, 1, AccountId([i; 32]), [i; 32])
+                .unwrap();
+        }
+        assert_eq!(state.journal_len(), 1);
+        let inner = state.checkpoint();
+        state.names_mut().commit(&params, 1, AccountId([99; 32]), [99; 32]).unwrap();
+        state.names_mut().commit(&params, 1, AccountId([98; 32]), [98; 32]).unwrap();
+        assert_eq!(state.journal_len(), 2);
+        state.revert(inner);
+        let after_inner = state.names().commitment();
+        state.revert(cp);
+        assert!(state.names().is_empty());
+        assert_ne!(after_inner, state.names().commitment());
+    }
+
+    /// Randomized: journaled revert equals a full-copy reference model.
+    #[test]
+    fn journaled_revert_matches_full_copy_model() {
+        let mut seed: u64 = 0x9e3779b97f4a7c15;
+        let mut next = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        for _round in 0..40 {
+            let mut state = StateStore::new();
+            for i in 0..8u8 {
+                state.insert(acct(i, 1000));
+                state.merge_contract_storage(AccountId([100; 32]), [i; 32], [i; 32]);
+            }
+            let before = state.state_root();
+            let before_accounts = state.export_for_persistence();
+            let mut cps = Vec::new();
+            for _ in 0..30 {
+                let r = next();
+                let b = (r % 12) as u8;
+                match (r >> 8) % 6 {
+                    0 => state.insert(acct(b, (r >> 16) as u128 % 500)),
+                    1 => {
+                        if let Some(a) = state.get_mut(&AccountId([b; 32])) {
+                            a.nonce += 1;
+                        }
+                    }
+                    2 => state.merge_contract_storage(AccountId([100; 32]), [b; 32], [r as u8; 32]),
+                    3 => state.set_contract_code(AccountId([b; 32]), vec![r as u8]),
+                    4 => cps.push(state.checkpoint()),
+                    _ => {
+                        if cps.len() > 1 {
+                            let cp = cps.pop().unwrap();
+                            state.revert(cp);
+                        }
+                    }
+                }
+            }
+            // Revert everything back to a checkpoint taken first.
+            let mut state2 = state;
+            let all: Vec<_> = cps.drain(..).collect();
+            drop(all);
+            let cp0 = state2.checkpoint();
+            state2.insert(acct(200, 1));
+            state2.revert(cp0);
+            assert!(state2.get(&AccountId([200; 32])).is_none());
+            // Separate full check: fresh store, checkpoint first, random writes, revert -> identical.
+            let mut s3 = StateStore::load_from_persistence(
+                before_accounts.0.clone(),
+                before_accounts.1.clone(),
+                before_accounts.2.clone(),
+            );
+            let cp = s3.checkpoint();
+            for _ in 0..40 {
+                let r = next();
+                let b = (r % 12) as u8;
+                match (r >> 8) % 5 {
+                    0 => s3.insert(acct(b, (r >> 16) as u128 % 500)),
+                    1 => {
+                        if let Some(a) = s3.get_mut(&AccountId([b; 32])) {
+                            a.balance = 0;
+                        }
+                    }
+                    2 => s3.merge_contract_storage(AccountId([100; 32]), [b; 32], [r as u8; 32]),
+                    3 => s3.set_contract_code(AccountId([b; 32]), vec![r as u8]),
+                    _ => {
+                        let inner = s3.checkpoint();
+                        s3.insert(acct(b, 1));
+                        if r & 1 == 0 {
+                            s3.revert(inner);
+                        }
+                    }
+                }
+            }
+            s3.revert(cp);
+            assert_eq!(s3.state_root(), before);
+        }
     }
 
     #[test]
