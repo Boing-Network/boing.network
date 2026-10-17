@@ -2,11 +2,16 @@
 //!
 //! Propagates blocks and **signed** transactions; discovers peers via mDNS; fetches blocks on demand.
 //! Optional **max connections per IP** (`max_connections_per_ip`, 0 = disabled) limits Sybil-style fan-in.
+//!
+//! Connection upkeep: configured bootnodes ([`P2pNode::set_bootnodes`]) are redialed with exponential
+//! backoff whenever they are not connected (see [`crate::redial`]); `/dns*` bootnodes are re-resolved on
+//! every dial; a libp2p `ping` every [`PING_INTERVAL`] detects dead links so they are closed (and redialed)
+//! instead of lingering as half-open connections.
 
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use libp2p::futures::StreamExt;
 use libp2p::multiaddr::Protocol;
@@ -19,9 +24,10 @@ use libp2p::StreamProtocol;
 use libp2p::gossipsub::PublishError;
 use libp2p::{gossipsub, SwarmBuilder};
 use tokio::sync::{mpsc, oneshot};
-use tracing::info;
+use tracing::{debug, info, warn};
 
 use crate::block_sync::{BlockRequest, BlockResponse};
+use crate::redial::BootnodeRedial;
 use boing_primitives::{Block, ConsensusVote, EquivocationEvidence, Hash, SignedTransaction, VrfProofGossip};
 
 const BLOCKS_TOPIC: &str = "boing/blocks";
@@ -29,6 +35,24 @@ const TRANSACTIONS_TOPIC: &str = "boing/transactions";
 const VOTES_TOPIC: &str = "boing/votes";
 const EQUIVOCATION_TOPIC: &str = "boing/equivocation";
 const VRF_PROOFS_TOPIC: &str = "boing/vrf-proofs";
+
+/// Keepalive / liveness probe interval on every connection.
+pub const PING_INTERVAL: Duration = Duration::from_secs(15);
+/// A ping unanswered for this long marks the connection dead (it is closed, then redialed if a bootnode).
+pub const PING_TIMEOUT: Duration = Duration::from_secs(20);
+/// How often the swarm task checks for bootnodes due for a (re)dial.
+const REDIAL_TICK: Duration = Duration::from_millis(500);
+
+/// Read-only connectivity snapshot (for health / readiness reporting).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+pub struct P2pStatus {
+    /// Distinct peers with at least one established connection.
+    pub connected_peers: usize,
+    /// Configured bootnode addresses (after de-duplication).
+    pub bootnodes: usize,
+    /// Bootnode addresses that currently have a live connection.
+    pub bootnodes_connected: usize,
+}
 
 /// P2P events (incoming blocks/transactions/votes and block fetch responses).
 #[derive(Debug)]
@@ -58,6 +82,8 @@ enum Command {
     RequestBlock(libp2p::PeerId, BlockRequest),
     GetPeers(oneshot::Sender<Vec<libp2p::PeerId>>),
     Dial(String),
+    SetBootnodes(Vec<libp2p::Multiaddr>),
+    Status(oneshot::Sender<P2pStatus>),
 }
 
 /// Provides blocks for the request/response protocol.
@@ -79,6 +105,14 @@ fn ip_from_multiaddr(ma: &libp2p::Multiaddr) -> Option<IpAddr> {
     None
 }
 
+fn direction(endpoint: &libp2p_core::connection::ConnectedPoint) -> &'static str {
+    if endpoint.is_dialer() {
+        "outbound"
+    } else {
+        "inbound"
+    }
+}
+
 fn remote_multiaddr(endpoint: &libp2p_core::connection::ConnectedPoint) -> &libp2p::Multiaddr {
     match endpoint {
         libp2p_core::connection::ConnectedPoint::Dialer { address, .. } => address,
@@ -95,6 +129,7 @@ struct BoingBehaviour {
     mdns: Mdns,
     gossipsub: gossipsub::Behaviour,
     block_sync: BlockSyncBehaviour,
+    ping: libp2p::ping::Behaviour,
 }
 
 #[cfg(not(feature = "mdns"))]
@@ -103,6 +138,7 @@ struct BoingBehaviour {
 struct BoingBehaviour {
     gossipsub: gossipsub::Behaviour,
     block_sync: BlockSyncBehaviour,
+    ping: libp2p::ping::Behaviour,
 }
 
 /// P2P node handle. Broadcasts blocks/txs; emits P2pEvent for incoming data.
@@ -115,6 +151,7 @@ pub struct P2pNode {
 
 impl P2pNode {
     /// Create a P2P node and spawn the swarm task.
+    /// `listen_addr` is one multiaddr or a comma-separated list (one listener each).
     /// Returns the node handle and a receiver for incoming P2pEvent.
     /// When `block_provider` is provided, enables block request/response protocol.
     ///
@@ -139,6 +176,9 @@ impl P2pNode {
                 libp2p::yamux::Config::default,
             )
             .map_err(|e| P2pError::Network(e.to_string()))?
+            // Resolve `/dns4`, `/dns6`, `/dns` multiaddrs at dial time (re-resolved on every redial).
+            .with_dns()
+            .map_err(|e| P2pError::Network(e.to_string()))?
             .with_behaviour(|key| {
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
                     .heartbeat_interval(Duration::from_secs(1))
@@ -152,6 +192,11 @@ impl P2pNode {
                     [(StreamProtocol::new("/boing/block-sync/1"), ProtocolSupport::Full)],
                     request_response::Config::default(),
                 );
+                let ping = libp2p::ping::Behaviour::new(
+                    libp2p::ping::Config::new()
+                        .with_interval(PING_INTERVAL)
+                        .with_timeout(PING_TIMEOUT),
+                );
                 #[cfg(feature = "mdns")]
                 {
                     let peer_id = key.public().to_peer_id();
@@ -161,12 +206,14 @@ impl P2pNode {
                         mdns,
                         gossipsub,
                         block_sync,
+                        ping,
                     })
                 }
                 #[cfg(not(feature = "mdns"))]
                 Ok::<_, Box<dyn std::error::Error + Send + Sync>>(BoingBehaviour {
                     gossipsub,
                     block_sync,
+                    ping,
                 })
             })
             .map_err(|e| P2pError::Network(e.to_string()))?
@@ -185,11 +232,26 @@ impl P2pNode {
             let mut swarm = swarm;
             let mut peer_ips: HashMap<libp2p::PeerId, IpAddr> = HashMap::new();
             let mut ip_connection_count: HashMap<IpAddr, u32> = HashMap::new();
-            let _ = swarm.listen_on(
-                listen_addr
-                    .parse()
-                    .expect("valid listen address"),
-            );
+            let mut redial = BootnodeRedial::new(Vec::new(), Instant::now());
+            let mut redial_tick = tokio::time::interval(REDIAL_TICK);
+            redial_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            // Comma-separated: e.g. `/ip4/0.0.0.0/tcp/4001,/ip6/::/tcp/4001` (IPv6 listeners are
+            // v6-only, so a private IPv6 network such as Fly 6PN needs its own listener).
+            for one in listen_addr.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                match one.parse::<libp2p::Multiaddr>() {
+                    Ok(ma) => {
+                        if let Err(e) = swarm.listen_on(ma) {
+                            boing_telemetry::component_warn(
+                                "boing_p2p::swarm",
+                                "p2p",
+                                "listen_failed",
+                                format!("{one}: {e}"),
+                            );
+                        }
+                    }
+                    Err(e) => panic!("invalid P2P listen address {one:?}: {e}"),
+                }
+            }
             swarm.behaviour_mut().gossipsub.subscribe(&blocks_topic).expect("subscribe blocks");
             swarm.behaviour_mut().gossipsub.subscribe(&txs_topic).expect("subscribe txs");
             swarm.behaviour_mut().gossipsub.subscribe(&votes_topic).expect("subscribe votes");
@@ -229,7 +291,42 @@ impl P2pNode {
                                     }
                                 }
                             }
+                            Some(Command::SetBootnodes(addrs)) => {
+                                redial = BootnodeRedial::new(addrs, Instant::now());
+                                info!(
+                                    "P2P: maintaining {} bootnode address(es) (redial with backoff {:?}..{:?})",
+                                    redial.len(),
+                                    crate::redial::REDIAL_BACKOFF_BASE,
+                                    crate::redial::REDIAL_BACKOFF_MAX
+                                );
+                            }
+                            Some(Command::Status(tx)) => {
+                                let _ = tx.send(P2pStatus {
+                                    connected_peers: swarm.connected_peers().count(),
+                                    bootnodes: redial.len(),
+                                    bootnodes_connected: redial.connected_count(),
+                                });
+                            }
                             None => break,
+                        }
+                    }
+                    _ = redial_tick.tick(), if !redial.is_empty() => {
+                        for addr in redial.due(Instant::now()) {
+                            // Addresses come from operator config; log only that a dial happened.
+                            match swarm.dial(addr) {
+                                Ok(()) => debug!(
+                                    "P2P: dialing bootnode ({} of {} connected, peers={})",
+                                    redial.connected_count(),
+                                    redial.len(),
+                                    swarm.connected_peers().count()
+                                ),
+                                Err(e) => boing_telemetry::component_warn(
+                                    "boing_p2p::swarm",
+                                    "p2p",
+                                    "bootnode_dial_failed",
+                                    format!("{e}"),
+                                ),
+                            }
                         }
                     }
                     msg = broadcast_rx.recv() => {
@@ -436,6 +533,92 @@ impl P2pNode {
                         }
                     }
                     ev = swarm.select_next_some() => {
+                        // Connection bookkeeping (bootnode redial, liveness, operator-visible logs).
+                        match &ev {
+                            SwarmEvent::ConnectionEstablished {
+                                peer_id,
+                                endpoint,
+                                num_established,
+                                ..
+                            } => {
+                                if let libp2p_core::connection::ConnectedPoint::Dialer { address, .. } =
+                                    endpoint
+                                {
+                                    redial.on_dialed_connection(address, *peer_id);
+                                }
+                                redial.on_peer_connected(*peer_id);
+                                info!(
+                                    "P2P: connection established peer={} direction={} connections_to_peer={} peers={} bootnodes_connected={}/{}",
+                                    peer_id,
+                                    direction(endpoint),
+                                    num_established,
+                                    swarm.connected_peers().count(),
+                                    redial.connected_count(),
+                                    redial.len()
+                                );
+                            }
+                            SwarmEvent::ConnectionClosed {
+                                peer_id,
+                                endpoint,
+                                num_established,
+                                cause,
+                                ..
+                            } => {
+                                if *num_established == 0 {
+                                    let bootnode_addrs =
+                                        redial.on_peer_disconnected(*peer_id, Instant::now());
+                                    let peers = swarm.connected_peers().count();
+                                    let cause = cause
+                                        .as_ref()
+                                        .map(|c| c.to_string())
+                                        .unwrap_or_else(|| "closed".to_string());
+                                    if peers == 0 {
+                                        warn!(
+                                            "P2P: peer disconnected peer={} direction={} cause={} peers=0 bootnode_redial={}",
+                                            peer_id,
+                                            direction(endpoint),
+                                            cause,
+                                            bootnode_addrs > 0 || !redial.is_empty()
+                                        );
+                                    } else {
+                                        info!(
+                                            "P2P: peer disconnected peer={} direction={} cause={} peers={}",
+                                            peer_id,
+                                            direction(endpoint),
+                                            cause,
+                                            peers
+                                        );
+                                    }
+                                } else {
+                                    debug!(
+                                        "P2P: extra connection closed peer={} remaining={} cause={:?}",
+                                        peer_id, num_established, cause
+                                    );
+                                }
+                            }
+                            SwarmEvent::OutgoingConnectionError { error, .. } => {
+                                debug!("P2P: outgoing connection failed: {}", error);
+                            }
+                            SwarmEvent::Behaviour(BoingBehaviourEvent::Ping(libp2p::ping::Event {
+                                peer,
+                                connection,
+                                result,
+                            })) => match result {
+                                Ok(rtt) => debug!("P2P: ping peer={} rtt={:?}", peer, rtt),
+                                // Older nodes without ping: keep the connection.
+                                Err(libp2p::ping::Failure::Unsupported) => {
+                                    debug!("P2P: peer={} does not support ping", peer)
+                                }
+                                Err(e) => {
+                                    warn!(
+                                        "P2P: ping failed peer={} ({}); closing the connection so it can be redialed",
+                                        peer, e
+                                    );
+                                    swarm.close_connection(*connection);
+                                }
+                            },
+                            _ => {}
+                        }
                         if let SwarmEvent::Behaviour(BoingBehaviourEvent::Gossipsub(gossipsub::Event::Message {
                                 message, ..
                             })) = ev {
@@ -613,7 +796,50 @@ impl P2pNode {
         vec![]
     }
 
-    /// Dial a peer by multiaddress (e.g. "/ip4/127.0.0.1/tcp/4001").
+    /// Read-only connectivity snapshot. Inert nodes report all zeros.
+    pub async fn status(&self) -> P2pStatus {
+        if let Some(ref ch) = self.cmd_tx {
+            let (tx, rx) = oneshot::channel();
+            if ch.send(Command::Status(tx)).await.is_ok() {
+                if let Ok(status) = rx.await {
+                    return status;
+                }
+            }
+        }
+        P2pStatus::default()
+    }
+
+    /// Keep these bootnodes connected: dial each now, and redial with exponential backoff whenever it
+    /// is not connected (failed dial, dropped connection, remote restart). Replaces any previous set.
+    /// `/dns4`, `/dns6` and `/dns` addresses are re-resolved on every dial. Invalid entries are
+    /// skipped with a warning; returns how many addresses were accepted.
+    pub fn set_bootnodes<S: AsRef<str>>(&self, addrs: &[S]) -> Result<usize, P2pError> {
+        let mut parsed = Vec::new();
+        for (i, a) in addrs.iter().enumerate() {
+            let a = a.as_ref().trim();
+            if a.is_empty() {
+                continue;
+            }
+            match a.parse::<libp2p::Multiaddr>() {
+                Ok(ma) => parsed.push(ma),
+                Err(e) => boing_telemetry::component_warn(
+                    "boing_p2p::swarm",
+                    "p2p",
+                    "bootnode_invalid",
+                    format!("entry #{i}: {e}"),
+                ),
+            }
+        }
+        let n = parsed.len();
+        if let Some(ref ch) = self.cmd_tx {
+            ch.try_send(Command::SetBootnodes(parsed))
+                .map_err(|e| P2pError::Network(e.to_string()))?;
+        }
+        Ok(n)
+    }
+
+    /// Dial a peer by multiaddress once (e.g. "/ip4/127.0.0.1/tcp/4001"); no redial.
+    /// Use [`P2pNode::set_bootnodes`] for peers that should stay connected.
     pub fn dial(&self, addr: &str) -> Result<(), P2pError> {
         if let Some(ref ch) = self.cmd_tx {
             ch.try_send(Command::Dial(addr.to_string()))

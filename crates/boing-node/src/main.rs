@@ -62,11 +62,12 @@ struct Args {
     #[arg(long, default_value = "8545")]
     rpc_port: u16,
 
-    /// P2P listen address (e.g. /ip4/0.0.0.0/tcp/4001). Omit to disable P2P.
+    /// P2P listen address(es), comma-separated (e.g. /ip4/0.0.0.0/tcp/4001,/ip6/::/tcp/4001). Omit to disable P2P.
     #[arg(long)]
     p2p_listen: Option<String>,
 
-    /// Comma-separated bootnode multiaddrs to dial on startup (e.g. /ip4/1.2.3.4/tcp/4001). Requires --p2p-listen.
+    /// Comma-separated bootnode multiaddrs (e.g. /ip4/1.2.3.4/tcp/4001, /dns6/peer.internal/tcp/4001). Dialed on
+    /// startup and redialed with backoff whenever not connected; DNS names are re-resolved per dial. Requires --p2p-listen.
     #[arg(long)]
     bootnodes: Option<String>,
 
@@ -300,28 +301,23 @@ async fn main() -> anyhow::Result<()> {
             let node_clone = node.clone();
             let p2p_clone = p2p.clone();
 
-            // Dial bootnodes after a short delay so our listener is up
+            // Bootnodes are kept connected by the P2P layer: dialed now and redialed with backoff
+            // whenever they drop (a one-shot dial left the node at zero peers after any disconnect).
             if let Some(ref bootnodes_str) = args.bootnodes {
-                let p2p_boot = p2p.clone();
-                let addrs: Vec<String> = bootnodes_str
+                let addrs: Vec<&str> = bootnodes_str
                     .split(',')
-                    .map(|s| s.trim().to_string())
+                    .map(|s| s.trim())
                     .filter(|s| !s.is_empty())
                     .collect();
                 if !addrs.is_empty() {
-                    tokio::spawn(async move {
-                        tokio::time::sleep(Duration::from_secs(1)).await;
-                        for addr in &addrs {
-                            if let Err(e) = p2p_boot.dial(addr) {
-                                logging::log_p2p_event_warn(
-                                    "bootnode_dial",
-                                    &format!("{addr}: {e}"),
-                                );
-                            } else {
-                                tracing::info!("Bootnode: dialing {}", addr);
-                            }
-                        }
-                    });
+                    match p2p.set_bootnodes(&addrs) {
+                        Ok(n) => tracing::info!(
+                            "Bootnode: keeping {} of {} configured bootnode address(es) connected",
+                            n,
+                            addrs.len()
+                        ),
+                        Err(e) => logging::log_p2p_event_warn("bootnode_config", &e),
+                    }
                 }
             }
 

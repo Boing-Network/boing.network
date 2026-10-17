@@ -5,6 +5,7 @@
 mod block_sync;
 mod discovery;
 mod node;
+pub mod redial;
 mod webrtc;
 
 pub use block_sync::{BlockRequest, BlockResponse};
@@ -14,7 +15,7 @@ pub use webrtc::{
     SignalingMessageKind, SignalingPostResult, SignalingRateLimit, StunTurnMetrics,
     StunTurnRegistryEntry, StunTurnReputation,
 };
-pub use node::{BlockProvider, P2pError, P2pEvent, P2pNode};
+pub use node::{BlockProvider, P2pError, P2pEvent, P2pNode, P2pStatus, PING_INTERVAL, PING_TIMEOUT};
 pub use boing_primitives::{
     Block, ConsensusVote, EquivocationEvidence, SignedTransaction, Transaction, VrfProofGossip,
 };

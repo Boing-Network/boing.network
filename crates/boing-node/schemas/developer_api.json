@@ -16,6 +16,15 @@
             "chain_id": { "type": ["integer", "null"] },
             "chain_name": { "type": ["string", "null"] },
             "head_height": { "type": "integer", "minimum": 0 },
+            "p2p": {
+              "type": "object",
+              "description": "Read-only P2P snapshot: distinct connected peers and configured / connected bootnode addresses (bootnodes are redialed with backoff).",
+              "properties": {
+                "peer_count": { "type": "integer", "minimum": 0 },
+                "bootnodes": { "type": "integer", "minimum": 0 },
+                "bootnodes_connected": { "type": "integer", "minimum": 0 }
+              }
+            },
             "rpc_surface": {
               "type": "object",
               "required": [

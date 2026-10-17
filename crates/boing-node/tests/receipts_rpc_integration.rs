@@ -701,6 +701,11 @@ async fn rpc_health_shape() {
     assert_eq!(h.get("head_height"), Some(&serde_json::json!(0)));
     assert!(h.get("chain_id").is_some());
     assert!(h.get("chain_name").is_some());
+    // Inert P2P: read-only snapshot is present and all zero.
+    assert_eq!(
+        h.get("p2p"),
+        Some(&serde_json::json!({ "peer_count": 0, "bootnodes": 0, "bootnodes_connected": 0 }))
+    );
     let surf = h
         .get("rpc_surface")
         .and_then(|x| x.as_object())

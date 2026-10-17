@@ -99,7 +99,15 @@ Restarts keep the tip: the node writes `chain/blocks/0.bin` on first start if it
 
 - **HTTPS RPC** uses Fly’s shared IPv4 + `*.fly.dev`.
 - **Public P2P** (`/ip4/…/tcp/4001`) needs a **dedicated IPv4** on the app (`fly ips allocate-v4`). Shared anycast IPv4 is HTTP-only.
-- Nodes also peer over Fly 6PN (`/ip6/…/tcp/4001`) when `BOING_BOOTNODES` includes private IPs.
+- Nodes also peer over Fly 6PN. `BOING_P2P_LISTEN` must include an IPv6 listener (`/ip6/::/tcp/4001`; IPv6 listeners are v6-only), and `BOING_EXTRA_BOOTNODES` (plain env in each `fly.testnet-*.toml`) names the peer as `/dns6/<peer-app>.internal/tcp/4001`, so its current private address is looked up again on every dial. Hard-coded `/ip6/fdaa:…` entries in `BOING_BOOTNODES` go stale when a machine moves hosts.
+
+### Peer connectivity and recovery
+
+- Bootnodes (`BOING_BOOTNODES` + `BOING_EXTRA_BOOTNODES`) are **kept connected**: dialed at startup, then redialed with exponential backoff (2 s doubling to 60 s) whenever they are not connected. Remote restarts, proxy restarts and dropped TCP paths heal on their own, without restarting the node.
+- A libp2p `ping` runs every 15 s on each connection. A connection that misses a ping for 20 s is closed and then redialed.
+- The block-sync loop asks a connected peer for `height + 1` every 2 s and chains requests while it is behind, so a node that missed gossip catches up once a peer is back.
+- `boing_health` returns `p2p: { peer_count, bootnodes, bootnodes_connected }` (read-only). Alert when `peer_count` is 0, or when the two nodes' `head_height` differ by more than a few blocks for more than a few minutes.
+- Logs record `P2P: connection established …` and `P2P: peer disconnected … cause=…` (WARN when peers reach 0).
 
 Publish dedicated IPv4 multiaddrs in `PUBLIC_BOOTNODES` / [TESTNET.md](TESTNET.md) §6 when you want community nodes to join this hosted net.
 

@@ -22,8 +22,14 @@ if [ "${BOING_FAUCET_ENABLE:-0}" = "1" ]; then
   set -- "$@" --faucet-enable
 fi
 
-if [ -n "${BOING_BOOTNODES:-}" ]; then
-  set -- "$@" --bootnodes "$BOING_BOOTNODES"
+# BOING_BOOTNODES (secret) plus BOING_EXTRA_BOOTNODES (plain env, e.g. /dns6/<peer-app>.internal/tcp/4001
+# so the peer's current private address is re-resolved on every redial).
+BOOTNODES="${BOING_BOOTNODES:-}"
+if [ -n "${BOING_EXTRA_BOOTNODES:-}" ]; then
+  BOOTNODES="${BOOTNODES:+$BOOTNODES,}$BOING_EXTRA_BOOTNODES"
+fi
+if [ -n "$BOOTNODES" ]; then
+  set -- "$@" --bootnodes "$BOOTNODES"
 fi
 
 if [ -n "${BOING_PENDING_TXS_PER_SENDER:-}" ]; then

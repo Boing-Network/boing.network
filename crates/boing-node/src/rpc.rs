@@ -1839,6 +1839,9 @@ async fn dispatch_jsonrpc_request(
             rpc_ok(id, serde_json::json!(height))
         }
         "boing_health" => {
+            // Read-only P2P snapshot first (no node lock held while the swarm task answers).
+            let p2p_handle = node.read().await.p2p.clone();
+            let p2p_status = p2p_handle.status().await;
             let n = node.read().await;
             let chain_id = std::env::var("BOING_CHAIN_ID")
                 .ok()
@@ -1855,6 +1858,11 @@ async fn dispatch_jsonrpc_request(
                     "chain_id": chain_id,
                     "chain_name": chain_name,
                     "head_height": n.chain.height(),
+                    "p2p": {
+                        "peer_count": p2p_status.connected_peers,
+                        "bootnodes": p2p_status.bootnodes,
+                        "bootnodes_connected": p2p_status.bootnodes_connected,
+                    },
                     "tx_signing": tx_signing_info(&n),
                     "rpc_surface": rpc_surface_capabilities(state),
                     "rpc_metrics": rpc_metrics_snapshot(state),
