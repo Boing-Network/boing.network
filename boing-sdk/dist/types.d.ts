@@ -95,10 +95,13 @@ export interface DexPoolListRow {
     poolHex: string;
     tokenAHex: string;
     tokenBHex: string;
-    /** Token A decimals (**`BOING_DEX_TOKEN_DECIMALS_JSON`** or default **18**). */
-    tokenADecimals: number;
-    /** Token B decimals (**`BOING_DEX_TOKEN_DECIMALS_JSON`** or default **18**). */
-    tokenBDecimals: number;
+    /**
+     * Token A decimals: the node's **`BOING_DEX_TOKEN_DECIMALS_JSON`**, else **0** when the token runs a
+     * reference fungible template (v2 etc., whole units), else **`null`** (unknown; do not assume 18).
+     */
+    tokenADecimals: number | null;
+    /** Token B decimals (same resolution as **`tokenADecimals`**). */
+    tokenBDecimals: number | null;
     feeBps: number;
     reserveA: string;
     reserveB: string;
@@ -121,7 +124,13 @@ export interface DexTokenListRow {
     id: string;
     symbol: string;
     name: string;
-    decimals: number;
+    /**
+     * **`BOING_DEX_TOKEN_DECIMALS_JSON`**, else **0** for reference fungible template code (v2 etc., whole
+     * units), else **`null`** (unknown; older nodes sent a guessed 18).
+     */
+    decimals: number | null;
+    /** Where **`decimals`** came from: operator map, the token's template code, or unknown (`null`). Newer nodes only. */
+    decimalsSource?: 'env' | 'template' | null;
     poolCount: number;
     /** Minimum known pool registration height for this token in the directory, when known. */
     firstSeenHeight: number | null;
