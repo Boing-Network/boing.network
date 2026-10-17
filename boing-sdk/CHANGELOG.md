@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Native BOING 18 decimals** (`nativeAmount.ts`): `BOING_DECIMALS`, `BASE_UNITS_PER_BOING`, `GAS_PRICE_BASE_UNITS`, bigint `formatBoing` / `parseBoing`, `formatUnits` / `parseUnits`, height-aware `nativeDecimalsAt` (testnet switches at 1050), `formatNativeAmount`, `boingToLedgerUnits`, `feeForGasBaseUnits`. Types: `native_currency` denomination fields, `*_boing` / `decimals` on `AccountBalance` / `AccountState`, `network_fee` on `SimulateResult`. See `docs/NATIVE-DENOMINATION.md`.
 - **Breaking defaults:** `deployBoingToken` / `boingTokenBytecodeHex` now default to reference fungible **v2**, and the pool helpers default to pool **v8**. Pass `version: 1` / `version: 7` for the old behaviour.
 - Reference fungible v2: `approveBoingToken`, `getBoingTokenAllowance`, `buildBoingTokenApproveTransaction`, `boingTokenAllowanceStorageKeyHex`, `encodeReference{Approve,TransferFrom,Allowance}Calldata`, `DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX`.
 - Pool v8 (token-pulling custody): `boingPoolPullsTokens`, `encodeBoingPoolV8*Calldata`, `BoingPoolV8Options` (`tokenAHex`, `tokenBHex`, `noApprove`, `deadlineHeight`); add/swap send exact-amount approvals first and return them in `approvals`. Byte-identical to `boing pool` / `boing token` (`tests/fixtures/pool-cli-vectors.json`).

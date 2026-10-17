@@ -92,6 +92,7 @@ export { BOING_CUSTODY_ROUTER_SELECTOR_SWAP, BOING_CUSTODY_ROUTER_MAX_HOPS, BOIN
 export { NATIVE_CP_POOL_BYTECODE_HEX } from './defaultNativeCpPoolBytecodeHex.js';
 export { BOING_WEB_WALLET_DEFAULT_URL, BoingWebWalletError, createBoingWebRequest, validateBoingWebResponse, requestViaBoingWebPopup, startBoingWebRedirect, consumeBoingWebRedirectResponse, createBoingWebWalletProvider, } from './boingWebWallet.js';
 export { isAlreadyInMempoolError, submitSignedTransactionIdempotent, submitSignedTransactionWithHash, submittedTxHash, } from './submitIdempotent.js';
+export * from './nativeAmount.js';
 export * from './boingCustodySwap.js';
 export * from './boingLpVaultV2.js';
 export * from './boingOpenValidator.js';

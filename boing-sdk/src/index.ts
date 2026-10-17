@@ -1018,6 +1018,7 @@ export {
   submitSignedTransactionWithHash,
   submittedTxHash,
 } from './submitIdempotent.js';
+export * from './nativeAmount.js';
 export * from './boingCustodySwap.js';
 export * from './boingLpVaultV2.js';
 export * from './boingOpenValidator.js';

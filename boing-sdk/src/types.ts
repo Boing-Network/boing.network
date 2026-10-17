@@ -310,9 +310,16 @@ export interface NetworkInfo {
     validator_count: number;
     model: string;
   };
+  /** Native denomination (`docs/NATIVE-DENOMINATION.md`); see `nativeDecimalsAt`. */
   native_currency: {
     symbol: string;
+    /** Unit of the amounts the node returns now: 0 (whole BOING) or 18 (base units). */
     decimals: number;
+    base_unit_decimals?: number;
+    base_units_per_boing?: string;
+    /** First height in base units (`null`: from genesis). testnet-v0.1.17+. */
+    base_units_from_height?: number | null;
+    gas_price_base_units?: string;
   };
   chain_native: ChainNativeAggregates;
   treasury?: NetworkTreasuryInfo;
@@ -327,9 +334,13 @@ export interface NetworkInfo {
   };
 }
 
-/** Balance and stake are u128 as decimal strings. */
+/** Balance and stake are u128 decimal strings in ledger units (base units from the 18-decimals switch). */
 export interface AccountBalance {
   balance: string;
+  /** Same amount formatted as BOING (testnet-v0.1.17+). */
+  balance_boing?: string;
+  /** Ledger decimals of `balance`: 18 (base units) or 0 (whole BOING). testnet-v0.1.17+. */
+  decimals?: number;
 }
 
 export interface AccountState {
@@ -340,6 +351,12 @@ export interface AccountState {
   pending_unbond?: string;
   /** Height when pending_unbond may be claimed. */
   unbond_unlock_height?: number;
+  /** Formatted BOING (testnet-v0.1.17+). */
+  balance_boing?: string;
+  stake_boing?: string;
+  pending_unbond_boing?: string;
+  /** Ledger decimals of the amounts: 18 or 0 (testnet-v0.1.17+). */
+  decimals?: number;
 }
 
 export interface BlockHeader {
@@ -432,6 +449,10 @@ export interface SimulateResult {
   suggested_access_list?: AccessListJson;
   /** Whether the simulated tx’s declared access list includes every suggested account. */
   access_list_covers_suggestion?: boolean;
+  /** Fee if included in the next block, ledger units (testnet-v0.1.17+, success only). */
+  network_fee?: string;
+  /** Ledger decimals of `network_fee` (18 = base units). */
+  network_fee_decimals?: number;
 }
 
 /** One 32-byte contract storage word (`boing_getContractStorage`). */
