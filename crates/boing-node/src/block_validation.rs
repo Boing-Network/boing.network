@@ -6,7 +6,6 @@ use boing_primitives::{
     receipts_root, tx_root, Account, AccountId, AccountState, Block, ExecutionReceipt, Hash,
 };
 use boing_state::StateStore;
-use boing_tokenomics::block_emission_validators;
 
 /// Validate and execute a block. Returns updated state and per-tx receipts on success.
 /// Caller must ensure block chains to parent (parent_hash, height).
@@ -52,7 +51,7 @@ pub fn validate_and_execute_block(
         .map_err(|e| BlockValidationError::ExecutionFailed(e.to_string()))?;
 
     // 4. Block reward
-    let reward = block_emission_validators(block.header.height);
+    let reward = executor.block_emission(block.header.height);
     if reward > 0 {
         match state.get_mut(&block.header.proposer) {
             Some(s) => s.balance = s.balance.saturating_add(reward),

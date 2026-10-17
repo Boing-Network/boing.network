@@ -65,7 +65,7 @@ fn genesis_state(accounts: &[AccountId]) -> StateStore {
     for a in accounts {
         s.insert(Account {
             id: *a,
-            state: AccountState { balance: 1_000_000, nonce: 0, stake: 0, ..Default::default() },
+            state: AccountState { balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING, nonce: 0, stake: 0, ..Default::default() },
         });
     }
     s
@@ -357,9 +357,9 @@ fn registration_rules_bad_signatures_and_duplicates() {
     let bal_before = net.anchor0().state.get(&owner0).unwrap().balance;
     net.step_with(Some(net.register_tx(0, 0))).unwrap();
     let bal_after = net.anchor0().state.get(&owner0).unwrap().balance;
-    assert!(bal_before - bal_after >= 100, "bond locked");
+    assert!(bal_before - bal_after >= 100 * boing_primitives::BASE_UNITS_PER_BOING, "bond locked");
     assert_eq!(net.status(0), Some(ValidatorStatus::Pending));
-    assert_eq!(net.anchor0().state.open_validators().records[&node0].bond, 100);
+    assert_eq!(net.anchor0().state.open_validators().records[&node0].bond, 100 * boing_primitives::BASE_UNITS_PER_BOING);
     assert!(!net.set().contains(&node0), "joins only at the next boundary");
 
     // Duplicate node (other owner) and second node for the same owner.
@@ -414,7 +414,8 @@ fn registered_validator_joins_at_next_epoch_and_proposes() {
         .unwrap()
         .clone();
     assert_eq!(v["status"], "active");
-    assert_eq!(v["bond"], "100");
+    assert_eq!(v["bond"], "100000000000000000000");
+    assert_eq!(v["bond_boing"], "100");
     assert_eq!(v["missed_proposals"], 0);
     assert_eq!(v["uptime_pct"], 100.0);
 }
@@ -432,7 +433,7 @@ fn offline_validator_is_jailed_keeps_bond_and_can_unjail_after_cooldown() {
     net.run_to(15); // anchor proposes the open slots as fallback; chain never stalls
     assert!(matches!(net.status(0), Some(ValidatorStatus::Jailed { until: 25 })), "{:?}", net.status(0));
     assert!(!net.set().contains(&node0));
-    assert_eq!(net.anchor0().state.open_validators().records[&node0].bond, 100, "no slashing");
+    assert_eq!(net.anchor0().state.open_validators().records[&node0].bond, 100 * boing_primitives::BASE_UNITS_PER_BOING, "no slashing");
     let report = net.anchor0().validators_report();
     let v = report["validators"].as_array().unwrap().iter().find(|v| v["status"] == "jailed").unwrap().clone();
     assert_eq!(v["jailed_until"], 25);
@@ -582,7 +583,7 @@ fn deregistration_leaves_at_boundary_and_bond_is_claimable_after_delay() {
     let dereg = net.signed(owner0, TransactionPayload::ValidatorDeregister { node_id: node0 });
     let b = net.step_with(Some(dereg)).unwrap();
     let acct = net.anchor0().state.get(&owner0).unwrap().clone();
-    assert_eq!(acct.pending_unbond, 100);
+    assert_eq!(acct.pending_unbond, 100 * boing_primitives::BASE_UNITS_PER_BOING);
     assert_eq!(acct.unbond_unlock_height, b.header.height + 10);
     assert_eq!(net.status(0), Some(ValidatorStatus::Exiting));
     assert!(net.set().contains(&node0), "stays until the boundary");
@@ -594,7 +595,7 @@ fn deregistration_leaves_at_boundary_and_bond_is_claimable_after_delay() {
     net.step_with(Some(net.signed(owner0, TransactionPayload::ClaimUnbond))).unwrap();
     let after = net.anchor0().state.get(&owner0).unwrap().clone();
     assert_eq!(after.pending_unbond, 0);
-    assert!(after.balance > bal + 90, "bond returned (minus fee)");
+    assert!(after.balance > bal + 90 * boing_primitives::BASE_UNITS_PER_BOING, "bond returned (minus fee)");
     // The owner may register again.
     net.step_with(Some(net.register_tx(0, 0))).unwrap();
     assert_eq!(net.status(0), Some(ValidatorStatus::Pending));

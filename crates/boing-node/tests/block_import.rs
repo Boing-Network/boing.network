@@ -58,7 +58,7 @@ fn test_validate_and_execute_block() {
     parent.insert(Account {
         id: proposer,
         state: AccountState {
-            balance: 1_000_000,
+            balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
             stake: 0, ..Default::default() },
     });
@@ -77,7 +77,7 @@ fn test_validate_and_execute_block() {
     let (_g, exec_receipts) = exec
         .execute_block(1, 0, &txs, &mut state, proposer)
         .unwrap();
-    let reward = boing_tokenomics::block_emission_validators(1);
+    let reward = boing_tokenomics::block_emission_validators_in(1, boing_tokenomics::Denomination::BaseUnits);
     state.get_mut(&proposer).unwrap().balance =
         state.get(&proposer).unwrap().balance.saturating_add(reward);
     let state_root = state.state_root();
@@ -103,12 +103,12 @@ fn test_validate_and_execute_block() {
     let (new_state, receipts) = result.unwrap();
     assert_eq!(receipts.len(), 1);
     assert!(receipts[0].success);
-    let fee = boing_tokenomics::fee_for_gas(receipts[0].gas_used);
+    let fee = boing_tokenomics::fee_for_gas_in(receipts[0].gas_used, boing_tokenomics::Denomination::BaseUnits);
     let (v, _, _) = boing_tokenomics::split_fee(fee);
     // Proposer is also sender: pays amount+fee, then receives validator fee share + block reward.
     assert_eq!(
         new_state.get(&proposer).unwrap().balance,
-        1_000_000 - 100 - fee + v + reward
+        1_000_000 * boing_primitives::BASE_UNITS_PER_BOING - 100 - fee + v + reward
     );
     assert_eq!(new_state.get(&to).unwrap().balance, 100);
 }
@@ -125,7 +125,7 @@ fn test_import_block() {
     parent.insert(Account {
         id: proposer,
         state: AccountState {
-            balance: 1_000_000,
+            balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
             stake: 0, ..Default::default() },
     });
@@ -145,7 +145,7 @@ fn test_import_block() {
     let (_g, exec_receipts) = exec
         .execute_block(1, 0, &txs, &mut state, proposer)
         .unwrap();
-    let reward = boing_tokenomics::block_emission_validators(1);
+    let reward = boing_tokenomics::block_emission_validators_in(1, boing_tokenomics::Denomination::BaseUnits);
     state.get_mut(&proposer).unwrap().balance =
         state.get(&proposer).unwrap().balance.saturating_add(reward);
     let state_root = state.state_root();

@@ -41,6 +41,11 @@ pub struct ExecutionHistory {
     /// parallel batch touching the fee recipient, #10 open-validator registry cap, #11 no deregistering
     /// while jailed). Below it the network replays its historical behaviour.
     pub security_v4_from: u64,
+    /// First height whose ledger is in base units (1 BOING = 10^18). At exactly this height, before
+    /// the block's txs, every native amount in state is multiplied by 10^18 once (see
+    /// [`boing_state::StateStore::redenominate`]). Below it amounts are whole BOING. `0` = base units
+    /// from genesis (no migration).
+    pub base_units_from: u64,
 }
 
 impl ExecutionHistory {
@@ -58,5 +63,13 @@ impl ExecutionHistory {
 
     pub fn security_v4_active(&self, height: u64) -> bool {
         height >= self.security_v4_from
+    }
+
+    pub fn denomination_at(&self, height: u64) -> boing_primitives::Denomination {
+        if height >= self.base_units_from {
+            boing_primitives::Denomination::BaseUnits
+        } else {
+            boing_primitives::Denomination::WholeBoing
+        }
     }
 }

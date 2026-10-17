@@ -396,7 +396,13 @@ See [§7.2 Opcodes](#72-opcodes). Contract execution adds opcode costs to base `
 
 ### 8.4 Fee market v0 (charged)
 
-After a successful transaction, the executor charges:
+**18 decimals (current rule):** native amounts are base units (1 BOING = 10^18) and the fee is
+`gas_used × GAS_PRICE_BASE_UNITS (10^12) + extra_fixed_fee + transfer_amount × transfer_amount_bps / 10_000`
+(a transfer costs 0.021 BOING). This applies from genesis on new chains and from height 1050 on testnet
+6913; see [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md). The whole-BOING rule below is the historical
+testnet rule (blocks below 1050).
+
+After a successful transaction, the executor charges (whole-BOING era):
 
 ```text
 fee = ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)

@@ -10,6 +10,7 @@ pub use fee_policy::{
     network_fee_policy_from_json, NetworkFeePolicy, GOVERNANCE_NETWORK_FEE_CONFIG_KEY,
 };
 
+pub use boing_primitives::{Denomination, BASE_UNITS_PER_BOING, BOING_DECIMALS};
 use boing_primitives::{Account, AccountId, AccountState, TransactionPayload};
 use boing_state::StateStore;
 
@@ -35,10 +36,14 @@ pub const FEE_BURN_BPS: u16 = 0;
 /// Kept at 70% of the year-N emission so changing fee BPS does not zero mining rewards.
 pub const BLOCK_EMISSION_PROPOSER_BPS: u16 = 7_000;
 
-/// Fixed gas price for fee market v0 (BOING per [`GAS_UNITS_PER_BOING`] gas).
-/// Native balances are whole BOING (no 18-decimal wei). Fee market v0 still meters
-/// execution in gas units; this price converts that meter into tokens.
+/// Historical gas price (whole-BOING ledger, testnet before its migration height): BOING per
+/// [`GAS_UNITS_PER_BOING`] gas, rounded up, so any tx paid at least 1 BOING.
 pub const GAS_PRICE: u128 = 1;
+
+/// Gas price once the ledger is in base units: **10^12 base units per gas = 0.000001 BOING/gas**.
+/// A 21,000-gas transfer costs 0.021 BOING; a ~380k-gas token deploy about 0.38 BOING. Fees can now
+/// be fractional BOING (fee market v0: fixed price, no bidding).
+pub const GAS_PRICE_BASE_UNITS: u128 = 1_000_000_000_000;
 
 /// Gas units that cost [`GAS_PRICE`] BOING (ceil). Matches `GAS_PER_TRANSFER` in
 /// `boing-execution` so a simple transfer costs **1 BOING**.
@@ -226,7 +231,18 @@ pub fn network_fee_amount(
     payload: &TransactionPayload,
     policy: &NetworkFeePolicy,
 ) -> u128 {
-    let gas_fee = fee_for_gas(gas_used);
+    network_fee_amount_in(gas_used, payload, policy, Denomination::WholeBoing)
+}
+
+/// [`network_fee_amount`] in the ledger unit `denom` (gas at [`fee_for_gas_in`]; `extra_fixed_fee` and
+/// the transfer bps are already ledger amounts).
+pub fn network_fee_amount_in(
+    gas_used: u64,
+    payload: &TransactionPayload,
+    policy: &NetworkFeePolicy,
+    denom: Denomination,
+) -> u128 {
+    let gas_fee = fee_for_gas_in(gas_used, denom);
     let bps_fee = match payload {
         TransactionPayload::Transfer { .. } | TransactionPayload::Batch { .. }
             if policy.transfer_amount_bps > 0 =>
@@ -247,6 +263,15 @@ pub fn network_fee_amount(
 ///
 /// `fee = ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)`. Any non-zero gas pays
 /// at least 1 BOING when `GAS_PRICE >= 1`.
+/// Gas fee in the ledger unit `denom`: whole BOING uses the historical [`fee_for_gas`] rule; base
+/// units use `gas_used × GAS_PRICE_BASE_UNITS` (exact, no rounding).
+pub fn fee_for_gas_in(gas_used: u64, denom: Denomination) -> u128 {
+    match denom {
+        Denomination::WholeBoing => fee_for_gas(gas_used),
+        Denomination::BaseUnits => (gas_used as u128).saturating_mul(GAS_PRICE_BASE_UNITS),
+    }
+}
+
 pub fn fee_for_gas(gas_used: u64) -> u128 {
     if gas_used == 0 {
         return 0;
@@ -383,7 +408,37 @@ pub enum FeeError {
     InsufficientBalance { have: u128, need: u128 },
 }
 
-/// Block emission reward (validators' share). Year N = Year 1 * EMISSION_DECAY^(N-1).
+/// Block emission (proposer share) in the ledger unit `denom`. Whole BOING keeps the historical formula
+/// (replay). Base units use integer math only: year-1 emission per block from `MAX_SUPPLY × 10^18`,
+/// decayed by 85% per year in basis points, floored at 1% of supply per year, times the proposer share.
+/// (The mainnet schedule replaces this; see MAINNET-READINESS plan item 2.)
+pub fn block_emission_validators_in(block_height: u64, denom: Denomination) -> u128 {
+    match denom {
+        Denomination::WholeBoing => block_emission_validators(block_height),
+        Denomination::BaseUnits => {
+            if block_height == 0 {
+                return 0;
+            }
+            let supply = MAX_SUPPLY.saturating_mul(BASE_UNITS_PER_BOING);
+            let per_year = BLOCKS_PER_YEAR as u128;
+            let floor = supply * EMISSION_FLOOR_BPS as u128 / 10_000 / per_year;
+            let mut emission = supply * EMISSION_YEAR_1_BPS as u128 / 10_000 / per_year;
+            let year = (block_height - 1) / BLOCKS_PER_YEAR;
+            for _ in 0..year {
+                emission = emission * EMISSION_DECAY_BPS as u128 / 10_000;
+                if emission <= floor {
+                    break;
+                }
+            }
+            emission.max(floor) * BLOCK_EMISSION_PROPOSER_BPS as u128 / 10_000
+        }
+    }
+}
+
+/// [`EMISSION_DECAY`] in basis points (integer path).
+pub const EMISSION_DECAY_BPS: u16 = 8_500;
+
+/// Block emission reward (validators' share), whole-BOING ledger. Year N = Year 1 * EMISSION_DECAY^(N-1).
 pub fn block_emission_validators(block_height: u64) -> u128 {
     if block_height == 0 {
         return 0;
@@ -410,6 +465,36 @@ mod tests {
         assert_eq!(fee_for_gas(21_000), 1);
         // Reference fungible init is typically ~381k gas → 19 BOING, not 381_612.
         assert_eq!(fee_for_gas(381_612), 19);
+    }
+
+    #[test]
+    fn base_unit_fees_are_exact_and_fractional() {
+        let d = Denomination::BaseUnits;
+        assert_eq!(fee_for_gas_in(0, d), 0);
+        assert_eq!(fee_for_gas_in(21_000, d), 21_000_000_000_000_000, "transfer = 0.021 BOING");
+        assert_eq!(fee_for_gas_in(381_612, d), 381_612 * GAS_PRICE_BASE_UNITS);
+        assert_eq!(fee_for_gas_in(21_000, Denomination::WholeBoing), 1, "historical rule kept");
+        let p = NetworkFeePolicy::treasury_default();
+        let tx = TransactionPayload::Transfer { to: AccountId([2; 32]), amount: 5 };
+        assert_eq!(network_fee_amount_in(21_000, &tx, &p, d), 21_000 * GAS_PRICE_BASE_UNITS);
+        assert_eq!(network_fee_amount(21_000, &tx, &p), 1);
+    }
+
+    #[test]
+    fn base_unit_emission_is_integer_and_decays() {
+        let d = Denomination::BaseUnits;
+        assert_eq!(block_emission_validators_in(0, d), 0);
+        let y1 = block_emission_validators_in(1, d);
+        // 1e27 × 8% / 15,768,000 blocks × 70% ≈ 3.55 BOING per block
+        assert_eq!(y1, 1_000_000_000u128 * BASE_UNITS_PER_BOING * 800 / 10_000 / BLOCKS_PER_YEAR as u128 * 7_000 / 10_000);
+        assert!(y1 > 3 * BASE_UNITS_PER_BOING && y1 < 4 * BASE_UNITS_PER_BOING);
+        let y2 = block_emission_validators_in(BLOCKS_PER_YEAR + 1, d);
+        assert!(y2 < y1);
+        let far = block_emission_validators_in(BLOCKS_PER_YEAR * 200 + 1, d);
+        let floor = 1_000_000_000u128 * BASE_UNITS_PER_BOING * 100 / 10_000 / BLOCKS_PER_YEAR as u128 * 7_000 / 10_000;
+        assert_eq!(far, floor, "floor is not zero in base units");
+        assert!(far > 0);
+        assert_eq!(block_emission_validators_in(5, Denomination::WholeBoing), block_emission_validators(5));
     }
 
     #[test]

@@ -21,7 +21,7 @@ fn idk(k: &SigningKey) -> AccountId {
 }
 
 const SINK: AccountId = AccountId([0xee; 32]);
-const START: u128 = 1_000;
+const START: u128 = 1_000 * boing_primitives::BASE_UNITS_PER_BOING;
 
 fn params(activation_height: u64) -> NameRegistryParams {
     NameRegistryParams {
@@ -164,8 +164,9 @@ impl Net {
         self.leader.state.get(&self.id(i)).unwrap().balance
     }
 
+    /// `rent` in whole BOING; balances and fees are base units (no history: 18 decimals from genesis).
     fn fee_paid(&self, i: usize, before: u128, rent: u128) -> u128 {
-        before - self.balance(i) - rent
+        before - self.balance(i) - rent * boing_primitives::BASE_UNITS_PER_BOING
     }
 
     /// Commit, then register in the next block. Returns the rent actually burned (balance delta minus fees).
@@ -276,7 +277,7 @@ fn register_resolve_reverse_and_rent_burn() {
     net.claim(0, "Alice.boing", a, 2, 3).unwrap();
     // 5 chars → 2 BOING/year → 4 burned; two txs → two network fees.
     let fees = net.fee_paid(0, before, 4);
-    assert!(fees > 0 && fees <= 4, "fees {fees}");
+    assert!(fees > 0 && fees <= boing_primitives::BASE_UNITS_PER_BOING, "fees {fees}");
 
     let r = net.rpc("boing_resolveName", json!(["alice.boing"]));
     assert_eq!(r["target"], format!("0x{}", hex::encode(a.0)));
@@ -326,7 +327,8 @@ fn register_resolve_reverse_and_rent_burn() {
     let res = chk["results"].as_array().unwrap();
     assert_eq!(res[0]["available"], false);
     assert_eq!(res[1]["available"], true);
-    assert_eq!(res[1]["rent_per_year"], "2");
+    assert_eq!(res[1]["rent_per_year"], "2000000000000000000");
+    assert_eq!(res[1]["rent_per_year_boing"], "2");
     assert_eq!(res[2]["reserved"], true);
     assert_eq!(res[2]["available"], false);
     assert_eq!(res[3]["valid"], false);
@@ -340,7 +342,7 @@ fn register_resolve_reverse_and_rent_burn() {
         let before = net.balance(1);
         net.claim(1, label, b, 1, 9).unwrap();
         let fees = net.fee_paid(1, before, rent);
-        assert!(fees <= 4, "{label}: rent {rent} fees {fees}");
+        assert!(fees <= boing_primitives::BASE_UNITS_PER_BOING, "{label}: rent {rent} fees {fees}");
     }
 }
 

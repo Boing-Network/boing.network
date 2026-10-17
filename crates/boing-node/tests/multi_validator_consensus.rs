@@ -48,7 +48,7 @@ fn multi_validator_node(
         state.insert(Account {
             id: *id,
             state: AccountState {
-                balance,
+                balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
                 nonce: 0,
                 stake: 0, ..Default::default() },
         });

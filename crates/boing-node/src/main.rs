@@ -516,10 +516,13 @@ async fn main() -> anyhow::Result<()> {
         let key = faucet::testnet_faucet_signing_key();
         let mut n = node.write().await;
         if n.state.get(&faucet_id).is_none() {
+            // Whole BOING scaled to the ledger unit at the tip (base units on chains without history).
+            let tip = n.chain.height();
+            let initial = n.executor.denomination_at(tip).scale(faucet::FAUCET_INITIAL_BALANCE);
             n.state.insert(Account {
                 id: faucet_id,
                 state: AccountState {
-                    balance: faucet::FAUCET_INITIAL_BALANCE,
+                    balance: initial,
                     nonce: 0,
                     stake: 0,
                     ..Default::default()

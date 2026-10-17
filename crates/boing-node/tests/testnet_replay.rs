@@ -6,13 +6,17 @@
 //! Fixture: `tests/fixtures/testnet_blocks.jsonl` (one `boing_getBlockByHeight(h, true)` result per
 //! line, heights 0..=941: history through the security #2/#3 (900) and #16/#14 (920) activations, recorded
 //! 2026-10-17 before the v4 gate at 1000). Override with `BOING_REPLAY_BLOCKS=<path>` to check a fresh dump of the
-//! live chain.
+//! live chain. `replay_then_cross_redenomination_locally` continues past the fixture tip across a local
+//! 18-decimals migration height (the live one is 1050).
 
 use std::io::{BufRead, BufReader};
 
 use boing_node::network_preset::{self, BOING_TESTNET_GENESIS_ACCOUNT};
 use boing_node::node::BoingNode;
-use boing_primitives::{AccountId, Block};
+use boing_primitives::{
+    receipts_root, tx_root, AccessList, AccountId, Block, BlockHeader, SignedTransaction, Transaction,
+    TransactionPayload, BASE_UNITS_PER_BOING,
+};
 
 const TESTNET_OPEN_ACTIVATION: u64 = 400;
 const TESTNET_NAME_ACTIVATION: u64 = 640;
@@ -228,4 +232,144 @@ fn replay_is_deterministic_across_nodes() {
         b.import_network_block_catchup(block).unwrap();
         assert_eq!(a.chain.latest_hash(), b.chain.latest_hash());
     }
+}
+
+/// 18 decimals (mainnet plan step 1): the testnet ledger switches to base units at a fixed height after
+/// the v4 gate. The fixture is below it (whole BOING), so the replays above prove the new code reproduces
+/// history; this pins the gate in the executor, the VM and the admission VM.
+#[test]
+fn base_units_gate_follows_the_activation_height() {
+    let h = network_preset::BOING_TESTNET_BASE_UNITS_FROM;
+    assert!(h > network_preset::BOING_TESTNET_SECURITY_V4_FROM, "after the v4 gate");
+    let node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    use boing_primitives::Denomination::*;
+    assert_eq!(node.executor.denomination_at(h - 1), WholeBoing);
+    assert_eq!(node.executor.denomination_at(h), BaseUnits);
+    assert_eq!(node.executor.redenomination_height(), Some(h));
+    assert_eq!(node.executor.vm().base_units_from(), h);
+    assert_eq!(node.admission_vm().base_units_from(), h);
+    let blocks = load_blocks();
+    assert!(blocks.last().unwrap().0.header.height < h || blocks.iter().any(|(b, _)| b.header.height == h));
+}
+
+/// Builds the next block on `leader` with the leader's own executor (same rules as an importer).
+fn craft_next(leader: &BoingNode, txs: Vec<SignedTransaction>) -> Block {
+    let height = leader.chain.height() + 1;
+    let proposer = leader.consensus.leader(height);
+    let ts = leader.chain.get_block_by_height(height - 1).unwrap().header.timestamp + 1;
+    let mut state = leader.state.snapshot();
+    let plain: Vec<Transaction> = txs.iter().map(|s| s.tx.clone()).collect();
+    let (_g, receipts) = leader
+        .executor
+        .execute_block(height, ts, &plain, &mut state, proposer)
+        .unwrap();
+    assert!(receipts.iter().all(|r| r.success), "{receipts:?}");
+    let reward = leader.executor.block_emission(height);
+    if reward > 0 {
+        match state.get_mut(&proposer) {
+            Some(a) => a.balance += reward,
+            None => state.insert(boing_primitives::Account {
+                id: proposer,
+                state: boing_primitives::AccountState { balance: reward, ..Default::default() },
+            }),
+        }
+    }
+    state.apply_open_validator_block_hook(height, proposer);
+    Block {
+        header: BlockHeader {
+            parent_hash: leader.chain.latest_hash(),
+            height,
+            timestamp: ts,
+            proposer,
+            tx_root: tx_root(&plain),
+            receipts_root: receipts_root(&receipts),
+            state_root: state.state_root(),
+        },
+        signatures: txs.iter().map(|s| s.signature).collect(),
+        transactions: plain,
+    }
+}
+
+/// Replay across H: replays the recorded chain, then continues it past a local migration height
+/// (tip + 2) with faucet transfers. Two independent nodes import every block (identical roots), the
+/// ledger is multiplied by 10^18 exactly once at H (chain-wide sums before/after), amounts and fees
+/// switch unit with it, and the block after H does not multiply again.
+#[test]
+fn replay_then_cross_redenomination_locally() {
+    // Admission reads the chain id from the environment, as on the public nodes (all nodes in this
+    // binary are chain 6913).
+    std::env::set_var("BOING_CHAIN_ID", "6913");
+    let blocks = load_blocks();
+    let tip = blocks.last().unwrap().0.header.height;
+    let h = tip + 2;
+    let mut a = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    let mut b = testnet_node(AccountId([7u8; 32]), true);
+    replay(&mut a, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    replay(&mut b, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    let mut hist = network_preset::boing_testnet_history();
+    assert!(h < hist.security_v4_from && h < hist.base_units_from);
+    hist.base_units_from = h;
+    a.executor.set_execution_history(Some(hist.clone()));
+    b.executor.set_execution_history(Some(hist));
+
+    let key = boing_node::faucet::testnet_faucet_signing_key();
+    let faucet = boing_node::faucet::testnet_faucet_account_id();
+    let to = AccountId([0xD1; 32]);
+    let send = |n: &BoingNode, amount: u128| {
+        let nonce = n.state.get(&faucet).unwrap().nonce;
+        let tx = Transaction {
+            nonce,
+            sender: faucet,
+            payload: TransactionPayload::Transfer { to, amount },
+            access_list: AccessList::new(vec![faucet, to], vec![faucet, to]),
+        };
+        SignedTransaction::new_for_chain(tx, &key, 6913)
+    };
+    let step = |a: &mut BoingNode, b: &mut BoingNode, amount: u128| {
+        let blk = craft_next(a, vec![send(a, amount)]);
+        a.import_network_block_catchup(&blk).expect("leader imports");
+        b.import_network_block_catchup(&blk).expect("follower imports");
+        assert_eq!(a.chain.latest_hash(), b.chain.latest_hash());
+        assert_eq!(a.state.state_root(), b.state.state_root());
+    };
+
+    // H - 1: whole BOING (20, the faucet amount).
+    step(&mut a, &mut b, 20);
+    assert_eq!(a.chain.height(), h - 1);
+    let before = a.state.compute_native_aggregates();
+    let faucet_before = a.state.get(&faucet).unwrap().balance;
+    assert_eq!(a.state.get(&to).unwrap().balance, 20);
+    assert!(faucet_before < 10_000_000, "whole units before H");
+
+    // Admission for the block at H sees the migrated state: 20 BOING in base units is far above the
+    // whole-unit balance, yet is admitted because the next block executes after the migration.
+    a.submit_transaction(send(&a, 20 * BASE_UNITS_PER_BOING))
+        .expect("admission at next == H uses the migrated state");
+
+    // H: the migration runs first, then the block's tx in base units (the faucet's 20 BOING).
+    step(&mut a, &mut b, 20 * BASE_UNITS_PER_BOING);
+    let after = a.state.compute_native_aggregates();
+    assert_eq!(
+        after.total_balance,
+        before.total_balance * BASE_UNITS_PER_BOING + a.executor.block_emission(h),
+        "every balance x10^18 once, plus the base-unit emission (fees only move value)"
+    );
+    assert_eq!(after.total_stake, before.total_stake * BASE_UNITS_PER_BOING);
+    assert_eq!(a.state.get(&to).unwrap().balance, 40 * BASE_UNITS_PER_BOING);
+    let fee_h = a.executor.network_fee_at(21_000, &TransactionPayload::Transfer { to, amount: 1 }, h);
+    assert_eq!(
+        a.state.get(&faucet).unwrap().balance,
+        faucet_before * BASE_UNITS_PER_BOING - 20 * BASE_UNITS_PER_BOING - fee_h
+    );
+    for r in a.state.open_validators().records.values() {
+        assert_eq!(r.bond % BASE_UNITS_PER_BOING, 0, "bonds scaled");
+        assert!(r.bond >= BASE_UNITS_PER_BOING);
+    }
+
+    // H + 1: no second multiplication.
+    let mid = a.state.compute_native_aggregates();
+    step(&mut a, &mut b, 1);
+    let end = a.state.compute_native_aggregates();
+    assert_eq!(end.total_balance, mid.total_balance + a.executor.block_emission(h + 1));
+    assert_eq!(a.state.get(&to).unwrap().balance, 40 * BASE_UNITS_PER_BOING + 1);
 }

@@ -168,7 +168,10 @@ pub async fn check(rpc_url: &str, names: &[String]) -> anyhow::Result<()> {
         } else if r["available"] == true {
             println!(
                 "  {label:<36} available, {} BOING/year",
-                r["rent_per_year"].as_str().unwrap_or("?")
+                r["rent_per_year_boing"]
+                    .as_str()
+                    .or(r["rent_per_year"].as_str())
+                    .unwrap_or("?")
             );
         } else if r["reserved"] == true {
             println!("  {label:<36} reserved");
@@ -256,8 +259,19 @@ pub async fn claim(
         .as_str()
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
-    println!("  balance {balance} BOING");
-    if balance < rent + 3 {
+    // Ledger unit: base units (18 decimals) from the node's redenomination height; older nodes omit
+    // `decimals` (whole BOING).
+    let unit = if bal["decimals"].as_u64() == Some(18) {
+        boing_primitives::BASE_UNITS_PER_BOING
+    } else {
+        1
+    };
+    let shown = bal["balance_boing"]
+        .as_str()
+        .map(str::to_string)
+        .unwrap_or_else(|| balance.to_string());
+    println!("  balance {shown} BOING");
+    if balance < (rent + 3).saturating_mul(unit) {
         anyhow::bail!(
             "insufficient balance: need about {} BOING (rent + fees)",
             rent + 3

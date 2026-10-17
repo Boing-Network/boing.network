@@ -33,7 +33,7 @@ fn craft(leader: &BoingNode, txs: Vec<Transaction>, signatures: Vec<boing_primit
     let proposer = leader.consensus.leader(height);
     let mut state = leader.state.snapshot();
     let (_g, receipts) = BlockExecutor::new().execute_block(height, 1, &txs, &mut state, proposer).unwrap();
-    let reward = boing_tokenomics::block_emission_validators(height);
+    let reward = boing_tokenomics::block_emission_validators_in(height, boing_tokenomics::Denomination::BaseUnits);
     if reward > 0 {
         state.get_mut(&proposer).unwrap().balance += reward;
     }
@@ -68,7 +68,7 @@ fn block_signatures_follow_the_activation_height() {
         n.chain = ChainState::from_genesis(genesis.clone());
         n.state = boing_state::StateStore::new();
         for id in [uid, vid] {
-            n.state.insert(Account { id, state: AccountState { balance: 1_000_000, ..Default::default() } });
+            n.state.insert(Account { id, state: AccountState { balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING, ..Default::default() } });
         }
         n
     };

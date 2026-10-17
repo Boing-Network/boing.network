@@ -24,17 +24,18 @@ fn node_with_accounts(
     state.insert(Account {
         id: proposer,
         state: AccountState {
-            balance: 1_000_000,
+            balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
             stake: 0, ..Default::default() },
     });
     for (id, balance, stake) in extra {
         state.insert(Account {
             id,
+            // Whole BOING in the fixture; the ledger is in base units (no history).
             state: AccountState {
-                balance,
+                balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
                 nonce: 0,
-                stake, ..Default::default() },
+                stake: stake * boing_primitives::BASE_UNITS_PER_BOING, ..Default::default() },
         });
     }
 
@@ -187,14 +188,14 @@ fn bond_then_epoch_includes_new_staker() {
     let bond = Transaction {
         nonce: 0,
         sender: other,
-        payload: TransactionPayload::Bond { amount: 10_000 },
+        payload: TransactionPayload::Bond { amount: 10_000 * boing_primitives::BASE_UNITS_PER_BOING },
         access_list: AccessList::new(vec![other], vec![other]),
     };
     node.submit_transaction(SignedTransaction::new(bond, &other_key))
         .unwrap();
 
     let _ = node.produce_block_if_ready().expect("bond block");
-    assert_eq!(node.state.get(&other).unwrap().stake, 10_000);
+    assert_eq!(node.state.get(&other).unwrap().stake, 10_000 * boing_primitives::BASE_UNITS_PER_BOING);
 
     assert_eq!(node.consensus.validators(), &[other]);
     let _ = proposer;
@@ -248,7 +249,7 @@ fn bonded_single_validator_continues_then_others_join_and_leave() {
     let proposer = AccountId(key.verifying_key().to_bytes());
     let mut node = node_with_accounts(&key, vec![]);
     node.stake_validator_set = Some(stake_cfg(21, 2, 10_000, 0, vec![proposer]));
-    let bond = Transaction { nonce: 0, sender: proposer, payload: TransactionPayload::Bond { amount: 10_000 }, access_list: AccessList::new(vec![proposer], vec![proposer]) };
+    let bond = Transaction { nonce: 0, sender: proposer, payload: TransactionPayload::Bond { amount: 10_000 * boing_primitives::BASE_UNITS_PER_BOING }, access_list: AccessList::new(vec![proposer], vec![proposer]) };
     node.submit_transaction(SignedTransaction::new(bond, &key)).unwrap();
     node.produce_block_if_ready().expect("block 1");
     submit_self_transfer(&mut node, &key, 1, 1);
@@ -258,14 +259,14 @@ fn bonded_single_validator_continues_then_others_join_and_leave() {
     node.produce_block_if_ready().expect("block 3");
     // Another account reaches the minimum mid-epoch: no change until the next boundary.
     let other = AccountId([0x01u8; 32]); // sorts before most keys; set order is by id
-    node.state.insert(Account { id: other, state: AccountState { stake: 10_000, ..Default::default() } });
+    node.state.insert(Account { id: other, state: AccountState { stake: 10_000 * boing_primitives::BASE_UNITS_PER_BOING, ..Default::default() } });
     assert_eq!(node.consensus.validators(), &[proposer]);
     submit_self_transfer(&mut node, &key, 3, 1);
     node.produce_block_if_ready().expect("block 4 (boundary)");
     let want: Vec<AccountId> = { let mut v = vec![proposer, other]; v.sort_by(|a, b| a.0.cmp(&b.0)); v };
     assert_eq!(node.consensus.validators(), want.as_slice());
     // It unbonds 1 unit (stake drops below 10k immediately): out at the next boundary (via restore = same rule).
-    node.state.get_mut(&other).unwrap().stake = 9_999;
+    node.state.get_mut(&other).unwrap().stake = 10_000 * boing_primitives::BASE_UNITS_PER_BOING - 1;
     assert_eq!(node.restore_stake_validator_set().unwrap(), vec![proposer]);
     assert_eq!(node.consensus.validators(), &[proposer]);
 }
@@ -284,8 +285,8 @@ fn stake_set_survives_restart() {
     {
         let mut node = BoingNode::with_data_dir_and_validators(Some(&dir), vec![proposer], proposer, Some(key.clone())).unwrap();
         node.stake_validator_set = Some(cfg.clone());
-        node.state.get_mut(&proposer).unwrap().stake = 20_000;
-        node.state.insert(Account { id: other, state: AccountState { stake: 10_000, ..Default::default() } });
+        node.state.get_mut(&proposer).unwrap().stake = 20_000 * boing_primitives::BASE_UNITS_PER_BOING;
+        node.state.insert(Account { id: other, state: AccountState { stake: 10_000 * boing_primitives::BASE_UNITS_PER_BOING, ..Default::default() } });
         submit_self_transfer(&mut node, &key, 0, 1);
         node.produce_block_if_ready().expect("block 1");
         assert_eq!(node.consensus.validators(), want.as_slice());

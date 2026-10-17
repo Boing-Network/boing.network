@@ -21,7 +21,7 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> BoingNode 
     state.insert(Account {
         id: proposer,
         state: AccountState {
-            balance,
+            balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
             stake: 0, ..Default::default() },
     });
@@ -84,13 +84,13 @@ fn test_single_node_produces_block_with_transfer() {
 
     assert_eq!(node.mempool.len(), 0);
     assert_eq!(node.chain.height(), 1);
-    let fee = boing_tokenomics::fee_for_gas(21_000);
+    let fee = boing_tokenomics::fee_for_gas_in(21_000, boing_tokenomics::Denomination::BaseUnits);
     let (v_share, t_share, _) = boing_tokenomics::split_fee(fee);
-    let reward = boing_tokenomics::block_emission_validators(1);
+    let reward = boing_tokenomics::block_emission_validators_in(1, boing_tokenomics::Denomination::BaseUnits);
     // Sender is also proposer: pays amount+fee, receives validator fee share (0 by default) + block reward.
     assert_eq!(
         node.state.get(&proposer).unwrap().balance,
-        1_000_000 - 100 - fee + v_share + reward
+        1_000_000 * boing_primitives::BASE_UNITS_PER_BOING - 100 - fee + v_share + reward
     );
     assert_eq!(node.state.get(&to).unwrap().balance, 100);
     assert_eq!(

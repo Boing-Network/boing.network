@@ -31,7 +31,7 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
     state.insert(Account {
         id: proposer,
         state: AccountState {
-            balance,
+            balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
             stake: 0, ..Default::default() },
     });

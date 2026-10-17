@@ -25,7 +25,7 @@ fn node_with_validators(
     state.insert(Account {
         id: local,
         state: AccountState {
-            balance: 1_000_000,
+            balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
             stake: 0,
             ..Default::default()

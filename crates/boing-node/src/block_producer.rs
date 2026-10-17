@@ -9,7 +9,6 @@ use boing_primitives::{
     Transaction,
 };
 use boing_state::StateStore;
-use boing_tokenomics::block_emission_validators;
 
 use crate::chain::ChainState;
 use crate::mempool::Mempool;
@@ -126,7 +125,7 @@ impl BlockProducer {
         };
 
         // Credit block reward to proposer
-        let reward = block_emission_validators(height);
+        let reward = executor.block_emission(height);
         if reward > 0 {
             match state.get_mut(&self.proposer) {
                 Some(s) => s.balance = s.balance.saturating_add(reward),

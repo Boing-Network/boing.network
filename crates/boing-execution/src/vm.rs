@@ -88,6 +88,9 @@ pub struct Vm {
     registration_v2_from: u64,
     /// From this height the 2026-10-17 security-review rules apply (#6, #10, #11); 0 = from genesis.
     security_v4_from: u64,
+    /// From this height the ledger is in base units (10^18 per BOING); whole-BOING prices (bond, name
+    /// rent, QA reward / min stake) are scaled by [`Denomination::scale`]. 0 = from genesis.
+    base_units_from: u64,
 }
 
 impl Vm {
@@ -104,6 +107,23 @@ impl Vm {
 
     pub fn security_v4_from(&self) -> u64 {
         self.security_v4_from
+    }
+
+    pub fn set_base_units_from(&mut self, from: u64) {
+        self.base_units_from = from;
+    }
+
+    pub fn base_units_from(&self) -> u64 {
+        self.base_units_from
+    }
+
+    /// Ledger unit at `height`.
+    pub fn denomination_at(&self, height: u64) -> boing_primitives::Denomination {
+        if height >= self.base_units_from {
+            boing_primitives::Denomination::BaseUnits
+        } else {
+            boing_primitives::Denomination::WholeBoing
+        }
     }
 
     /// `(chain id, v2-only-from height)` of the validator registration proof rule.
@@ -128,6 +148,7 @@ impl Vm {
             registration_chain_id: None,
             registration_v2_from: 0,
             security_v4_from: 0,
+            base_units_from: 0,
         }
     }
 
@@ -139,6 +160,7 @@ impl Vm {
             registration_chain_id: None,
             registration_v2_from: 0,
             security_v4_from: 0,
+            base_units_from: 0,
         }
     }
 
@@ -153,6 +175,7 @@ impl Vm {
             registration_chain_id: None,
             registration_v2_from: 0,
             security_v4_from: 0,
+            base_units_from: 0,
         }
     }
 
@@ -338,7 +361,9 @@ impl Vm {
                 node_id,
                 node_signature,
             } => {
-                let params = open_validator_params_at(state, exec_ctx.block_height)?;
+                let mut params = open_validator_params_at(state, exec_ctx.block_height)?;
+                // The configured bond is whole BOING; the record and the debit are ledger units.
+                params.bond = self.denomination_at(exec_ctx.block_height).scale(params.bond);
                 if !self.registration_proof_ok(exec_ctx.block_height, &tx.sender, node_id, node_signature) {
                     return Err(VmError::OpenValidator(
                         boing_state::OpenValidatorError::InvalidNodeSignature.to_string(),
@@ -409,6 +434,7 @@ impl Vm {
                     tx,
                     exec_ctx.block_height,
                     exec_ctx.block_height >= self.security_v4_from,
+                    self.denomination_at(exec_ctx.block_height).unit(),
                 )?
             }
         };
@@ -556,7 +582,9 @@ impl Vm {
                 .ok_or(VmError::QaPendingNotFound)?;
             record.deployer
         };
-        let voter_stake = state.get(&voter).map(|s| s.stake).unwrap_or(0);
+        // QA pool amounts are configured in whole BOING: compare the stake in the same unit.
+        let unit = self.denomination_at(exec_ctx.block_height).unit();
+        let voter_stake = state.get(&voter).map(|s| s.stake).unwrap_or(0) / unit;
         self.qa_pool_config
             .voter_eligibility(voter, Some(deployer), Some(voter_stake))
             .map_err(|e| match e {
@@ -578,7 +606,7 @@ impl Vm {
             .ok_or(VmError::NonceOverflow)?;
 
         let pay_abstain = self.qa_pool_config.pay_abstain;
-        let reward_each = self.qa_pool_config.reward_per_counted_vote;
+        let reward_each = self.qa_pool_config.reward_per_counted_vote.saturating_mul(unit);
         let (decision, unpaid) = {
             let record = state
                 .qa_pending_mut(&subject)
@@ -1217,6 +1245,7 @@ fn execute_name_tx(
     tx: &Transaction,
     height: u64,
     sender_keyed: bool,
+    unit: u128,
 ) -> Result<u64, VmError> {
     let params = name_params_at(state, height)?;
     let me = tx.sender;
@@ -1245,6 +1274,8 @@ fn execute_name_tx(
                 .names()
                 .check_register_keyed(&params, height, me, &l, salt, *years, sender_keyed)
                 .map_err(name_err)?;
+            // Rent tables are whole BOING; charge in ledger units.
+            let rent = rent.saturating_mul(unit);
             if balance < rent {
                 return Err(name_err(
                     boing_state::NameRegistryError::InsufficientBalance { rent },
@@ -1254,6 +1285,7 @@ fn execute_name_tx(
                 .names_mut()
                 .register_keyed(&params, height, me, &l, salt, *target, *years, sender_keyed)
                 .map_err(name_err)?
+                .saturating_mul(unit)
         }
         TransactionPayload::NameRenew { name, years } => {
             let l = label(name)?;
@@ -1262,7 +1294,8 @@ fn execute_name_tx(
             let rent = state
                 .names_mut()
                 .renew(&params, height, me, &l, *years)
-                .map_err(name_err)?;
+                .map_err(name_err)?
+                .saturating_mul(unit);
             if balance < rent {
                 return Err(name_err(
                     boing_state::NameRegistryError::InsufficientBalance { rent },

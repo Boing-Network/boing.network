@@ -34,6 +34,12 @@ pub const BOING_TESTNET_SECURITY_V3_FROM: u64 = 920;
 /// registry cap) and #11 (a jailed validator cannot exit before its jail ends). Chosen with a wide
 /// margin above the tip at deploy time (~941; blocks are produced on demand).
 pub const BOING_TESTNET_SECURITY_V4_FROM: u64 = 1_000;
+/// Testnet height at which the native ledger switches from whole BOING to base units (18 decimals,
+/// approved 2026-10-17): at the start of this block every balance, stake, pending unbond and validator
+/// bond is multiplied by 10^18 once; from it fees use `GAS_PRICE_BASE_UNITS` and whole-BOING prices
+/// (bond, name rent, faucet) are scaled. Chosen 50 blocks after the v4 gate, ~108 above the tip at
+/// deploy time.
+pub const BOING_TESTNET_BASE_UNITS_FROM: u64 = 1_050;
 
 /// Genesis block proposer plus the accounts funded at height 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -75,6 +81,7 @@ pub fn boing_testnet_history() -> ExecutionHistory {
         block_sigs_from: BOING_TESTNET_SECURITY_V3_FROM,
         registration_proof_v2_from: BOING_TESTNET_SECURITY_V3_FROM,
         security_v4_from: BOING_TESTNET_SECURITY_V4_FROM,
+        base_units_from: BOING_TESTNET_BASE_UNITS_FROM,
     }
 }
 

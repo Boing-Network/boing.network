@@ -31,7 +31,7 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
     state.insert(Account {
         id: proposer,
         state: AccountState {
-            balance,
+            balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
             stake: 0,
             ..Default::default()
@@ -296,12 +296,27 @@ async fn rpc_get_network_info_shape() {
         .get("chain_native")
         .and_then(|x| x.as_object())
         .expect("chain_native");
+    // No network history: 18 decimals (base units) from genesis.
+    let nc = info.get("native_currency").expect("native_currency");
+    assert_eq!(nc["symbol"], "BOING");
+    assert_eq!(nc["decimals"], 18);
+    assert_eq!(nc["base_unit_decimals"], 18);
+    assert_eq!(nc["base_units_per_boing"], "1000000000000000000");
+    assert_eq!(nc["base_units_from_height"], serde_json::Value::Null);
+    assert_eq!(nc["gas_price_base_units"], "1000000000000");
+    let me = hex::encode(signing_key.verifying_key().to_bytes());
+    let acct = rpc_call(&mut app, "boing_getAccount", serde_json::json!([me])).await;
+    assert_eq!(acct["result"]["balance"], "1000000000000000000000000");
+    assert_eq!(acct["result"]["balance_boing"], "1000000");
+    assert_eq!(acct["result"]["decimals"], 18);
+    let bal = rpc_call(&mut app, "boing_getBalance", serde_json::json!([me])).await;
+    assert_eq!(bal["result"]["balance_boing"], "1000000");
     assert_eq!(cn.get("account_count"), Some(&serde_json::json!(1)));
-    assert_eq!(cn.get("total_balance"), Some(&serde_json::json!("1000000")));
+    assert_eq!(cn.get("total_balance"), Some(&serde_json::json!("1000000000000000000000000")));
     assert_eq!(cn.get("total_stake"), Some(&serde_json::json!("0")));
     assert_eq!(
         cn.get("total_native_held"),
-        Some(&serde_json::json!("1000000"))
+        Some(&serde_json::json!("1000000000000000000000000"))
     );
     assert_eq!(cn.get("as_of_height"), Some(&serde_json::json!(0)));
     let dev = info
@@ -632,7 +647,7 @@ async fn rpc_client_version_and_supported_methods() {
     assert!(r.get("result").map(|v| v.is_null()).unwrap_or(false), "{r}");
     let i = rpc_call(&mut app, "boing_getNameInfo", serde_json::json!(["alice"])).await;
     assert_eq!(i["result"]["registry"]["enabled"], false);
-    assert_eq!(i["result"]["rent_per_year"], "2");
+    assert_eq!(i["result"]["rent_per_year"], "2000000000000000000");
 }
 
 #[tokio::test]

@@ -15,7 +15,7 @@ use boing_primitives::{
 use boing_qa::pool::{PendingQaQueue, PoolError, PoolResolution, QaPoolVote};
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
 use boing_state::{ChainNativeAggregates, StateStore};
-use boing_tokenomics::{network_fee_amount, NetworkFeePolicy};
+use boing_tokenomics::NetworkFeePolicy;
 use ed25519_dalek::SigningKey;
 use tokio::sync::{broadcast, mpsc};
 use tracing::info;
@@ -158,7 +158,9 @@ impl BoingNode {
         state.insert(Account {
             id: local_validator,
             state: AccountState {
-                balance: 1_000_000,
+                // Local-identity dev genesis: 1,000,000 BOING in base units (chains without a network
+                // history use base units from genesis).
+                balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
                 nonce: 0,
                 stake: 0,
                 ..Default::default()
@@ -299,6 +301,10 @@ impl BoingNode {
                 "in_set": set.contains(id),
                 "owner": hex(&r.owner),
                 "bond": r.bond.to_string(),
+                "bond_boing": match self.executor.denomination_at(self.chain.height()) {
+                    boing_primitives::Denomination::BaseUnits => boing_primitives::format_boing(r.bond),
+                    boing_primitives::Denomination::WholeBoing => r.bond.to_string(),
+                },
                 "registered_at": r.registered_at,
                 "jailed_until": jailed_until,
                 "jail_count": r.jail_count,
@@ -315,7 +321,10 @@ impl BoingNode {
             serde_json::json!({
                 "activation_height": p.activation_height,
                 "activated_at": reg.activated_at,
-                "bond": p.bond.to_string(),
+                // Ledger units a registration in the next block debits; `bond_boing` is the whole-BOING
+                // configured price.
+                "bond": self.executor.denomination_at(height.saturating_add(1)).scale(p.bond).to_string(),
+                "bond_boing": p.bond.to_string(),
                 "deregister_delay": p.deregister_delay,
                 "epoch_len": p.epoch_len,
                 "next_epoch_height": next_epoch,
@@ -654,6 +663,9 @@ impl BoingNode {
         if !cfg.is_refresh_height(committed_height) {
             return;
         }
+        // `min_stake` is configured in whole BOING; compare in ledger units.
+        let mut cfg = cfg;
+        cfg.min_stake = self.executor.denomination_at(committed_height).scale(cfg.min_stake);
         let next = crate::stake_validator_set::next_validator_set(
             &self.state,
             &cfg,
@@ -682,8 +694,9 @@ impl BoingNode {
     /// at the last epoch boundary; if it is missing (e.g. first start with stake mode on an advanced chain)
     /// it is recomputed from the current committed state and a warning is logged. Returns the applied set.
     pub fn restore_stake_validator_set(&mut self) -> Option<Vec<AccountId>> {
-        let cfg = self.stake_validator_set.clone()?;
+        let mut cfg = self.stake_validator_set.clone()?;
         let tip = self.chain.height();
+        cfg.min_stake = self.executor.denomination_at(tip).scale(cfg.min_stake);
         let boundary = cfg.last_refresh_height(tip)?;
         let persisted = self
             .persistence
@@ -1047,13 +1060,13 @@ impl BoingNode {
         if self.mempool.contains_tx_id(&signed.tx.id()) {
             return Err(MempoolError::Duplicate);
         }
-        let have = self
-            .state
+        let mut state_copy = self.state.snapshot();
+        let height = self.chain.height();
+        self.executor.prepare_state_for_height(height.saturating_add(1), &mut state_copy);
+        let have = state_copy
             .get(&signed.tx.sender)
             .map(|s| s.balance)
             .unwrap_or(0);
-        let mut state_copy = self.state.snapshot();
-        let height = self.chain.height();
         let ts = self
             .chain
             .get_block_by_height(height)
@@ -1065,8 +1078,11 @@ impl BoingNode {
             block_timestamp: ts,
         };
         if let Ok(out) = vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
-            let need =
-                network_fee_amount(out.gas_used, &signed.tx.payload, self.executor.fee_policy());
+            let need = self.executor.network_fee_at(
+                out.gas_used,
+                &signed.tx.payload,
+                height.saturating_add(1),
+            );
             let remaining = state_copy
                 .get(&signed.tx.sender)
                 .map(|s| s.balance)
@@ -1091,6 +1107,8 @@ impl BoingNode {
             return Ok(());
         }
         let mut state_copy = self.state.snapshot();
+        self.executor
+            .prepare_state_for_height(self.chain.height().saturating_add(1), &mut state_copy);
         if state_copy.open_validator_params().is_none() {
             state_copy.set_open_validator_params(self.open_validator_params.clone());
         }
@@ -1123,6 +1141,8 @@ impl BoingNode {
             return Ok(());
         }
         let mut state_copy = self.state.snapshot();
+        self.executor
+            .prepare_state_for_height(self.chain.height().saturating_add(1), &mut state_copy);
         let exec_ctx = boing_execution::VmExecutionContext {
             block_height: self.chain.height().saturating_add(1),
             block_timestamp: 0,
@@ -1199,6 +1219,7 @@ impl BoingNode {
         let (chain_id, from) = self.executor.registration_proof_rule();
         vm.set_registration_proof_rule(chain_id, from);
         vm.set_security_v4_from(self.executor.vm().security_v4_from());
+        vm.set_base_units_from(self.executor.vm().base_units_from());
         vm
     }
 

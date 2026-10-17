@@ -74,14 +74,24 @@ fn params_json(p: Option<&NameRegistryParams>, head: u64) -> Value {
             "grace_blocks": p.grace_blocks,
             "commit_min_age": p.commit_min_age,
             "commit_max_age": p.commit_max_age,
+            // Whole BOING (protocol price table); charged in ledger units (x10^18 from the
+            // redenomination height). Per-name `rent_per_year` in check results is in ledger units.
             "rent_per_year": { "3": "10", "4": "5", "5": "2", "6+": "1" },
+            "rent_unit": "BOING",
             "max_years": boing_primitives::NAME_MAX_YEARS,
         }),
     }
 }
 
 /// Availability / validity for one raw input.
-fn check_one(reg: &NameRegistry, p: Option<&NameRegistryParams>, head: u64, raw: &str) -> Value {
+/// `unit`: ledger units per whole BOING at the next block (1 before the 18-decimals switch, 10^18 after).
+fn check_one(
+    reg: &NameRegistry,
+    p: Option<&NameRegistryParams>,
+    head: u64,
+    raw: &str,
+    unit: u128,
+) -> Value {
     let label = match normalize_name(raw) {
         Ok(l) => l,
         Err(e) => {
@@ -105,12 +115,14 @@ fn check_one(reg: &NameRegistry, p: Option<&NameRegistryParams>, head: u64, raw:
         "reserved": reserved,
         "available": registrable && free,
         "status": status.map(|s| s.as_str()),
-        "rent_per_year": name_rent_per_year(&label).to_string(),
+        "rent_per_year": name_rent_per_year(&label).saturating_mul(unit).to_string(),
+        "rent_per_year_boing": name_rent_per_year(&label).to_string(),
     })
 }
 
 pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value, (i32, String)> {
     let head = node.chain.height();
+    let unit = node.executor.denomination_at(head.saturating_add(1)).unit();
     let st = &node.state;
     let reg = st.names();
     let p = st.name_registry_params();
@@ -141,7 +153,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
         }
         "boing_getNameInfo" => {
             let raw = first_string(params).ok_or_else(|| bad("expected [name]"))?;
-            let mut out = check_one(reg, p, head, &raw);
+            let mut out = check_one(reg, p, head, &raw, unit);
             if let (Some(label), Some(pp)) = (
                 out.get("name").and_then(|v| v.as_str()).map(str::to_string),
                 p,
@@ -173,7 +185,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             }
             Ok(json!({
                 "registry": params_json(p, head),
-                "results": names.iter().map(|n| check_one(reg, p, head, n)).collect::<Vec<_>>(),
+                "results": names.iter().map(|n| check_one(reg, p, head, n, unit)).collect::<Vec<_>>(),
             }))
         }
         "boing_namesOwnedBy" => {

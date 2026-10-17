@@ -3,6 +3,7 @@
 //! Types, hashing, signatures, and shared data structures.
 
 pub mod consensus_vote;
+pub mod denomination;
 pub mod equivocation;
 pub mod hash;
 pub mod hd;
@@ -16,6 +17,9 @@ pub mod types;
 pub mod validator_registration;
 pub mod vrf_proof;
 
+pub use denomination::{
+    format_boing, parse_boing, Denomination, ParseBoingError, BASE_UNITS_PER_BOING, BOING_DECIMALS,
+};
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};
 pub use hash::{hasher, Hash};

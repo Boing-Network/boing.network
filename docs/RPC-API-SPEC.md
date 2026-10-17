@@ -473,7 +473,12 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
   },
   "native_currency": {
     "symbol": "BOING",
-    "decimals": 0
+    "decimals": 18,
+    "base_unit_decimals": 18,
+    "base_units_per_boing": "1000000000000000000",
+    "base_units_from_height": 1050,
+    "gas_price_base_units": "1000000000000",
+    "note": "…"
   },
   "chain_native": {
     "account_count": 42,
@@ -532,7 +537,7 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
 - **`end_user`:** Wallet-facing strings and optional **32-byte hex** hints when operators set the matching **`BOING_CANONICAL_NATIVE_*`** env vars on the node: **`canonical_native_cp_pool`**, **`canonical_native_dex_factory`**, **`canonical_native_dex_multihop_swap_router`**, **`canonical_native_dex_ledger_router_v2`**, **`canonical_native_dex_ledger_router_v3`**, **`canonical_native_amm_lp_vault`**, **`canonical_native_lp_share_token`**. Omitted keys are JSON **`null`**. **`boing-sdk`** **`mergeNativeDexIntegrationDefaults`** merges these with app overrides; historical embedded **6913** constants apply **only** when network info is omitted (offline). A live snapshot with null canonical fields means the hosted chain has not published those contracts ([BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md), [dApp network discovery](#dapp-network-discovery)).
 - **`chain_id` / `chain_name`:** From **`BOING_CHAIN_ID`** / **`BOING_CHAIN_NAME`** when set on the node process; **`chain_id`** is **`null`** when not configured.
 - **`validator_count`:** Size of this node’s in-process validator set (HotStuff BFT); not a network-wide discovery endpoint for all operators.
-- **`native_currency.decimals`:** **0** - native BOING has no sub-units (a balance of `10` is 10 BOING); nodes before 2026-10-15 reported 18 here by mistake. Display hint for integrators; balances on **`boing_getBalance`** / **`boing_getAccount`** are still whole-unit u128 strings per those methods.
+- **`native_currency`:** Native BOING has **18 decimals** (1 BOING = 10^18 base units; [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md)). **`decimals`** is the unit of the amounts this node returns *now*: **18** (base units) on chains without history and on testnet from **`base_units_from_height`** (1050), **0** (whole BOING) on testnet before it. **`base_units_from_height`** is **`null`** when the chain is in base units from genesis. Blocks below **`base_units_from_height`** carry whole-BOING amounts; format historical blocks with the unit of their height. **`gas_price_base_units`**: fee per gas in base units from the switch. Same object in **`boing_health`**.
 - **`chain_native`:** Sums over this node’s committed account table; see [dApp network discovery](#dapp-network-discovery).
 - **`developer`:** Stable links and discovery hints for integrators. URLs default to the public GitHub tree; operators may override with environment variables (see table below).
 
@@ -616,9 +621,9 @@ Get the spendable balance for an account. **Recommended for wallets** (e.g. boin
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[hex_account_id]` | 32-byte AccountId (hex) |
-| Result | `{ balance: string }` | Native BOING balance as **whole units** (u128 decimal string). Wallets and explorers should **not** assume a fixed `10^18` “wei”-style divisor unless a future token standard adds it. |
+| Result | `{ balance: string, balance_boing: string, decimals: number }` | `balance`: native balance in **ledger units** (u128 decimal string): base units, 1 BOING = 10^18, on chains without history and on testnet from height 1050; whole BOING before it. `decimals` (18 or 0) says which; `balance_boing` is the same amount formatted as BOING (e.g. `"20.021"`). Nodes before testnet-v0.1.17 return only `balance` (whole BOING). See [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md). |
 
-**Example:** `{"jsonrpc":"2.0","id":1,"method":"boing_getBalance","params":["0x..."]}` → `{"jsonrpc":"2.0","id":1,"result":{"balance":"1000000"}}`
+**Example:** `{"jsonrpc":"2.0","id":1,"method":"boing_getBalance","params":["0x..."]}` → `{"jsonrpc":"2.0","id":1,"result":{"balance":"1500000000000000000","balance_boing":"1.5","decimals":18}}`
 
 ---
 
@@ -629,7 +634,7 @@ Get full account state (balance, nonce, stake). **Recommended for wallets** to b
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[hex_account_id]` | 32-byte AccountId (hex) |
-| Result | `{ balance: string, nonce: number, stake: string, pending_unbond: string, unbond_unlock_height: number }` | balance, stake, and pending_unbond are u128 as decimal strings; nonce and unbond_unlock_height are u64. If account does not exist, returns zeros. `pending_unbond` is stake waiting for the unbonding delay; claim with `ClaimUnbond` after `unbond_unlock_height`. |
+| Result | `{ balance: string, nonce: number, stake: string, pending_unbond: string, unbond_unlock_height: number, balance_boing, stake_boing, pending_unbond_boing: string, decimals: number }` | balance, stake, and pending_unbond are u128 decimal strings in ledger units (base units from the 18-decimals switch; `decimals` 18 or 0); the `*_boing` fields are the same amounts formatted as BOING; nonce and unbond_unlock_height are u64. If account does not exist, returns zeros. `pending_unbond` is stake waiting for the unbonding delay; claim with `ClaimUnbond` after `unbond_unlock_height`. |
 
 **Example:** `{"jsonrpc":"2.0","id":1,"method":"boing_getAccount","params":["0x..."]}` → `{"jsonrpc":"2.0","id":1,"result":{"balance":"1000000","nonce":5,"stake":"0","pending_unbond":"0","unbond_unlock_height":0}}`
 
@@ -840,7 +845,7 @@ Simulate a transaction without applying it.
 |-------|------|-------------|
 | Params | `[hex_signed_tx]` | Hex-encoded SignedTransaction |
 
-**Result:** `{ gas_used: number, success: boolean, return_data: string, logs?: array, error?: string, suggested_access_list: { read: string[], write: string[] }, access_list_covers_suggestion: boolean }` — on success, `return_data` is hex (contract return buffer) and `logs` matches receipt log shape; on failure, `return_data` is `"0x"` and `logs` is `[]`. **`suggested_access_list`** is a **heuristic** minimum account set for parallel scheduling from the tx payload (see `TECHNICAL-SPECIFICATION.md` §4.2); **`access_list_covers_suggestion`** is `true` when the signed tx’s declared access list includes every account in that suggestion (read or write). Hints are included on both success and failure so clients can fix access lists before submit.
+**Result:** `{ gas_used: number, success: boolean, return_data: string, logs?: array, error?: string, suggested_access_list: { read: string[], write: string[] }, access_list_covers_suggestion: boolean, network_fee?: string, network_fee_decimals?: number }` — **`network_fee`** (success only, testnet-v0.1.17+) is the fee this tx would pay if included in the next block, in ledger units (`network_fee_decimals` 18 = base units); on success, `return_data` is hex (contract return buffer) and `logs` matches receipt log shape; on failure, `return_data` is `"0x"` and `logs` is `[]`. **`suggested_access_list`** is a **heuristic** minimum account set for parallel scheduling from the tx payload (see `TECHNICAL-SPECIFICATION.md` §4.2); **`access_list_covers_suggestion`** is `true` when the signed tx’s declared access list includes every account in that suggestion (read or write). Hints are included on both success and failure so clients can fix access lists before submit.
 
 For **unsigned** calldata-only simulation, use **`boing_simulateContractCall`** above.
 
@@ -921,7 +926,7 @@ List the current validator set and (in open mode) every registered validator.
 
 **Params:** `[]`
 
-**Result:** `{ mode: "static"|"stake"|"open", height, quorum, validator_count, open: null | { activation_height, activated_at, bond, epoch_len, next_epoch_height, max_open_validators, liveness_window, miss_threshold_bps, jail_cooldown, ... }, validators: [ { id, kind: "anchor"|"static"|"open", status: "active"|"pending"|"jailed"|"exiting", in_set, bond (string, whole BOING), owner?, jailed_until, scheduled_proposals, missed_proposals, uptime_pct } ] }`
+**Result:** `{ mode: "static"|"stake"|"open", height, quorum, validator_count, open: null | { activation_height, activated_at, bond, epoch_len, next_epoch_height, max_open_validators, liveness_window, miss_threshold_bps, jail_cooldown, ... }, validators: [ { id, kind: "anchor"|"static"|"open", status: "active"|"pending"|"jailed"|"exiting", in_set, bond (string, ledger units: base units from the 18-decimals switch), bond_boing (formatted BOING), owner?, jailed_until, scheduled_proposals, missed_proposals, uptime_pct } ] }`
 
 - Liveness counts proposals only over produced blocks in the window (votes are not on-chain); idle periods are not counted.
 - The window is reset when a validator is jailed. `last_jail` (`{ jailed_at, scheduled_proposals, missed_proposals, uptime_pct }` or `null`) keeps the stats at the most recent jailing. It is node-local display data (not part of the state root); `null` means this node did not record it (e.g. jailed before the node was upgraded).

@@ -19,7 +19,7 @@ fn unsure_deploy_only_governance_admin_can_admit() {
     node.state.insert(Account {
         id: deployer,
         state: AccountState {
-            balance: 1_000_000,
+            balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
             stake: 0, ..Default::default() },
     });
@@ -77,7 +77,7 @@ fn production_pool_config_enqueues_unsure_with_public_membership() {
     node.state.insert(Account {
         id: deployer,
         state: AccountState {
-            balance: 1_000_000,
+            balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
             stake: 0, ..Default::default() },
     });

@@ -20,7 +20,7 @@ fn node_with_proposer(signing_key: &SigningKey, balance: u128) -> BoingNode {
     state.insert(Account {
         id: proposer,
         state: AccountState {
-            balance,
+            balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
             stake: 0, ..Default::default() },
     });
@@ -84,7 +84,7 @@ fn test_simulate_success() {
     let result = vm.execute(&signed.tx, &mut state_copy);
     assert!(result.is_ok());
     assert_eq!(result.unwrap().gas_used, 21_000);
-    assert_eq!(state_copy.get(&proposer).unwrap().balance, 999_900);
+    assert_eq!(state_copy.get(&proposer).unwrap().balance, 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING - 100);
     assert_eq!(state_copy.get(&to).unwrap().balance, 100);
-    assert_eq!(node.state.get(&proposer).unwrap().balance, 1_000_000); // original unchanged
+    assert_eq!(node.state.get(&proposer).unwrap().balance, 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING); // original unchanged
 }

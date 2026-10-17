@@ -335,7 +335,34 @@ fn fee_policy_json(p: &NetworkFeePolicy) -> serde_json::Value {
         "transfer_amount_bps": p.transfer_amount_bps,
         "treasury_account": format!("0x{}", PROTOCOL_TREASURY_HEX),
         "fee_formula": "network_fee = ceil(gas_used * GAS_PRICE / GAS_UNITS_PER_BOING) + extra_fixed_fee + (transfer_amount * transfer_amount_bps / 10000)",
+        "gas_price_base_units": boing_tokenomics::GAS_PRICE_BASE_UNITS.to_string(),
+        "fee_formula_base_units": "network_fee = gas_used * gas_price_base_units + extra_fixed_fee + (transfer_amount * transfer_amount_bps / 10000), all in base units (10^18 per BOING); applies from native_currency.base_units_from_height (fee_formula above is the whole-BOING rule before it)",
     })
+}
+
+/// Native currency denomination (18 decimals; mainnet plan step 1). `decimals` is the unit of the
+/// amounts this node returns *now* (committed state at `head_height`): 0 (whole BOING) before
+/// `base_units_from_height`, 18 (base units) from it. Amounts are always decimal strings.
+fn native_currency_json(n: &crate::node::BoingNode) -> serde_json::Value {
+    let head = n.chain.height();
+    let from = n.executor.redenomination_height();
+    serde_json::json!({
+        "symbol": "BOING",
+        "decimals": n.executor.denomination_at(head).decimals(),
+        "base_unit_decimals": boing_primitives::BOING_DECIMALS,
+        "base_units_per_boing": boing_primitives::BASE_UNITS_PER_BOING.to_string(),
+        "base_units_from_height": from,
+        "gas_price_base_units": boing_tokenomics::GAS_PRICE_BASE_UNITS.to_string(),
+        "note": "Native amounts in RPC responses are decimal strings in ledger units. From base_units_from_height on (and on chains where it is 0) the ledger unit is the base unit, 1 BOING = 10^18; blocks below it carry whole-BOING amounts.",
+    })
+}
+
+/// Human-readable BOING string for a ledger amount committed at `height`.
+fn format_native_at(n: &crate::node::BoingNode, height: u64, amount: u128) -> String {
+    match n.executor.denomination_at(height) {
+        boing_primitives::Denomination::BaseUnits => boing_primitives::format_boing(amount),
+        boing_primitives::Denomination::WholeBoing => amount.to_string(),
+    }
 }
 
 fn parse_hash32_hex(s: &str) -> Result<Hash, String> {
@@ -449,17 +476,18 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
 /// `serde_json::to_value`, except that integers above `u64::MAX` (u128 amounts) become decimal
 /// strings instead of failing. Previously a block holding such an amount (e.g. a failed transfer of
 /// 1e30) was returned without `header` / `transactions`.
+/// Integers above JavaScript's `Number.MAX_SAFE_INTEGER` (2^53 - 1) are emitted as decimal strings so
+/// JS clients never round them (base-unit amounts are routinely ~10^18+).
 pub(crate) fn json_value_lossless<T: serde::Serialize>(v: &T) -> serde_json::Value {
-    if let Ok(val) = serde_json::to_value(v) {
-        return val;
-    }
     let Ok(text) = serde_json::to_string(v) else {
         return serde_json::Value::Null;
     };
     serde_json::from_str(&quote_big_json_ints(&text)).unwrap_or(serde_json::Value::Null)
 }
 
-/// Wraps bare JSON integers that do not fit in u64 in quotes (outside strings only).
+const JS_MAX_SAFE_INTEGER: u64 = (1 << 53) - 1;
+
+/// Wraps bare JSON integers above 2^53 - 1 in quotes (outside strings only).
 fn quote_big_json_ints(text: &str) -> String {
     let b = text.as_bytes();
     let mut out: Vec<u8> = Vec::with_capacity(text.len() + 16);
@@ -492,7 +520,7 @@ fn quote_big_json_ints(text: &str) -> String {
             }
             let tok = &text[start..i];
             let is_int = i >= b.len() || !matches!(b[i], b'.' | b'e' | b'E');
-            if is_int && tok.parse::<u64>().is_err() {
+            if is_int && tok.parse::<u64>().map_or(true, |n| n > JS_MAX_SAFE_INTEGER) {
                 out.push(b'"');
                 out.extend_from_slice(tok.as_bytes());
                 out.push(b'"');
@@ -520,6 +548,9 @@ mod json_lossless_tests {
         let v = super::json_value_lossless(&T { a: 10u128.pow(30), b: 7, s: "é x\\\"99999999999999999999999" });
         assert_eq!(v["a"], serde_json::json!("1000000000000000000000000000000"));
         assert_eq!(v["b"], serde_json::json!(7));
+        let w = super::json_value_lossless(&T { a: 9_007_199_254_740_992, b: 9_007_199_254_740_991, s: "" });
+        assert_eq!(w["a"], serde_json::json!("9007199254740992"), "above 2^53 - 1 is quoted");
+        assert_eq!(w["b"], serde_json::json!(9_007_199_254_740_991u64));
         assert_eq!(v["s"], serde_json::json!("é x\\\"99999999999999999999999"));
     }
 }
@@ -1936,6 +1967,7 @@ async fn dispatch_jsonrpc_request(
                         "bootnodes_connected": p2p_status.bootnodes_connected,
                     },
                     "tx_signing": tx_signing_info(&n),
+                    "native_currency": native_currency_json(&n),
                     "rpc_surface": rpc_surface_capabilities(state),
                     "rpc_metrics": rpc_metrics_snapshot(state),
                 }),
@@ -2060,11 +2092,7 @@ async fn dispatch_jsonrpc_request(
                         "validator_count": n.consensus.num_validators(),
                         "model": "hotstuff_bft"
                     },
-                    "native_currency": {
-                        // Native amounts are whole BOING (no sub-units); matches wallets/explorer.
-                        "symbol": "BOING",
-                        "decimals": 0
-                    },
+                    "native_currency": native_currency_json(&n),
                     "chain_native": {
                         "account_count": agg.account_count,
                         "total_balance": agg.total_balance.to_string(),
@@ -2127,7 +2155,15 @@ async fn dispatch_jsonrpc_request(
                     let account_id = boing_primitives::AccountId(arr);
                     let n = node.read().await;
                     let balance = n.state.get(&account_id).map(|s| s.balance).unwrap_or(0);
-                    rpc_ok(id, serde_json::json!({ "balance": balance.to_string() }))
+                    let head = n.chain.height();
+                    rpc_ok(
+                        id,
+                        serde_json::json!({
+                            "balance": balance.to_string(),
+                            "balance_boing": format_native_at(&n, head, balance),
+                            "decimals": n.executor.denomination_at(head).decimals(),
+                        }),
+                    )
                 }
                 _ => rpc_error(
                     id,
@@ -2159,28 +2195,22 @@ async fn dispatch_jsonrpc_request(
                     arr.copy_from_slice(&bytes);
                     let account_id = boing_primitives::AccountId(arr);
                     let n = node.read().await;
-                    match n.state.get(&account_id) {
-                        Some(s) => rpc_ok(
-                            id,
-                            serde_json::json!({
-                                "balance": s.balance.to_string(),
-                                "nonce": s.nonce,
-                                "stake": s.stake.to_string(),
-                                "pending_unbond": s.pending_unbond.to_string(),
-                                "unbond_unlock_height": s.unbond_unlock_height
-                            }),
-                        ),
-                        None => rpc_ok(
-                            id,
-                            serde_json::json!({
-                                "balance": "0",
-                                "nonce": 0,
-                                "stake": "0",
-                                "pending_unbond": "0",
-                                "unbond_unlock_height": 0
-                            }),
-                        ),
-                    }
+                    let head = n.chain.height();
+                    let s = n.state.get(&account_id).cloned().unwrap_or_default();
+                    rpc_ok(
+                        id,
+                        serde_json::json!({
+                            "balance": s.balance.to_string(),
+                            "nonce": s.nonce,
+                            "stake": s.stake.to_string(),
+                            "pending_unbond": s.pending_unbond.to_string(),
+                            "unbond_unlock_height": s.unbond_unlock_height,
+                            "balance_boing": format_native_at(&n, head, s.balance),
+                            "stake_boing": format_native_at(&n, head, s.stake),
+                            "pending_unbond_boing": format_native_at(&n, head, s.pending_unbond),
+                            "decimals": n.executor.denomination_at(head).decimals(),
+                        }),
+                    )
                 }
                 _ => rpc_error(
                     id,
@@ -2424,7 +2454,7 @@ async fn dispatch_jsonrpc_request(
             match hex::decode(hex_tx.trim_start_matches("0x")) {
                 Ok(bytes) => match bincode::deserialize::<SignedTransaction>(&bytes) {
                     Ok(signed) => {
-                        let (mut state_copy, vm, exec_ctx) = {
+                        let (mut state_copy, vm, exec_ctx, fee_policy, fee_denom) = {
                             let n = node.read().await;
                             let h = n.chain.height();
                             let ts = n
@@ -2439,22 +2469,35 @@ async fn dispatch_jsonrpc_request(
                                     block_height: h,
                                     block_timestamp: ts,
                                 },
+                                n.executor.fee_policy().clone(),
+                                n.executor.denomination_at(h.saturating_add(1)),
                             )
                         };
                         let sug = signed.tx.suggested_parallel_access_list();
                         let covers = signed.tx.access_list_covers_parallel_suggestion();
                         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
-                            Ok(out) => rpc_ok(
-                                id,
-                                serde_json::json!({
-                                    "gas_used": out.gas_used,
-                                    "success": true,
-                                    "return_data": format!("0x{}", hex::encode(&out.return_data)),
-                                    "logs": execution_logs_to_json(&out.logs),
-                                    "suggested_access_list": access_list_to_json(&sug),
-                                    "access_list_covers_suggestion": covers,
-                                }),
-                            ),
+                            Ok(out) => {
+                                // Network fee for this tx if included in the next block (ledger units).
+                                let fee = boing_tokenomics::network_fee_amount_in(
+                                    out.gas_used,
+                                    &signed.tx.payload,
+                                    &fee_policy,
+                                    fee_denom,
+                                );
+                                rpc_ok(
+                                    id,
+                                    serde_json::json!({
+                                        "gas_used": out.gas_used,
+                                        "success": true,
+                                        "return_data": format!("0x{}", hex::encode(&out.return_data)),
+                                        "logs": execution_logs_to_json(&out.logs),
+                                        "suggested_access_list": access_list_to_json(&sug),
+                                        "access_list_covers_suggestion": covers,
+                                        "network_fee": fee.to_string(),
+                                        "network_fee_decimals": fee_denom.decimals(),
+                                    }),
+                                )
+                            }
                             Err(e) => rpc_ok(
                                 id,
                                 serde_json::json!({
@@ -3190,8 +3233,14 @@ async fn dispatch_jsonrpc_request(
             let n = node.write().await;
             let tip_height = n.chain.height();
             let peer_count = n.p2p.connected_peers().await.len();
+            // Dispense in the ledger unit of the block the tx should land in (base units from the
+            // redenomination height; one faucet tx per block on testnet). The committed balance is in
+            // the tip's unit, so lift it to the next block's unit before comparing.
+            let next_denom = n.executor.denomination_at(tip_height.saturating_add(1));
+            let dispense = next_denom.scale(faucet::FAUCET_DISPENSE_AMOUNT);
+            let lift = next_denom.unit() / n.executor.denomination_at(tip_height).unit();
             let (chain_nonce, balance_ok) = match n.state.get(&faucet_id) {
-                Some(s) => (s.nonce, s.balance >= faucet::FAUCET_DISPENSE_AMOUNT),
+                Some(s) => (s.nonce, s.balance.saturating_mul(lift) >= dispense),
                 None => {
                     return (
                         StatusCode::OK,
@@ -3211,7 +3260,7 @@ async fn dispatch_jsonrpc_request(
                 sender: faucet_id,
                 payload: TransactionPayload::Transfer {
                     to: to_id,
-                    amount: faucet::FAUCET_DISPENSE_AMOUNT,
+                    amount: dispense,
                 },
                 access_list: AccessList::new(vec![faucet_id, to_id], vec![faucet_id, to_id]),
             };
@@ -3234,8 +3283,8 @@ async fn dispatch_jsonrpc_request(
                         map.insert(to_id, Instant::now());
                     }
                     info!(
-                        "RPC: faucet sent {} to {} (tip_height={} peers={})",
-                        faucet::FAUCET_DISPENSE_AMOUNT,
+                        "RPC: faucet sent {} (ledger units) to {} (tip_height={} peers={})",
+                        dispense,
                         hex::encode(to_id.0),
                         tip_height,
                         peer_count
@@ -3254,7 +3303,9 @@ async fn dispatch_jsonrpc_request(
                     };
                     let mut body = serde_json::json!({
                         "ok": true,
-                        "amount": faucet::FAUCET_DISPENSE_AMOUNT,
+                        "amount": dispense.to_string(),
+                        "amount_boing": faucet::FAUCET_DISPENSE_AMOUNT.to_string(),
+                        "decimals": next_denom.decimals(),
                         "to": hex::encode(to_id.0),
                         "tip_height": tip_height,
                         "connected_peers": peer_count,

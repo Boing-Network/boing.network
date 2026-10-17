@@ -96,7 +96,7 @@ pub async fn register(
         if let Some(open) = report.get("open") {
             println!(
                 "Open validator set: bond {} BOING, joins at the next epoch boundary (every {} blocks, next {})",
-                open.get("bond").and_then(Value::as_str).unwrap_or("?"),
+                open.get("bond_boing").or(open.get("bond")).and_then(Value::as_str).unwrap_or("?"),
                 open.get("epoch_len").cloned().unwrap_or(Value::Null),
                 open.get("next_epoch_height").cloned().unwrap_or(Value::Null),
             );
@@ -164,6 +164,12 @@ pub async fn claim_unbond(
     if !dry_run {
         let acct = rpc(rpc_url, "boing_getAccount", json!([hex_account(&id)])).await?;
         let pending = acct.get("pending_unbond").and_then(Value::as_str).unwrap_or("0").to_string();
+        // Display in BOING (the node formats base units; older nodes return whole BOING only).
+        let pending_shown = acct
+            .get("pending_unbond_boing")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .unwrap_or_else(|| pending.clone());
         let unlock = acct.get("unbond_unlock_height").and_then(Value::as_u64).unwrap_or(0);
         let height = rpc(rpc_url, "boing_chainHeight", json!([])).await?.as_u64().unwrap_or(0);
         if pending == "0" {
@@ -171,9 +177,9 @@ pub async fn claim_unbond(
         }
         // The claim executes in the next block (height + 1).
         if height + 1 < unlock {
-            anyhow::bail!("unbond of {pending} BOING unlocks at height {unlock} (chain is at {height})");
+            anyhow::bail!("unbond of {pending_shown} BOING unlocks at height {unlock} (chain is at {height})");
         }
-        println!("Claiming {pending} BOING unbond for {} (unlocked at {unlock}, chain at {height})", hex_account(&id));
+        println!("Claiming {pending_shown} BOING unbond for {} (unlocked at {unlock}, chain at {height})", hex_account(&id));
     } else {
         println!("Claiming unbond for {}", hex_account(&id));
     }
@@ -194,7 +200,8 @@ pub fn format_status(report: &Value, only: Option<&str>) -> String {
     if let Some(open) = report.get("open").filter(|v| !v.is_null()) {
         out.push_str(&format!(
             "open: activation_height={} activated_at={} bond={} epoch_len={} next_epoch={} max_open={} window={} threshold={}bps cooldown={}\n",
-            open["activation_height"], open["activated_at"], open["bond"].as_str().unwrap_or("?"),
+            open["activation_height"], open["activated_at"],
+            open["bond_boing"].as_str().or(open["bond"].as_str()).unwrap_or("?"),
             open["epoch_len"], open["next_epoch_height"], open["max_open_validators"],
             open["liveness_window"], open["miss_threshold_bps"], open["jail_cooldown"]
         ));
@@ -216,7 +223,7 @@ pub fn format_status(report: &Value, only: Option<&str>) -> String {
             v["kind"].as_str().unwrap_or("?"),
             status,
             v["in_set"].as_bool().unwrap_or(false),
-            v["bond"].as_str().unwrap_or("0"),
+            v["bond_boing"].as_str().or(v["bond"].as_str()).unwrap_or("0"),
             v["uptime_pct"].as_f64().unwrap_or(0.0),
             v["missed_proposals"],
             v["scheduled_proposals"],
@@ -298,7 +305,8 @@ mod tests {
             "validators": [
                 {"id": "0xaa", "kind": "anchor", "status": "active", "in_set": true, "bond": "0",
                  "uptime_pct": 100.0, "missed_proposals": 0, "scheduled_proposals": 3, "jailed_until": null},
-                {"id": "0xbb", "kind": "open", "status": "jailed", "in_set": false, "bond": "100",
+                {"id": "0xbb", "kind": "open", "status": "jailed", "in_set": false,
+                 "bond": "100000000000000000000", "bond_boing": "100",
                  "uptime_pct": 100.0, "missed_proposals": 0, "scheduled_proposals": 0, "jailed_until": 25,
                  "last_jail": {"jailed_at": 15, "uptime_pct": 0.0, "missed_proposals": 2, "scheduled_proposals": 2}}
             ]
@@ -306,6 +314,7 @@ mod tests {
         let s = format_status(&report, None);
         assert!(s.contains("mode=open"));
         assert!(s.contains("jailed(until 25)"));
+        assert!(!s.contains("100000000000000000000"), "bond shown in BOING, not base units: {s}");
         assert!(s.contains("at jailing (block 15): uptime 0.0%, missed 2/2"), "{s}");
         let one = format_status(&report, Some("0xAA"));
         assert!(one.contains("0xaa") && !one.contains("0xbb"));

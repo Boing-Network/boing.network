@@ -12,7 +12,12 @@ use boing_primitives::{
     MAX_BATCH_CALLDATA_BYTES, MAX_BATCH_CALLS,
 };
 use boing_state::StateStore;
-use boing_tokenomics::{network_fee_amount, NetworkFeePolicy};
+use boing_tokenomics::NetworkFeePolicy;
+
+/// Network fee in base units (chains without history use base units from genesis).
+fn network_fee_amount(gas: u64, payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u128 {
+    boing_tokenomics::network_fee_amount_in(gas, payload, policy, boing_tokenomics::Denomination::BaseUnits)
+}
 
 const CTX: VmExecutionContext = VmExecutionContext {
     block_height: 10,
@@ -54,7 +59,7 @@ fn setup() -> (Vm, StateStore, AccountId, AccountId) {
     state.insert(Account {
         id: alice,
         state: AccountState {
-            balance: 10_000_000,
+            balance: 10_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             ..Default::default()
         },
     });

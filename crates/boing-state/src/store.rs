@@ -460,6 +460,30 @@ impl StateStore {
     }
 
     /// Open validator registry (read).
+    /// Native-ledger redenomination (whole BOING -> base units): multiplies every account's balance,
+    /// stake and pending unbond, and every open-validator bond held in the registry, by `factor`
+    /// (saturating). Contract storage holds no native BOING (the VM has no native-value opcodes) and the
+    /// name registry stores no amounts, so nothing else carries native units. Journaled like any other
+    /// write. Returns the number of accounts touched. Callers must apply it exactly once per chain (see
+    /// `BlockExecutor::prepare_state_for_height`).
+    pub fn redenominate(&mut self, factor: u128) -> usize {
+        let mut ids: Vec<AccountId> = self.accounts.keys().copied().collect();
+        ids.sort();
+        for id in &ids {
+            if let Some(a) = self.get_mut(id) {
+                a.balance = a.balance.saturating_mul(factor);
+                a.stake = a.stake.saturating_mul(factor);
+                a.pending_unbond = a.pending_unbond.saturating_mul(factor);
+            }
+        }
+        if self.open_validators.records.values().any(|r| r.bond > 0) {
+            for rec in self.open_validators_mut().records.values_mut() {
+                rec.bond = rec.bond.saturating_mul(factor);
+            }
+        }
+        ids.len()
+    }
+
     pub fn open_validators(&self) -> &OpenValidatorRegistry {
         &self.open_validators
     }
@@ -910,5 +934,28 @@ mod tests {
         assert_eq!(agg.total_balance, 125);
         assert_eq!(agg.total_stake, 50);
         assert_eq!(agg.total_native_held, 175);
+    }
+
+    #[test]
+    fn redenominate_scales_every_native_amount_once_and_is_journaled() {
+        use boing_primitives::{Account, AccountState};
+        let mut st = StateStore::new();
+        let a = AccountId([1; 32]);
+        let b = AccountId([2; 32]);
+        st.insert(Account { id: a, state: AccountState { balance: 20, stake: 3, pending_unbond: 4, nonce: 7, unbond_unlock_height: 99 } });
+        st.insert(Account { id: b, state: AccountState { balance: 0, ..Default::default() } });
+        let p = crate::OpenValidatorParams::default();
+        st.open_validators_mut().register(&p, 0, b, AccountId([9; 32])).unwrap();
+        let root_before = st.state_root();
+        let cp = st.checkpoint();
+        assert_eq!(st.redenominate(10), 2);
+        let s = st.get(&a).unwrap();
+        assert_eq!((s.balance, s.stake, s.pending_unbond, s.nonce, s.unbond_unlock_height), (200, 30, 40, 7, 99));
+        assert_eq!(st.open_validators().records[&AccountId([9; 32])].bond, 1_000);
+        assert_ne!(st.state_root(), root_before);
+        st.revert(cp);
+        assert_eq!(st.get(&a).unwrap().balance, 20, "journaled: revert undoes it");
+        assert_eq!(st.open_validators().records[&AccountId([9; 32])].bond, 100);
+        assert_eq!(st.state_root(), root_before);
     }
 }
