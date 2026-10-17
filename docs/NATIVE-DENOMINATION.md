@@ -98,5 +98,17 @@ and swap quotes are unaffected.
 ## SDK and apps
 
 `boing-sdk` exports `BOING_DECIMALS`, `parseBoing` / `formatBoing` (bigint base units) and the
-height-aware `nativeUnitAt`. Boing Express, boing.observer and boing.finance format native amounts with
+height-aware `nativeDecimalsAt` / `formatNativeAmount`, plus `feeForGasBaseUnits`. Boing Express, boing.observer and boing.finance format native amounts with
 `native_currency` from the node, so they show whole BOING before the switch and 18-decimal amounts after.
+Each app carries its own small helper with the same rules (Express `src/boing/nativeUnit.ts`, observer
+`src/lib/native-unit.ts`, finance `frontend/src/utils/boingNativeAmount.js`) instead of bumping its pinned SDK.
+
+## Public testnet activation (2026-10-17)
+
+Both public nodes ran testnet-v0.1.17 (cc9d451) from block ~942 and crossed 1050 together (block 1050
+hash `86678e58…`, identical on both). Checked live after the switch: a faucet recipient funded with 20
+whole BOING at block 1003 reads `20000000000000000000` (`balance_boing` "20", `decimals` 18); the faucet
+transfers in blocks 1049 and 1050 carry `20` and `20000000000000000000`; each 21,000-gas transfer from
+1050 on costs 0.021 BOING; the open-validator bond reads `100000000000000000000` (`bond_boing` "100").
+The recorded blocks 942..=1052 are in `crates/boing-node/tests/fixtures/testnet_blocks_after_942.jsonl`
+and replay with exact hashes (`replay_live_chain_across_v4_and_redenomination`).

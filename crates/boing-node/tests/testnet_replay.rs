@@ -7,7 +7,9 @@
 //! line, heights 0..=941: history through the security #2/#3 (900) and #16/#14 (920) activations, recorded
 //! 2026-10-17 before the v4 gate at 1000). Override with `BOING_REPLAY_BLOCKS=<path>` to check a fresh dump of the
 //! live chain. `replay_then_cross_redenomination_locally` continues past the fixture tip across a local
-//! 18-decimals migration height (the live one is 1050).
+//! 18-decimals migration height. `tests/fixtures/testnet_blocks_after_942.jsonl` continues the recorded
+//! chain from 942 through the live v4 gate (1000) and the live 18-decimals switch (1050), recorded
+//! 2026-10-17 at tip 1052; `replay_live_chain_across_v4_and_redenomination` replays both files.
 
 use std::io::{BufRead, BufReader};
 
@@ -50,7 +52,10 @@ fn unquote_amounts(json: &str) -> String {
 }
 
 fn load_blocks() -> Vec<(Block, String)> {
-    let path = fixture_path();
+    load_blocks_from(&fixture_path())
+}
+
+fn load_blocks_from(path: &std::path::Path) -> Vec<(Block, String)> {
     let f = std::fs::File::open(&path).unwrap_or_else(|e| panic!("open {}: {e}", path.display()));
     BufReader::new(f)
         .lines()
@@ -372,4 +377,41 @@ fn replay_then_cross_redenomination_locally() {
     let end = a.state.compute_native_aggregates();
     assert_eq!(end.total_balance, mid.total_balance + a.executor.block_emission(h + 1));
     assert_eq!(a.state.get(&to).unwrap().balance, 40 * BASE_UNITS_PER_BOING + 1);
+}
+
+/// The recorded public chain past the main fixture: the v4 gate (1000) and the live 18-decimals
+/// switch (1050). Every recorded hash must reproduce; at 1050 the ledger is multiplied by 10^18
+/// exactly once (chain-wide sum), and a faucet recipient funded before the switch (20 whole BOING at
+/// block 1003) holds 20 * 10^18 base units afterwards.
+#[test]
+fn replay_live_chain_across_v4_and_redenomination() {
+    std::env::set_var("BOING_CHAIN_ID", "6913");
+    let main = load_blocks();
+    let ext = load_blocks_from(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/testnet_blocks_after_942.jsonl"),
+    );
+    let h = network_preset::BOING_TESTNET_BASE_UNITS_FROM;
+    assert_eq!(ext[0].0.header.height, main.last().unwrap().0.header.height + 1, "contiguous");
+    assert!(ext.last().unwrap().0.header.height > h, "covers the switch");
+    let split = ext.iter().position(|(b, _)| b.header.height == h).unwrap();
+    let mut node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    replay(&mut node, &main).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    replay(&mut node, &ext[..split]).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    assert_eq!(node.chain.height(), h - 1);
+    let mut id = [0u8; 32];
+    id.copy_from_slice(&hex::decode("9bd09b6daa581894b7319af1de1dce5e874cc19d9e07bda462e99471cd828332").unwrap());
+    let recipient = AccountId(id);
+    assert_eq!(node.state.get(&recipient).unwrap().balance, 20, "whole BOING before the switch");
+    let before = node.state.compute_native_aggregates();
+    replay(&mut node, &ext[split..split + 1]).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    let after = node.state.compute_native_aggregates();
+    assert_eq!(
+        after.total_balance,
+        before.total_balance * BASE_UNITS_PER_BOING + node.executor.block_emission(h),
+        "x10^18 once at the switch, plus the base-unit emission"
+    );
+    assert_eq!(after.total_stake, before.total_stake * BASE_UNITS_PER_BOING);
+    replay(&mut node, &ext[split + 1..]).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    assert_eq!(node.state.get(&recipient).unwrap().balance, 20 * BASE_UNITS_PER_BOING);
+    assert_eq!(node.chain.latest_hash(), ext.last().unwrap().0.hash());
 }
