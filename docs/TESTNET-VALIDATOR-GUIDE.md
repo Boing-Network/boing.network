@@ -22,21 +22,25 @@ RPC port **8545** only needs to be public if you want to serve RPC to others.
 
 ## 2. Get the node
 
-**Release binaries (recommended):** download `testnet-v0.1.15` (or newer) from
+**Release binaries (recommended):** download `testnet-v0.1.16` (or newer) from
 <https://github.com/Boing-Network/boing.network/releases>. The zip contains `boing-node-<platform>` and
 `boing-<platform>`, so rename them after unzipping (there is no `--version` flag; use `./boing-node --help`):
 
 ```bash
-curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.15/release-linux-x86_64.zip
+curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.16/release-linux-x86_64.zip
 unzip release-linux-x86_64.zip && mv boing-node-linux-x86_64 boing-node && mv boing-linux-x86_64 boing && chmod +x boing-node boing
 ./boing validator --help
 ```
 
-Other platforms: `release-macos-aarch64.zip`, `release-windows-x86_64.zip`. **Use `testnet-v0.1.15` or newer.**
-Older releases cannot follow the chain: from height 900 transactions must be signed with the chain id
-(v2) and failed transactions pay a fee; from height 920 blocks carry a signature per transaction that
-every node verifies, and the validator registration proof is bound to the chain id (security fixes
-#2, #3, #14, #16). Upgrade by replacing the binary and restarting; your data directory is kept.
+Other platforms: `release-macos-aarch64.zip`, `release-windows-x86_64.zip`. **Use `testnet-v0.1.16` or newer
+before height 1000.** Older releases cannot follow the chain: from height 900 transactions must be signed
+with the chain id (v2) and failed transactions pay a fee; from height 920 blocks carry a signature per
+transaction that every node verifies, and the validator registration proof is bound to the chain id
+(security fixes #2, #3, #14, #16); from height **1000** name commitments are stored per sender, parallel
+transfer batches that touch a fee account run sequentially, the open-validator registry is capped and a
+jailed validator cannot deregister before its jail ends (fixes #6, #9, #10, #11). A node on an older
+release computes a different state root from block 1000 and stops following the chain. Upgrade by
+replacing the binary and restarting; your data directory is kept.
 
 **Build from source (alternative):**
 
@@ -173,6 +177,11 @@ Watch: `head_height` keeps pace with the public RPC, peer count ≥ 1, disk spac
 Use a process supervisor (systemd `Restart=always`, or Docker `--restart unless-stopped`) and alert on `/live` failing.
 The [operator dashboard and leaderboard](https://boing.network/testnet/operators) show your node once registered.
 
+Resource limits (since `testnet-v0.1.16`, node-local, no consensus impact): the mempool holds at most
+`BOING_MEMPOOL_MAX_TXS` transactions (default 10,000; when full, the newest txs of the sender with the most
+pending txs make room), and `GET /ws` accepts `BOING_RPC_WS_MAX_CONNECTIONS` connections (default 512;
+`0` = unlimited).
+
 ## Future: stake-based validator set (not active)
 
 The node also implements a stake-weighted mode that may be enabled later at an announced **activation
@@ -211,14 +220,17 @@ Anyone can join without permission:
   The node key signs a proof of possession binding it to the owner and to this chain (chain id 6913; required from
   height 920), so nobody can register a key they don't hold or replay a proof from another network. Use
   `testnet-v0.1.15` or newer (older CLIs sign the old proof, which is rejected).
-  One validator per owner.
+  One validator per owner. From height 1000 the registry holds at most 80 records (4 x the open-validator
+  cap; pending, active, jailed and exiting together); further registrations fail with "registry is full"
+  until someone leaves.
 - **Join:** you enter the set at the next **epoch boundary (every 100 blocks)**. The set is capped
   (default 20 open validators), ordered by registration height then id, identical on every node.
 - **Liveness:** each produced block records the expected leader and the actual proposer. Missing more than
   **10%** of your scheduled proposals over the last **1,000 produced blocks** (at least 10 samples) gets you
   **jailed** at the next boundary. Only produced blocks count; idle time with no transactions never penalizes you.
   Jailing keeps your bond (no slashing on testnet). After the cooldown (500 blocks), run
-  `boing validator unjail` to rejoin at the next boundary.
+  `boing validator unjail` to rejoin at the next boundary. From height 1000 a jailed validator cannot
+  deregister before the cooldown ends either, so the bond stays locked for the whole jail period.
 - **Leave:** `boing validator deregister`. You stay in the set until the next boundary; the bond unlocks after
   100 blocks and is claimed with `ClaimUnbond`.
 - **Status:** `boing validator status [--node <id>]` (RPC `boing_getValidators`) shows each validator's status,
