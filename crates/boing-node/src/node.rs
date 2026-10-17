@@ -1198,6 +1198,7 @@ impl BoingNode {
         let mut vm = Vm::with_qa_registry(self.mempool.qa_registry().clone());
         let (chain_id, from) = self.executor.registration_proof_rule();
         vm.set_registration_proof_rule(chain_id, from);
+        vm.set_security_v4_from(self.executor.vm().security_v4_from());
         vm
     }
 

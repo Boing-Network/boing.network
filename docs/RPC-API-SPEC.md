@@ -397,7 +397,7 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
   },
   "rpc_surface": {
     "jsonrpc_batch_max": 32,
-    "websocket_max_connections": 0,
+    "websocket_max_connections": 512,
     "http_rate_limit_requests_per_sec": 100,
     "ready_min_peers": null,
     "http_max_body_megabytes": 8,
@@ -566,7 +566,7 @@ Large signed-transaction hex payloads (e.g. contract deploy) need a generous HTT
 | **`BOING_RPC_MAX_BODY_MB`** | Maximum JSON-RPC POST body size in **mebibytes** (integer, **≥ 1**). Invalid or missing values fall back to **8**. |
 | **`BOING_RPC_MAX_BATCH`** | Max objects per JSON-RPC **batch** array (default **32**, hard cap **256**). **`0`** is invalid and falls back to the default. |
 | **`BOING_RPC_READY_MIN_PEERS`** | When set to a positive integer, **`GET /ready`** returns **503** unless the node reports at least that many connected P2P peers. Unset or **`0`**: no peer check (read lock only). |
-| **`BOING_RPC_WS_MAX_CONNECTIONS`** | Max concurrent **`GET /ws`** WebSocket connections (**0** = unlimited). When exceeded, new handshakes receive **503**. |
+| **`BOING_RPC_WS_MAX_CONNECTIONS`** | Max concurrent **`GET /ws`** WebSocket connections (default **512** when unset; explicit **0** = unlimited). When exceeded, new handshakes receive **503**. |
 
 ---
 
@@ -581,7 +581,7 @@ Browser-friendly push when the **local** committed tip changes (block produced o
 
 Laggy subscribers may drop intermediate heads (**broadcast** channel); clients should reconcile with **`boing_getSyncState`** / **`boing_chainHeight`** if they need every height.
 
-Public RPC operators may set **`BOING_RPC_WS_MAX_CONNECTIONS`** so **`newHeads`** cannot exhaust file descriptors or CPU from unbounded subscribers.
+The default cap (**512**) keeps **`newHeads`** subscribers from exhausting file descriptors or CPU; public RPC operators can tune it with **`BOING_RPC_WS_MAX_CONNECTIONS`**. The testnet faucet also has a node-wide budget (**`BOING_FAUCET_MAX_PER_MINUTE`**, default **30**, **0** = unlimited) on top of the per-address cooldown.
 
 ---
 

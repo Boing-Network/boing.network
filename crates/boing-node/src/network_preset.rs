@@ -29,6 +29,11 @@ pub const BOING_TESTNET_SECURITY_V2_FROM: u64 = 900;
 /// Testnet activation height of security fixes #16 (blocks carry tx signatures and importers verify
 /// them) and #14 (chain-bound validator registration proof). Below it history replays unchanged.
 pub const BOING_TESTNET_SECURITY_V3_FROM: u64 = 920;
+/// Testnet activation height of the 2026-10-17 security-review fixes #6 (sender-keyed name
+/// commitments), #9 (no parallel transfer batch touching the fee recipient), #10 (open-validator
+/// registry cap) and #11 (a jailed validator cannot exit before its jail ends). Chosen with a wide
+/// margin above the tip at deploy time (~941; blocks are produced on demand).
+pub const BOING_TESTNET_SECURITY_V4_FROM: u64 = 1_000;
 
 /// Genesis block proposer plus the accounts funded at height 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -69,6 +74,7 @@ pub fn boing_testnet_history() -> ExecutionHistory {
         tx_v2_from: BOING_TESTNET_SECURITY_V2_FROM,
         block_sigs_from: BOING_TESTNET_SECURITY_V3_FROM,
         registration_proof_v2_from: BOING_TESTNET_SECURITY_V3_FROM,
+        security_v4_from: BOING_TESTNET_SECURITY_V4_FROM,
     }
 }
 
@@ -196,5 +202,34 @@ mod sign_for_chain_tests {
         assert!(sign_for_chain(tx.clone(), &key, Some(6913)).verify_with(required).is_ok());
         assert!(sign_for_chain(tx.clone(), &key, None).verify_with(required).is_err());
         assert!(sign_for_chain(tx, &key, None).verify_with(boing_primitives::TxSigPolicy::default()).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod preset_scope_tests {
+    use super::*;
+
+    /// Security review #13: the testnet replay preset (historical eras + fixed genesis) applies to chain
+    /// 6913 only. Any other chain id (local dev, a future mainnet id) gets no preset and therefore the
+    /// current rules from genesis and its own genesis.
+    #[test]
+    fn preset_only_for_testnet_chain_id() {
+        assert!(preset_for_chain(BOING_TESTNET_CHAIN_ID).is_some());
+        for other in [0u64, 1, 6912, 6914, 69_130, u64::MAX] {
+            assert!(preset_for_chain(other).is_none(), "chain {other} must not get the testnet preset");
+        }
+    }
+
+    /// Activation heights only ever move forward, and every gated rule is on from v4 at the latest.
+    #[test]
+    fn testnet_gates_are_ordered() {
+        let h = boing_testnet_history();
+        assert_eq!(h.chain_id, BOING_TESTNET_CHAIN_ID);
+        assert!(BOING_TESTNET_TREASURY_FEES_FROM < BOING_TESTNET_SECURITY_V2_FROM);
+        assert!(BOING_TESTNET_SECURITY_V2_FROM < BOING_TESTNET_SECURITY_V3_FROM);
+        assert!(BOING_TESTNET_SECURITY_V3_FROM < BOING_TESTNET_SECURITY_V4_FROM);
+        assert_eq!(h.security_v4_from, BOING_TESTNET_SECURITY_V4_FROM);
+        assert!(!h.security_v4_active(BOING_TESTNET_SECURITY_V4_FROM - 1));
+        assert!(h.security_v4_active(BOING_TESTNET_SECURITY_V4_FROM));
     }
 }

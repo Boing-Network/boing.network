@@ -10,10 +10,26 @@ use boing_qa::{check_contract_deploy_full_with_metadata, QaReject, QaResult, Rul
 /// Default max pending transactions per sender (matches SECURITY-STANDARDS / RateLimitConfig).
 pub const DEFAULT_MAX_PENDING_PER_SENDER: usize = 16;
 
+/// Default cap on all pending transactions (security review #7). Override with `BOING_MEMPOOL_MAX_TXS`.
+pub const DEFAULT_MAX_TOTAL_PENDING: usize = 10_000;
+
+fn max_total_from_env() -> usize {
+    std::env::var("BOING_MEMPOOL_MAX_TXS")
+        .ok()
+        .and_then(|s| s.trim().parse::<usize>().ok())
+        .filter(|n| *n > 0)
+        .unwrap_or(DEFAULT_MAX_TOTAL_PENDING)
+}
+
 /// In-memory mempool. Tracks pending transactions by sender nonce.
 pub struct Mempool {
     inner: Mutex<MempoolInner>,
     max_pending_per_sender: usize,
+    /// Global cap on pending txs. When full, a new tx evicts the newest (highest-nonce) tx of the sender
+    /// holding the most pending txs, if that sender holds more than the newcomer would; otherwise it is
+    /// rejected with [`MempoolError::MempoolFull`]. Boing has no fee bidding (fees are fixed by the
+    /// protocol schedule), so fairness across senders replaces "lowest fee first" eviction.
+    max_total: usize,
     /// QA rule registry (blocklist, content blocklist, etc.). Replace via [Mempool::with_qa_registry] or governance.
     qa_registry: RuleRegistry,
 }
@@ -44,6 +60,7 @@ impl Mempool {
         Self {
             inner: Mutex::new(MempoolInner::default()),
             max_pending_per_sender: DEFAULT_MAX_PENDING_PER_SENDER,
+            max_total: max_total_from_env(),
             qa_registry: default_qa_registry(),
         }
     }
@@ -51,6 +68,16 @@ impl Mempool {
     pub fn with_max_pending_per_sender(mut self, max: usize) -> Self {
         self.max_pending_per_sender = max.max(1);
         self
+    }
+
+    /// Global pending-tx cap (minimum **1**).
+    pub fn with_max_total(mut self, max: usize) -> Self {
+        self.max_total = max.max(1);
+        self
+    }
+
+    pub fn max_total(&self) -> usize {
+        self.max_total
     }
 
     /// Runtime cap on distinct pending nonces per sender (minimum **1**).
@@ -112,6 +139,17 @@ impl Mempool {
         signed: SignedTransaction,
         qa_mode: DeployQaMode,
     ) -> Result<(), MempoolError> {
+        self.insert_checked(signed, qa_mode, false)
+    }
+
+    /// `restoring`: txs that were already in the pool (re-inserted after a failed block) skip the global
+    /// cap, so a full pool never drops them.
+    fn insert_checked(
+        &self,
+        signed: SignedTransaction,
+        qa_mode: DeployQaMode,
+        restoring: bool,
+    ) -> Result<(), MempoolError> {
         signed.verify().map_err(|e| match e {
             boing_primitives::SignatureError::LegacySignatureRejected => {
                 MempoolError::LegacySignature
@@ -166,6 +204,9 @@ impl Mempool {
                     limit: self.max_pending_per_sender,
                 });
             }
+            if !restoring && inner.len >= self.max_total {
+                Self::evict_for(&mut inner, sender, sender_count, self.max_total)?;
+            }
         }
         let prev = inner
             .by_sender
@@ -179,6 +220,36 @@ impl Mempool {
         }
         inner.by_id.insert(tx_id, ());
         Ok(())
+    }
+
+    /// Make room for one tx from `newcomer` (holding `newcomer_count` pending): evict the highest nonce of
+    /// the sender with the most pending txs (ties: highest account id, so the choice is deterministic)
+    /// when that sender would still hold more than the newcomer afterwards.
+    fn evict_for(
+        inner: &mut MempoolInner,
+        newcomer: AccountId,
+        newcomer_count: usize,
+        max_total: usize,
+    ) -> Result<(), MempoolError> {
+        let victim = inner
+            .by_sender
+            .iter()
+            .filter(|(id, m)| **id != newcomer && !m.is_empty())
+            .max_by(|a, b| a.1.len().cmp(&b.1.len()).then_with(|| a.0 .0.cmp(&b.0 .0)))
+            .map(|(id, m)| (*id, m.len()));
+        match victim {
+            Some((id, count)) if count > newcomer_count + 1 => {
+                let by_nonce = inner.by_sender.get_mut(&id).expect("victim exists");
+                let (_, evicted) = by_nonce.pop_last().expect("non-empty");
+                if by_nonce.is_empty() {
+                    inner.by_sender.remove(&id);
+                }
+                inner.by_id.remove(&evicted.tx.id());
+                inner.len = inner.len.saturating_sub(1);
+                Ok(())
+            }
+            _ => Err(MempoolError::MempoolFull { limit: max_total }),
+        }
     }
 
     /// Remove and return signed transactions up to `max` for block inclusion.
@@ -209,7 +280,7 @@ impl Mempool {
     /// Duplicates are skipped; invalid signatures are skipped. Used to restore txs when a block is not committed.
     pub fn reinsert(&self, signed_txs: Vec<SignedTransaction>) {
         for signed in signed_txs {
-            let _ = self.insert_with_qa_mode(signed, DeployQaMode::Skip);
+            let _ = self.insert_checked(signed, DeployQaMode::Skip, true);
         }
     }
 
@@ -262,6 +333,8 @@ pub enum MempoolError {
     InvalidBatch(boing_primitives::BatchValidationError),
     #[error("Pending limit exceeded: sender has too many pending txs (max {limit})")]
     PendingLimitExceeded { sender: AccountId, limit: usize },
+    #[error("Mempool full ({limit} pending txs); try again later")]
+    MempoolFull { limit: usize },
     #[error("insufficient balance for fee: have {have}, need {need}")]
     InsufficientFee { have: u128, need: u128 },
     /// Protocol QA rejected this deployment; rule_id and message give user feedback.
@@ -407,5 +480,86 @@ mod tests {
             pool.insert(SignedTransaction::new(t1, &key)),
             Err(MempoolError::PendingLimitExceeded { limit: 1, .. })
         ));
+    }
+
+    fn transfer(key: &SigningKey, nonce: u64) -> SignedTransaction {
+        let sender = AccountId(key.verifying_key().to_bytes());
+        SignedTransaction::new(
+            Transaction {
+                nonce,
+                sender,
+                payload: TransactionPayload::Transfer { to: AccountId([2u8; 32]), amount: 1 },
+                access_list: AccessList::default(),
+            },
+            key,
+        )
+    }
+
+    #[test]
+    fn global_cap_evicts_from_heaviest_sender_and_rejects_when_fair() {
+        // Security review #7.
+        let pool = Mempool::new().with_max_total(6);
+        let whale = SigningKey::generate(&mut OsRng);
+        let whale_id = AccountId(whale.verifying_key().to_bytes());
+        for n in 0..6 {
+            pool.insert(transfer(&whale, n)).unwrap();
+        }
+        assert_eq!(pool.len(), 6);
+        // newcomers displace the whale's newest txs
+        let mut small = Vec::new();
+        for _ in 0..3 {
+            let k = SigningKey::generate(&mut OsRng);
+            pool.insert(transfer(&k, 0)).unwrap();
+            small.push(k);
+        }
+        assert_eq!(pool.len(), 6);
+        assert_eq!(pool.suggested_next_nonce(whale_id, 0), 3, "nonces 3..5 evicted, 0..2 kept");
+        // whale 3 vs a newcomer with 0: 3 > 0 + 1, so the whale loses one more
+        let k4 = SigningKey::generate(&mut OsRng);
+        pool.insert(transfer(&k4, 0)).unwrap();
+        assert_eq!(pool.suggested_next_nonce(whale_id, 0), 2);
+        // whale 2 vs newcomer 0: 2 > 0 + 1, still evicts
+        let k5 = SigningKey::generate(&mut OsRng);
+        pool.insert(transfer(&k5, 0)).unwrap();
+        // every sender now holds 1: further newcomers are rejected, nobody is evicted
+        let k6 = SigningKey::generate(&mut OsRng);
+        assert!(matches!(
+            pool.insert(transfer(&k6, 0)),
+            Err(MempoolError::MempoolFull { limit: 6 })
+        ));
+        // a sender cannot evict others to grow beyond them
+        assert!(matches!(
+            pool.insert(transfer(&small[0], 1)),
+            Err(MempoolError::MempoolFull { .. })
+        ));
+        assert_eq!(pool.len(), 6);
+        // replacing an existing nonce is not an insertion and still works when full
+        let k4_id = AccountId(k4.verifying_key().to_bytes());
+        let replacement = SignedTransaction::new(
+            Transaction {
+                nonce: 0,
+                sender: k4_id,
+                payload: TransactionPayload::Transfer { to: AccountId([7u8; 32]), amount: 2 },
+                access_list: AccessList::default(),
+            },
+            &k4,
+        );
+        pool.insert(replacement).unwrap();
+        assert_eq!(pool.len(), 6);
+    }
+
+    #[test]
+    fn reinsert_ignores_global_cap() {
+        let pool = Mempool::new().with_max_total(2);
+        let a = SigningKey::generate(&mut OsRng);
+        pool.insert(transfer(&a, 0)).unwrap();
+        pool.insert(transfer(&a, 1)).unwrap();
+        let drained = pool.drain_for_block(2);
+        let b = SigningKey::generate(&mut OsRng);
+        let c = SigningKey::generate(&mut OsRng);
+        pool.insert(transfer(&b, 0)).unwrap();
+        pool.insert(transfer(&c, 0)).unwrap();
+        pool.reinsert(drained);
+        assert_eq!(pool.len(), 4, "txs of a failed block are restored even when the pool is full");
     }
 }

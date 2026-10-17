@@ -718,9 +718,10 @@ async fn rpc_health_shape() {
         .get("jsonrpc_batch_max")
         .and_then(|x| x.as_u64())
         .is_some());
+    // Bounded by default since security review #15 (explicit 0 = unlimited).
     assert_eq!(
         surf.get("websocket_max_connections"),
-        Some(&serde_json::json!(0))
+        Some(&serde_json::json!(512))
     );
     assert!(surf.get("ready_min_peers").is_some());
     assert!(surf

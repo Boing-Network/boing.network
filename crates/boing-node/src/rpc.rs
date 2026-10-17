@@ -661,10 +661,19 @@ fn max_rpc_batch_len() -> usize {
     }
 }
 
-/// Max concurrent **`GET /ws`** connections (default **0** = unlimited). Set **`BOING_RPC_WS_MAX_CONNECTIONS`**.
+/// Default WebSocket connection cap when `BOING_RPC_WS_MAX_CONNECTIONS` is unset (security review #15;
+/// it used to be unlimited).
+const DEFAULT_WS_MAX_CONNECTIONS: usize = 512;
+
+/// Max concurrent **`GET /ws`** connections: **`BOING_RPC_WS_MAX_CONNECTIONS`**, default
+/// [`DEFAULT_WS_MAX_CONNECTIONS`]; an explicit **0** means unlimited.
 fn max_ws_connections() -> usize {
-    match std::env::var("BOING_RPC_WS_MAX_CONNECTIONS") {
-        Ok(s) => match s.trim().parse::<usize>() {
+    parse_ws_max_connections(std::env::var("BOING_RPC_WS_MAX_CONNECTIONS").ok().as_deref())
+}
+
+fn parse_ws_max_connections(raw: Option<&str>) -> usize {
+    match raw {
+        Some(s) => match s.trim().parse::<usize>() {
             Ok(n) => {
                 if n > 0 {
                     tracing::info!(
@@ -676,14 +685,50 @@ fn max_ws_connections() -> usize {
             }
             Err(_) => {
                 tracing::warn!(
-                    "BOING_RPC_WS_MAX_CONNECTIONS invalid; WebSocket connections unlimited"
+                    default = DEFAULT_WS_MAX_CONNECTIONS,
+                    "BOING_RPC_WS_MAX_CONNECTIONS invalid; using the default cap"
                 );
-                0
+                DEFAULT_WS_MAX_CONNECTIONS
             }
         },
-        Err(_) => 0,
+        None => DEFAULT_WS_MAX_CONNECTIONS,
     }
 }
+
+/// Node-wide faucet budget per minute (security review #15): the per-address cooldown is bypassed by
+/// asking for fresh addresses. `BOING_FAUCET_MAX_PER_MINUTE`, default 30; 0 = unlimited.
+fn faucet_max_per_minute() -> usize {
+    static PARSED: OnceLock<usize> = OnceLock::new();
+    *PARSED.get_or_init(|| {
+        std::env::var("BOING_FAUCET_MAX_PER_MINUTE")
+            .ok()
+            .and_then(|s| s.trim().parse::<usize>().ok())
+            .unwrap_or(30)
+    })
+}
+
+/// Sliding one-minute window: admits and records `now` unless `max` grants already happened in it.
+fn faucet_window_admit(
+    recent: &mut std::collections::VecDeque<Instant>,
+    now: Instant,
+    max: usize,
+    window: Duration,
+) -> bool {
+    if max == 0 {
+        return true;
+    }
+    while recent.front().is_some_and(|t| now.duration_since(*t) >= window) {
+        recent.pop_front();
+    }
+    if recent.len() >= max {
+        return false;
+    }
+    recent.push_back(now);
+    true
+}
+
+static FAUCET_RECENT: std::sync::Mutex<std::collections::VecDeque<Instant>> =
+    std::sync::Mutex::new(std::collections::VecDeque::new());
 
 /// When set, `GET /ready` returns **503** unless `connected_peers().len() >= N`. Unset = no peer check.
 fn ready_min_peers() -> Option<u32> {
@@ -830,6 +875,33 @@ fn end_user_network_hints_from(get: impl Fn(&str) -> Option<String>) -> serde_js
         "canonical_native_amm_lp_vault": acct("BOING_CANONICAL_NATIVE_AMM_LP_VAULT"),
         "canonical_native_lp_share_token": acct("BOING_CANONICAL_NATIVE_LP_SHARE_TOKEN"),
     })
+}
+
+#[cfg(test)]
+mod abuse_limit_tests {
+    use super::*;
+
+    #[test]
+    fn ws_cap_defaults_to_bounded() {
+        assert_eq!(parse_ws_max_connections(None), DEFAULT_WS_MAX_CONNECTIONS);
+        assert_eq!(parse_ws_max_connections(Some("64")), 64);
+        assert_eq!(parse_ws_max_connections(Some("0")), 0, "explicit 0 = unlimited");
+        assert_eq!(parse_ws_max_connections(Some("junk")), DEFAULT_WS_MAX_CONNECTIONS);
+    }
+
+    #[test]
+    fn faucet_window_is_node_wide_and_slides() {
+        let mut recent = std::collections::VecDeque::new();
+        let t0 = Instant::now();
+        let w = Duration::from_secs(60);
+        for i in 0..3 {
+            assert!(faucet_window_admit(&mut recent, t0 + Duration::from_secs(i), 3, w));
+        }
+        assert!(!faucet_window_admit(&mut recent, t0 + Duration::from_secs(30), 3, w));
+        assert!(faucet_window_admit(&mut recent, t0 + Duration::from_secs(60), 3, w), "oldest expired");
+        assert!(!faucet_window_admit(&mut recent, t0 + Duration::from_secs(60), 3, w));
+        assert!(faucet_window_admit(&mut recent, t0, 0, w), "0 = unlimited");
+    }
 }
 
 #[cfg(test)]
@@ -3093,6 +3165,25 @@ async fn dispatch_jsonrpc_request(
                 }
             }
 
+            {
+                let mut recent = FAUCET_RECENT.lock().unwrap_or_else(|e| e.into_inner());
+                if !faucet_window_admit(
+                    &mut recent,
+                    Instant::now(),
+                    faucet_max_per_minute(),
+                    Duration::from_secs(60),
+                ) {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(
+                            id,
+                            -32016,
+                            "Faucet is busy (node-wide limit reached); try again in a minute.".into(),
+                        ),
+                    );
+                }
+            }
+
             let faucet_id = testnet_faucet_account_id();
             let _faucet_gate = submit_lock.lock().await;
 
@@ -3138,6 +3229,8 @@ async fn dispatch_jsonrpc_request(
                 Ok(()) => {
                     let _ = n.p2p.broadcast_signed_transaction(&gossip_copy);
                     if let Ok(mut map) = cooldown.lock() {
+                        // Drop expired entries so fresh-address requests cannot grow the map forever.
+                        map.retain(|_, t| t.elapsed() < COOLDOWN);
                         map.insert(to_id, Instant::now());
                     }
                     info!(

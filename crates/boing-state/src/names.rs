@@ -218,6 +218,18 @@ impl NameRegistry {
             .retain(|_, c| height.saturating_sub(c.height) <= max);
     }
 
+    /// Storage key of a sender-keyed commitment (security review #6). Before the v4 height commitments
+    /// were stored under the raw hash, so anyone who copied a pending `NameCommit` hash could block it
+    /// (`CommitExists`). Keying by `(sender, commitment)` keeps the map type (and bincode layout) unchanged.
+    pub fn sender_commit_key(sender: &AccountId, commitment: &[u8; 32]) -> [u8; 32] {
+        let mut h = hasher();
+        h.update(b"BOING_NAME_COMMIT_V2");
+        h.update(&sender.0);
+        h.update(commitment);
+        *h.finalize().as_bytes()
+    }
+
+    /// Legacy (pre-v4) commit: global key.
     pub fn commit(
         &mut self,
         params: &NameRegistryParams,
@@ -225,13 +237,48 @@ impl NameRegistry {
         sender: AccountId,
         commitment: [u8; 32],
     ) -> Result<(), NameRegistryError> {
+        self.commit_keyed(params, height, sender, commitment, false)
+    }
+
+    pub fn commit_keyed(
+        &mut self,
+        params: &NameRegistryParams,
+        height: u64,
+        sender: AccountId,
+        commitment: [u8; 32],
+        sender_keyed: bool,
+    ) -> Result<(), NameRegistryError> {
         self.prune_commits(params, height);
-        if self.commits.contains_key(&commitment) {
+        let key = if sender_keyed {
+            Self::sender_commit_key(&sender, &commitment)
+        } else {
+            commitment
+        };
+        if self.commits.contains_key(&key) {
             return Err(NameRegistryError::CommitExists);
         }
-        self.commits
-            .insert(commitment, CommitRecord { sender, height });
+        self.commits.insert(key, CommitRecord { sender, height });
         Ok(())
+    }
+
+    /// Finds the sender's record for `commitment`: the sender-keyed entry first (v4), then the legacy
+    /// global entry (commits made before the activation height, or all of them when not keyed).
+    fn find_commit(
+        &self,
+        sender: &AccountId,
+        commitment: &[u8; 32],
+        sender_keyed: bool,
+    ) -> Option<([u8; 32], &CommitRecord)> {
+        if sender_keyed {
+            let k = Self::sender_commit_key(sender, commitment);
+            if let Some(r) = self.commits.get(&k) {
+                return Some((k, r));
+            }
+        }
+        self.commits
+            .get(commitment)
+            .filter(|r| r.sender == *sender)
+            .map(|r| (*commitment, r))
     }
 
     /// Validate a registration without mutating; returns the rent to burn.
@@ -244,18 +291,30 @@ impl NameRegistry {
         salt: &[u8; 32],
         years: u8,
     ) -> Result<u128, NameRegistryError> {
+        self.check_register_keyed(params, height, sender, label, salt, years, false)
+            .map(|(rent, _)| rent)
+    }
+
+    /// Like [`Self::check_register`]; also returns the storage key of the matching commitment.
+    #[allow(clippy::too_many_arguments)]
+    pub fn check_register_keyed(
+        &self,
+        params: &NameRegistryParams,
+        height: u64,
+        sender: AccountId,
+        label: &str,
+        salt: &[u8; 32],
+        years: u8,
+        sender_keyed: bool,
+    ) -> Result<(u128, [u8; 32]), NameRegistryError> {
         check_registrable(label).map_err(|e| NameRegistryError::InvalidName(e.to_string()))?;
         if !(NAME_MIN_YEARS..=NAME_MAX_YEARS).contains(&years) {
             return Err(NameRegistryError::InvalidYears);
         }
         let c = name_commitment(label, &sender, salt);
-        let rec = self
-            .commits
-            .get(&c)
+        let (key, rec) = self
+            .find_commit(&sender, &c, sender_keyed)
             .ok_or(NameRegistryError::CommitNotFound)?;
-        if rec.sender != sender {
-            return Err(NameRegistryError::CommitNotFound);
-        }
         let age = height.saturating_sub(rec.height);
         if age < params.commit_min_age {
             return Err(NameRegistryError::CommitTooNew {
@@ -268,7 +327,7 @@ impl NameRegistry {
         if !self.is_available(label, params, height) {
             return Err(NameRegistryError::NotAvailable);
         }
-        Ok(name_rent(label, years))
+        Ok((name_rent(label, years), key))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -282,8 +341,24 @@ impl NameRegistry {
         target: AccountId,
         years: u8,
     ) -> Result<u128, NameRegistryError> {
-        let rent = self.check_register(params, height, sender, label, salt, years)?;
-        self.commits.remove(&name_commitment(label, &sender, salt));
+        self.register_keyed(params, height, sender, label, salt, target, years, false)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn register_keyed(
+        &mut self,
+        params: &NameRegistryParams,
+        height: u64,
+        sender: AccountId,
+        label: &str,
+        salt: &[u8; 32],
+        target: AccountId,
+        years: u8,
+        sender_keyed: bool,
+    ) -> Result<u128, NameRegistryError> {
+        let (rent, key) =
+            self.check_register_keyed(params, height, sender, label, salt, years, sender_keyed)?;
+        self.commits.remove(&key);
         if let Some(old) = self.names.remove(label) {
             self.clear_reverse_pointing_to(&old.target, label);
             self.clear_reverse_pointing_to(&old.owner, label);
@@ -611,5 +686,50 @@ mod tests {
         assert_eq!(a.commits.len(), 1, "commits older than max age pruned");
         assert_eq!(a.commitment(), b.commitment());
         assert!(NameRegistry::default().is_empty());
+    }
+
+    #[test]
+    fn copied_commitment_cannot_block_victim_when_sender_keyed() {
+        // Security review #6: B front-runs A's NameCommit with the same hash.
+        let c = name_commitment("alice", &A, &SALT);
+        // Legacy (pre-v4): the copy blocks A.
+        let mut legacy = NameRegistry::default();
+        legacy.commit_keyed(&p(), 10, B, c, false).unwrap();
+        assert_eq!(
+            legacy.commit_keyed(&p(), 10, A, c, false),
+            Err(NameRegistryError::CommitExists)
+        );
+        // v4: both commits coexist, A registers, B's copy is useless to B.
+        let mut r = NameRegistry::default();
+        r.commit_keyed(&p(), 10, B, c, true).unwrap();
+        r.commit_keyed(&p(), 10, A, c, true).unwrap();
+        assert_eq!(
+            r.commit_keyed(&p(), 10, A, c, true),
+            Err(NameRegistryError::CommitExists),
+            "a sender still cannot duplicate its own commitment"
+        );
+        assert_eq!(
+            r.register_keyed(&p(), 12, B, "alice", &SALT, B, 1, true),
+            Err(NameRegistryError::CommitNotFound)
+        );
+        assert_eq!(r.register_keyed(&p(), 12, A, "alice", &SALT, A, 1, true), Ok(2));
+        assert_eq!(r.names.get("alice").unwrap().owner, A);
+        assert_eq!(r.commits.len(), 1, "only B's dead commitment remains (pruned at max age)");
+    }
+
+    #[test]
+    fn pre_activation_commit_still_revealable_after_activation() {
+        let mut r = NameRegistry::default();
+        let c = name_commitment("alice", &A, &SALT);
+        r.commit_keyed(&p(), 10, A, c, false).unwrap();
+        assert_eq!(r.register_keyed(&p(), 12, A, "alice", &SALT, A, 1, true), Ok(2));
+        assert!(r.commits.is_empty());
+        // a legacy entry made by someone else is not usable by the reveal of A
+        let mut r2 = NameRegistry::default();
+        r2.commit_keyed(&p(), 10, B, c, false).unwrap();
+        assert_eq!(
+            r2.register_keyed(&p(), 12, A, "alice", &SALT, A, 1, true),
+            Err(NameRegistryError::CommitNotFound)
+        );
     }
 }

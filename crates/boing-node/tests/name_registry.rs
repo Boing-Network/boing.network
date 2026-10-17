@@ -499,3 +499,31 @@ fn persists_across_restart_and_replays_identically() {
     }
     assert_eq!(replay.follower.state.state_root(), root);
 }
+
+/// Security review #6: copying a pending `NameCommit` hash no longer blocks the victim (nodes without a
+/// network history run the v4 rules from genesis); the copy is useless to the attacker.
+#[test]
+fn front_running_a_commitment_does_not_block_the_owner() {
+    let mut net = Net::new(Some(params(1)));
+    let (a, b) = (net.id(0), net.id(1));
+    let salt = [5u8; 32];
+    let c = name_commitment("alice", &a, &salt);
+    net.send(1, TransactionPayload::NameCommit { commitment: c }).unwrap();
+    net.send(0, TransactionPayload::NameCommit { commitment: c })
+        .expect("victim's commit is accepted despite the copy");
+    let err = net
+        .send(
+            1,
+            TransactionPayload::NameRegister { name: "alice".into(), salt, target: b, years: 1 },
+        )
+        .unwrap_err();
+    assert!(err.contains("commitment"), "{err}");
+    net.nonces.insert(b, 1);
+    net.send(
+        0,
+        TransactionPayload::NameRegister { name: "alice".into(), salt, target: a, years: 1 },
+    )
+    .unwrap();
+    let r = net.rpc("boing_resolveName", json!(["alice"]));
+    assert_eq!(r["owner"], format!("0x{}", hex::encode(a.0)));
+}

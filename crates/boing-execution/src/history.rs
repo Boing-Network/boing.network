@@ -37,6 +37,10 @@ pub struct ExecutionHistory {
     /// message (security review #14). Below it the v1 proof (and v2, when the chain id is known)
     /// is accepted.
     pub registration_proof_v2_from: u64,
+    /// First height of the 2026-10-17 security-review rules (#6 sender-keyed name commitments, #9 no
+    /// parallel batch touching the fee recipient, #10 open-validator registry cap, #11 no deregistering
+    /// while jailed). Below it the network replays its historical behaviour.
+    pub security_v4_from: u64,
 }
 
 impl ExecutionHistory {
@@ -50,5 +54,9 @@ impl ExecutionHistory {
 
     pub fn failed_tx_fee_active(&self, height: u64) -> bool {
         height >= self.failed_tx_fee_from
+    }
+
+    pub fn security_v4_active(&self, height: u64) -> bool {
+        height >= self.security_v4_from
     }
 }

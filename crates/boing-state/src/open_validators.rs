@@ -135,6 +135,8 @@ pub enum OpenValidatorError {
     NotJailed,
     #[error("jail cooldown until height {until}")]
     JailCooldown { until: u64 },
+    #[error("open validator registry is full ({max} records)")]
+    RegistryFull { max: usize },
 }
 
 /// Liveness numbers for one validator over the current window.
@@ -219,12 +221,31 @@ impl OpenValidatorRegistry {
         Some(set)
     }
 
+    /// Security review #10: upper bound on registry records (pending + active + jailed + exiting), so the
+    /// one-leaf registry (re-serialized and re-hashed on every change) cannot grow without limit.
+    pub fn max_records(params: &OpenValidatorParams) -> usize {
+        params.max_open_validators.saturating_mul(4).max(16)
+    }
+
+    /// Legacy registration (no record cap), as executed below the security-v4 height.
     pub fn register(
         &mut self,
         params: &OpenValidatorParams,
         height: u64,
         owner: AccountId,
         node_id: AccountId,
+    ) -> Result<(), OpenValidatorError> {
+        self.register_with_cap(params, height, owner, node_id, false)
+    }
+
+    /// `capped`: enforce [`Self::max_records`] (security-v4 rule).
+    pub fn register_with_cap(
+        &mut self,
+        params: &OpenValidatorParams,
+        height: u64,
+        owner: AccountId,
+        node_id: AccountId,
+        capped: bool,
     ) -> Result<(), OpenValidatorError> {
         if height < params.activation_height {
             return Err(OpenValidatorError::NotYetActive {
@@ -240,6 +261,9 @@ impl OpenValidatorRegistry {
         if self.records.values().any(|r| r.owner == owner) {
             return Err(OpenValidatorError::OwnerAlreadyRegistered);
         }
+        if capped && self.records.len() >= Self::max_records(params) {
+            return Err(OpenValidatorError::RegistryFull { max: Self::max_records(params) });
+        }
         self.records.insert(
             node_id,
             ValidatorRecord {
@@ -253,8 +277,21 @@ impl OpenValidatorRegistry {
         Ok(())
     }
 
-    /// Returns the bond to release to the owner's `pending_unbond`.
+    /// Legacy deregistration (a jailed validator could leave and reclaim its bond at once).
     pub fn deregister(&mut self, owner: AccountId, node_id: AccountId) -> Result<u128, OpenValidatorError> {
+        self.deregister_at(owner, node_id, 0, false)
+    }
+
+    /// Returns the bond to release to the owner's `pending_unbond`. With `jail_locks_bond` (security-v4,
+    /// review #11) a jailed validator cannot exit before its jail ends, so jailing is no longer a free,
+    /// immediate exit with the full bond; it may deregister (or unjail) at/after `until`.
+    pub fn deregister_at(
+        &mut self,
+        owner: AccountId,
+        node_id: AccountId,
+        height: u64,
+        jail_locks_bond: bool,
+    ) -> Result<u128, OpenValidatorError> {
         let rec = self.records.get_mut(&node_id).ok_or(OpenValidatorError::NotRegistered)?;
         if rec.owner != owner {
             return Err(OpenValidatorError::NotOwner);
@@ -262,6 +299,9 @@ impl OpenValidatorRegistry {
         let bond = rec.bond;
         match rec.status {
             ValidatorStatus::Exiting => return Err(OpenValidatorError::AlreadyExiting),
+            ValidatorStatus::Jailed { until } if jail_locks_bond && height < until => {
+                return Err(OpenValidatorError::JailCooldown { until })
+            }
             ValidatorStatus::Active => {
                 // Stay in the set until the next boundary so the set never changes mid-epoch.
                 rec.status = ValidatorStatus::Exiting;
@@ -483,6 +523,53 @@ mod tests {
             r.on_block(&p, h, set[(h as usize) % set.len()]);
         }
         assert!(r.active.is_empty());
+        assert!(!r.records.contains_key(&id(5)));
+    }
+}
+
+#[cfg(test)]
+mod security_v4_tests {
+    use super::*;
+
+    fn id(n: u8) -> AccountId {
+        AccountId([n; 32])
+    }
+
+    #[test]
+    fn registry_cap_only_when_capped() {
+        let p = OpenValidatorParams { max_open_validators: 2, ..Default::default() };
+        let max = OpenValidatorRegistry::max_records(&p);
+        assert_eq!(max, 16);
+        let mut r = OpenValidatorRegistry::default();
+        for n in 0..max as u8 {
+            r.register_with_cap(&p, 1, id(100 + n), id(n + 1), true).unwrap();
+        }
+        assert_eq!(
+            r.register_with_cap(&p, 1, id(250), id(200), true),
+            Err(OpenValidatorError::RegistryFull { max })
+        );
+        // legacy rule (replay below the activation height) is unchanged
+        let mut legacy = r.clone();
+        assert!(legacy.register_with_cap(&p, 1, id(250), id(200), false).is_ok());
+        // freeing a slot lets the next registration through
+        r.deregister_at(id(100), id(1), 1, true).unwrap();
+        assert!(r.register_with_cap(&p, 1, id(250), id(200), true).is_ok());
+    }
+
+    #[test]
+    fn jailed_validator_cannot_exit_before_jail_ends() {
+        let p = OpenValidatorParams::default();
+        let mut r = OpenValidatorRegistry::default();
+        r.register(&p, 1, id(90), id(5)).unwrap();
+        r.records.get_mut(&id(5)).unwrap().status = ValidatorStatus::Jailed { until: 600 };
+        let mut legacy = r.clone();
+        assert_eq!(legacy.deregister_at(id(90), id(5), 100, false), Ok(100), "legacy: immediate exit");
+        assert_eq!(
+            r.deregister_at(id(90), id(5), 599, true),
+            Err(OpenValidatorError::JailCooldown { until: 600 })
+        );
+        assert_eq!(r.records[&id(5)].bond, 100, "bond stays locked");
+        assert_eq!(r.deregister_at(id(90), id(5), 600, true), Ok(100));
         assert!(!r.records.contains_key(&id(5)));
     }
 }

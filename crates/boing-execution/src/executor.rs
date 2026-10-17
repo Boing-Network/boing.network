@@ -72,6 +72,7 @@ impl BlockExecutor {
         if let Some(h) = &history {
             let cid = (h.chain_id != 0).then_some(h.chain_id);
             self.vm.set_registration_proof_rule(cid, h.registration_proof_v2_from);
+            self.vm.set_security_v4_from(h.security_v4_from);
         }
         self.history = history.map(std::sync::Arc::new);
     }
@@ -103,6 +104,11 @@ impl BlockExecutor {
         self.history.as_ref().map(|h| h.failed_tx_fee_active(height)).unwrap_or(true)
     }
 
+    /// Whether the security-review v4 rules apply at `height` (always, for chains without history).
+    pub fn security_v4_active(&self, height: u64) -> bool {
+        self.history.as_ref().map(|h| h.security_v4_active(height)).unwrap_or(true)
+    }
+
     pub fn vm(&self) -> &Vm {
         &self.vm
     }
@@ -131,6 +137,11 @@ impl BlockExecutor {
             remainder: fee_remainder,
             recipient: fee_recipient,
         });
+        // Security review #9: parallel merges write each tx's pre-batch snapshot back, so a later tx
+        // whose access list includes a fee-receiving account (fee recipient, protocol treasury, burn
+        // sink) overwrote fees credited earlier in the batch. From v4 such batches run sequentially
+        // (same result as the parallel path for every other batch).
+        let exclude_fee_recipient = self.security_v4_active(block_height);
         let batches = self.scheduler.schedule(txs);
         let mut total_gas = 0u64;
         let mut receipts: Vec<Option<ExecutionReceipt>> = vec![None; txs.len()];
@@ -152,7 +163,18 @@ impl BlockExecutor {
             // execution is identical to sequential, so blocks that executed before are unaffected; before
             // this, such a block errored and the producer re-inserted the same txs forever (chain stall).
             let mut parallel_done = false;
-            if all_transfer && batch.len() > 1 && parallel_transfer_batch_is_safe(&batch, txs) {
+            if all_transfer
+                && batch.len() > 1
+                && parallel_transfer_batch_is_safe(&batch, txs)
+                && !(exclude_fee_recipient
+                    && batch.iter().any(|&i| {
+                        txs[i].access_list.all().any(|id| {
+                            *id == fee_recipient
+                                || *id == boing_tokenomics::PROTOCOL_TREASURY
+                                || *id == boing_tokenomics::FEE_BURN_SINK
+                        })
+                    }))
+            {
                 let par_ckpt = state.checkpoint();
                 let par_receipts_before: Vec<Option<ExecutionReceipt>> =
                     batch.iter().map(|&i| receipts[i].clone()).collect();
@@ -655,6 +677,52 @@ mod tests {
         );
         assert_eq!(t, fee);
         assert_eq!(v, 0);
+    }
+
+    /// Security review #9: a parallel batch in which a later tx touches the treasury lost the fee of an
+    /// earlier tx (its view snapshot overwrote the credit). From v4 the batch runs sequentially and every
+    /// unit is accounted for; below the activation height the historical result replays unchanged.
+    #[test]
+    fn fees_conserved_when_batch_touches_treasury_from_v4() {
+        let treasury = boing_tokenomics::PROTOCOL_TREASURY;
+        let a = AccountId::from_bytes([1u8; 32]);
+        let b = AccountId::from_bytes([2u8; 32]);
+        let c = AccountId::from_bytes([3u8; 32]);
+        let proposer = AccountId::from_bytes([9u8; 32]);
+        let run = |v4_from: u64| {
+            let mut exec = BlockExecutor::new();
+            exec.set_execution_history(Some(crate::history::ExecutionHistory {
+                security_v4_from: v4_from,
+                ..Default::default()
+            }));
+            let mut state = StateStore::new();
+            state.insert(Account { id: a, state: AccountState { balance: 100_000, ..Default::default() } });
+            state.insert(Account { id: c, state: AccountState { balance: 100_000, ..Default::default() } });
+            state.insert(Account { id: treasury, state: AccountState { balance: 1_000, ..Default::default() } });
+            let total_before: u128 = [a, b, c, treasury, proposer, boing_tokenomics::FEE_BURN_SINK]
+                .iter()
+                .map(|id| state.get(id).map(|s| s.balance).unwrap_or(0))
+                .sum();
+            let txs = vec![tx(a, b, 0, 100), tx(c, treasury, 0, 50)];
+            let (_, receipts) = exec.execute_block(10, 0, &txs, &mut state, proposer).unwrap();
+            assert!(receipts.iter().all(|r| r.success));
+            let total_after: u128 = [a, b, c, treasury, proposer, boing_tokenomics::FEE_BURN_SINK]
+                .iter()
+                .map(|id| state.get(id).map(|s| s.balance).unwrap_or(0))
+                .sum();
+            (total_before, total_after, state.get(&treasury).unwrap().balance)
+        };
+        let fee = boing_tokenomics::network_fee_amount(
+            super::super::vm::GAS_PER_TRANSFER,
+            &TransactionPayload::Transfer { to: b, amount: 100 },
+            &boing_tokenomics::NetworkFeePolicy::treasury_default(),
+        );
+        let (before, after, t) = run(10);
+        assert_eq!(after, before, "v4: no value lost");
+        assert_eq!(t, 1_000 + 50 + 2 * fee);
+        let (before, after, t) = run(11);
+        assert_eq!(t, 1_000 + 50 + fee, "pre-v4 replay keeps the historical (lossy) result");
+        assert_eq!(after, before - fee);
     }
 
     #[test]

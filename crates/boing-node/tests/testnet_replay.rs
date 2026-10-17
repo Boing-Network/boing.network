@@ -4,7 +4,8 @@
 //! added as a height-gated era in `network_preset` instead.
 //!
 //! Fixture: `tests/fixtures/testnet_blocks.jsonl` (one `boing_getBlockByHeight(h, true)` result per
-//! line, heights 0..=899: the whole history before the security #2/#3 activation at 900). Override with `BOING_REPLAY_BLOCKS=<path>` to check a fresh dump of the
+//! line, heights 0..=941: history through the security #2/#3 (900) and #16/#14 (920) activations, recorded
+//! 2026-10-17 before the v4 gate at 1000). Override with `BOING_REPLAY_BLOCKS=<path>` to check a fresh dump of the
 //! live chain.
 
 use std::io::{BufRead, BufReader};
@@ -22,6 +23,28 @@ fn fixture_path() -> std::path::PathBuf {
     })
 }
 
+/// `"amount":"123"` -> `"amount":123` (only all-digit strings), so `u128` fields decode.
+fn unquote_amounts(json: &str) -> String {
+    const KEY: &str = "\"amount\":\"";
+    let mut out = String::with_capacity(json.len());
+    let mut rest = json;
+    while let Some(i) = rest.find(KEY) {
+        let after = &rest[i + KEY.len()..];
+        let digits = after.bytes().take_while(u8::is_ascii_digit).count();
+        if digits > 0 && after.as_bytes().get(digits) == Some(&b'"') {
+            out.push_str(&rest[..i]);
+            out.push_str("\"amount\":");
+            out.push_str(&after[..digits]);
+            rest = &after[digits + 1..];
+        } else {
+            out.push_str(&rest[..i + KEY.len()]);
+            rest = after;
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 fn load_blocks() -> Vec<(Block, String)> {
     let path = fixture_path();
     let f = std::fs::File::open(&path).unwrap_or_else(|e| panic!("open {}: {e}", path.display()));
@@ -32,9 +55,14 @@ fn load_blocks() -> Vec<(Block, String)> {
         .enumerate()
         .map(|(i, line)| {
             let v: serde_json::Value = serde_json::from_str(&line).unwrap();
-            let block: Block = serde_json::from_value(serde_json::json!({
+            let mut enc = serde_json::json!({
                 "header": v["header"], "transactions": v["transactions"],
-            }))
+            });
+            if v["signatures"].is_array() {
+                enc["signatures"] = v["signatures"].clone();
+            }
+            // The RPC prints u128 amounts above u64 as decimal strings; decode them as numbers.
+            let block: Block = serde_json::from_str(&unquote_amounts(&enc.to_string()))
             .unwrap_or_else(|e| panic!("line {i}: decode block: {e}"));
             let hash = v["hash"].as_str().unwrap().trim_start_matches("0x").to_string();
             (block, hash)
@@ -126,8 +154,8 @@ fn security_v2_gates_follow_the_activation_height() {
 }
 
 /// Security fixes #16 (blocks carry verified tx signatures) and #14 (chain-bound registration proof)
-/// activate at a later fixed height. Every recorded block is below it and carries no signatures, so
-/// the replays above prove history still imports unchanged under the new import rule.
+/// activate at a later fixed height. Recorded blocks below it carry no signatures and blocks from it
+/// carry one per tx, so the replays above prove both sides of the gate import unchanged.
 #[test]
 fn security_v3_gates_follow_the_activation_height() {
     let h = network_preset::BOING_TESTNET_SECURITY_V3_FROM;
@@ -141,8 +169,30 @@ fn security_v3_gates_follow_the_activation_height() {
     assert_eq!(node.executor.registration_proof_rule(), (Some(6913), h));
     assert_eq!(node.admission_vm().registration_proof_rule(), (Some(6913), h));
     let blocks = load_blocks();
-    assert!(blocks.last().unwrap().0.header.height < h, "fixture predates the activation");
-    assert!(blocks.iter().all(|(b, _)| b.signatures.is_empty()));
+    assert!(blocks.last().unwrap().0.header.height >= h, "fixture covers the activation");
+    // Producers running the #16 binary attach signatures from 905; they are optional below the gate
+    // (verified when present) and mandatory from it.
+    for (b, _) in &blocks {
+        if b.header.height >= h || !b.signatures.is_empty() {
+            assert_eq!(b.signatures.len(), b.transactions.len(), "height {}", b.header.height);
+        }
+    }
+    assert!(blocks.iter().any(|(b, _)| b.header.height < h && b.signatures.is_empty() && !b.transactions.is_empty()));
+}
+
+/// The 2026-10-17 fixes (#6 name commitments, #9 parallel fee accounting, #10 registry cap, #11 jail
+/// exit) activate at v4. The fixture is entirely below it, so the replays above prove the new code
+/// reproduces history; this pins the gate in the executor and the admission VM.
+#[test]
+fn security_v4_gates_follow_the_activation_height() {
+    let h = network_preset::BOING_TESTNET_SECURITY_V4_FROM;
+    let node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    assert!(!node.executor.security_v4_active(h - 1));
+    assert!(node.executor.security_v4_active(h));
+    assert_eq!(node.executor.vm().security_v4_from(), h);
+    assert_eq!(node.admission_vm().security_v4_from(), h);
+    let blocks = load_blocks();
+    assert!(blocks.last().unwrap().0.header.height < h, "fixture predates v4");
 }
 
 /// A recorded block given a bogus signature list must

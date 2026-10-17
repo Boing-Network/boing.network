@@ -86,12 +86,24 @@ pub struct Vm {
     registration_chain_id: Option<u64>,
     /// From this height only the v2 (chain-bound) registration proof is accepted.
     registration_v2_from: u64,
+    /// From this height the 2026-10-17 security-review rules apply (#6, #10, #11); 0 = from genesis.
+    security_v4_from: u64,
 }
 
 impl Vm {
     pub fn set_registration_proof_rule(&mut self, chain_id: Option<u64>, v2_from: u64) {
         self.registration_chain_id = chain_id;
         self.registration_v2_from = v2_from;
+    }
+
+    /// Activation height of the security-review v4 rules (sender-keyed name commitments, open-validator
+    /// registry cap, no deregistering while jailed).
+    pub fn set_security_v4_from(&mut self, from: u64) {
+        self.security_v4_from = from;
+    }
+
+    pub fn security_v4_from(&self) -> u64 {
+        self.security_v4_from
     }
 
     /// `(chain id, v2-only-from height)` of the validator registration proof rule.
@@ -115,6 +127,7 @@ impl Vm {
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
             registration_chain_id: None,
             registration_v2_from: 0,
+            security_v4_from: 0,
         }
     }
 
@@ -125,6 +138,7 @@ impl Vm {
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
             registration_chain_id: None,
             registration_v2_from: 0,
+            security_v4_from: 0,
         }
     }
 
@@ -138,6 +152,7 @@ impl Vm {
             qa_pool_config,
             registration_chain_id: None,
             registration_v2_from: 0,
+            security_v4_from: 0,
         }
     }
 
@@ -333,9 +348,10 @@ impl Vm {
                 if balance < params.bond {
                     return Err(VmError::InsufficientBalance);
                 }
+                let v4 = exec_ctx.block_height >= self.security_v4_from;
                 state
                     .open_validators_mut()
-                    .register(&params, exec_ctx.block_height, tx.sender, *node_id)
+                    .register_with_cap(&params, exec_ctx.block_height, tx.sender, *node_id, v4)
                     .map_err(|e| VmError::OpenValidator(e.to_string()))?;
                 let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
                 sender_state.balance -= params.bond;
@@ -347,9 +363,10 @@ impl Vm {
             }
             TransactionPayload::ValidatorDeregister { node_id } => {
                 let params = open_validator_params_at(state, exec_ctx.block_height)?;
+                let v4 = exec_ctx.block_height >= self.security_v4_from;
                 let refund = state
                     .open_validators_mut()
-                    .deregister(tx.sender, *node_id)
+                    .deregister_at(tx.sender, *node_id, exec_ctx.block_height, v4)
                     .map_err(|e| VmError::OpenValidator(e.to_string()))?;
                 let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
                 if refund > 0 {
@@ -387,7 +404,12 @@ impl Vm {
             | TransactionPayload::NameSetTarget { .. }
             | TransactionPayload::NameSetPrimary { .. }
             | TransactionPayload::NameRelease { .. } => {
-                execute_name_tx(state, tx, exec_ctx.block_height)?
+                execute_name_tx(
+                    state,
+                    tx,
+                    exec_ctx.block_height,
+                    exec_ctx.block_height >= self.security_v4_from,
+                )?
             }
         };
         Ok(VmExecutionResult {
@@ -1188,7 +1210,14 @@ fn name_params_at(
 
 /// Name registry transactions (`Name*` payloads). Mutates the registry, burns rent from the sender and
 /// bumps the nonce. All failures leave the state untouched (the caller reverts via checkpoint anyway).
-fn execute_name_tx(state: &mut StateStore, tx: &Transaction, height: u64) -> Result<u64, VmError> {
+/// `sender_keyed`: security review #6 (v4) — commitments are stored per sender, so copying a pending
+/// `NameCommit` hash no longer blocks the victim's commit.
+fn execute_name_tx(
+    state: &mut StateStore,
+    tx: &Transaction,
+    height: u64,
+    sender_keyed: bool,
+) -> Result<u64, VmError> {
     let params = name_params_at(state, height)?;
     let me = tx.sender;
     let name_err = |e: boing_state::NameRegistryError| VmError::Name(e.to_string());
@@ -1201,7 +1230,7 @@ fn execute_name_tx(state: &mut StateStore, tx: &Transaction, height: u64) -> Res
         TransactionPayload::NameCommit { commitment } => {
             state
                 .names_mut()
-                .commit(&params, height, me, *commitment)
+                .commit_keyed(&params, height, me, *commitment, sender_keyed)
                 .map_err(name_err)?;
             0
         }
@@ -1212,9 +1241,9 @@ fn execute_name_tx(state: &mut StateStore, tx: &Transaction, height: u64) -> Res
             years,
         } => {
             let l = label(name)?;
-            let rent = state
+            let (rent, _) = state
                 .names()
-                .check_register(&params, height, me, &l, salt, *years)
+                .check_register_keyed(&params, height, me, &l, salt, *years, sender_keyed)
                 .map_err(name_err)?;
             if balance < rent {
                 return Err(name_err(
@@ -1223,13 +1252,15 @@ fn execute_name_tx(state: &mut StateStore, tx: &Transaction, height: u64) -> Res
             }
             state
                 .names_mut()
-                .register(&params, height, me, &l, salt, *target, *years)
+                .register_keyed(&params, height, me, &l, salt, *target, *years, sender_keyed)
                 .map_err(name_err)?
         }
         TransactionPayload::NameRenew { name, years } => {
             let l = label(name)?;
-            let mut probe = state.names().clone();
-            let rent = probe
+            // Security review #5: no full registry clone per renewal. Renew in place; on insufficient
+            // balance the error makes the executor revert the tx through its (journaled) checkpoint.
+            let rent = state
+                .names_mut()
                 .renew(&params, height, me, &l, *years)
                 .map_err(name_err)?;
             if balance < rent {
@@ -1237,7 +1268,6 @@ fn execute_name_tx(state: &mut StateStore, tx: &Transaction, height: u64) -> Res
                     boing_state::NameRegistryError::InsufficientBalance { rent },
                 ));
             }
-            state.load_names(probe);
             rent
         }
         TransactionPayload::NameTransfer { name, new_owner } => {
