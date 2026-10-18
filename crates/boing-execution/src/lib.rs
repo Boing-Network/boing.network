@@ -10,6 +10,7 @@ mod gas;
 mod interpreter;
 mod native_amm;
 mod native_amm_v8;
+pub mod native_wrapped_boing;
 mod native_dex_custody_router;
 mod native_lp_vault_v2;
 pub use native_lp_vault_v2::*;
@@ -177,6 +178,16 @@ pub use native_amm_v8::{
     encode_v8_remove_liquidity_to_calldata, encode_v8_swap_calldata, encode_v8_swap_to_calldata,
     pool_v8_lock_key, NATIVE_CP_POOL_CREATE2_SALT_V8,
     constant_product_pool_bytecode_v9, NATIVE_CP_POOL_CREATE2_SALT_V9,
+    constant_product_pool_bytecode_v10, NATIVE_CP_POOL_CREATE2_SALT_V10,
+};
+pub use native_wrapped_boing::{
+    encode_wboing_balance_of_calldata, encode_wboing_deposit_calldata,
+    encode_wboing_total_supply_calldata, encode_wboing_withdraw_all_calldata,
+    encode_wboing_withdraw_calldata, encode_wboing_withdraw_to_calldata, wboing_total_supply_key,
+    wrapped_boing_bytecode, WBOING_DECIMALS, WBOING_SELECTOR_BALANCE_OF, WBOING_SELECTOR_DECIMALS,
+    WBOING_SELECTOR_DEPOSIT, WBOING_SELECTOR_TOTAL_SUPPLY, WBOING_SELECTOR_WITHDRAW,
+    WBOING_SELECTOR_WITHDRAW_ALL, WBOING_SELECTOR_WITHDRAW_TO, WBOING_TOPIC_DEPOSIT,
+    WBOING_TOPIC_WITHDRAW,
 };
 pub use native_dex_custody_router::{
     custody_router_lock_key, encode_custody_router_swap_calldata, native_dex_custody_router_bytecode,

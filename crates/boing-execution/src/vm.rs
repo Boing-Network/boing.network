@@ -78,8 +78,14 @@ fn default_qa_registry() -> RuleRegistry {
 
 /// Virtual machine for executing transactions.
 pub struct Vm {
-    /// Same rule set as mempool deploy QA (`check_contract_deploy_full_with_metadata`).
+    /// Same rule set as mempool deploy QA (`check_contract_deploy_full_with_metadata`), with the
+    /// native-value opcodes rejected (blocks below [`Self::native_value_from`]).
     qa_registry: RuleRegistry,
+    /// The same registry accepting the native-value opcodes (blocks from the activation height).
+    qa_registry_native: RuleRegistry,
+    /// From this height contract calls may carry native value and the native-value opcodes execute
+    /// (`BALANCE`, `CALLVALUE`, `SELFBALANCE`, `NATIVE_TRANSFER`). 0 = from genesis.
+    native_value_from: u64,
     /// Pool membership / quorum / voter-reward knobs (execution-time public votes).
     qa_pool_config: QaPoolGovernanceConfig,
     /// Chain id for v2 validator registration proofs (security review #14); `None` = v1 only.
@@ -117,6 +123,36 @@ impl Vm {
         self.base_units_from
     }
 
+    /// Activation height of the native-value rules (value on contract calls, native opcodes).
+    pub fn set_native_value_from(&mut self, from: u64) {
+        self.native_value_from = from;
+    }
+
+    pub fn native_value_from(&self) -> u64 {
+        self.native_value_from
+    }
+
+    pub fn native_value_active(&self, height: u64) -> bool {
+        height >= self.native_value_from
+    }
+
+    /// `exec_ctx` with [`VmExecutionContext::native_value`] set from its block height.
+    fn ctx_at(&self, exec_ctx: VmExecutionContext) -> VmExecutionContext {
+        VmExecutionContext {
+            native_value: self.native_value_active(exec_ctx.block_height),
+            ..exec_ctx
+        }
+    }
+
+    /// Deploy QA registry for a block: native-value opcodes accepted only once active.
+    fn qa_at(&self, exec_ctx: VmExecutionContext) -> &RuleRegistry {
+        if exec_ctx.native_value {
+            &self.qa_registry_native
+        } else {
+            &self.qa_registry
+        }
+    }
+
     /// Ledger unit at `height`.
     pub fn denomination_at(&self, height: u64) -> boing_primitives::Denomination {
         if height >= self.base_units_from {
@@ -143,7 +179,9 @@ impl Vm {
 
     pub fn new() -> Self {
         Self {
+            qa_registry_native: default_qa_registry().with_native_value_opcodes(true),
             qa_registry: default_qa_registry(),
+            native_value_from: 0,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -155,7 +193,9 @@ impl Vm {
     /// Use the same [RuleRegistry] as the node mempool so execution rejects the same deploys as admission.
     pub fn with_qa_registry(qa_registry: RuleRegistry) -> Self {
         Self {
-            qa_registry,
+            qa_registry_native: qa_registry.clone().with_native_value_opcodes(true),
+            qa_registry: qa_registry.with_native_value_opcodes(false),
+            native_value_from: 0,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -170,7 +210,9 @@ impl Vm {
         qa_pool_config: QaPoolGovernanceConfig,
     ) -> Self {
         Self {
-            qa_registry,
+            qa_registry_native: qa_registry.clone().with_native_value_opcodes(true),
+            qa_registry: qa_registry.with_native_value_opcodes(false),
+            native_value_from: 0,
             qa_pool_config,
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -251,6 +293,7 @@ impl Vm {
         state: &mut StateStore,
         exec_ctx: VmExecutionContext,
     ) -> Result<VmExecutionResult, VmError> {
+        let exec_ctx = self.ctx_at(exec_ctx);
         // Nonce validation
         let sender_state = state.get(&tx.sender).ok_or(VmError::AccountNotFound)?;
         if sender_state.nonce != tx.nonce {
@@ -344,7 +387,17 @@ impl Vm {
                 GAS_PER_TRANSFER
             }
             TransactionPayload::ContractCall { contract, calldata } => {
-                return self.execute_contract_call(state, tx, contract, calldata, exec_ctx);
+                return self.execute_contract_call(state, tx, contract, calldata, 0, exec_ctx);
+            }
+            TransactionPayload::ContractCallWithValue {
+                contract,
+                calldata,
+                value,
+            } => {
+                if !exec_ctx.native_value {
+                    return Err(VmError::NativeValueNotActive);
+                }
+                return self.execute_contract_call(state, tx, contract, calldata, *value, exec_ctx);
             }
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
@@ -465,7 +518,7 @@ impl Vm {
             desc_hash,
             asset_name,
             asset_symbol,
-            &self.qa_registry,
+            self.qa_at(exec_ctx),
         ) {
             QaResult::Allow => {}
             QaResult::Reject(r) => {
@@ -525,7 +578,7 @@ impl Vm {
                 contract_addr,
                 &[],
                 state,
-                &self.qa_registry,
+                self.qa_at(exec_ctx),
                 exec_ctx,
             )?;
             let runtime = interpreter.return_data.take().unwrap_or_default();
@@ -700,7 +753,7 @@ impl Vm {
                 contract_addr,
                 &[],
                 state,
-                &self.qa_registry,
+                self.qa_at(exec_ctx),
                 exec_ctx,
             )?;
             interpreter.return_data.take().unwrap_or_default()
@@ -767,7 +820,39 @@ impl Vm {
                             *contract,
                             calldata,
                             state,
-                            &self.qa_registry,
+                            self.qa_at(exec_ctx),
+                            exec_ctx,
+                        )
+                        .map_err(step_err)?;
+                    vm_budget = vm_budget.saturating_sub(g);
+                    logs.append(&mut interpreter.logs);
+                    return_data = interpreter.return_data.take().unwrap_or_default();
+                    gas_used = gas_used
+                        .saturating_add(GAS_PER_BATCH_CONTRACT_CALL_STEP)
+                        .saturating_add(g);
+                }
+                BatchCall::ContractCallWithValue {
+                    contract,
+                    calldata,
+                    value,
+                } => {
+                    if !exec_ctx.native_value {
+                        return Err(step_err(VmError::NativeValueNotActive));
+                    }
+                    let code = state
+                        .get_contract_code(contract)
+                        .ok_or_else(|| step_err(VmError::AccountNotFound))?
+                        .clone();
+                    move_native(state, tx.sender, *contract, *value).map_err(step_err)?;
+                    let mut interpreter = Interpreter::new(code, vm_budget);
+                    interpreter.call_value = *value;
+                    let g = interpreter
+                        .run_with_qa(
+                            tx.sender,
+                            *contract,
+                            calldata,
+                            state,
+                            self.qa_at(exec_ctx),
                             exec_ctx,
                         )
                         .map_err(step_err)?;
@@ -793,6 +878,7 @@ impl Vm {
         tx: &Transaction,
         contract: &AccountId,
         calldata: &[u8],
+        value: u128,
         exec_ctx: VmExecutionContext,
     ) -> Result<VmExecutionResult, VmError> {
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
@@ -805,13 +891,19 @@ impl Vm {
             .get_contract_code(contract)
             .ok_or(VmError::AccountNotFound)?
             .clone();
+        // Value moves before the code runs (so `SELFBALANCE` includes it). Any later failure reverts
+        // the whole tx to its checkpoint, refunding the value.
+        if value > 0 {
+            move_native(state, tx.sender, *contract, value)?;
+        }
         let mut interpreter = Interpreter::new(code, GAS_PER_CONTRACT_CALL);
+        interpreter.call_value = value;
         let gas_used = interpreter.run_with_qa(
             tx.sender,
             *contract,
             calldata,
             state,
-            &self.qa_registry,
+            self.qa_at(exec_ctx),
             exec_ctx,
         )?;
         let return_data = interpreter.return_data.take().unwrap_or_default();
@@ -822,6 +914,41 @@ impl Vm {
             logs,
         })
     }
+}
+
+/// Move native BOING `from -> to` (journaled through [`StateStore::get_mut`] / `insert`, so a tx
+/// revert undoes it). Creates `to` when absent; `from == to` and `amount == 0` are no-ops (after the
+/// balance check).
+pub(crate) fn move_native(
+    state: &mut StateStore,
+    from: AccountId,
+    to: AccountId,
+    amount: u128,
+) -> Result<(), VmError> {
+    let have = state.get(&from).map(|s| s.balance).unwrap_or(0);
+    if have < amount {
+        return Err(VmError::InsufficientBalance);
+    }
+    if amount == 0 || from == to {
+        return Ok(());
+    }
+    let to_balance = state.get(&to).map(|s| s.balance).unwrap_or(0);
+    let credited = to_balance
+        .checked_add(amount)
+        .ok_or(VmError::InsufficientBalance)?;
+    let f = state.get_mut(&from).ok_or(VmError::AccountNotFound)?;
+    f.balance -= amount;
+    match state.get_mut(&to) {
+        Some(t) => t.balance = credited,
+        None => state.insert(boing_primitives::Account {
+            id: to,
+            state: AccountState {
+                balance: amount,
+                ..Default::default()
+            },
+        }),
+    }
+    Ok(())
 }
 
 impl Default for Vm {
@@ -1427,6 +1554,10 @@ pub enum VmError {
     OpenValidator(String),
     #[error("Name registry: {0}")]
     Name(String),
+    #[error("Native value on contract calls is not active at this height")]
+    NativeValueNotActive,
+    #[error("Native balance / transfer is not available for this storage backend")]
+    NativeValueNotSupported,
 }
 
 /// Apply CREATE2-style deploy from inside a contract: QA, address derivation, account insert, optional init, runtime install.

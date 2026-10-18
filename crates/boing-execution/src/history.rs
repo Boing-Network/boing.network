@@ -46,6 +46,11 @@ pub struct ExecutionHistory {
     /// [`boing_state::StateStore::redenominate`]). Below it amounts are whole BOING. `0` = base units
     /// from genesis (no migration).
     pub base_units_from: u64,
+    /// First height of the native-value rules: contract calls (and batch call steps) may carry native
+    /// BOING (`ContractCallWithValue`) and the `BALANCE` / `CALLVALUE` / `SELFBALANCE` /
+    /// `NATIVE_TRANSFER` opcodes execute (and pass deploy QA). Below it those payloads fail and those
+    /// bytes stay invalid bytecode, exactly as before. `0` = from genesis.
+    pub native_value_from: u64,
 }
 
 impl ExecutionHistory {
@@ -63,6 +68,10 @@ impl ExecutionHistory {
 
     pub fn security_v4_active(&self, height: u64) -> bool {
         height >= self.security_v4_from
+    }
+
+    pub fn native_value_active(&self, height: u64) -> bool {
+        height >= self.native_value_from
     }
 
     pub fn denomination_at(&self, height: u64) -> boing_primitives::Denomination {

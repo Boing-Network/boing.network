@@ -1156,7 +1156,8 @@ fn deployed_contract_address(tx: &Transaction) -> Option<AccountId> {
 /// Contract whose execution produced logs (call target or address created by deploy).
 fn log_emitting_account(tx: &Transaction) -> Option<AccountId> {
     match &tx.payload {
-        TransactionPayload::ContractCall { contract, .. } => Some(*contract),
+        TransactionPayload::ContractCall { contract, .. }
+        | TransactionPayload::ContractCallWithValue { contract, .. } => Some(*contract),
         TransactionPayload::ContractDeploy { .. }
         | TransactionPayload::ContractDeployWithPurpose { .. }
         | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -1395,6 +1396,16 @@ async fn dispatch_jsonrpc_request(
                                     "have": have.to_string(),
                                     "need": need.to_string(),
                                     "hint": "Request testnet BOING from the faucet and retry. Native fees are ceil(gas_used / 21000) BOING (a token deploy is typically ~10–20 BOING).",
+                                }),
+                            ),
+                            Err(MempoolError::NativeValueNotActive { from }) => rpc_error_with_data(
+                                id,
+                                -32000,
+                                format!("native value on contract calls is active from block {from}"),
+                                serde_json::json!({
+                                    "reason": "native_value_not_active",
+                                    "active_from": from,
+                                    "hint": "Send this value call once the chain reaches the activation height.",
                                 }),
                             ),
                             Err(MempoolError::QaRejected(r)) => {
@@ -2465,9 +2476,12 @@ async fn dispatch_jsonrpc_request(
                             (
                                 n.state.snapshot(),
                                 n.admission_vm(),
+                                // The tx would land in the next block: simulate at its height (fee
+                                // denomination and height-gated rules, e.g. native value, match).
                                 boing_execution::VmExecutionContext {
-                                    block_height: h,
+                                    block_height: h.saturating_add(1),
                                     block_timestamp: ts,
+                                    native_value: false, // set by the VM from the height
                                 },
                                 n.executor.fee_policy().clone(),
                                 n.executor.denomination_at(h.saturating_add(1)),
@@ -2670,6 +2684,7 @@ async fn dispatch_jsonrpc_request(
             let exec_ctx = boing_execution::VmExecutionContext {
                 block_height: tip_height,
                 block_timestamp: ts,
+                native_value: false, // set by the VM from the height
             };
             drop(n);
             match vm.execute_with_context(&tx, &mut state_copy, exec_ctx) {

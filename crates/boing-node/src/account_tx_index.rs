@@ -30,12 +30,14 @@ pub fn touched_accounts(tx: &Transaction, log_topics: &[[u8; 32]]) -> Vec<Accoun
     let mut out = vec![tx.sender];
     match &tx.payload {
         TransactionPayload::Transfer { to, .. } => out.push(*to),
-        TransactionPayload::ContractCall { contract, .. } => out.push(*contract),
+        TransactionPayload::ContractCall { contract, .. }
+        | TransactionPayload::ContractCallWithValue { contract, .. } => out.push(*contract),
         TransactionPayload::Batch { calls } => {
             for c in calls {
                 match c {
                     BatchCall::Transfer { to, .. } => out.push(*to),
-                    BatchCall::ContractCall { contract, .. } => out.push(*contract),
+                    BatchCall::ContractCall { contract, .. }
+                    | BatchCall::ContractCallWithValue { contract, .. } => out.push(*contract),
                 }
             }
         }
@@ -137,6 +139,9 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
         TransactionPayload::ContractCall { contract, calldata } => {
             json!({"kind":"contract_call","contract":hex0x(&contract.0),"calldata_len":calldata.len()})
         }
+        TransactionPayload::ContractCallWithValue { contract, calldata, value } => {
+            json!({"kind":"contract_call","contract":hex0x(&contract.0),"calldata_len":calldata.len(),"value":value.to_string(),"value_boing":boing_primitives::format_boing(*value)})
+        }
         TransactionPayload::ContractDeploy { .. }
         | TransactionPayload::ContractDeployWithPurpose { .. }
         | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -154,6 +159,7 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
                 .map(|c| match c {
                     BatchCall::Transfer { to, amount } => json!({"kind":"transfer","to":hex0x(&to.0),"amount":amount.to_string()}),
                     BatchCall::ContractCall { contract, calldata } => json!({"kind":"contract_call","contract":hex0x(&contract.0),"calldata_len":calldata.len()}),
+                    BatchCall::ContractCallWithValue { contract, calldata, value } => json!({"kind":"contract_call","contract":hex0x(&contract.0),"calldata_len":calldata.len(),"value":value.to_string(),"value_boing":boing_primitives::format_boing(*value)}),
                 })
                 .collect();
             json!({"kind":"batch","steps":steps})

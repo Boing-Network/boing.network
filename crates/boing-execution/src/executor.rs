@@ -73,8 +73,10 @@ impl BlockExecutor {
             self.vm.set_registration_proof_rule(cid, h.registration_proof_v2_from);
             self.vm.set_security_v4_from(h.security_v4_from);
             self.vm.set_base_units_from(h.base_units_from);
+            self.vm.set_native_value_from(h.native_value_from);
         } else {
             self.vm.set_base_units_from(0);
+            self.vm.set_native_value_from(0);
         }
         self.history = history.map(std::sync::Arc::new);
     }
@@ -143,6 +145,11 @@ impl BlockExecutor {
         boing_tokenomics::block_emission_validators_in(height, self.denomination_at(height))
     }
 
+    /// Whether contract calls may carry native value at `height` (always, for chains without history).
+    pub fn native_value_active(&self, height: u64) -> bool {
+        self.vm.native_value_active(height)
+    }
+
     /// Whether the security-review v4 rules apply at `height` (always, for chains without history).
     pub fn security_v4_active(&self, height: u64) -> bool {
         self.history.as_ref().map(|h| h.security_v4_active(height)).unwrap_or(true)
@@ -169,6 +176,7 @@ impl BlockExecutor {
         let exec_ctx = VmExecutionContext {
             block_height,
             block_timestamp,
+            native_value: self.vm.native_value_active(block_height),
         };
         // Ledger redenomination (whole BOING -> base units) happens once, at the start of block H.
         self.prepare_state_for_height(block_height, state);

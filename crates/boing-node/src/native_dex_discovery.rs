@@ -221,9 +221,16 @@ fn whole_unit_token_codes() -> &'static [Vec<u8>] {
     })
 }
 
+/// Deployed code of wrapped BOING (native BOING 1:1 in base units, **18** decimals).
+fn wboing_code() -> &'static Vec<u8> {
+    static CODE: OnceLock<Vec<u8>> = OnceLock::new();
+    CODE.get_or_init(boing_execution::wrapped_boing_bytecode)
+}
+
 /// Token decimals and where they came from:
 /// 1. **`env`**: the operator map (**`BOING_DEX_TOKEN_DECIMALS_JSON`**);
-/// 2. **`template`**: the token's deployed code is a reference fungible template (whole units, **0**);
+/// 2. **`template`**: the token's deployed code is a reference fungible template (whole units, **0**)
+///    or wrapped BOING (**18**);
 /// 3. otherwise unknown (**`None`**, JSON **`null`**); the node does not guess.
 fn resolve_token_decimals(
     state: &StateStore,
@@ -236,6 +243,9 @@ fn resolve_token_decimals(
     if let Some(code) = state.get_contract_code(id) {
         if whole_unit_token_codes().iter().any(|t| t == code) {
             return (Some(0), Some("template"));
+        }
+        if *code == *wboing_code() {
+            return (Some(boing_execution::WBOING_DECIMALS), Some("template"));
         }
     }
     (None, None)
@@ -855,6 +865,14 @@ mod tests {
             resolve_token_decimals(&s, &none, &SECURED_TOKEN),
             (Some(0), Some("template"))
         );
+    }
+
+    #[test]
+    fn wrapped_boing_reports_18_decimals() {
+        let mut st = StateStore::new();
+        let id = AccountId([0x5e; 32]);
+        st.set_contract_code(id, boing_execution::wrapped_boing_bytecode());
+        assert_eq!(resolve_token_decimals(&st, &HashMap::new(), &id), (Some(18), Some("template")));
     }
 
     #[test]

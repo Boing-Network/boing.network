@@ -51,7 +51,9 @@ Variant discriminant is **`u32` LE**, in this **exact** declaration order (must 
 | 6 | `Unbond` | `amount: u128` |
 | 7 | `ClaimUnbond` | (none) |
 | 8 | `QaPoolVote` | `subject` (32 B), `vote` (`u32` LE: 0 allow, 1 reject, 2 abstain) |
-| 9 | `Batch` | `calls: Vec<BatchCall>` (`u64` count, then each: `u32` 0 = Transfer `to`+`amount`, 1 = ContractCall `contract`+`calldata` vec). Max 16 calls; see [NATIVE-BATCH-TRANSACTIONS.md](NATIVE-BATCH-TRANSACTIONS.md) |
+| 9 | `Batch` | `calls: Vec<BatchCall>` (`u64` count, then each: `u32` 0 = Transfer `to`+`amount`, 1 = ContractCall `contract`+`calldata` vec). Max 16 calls; see [NATIVE-BATCH-TRANSACTIONS.md](NATIVE-BATCH-TRANSACTIONS.md). From testnet height 1150 also `u32` 2 = ContractCallWithValue `contract`+`calldata` vec+`value: u128` |
+| 10–19 | validator and name registry variants | see `types.rs` |
+| 20 | `ContractCallWithValue` | `contract` (32 B), `calldata` vec, `value: u128` (16 B LE, base units). Active from testnet height 1150; see [NATIVE-VALUE-AND-WBOING.md](NATIVE-VALUE-AND-WBOING.md) |
 
 ### `Vec<u8>`
 

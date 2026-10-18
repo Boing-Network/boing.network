@@ -44,6 +44,7 @@ fn test_bond_unbond_claim_with_delay() {
         VmExecutionContext {
             block_height: unbond_height,
             block_timestamp: 0,
+            native_value: false,
         },
     )
     .unwrap();
@@ -69,6 +70,7 @@ fn test_bond_unbond_claim_with_delay() {
             VmExecutionContext {
                 block_height: unbond_height + UNBONDING_DELAY_BLOCKS - 1,
                 block_timestamp: 0,
+                native_value: false,
             },
         )
         .unwrap_err();
@@ -86,6 +88,7 @@ fn test_bond_unbond_claim_with_delay() {
         VmExecutionContext {
             block_height: unbond_height + UNBONDING_DELAY_BLOCKS,
             block_timestamp: 0,
+            native_value: false,
         },
     )
     .unwrap();

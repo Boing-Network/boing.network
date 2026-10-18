@@ -77,6 +77,16 @@ impl RuleId {
     pub const CONTENT_POLICY_VIOLATION: &'static str = "CONTENT_POLICY_VIOLATION";
 }
 
+/// Opcodes added by the native-value rules (testnet height 1150): `BALANCE` (0x31), `CALLVALUE`
+/// (0x34), `SELFBALANCE` (0x47) and `NATIVE_TRANSFER` (0xf2). Rejected by deploy QA unless the
+/// registry allows them ([`RuleRegistry::with_native_value_opcodes`]), so deploys before the
+/// activation height are checked exactly as before.
+pub const NATIVE_VALUE_OPCODES: [u8; 4] = [0x31, 0x34, 0x47, 0xf2];
+
+fn is_valid_opcode_with(b: u8, native_value: bool) -> bool {
+    is_valid_opcode(b) || (native_value && NATIVE_VALUE_OPCODES.contains(&b))
+}
+
 fn is_valid_opcode(b: u8) -> bool {
     matches!(
         b,
@@ -96,11 +106,11 @@ fn push_immediate_size(b: u8) -> Option<u8> {
 }
 
 /// Validation error: (offset, is_invalid_opcode, message)
-fn check_well_formed(bytecode: &[u8]) -> Result<(), (usize, bool, &'static str)> {
+fn check_well_formed(bytecode: &[u8], native_value: bool) -> Result<(), (usize, bool, &'static str)> {
     let mut pc = 0;
     while pc < bytecode.len() {
         let op = bytecode[pc];
-        if !is_valid_opcode(op) {
+        if !is_valid_opcode_with(op, native_value) {
             return Err((pc, true, "Invalid opcode"));
         }
         if let Some(imm_size) = push_immediate_size(op) {
@@ -178,7 +188,7 @@ pub fn check_contract_deploy(
     _description_hash: Option<&[u8]>,
     max_bytecode_size: usize,
 ) -> QaResult {
-    check_contract_deploy_with_blocklist(bytecode, purpose_category, max_bytecode_size, &[])
+    check_contract_deploy_with_blocklist(bytecode, purpose_category, max_bytecode_size, &[], false)
 }
 
 /// Full check using the complete rule registry. Applies all rules: hard rules, blocklist,
@@ -232,6 +242,7 @@ pub fn check_contract_deploy_full_with_metadata(
         purpose_category,
         registry.max_bytecode_size(),
         registry.blocklist(),
+        registry.native_value_opcodes(),
     );
     if let QaResult::Reject(_) = base {
         return base;
@@ -332,6 +343,7 @@ pub fn check_contract_deploy_with_blocklist(
     purpose_category: Option<&str>,
     max_bytecode_size: usize,
     blocklist_hashes: &[[u8; 32]],
+    native_value_opcodes: bool,
 ) -> QaResult {
     use boing_primitives::{contract_deploy_init_body, contract_deploy_uses_init_code};
 
@@ -359,7 +371,7 @@ pub fn check_contract_deploy_with_blocklist(
     }
 
     let wellformed = contract_deploy_init_body(bytecode);
-    if let Err((offset, invalid_opcode, reason)) = check_well_formed(wellformed) {
+    if let Err((offset, invalid_opcode, reason)) = check_well_formed(wellformed, native_value_opcodes) {
         let rule_id = if invalid_opcode {
             RuleId(RuleId::INVALID_OPCODE.to_string())
         } else {
@@ -412,6 +424,10 @@ pub struct RuleRegistry {
     always_review_categories: std::collections::HashSet<String>,
     /// Forbidden substrings in asset name/symbol (vulgarity, offensiveness). Case-insensitive match. Governance-mutable.
     content_blocklist: Vec<String>,
+    /// Accept the native-value opcodes ([`NATIVE_VALUE_OPCODES`]). Not part of the governance
+    /// encoding (`serde(skip)`): set by the node / VM from the activation height.
+    #[serde(skip)]
+    native_value_opcodes: bool,
 }
 
 impl Default for RuleRegistry {
@@ -428,7 +444,18 @@ impl RuleRegistry {
             scam_patterns: Vec::new(),
             always_review_categories: std::collections::HashSet::new(),
             content_blocklist: Vec::new(),
+            native_value_opcodes: false,
         }
+    }
+
+    /// Same registry, accepting (`true`) or rejecting the native-value opcodes.
+    pub fn with_native_value_opcodes(mut self, allow: bool) -> Self {
+        self.native_value_opcodes = allow;
+        self
+    }
+
+    pub fn native_value_opcodes(&self) -> bool {
+        self.native_value_opcodes
     }
 
     pub fn with_max_bytecode_size(mut self, size: usize) -> Self {

@@ -919,6 +919,7 @@ mod tests {
         let ctx = VmExecutionContext {
             block_height: 10,
             block_timestamp: 1_700_000_000,
+            native_value: false,
         };
         vm.execute_with_context(&deploy_tx, &mut state, ctx).unwrap();
         let token = boing_primitives::nonce_derived_contract_address(&deployer, 0);
@@ -977,6 +978,7 @@ mod tests {
         let ctx = VmExecutionContext {
             block_height: 1,
             block_timestamp: 1_000,
+            native_value: false,
         };
         let deploy_tx = boing_primitives::Transaction {
             nonce: 0,
@@ -1076,6 +1078,7 @@ mod tests {
         let ctx = VmExecutionContext {
             block_height: deploy_h,
             block_timestamp: 2_000,
+            native_value: false,
         };
         let deploy_tx = boing_primitives::Transaction {
             nonce: 0,
@@ -1111,6 +1114,7 @@ mod tests {
         let mid = VmExecutionContext {
             block_height: deploy_h + 50,
             block_timestamp: 3_000,
+            native_value: false,
         };
         vm.execute_with_context(
             &boing_primitives::Transaction {

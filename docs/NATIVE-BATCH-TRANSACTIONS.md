@@ -28,6 +28,7 @@ No new runtime, no EVM/Solana code, no change to existing contract bytecode.
 u32 LE 9 | u64 LE n | n × BatchCall
 BatchCall::Transfer      = u32 LE 0 | to (32 B) | amount u128 LE
 BatchCall::ContractCall  = u32 LE 1 | contract (32 B) | u64 LE len | calldata
+BatchCall::ContractCallWithValue = u32 LE 2 | contract (32 B) | u64 LE len | calldata | value u128 LE   (testnet height 1150+)
 ```
 
 Variants 0–8 keep their indices, so every previously signed tx encodes and hashes identically.
@@ -40,7 +41,7 @@ and `boing-sdk/tests/nativeBatchTx.test.ts` (same byte vector).
 |-------|-------|
 | Steps per batch | 1 – `MAX_BATCH_CALLS` = 16 |
 | Summed calldata of contract steps | `MAX_BATCH_CALLDATA_BYTES` = 64 KiB |
-| Sum of transfer amounts | must fit `u128` |
+| Sum of transfer amounts and call values | must fit `u128` |
 | Interpreter gas for all contract steps together | `GAS_BATCH_CONTRACT_BUDGET` = one `ContractCall` budget (40M) |
 
 The shared VM budget means a batch can never do more contract work than a single contract call.
@@ -52,6 +53,7 @@ The shared VM budget means a batch can never do more contract work than a single
 | Envelope (`GAS_BATCH_BASE`) | 21 000 (one transfer) |
 | Each transfer step (`GAS_PER_BATCH_TRANSFER`) | 7 000 |
 | Each contract step (`GAS_PER_BATCH_CONTRACT_CALL_STEP`) | 7 000 + interpreter gas used |
+| Each value contract step (testnet height 1150+) | same as a contract step; the value moves just before the step runs and is refunded if any step fails ([NATIVE-VALUE-AND-WBOING.md](NATIVE-VALUE-AND-WBOING.md)) |
 
 Fee = `network_fee_amount(gas)` as usual (21 000 gas = 1 BOING). Example: 16 BOING transfers =
 133 000 gas ≈ 7 BOING vs 16 BOING as 16 separate transfers. The policy's `extra_fixed_fee` is

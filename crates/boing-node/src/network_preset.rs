@@ -40,6 +40,11 @@ pub const BOING_TESTNET_SECURITY_V4_FROM: u64 = 1_000;
 /// (bond, name rent, faucet) are scaled. Chosen 50 blocks after the v4 gate, ~108 above the tip at
 /// deploy time.
 pub const BOING_TESTNET_BASE_UNITS_FROM: u64 = 1_050;
+/// Testnet activation height of the native-value rules (approved 2026-10-17): contract calls may carry
+/// native BOING (`ContractCallWithValue`, batch value steps) and contracts can read `CALLVALUE`,
+/// `SELFBALANCE` / `BALANCE` and pay out with `NATIVE_TRANSFER`. Chosen ~80 blocks above the tip at
+/// deploy time (~1067; blocks are produced on demand). Validators must run testnet-v0.1.18 before it.
+pub const BOING_TESTNET_NATIVE_VALUE_FROM: u64 = 1_150;
 
 /// Genesis block proposer plus the accounts funded at height 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,6 +87,7 @@ pub fn boing_testnet_history() -> ExecutionHistory {
         registration_proof_v2_from: BOING_TESTNET_SECURITY_V3_FROM,
         security_v4_from: BOING_TESTNET_SECURITY_V4_FROM,
         base_units_from: BOING_TESTNET_BASE_UNITS_FROM,
+        native_value_from: BOING_TESTNET_NATIVE_VALUE_FROM,
     }
 }
 

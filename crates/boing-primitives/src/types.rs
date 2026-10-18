@@ -164,6 +164,13 @@ impl Transaction {
             TransactionPayload::ContractCall { contract, .. } => {
                 format!("Call contract {}", hex::encode(&contract.0[..8]))
             }
+            TransactionPayload::ContractCallWithValue { contract, value, .. } => {
+                format!(
+                    "Call contract {} with {} BOING",
+                    hex::encode(&contract.0[..8]),
+                    crate::format_boing(*value)
+                )
+            }
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -186,6 +193,11 @@ impl Transaction {
                         BatchCall::ContractCall { contract, .. } => {
                             format!("Call contract {}", hex::encode(&contract.0[..8]))
                         }
+                        BatchCall::ContractCallWithValue { contract, value, .. } => format!(
+                            "Call contract {} with {} BOING",
+                            hex::encode(&contract.0[..8]),
+                            crate::format_boing(*value)
+                        ),
                     })
                     .collect();
                 format!("Batch of {} (atomic): {}", calls.len(), steps.join("; "))
@@ -217,7 +229,8 @@ impl Transaction {
             TransactionPayload::Transfer { to, .. } => {
                 AccessList::new(vec![self.sender, *to], vec![self.sender, *to])
             }
-            TransactionPayload::ContractCall { contract, .. } => {
+            TransactionPayload::ContractCall { contract, .. }
+            | TransactionPayload::ContractCallWithValue { contract, .. } => {
                 AccessList::new(vec![self.sender, *contract], vec![self.sender, *contract])
             }
             TransactionPayload::ContractDeploy {
@@ -255,7 +268,8 @@ impl Transaction {
                 for c in calls {
                     let id = match c {
                         BatchCall::Transfer { to, .. } => *to,
-                        BatchCall::ContractCall { contract, .. } => *contract,
+                        BatchCall::ContractCall { contract, .. }
+                        | BatchCall::ContractCallWithValue { contract, .. } => *contract,
                     };
                     if !ids.contains(&id) {
                         ids.push(id);
@@ -390,6 +404,16 @@ pub enum TransactionPayload {
     NameRelease {
         name: String,
     },
+    /// Contract call carrying native BOING (index 20; native-value rules, testnet height 1150).
+    /// `value` (base units) is debited from the sender and credited to `contract` atomically before
+    /// the contract runs; the code reads it with `CALLVALUE`. If the call (or its fee) fails, the whole
+    /// tx reverts, so the value is refunded and only the failed-tx fee is charged. Signed like every
+    /// other payload (v2 signatures bind the chain id), so `value` is covered by the signature.
+    ContractCallWithValue {
+        contract: AccountId,
+        calldata: Vec<u8>,
+        value: u128,
+    },
 }
 
 /// One step inside [`TransactionPayload::Batch`]. Contract calls run with `CALLER` = tx sender,
@@ -403,6 +427,13 @@ pub enum BatchCall {
     ContractCall {
         contract: AccountId,
         calldata: Vec<u8>,
+    },
+    /// Contract call step carrying native BOING (index 2; native-value rules). `value` moves from the
+    /// tx sender to `contract` right before the step runs (`CALLVALUE` = `value`).
+    ContractCallWithValue {
+        contract: AccountId,
+        calldata: Vec<u8>,
+        value: u128,
     },
 }
 
@@ -446,6 +477,14 @@ pub fn validate_batch_calls(calls: &[BatchCall]) -> Result<(), BatchValidationEr
             }
             BatchCall::ContractCall { calldata: d, .. } => {
                 calldata = calldata.saturating_add(d.len());
+            }
+            BatchCall::ContractCallWithValue {
+                calldata: d, value, ..
+            } => {
+                calldata = calldata.saturating_add(d.len());
+                total = total
+                    .checked_add(*value)
+                    .ok_or(BatchValidationError::AmountOverflow)?;
             }
         }
     }
@@ -506,7 +545,7 @@ impl TransactionPayload {
                 .iter()
                 .map(|c| match c {
                     BatchCall::Transfer { amount, .. } => *amount,
-                    BatchCall::ContractCall { .. } => 0,
+                    BatchCall::ContractCall { .. } | BatchCall::ContractCallWithValue { .. } => 0,
                 })
                 .fold(0u128, |a, b| a.saturating_add(b)),
             _ => 0,

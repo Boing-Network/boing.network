@@ -165,6 +165,8 @@ Submit a signed transaction to the mempool.
 
 **Result:** `{ tx_hash: "0x<64 hex>", tx_id: "0x<64 hex>" }`: the transaction id (BLAKE3 of the unsigned tx; the key for `boing_getTransactionReceipt`). Nodes before 2026-10-16 returned `{ tx_hash: "ok" }`; clients should fall back to deriving the id from the signed bytes (SDK `submittedTxHash`). A duplicate submit (`-32000`, `data.reason = "already_in_mempool"`) also carries `data.tx_hash`.
 
+**Native value (testnet-v0.1.18+):** a `ContractCallWithValue` payload (or a batch with a value step) submitted before the activation height (testnet 1150) is rejected with `-32000`, `data: { reason: "native_value_not_active", active_from }`. See [NATIVE-VALUE-AND-WBOING.md](NATIVE-VALUE-AND-WBOING.md).
+
 **P2P:** When **`--p2p-listen`** is set and the tx is **admitted** to the mempool, the node also **gossips** the same `SignedTransaction` on libp2p topic **`boing/transactions`** so peers can verify and enqueue it locally ([TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3, [RUNBOOK.md](RUNBOOK.md) §8.1).
 
 **Result (success):** `{ "tx_hash": "ok" }` — current **`boing-node`** uses the literal **`"ok"`** when the tx is accepted into the mempool (not a 32-byte transaction id). Track inclusion via **`boing_getTransactionReceipt`** using **`tx_id = Transaction::id()`** (BLAKE3 of the unsigned tx bincode). Wallets (Boing Express `boing_sendTransaction`) should return **`{ "tx_hash": "ok", "tx_id": "0x…" }`** so dApps can poll receipts. Do not treat `"ok"` as a receipt key.
@@ -847,6 +849,8 @@ Simulate a transaction without applying it.
 
 **Result:** `{ gas_used: number, success: boolean, return_data: string, logs?: array, error?: string, suggested_access_list: { read: string[], write: string[] }, access_list_covers_suggestion: boolean, network_fee?: string, network_fee_decimals?: number }` — **`network_fee`** (success only, testnet-v0.1.17+) is the fee this tx would pay if included in the next block, in ledger units (`network_fee_decimals` 18 = base units); on success, `return_data` is hex (contract return buffer) and `logs` matches receipt log shape; on failure, `return_data` is `"0x"` and `logs` is `[]`. **`suggested_access_list`** is a **heuristic** minimum account set for parallel scheduling from the tx payload (see `TECHNICAL-SPECIFICATION.md` §4.2); **`access_list_covers_suggestion`** is `true` when the signed tx’s declared access list includes every account in that suggestion (read or write). Hints are included on both success and failure so clients can fix access lists before submit.
 
+From testnet-v0.1.18 the simulation runs with the rules of the **next** block (height tip + 1), so a value call can be previewed at the block before the native-value activation height (1150). A `ContractCallWithValue` simulation moves the value from the sender to the contract in the snapshot (the sender must hold `value` plus the fee).
+
 For **unsigned** calldata-only simulation, use **`boing_simulateContractCall`** above.
 
 ---
@@ -917,7 +921,7 @@ Committed transactions that touch an account, newest first. A transaction touche
 |--------|------|
 | Result | `{ account, head_height, transactions: [...], next_cursor: string \| null }` |
 
-Each row: `tx_id`, `block_height`, `tx_index`, `timestamp`, `sender`, `nonce`, `direction` (`out` when the account sent it, else `in`), `roles`, `payload` (`kind` plus `to` / `amount` / `contract` / `steps`), `success`, `error`, `gas_used`.
+Each row: `tx_id`, `block_height`, `tx_index`, `timestamp`, `sender`, `nonce`, `direction` (`out` when the account sent it, else `in`), `roles`, `payload` (`kind` plus `to` / `amount` / `contract` / `steps`; a contract call or batch step that carries native BOING adds `value` (base units) and `value_boing`, testnet-v0.1.18+), `success`, `error`, `gas_used`.
 
 Paging is deterministic: rows are ordered by `(block_height, tx_index)` descending; pass `next_cursor` (opaque `"<height>:<index>"`, meaning strictly older) to fetch the next page. `limit` is clamped to 1..100 (default 25). The index is built in memory from committed blocks and caught up on each call (rebuilt after a restart).
 ### boing_getValidators

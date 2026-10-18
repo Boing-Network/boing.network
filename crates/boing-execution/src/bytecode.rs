@@ -87,6 +87,21 @@ pub enum Opcode {
     Call = 0xf1,
     /// In-contract CREATE2 (0xf5). Pops `salt`, `size`, `offset` (stack top = `salt`, 32-byte word; then `size`, then `offset`). Deploys `memory[offset..offset+size)` as init/runtime bytecode with [`boing_primitives::create2_contract_address`]`(ADDRESS, salt, bytecode)`; init runs with `CALLER` = `ADDRESS`. Pushes new contract **address** word. Charges base + per-byte gas; init execution meters against **remaining** gas after that charge. Same QA path as in-tx deploy (`dapp` category). **Does not** increment any account nonce.
     Create2 = 0xf5,
+    /// Native BOING balance of an account (0x31; native-value rules). Pops `account` (32-byte id);
+    /// pushes its spendable balance in base units (missing account = `0`).
+    Balance = 0x31,
+    /// Native BOING attached to the **current frame** (0x34; native-value rules), base units. The
+    /// top-level frame of a `ContractCallWithValue` (or batch value step) sees the attached value;
+    /// every other frame (plain calls, nested `CALL`, deploy init, `CREATE2` init) sees `0`.
+    CallValue = 0x34,
+    /// Native BOING balance of this contract (0x47; native-value rules), base units.
+    SelfBalance = 0x47,
+    /// Native transfer from this contract (0xf2; native-value rules). Pops `to` (stack top, 32-byte
+    /// id), then `amount` (base units). Moves the amount immediately from `ADDRESS` to `to`
+    /// (creating `to` if absent); pushes nothing. Insufficient balance or an amount above `u128`
+    /// faults the transaction (whole tx reverts). Never runs code at `to`, so a transfer cannot
+    /// re-enter any contract.
+    NativeTransfer = 0xf2,
 }
 
 impl Opcode {
@@ -132,6 +147,10 @@ impl Opcode {
             0xf1 => Some(Self::Call),
             0xf3 => Some(Self::Return),
             0xf5 => Some(Self::Create2),
+            0x31 => Some(Self::Balance),
+            0x34 => Some(Self::CallValue),
+            0x47 => Some(Self::SelfBalance),
+            0xf2 => Some(Self::NativeTransfer),
             _ => None,
         }
     }
@@ -183,4 +202,12 @@ pub mod gas {
     pub const LOG_BASE: u64 = 100;
     pub const LOG_PER_TOPIC: u64 = 375;
     pub const LOG_PER_DATA_BYTE: u64 = 8;
+    /// `CALLVALUE` (frame context, like `CALLER`).
+    pub const CALLVALUE: u64 = 2;
+    /// `SELFBALANCE` (own account, already loaded).
+    pub const SELFBALANCE: u64 = 5;
+    /// `BALANCE` (one account read, priced like `SLOAD`).
+    pub const BALANCE: u64 = 100;
+    /// `NATIVE_TRANSFER`: two account writes (priced like a batch transfer step).
+    pub const NATIVE_TRANSFER: u64 = 7_000;
 }

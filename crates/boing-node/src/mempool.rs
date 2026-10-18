@@ -32,6 +32,8 @@ pub struct Mempool {
     max_total: usize,
     /// QA rule registry (blocklist, content blocklist, etc.). Replace via [Mempool::with_qa_registry] or governance.
     qa_registry: RuleRegistry,
+    /// Deploy QA accepts the native-value opcodes (set by the node from the next block height).
+    native_value_opcodes: std::sync::atomic::AtomicBool,
 }
 
 impl Default for Mempool {
@@ -62,7 +64,15 @@ impl Mempool {
             max_pending_per_sender: DEFAULT_MAX_PENDING_PER_SENDER,
             max_total: max_total_from_env(),
             qa_registry: default_qa_registry(),
+            native_value_opcodes: std::sync::atomic::AtomicBool::new(false),
         }
+    }
+
+    /// Accept (`true`) the native-value opcodes in deploy QA: the node sets this when the next block
+    /// is at/after the native-value activation height, so earlier deploys are checked as before.
+    pub fn set_native_value_opcodes(&self, allow: bool) {
+        self.native_value_opcodes
+            .store(allow, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn with_max_pending_per_sender(mut self, max: usize) -> Self {
@@ -165,7 +175,16 @@ impl Mempool {
             if let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) =
                 signed.tx.payload.as_contract_deploy()
             {
-                let registry = &self.qa_registry;
+                let native;
+                let registry = if self
+                    .native_value_opcodes
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                {
+                    native = self.qa_registry.clone().with_native_value_opcodes(true);
+                    &native
+                } else {
+                    &self.qa_registry
+                };
                 match check_contract_deploy_full_with_metadata(
                     bytecode,
                     purpose,
@@ -357,6 +376,9 @@ pub enum MempoolError {
     /// Name registry tx would fail (or the registry is not active yet).
     #[error("name tx rejected: {0}")]
     NameRejected(String),
+    /// Native value on contract calls before the activation height.
+    #[error("native value on contract calls is not active until height {from}")]
+    NativeValueNotActive { from: u64 },
 }
 
 #[cfg(test)]

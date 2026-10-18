@@ -25,11 +25,21 @@ pub const MAX_CALL_DEPTH: u8 = 64;
 pub struct VmExecutionContext {
     pub block_height: u64,
     pub block_timestamp: u64,
+    /// Native-value rules active for this block (`BALANCE`, `CALLVALUE`, `SELFBALANCE`,
+    /// `NATIVE_TRANSFER` execute; otherwise they are invalid bytecode, as before the activation
+    /// height). Set by [`crate::Vm`] from the block height; hosts may leave it `false`.
+    pub native_value: bool,
 }
 
 fn word_u64_env(n: u64) -> [u8; 32] {
     let mut w = [0u8; 32];
     w[24..32].copy_from_slice(&n.to_be_bytes());
+    w
+}
+
+fn word_u128(n: u128) -> [u8; 32] {
+    let mut w = [0u8; 32];
+    w[16..32].copy_from_slice(&n.to_be_bytes());
     w
 }
 
@@ -99,6 +109,9 @@ pub struct Interpreter {
     caller_id: AccountId,
     contract_id: AccountId,
     exec_ctx: VmExecutionContext,
+    /// Native BOING attached to this frame (`CALLVALUE`). Set by the host for the top-level frame of a
+    /// value-carrying call; `0` for every nested / init frame.
+    pub call_value: u128,
 }
 
 /// Storage interface for SLOAD/SSTORE, nested [`Opcode::Call`], and [`Opcode::Create2`].
@@ -122,6 +135,17 @@ pub trait StorageAccess {
     ) -> Result<(AccountId, u64), VmError> {
         Err(VmError::Create2NotSupported)
     }
+
+    /// Native BOING balance of `account` (base units). Default: `0` (custom backends).
+    fn native_balance(&self, _account: AccountId) -> u128 {
+        0
+    }
+
+    /// Move `amount` native BOING from `from` to `to` (journaled, reverted with the tx). Default:
+    /// unsupported (custom backends).
+    fn native_transfer(&mut self, _from: AccountId, _to: AccountId, _amount: u128) -> Result<(), VmError> {
+        Err(VmError::NativeValueNotSupported)
+    }
 }
 
 impl Interpreter {
@@ -138,6 +162,7 @@ impl Interpreter {
             caller_id: AccountId([0u8; 32]),
             contract_id: AccountId([0u8; 32]),
             exec_ctx: VmExecutionContext::default(),
+            call_value: 0,
         }
     }
 
@@ -696,6 +721,40 @@ impl Interpreter {
                     self.return_data = Some(self.memory[offset..offset + size].to_vec());
                     break;
                 }
+                Opcode::Balance
+                | Opcode::CallValue
+                | Opcode::SelfBalance
+                | Opcode::NativeTransfer
+                    if !exec_ctx.native_value =>
+                {
+                    // Before the native-value activation these bytes are not opcodes.
+                    return Err(VmError::InvalidBytecode);
+                }
+                Opcode::CallValue => {
+                    self.spend_gas(gas::CALLVALUE)?;
+                    self.push(word_u128(self.call_value));
+                }
+                Opcode::SelfBalance => {
+                    self.spend_gas(gas::SELFBALANCE)?;
+                    self.push(word_u128(storage.native_balance(contract_id)));
+                }
+                Opcode::Balance => {
+                    self.spend_gas(gas::BALANCE)?;
+                    let who = AccountId(self.pop()?);
+                    self.push(word_u128(storage.native_balance(who)));
+                }
+                Opcode::NativeTransfer => {
+                    self.spend_gas(gas::NATIVE_TRANSFER)?;
+                    let to = AccountId(self.pop()?);
+                    let amount_w = self.pop()?;
+                    if amount_w[..16].iter().any(|b| *b != 0) {
+                        return Err(VmError::InsufficientBalance);
+                    }
+                    let mut lo = [0u8; 16];
+                    lo.copy_from_slice(&amount_w[16..]);
+                    let amount = u128::from_be_bytes(lo);
+                    storage.native_transfer(contract_id, to, amount)?;
+                }
                 Opcode::Push1 | Opcode::Push32 => {
                     unreachable!("handled above")
                 }
@@ -738,6 +797,14 @@ impl StorageAccess for StateStore {
 
     fn get_contract_code(&self, contract: AccountId) -> Option<Vec<u8>> {
         self.get_contract_code(&contract).cloned()
+    }
+
+    fn native_balance(&self, account: AccountId) -> u128 {
+        self.get(&account).map(|s| s.balance).unwrap_or(0)
+    }
+
+    fn native_transfer(&mut self, from: AccountId, to: AccountId, amount: u128) -> Result<(), VmError> {
+        crate::vm::move_native(self, from, to, amount)
     }
 
     fn create2_deploy(

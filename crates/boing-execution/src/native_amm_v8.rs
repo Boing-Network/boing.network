@@ -162,6 +162,15 @@ const LOGB: u64 = 2400;
 struct P {
     a: Asm,
     fail: Label,
+    /// Exclusive bound on amounts, reserves and LP supply: `2^64` (v8 / v9) or `2^128` (v10).
+    bound: [u8; 32],
+}
+
+/// `2^128` as a word (v10 bound: every product of two bounded values fits in 256 bits).
+fn w_two_pow_128() -> [u8; 32] {
+    let mut w = [0u8; 32];
+    w[15] = 1;
+    w
 }
 
 impl P {
@@ -175,12 +184,13 @@ impl P {
         let f = self.fail;
         self.a.mload(x).mload(y).op(Opcode::Lt).jumpi(f);
     }
-    /// Fault unless `mem[x] < 2^64`.
+    /// Fault unless `mem[x] < bound` (`2^64` for v8 / v9, `2^128` for v10).
     fn below_2_64(&mut self, x: u64) {
         let f = self.fail;
+        let bound = self.bound;
         self.a
             .mload(x)
-            .push(&w_two_pow_64())
+            .push(&bound)
             .op(Opcode::Lt)
             .op(Opcode::IsZero)
             .jumpi(f);
@@ -287,7 +297,7 @@ impl P {
 /// Custody-safe native CP pool (**v8**). CREATE2 salt: [`NATIVE_CP_POOL_CREATE2_SALT_V8`].
 #[must_use]
 pub fn constant_product_pool_bytecode_v8() -> Vec<u8> {
-    pool_v8_family(false)
+    pool_v8_family(false, false)
 }
 
 /// CREATE2 salt for **v9** pool bytecode ([`constant_product_pool_bytecode_v9`]).
@@ -298,13 +308,31 @@ pub const NATIVE_CP_POOL_CREATE2_SALT_V9: [u8; 32] =
 /// chain hops ([`crate::native_dex_custody_router`]). Everything else is byte-for-byte v8 logic.
 #[must_use]
 pub fn constant_product_pool_bytecode_v9() -> Vec<u8> {
-    pool_v8_family(true)
+    pool_v8_family(true, false)
 }
 
-fn pool_v8_family(swap_returns_out: bool) -> Vec<u8> {
+/// CREATE2 salt for **v10** pool bytecode ([`constant_product_pool_bytecode_v10`]).
+pub const NATIVE_CP_POOL_CREATE2_SALT_V10: [u8; 32] =
+    *b"BOING_NATIVECP_C2V10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+
+/// **v10** = v9 (swap returns `amount_out`) with **u128** amounts, reserves and LP supply, for
+/// 18-decimal tokens such as wBOING (v8 / v9 cap everything below `2^64`, about 18.4 tokens at 18
+/// decimals). Every operand is checked `< 2^128`, so each 256-bit product (`amount * total_lp`,
+/// `reserve_out * amount_in_after_fee`, `burn * reserve`) is exact: `(2^128 - 1)^2 < 2^256`. The fee
+/// is taken from the input first (`amount_in * (10_000 - fee) / 10_000`, rounded down in the pool's
+/// favour), then `out = reserve_out * in_after_fee / (reserve_in + in_after_fee)`, rounded down.
+/// LP supply after a mint must also stay `< 2^128`. Selectors, storage keys, logs, the lock and every
+/// rejection rule are v9's.
+#[must_use]
+pub fn constant_product_pool_bytecode_v10() -> Vec<u8> {
+    pool_v8_family(true, true)
+}
+
+fn pool_v8_family(swap_returns_out: bool, u128_bound: bool) -> Vec<u8> {
     let mut a = Asm::new();
     let fail = a.label();
-    let mut p = P { a, fail };
+    let bound = if u128_bound { w_two_pow_128() } else { w_two_pow_64() };
+    let mut p = P { a, fail, bound };
     let (swap, swap_to, swap_common) = (p.a.label(), p.a.label(), p.a.label());
     let add = p.a.label();
     let (rm, rm_to, rm_common) = (p.a.label(), p.a.label(), p.a.label());
@@ -409,6 +437,11 @@ fn pool_v8_family(swap_returns_out: bool) -> Vec<u8> {
     p.a.mark(lp_done);
     p.nonzero(LP);
     p.ge(LP, MIN);
+    if u128_bound {
+        // v10: LP supply stays below 2^128 (keeps `amount * total_lp` exact).
+        p.a.mload(T).mload(LP).op(Opcode::Add).mstore(LP1);
+        p.below_2_64(LP1);
+    }
     // Pull both sides before any reserve / LP write.
     p.a.sload_key(&token_a_key()).mstore(TA);
     p.a.sload_key(&token_b_key()).mstore(TB);
@@ -645,6 +678,7 @@ mod tests {
             let ctx = VmExecutionContext {
                 block_height: self.height,
                 block_timestamp: 0,
+                native_value: false,
             };
             match it.run_with_qa(who, to, &cd, &mut self.st, &RuleRegistry::new(), ctx) {
                 Ok(_) => Out {

@@ -22,24 +22,30 @@ RPC port **8545** only needs to be public if you want to serve RPC to others.
 
 ## 2. Get the node
 
-**Release binaries (recommended):** download `testnet-v0.1.17` (or newer) from
+**Release binaries (recommended):** download `testnet-v0.1.18` (or newer) from
 <https://github.com/Boing-Network/boing.network/releases>. The zip contains `boing-node-<platform>` and
 `boing-<platform>`, so rename them after unzipping (there is no `--version` flag; use `./boing-node --help`):
 
 ```bash
-curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.17/release-linux-x86_64.zip
+curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.18/release-linux-x86_64.zip
 unzip release-linux-x86_64.zip && mv boing-node-linux-x86_64 boing-node && mv boing-linux-x86_64 boing && chmod +x boing-node boing
 ./boing validator --help
 ```
 
 Other platforms: `release-macos-aarch64.zip`, `release-windows-x86_64.zip`.
 
-> **Upgrade to `testnet-v0.1.17` before height 1050.** At block **1050** native BOING switches to
-> **18 decimals** (1 BOING = 10^18 base units): every balance, stake, pending unbond and validator bond is
-> multiplied by 10^18 once, fees become `gas_used × 10^12` base units (a transfer costs 0.021 BOING) and the
-> bond, name rent and faucet amounts are charged in base units. Older releases compute a different state
-> root at 1050 and stop following the chain. Nothing to configure: replace the binary and restart; your data
-> directory is kept. Details: [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md).
+> **Upgrade to `testnet-v0.1.18` before height 1150.** From block **1150** contract calls can carry
+> native BOING (a new `ContractCallWithValue` transaction variant and the `CALLVALUE`, `SELFBALANCE`,
+> `BALANCE` and `NATIVE_TRANSFER` opcodes), which is what wBOING and native BOING swaps use. Older releases
+> reject the first such transaction and stop following the chain. Nothing to configure: replace the binary
+> and restart; your data directory is kept. Details: [NATIVE-VALUE-AND-WBOING.md](NATIVE-VALUE-AND-WBOING.md).
+
+**`testnet-v0.1.17` or newer was required before height 1050.** At block **1050** native BOING switches to
+**18 decimals** (1 BOING = 10^18 base units): every balance, stake, pending unbond and validator bond is
+multiplied by 10^18 once, fees become `gas_used × 10^12` base units (a transfer costs 0.021 BOING) and the
+bond, name rent and faucet amounts are charged in base units. Older releases compute a different state
+root at 1050 and stop following the chain. Nothing to configure: replace the binary and restart; your data
+directory is kept. Details: [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md).
 
 **`testnet-v0.1.16` or newer was required before height 1000.** Older releases cannot follow the chain: from height 900 transactions must be signed
 with the chain id (v2) and failed transactions pay a fee; from height 920 blocks carry a signature per

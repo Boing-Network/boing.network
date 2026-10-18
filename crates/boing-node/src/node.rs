@@ -1076,6 +1076,7 @@ impl BoingNode {
         let exec_ctx = boing_execution::VmExecutionContext {
             block_height: height.saturating_add(1),
             block_timestamp: ts,
+            native_value: false, // set by the VM from the height
         };
         if let Ok(out) = vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
             let need = self.executor.network_fee_at(
@@ -1115,6 +1116,7 @@ impl BoingNode {
         let exec_ctx = boing_execution::VmExecutionContext {
             block_height: self.chain.height().saturating_add(1),
             block_timestamp: 0,
+            native_value: false, // set by the VM from the height
         };
         let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
@@ -1146,6 +1148,7 @@ impl BoingNode {
         let exec_ctx = boing_execution::VmExecutionContext {
             block_height: self.chain.height().saturating_add(1),
             block_timestamp: 0,
+            native_value: false, // set by the VM from the height
         };
         let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
@@ -1220,6 +1223,7 @@ impl BoingNode {
         vm.set_registration_proof_rule(chain_id, from);
         vm.set_security_v4_from(self.executor.vm().security_v4_from());
         vm.set_base_units_from(self.executor.vm().base_units_from());
+        vm.set_native_value_from(self.executor.vm().native_value_from());
         vm
     }
 
@@ -1233,8 +1237,30 @@ impl BoingNode {
         p
     }
 
+    /// Native-value rules for a tx that would land in the next block: deploy QA accepts the new
+    /// opcodes only from the activation height, and value-carrying calls are rejected before it.
+    fn precheck_native_value_tx(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
+        let next = self.chain.height().saturating_add(1);
+        let active = self.executor.native_value_active(next);
+        self.mempool.set_native_value_opcodes(active);
+        let carries_value = match &signed.tx.payload {
+            TransactionPayload::ContractCallWithValue { .. } => true,
+            TransactionPayload::Batch { calls } => calls
+                .iter()
+                .any(|c| matches!(c, boing_primitives::BatchCall::ContractCallWithValue { .. })),
+            _ => false,
+        };
+        if carries_value && !active {
+            return Err(MempoolError::NativeValueNotActive {
+                from: self.executor.vm().native_value_from(),
+            });
+        }
+        Ok(())
+    }
+
     pub fn submit_transaction(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
         self.refresh_tx_sig_policy();
+        self.precheck_native_value_tx(&signed)?;
         self.precheck_open_validator_tx(&signed)?;
         self.precheck_name_tx(&signed)?;
         self.precheck_sender_can_pay_fee(&signed)?;

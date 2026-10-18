@@ -353,7 +353,7 @@ mod tests {
             let cp = self.st.checkpoint();
             let code = self.st.get_contract_code(&to).unwrap().clone();
             let mut it = Interpreter::new(code, 40_000_000);
-            let ctx = VmExecutionContext { block_height: self.height, block_timestamp: 0 };
+            let ctx = VmExecutionContext { block_height: self.height, block_timestamp: 0, native_value: false };
             match it.run_with_qa(who, to, cd, &mut self.st, &RuleRegistry::new(), ctx) {
                 Ok(_) => Some(it.return_data.clone().unwrap_or_default()),
                 Err(_) => {
