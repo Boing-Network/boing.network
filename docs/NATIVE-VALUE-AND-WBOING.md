@@ -99,6 +99,24 @@ token -> BOING: Batch [ ContractCall(token, approve(pool, amount)),
 
 `withdraw_all` also unwraps any wBOING the signer already held; wallets show this in the approval.
 
+## Testnet deployment (chain 6913)
+
+Activated at height **1150** (`testnet-v0.1.18`, both public nodes upgraded before the height; faucet
+transfers crossed 1149 -> 1153 with both nodes agreeing). Deployed with `scripts/deploy-native-value-dex.mjs`
+from the DEX deployer `0x8079f30559c02c5fe087c9ad1bc3b751a29de35992f3f8431734243e825f696e`:
+
+| Contract | Address | Tx (block) |
+| --- | --- | --- |
+| wBOING | `0x35555ffee114ba1698dcb6cd5f6d0ce56bf264dc6f386991c00cab22020d9c55` | `0xa07d5296ad00d036d126e3069e46604f944bac8455c47c638fd4ee994e79cea7` (1154) |
+| v10 pool BOING/USDC | `0x23e9b02c3ee1600197e1a3d1c08feaa758b967f7ff1513f62991257a3b970069` | registered `0x36e9d651735ae5f0a2a539603f17e1d5e8eeced1ceaf2e7da5ab6ec73b582a25` (1158) |
+| v10 pool BOING/tBOING | `0xf53a856083e615e20257707ede47acdd79b63a058733ba9694b2268e141f573a` | registered `0x37c99d36c62a4b16742a1212ca0218c833eba9c065e6d520df5c0f3675adbe2c` (1161) |
+
+Both pools were seeded with 10 BOING + 1,000 USDC / 1,000 tBOING (first wrap of 20 BOING:
+`0xf960eed9f2e1b18849afc6776416ff1d5f9ce0209e4b963597df454d0a309f09`, block 1155). Live single-signature
+swaps through boing.finance: 1 BOING -> 90 USDC `0x96fdbd8d1389c5bf6bb18bbfc7c9d13f6dd8468465cc1d489dc5f73c8adbc5da`
+(block 1162) and 90 USDC -> 0.979979 BOING `0x00ccf01c530e8d1242afbc92a4c3106e6731d40188b05ff7261dd270d18947ac`
+(block 1163).
+
 ## Tests
 
 - `cargo test -p boing-execution --test native_value`: value transfer, revert refunds, insufficient
