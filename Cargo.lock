@@ -643,6 +643,7 @@ dependencies = [
  "dirs 5.0.1",
  "ed25519-dalek 2.2.0",
  "hex",
+ "num-bigint",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

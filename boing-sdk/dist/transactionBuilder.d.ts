@@ -33,6 +33,16 @@ export interface BuildContractCallInput {
     };
 }
 export declare function buildContractCallTransaction(input: BuildContractCallInput): TransactionInput;
+export interface BuildContractCallWithValueInput extends BuildContractCallInput {
+    /** Native BOING sent with the call, in base units (1 BOING = 10^18). */
+    value: bigint;
+}
+/**
+ * Contract call carrying native BOING (`TransactionPayload::ContractCallWithValue`). The value moves
+ * to the contract before it runs and is refunded if the call fails. Nodes reject it before the
+ * native-value activation height (testnet 1150). Default access list: sender + contract.
+ */
+export declare function buildContractCallWithValueTransaction(input: BuildContractCallWithValueInput): TransactionInput;
 /** One step of {@link buildBatchTransaction} (hex addresses). */
 export type BuildBatchCall = {
     kind: 'transfer';
@@ -42,6 +52,13 @@ export type BuildBatchCall = {
     kind: 'contractCall';
     contractHex: string;
     calldata: Uint8Array;
+}
+/** Native-value rules (testnet height 1150+): sends `value` base units with the call. */
+ | {
+    kind: 'contractCallWithValue';
+    contractHex: string;
+    calldata: Uint8Array;
+    value: bigint;
 };
 export interface BuildBatchInput {
     nonce: bigint;

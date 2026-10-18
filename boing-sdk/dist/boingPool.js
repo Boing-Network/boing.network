@@ -28,6 +28,8 @@ export const boingPoolHasRecipientSelectors = (v) => v >= 5;
 export const boingPoolFeeOnInput = (v) => v >= 7;
 /** v8 pulls deposits / swap input via reference-token v2 `transfer_from` (needs `approve`). */
 export const boingPoolPullsTokens = (v) => v >= 8;
+/** v10 = v9 with u128 amounts, reserves and LP supply (18-decimal tokens such as wBOING). */
+export const boingPoolU128Amounts = (v) => v >= 10;
 const withDeadline = (cd, deadline) => {
     if (deadline < 0n || deadline >= 1n << 64n)
         throw new RangeError('deadline must fit in u64');
@@ -90,11 +92,13 @@ export function boingPoolEffectiveFeeBps(version, storedFeeBps) {
     return !boingPoolHasStorageFee(version) || storedFeeBps === 0n ? BigInt(NATIVE_CP_SWAP_FEE_BPS) : storedFeeBps;
 }
 const U64_MAX = (1n << 64n) - 1n;
+const U128_MAX = (1n << 128n) - 1n;
 /** Quote `amount_out` exactly as the pool bytecode computes it for `version`. */
 export function quoteBoingPoolAmountOut(version, reserveIn, reserveOut, amountIn, feeBps) {
+    const max = boingPoolU128Amounts(version) ? U128_MAX : U64_MAX;
     for (const [v, w] of [[reserveIn, 'reserve'], [reserveOut, 'reserve'], [amountIn, 'amountIn']]) {
-        if (v < 0n || v > U64_MAX)
-            throw new RangeError(`${w} exceeds u64 (pool ledger limit)`);
+        if (v < 0n || v > max)
+            throw new RangeError(`${w} exceeds ${max === U64_MAX ? 'u64' : 'u128'} (pool ledger limit)`);
     }
     return boingPoolFeeOnInput(version)
         ? constantProductAmountOutFeeOnInputWithFeeBps(reserveIn, reserveOut, amountIn, feeBps)

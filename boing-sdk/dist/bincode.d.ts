@@ -28,11 +28,15 @@ export declare const PayloadVariant: {
     readonly NameSetTarget: 17;
     readonly NameSetPrimary: 18;
     readonly NameRelease: 19;
+    /** Contract call carrying native BOING (`value`, base units). Testnet: from height 1150. */
+    readonly ContractCallWithValue: 20;
 };
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
 export declare const BatchCallVariant: {
     readonly Transfer: 0;
     readonly ContractCall: 1;
+    /** Contract call step carrying native BOING (testnet height 1150+). */
+    readonly ContractCallWithValue: 2;
 };
 /** Protocol cap on steps in one batch (`boing_primitives::MAX_BATCH_CALLS`). */
 export declare const MAX_BATCH_CALLS = 16;
@@ -46,6 +50,11 @@ export type BatchCallInput = {
     kind: 'contractCall';
     contract: Uint8Array;
     calldata: Uint8Array;
+} | {
+    kind: 'contractCallWithValue';
+    contract: Uint8Array;
+    calldata: Uint8Array;
+    value: bigint;
 };
 /** Throws with the same reasons the node uses (`BatchValidationError`). */
 export declare function validateBatchCalls(calls: BatchCallInput[]): void;
@@ -73,6 +82,13 @@ export type TransactionPayloadInput = {
     kind: 'contractCall';
     contract: Uint8Array;
     calldata: Uint8Array;
+}
+/** Native-value rules (testnet height 1150+): moves `value` base units to the contract before it runs. */
+ | {
+    kind: 'contractCallWithValue';
+    contract: Uint8Array;
+    calldata: Uint8Array;
+    value: bigint;
 } | {
     kind: 'contractDeploy';
     bytecode: Uint8Array;

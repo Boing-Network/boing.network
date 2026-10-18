@@ -83,10 +83,42 @@ export function buildContractCallTransaction(input: BuildContractCallInput): Tra
   };
 }
 
+export interface BuildContractCallWithValueInput extends BuildContractCallInput {
+  /** Native BOING sent with the call, in base units (1 BOING = 10^18). */
+  value: bigint;
+}
+
+/**
+ * Contract call carrying native BOING (`TransactionPayload::ContractCallWithValue`). The value moves
+ * to the contract before it runs and is refunded if the call fails. Nodes reject it before the
+ * native-value activation height (testnet 1150). Default access list: sender + contract.
+ */
+export function buildContractCallWithValueTransaction(
+  input: BuildContractCallWithValueInput,
+): TransactionInput {
+  const sender = validateHex32(input.senderHex).toLowerCase();
+  const contract = validateHex32(input.contractHex).toLowerCase();
+  const read = input.accessList?.read ?? [sender, contract];
+  const write = input.accessList?.write ?? [sender, contract];
+  return {
+    nonce: input.nonce,
+    sender: hexToAccountId(sender),
+    payload: {
+      kind: 'contractCallWithValue',
+      contract: hexToAccountId(contract),
+      calldata: input.calldata,
+      value: input.value,
+    },
+    accessList: { read: accountVec(read), write: accountVec(write) },
+  };
+}
+
 /** One step of {@link buildBatchTransaction} (hex addresses). */
 export type BuildBatchCall =
   | { kind: 'transfer'; toHex: string; amount: bigint }
-  | { kind: 'contractCall'; contractHex: string; calldata: Uint8Array };
+  | { kind: 'contractCall'; contractHex: string; calldata: Uint8Array }
+  /** Native-value rules (testnet height 1150+): sends `value` base units with the call. */
+  | { kind: 'contractCallWithValue'; contractHex: string; calldata: Uint8Array; value: bigint };
 
 export interface BuildBatchInput {
   nonce: bigint;
@@ -104,15 +136,15 @@ export interface BuildBatchInput {
  */
 export function buildBatchTransaction(input: BuildBatchInput): TransactionInput {
   const sender = validateHex32(input.senderHex);
-  const calls: BatchCallInput[] = input.calls.map((c) =>
-    c.kind === 'transfer'
-      ? { kind: 'transfer', to: hexToAccountId(validateHex32(c.toHex)), amount: c.amount }
-      : {
-          kind: 'contractCall',
-          contract: hexToAccountId(validateHex32(c.contractHex)),
-          calldata: c.calldata,
-        },
-  );
+  const calls: BatchCallInput[] = input.calls.map((c): BatchCallInput => {
+    if (c.kind === 'transfer') {
+      return { kind: 'transfer', to: hexToAccountId(validateHex32(c.toHex)), amount: c.amount };
+    }
+    const contract = hexToAccountId(validateHex32(c.contractHex));
+    return c.kind === 'contractCallWithValue'
+      ? { kind: 'contractCallWithValue', contract, calldata: c.calldata, value: c.value }
+      : { kind: 'contractCall', contract, calldata: c.calldata };
+  });
   validateBatchCalls(calls);
   let read: string[];
   let write: string[];

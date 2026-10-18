@@ -517,6 +517,7 @@ export type { TransactionInput, TransactionPayloadInput, BatchCallInput } from '
 export {
   buildTransferTransaction,
   buildContractCallTransaction,
+  buildContractCallWithValueTransaction,
   buildDeployWithPurposeTransaction,
   buildBatchTransaction,
   nodeSupportsNativeBatch,
@@ -532,7 +533,7 @@ export {
   configureSigningFromNode,
   signingHashFor,
 } from './transactionBuilder.js';
-export type { SignOptions } from './transactionBuilder.js';
+export type { SignOptions, BuildContractCallWithValueInput } from './transactionBuilder.js';
 export type { BuildBatchInput, BuildBatchCall, BuildTransferInput, BuildContractCallInput, BuildDeployWithPurposeInput, Ed25519SecretKey32 } from './transactionBuilder.js';
 export {
   predictCreate2ContractAddress,
@@ -1026,3 +1027,4 @@ export * from './boingNames.js';
 export * from './interfaceRegistry.js';
 export * from './interfaceBlobStore.js';
 export { DEFAULT_INTERFACE_REGISTRY_BYTECODE_HEX } from './defaultInterfaceRegistryBytecodeHex.js';
+export * from './nativeValue.js';

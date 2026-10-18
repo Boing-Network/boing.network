@@ -49,19 +49,43 @@ export function buildContractCallTransaction(input) {
     };
 }
 /**
+ * Contract call carrying native BOING (`TransactionPayload::ContractCallWithValue`). The value moves
+ * to the contract before it runs and is refunded if the call fails. Nodes reject it before the
+ * native-value activation height (testnet 1150). Default access list: sender + contract.
+ */
+export function buildContractCallWithValueTransaction(input) {
+    const sender = validateHex32(input.senderHex).toLowerCase();
+    const contract = validateHex32(input.contractHex).toLowerCase();
+    const read = input.accessList?.read ?? [sender, contract];
+    const write = input.accessList?.write ?? [sender, contract];
+    return {
+        nonce: input.nonce,
+        sender: hexToAccountId(sender),
+        payload: {
+            kind: 'contractCallWithValue',
+            contract: hexToAccountId(contract),
+            calldata: input.calldata,
+            value: input.value,
+        },
+        accessList: { read: accountVec(read), write: accountVec(write) },
+    };
+}
+/**
  * Native atomic batch (`TransactionPayload::Batch`): BOING transfers and/or contract calls
  * (e.g. token `transfer`, NFT transfer calldata) under one signature and one nonce.
  * Requires nodes running the batch-capable release.
  */
 export function buildBatchTransaction(input) {
     const sender = validateHex32(input.senderHex);
-    const calls = input.calls.map((c) => c.kind === 'transfer'
-        ? { kind: 'transfer', to: hexToAccountId(validateHex32(c.toHex)), amount: c.amount }
-        : {
-            kind: 'contractCall',
-            contract: hexToAccountId(validateHex32(c.contractHex)),
-            calldata: c.calldata,
-        });
+    const calls = input.calls.map((c) => {
+        if (c.kind === 'transfer') {
+            return { kind: 'transfer', to: hexToAccountId(validateHex32(c.toHex)), amount: c.amount };
+        }
+        const contract = hexToAccountId(validateHex32(c.contractHex));
+        return c.kind === 'contractCallWithValue'
+            ? { kind: 'contractCallWithValue', contract, calldata: c.calldata, value: c.value }
+            : { kind: 'contractCall', contract, calldata: c.calldata };
+    });
     validateBatchCalls(calls);
     let read;
     let write;

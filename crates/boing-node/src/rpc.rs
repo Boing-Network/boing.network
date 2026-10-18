@@ -3074,7 +3074,14 @@ async fn dispatch_jsonrpc_request(
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             let n = node.read().await;
-            let registry = n.mempool.qa_registry().clone();
+            // A deploy checked now lands in the next block: allow the native-value opcodes once they
+            // are active there (same rule as mempool admission and execution).
+            let next = n.chain.height().saturating_add(1);
+            let registry = n
+                .mempool
+                .qa_registry()
+                .clone()
+                .with_native_value_opcodes(n.executor.native_value_active(next));
             drop(n);
             let result = check_contract_deploy_full_with_metadata(
                 &bytecode,

@@ -30,16 +30,25 @@ export const PayloadVariant = {
     NameSetTarget: 17,
     NameSetPrimary: 18,
     NameRelease: 19,
+    /** Contract call carrying native BOING (`value`, base units). Testnet: from height 1150. */
+    ContractCallWithValue: 20,
 };
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
 export const BatchCallVariant = {
     Transfer: 0,
     ContractCall: 1,
+    /** Contract call step carrying native BOING (testnet height 1150+). */
+    ContractCallWithValue: 2,
 };
 /** Protocol cap on steps in one batch (`boing_primitives::MAX_BATCH_CALLS`). */
 export const MAX_BATCH_CALLS = 16;
 /** Protocol cap on summed contract-call calldata in one batch (`MAX_BATCH_CALLDATA_BYTES`). */
 export const MAX_BATCH_CALLDATA_BYTES = 64 * 1024;
+const U128_LIMIT = 1n << 128n;
+function checkValue(v) {
+    if (v < 0n || v >= U128_LIMIT)
+        throw new Error('value must fit u128');
+}
 /** Throws with the same reasons the node uses (`BatchValidationError`). */
 export function validateBatchCalls(calls) {
     if (calls.length === 0)
@@ -57,9 +66,13 @@ export function validateBatchCalls(calls) {
         }
         else {
             calldata += c.calldata.length;
+            if (c.kind === 'contractCallWithValue') {
+                checkValue(c.value);
+                total += c.value;
+            }
         }
     }
-    if (total >= 1n << 128n)
+    if (total >= U128_LIMIT)
         throw new Error('batch transfer total overflows u128');
     if (calldata > MAX_BATCH_CALLDATA_BYTES) {
         throw new Error(`batch calldata is ${calldata} bytes (max ${MAX_BATCH_CALLDATA_BYTES})`);
@@ -73,6 +86,10 @@ function encodeBatchCall(c) {
     }
     if (c.contract.length !== 32)
         throw new Error('batch contract must be 32 bytes');
+    if (c.kind === 'contractCallWithValue') {
+        checkValue(c.value);
+        return concatBytes(writeU32Le(BatchCallVariant.ContractCallWithValue), c.contract, encodeByteVec(c.calldata), writeU128Le(c.value));
+    }
     return concatBytes(writeU32Le(BatchCallVariant.ContractCall), c.contract, encodeByteVec(c.calldata));
 }
 export function concatBytes(...parts) {
@@ -162,6 +179,9 @@ export function encodeTransactionPayload(payload) {
             return concatBytes(writeU32Le(PayloadVariant.Transfer), payload.to, writeU128Le(payload.amount));
         case 'contractCall':
             return concatBytes(writeU32Le(PayloadVariant.ContractCall), payload.contract, encodeByteVec(payload.calldata));
+        case 'contractCallWithValue':
+            checkValue(payload.value);
+            return concatBytes(writeU32Le(PayloadVariant.ContractCallWithValue), need32(payload.contract, 'contract'), encodeByteVec(payload.calldata), writeU128Le(payload.value));
         case 'contractDeploy':
             return concatBytes(writeU32Le(PayloadVariant.ContractDeploy), encodeByteVec(payload.bytecode), encodeOptionFixed32(payload.create2Salt ?? null));
         case 'contractDeployWithPurpose':

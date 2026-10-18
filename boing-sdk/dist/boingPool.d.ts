@@ -14,7 +14,7 @@ import { type Ed25519SecretKey32 } from './transactionBuilder.js';
 /** QA purpose category for pool deploys (CLI `POOL_PURPOSE`). */
 export declare const BOING_POOL_PURPOSE = "dapp";
 /** v9 = v8 whose swap returns `amount_out` (custody-router intermediate hops). */
-export type BoingPoolVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export type BoingPoolVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 export declare const BOING_POOL_DEFAULT_VERSION: BoingPoolVersion;
 export declare const boingPoolHasTokenHooks: (v: BoingPoolVersion) => boolean;
 export declare const boingPoolHasStorageFee: (v: BoingPoolVersion) => boolean;
@@ -23,6 +23,8 @@ export declare const boingPoolHasRecipientSelectors: (v: BoingPoolVersion) => bo
 export declare const boingPoolFeeOnInput: (v: BoingPoolVersion) => boolean;
 /** v8 pulls deposits / swap input via reference-token v2 `transfer_from` (needs `approve`). */
 export declare const boingPoolPullsTokens: (v: BoingPoolVersion) => boolean;
+/** v10 = v9 with u128 amounts, reserves and LP supply (18-decimal tokens such as wBOING). */
+export declare const boingPoolU128Amounts: (v: BoingPoolVersion) => boolean;
 /** v8 calldata: the v1..v7 layout plus a trailing deadline word (`0` = none). */
 export declare const encodeBoingPoolV8SwapCalldata: (dir: bigint, amountIn: bigint, minOut: bigint, deadline?: bigint) => Uint8Array<ArrayBufferLike>;
 export declare const encodeBoingPoolV8SwapToCalldata: (dir: bigint, amountIn: bigint, minOut: bigint, toHex: string, deadline?: bigint) => Uint8Array<ArrayBufferLike>;

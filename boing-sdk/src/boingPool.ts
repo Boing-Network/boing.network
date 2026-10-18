@@ -52,7 +52,7 @@ import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 export const BOING_POOL_PURPOSE = 'dapp';
 
 /** v9 = v8 whose swap returns `amount_out` (custody-router intermediate hops). */
-export type BoingPoolVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export type BoingPoolVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 export const BOING_POOL_DEFAULT_VERSION: BoingPoolVersion = 8;
 
 export const boingPoolHasTokenHooks = (v: BoingPoolVersion): boolean => v === 2 || v >= 4;
@@ -62,6 +62,8 @@ export const boingPoolHasRecipientSelectors = (v: BoingPoolVersion): boolean => 
 export const boingPoolFeeOnInput = (v: BoingPoolVersion): boolean => v >= 7;
 /** v8 pulls deposits / swap input via reference-token v2 `transfer_from` (needs `approve`). */
 export const boingPoolPullsTokens = (v: BoingPoolVersion): boolean => v >= 8;
+/** v10 = v9 with u128 amounts, reserves and LP supply (18-decimal tokens such as wBOING). */
+export const boingPoolU128Amounts = (v: BoingPoolVersion): boolean => v >= 10;
 
 const withDeadline = (cd: Uint8Array, deadline: bigint): Uint8Array => {
   if (deadline < 0n || deadline >= 1n << 64n) throw new RangeError('deadline must fit in u64');
@@ -146,6 +148,7 @@ export function boingPoolEffectiveFeeBps(version: BoingPoolVersion, storedFeeBps
 }
 
 const U64_MAX = (1n << 64n) - 1n;
+const U128_MAX = (1n << 128n) - 1n;
 
 /** Quote `amount_out` exactly as the pool bytecode computes it for `version`. */
 export function quoteBoingPoolAmountOut(
@@ -155,8 +158,9 @@ export function quoteBoingPoolAmountOut(
   amountIn: bigint,
   feeBps: bigint,
 ): bigint {
+  const max = boingPoolU128Amounts(version) ? U128_MAX : U64_MAX;
   for (const [v, w] of [[reserveIn, 'reserve'], [reserveOut, 'reserve'], [amountIn, 'amountIn']] as const) {
-    if (v < 0n || v > U64_MAX) throw new RangeError(`${w} exceeds u64 (pool ledger limit)`);
+    if (v < 0n || v > max) throw new RangeError(`${w} exceeds ${max === U64_MAX ? 'u64' : 'u128'} (pool ledger limit)`);
   }
   return boingPoolFeeOnInput(version)
     ? constantProductAmountOutFeeOnInputWithFeeBps(reserveIn, reserveOut, amountIn, feeBps)
