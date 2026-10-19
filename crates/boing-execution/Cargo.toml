@@ -33,6 +33,10 @@ name = "dump_linked_nft_token_registry"
 path = "examples/dump_linked_nft_token_registry.rs"
 
 [[example]]
+name = "dump_linked_nft_token_registry_v2"
+path = "examples/dump_linked_nft_token_registry_v2.rs"
+
+[[example]]
 name = "dump_builder_attestation_registry"
 path = "examples/dump_builder_attestation_registry.rs"
 

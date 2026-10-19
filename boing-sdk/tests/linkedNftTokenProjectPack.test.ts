@@ -10,6 +10,7 @@ import {
 } from '../src/linkedNftTokenRegistry.js';
 import {
   LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER,
+  LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER_CLAIM_AT_DEPLOY,
   buildLinkedNftTokenProjectPack,
 } from '../src/linkedNftTokenProjectPack.js';
 
@@ -76,6 +77,24 @@ describe('buildLinkedNftTokenProjectPack', () => {
     expect(regBytes[31]).toBe(SELECTOR_LINKED_NFT_TOKEN_REGISTER_LINK);
 
     expect(pack.submitOrder).toEqual([...LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER]);
+  });
+
+  it('claimAtDeploy: only register_link is left (assets claim themselves in their init code)', () => {
+    const pack = buildLinkedNftTokenProjectPack({
+      deployerHex: DEPLOYER,
+      collectionName: 'A',
+      collectionSymbol: 'A',
+      tokenName: 'B',
+      tokenSymbol: 'B',
+      collectionSaltHex: COLLECTION_SALT,
+      registryHex32: REG,
+      claimAtDeploy: true,
+    });
+    expect(pack.registerFlowTxs).toHaveLength(1);
+    expect(pack.registerFlowTxs[0]!.calldata).toBe(
+      encodeLinkedNftTokenRegisterLinkCalldataHex(pack.predictedCollectionAddress, pack.predictedTokenAddress),
+    );
+    expect(pack.submitOrder).toEqual([...LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER_CLAIM_AT_DEPLOY]);
   });
 
   it('defaults registry to canonical public testnet when omitted', () => {

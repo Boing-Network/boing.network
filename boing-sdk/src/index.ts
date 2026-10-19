@@ -715,6 +715,7 @@ export {
   type LinkedNftTokenPairDeploys,
 } from './linkedNftToken.js';
 export { DEFAULT_LINKED_NFT_TOKEN_REGISTRY_BYTECODE_HEX } from './defaultLinkedNftTokenRegistryBytecodeHex.js';
+export { DEFAULT_LINKED_NFT_TOKEN_REGISTRY_V2_RUNTIME_BYTECODE_HEX } from './defaultLinkedNftTokenRegistryV2BytecodeHex.js';
 export {
   CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX,
   SELECTOR_LINKED_NFT_TOKEN_CLAIM_ASSET,
@@ -751,6 +752,20 @@ export {
   decodeLinkedNftTokenLinksCountReturnData,
   decodeLinkedNftTokenGetLinkAtReturnData,
   buildLinkedNftTokenRegisterFlowTxs,
+  CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_V1_HEX,
+  SELECTOR_LINKED_NFT_TOKEN_CLAIM_SELF,
+  SELECTOR_LINKED_NFT_TOKEN_GET_ASSET_DEPLOYER,
+  LINKED_NFT_TOKEN_TOPIC_CLAIM_V2_HEX,
+  LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V2_HEX,
+  linkedNftTokenClaimerStorageKeyHex,
+  linkedNftTokenDeployerStorageKeyHex,
+  encodeLinkedNftTokenClaimSelfCalldata,
+  encodeLinkedNftTokenClaimSelfCalldataHex,
+  encodeLinkedNftTokenGetAssetDeployerCalldata,
+  encodeLinkedNftTokenGetAssetDeployerCalldataHex,
+  buildLinkedNftTokenClaimSelfInitSnippetHex,
+  resolveLinkedNftTokenRegistryV2BytecodeHex,
+  buildLinkedNftTokenRegistryV2DeployMetaTx,
 } from './linkedNftTokenRegistry.js';
 export { DEFAULT_BUILDER_ATTESTATION_REGISTRY_BYTECODE_HEX } from './defaultBuilderAttestationRegistryBytecodeHex.js';
 export {
@@ -792,6 +807,7 @@ export {
 } from './builderAttestationRegistry.js';
 export {
   LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER,
+  LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER_CLAIM_AT_DEPLOY,
   buildLinkedNftTokenProjectPack,
   type LinkedNftTokenProjectPackSubmitStep,
   type BuildLinkedNftTokenProjectPackInput,

@@ -4,7 +4,18 @@
  * See `docs/BOING-LINKED-NFT-TOKEN.md`.
  *
  * **Public testnet** registry AccountId: {@link CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX}
- * on `https://testnet-rpc.boing.network/` (CREATE2 salt `BOING_NFT_TOKEN_LINK_REG_V1`, selectors `0xE0`–`0xE6`).
+ * (v2, CREATE2 salt `BOING_NFT_TOKEN_LINK_REG_V2`, selectors `0xE0`–`0xE8`).
+ *
+ * **v2 (current)** — only an asset's creator can claim it (`boing_execution::linked_nft_token_registry_v2`):
+ * - the asset's own init code calls `claim_self(claimer)` ({@link SELECTOR_LINKED_NFT_TOKEN_CLAIM_SELF}) inside
+ *   the deploy tx, so the creator is the claimer from the first block (see
+ *   {@link buildLinkedNftTokenClaimSelfInitSnippetHex});
+ * - `claim_asset(asset)` only works for the deployer recorded by the registry's own deploy (assets that
+ *   existed when v2 went live), or as a no-op for the current claimer;
+ * - failed writes fail the transaction (v1 silently did nothing).
+ *
+ * v1 ({@link CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_V1_HEX}) let the first caller claim any
+ * AccountId. Its claims and links were copied into v2 when v2 was deployed.
  */
 
 import { mergeAccessListWithSimulation } from './accessList.js';
@@ -14,15 +25,25 @@ import {
   type ContractDeployMetaTxObject,
 } from './canonicalDeployArtifacts.js';
 import { DEFAULT_LINKED_NFT_TOKEN_REGISTRY_BYTECODE_HEX } from './defaultLinkedNftTokenRegistryBytecodeHex.js';
+import { DEFAULT_LINKED_NFT_TOKEN_REGISTRY_V2_RUNTIME_BYTECODE_HEX } from './defaultLinkedNftTokenRegistryV2BytecodeHex.js';
 import { bytesToHex, ensureHex, hexToBytes, validateHex32 } from './hex.js';
 import { decodeBoingStorageWordU128 } from './nativeAmmPool.js';
 import type { SimulateResult } from './types.js';
 
 /**
- * Live linked NFT↔token registry on **public Boing testnet** (`https://testnet-rpc.boing.network/`).
- * Deployed with salt `BOING_NFT_TOKEN_LINK_REG_V1` after PR #42 (`924c0ba`). Mainnet: not deployed.
+ * Live linked NFT↔token registry on **public Boing testnet** (`https://testnet-rpc.boing.network/`):
+ * **v2** (creator-only claims), CREATE2 salt `BOING_NFT_TOKEN_LINK_REG_V2`, seeded with the v1 claims,
+ * links and a deployer record for every contract that existed at the copy height. Mainnet: not deployed.
  */
 export const CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX = validateHex32(
+  '0xf704485ad29f56bb6516ac822fcf9ca8fcb6c4266e22c9ed7f9c6908668655dd',
+);
+
+/**
+ * Previous (v1) testnet registry: first caller of `claim_asset` became the claimer. Read-only history;
+ * do not send new claims or links there.
+ */
+export const CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_V1_HEX = validateHex32(
   '0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8',
 );
 
@@ -40,6 +61,10 @@ export const SELECTOR_LINKED_NFT_TOKEN_GET_LINK_AT = 0xe4;
 export const SELECTOR_LINKED_NFT_TOKEN_GET_ASSET_CLAIMER = 0xe5;
 /** `transfer_asset_claimer(asset, new_claimer)` — **96** bytes. */
 export const SELECTOR_LINKED_NFT_TOKEN_TRANSFER_ASSET_CLAIMER = 0xe6;
+/** v2: `claim_self(claimer)` — **64** bytes; `CALLER` is the asset (call it from the asset's init code). */
+export const SELECTOR_LINKED_NFT_TOKEN_CLAIM_SELF = 0xe7;
+/** v2: `get_asset_deployer(asset)` — **64** bytes; seeded deployer record (zero if none). */
+export const SELECTOR_LINKED_NFT_TOKEN_GET_ASSET_DEPLOYER = 0xe8;
 
 export const LINKED_NFT_TOKEN_REGISTRY_MAX_LINKS = 4096;
 
@@ -60,6 +85,41 @@ export const LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V1_HEX = (() => {
   u8.set(new TextEncoder().encode('BOING_NFT_TOKEN_LINK_REG_V1'));
   return bytesToHex(u8);
 })();
+
+/** v2: `Log2` topic0 after a claim (topic1 = asset, data = claimer). */
+export const LINKED_NFT_TOKEN_TOPIC_CLAIM_V2_HEX = (() => {
+  const u8 = new Uint8Array(32);
+  u8.set(new TextEncoder().encode('BOING_NFT_TOKEN_LINK_CLM2'));
+  return bytesToHex(u8);
+})();
+
+export const LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V2_HEX = (() => {
+  const u8 = new Uint8Array(32);
+  u8.set(new TextEncoder().encode('BOING_NFT_TOKEN_LINK_REG_V2'));
+  return bytesToHex(u8);
+})();
+
+function asciiWord(text: string): Uint8Array {
+  const u8 = new Uint8Array(32);
+  u8.set(new TextEncoder().encode(text));
+  return u8;
+}
+
+function xorWords(a: Uint8Array, b: Uint8Array): Uint8Array {
+  const o = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) o[i] = a[i]! ^ b[i]!;
+  return o;
+}
+
+/** Claimer slot of `asset` in the registry storage (v1 and v2): `asset ^ "BOING_LNK_CLAIMER_V1"`. */
+export function linkedNftTokenClaimerStorageKeyHex(assetHex32: string): string {
+  return bytesToHex(xorWords(hexToBytes(validateHex32(assetHex32)), asciiWord('BOING_LNK_CLAIMER_V1')));
+}
+
+/** v2 deployer-record slot of `asset`: `asset ^ "BOING_LNK_DEPLOYER_V2"`. */
+export function linkedNftTokenDeployerStorageKeyHex(assetHex32: string): string {
+  return bytesToHex(xorWords(hexToBytes(validateHex32(assetHex32)), asciiWord('BOING_LNK_DEPLOYER_V2')));
+}
 
 /** Count storage key (`linked_nft_token_registry_count_key`). */
 export const LINKED_NFT_TOKEN_REGISTRY_COUNT_KEY_HEX =
@@ -185,6 +245,91 @@ export function encodeLinkedNftTokenTransferAssetClaimerCalldataHex(
   );
 }
 
+export function encodeLinkedNftTokenClaimSelfCalldata(claimerHex32: string): Uint8Array {
+  return concatWords([
+    selectorWord(SELECTOR_LINKED_NFT_TOKEN_CLAIM_SELF),
+    hexToBytes(validateHex32(claimerHex32)),
+  ]);
+}
+
+export function encodeLinkedNftTokenClaimSelfCalldataHex(claimerHex32: string): string {
+  return bytesToHex(encodeLinkedNftTokenClaimSelfCalldata(claimerHex32));
+}
+
+export function encodeLinkedNftTokenGetAssetDeployerCalldata(assetHex32: string): Uint8Array {
+  return concatWords([
+    selectorWord(SELECTOR_LINKED_NFT_TOKEN_GET_ASSET_DEPLOYER),
+    hexToBytes(validateHex32(assetHex32)),
+  ]);
+}
+
+export function encodeLinkedNftTokenGetAssetDeployerCalldataHex(assetHex32: string): string {
+  return bytesToHex(encodeLinkedNftTokenGetAssetDeployerCalldata(assetHex32));
+}
+
+/**
+ * Init-code snippet (hex, no `0x` marker byte) for an **asset** deploy that runs `0xFD` init code:
+ * `CALL registry.claim_self(CALLER)`, so the deploy tx sender becomes the asset's claimer in the same
+ * transaction that creates it. Same bytes as `linked_nft_token_registry_v2_claim_self_init_snippet` in
+ * `boing_execution`. Uses memory `[0, 64)` and leaves the CALL flag on the stack, so place it before the
+ * init writes the runtime to memory. If `registry` has no code the call does nothing.
+ */
+export function buildLinkedNftTokenClaimSelfInitSnippetHex(registryHex32: string): string {
+  const PUSH32 = 0x7f;
+  const MSTORE = 0x52;
+  const CALLER = 0x33;
+  const CALL = 0xf1;
+  const parts: number[] = [];
+  const push = (w: Uint8Array) => {
+    parts.push(PUSH32, ...w);
+  };
+  const num = (n: number) => {
+    const w = new Uint8Array(32);
+    new DataView(w.buffer).setBigUint64(24, BigInt(n), false);
+    return w;
+  };
+  push(selectorWord(SELECTOR_LINKED_NFT_TOKEN_CLAIM_SELF));
+  push(num(0));
+  parts.push(MSTORE, CALLER);
+  push(num(32));
+  parts.push(MSTORE);
+  push(hexToBytes(validateHex32(registryHex32)));
+  push(num(0));
+  push(num(64));
+  push(num(0));
+  push(num(0));
+  parts.push(CALL);
+  return bytesToHex(Uint8Array.from(parts));
+}
+
+/** v2 runtime bytecode (a plain deploy of it is an empty v2 registry for a new network). */
+export function resolveLinkedNftTokenRegistryV2BytecodeHex(opts?: {
+  explicitHex?: string;
+}): `0x${string}` {
+  if (opts?.explicitHex?.trim()) return ensure0xHex(opts.explicitHex);
+  return ensure0xHex(DEFAULT_LINKED_NFT_TOKEN_REGISTRY_V2_RUNTIME_BYTECODE_HEX);
+}
+
+/** Deploy an empty v2 registry (salt `BOING_NFT_TOKEN_LINK_REG_V2`). */
+export function buildLinkedNftTokenRegistryV2DeployMetaTx(input?: {
+  assetName?: string;
+  assetSymbol?: string;
+  purposeCategory?: string;
+  descriptionHashHex?: string;
+  create2SaltHex?: string;
+  bytecodeHexOverride?: string;
+}): ContractDeployMetaTxObject {
+  return buildLinkedNftTokenRegistryDeployMetaTx({
+    ...input,
+    assetName: input?.assetName?.trim() || 'Linked NFT Token Registry v2',
+    assetSymbol: input?.assetSymbol?.trim() || 'LNTR2',
+    create2SaltHex: input?.create2SaltHex ?? LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V2_HEX,
+    bytecodeHexOverride: input?.bytecodeHexOverride?.trim()
+      ? input.bytecodeHexOverride
+      : resolveLinkedNftTokenRegistryV2BytecodeHex(),
+  });
+}
+
 export function resolveLinkedNftTokenRegistryBytecodeHex(opts?: {
   explicitHex?: string;
 }): `0x${string}` {
@@ -278,14 +423,28 @@ export function decodeLinkedNftTokenGetLinkAtReturnData(returnDataHex: string): 
 /**
  * Build Express `contract_call` txs to claim both assets and register one edge.
  * Caller must be (or become) claimer of both AccountIds — typically the joint deployer.
+ *
+ * With `includeClaims: false` only `register_link` is returned: use it when both assets claimed
+ * themselves at deploy (v2 `claim_self` in their init code). On v2 a `claim_asset` by the current
+ * claimer is a no-op, so the default three-tx flow still works for such assets.
  */
 export function buildLinkedNftTokenRegisterFlowTxs(input: {
   senderHex32: string;
   registryHex32: string;
   collectionHex32: string;
   tokenHex32: string;
+  includeClaims?: boolean;
 }): Array<ReturnType<typeof buildLinkedNftTokenRegistryContractCallTx>> {
   const { senderHex32, registryHex32, collectionHex32, tokenHex32 } = input;
+  if (input.includeClaims === false) {
+    return [
+      buildLinkedNftTokenRegistryContractCallTx(
+        senderHex32,
+        registryHex32,
+        encodeLinkedNftTokenRegisterLinkCalldataHex(collectionHex32, tokenHex32),
+      ),
+    ];
+  }
   return [
     buildLinkedNftTokenRegistryContractCallTx(
       senderHex32,

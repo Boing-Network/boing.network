@@ -99,7 +99,7 @@ For **secured** template changes, repeat with `cargo test -p boing-execution` (i
 
 - **Phase B — F2 marketplace:** optional selectors or companion contracts for **binding** royalties ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) § Marketplace).
 
-**Linked NFT ↔ fungible token (enforced):** after separate NFT + token deploys, register the official pair on the on-chain registry (dual claimer). **Public testnet registry AccountId:** `0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8` — see [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) and `boing-sdk` **`CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX`**.
+**Linked NFT ↔ fungible token (enforced):** register the official pair on the on-chain registry (dual claimer; v2: an asset is claimed by its creator from its own deploy init code). **Public testnet registry AccountId (v2):** `0xf704485ad29f56bb6516ac822fcf9ca8fcb6c4266e22c9ed7f9c6908668655dd` (v1 `0xebf9f019…3dd8` retired) — see [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) and `boing-sdk` **`CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX`**.
 
 ---
 

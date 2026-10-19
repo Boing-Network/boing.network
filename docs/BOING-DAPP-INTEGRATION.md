@@ -146,7 +146,7 @@ Keep **paste bytecode** / **description_hash** under **Advanced** only — same 
 
 ### Linked NFT collection ↔ fungible token (enforced)
 
-Official pairs use the **on-chain** registry (not display-only metadata). On public testnet, pin registry AccountId **`0xebf9f0190f415852f90d0e60343126201248ab96273fdbf8acc5fe5fa03c3dd8`** (`CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX`, or env `*_BOING_LINKED_NFT_TOKEN_REGISTRY`). Flow: deploy NFT + token → **`claim_asset`** on both → **`register_link`** (SDK **`buildLinkedNftTokenRegisterFlowTxs`**). Selectors **`0xE0`–`0xE6`**, CREATE2 salt **`BOING_NFT_TOKEN_LINK_REG_V1`**, many-to-many and mutable. Full layout: [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md).
+Official pairs use the **on-chain** registry (not display-only metadata). On public testnet, pin registry AccountId **`0xf704485ad29f56bb6516ac822fcf9ca8fcb6c4266e22c9ed7f9c6908668655dd`** (v2; `CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX`, or env `*_BOING_LINKED_NFT_TOKEN_REGISTRY`). Flow: deploy NFT + token with `0xFD` init code that runs **`claim_self`** (SDK **`buildLinkedNftTokenClaimSelfInitSnippetHex`**), so the creator is the claimer from the deploy tx → **`register_link`** (SDK **`buildLinkedNftTokenRegisterFlowTxs`** with `includeClaims: false`). `claim_asset` only works for the deployer recorded when v2 was deployed (assets that existed before). Selectors **`0xE0`–`0xE8`**, CREATE2 salt **`BOING_NFT_TOKEN_LINK_REG_V2`**, many-to-many and mutable. Full layout: [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md).
 
 ### Builder attestation (on-chain signal)
 

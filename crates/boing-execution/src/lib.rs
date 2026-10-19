@@ -16,6 +16,7 @@ mod native_lp_vault_v2;
 pub use native_lp_vault_v2::*;
 mod native_dex_factory;
 mod linked_nft_token_registry;
+mod linked_nft_token_registry_v2;
 mod builder_attestation_registry;
 mod interface_blob_store;
 pub mod history;
@@ -89,6 +90,14 @@ pub use native_dex_factory::{
     native_dex_factory_triplet_storage_key,
     NATIVE_DEX_FACTORY_CREATE2_SALT_V1, NATIVE_DEX_FACTORY_MAX_PAIRS, NATIVE_DEX_FACTORY_TOPIC_REGISTER,
     SELECTOR_GET_PAIR_AT, SELECTOR_PAIRS_COUNT, SELECTOR_REGISTER_PAIR,
+};
+pub use linked_nft_token_registry_v2::{
+    encode_claim_self_calldata_v2, encode_get_asset_deployer_calldata_v2,
+    linked_nft_token_deployer_storage_key_v2, linked_nft_token_registry_v2_claim_self_init_snippet,
+    linked_nft_token_registry_v2_deploy_bytecode, linked_nft_token_registry_v2_runtime_bytecode,
+    LinkedNftTokenRegistryV2Seed, LINKED_NFT_TOKEN_DEPLOYER_XOR_V2,
+    LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V2, LINKED_NFT_TOKEN_TOPIC_CLAIM_V2,
+    SELECTOR_CLAIM_SELF_V2, SELECTOR_GET_ASSET_DEPLOYER_V2,
 };
 pub use linked_nft_token_registry::{
     encode_claim_asset_calldata, encode_get_asset_claimer_calldata, encode_get_link_at_calldata,

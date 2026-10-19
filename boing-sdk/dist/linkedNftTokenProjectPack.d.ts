@@ -8,6 +8,11 @@ import { type BuildLinkedNftTokenPairDeploysInput, type LinkedNftTokenPairDeploy
 import { buildLinkedNftTokenRegisterFlowTxs } from './linkedNftTokenRegistry.js';
 /** Recommended Express submit order for a project pack (deploy pair, then claim×2, then register). */
 export declare const LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER: readonly ["collectionDeploy", "tokenDeploy", "claimCollection", "claimToken", "registerLink"];
+/**
+ * Submit order when both deploys claim themselves in the v2 registry from their init code
+ * (`claimAtDeploy: true`): no separate claim transactions.
+ */
+export declare const LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER_CLAIM_AT_DEPLOY: readonly ["collectionDeploy", "tokenDeploy", "registerLink"];
 export type LinkedNftTokenProjectPackSubmitStep = (typeof LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER)[number];
 export type BuildLinkedNftTokenProjectPackInput = BuildLinkedNftTokenPairDeploysInput & {
     /**
@@ -20,6 +25,11 @@ export type BuildLinkedNftTokenProjectPackInput = BuildLinkedNftTokenPairDeploys
      * Defaults to {@link BuildLinkedNftTokenPairDeploysInput.deployerHex} (joint deployer).
      */
     senderHex32?: string;
+    /**
+     * Both bytecode overrides already claim themselves in the v2 registry from their init code
+     * ({@link buildLinkedNftTokenClaimSelfInitSnippetHex}); only `register_link` is left to send.
+     */
+    claimAtDeploy?: boolean;
 };
 export type LinkedNftTokenProjectPack = LinkedNftTokenPairDeploys & {
     registryHex32: `0x${string}`;
@@ -27,7 +37,7 @@ export type LinkedNftTokenProjectPack = LinkedNftTokenPairDeploys & {
     /** claim(collection), claim(token), register_link — same as {@link buildLinkedNftTokenRegisterFlowTxs}. */
     registerFlowTxs: ReturnType<typeof buildLinkedNftTokenRegisterFlowTxs>;
     /** Stable hint for wizard progress UI. */
-    submitOrder: typeof LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER;
+    submitOrder: typeof LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER | typeof LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER_CLAIM_AT_DEPLOY;
 };
 /**
  * Build a full **project pack**: two `contract_deploy_meta` txs (NFT + token) plus three
@@ -35,8 +45,8 @@ export type LinkedNftTokenProjectPack = LinkedNftTokenPairDeploys & {
  *
  * Thin composition of {@link buildLinkedNftTokenPairDeploys} and
  * {@link buildLinkedNftTokenRegisterFlowTxs}. Submit deploys first (either order), wait for
- * inclusion, then submit register-flow txs in order — claim soon after deploy so a third party
- * cannot front-run `claim_asset` on your AccountIds.
+ * inclusion, then submit register-flow txs in order. On the v2 registry pass bytecode overrides whose
+ * init code claims the asset (and `claimAtDeploy: true`): nobody else can claim your AccountIds.
  */
 export declare function buildLinkedNftTokenProjectPack(input: BuildLinkedNftTokenProjectPackInput): LinkedNftTokenProjectPack;
 //# sourceMappingURL=linkedNftTokenProjectPack.d.ts.map
