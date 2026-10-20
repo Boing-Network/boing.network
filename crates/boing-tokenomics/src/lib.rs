@@ -254,9 +254,25 @@ pub fn network_fee_amount_in(
         }
         _ => 0,
     };
+    let blob_fee = blob_data_fee(payload, policy);
     gas_fee
         .saturating_add(policy.extra_fixed_fee)
         .saturating_add(bps_fee)
+        .saturating_add(blob_fee)
+}
+
+/// Independent blob data fee from [`NetworkFeePolicy::blob_base_fee_per_kib`] (KiB rounded up).
+fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u128 {
+    if policy.blob_base_fee_per_kib == 0 {
+        return 0;
+    }
+    let size = match payload {
+        TransactionPayload::PutBlob { data, .. } => data.len() as u128,
+        TransactionPayload::BlobAnnounce { size, .. } => *size as u128,
+        _ => return 0,
+    };
+    let kib = size.div_ceil(1024).max(1);
+    kib.saturating_mul(policy.blob_base_fee_per_kib)
 }
 
 /// Fee charged for `gas_used` at the fixed [`GAS_PRICE`].

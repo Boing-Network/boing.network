@@ -419,6 +419,30 @@ async fn main() -> anyhow::Result<()> {
                                 }
                             }
                         }
+                        boing_p2p::P2pEvent::MediaBlobReceived(blob) => {
+                            let n = node_clone.read().await;
+                            if let Some(store) = n.media_blob_store() {
+                                let meta = boing_node::media_blob_store::BlobMetaRecord {
+                                    blob_id: blob.blob_id,
+                                    size: blob.data.len() as u32,
+                                    content_type: blob.content_type.clone(),
+                                    retention: boing_primitives::BlobRetention::Prunable {
+                                        ttl_blocks: 1_000_000,
+                                    },
+                                    publisher: [0u8; 32],
+                                    included_height: n.chain.height(),
+                                    tx_id: [0u8; 32],
+                                };
+                                if let Err(e) = store.put(meta, &blob.data) {
+                                    logging::log_p2p_event_warn("gossip_media_blob_store", &e);
+                                } else {
+                                    tracing::debug!(
+                                        "P2P: stored gossiped media blob ({} bytes)",
+                                        blob.data.len()
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
             });

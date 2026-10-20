@@ -46,6 +46,15 @@ fn main() {
     let p = bincode::serialize(&put).unwrap();
     println!("PutBlob: len={} hex={}", p.len(), hex::encode(&p));
 
+    let ann = TransactionPayload::BlobAnnounce {
+        blob_id: boing_primitives::blob_id_of(&[0x89, 0x50, 0x4e, 0x47]),
+        size: 4,
+        retention: boing_primitives::BlobRetention::Prunable { ttl_blocks: 100 },
+        content_type: "image/png".into(),
+    };
+    let p = bincode::serialize(&ann).unwrap();
+    println!("BlobAnnounce: len={} hex={}", p.len(), hex::encode(&p));
+
     let qv = TransactionPayload::QaPoolVote {
         subject: boing_primitives::Hash([3u8; 32]),
         vote: boing_primitives::QaPoolVoteKind::Allow,

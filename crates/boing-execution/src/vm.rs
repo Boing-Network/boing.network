@@ -2,9 +2,9 @@
 
 use boing_primitives::{
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
-    media_blob_gas, nonce_derived_contract_address, validate_batch_calls, validate_put_blob,
-    AccountId, AccountState, BatchCall, BlobRetention, ExecutionLog, Hash, QaPoolVoteKind,
-    Transaction, TransactionPayload,
+    media_blob_gas, nonce_derived_contract_address, validate_batch_calls, validate_blob_announce,
+    validate_put_blob, AccountId, AccountState, BatchCall, BlobId, BlobRetention, ExecutionLog,
+    Hash, QaPoolVoteKind, Transaction, TransactionPayload,
 };
 use boing_qa::{
     check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaPoolGovernanceConfig,
@@ -523,6 +523,22 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::BlobAnnounce {
+                blob_id,
+                size,
+                retention,
+                content_type,
+            } => {
+                return self.execute_blob_announce(
+                    state,
+                    tx,
+                    blob_id,
+                    *size,
+                    *retention,
+                    content_type,
+                    exec_ctx.block_height,
+                );
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -555,6 +571,37 @@ impl Vm {
             .checked_add(1)
             .ok_or(VmError::NonceOverflow)?;
         let gas_used = media_blob_gas(data.len(), retention);
+        Ok(VmExecutionResult {
+            gas_used,
+            return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    /// Commit to a blob id + size without inline bytes (Phase 2 data plane).
+    fn execute_blob_announce(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        blob_id: &BlobId,
+        size: u32,
+        retention: BlobRetention,
+        content_type: &str,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        validate_blob_announce(blob_id, size, retention, content_type)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        let gas_used = media_blob_gas(size as usize, retention);
         Ok(VmExecutionResult {
             gas_used,
             return_data: blob_id.to_vec(),

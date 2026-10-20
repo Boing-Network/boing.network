@@ -196,6 +196,31 @@ impl Transaction {
                     ct
                 )
             }
+            TransactionPayload::BlobAnnounce {
+                blob_id,
+                size,
+                retention,
+                content_type,
+            } => {
+                let ret = match retention {
+                    crate::BlobRetention::Forever => "forever".into(),
+                    crate::BlobRetention::Prunable { ttl_blocks } => {
+                        format!("prunable/{ttl_blocks}")
+                    }
+                };
+                let ct = if content_type.is_empty() {
+                    "unknown".into()
+                } else {
+                    content_type.clone()
+                };
+                format!(
+                    "Announce media blob {} ({} bytes, {}, {})",
+                    hex::encode(&blob_id[..8]),
+                    size,
+                    ret,
+                    ct
+                )
+            }
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -286,6 +311,7 @@ impl Transaction {
             | TransactionPayload::NameSetPrimary { .. }
             | TransactionPayload::NameRelease { .. }
             | TransactionPayload::PutBlob { .. }
+            | TransactionPayload::BlobAnnounce { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -440,15 +466,23 @@ pub enum TransactionPayload {
         calldata: Vec<u8>,
         value: u128,
     },
-    /// Publish a content-addressed media blob (index **21**). Payload carries bytes (MVP cap
-    /// [`crate::MAX_MEDIA_BLOB_BYTES`]); id is `BLAKE3(data)`. Bytes are stored in a node sidecar;
-    /// consensus keeps metadata only. Separate fee schedule via size-scaled blob gas — not SSTORE.
-    /// See `docs/BOING-L1-MEDIA-BLOBS.md`.
+    /// Publish a content-addressed media blob (index **21**). Payload carries bytes (cap
+    /// [`crate::MAX_MEDIA_BLOB_BYTES`], Phase 2 = 1 MiB); id is `BLAKE3(data)`. Bytes are stored in a
+    /// node sidecar; consensus keeps metadata only. Separate fee schedule via size-scaled blob gas —
+    /// not SSTORE. See `docs/BOING-L1-MEDIA-BLOBS.md`.
     PutBlob {
         retention: crate::BlobRetention,
         /// Optional MIME hint (max [`crate::MAX_MEDIA_BLOB_CONTENT_TYPE_LEN`] UTF-8 bytes).
         content_type: String,
         data: Vec<u8>,
+    },
+    /// Announce a media blob without embedding bytes (index **22**). Pays size-scaled blob fees;
+    /// payload is expected via P2P (`boing/media-blobs`) or prior sidecar put. Phase 2 data plane.
+    BlobAnnounce {
+        blob_id: crate::BlobId,
+        size: u32,
+        retention: crate::BlobRetention,
+        content_type: String,
     },
 }
 

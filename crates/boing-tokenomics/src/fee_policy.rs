@@ -23,6 +23,10 @@ pub struct NetworkFeePolicy {
     /// Extra levy as basis points of a `Transfer` amount (0 = off). Other payloads ignore this.
     #[serde(default)]
     pub transfer_amount_bps: u16,
+    /// Independent **blob data fee** (ledger units per KiB of PutBlob / BlobAnnounce size).
+    /// `0` = off (size still metered via blob gas). Separates media congestion from execution gas.
+    #[serde(default, with = "u128_string")]
+    pub blob_base_fee_per_kib: u128,
 }
 
 fn default_validators_bps() -> u16 {
@@ -89,6 +93,7 @@ impl NetworkFeePolicy {
             fee_burn_bps: default_burn_bps(),
             extra_fixed_fee: 0,
             transfer_amount_bps: 0,
+            blob_base_fee_per_kib: 0,
         }
     }
 
@@ -100,6 +105,7 @@ impl NetworkFeePolicy {
             fee_burn_bps: 1_000,
             extra_fixed_fee: 0,
             transfer_amount_bps: 0,
+            blob_base_fee_per_kib: 0,
         }
     }
 

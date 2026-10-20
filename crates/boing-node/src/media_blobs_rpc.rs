@@ -2,8 +2,9 @@
 
 use boing_primitives::{
     parse_media_blob_id, BlobRetention, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
-    MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOB_FOREVER_MULTIPLIER, MEDIA_BLOB_GAS_BASE,
-    MEDIA_BLOB_GAS_PER_WORD, MEDIA_BLOB_URI_PREFIX,
+    MAX_MEDIA_BLOB_INLINE_BYTES, MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOBS_GOSSIP_TOPIC,
+    MEDIA_BLOB_FOREVER_MULTIPLIER, MEDIA_BLOB_GAS_BASE, MEDIA_BLOB_GAS_PER_WORD,
+    MEDIA_BLOB_URI_PREFIX,
 };
 use serde_json::{json, Value};
 
@@ -63,13 +64,18 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             "active": node.media_blobs_active_at_tip(),
             "activationHeight": node.media_blobs_activation_height(),
             "maxBytes": MAX_MEDIA_BLOB_BYTES,
+            "maxInlineBytes": MAX_MEDIA_BLOB_INLINE_BYTES,
             "maxContentTypeLen": MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
             "maxTtlBlocks": MAX_MEDIA_BLOB_TTL_BLOCKS,
             "gasBase": MEDIA_BLOB_GAS_BASE,
             "gasPerWord": MEDIA_BLOB_GAS_PER_WORD,
             "foreverMultiplier": MEDIA_BLOB_FOREVER_MULTIPLIER,
             "uriPrefix": MEDIA_BLOB_URI_PREFIX,
-            "note": "PutBlob is a signed TransactionPayload (index 21); submit via boing_submitTransaction. Bytes are sidecar-stored under data/blobs/ — not contract SSTORE.",
+            "gossipTopic": MEDIA_BLOBS_GOSSIP_TOPIC,
+            "putBlobVariant": 21,
+            "blobAnnounceVariant": 22,
+            "blobsRootInHeader": false,
+            "note": "Phase 2: PutBlob (21) or BlobAnnounce (22) + P2P boing/media-blobs. Soft blobs_root via helper/RPC; not in BlockHeader yet. Independent blob_base_fee_per_kib on NetworkFeePolicy. Cap 1 MiB — not video-scale.",
         })),
         "boing_getBlobMeta" => {
             let id = parse_id_param(params)?;
