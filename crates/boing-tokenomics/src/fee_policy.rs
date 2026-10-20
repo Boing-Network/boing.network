@@ -32,15 +32,22 @@ pub struct NetworkFeePolicy {
     #[serde(default, with = "u128_string")]
     pub blob_forever_pin_fee_per_kib: u128,
     /// Share of the **execution gas** schedule that is actually charged (basis points).
-    /// `10_000` = full historical gas fee; `0` = waive execution gas (free-by-default path).
-    /// Does **not** waive `extra_fixed_fee`, transfer BPS, blob data/pin fees, or priority tips.
+    /// `10_000` = full historical gas fee; recommended micro default is
+    /// [`MICRO_FEE_EXECUTION_GAS_BPS`] (1% → ~0.00021 BOING per transfer).
+    /// `0` still waives execution gas (not recommended — prefer a tiny base fee so spam costs money).
+    /// Does **not** scale `extra_fixed_fee`, transfer BPS, blob data/pin fees, or priority tips.
     #[serde(default = "default_execution_gas_fee_bps")]
     pub execution_gas_fee_bps: u16,
-    /// Minimum sender balance (ledger units) required to admit a **zero-tip** transaction when
-    /// execution gas is waived. `0` = no balance gate beyond fee solvency. Anti-spam for free txs.
+    /// Legacy gate: minimum sender balance to admit a **zero-tip** tx only when execution gas is
+    /// fully waived (`execution_gas_fee_bps == 0`). Prefer a non-zero micro fee instead of this.
+    /// `0` = off.
     #[serde(default, with = "u128_string")]
     pub free_tx_min_balance: u128,
 }
+
+/// Recommended micro-fee share of the historical gas schedule (1%).
+/// At [`crate::GAS_PRICE_BASE_UNITS`], a 21_000-gas transfer costs **0.00021 BOING**.
+pub const MICRO_FEE_EXECUTION_GAS_BPS: u16 = 100;
 
 fn default_execution_gas_fee_bps() -> u16 {
     10_000
@@ -117,13 +124,27 @@ impl NetworkFeePolicy {
         }
     }
 
-    /// Free-by-default: waive execution gas; blob/pin/extras and tips still apply.
-    /// Useful as the post-activation operator default (set via `network_fee_config.json`).
-    pub fn optional_fees_default() -> Self {
+    /// Recommended operator default after fee market v1: **tiny** execution gas (~Solana-cheap)
+    /// plus optional priority tips. Blob/pin/extras still apply at full policy rates.
+    pub fn micro_fee_default() -> Self {
+        Self {
+            execution_gas_fee_bps: MICRO_FEE_EXECUTION_GAS_BPS,
+            ..Self::treasury_default()
+        }
+    }
+
+    /// Waive execution gas entirely (`execution_gas_fee_bps = 0`). **Not recommended** for
+    /// production — prefer [`Self::micro_fee_default`] so spam remains economically costly.
+    pub fn waived_execution_gas_for_tests() -> Self {
         Self {
             execution_gas_fee_bps: 0,
             ..Self::treasury_default()
         }
+    }
+
+    /// Alias of [`Self::micro_fee_default`] (older name from the free-by-default draft).
+    pub fn optional_fees_default() -> Self {
+        Self::micro_fee_default()
     }
 
     /// Legacy 70/20/10 split used before treasury-first fees.
@@ -204,10 +225,11 @@ mod tests {
     }
 
     #[test]
-    fn optional_fees_default_waives_execution_gas() {
-        let p = NetworkFeePolicy::optional_fees_default();
+    fn micro_fee_default_is_one_percent_of_schedule() {
+        let p = NetworkFeePolicy::micro_fee_default();
         p.validate().unwrap();
-        assert!(p.execution_gas_waived());
-        assert_eq!(p.blob_base_fee_per_kib, 0);
+        assert_eq!(p.execution_gas_fee_bps, MICRO_FEE_EXECUTION_GAS_BPS);
+        assert!(!p.execution_gas_waived());
+        assert_eq!(NetworkFeePolicy::optional_fees_default(), p);
     }
 }

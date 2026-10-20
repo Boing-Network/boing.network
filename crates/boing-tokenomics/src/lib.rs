@@ -8,6 +8,7 @@ pub mod fee_policy;
 
 pub use fee_policy::{
     network_fee_policy_from_json, NetworkFeePolicy, GOVERNANCE_NETWORK_FEE_CONFIG_KEY,
+    MICRO_FEE_EXECUTION_GAS_BPS,
 };
 
 pub use boing_primitives::{Denomination, BASE_UNITS_PER_BOING, BOING_DECIMALS};
@@ -41,8 +42,9 @@ pub const BLOCK_EMISSION_PROPOSER_BPS: u16 = 7_000;
 pub const GAS_PRICE: u128 = 1;
 
 /// Gas price once the ledger is in base units: **10^12 base units per gas = 0.000001 BOING/gas**.
-/// A 21,000-gas transfer costs 0.021 BOING; a ~380k-gas token deploy about 0.38 BOING. Fees can now
-/// be fractional BOING (fee market v0: fixed price, no bidding).
+/// A 21,000-gas transfer at **full** schedule (`execution_gas_fee_bps = 10000`) costs **0.021 BOING**;
+/// at the recommended micro fee ([`MICRO_FEE_EXECUTION_GAS_BPS`] = 100) it costs **0.00021 BOING**.
+/// A ~380k-gas deploy is ~0.38 BOING full / ~0.0038 BOING micro. Fixed price + optional tip (no EIP-1559).
 pub const GAS_PRICE_BASE_UNITS: u128 = 1_000_000_000_000;
 
 /// Gas units that cost [`GAS_PRICE`] BOING (ceil). Matches `GAS_PER_TRANSFER` in
@@ -581,9 +583,24 @@ mod tests {
     }
 
     #[test]
+    fn micro_fee_is_one_percent_of_full_schedule() {
+        let d = Denomination::BaseUnits;
+        let p = NetworkFeePolicy::micro_fee_default();
+        let tx = TransactionPayload::Transfer {
+            to: AccountId([2; 32]),
+            amount: 5,
+        };
+        let full = 21_000 * GAS_PRICE_BASE_UNITS;
+        let micro = network_fee_amount_in(21_000, &tx, &p, d);
+        assert_eq!(micro, full / 100, "100 bps → 0.00021 BOING per transfer");
+        assert_eq!(execution_gas_fee_in(21_000, &p, d), micro);
+        assert_eq!(total_fee_with_tip_in(21_000, &tx, &p, d, 1_000), micro + 1_000);
+    }
+
+    #[test]
     fn waived_execution_gas_leaves_extras_and_tips() {
         let d = Denomination::BaseUnits;
-        let mut p = NetworkFeePolicy::optional_fees_default();
+        let mut p = NetworkFeePolicy::waived_execution_gas_for_tests();
         p.extra_fixed_fee = 7;
         let tx = TransactionPayload::Transfer {
             to: AccountId([2; 32]),

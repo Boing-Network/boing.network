@@ -338,12 +338,13 @@ fn fee_policy_json(p: &NetworkFeePolicy) -> serde_json::Value {
         "execution_gas_fee_bps": p.execution_gas_fee_bps,
         "free_tx_min_balance": p.free_tx_min_balance.to_string(),
         "execution_gas_waived": p.execution_gas_waived(),
+        "micro_fee_execution_gas_bps": boing_tokenomics::MICRO_FEE_EXECUTION_GAS_BPS,
         "optional_priority_tips": true,
         "treasury_account": format!("0x{}", PROTOCOL_TREASURY_HEX),
         "fee_formula": "network_fee = ceil(gas_used * GAS_PRICE / GAS_UNITS_PER_BOING) * execution_gas_fee_bps/10000 + extra_fixed_fee + (transfer_amount * transfer_amount_bps / 10000) + blob fees; priority_tip paid separately to proposer",
         "gas_price_base_units": boing_tokenomics::GAS_PRICE_BASE_UNITS.to_string(),
-        "fee_formula_base_units": "network_fee = gas_used * gas_price_base_units * execution_gas_fee_bps/10000 + extra_fixed_fee + transfer bps + blob_base_fee_per_kib + forever pin; tip not included. Blob/pin fees stay independent of free-by-default execution gas. Applies from native_currency.base_units_from_height.",
-        "note": "Default path: set execution_gas_fee_bps=0 for free inclusion (anti-spam: free_tx_min_balance + mempool free-pending cap). Users attach priority_tip for preferred ordering under congestion. Blob fees are never waived by execution_gas_fee_bps.",
+        "fee_formula_base_units": "network_fee = gas_used * gas_price_base_units * execution_gas_fee_bps/10000 + extra_fixed_fee + transfer bps + blob fees; tip not included. Recommended execution_gas_fee_bps=100 (micro: ~0.00021 BOING/transfer). Blob/pin fees stay independent. Applies from native_currency.base_units_from_height.",
+        "note": "Product target: always charge a tiny base execution fee (Solana-like) so spam costs money; attach priority_tip for preferred inclusion under congestion. Prefer execution_gas_fee_bps=100 (micro_fee_default). Waiving gas (bps=0) is supported but not recommended. Blob fees are never scaled by execution_gas_fee_bps.",
     })
 }
 

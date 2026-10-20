@@ -10,8 +10,8 @@ use boing_qa::{check_contract_deploy_full_with_metadata, QaReject, QaResult, Rul
 /// Default max pending transactions per sender (matches SECURITY-STANDARDS / RateLimitConfig).
 pub const DEFAULT_MAX_PENDING_PER_SENDER: usize = 16;
 
-/// Stricter pending cap for **zero-tip** txs when optional fees (free execution gas) are active.
-/// Tipped txs still use [`DEFAULT_MAX_PENDING_PER_SENDER`]. Anti-spam for the free path.
+/// Legacy pending cap for **zero-tip** txs only when execution gas is fully waived (`bps == 0`).
+/// Prefer a micro base fee ([`boing_tokenomics::MICRO_FEE_EXECUTION_GAS_BPS`]) so this path stays off.
 pub const DEFAULT_MAX_FREE_PENDING_PER_SENDER: usize = 4;
 
 /// Default cap on all pending transactions (security review #7). Override with `BOING_MEMPOOL_MAX_TXS`.
@@ -39,7 +39,8 @@ pub struct Mempool {
     qa_registry: RuleRegistry,
     /// Deploy QA accepts the native-value opcodes (set by the node from the next block height).
     native_value_opcodes: std::sync::atomic::AtomicBool,
-    /// When true, zero-tip txs use the free pending cap and drain prefers higher tips.
+    /// When true (execution gas fully waived), zero-tip txs use the legacy free-pending cap.
+    /// Tip-aware drain/eviction always runs regardless of this flag.
     optional_fees_active: std::sync::atomic::AtomicBool,
 }
 
@@ -84,7 +85,8 @@ impl Mempool {
             .store(allow, std::sync::atomic::Ordering::Relaxed);
     }
 
-    /// Enable free-tx anti-spam + tip-aware drain/eviction (when execution gas is waived).
+    /// Enable legacy free-tx pending caps (only when execution gas is fully waived).
+    /// Tip ordering does not depend on this flag.
     pub fn set_optional_fees_active(&self, active: bool) {
         self.optional_fees_active
             .store(active, std::sync::atomic::Ordering::Relaxed);
@@ -324,7 +326,7 @@ impl Mempool {
     /// Remove and return signed transactions up to `max` for block inclusion.
     ///
     /// Ordering: higher `priority_tip` first, then lower nonce, then sender id (deterministic).
-    /// When optional fees are inactive, tip is always 0 so this matches the historical nonce order.
+    /// Untipped txs (tip `0`) keep historical nonce/sender order among themselves.
     pub fn drain_for_block(&self, max: usize) -> Vec<SignedTransaction> {
         let mut inner = self.inner.lock().unwrap();
         let mut candidates: Vec<(u128, AccountId, u64)> = Vec::new();
