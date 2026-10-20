@@ -515,6 +515,13 @@ export class BoingClient {
             : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
         return this.request('boing_getBlob', [id]);
     }
+    /** Light-client DAS sample for one chunk (`boing_getBlobDasSample`), or null. */
+    async getBlobDasSample(blobId, chunkIndex) {
+        const id = typeof blobId === 'string'
+            ? blobId
+            : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        return this.request('boing_getBlobDasSample', [id, chunkIndex]);
+    }
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
     async checkNames(names) {
         return this.request('boing_checkNames', [names]);

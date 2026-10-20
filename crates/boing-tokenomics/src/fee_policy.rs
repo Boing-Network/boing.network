@@ -27,6 +27,10 @@ pub struct NetworkFeePolicy {
     /// `0` = off (size still metered via blob gas). Separates media congestion from execution gas.
     #[serde(default, with = "u128_string")]
     pub blob_base_fee_per_kib: u128,
+    /// Extra Forever **pin fee** (ledger units per KiB) charged only when retention is Forever.
+    /// Minimal on-chain pin-rent path; `0` = off. Prunable blobs are unaffected.
+    #[serde(default, with = "u128_string")]
+    pub blob_forever_pin_fee_per_kib: u128,
 }
 
 fn default_validators_bps() -> u16 {
@@ -94,6 +98,7 @@ impl NetworkFeePolicy {
             extra_fixed_fee: 0,
             transfer_amount_bps: 0,
             blob_base_fee_per_kib: 0,
+            blob_forever_pin_fee_per_kib: 0,
         }
     }
 
@@ -106,6 +111,7 @@ impl NetworkFeePolicy {
             extra_fixed_fee: 0,
             transfer_amount_bps: 0,
             blob_base_fee_per_kib: 0,
+            blob_forever_pin_fee_per_kib: 0,
         }
     }
 

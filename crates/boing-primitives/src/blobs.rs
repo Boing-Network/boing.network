@@ -4,8 +4,8 @@
 //! [`crate::TransactionPayload::PutBlob`] (inline) or [`crate::TransactionPayload::BlobAnnounce`]
 //! (commitment; bytes arrive via P2P / RPC). See `docs/BOING-L1-MEDIA-BLOBS.md`.
 //!
-//! Phase 3 scaffolding (not video-scale yet): optional header [`crate::BlockHeader::blobs_root`],
-//! DAS / chunk sizing stubs, pin-rent sketch, and a documented larger-caps *target* path.
+//! Phase 4: live cap raised to **16 MiB** (still not video-scale), real chunking + XOR recovery
+//! stubs, Forever pin-fee hook, and light-client DAS sample / merkle inclusion hooks.
 
 use serde::{Deserialize, Serialize};
 
@@ -18,19 +18,23 @@ pub const MEDIA_BLOB_URI_PREFIX: &str = "boing://blob/";
 /// Gossipsub topic for out-of-band media blob bytes (`boing/media-blobs`).
 pub const MEDIA_BLOBS_GOSSIP_TOPIC: &str = "boing/media-blobs";
 
-/// Phase 2 / current consensus hard cap: **1 MiB**. Honest limit — still not video-scale.
-pub const MAX_MEDIA_BLOB_BYTES: usize = 1024 * 1024;
+/// Live consensus hard cap: **16 MiB**. Honest limit — still not multi-minute mp4 / planet-scale DA.
+/// Prefer [`BlobAnnounce`](crate::TransactionPayload::BlobAnnounce) + gossip above
+/// [`MAX_MEDIA_BLOB_INLINE_PREFER_BYTES`].
+pub const MAX_MEDIA_BLOB_BYTES: usize = 16 * 1024 * 1024;
 
-/// Phase 3 **target** raised path once DAS / chunking + header `blobs_root` are coordinated.
-/// Not consensus-live — do not admit payloads this large until a hard-fork activation raises
-/// [`MAX_MEDIA_BLOB_BYTES`].
-pub const PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES: usize = 16 * 1024 * 1024;
+/// Historical Phase 3 target — now equal to the live cap.
+pub const PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES: usize = MAX_MEDIA_BLOB_BYTES;
 
-/// Suggested erasure / DAS chunk size for the Phase 3 larger-caps path (scaffold only).
+/// Soft preference: above this size, clients should prefer BlobAnnounce + P2P over inline PutBlob.
+/// PutBlob still admits up to [`MAX_MEDIA_BLOB_BYTES`].
+pub const MAX_MEDIA_BLOB_INLINE_PREFER_BYTES: usize = 1024 * 1024;
+
+/// Preferred inline PutBlob ceiling used by RPC / SDK hints (same as soft preference).
+pub const MAX_MEDIA_BLOB_INLINE_BYTES: usize = MAX_MEDIA_BLOB_INLINE_PREFER_BYTES;
+
+/// Erasure / DAS chunk size for chunking + sampling hooks.
 pub const MEDIA_BLOB_DAS_CHUNK_BYTES: usize = 64 * 1024;
-
-/// Preferred inline PutBlob ceiling before preferring BlobAnnounce + gossip (same as hard cap).
-pub const MAX_MEDIA_BLOB_INLINE_BYTES: usize = MAX_MEDIA_BLOB_BYTES;
 
 /// Max UTF-8 length of the optional MIME / content-type hint.
 pub const MAX_MEDIA_BLOB_CONTENT_TYPE_LEN: usize = 64;
@@ -55,7 +59,8 @@ pub type BlobId = [u8; 32];
 pub enum BlobRetention {
     /// Node may delete after `included_height + ttl_blocks`.
     Prunable { ttl_blocks: u64 },
-    /// Prepaid “best-effort forever” on full nodes (higher fee). Not a cryptographic eternity guarantee until pin markets.
+    /// Prepaid “best-effort forever” on full nodes (higher fee + optional pin fee). Not a
+    /// cryptographic eternity guarantee until a full pin market.
     Forever,
 }
 
@@ -95,6 +100,10 @@ impl BlobRetention {
                 Some(included_height.saturating_add(ttl_blocks))
             }
         }
+    }
+
+    pub fn is_forever(self) -> bool {
+        matches!(self, BlobRetention::Forever)
     }
 }
 
@@ -143,6 +152,14 @@ pub enum BlobError {
     IdMismatch { expected: String, got: String },
     #[error("announce size is zero")]
     AnnounceSizeZero,
+    #[error("chunk index {index} out of range (count={count})")]
+    ChunkIndexOutOfRange { index: u32, count: u32 },
+    #[error("cannot recover blob: need all-but-one data chunks plus XOR parity (or all data chunks)")]
+    RecoveryInsufficient,
+    #[error("recovered bytes do not match blob id")]
+    RecoveryIdMismatch,
+    #[error("DAS sample proof does not verify against chunks_root")]
+    DasProofInvalid,
 }
 
 /// `BLAKE3(data)` as [`BlobId`].
@@ -246,9 +263,6 @@ pub fn media_blob_gas(size: usize, retention: BlobRetention) -> u64 {
 }
 
 /// Soft / header commitment over blob ids referenced by PutBlob / BlobAnnounce in a block (tx order).
-///
-/// Phase 3: when header activation is on, producers set [`crate::BlockHeader::blobs_root`] =
-/// `Some(this)`. Pre-activation headers omit the field so hashes stay unchanged.
 #[must_use]
 pub fn blobs_root_of_transactions(txs: &[Transaction]) -> Hash {
     let mut ids: Vec<BlobId> = Vec::new();
@@ -270,7 +284,7 @@ pub fn blobs_root_of_transactions(txs: &[Transaction]) -> Hash {
     Hash(*h.finalize().as_bytes())
 }
 
-/// How many DAS chunks a payload of `size` bytes would need (Phase 3 scaffold; ceil division).
+/// How many DAS data chunks a payload of `size` bytes needs (ceil division).
 #[must_use]
 pub fn media_blob_das_chunk_count(size: usize) -> usize {
     if size == 0 {
@@ -279,22 +293,20 @@ pub fn media_blob_das_chunk_count(size: usize) -> usize {
     size.div_ceil(MEDIA_BLOB_DAS_CHUNK_BYTES)
 }
 
-/// Whether `size` is within the Phase 3 *target* raised path (not the live consensus cap).
+/// Whether `size` is within the live / Phase-3-target cap.
 #[must_use]
 pub fn within_phase3_target_cap(size: usize) -> bool {
     size <= PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES
 }
 
-/// Scaffold Forever pin-rent units (KiB × blocks). Not charged on-chain yet — economics TBD.
-///
-/// Sketch: `ceil(size/1024) * ttl_blocks` so operators can prototype markets without consensus fees.
+/// Forever pin-rent units (KiB × blocks) for off-chain markets / docs.
 #[must_use]
 pub fn media_blob_pin_rent_kib_blocks(size: usize, ttl_blocks: u64) -> u128 {
     let kib = (size as u128).div_ceil(1024).max(1);
     kib.saturating_mul(ttl_blocks as u128)
 }
 
-/// Chunk descriptor for future erasure-coded DA (not wired to P2P / consensus yet).
+/// Chunk descriptor for erasure-coded / DAS paths.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MediaBlobChunkRef {
     pub blob_id: BlobId,
@@ -302,6 +314,260 @@ pub struct MediaBlobChunkRef {
     pub chunk_count: u32,
     /// BLAKE3 of this chunk’s bytes (when available).
     pub chunk_hash: [u8; 32],
+}
+
+/// Split payload into fixed-size data chunks plus one XOR parity chunk (simple erasure stub).
+///
+/// Not Reed–Solomon — single parity recovers **one** missing data chunk. Full coding markets later.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaBlobErasureBundle {
+    pub blob_id: BlobId,
+    pub original_len: u32,
+    pub data_chunks: Vec<Vec<u8>>,
+    /// XOR of all data chunks (padded to [`MEDIA_BLOB_DAS_CHUNK_BYTES`]).
+    pub parity_chunk: Vec<u8>,
+    pub chunk_hashes: Vec<[u8; 32]>,
+    /// Merkle root over `chunk_hashes` (data only; parity hashed separately as last leaf optional).
+    pub chunks_root: Hash,
+}
+
+/// Light-client DAS sample: one data-chunk leaf + sibling path against [`MediaBlobErasureBundle::chunks_root`].
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaBlobDasSample {
+    pub blob_id: BlobId,
+    pub chunk_index: u32,
+    pub chunk_count: u32,
+    pub chunk_hash: [u8; 32],
+    pub chunks_root: Hash,
+    /// Binary merkle siblings from leaf toward root (left/right ordered by index parity).
+    pub siblings: Vec<[u8; 32]>,
+}
+
+fn chunk_hash_of(bytes: &[u8]) -> [u8; 32] {
+    let mut h = hasher();
+    h.update(bytes);
+    *h.finalize().as_bytes()
+}
+
+fn hash_pair(a: &[u8; 32], b: &[u8; 32]) -> [u8; 32] {
+    let mut h = hasher();
+    h.update(b"BOING_BLOB_CHUNK_MERKLE_V1");
+    h.update(a);
+    h.update(b);
+    *h.finalize().as_bytes()
+}
+
+/// Binary merkle root over 32-byte leaves (odd last leaf hashed with itself). Empty → [`Hash::ZERO`].
+#[must_use]
+pub fn media_blob_chunks_merkle_root(leaves: &[[u8; 32]]) -> Hash {
+    if leaves.is_empty() {
+        return Hash::ZERO;
+    }
+    let mut layer: Vec<[u8; 32]> = leaves.to_vec();
+    while layer.len() > 1 {
+        let mut next = Vec::with_capacity(layer.len().div_ceil(2));
+        for pair in layer.chunks(2) {
+            let right = if pair.len() == 2 { &pair[1] } else { &pair[0] };
+            next.push(hash_pair(&pair[0], right));
+        }
+        layer = next;
+    }
+    Hash(layer[0])
+}
+
+/// Sibling path for leaf `index` (same tree as [`media_blob_chunks_merkle_root`]).
+pub fn media_blob_chunk_merkle_proof(
+    leaves: &[[u8; 32]],
+    index: usize,
+) -> Result<Vec<[u8; 32]>, BlobError> {
+    if leaves.is_empty() || index >= leaves.len() {
+        return Err(BlobError::ChunkIndexOutOfRange {
+            index: index as u32,
+            count: leaves.len() as u32,
+        });
+    }
+    let mut siblings = Vec::new();
+    let mut layer: Vec<[u8; 32]> = leaves.to_vec();
+    let mut idx = index;
+    while layer.len() > 1 {
+        let sibling_idx = if idx % 2 == 0 { idx + 1 } else { idx - 1 };
+        let sib = if sibling_idx < layer.len() {
+            layer[sibling_idx]
+        } else {
+            layer[idx]
+        };
+        siblings.push(sib);
+        let mut next = Vec::with_capacity(layer.len().div_ceil(2));
+        for pair in layer.chunks(2) {
+            let right = if pair.len() == 2 { &pair[1] } else { &pair[0] };
+            next.push(hash_pair(&pair[0], right));
+        }
+        layer = next;
+        idx /= 2;
+    }
+    Ok(siblings)
+}
+
+/// Verify a DAS sample against its claimed `chunks_root`.
+pub fn verify_media_blob_das_sample(sample: &MediaBlobDasSample) -> Result<(), BlobError> {
+    if sample.chunk_count == 0 || sample.chunk_index >= sample.chunk_count {
+        return Err(BlobError::ChunkIndexOutOfRange {
+            index: sample.chunk_index,
+            count: sample.chunk_count,
+        });
+    }
+    let mut hash = sample.chunk_hash;
+    let mut idx = sample.chunk_index as usize;
+    for sib in &sample.siblings {
+        hash = if idx % 2 == 0 {
+            hash_pair(&hash, sib)
+        } else {
+            hash_pair(sib, &hash)
+        };
+        idx /= 2;
+    }
+    if Hash(hash) != sample.chunks_root {
+        return Err(BlobError::DasProofInvalid);
+    }
+    Ok(())
+}
+
+/// Chunk `data` into DAS-sized pieces + XOR parity; compute merkle root over data-chunk hashes.
+pub fn chunk_media_blob(data: &[u8]) -> Result<MediaBlobErasureBundle, BlobError> {
+    if data.len() > MAX_MEDIA_BLOB_BYTES {
+        return Err(BlobError::TooLarge { size: data.len() });
+    }
+    let blob_id = blob_id_of(data);
+    if data.is_empty() {
+        return Ok(MediaBlobErasureBundle {
+            blob_id,
+            original_len: 0,
+            data_chunks: vec![],
+            parity_chunk: vec![],
+            chunk_hashes: vec![],
+            chunks_root: Hash::ZERO,
+        });
+    }
+    let mut data_chunks: Vec<Vec<u8>> = data
+        .chunks(MEDIA_BLOB_DAS_CHUNK_BYTES)
+        .map(|c| {
+            let mut v = c.to_vec();
+            if v.len() < MEDIA_BLOB_DAS_CHUNK_BYTES {
+                v.resize(MEDIA_BLOB_DAS_CHUNK_BYTES, 0);
+            }
+            v
+        })
+        .collect();
+    let mut parity = vec![0u8; MEDIA_BLOB_DAS_CHUNK_BYTES];
+    for ch in &data_chunks {
+        for (i, b) in ch.iter().enumerate() {
+            parity[i] ^= b;
+        }
+    }
+    let chunk_hashes: Vec<[u8; 32]> = data_chunks.iter().map(|c| chunk_hash_of(c)).collect();
+    let chunks_root = media_blob_chunks_merkle_root(&chunk_hashes);
+    // Shrink last chunk padding is only for XOR; store original padded form for recovery.
+    let _ = &mut data_chunks;
+    Ok(MediaBlobErasureBundle {
+        blob_id,
+        original_len: data.len() as u32,
+        data_chunks,
+        parity_chunk: parity,
+        chunk_hashes,
+        chunks_root,
+    })
+}
+
+/// Build a DAS sample for `chunk_index` from a chunked bundle (light-client hook).
+pub fn media_blob_das_sample(
+    bundle: &MediaBlobErasureBundle,
+    chunk_index: u32,
+) -> Result<MediaBlobDasSample, BlobError> {
+    let count = bundle.chunk_hashes.len() as u32;
+    if chunk_index >= count {
+        return Err(BlobError::ChunkIndexOutOfRange {
+            index: chunk_index,
+            count,
+        });
+    }
+    let siblings = media_blob_chunk_merkle_proof(&bundle.chunk_hashes, chunk_index as usize)?;
+    Ok(MediaBlobDasSample {
+        blob_id: bundle.blob_id,
+        chunk_index,
+        chunk_count: count,
+        chunk_hash: bundle.chunk_hashes[chunk_index as usize],
+        chunks_root: bundle.chunks_root,
+        siblings,
+    })
+}
+
+/// Recover original bytes when at most one data chunk is missing (XOR parity) or all data present.
+pub fn recover_media_blob_xor(
+    blob_id: &BlobId,
+    original_len: usize,
+    data_chunks: &[Option<Vec<u8>>],
+    parity: &[u8],
+) -> Result<Vec<u8>, BlobError> {
+    if original_len == 0 {
+        let empty = Vec::new();
+        if blob_id_of(&empty) != *blob_id {
+            return Err(BlobError::RecoveryIdMismatch);
+        }
+        return Ok(empty);
+    }
+    let n = data_chunks.len();
+    if n == 0 {
+        return Err(BlobError::RecoveryInsufficient);
+    }
+    let missing: Vec<usize> = data_chunks
+        .iter()
+        .enumerate()
+        .filter_map(|(i, c)| if c.is_none() { Some(i) } else { None })
+        .collect();
+    let mut chunks: Vec<Vec<u8>> = Vec::with_capacity(n);
+    if missing.is_empty() {
+        for c in data_chunks {
+            chunks.push(c.as_ref().expect("checked").clone());
+        }
+    } else if missing.len() == 1 {
+        if parity.len() != MEDIA_BLOB_DAS_CHUNK_BYTES {
+            return Err(BlobError::RecoveryInsufficient);
+        }
+        let miss = missing[0];
+        let mut recovered = parity.to_vec();
+        for (i, c) in data_chunks.iter().enumerate() {
+            if i == miss {
+                continue;
+            }
+            let Some(bytes) = c else {
+                return Err(BlobError::RecoveryInsufficient);
+            };
+            if bytes.len() != MEDIA_BLOB_DAS_CHUNK_BYTES {
+                return Err(BlobError::RecoveryInsufficient);
+            }
+            for (j, b) in bytes.iter().enumerate() {
+                recovered[j] ^= b;
+            }
+        }
+        for i in 0..n {
+            if i == miss {
+                chunks.push(recovered.clone());
+            } else {
+                chunks.push(data_chunks[i].as_ref().expect("present").clone());
+            }
+        }
+    } else {
+        return Err(BlobError::RecoveryInsufficient);
+    }
+    let mut out = Vec::with_capacity(original_len);
+    for ch in &chunks {
+        out.extend_from_slice(ch);
+    }
+    out.truncate(original_len);
+    if blob_id_of(&out) != *blob_id {
+        return Err(BlobError::RecoveryIdMismatch);
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -322,8 +588,10 @@ mod tests {
     }
 
     #[test]
-    fn caps_and_gas_phase2_mib() {
-        assert_eq!(MAX_MEDIA_BLOB_BYTES, 1024 * 1024);
+    fn caps_and_gas_phase4_16mib() {
+        assert_eq!(MAX_MEDIA_BLOB_BYTES, 16 * 1024 * 1024);
+        assert_eq!(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_BYTES);
+        assert_eq!(MAX_MEDIA_BLOB_INLINE_PREFER_BYTES, 1024 * 1024);
         assert!(validate_put_blob(BlobRetention::Forever, "image/png", &[0u8; 10]).is_ok());
         assert!(matches!(
             validate_put_blob(BlobRetention::Prunable { ttl_blocks: 0 }, "", &[1]),
@@ -367,17 +635,30 @@ mod tests {
     }
 
     #[test]
-    fn phase3_das_and_pin_rent_scaffolds() {
-        assert_eq!(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES, 16 * 1024 * 1024);
-        assert_eq!(media_blob_das_chunk_count(0), 0);
-        assert_eq!(media_blob_das_chunk_count(1), 1);
-        assert_eq!(
-            media_blob_das_chunk_count(MEDIA_BLOB_DAS_CHUNK_BYTES + 1),
-            2
-        );
-        assert!(within_phase3_target_cap(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES));
-        assert!(!within_phase3_target_cap(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES + 1));
-        assert_eq!(media_blob_pin_rent_kib_blocks(1024, 10), 10);
-        assert_eq!(media_blob_pin_rent_kib_blocks(1025, 10), 20);
+    fn chunk_xor_recover_and_das_sample() {
+        let data: Vec<u8> = (0..(MEDIA_BLOB_DAS_CHUNK_BYTES + 100))
+            .map(|i| (i % 251) as u8)
+            .collect();
+        let bundle = chunk_media_blob(&data).unwrap();
+        assert_eq!(bundle.data_chunks.len(), 2);
+        assert_eq!(bundle.original_len as usize, data.len());
+
+        let mut parts: Vec<Option<Vec<u8>>> = bundle
+            .data_chunks
+            .iter()
+            .cloned()
+            .map(Some)
+            .collect();
+        parts[1] = None;
+        let recovered =
+            recover_media_blob_xor(&bundle.blob_id, data.len(), &parts, &bundle.parity_chunk)
+                .unwrap();
+        assert_eq!(recovered, data);
+
+        let sample = media_blob_das_sample(&bundle, 0).unwrap();
+        verify_media_blob_das_sample(&sample).unwrap();
+        let mut bad = sample.clone();
+        bad.chunk_hash[0] ^= 1;
+        assert!(verify_media_blob_das_sample(&bad).is_err());
     }
 }

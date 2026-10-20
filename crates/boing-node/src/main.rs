@@ -196,9 +196,10 @@ async fn main() -> anyhow::Result<()> {
     .map_err(|e| anyhow::anyhow!("media blobs config: {e}"))?;
     if let Some(h) = media_blobs_from {
         tracing::info!(
-            "Media blobs (PutBlob): activation_height={} max_bytes={}",
+            "Media blobs (PutBlob/BlobAnnounce): activation_height={} max_bytes={} (prefer announce above {} inline)",
             h,
-            boing_primitives::MAX_MEDIA_BLOB_BYTES
+            boing_primitives::MAX_MEDIA_BLOB_BYTES,
+            boing_primitives::MAX_MEDIA_BLOB_INLINE_PREFER_BYTES
         );
     }
     let blobs_root_header_from =

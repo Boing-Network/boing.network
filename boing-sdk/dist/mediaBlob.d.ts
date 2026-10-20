@@ -3,13 +3,15 @@
  * @see docs/BOING-L1-MEDIA-BLOBS.md
  */
 import type { TransactionPayloadInput } from './bincode.js';
-/** Live consensus hard cap (1 MiB). Not video-scale. */
+/** Live consensus hard cap (16 MiB). Still not multi-minute video-scale. */
 export declare const MAX_MEDIA_BLOB_BYTES: number;
-/** Phase 3 target raised path once DAS/chunking ships — not consensus-live. */
+/** Alias: Phase 3 target is now the live cap. */
 export declare const PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES: number;
-/** Suggested DAS chunk size (scaffold). */
-export declare const MEDIA_BLOB_DAS_CHUNK_BYTES: number;
+/** Prefer BlobAnnounce + gossip above this size (PutBlob still allows up to max). */
+export declare const MAX_MEDIA_BLOB_INLINE_PREFER_BYTES: number;
 export declare const MAX_MEDIA_BLOB_INLINE_BYTES: number;
+/** DAS / erasure chunk size. */
+export declare const MEDIA_BLOB_DAS_CHUNK_BYTES: number;
 export declare const MAX_MEDIA_BLOB_CONTENT_TYPE_LEN = 64;
 export declare const MAX_MEDIA_BLOB_TTL_BLOCKS = 1000000n;
 export declare const MEDIA_BLOB_GAS_BASE = 21000n;
@@ -17,10 +19,24 @@ export declare const MEDIA_BLOB_GAS_PER_WORD = 16n;
 export declare const MEDIA_BLOB_FOREVER_MULTIPLIER = 10n;
 export declare const MEDIA_BLOB_URI_PREFIX = "boing://blob/";
 export declare const MEDIA_BLOBS_GOSSIP_TOPIC = "boing/media-blobs";
-/** Ceil chunk count for Phase 3 DAS scaffold. */
+/** Ceil chunk count for DAS / XOR erasure stubs. */
 export declare function mediaBlobDasChunkCount(size: number): number;
-/** Scaffold Forever pin-rent units (KiB × blocks) — not charged on-chain yet. */
+/** Forever pin-rent units (KiB × blocks) for off-chain markets; on-chain uses `blob_forever_pin_fee_per_kib`. */
 export declare function mediaBlobPinRentKibBlocks(size: number, ttlBlocks: bigint): bigint;
+/** Binary merkle root over 32-byte chunk hashes (matches Rust `media_blob_chunks_merkle_root`). */
+export declare function mediaBlobChunksMerkleRoot(leaves: Uint8Array[]): Uint8Array;
+export type MediaBlobErasureBundle = {
+    blobId: Uint8Array;
+    originalLen: number;
+    dataChunks: Uint8Array[];
+    parityChunk: Uint8Array;
+    chunkHashes: Uint8Array[];
+    chunksRoot: Uint8Array;
+};
+/** Split into DAS-sized chunks + XOR parity (recover one missing data chunk). */
+export declare function chunkMediaBlob(data: Uint8Array): MediaBlobErasureBundle;
+/** Recover bytes when ≤1 data chunk is missing (XOR) or all present. */
+export declare function recoverMediaBlobXor(blobId: Uint8Array, originalLen: number, dataChunks: Array<Uint8Array | null>, parity: Uint8Array): Uint8Array;
 export type BlobRetentionInput = {
     kind: 'forever';
 } | {

@@ -387,7 +387,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | Bond | 21,000 |
 | Unbond | 21,000 |
 | QaPoolVote | 21,000 |
-| **PutBlob** / **BlobAnnounce** (media) | `21_000 + ceil(size/32)×16`, then ×10 if `Forever`; optional `blob_base_fee_per_kib` on `NetworkFeePolicy` — **not** SSTORE; see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md). Live cap **1 MiB**; Phase 3 target **16 MiB** (not live). Optional header `blobs_root` via `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`. Activation: `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. |
+| **PutBlob** / **BlobAnnounce** (media) | `21_000 + ceil(size/32)×16`, then ×10 if `Forever`; optional `blob_base_fee_per_kib` + Forever-only `blob_forever_pin_fee_per_kib` on `NetworkFeePolicy` — **not** SSTORE; see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md). Live cap **16 MiB** (prefer Announce above 1 MiB). Optional header `blobs_root`; DAS sample RPC `boing_getBlobDasSample`. Activation: `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. |
 
 ### 8.2 Opcode Gas
 

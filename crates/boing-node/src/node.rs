@@ -1264,7 +1264,7 @@ impl BoingNode {
         self.executor.vm().media_blobs_active(next)
     }
 
-    /// Media blob JSON-RPC (`boing_getBlob`, `boing_getBlobMeta`, `boing_getMediaBlobParams`).
+    /// Media blob JSON-RPC (`boing_getBlob`, `boing_getBlobMeta`, `boing_getMediaBlobParams`, `boing_getBlobDasSample`).
     pub fn media_blobs_rpc(
         &self,
         method: &str,
