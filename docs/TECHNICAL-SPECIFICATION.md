@@ -418,12 +418,17 @@ fee = ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)
 Optional governance extras (`network_fee_config.json`): **`extra_fixed_fee`** (u128) and **`transfer_amount_bps`** on Transfer amounts. Full charged amount:
 
 ```text
-fee = ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)
-    + extra_fixed_fee
-    + (transfer_amount × transfer_amount_bps / 10_000)
+protocol_fee = (gas_used × price) × execution_gas_fee_bps / 10_000
+             + extra_fixed_fee
+             + (transfer_amount × transfer_amount_bps / 10_000)
+             + blob_base_fee_per_kib × kib
+             + (Forever ? blob_forever_pin_fee_per_kib × kib : 0)
+total = protocol_fee + priority_tip
 ```
 
-The fee is deducted from the sender and split by **`NetworkFeePolicy`** (defaults **100% treasury**):
+`execution_gas_fee_bps` defaults to **10000** (full historical gas). Set to **0** for free-by-default execution gas; blob/pin fees and tips are never waived by that knob. Optional **`priority_tip`** on `SignedTransaction` (and block `priority_tips`) is paid **100% to the proposer**. See [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md).
+
+The protocol fee is deducted from the sender and split by **`NetworkFeePolicy`** (defaults **100% treasury**):
 
 | Share | Default BPS | Destination |
 |-------|-------------|-------------|
@@ -431,9 +436,9 @@ The fee is deducted from the sender and split by **`NetworkFeePolicy`** (default
 | Treasury | 10000 (100%) | `PROTOCOL_TREASURY` (`0x5452454153555259…0001`) |
 | Burn | 0 | `FEE_BURN_SINK` |
 
-BPS values must sum to 10_000. Integer remainders from the split are added to the **treasury** share. **Fail closed:** if the sender cannot cover fee + transfer, apply reverts and consumes the nonce. Failed transactions do not charge fees. There is no per-tx `gas_price` field yet (fixed network price).
+BPS values must sum to 10_000. Integer remainders from the split are added to the **treasury** share. **Fail closed:** if the sender cannot cover fee + tip + transfer, apply reverts and consumes the nonce. There is no per-tx base `gas_price` bid field (fixed network price + optional tip).
 
-**Mining vs fees:** Block **emission** still mints to the round **proposer** (`BLOCK_EMISSION_PROPOSER_BPS`, independent of the fee split). If one operator runs every validator, that operator’s proposer accounts receive 100% of emission; **gas still defaults to the treasury**.
+**Mining vs fees:** Block **emission** still mints to the round **proposer** (`BLOCK_EMISSION_PROPOSER_BPS`, independent of the fee split). If one operator runs every validator, that operator’s proposer accounts receive 100% of emission; **protocol gas still defaults to the treasury** (tips go to the proposer).
 
 QA counted-voter rewards are paid from `PROTOCOL_TREASURY` in apply — see [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) §8.1. RPC: **`boing_getNetworkFeePolicy`**, **`boing_operatorApplyFeePolicy`**, **`boing_getNetworkInfo.treasury`**.
 

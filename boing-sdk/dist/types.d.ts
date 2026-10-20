@@ -182,8 +182,17 @@ export interface NetworkFeePolicyResult {
     fee_burn_bps: number;
     extra_fixed_fee: string;
     transfer_amount_bps: number;
+    blob_base_fee_per_kib?: string;
+    blob_forever_pin_fee_per_kib?: string;
+    /** 0 = waive execution gas (free-by-default); 10000 = full historical gas fee. */
+    execution_gas_fee_bps?: number;
+    free_tx_min_balance?: string;
+    execution_gas_waived?: boolean;
+    optional_priority_tips?: boolean;
     treasury_account: string;
     fee_formula: string;
+    fee_formula_base_units?: string;
+    note?: string;
 }
 /** `boing_getNetworkInfo.developer` — links and discovery hints (env-overridable on the node). */
 export interface NetworkDeveloperHints {

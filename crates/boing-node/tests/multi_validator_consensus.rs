@@ -249,6 +249,7 @@ async fn four_validators_quorum_commit_via_votes() {
         },
         transactions: vec![],
         signatures: vec![],
+        priority_tips: vec![],
     };
     let err = victim.write().await.handle_network_block(&forged);
     assert!(err.is_err(), "non-leader proposal must be rejected");

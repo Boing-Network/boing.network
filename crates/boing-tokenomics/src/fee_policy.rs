@@ -31,6 +31,19 @@ pub struct NetworkFeePolicy {
     /// Minimal on-chain pin-rent path; `0` = off. Prunable blobs are unaffected.
     #[serde(default, with = "u128_string")]
     pub blob_forever_pin_fee_per_kib: u128,
+    /// Share of the **execution gas** schedule that is actually charged (basis points).
+    /// `10_000` = full historical gas fee; `0` = waive execution gas (free-by-default path).
+    /// Does **not** waive `extra_fixed_fee`, transfer BPS, blob data/pin fees, or priority tips.
+    #[serde(default = "default_execution_gas_fee_bps")]
+    pub execution_gas_fee_bps: u16,
+    /// Minimum sender balance (ledger units) required to admit a **zero-tip** transaction when
+    /// execution gas is waived. `0` = no balance gate beyond fee solvency. Anti-spam for free txs.
+    #[serde(default, with = "u128_string")]
+    pub free_tx_min_balance: u128,
+}
+
+fn default_execution_gas_fee_bps() -> u16 {
+    10_000
 }
 
 fn default_validators_bps() -> u16 {
@@ -99,6 +112,17 @@ impl NetworkFeePolicy {
             transfer_amount_bps: 0,
             blob_base_fee_per_kib: 0,
             blob_forever_pin_fee_per_kib: 0,
+            execution_gas_fee_bps: default_execution_gas_fee_bps(),
+            free_tx_min_balance: 0,
+        }
+    }
+
+    /// Free-by-default: waive execution gas; blob/pin/extras and tips still apply.
+    /// Useful as the post-activation operator default (set via `network_fee_config.json`).
+    pub fn optional_fees_default() -> Self {
+        Self {
+            execution_gas_fee_bps: 0,
+            ..Self::treasury_default()
         }
     }
 
@@ -112,7 +136,14 @@ impl NetworkFeePolicy {
             transfer_amount_bps: 0,
             blob_base_fee_per_kib: 0,
             blob_forever_pin_fee_per_kib: 0,
+            execution_gas_fee_bps: default_execution_gas_fee_bps(),
+            free_tx_min_balance: 0,
         }
+    }
+
+    /// True when execution gas is fully waived (users pay tip / extras / blobs only).
+    pub fn execution_gas_waived(&self) -> bool {
+        self.execution_gas_fee_bps == 0
     }
 
     /// BPS fields must sum to 10_000. Extra levies are independent.
@@ -128,6 +159,9 @@ impl NetworkFeePolicy {
         }
         if self.transfer_amount_bps > 10_000 {
             return Err("transfer_amount_bps must be <= 10000".into());
+        }
+        if self.execution_gas_fee_bps > 10_000 {
+            return Err("execution_gas_fee_bps must be <= 10000".into());
         }
         Ok(())
     }
@@ -166,5 +200,14 @@ mod tests {
         let p = network_fee_policy_from_json(raw).unwrap();
         assert_eq!(p.extra_fixed_fee, 2);
         assert_eq!(p.transfer_amount_bps, 5);
+        assert_eq!(p.execution_gas_fee_bps, 10_000, "omitted field keeps full gas fee");
+    }
+
+    #[test]
+    fn optional_fees_default_waives_execution_gas() {
+        let p = NetworkFeePolicy::optional_fees_default();
+        p.validate().unwrap();
+        assert!(p.execution_gas_waived());
+        assert_eq!(p.blob_base_fee_per_kib, 0);
     }
 }

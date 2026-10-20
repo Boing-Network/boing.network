@@ -51,9 +51,10 @@ pub use randomness::{
 pub use recovery::{Guardian, RecoveryRequest};
 pub use signature::{
     default_signing_chain_id, set_default_signing_chain_id, set_tx_verify_policy, sign_transaction,
-    sign_transaction_v2, signable_transaction_hash, signable_transaction_hash_v2, tx_verify_policy,
-    verify_signature, verify_signature_with, Signature, SignatureError, SignedTransaction,
-    TxSigPolicy, TX_SIGNING_DOMAIN_V2,
+    sign_transaction_v2, sign_transaction_with_tip, signable_transaction_hash,
+    signable_transaction_hash_v2, signable_transaction_hash_with_tip, tx_verify_policy,
+    verify_signature, verify_signature_with, verify_signature_with_tip, Signature, SignatureError,
+    SignedTransaction, TxSigPolicy, TX_SIGNING_DOMAIN_PRIORITY, TX_SIGNING_DOMAIN_V2,
 };
 pub use types::{
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,

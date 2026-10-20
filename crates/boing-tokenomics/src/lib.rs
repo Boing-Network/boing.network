@@ -234,15 +234,16 @@ pub fn network_fee_amount(
     network_fee_amount_in(gas_used, payload, policy, Denomination::WholeBoing)
 }
 
-/// [`network_fee_amount`] in the ledger unit `denom` (gas at [`fee_for_gas_in`]; `extra_fixed_fee` and
-/// the transfer bps are already ledger amounts).
+/// [`network_fee_amount`] in the ledger unit `denom` (gas at [`fee_for_gas_in`] scaled by
+/// [`NetworkFeePolicy::execution_gas_fee_bps`]; `extra_fixed_fee` and the transfer bps are already
+/// ledger amounts). Does **not** include a priority tip — see [`total_fee_with_tip_in`].
 pub fn network_fee_amount_in(
     gas_used: u64,
     payload: &TransactionPayload,
     policy: &NetworkFeePolicy,
     denom: Denomination,
 ) -> u128 {
-    let gas_fee = fee_for_gas_in(gas_used, denom);
+    let gas_fee = execution_gas_fee_in(gas_used, policy, denom);
     let bps_fee = match payload {
         TransactionPayload::Transfer { .. } | TransactionPayload::Batch { .. }
             if policy.transfer_amount_bps > 0 =>
@@ -259,6 +260,52 @@ pub fn network_fee_amount_in(
         .saturating_add(policy.extra_fixed_fee)
         .saturating_add(bps_fee)
         .saturating_add(blob_fee)
+}
+
+/// Protocol fee plus an optional priority tip (tip is paid in full to the block proposer).
+pub fn total_fee_with_tip_in(
+    gas_used: u64,
+    payload: &TransactionPayload,
+    policy: &NetworkFeePolicy,
+    denom: Denomination,
+    priority_tip: u128,
+) -> u128 {
+    network_fee_amount_in(gas_used, payload, policy, denom).saturating_add(priority_tip)
+}
+
+/// Execution-gas portion only, after [`NetworkFeePolicy::execution_gas_fee_bps`].
+pub fn execution_gas_fee_in(gas_used: u64, policy: &NetworkFeePolicy, denom: Denomination) -> u128 {
+    let full = fee_for_gas_in(gas_used, denom);
+    if policy.execution_gas_fee_bps == 0 {
+        return 0;
+    }
+    if policy.execution_gas_fee_bps >= 10_000 {
+        return full;
+    }
+    full.saturating_mul(policy.execution_gas_fee_bps as u128) / 10_000
+}
+
+/// Debit `tip` from `sender` and credit 100% to `fee_recipient` (block proposer).
+/// Tips are not split by [`NetworkFeePolicy`] BPS — they are a direct priority payment.
+pub fn charge_priority_tip(
+    state: &mut StateStore,
+    sender: &AccountId,
+    tip: u128,
+    fee_recipient: &AccountId,
+) -> Result<(), FeeError> {
+    if tip == 0 {
+        return Ok(());
+    }
+    let sender_state = state.get_mut(sender).ok_or(FeeError::SenderMissing)?;
+    if sender_state.balance < tip {
+        return Err(FeeError::InsufficientBalance {
+            have: sender_state.balance,
+            need: tip,
+        });
+    }
+    sender_state.balance -= tip;
+    credit_account(state, *fee_recipient, tip);
+    Ok(())
 }
 
 /// Blob data fee + optional Forever pin fee (KiB rounded up).
@@ -531,6 +578,40 @@ mod tests {
         let tx = TransactionPayload::Transfer { to: AccountId([2; 32]), amount: 5 };
         assert_eq!(network_fee_amount_in(21_000, &tx, &p, d), 21_000 * GAS_PRICE_BASE_UNITS);
         assert_eq!(network_fee_amount(21_000, &tx, &p), 1);
+    }
+
+    #[test]
+    fn waived_execution_gas_leaves_extras_and_tips() {
+        let d = Denomination::BaseUnits;
+        let mut p = NetworkFeePolicy::optional_fees_default();
+        p.extra_fixed_fee = 7;
+        let tx = TransactionPayload::Transfer {
+            to: AccountId([2; 32]),
+            amount: 5,
+        };
+        assert_eq!(network_fee_amount_in(21_000, &tx, &p, d), 7);
+        assert_eq!(total_fee_with_tip_in(21_000, &tx, &p, d, 100), 107);
+        assert_eq!(execution_gas_fee_in(21_000, &p, d), 0);
+    }
+
+    #[test]
+    fn charge_priority_tip_credits_proposer_only() {
+        let sender = AccountId([1u8; 32]);
+        let proposer = AccountId([2u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: sender,
+            state: AccountState {
+                balance: 50,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        charge_priority_tip(&mut state, &sender, 10, &proposer).unwrap();
+        assert_eq!(state.get(&sender).unwrap().balance, 40);
+        assert_eq!(state.get(&proposer).unwrap().balance, 10);
+        assert!(state.get(&PROTOCOL_TREASURY).is_none());
     }
 
     #[test]

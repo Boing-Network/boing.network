@@ -10,6 +10,10 @@ use boing_qa::{check_contract_deploy_full_with_metadata, QaReject, QaResult, Rul
 /// Default max pending transactions per sender (matches SECURITY-STANDARDS / RateLimitConfig).
 pub const DEFAULT_MAX_PENDING_PER_SENDER: usize = 16;
 
+/// Stricter pending cap for **zero-tip** txs when optional fees (free execution gas) are active.
+/// Tipped txs still use [`DEFAULT_MAX_PENDING_PER_SENDER`]. Anti-spam for the free path.
+pub const DEFAULT_MAX_FREE_PENDING_PER_SENDER: usize = 4;
+
 /// Default cap on all pending transactions (security review #7). Override with `BOING_MEMPOOL_MAX_TXS`.
 pub const DEFAULT_MAX_TOTAL_PENDING: usize = 10_000;
 
@@ -25,15 +29,18 @@ fn max_total_from_env() -> usize {
 pub struct Mempool {
     inner: Mutex<MempoolInner>,
     max_pending_per_sender: usize,
-    /// Global cap on pending txs. When full, a new tx evicts the newest (highest-nonce) tx of the sender
-    /// holding the most pending txs, if that sender holds more than the newcomer would; otherwise it is
-    /// rejected with [`MempoolError::MempoolFull`]. Boing has no fee bidding (fees are fixed by the
-    /// protocol schedule), so fairness across senders replaces "lowest fee first" eviction.
+    /// Cap on zero-tip pending txs per sender (optional-fee anti-spam). Ignored when
+    /// [`Self::optional_fees_active`] is false.
+    max_free_pending_per_sender: usize,
+    /// Global cap on pending txs. When full, eviction prefers lowest-tip then highest-nonce of the
+    /// busiest other sender; otherwise reject with [`MempoolError::MempoolFull`].
     max_total: usize,
     /// QA rule registry (blocklist, content blocklist, etc.). Replace via [Mempool::with_qa_registry] or governance.
     qa_registry: RuleRegistry,
     /// Deploy QA accepts the native-value opcodes (set by the node from the next block height).
     native_value_opcodes: std::sync::atomic::AtomicBool,
+    /// When true, zero-tip txs use the free pending cap and drain prefers higher tips.
+    optional_fees_active: std::sync::atomic::AtomicBool,
 }
 
 impl Default for Mempool {
@@ -62,9 +69,11 @@ impl Mempool {
         Self {
             inner: Mutex::new(MempoolInner::default()),
             max_pending_per_sender: DEFAULT_MAX_PENDING_PER_SENDER,
+            max_free_pending_per_sender: DEFAULT_MAX_FREE_PENDING_PER_SENDER,
             max_total: max_total_from_env(),
             qa_registry: default_qa_registry(),
             native_value_opcodes: std::sync::atomic::AtomicBool::new(false),
+            optional_fees_active: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -75,8 +84,24 @@ impl Mempool {
             .store(allow, std::sync::atomic::Ordering::Relaxed);
     }
 
+    /// Enable free-tx anti-spam + tip-aware drain/eviction (when execution gas is waived).
+    pub fn set_optional_fees_active(&self, active: bool) {
+        self.optional_fees_active
+            .store(active, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn optional_fees_active(&self) -> bool {
+        self.optional_fees_active
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     pub fn with_max_pending_per_sender(mut self, max: usize) -> Self {
         self.max_pending_per_sender = max.max(1);
+        self
+    }
+
+    pub fn with_max_free_pending_per_sender(mut self, max: usize) -> Self {
+        self.max_free_pending_per_sender = max.max(1);
         self
     }
 
@@ -204,6 +229,7 @@ impl Mempool {
             }
         }
         let tx_id = signed.tx.id();
+        let tip = signed.priority_tip;
         let mut inner = self.inner.lock().unwrap();
         if inner.by_id.contains_key(&tx_id) {
             return Err(MempoolError::Duplicate);
@@ -223,6 +249,20 @@ impl Mempool {
                     limit: self.max_pending_per_sender,
                 });
             }
+            // Free-path anti-spam: tighter pending cap when tip is zero and optional fees are on.
+            if tip == 0 && self.optional_fees_active() {
+                let free_count = inner
+                    .by_sender
+                    .get(&sender)
+                    .map(|m| m.values().filter(|s| s.priority_tip == 0).count())
+                    .unwrap_or(0);
+                if free_count >= self.max_free_pending_per_sender {
+                    return Err(MempoolError::FreePendingLimitExceeded {
+                        sender,
+                        limit: self.max_free_pending_per_sender,
+                    });
+                }
+            }
             if !restoring && inner.len >= self.max_total {
                 Self::evict_for(&mut inner, sender, sender_count, self.max_total)?;
             }
@@ -241,8 +281,8 @@ impl Mempool {
         Ok(())
     }
 
-    /// Make room for one tx from `newcomer` (holding `newcomer_count` pending): evict the highest nonce of
-    /// the sender with the most pending txs (ties: highest account id, so the choice is deterministic)
+    /// Make room for one tx from `newcomer` (holding `newcomer_count` pending): evict the lowest-tip
+    /// (then highest-nonce) tx of the sender with the most pending txs (ties: highest account id)
     /// when that sender would still hold more than the newcomer afterwards.
     fn evict_for(
         inner: &mut MempoolInner,
@@ -259,7 +299,17 @@ impl Mempool {
         match victim {
             Some((id, count)) if count > newcomer_count + 1 => {
                 let by_nonce = inner.by_sender.get_mut(&id).expect("victim exists");
-                let (_, evicted) = by_nonce.pop_last().expect("non-empty");
+                // Prefer dropping the lowest tip; among equals, highest nonce (newest).
+                let evict_nonce = by_nonce
+                    .iter()
+                    .min_by(|a, b| {
+                        a.1.priority_tip
+                            .cmp(&b.1.priority_tip)
+                            .then_with(|| b.0.cmp(a.0))
+                    })
+                    .map(|(n, _)| *n)
+                    .expect("non-empty");
+                let evicted = by_nonce.remove(&evict_nonce).expect("nonce present");
                 if by_nonce.is_empty() {
                     inner.by_sender.remove(&id);
                 }
@@ -272,18 +322,24 @@ impl Mempool {
     }
 
     /// Remove and return signed transactions up to `max` for block inclusion.
-    /// Returns txs in nonce order (per sender). Callers can re-insert on failure (e.g. consensus).
+    ///
+    /// Ordering: higher `priority_tip` first, then lower nonce, then sender id (deterministic).
+    /// When optional fees are inactive, tip is always 0 so this matches the historical nonce order.
     pub fn drain_for_block(&self, max: usize) -> Vec<SignedTransaction> {
         let mut inner = self.inner.lock().unwrap();
-        let mut candidates: Vec<(AccountId, u64)> = Vec::new();
+        let mut candidates: Vec<(u128, AccountId, u64)> = Vec::new();
         for (sender, by_nonce) in inner.by_sender.iter() {
-            for nonce in by_nonce.keys() {
-                candidates.push((*sender, *nonce));
+            for (nonce, signed) in by_nonce.iter() {
+                candidates.push((signed.priority_tip, *sender, *nonce));
             }
         }
-        candidates.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0 .0.cmp(&b.0 .0)));
+        candidates.sort_by(|a, b| {
+            b.0.cmp(&a.0)
+                .then_with(|| a.2.cmp(&b.2))
+                .then_with(|| a.1 .0.cmp(&b.1 .0))
+        });
         let mut out = Vec::with_capacity(max.min(candidates.len()));
-        for (sender, nonce) in candidates.into_iter().take(max) {
+        for (_tip, sender, nonce) in candidates.into_iter().take(max) {
             if let Some(by_nonce) = inner.by_sender.get_mut(&sender) {
                 if let Some(signed) = by_nonce.remove(&nonce) {
                     inner.by_id.remove(&signed.tx.id());
@@ -352,10 +408,16 @@ pub enum MempoolError {
     InvalidBatch(boing_primitives::BatchValidationError),
     #[error("Pending limit exceeded: sender has too many pending txs (max {limit})")]
     PendingLimitExceeded { sender: AccountId, limit: usize },
+    #[error(
+        "Free-tx pending limit exceeded: sender has too many zero-tip pending txs (max {limit}); attach a priority tip or wait"
+    )]
+    FreePendingLimitExceeded { sender: AccountId, limit: usize },
     #[error("Mempool full ({limit} pending txs); try again later")]
     MempoolFull { limit: usize },
     #[error("insufficient balance for fee: have {have}, need {need}")]
     InsufficientFee { have: u128, need: u128 },
+    #[error("free tx rejected: sender balance {have} below free_tx_min_balance {need}")]
+    FreeTxBalanceGate { have: u128, need: u128 },
     /// Protocol QA rejected this deployment; rule_id and message give user feedback.
     #[error("QA rejected: {0}")]
     QaRejected(QaReject),

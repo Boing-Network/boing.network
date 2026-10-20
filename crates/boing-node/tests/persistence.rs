@@ -43,6 +43,7 @@ fn test_persistence_roundtrip() {
         },
         transactions: vec![],
         signatures: vec![],
+        priority_tips: vec![],
     };
     chain.append(block1.clone()).unwrap();
     state.get_mut(&proposer).unwrap().nonce = 1;
@@ -82,6 +83,7 @@ fn load_chain_recovers_when_genesis_file_was_never_written() {
         },
         transactions: vec![],
         signatures: vec![],
+        priority_tips: vec![],
     };
     chain.append(block1.clone()).unwrap();
 

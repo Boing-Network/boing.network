@@ -299,6 +299,14 @@ fn craft_next_with(leader: &BoingNode, txs: Vec<SignedTransaction>, all_succeed:
             blobs_root: None,
         },
         signatures: txs.iter().map(|s| s.signature).collect(),
+        priority_tips: {
+            let tips: Vec<u128> = txs.iter().map(|s| s.priority_tip).collect();
+            if tips.iter().any(|&t| t != 0) {
+                tips
+            } else {
+                vec![]
+            }
+        },
         transactions: plain,
     }
 }

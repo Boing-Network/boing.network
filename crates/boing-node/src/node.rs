@@ -518,6 +518,8 @@ impl BoingNode {
     }
 
     fn apply_fee_policy_without_persist(&mut self, policy: NetworkFeePolicy) {
+        self.mempool
+            .set_optional_fees_active(policy.execution_gas_waived());
         self.executor.set_fee_policy(policy);
     }
 
@@ -1093,12 +1095,26 @@ impl BoingNode {
             block_timestamp: ts,
             native_value: false, // set by the VM from the height
         };
+        let policy = self.executor.fee_policy();
+        // Free-path balance gate (anti-spam): zero-tip txs when execution gas is waived.
+        if signed.priority_tip == 0 && policy.execution_gas_waived() && policy.free_tx_min_balance > 0
+        {
+            if have < policy.free_tx_min_balance {
+                return Err(MempoolError::FreeTxBalanceGate {
+                    have,
+                    need: policy.free_tx_min_balance,
+                });
+            }
+        }
         if let Ok(out) = vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
-            let need = self.executor.network_fee_at(
-                out.gas_used,
-                &signed.tx.payload,
-                height.saturating_add(1),
-            );
+            let need = self
+                .executor
+                .network_fee_at(
+                    out.gas_used,
+                    &signed.tx.payload,
+                    height.saturating_add(1),
+                )
+                .saturating_add(signed.priority_tip);
             let remaining = state_copy
                 .get(&signed.tx.sender)
                 .map(|s| s.balance)

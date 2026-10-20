@@ -397,6 +397,7 @@ mod tests {
             },
             transactions: vec![],
             signatures: vec![],
+            priority_tips: vec![],
         }
     }
 

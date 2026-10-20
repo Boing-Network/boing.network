@@ -271,7 +271,12 @@ export function encodeSignature(signature64) {
     return concatBytes(writeU64Le(64n), signature64);
 }
 export function encodeSignedTransaction(tx, signature64) {
-    return concatBytes(encodeTransaction(tx), encodeSignature(signature64));
+    const tip = tx.priorityTip ?? 0n;
+    const base = concatBytes(encodeTransaction(tx), encodeSignature(signature64));
+    // Match Rust `skip_serializing_if = is_zero_u128`: tip omitted when zero.
+    if (tip === 0n)
+        return base;
+    return concatBytes(base, writeU128Le(tip));
 }
 /**
  * BLAKE3 hash signed by the node for `SignedTransaction` verification.
@@ -283,6 +288,8 @@ export function signableTransactionHash(tx) {
 }
 /** Domain tag of the v2 (chain-bound) signing preimage. */
 export const TX_SIGNING_DOMAIN_V2 = new TextEncoder().encode('BOING_TX_V2');
+/** Domain tag when a non-zero priority tip is bound into the signature. */
+export const TX_SIGNING_DOMAIN_PRIORITY = new TextEncoder().encode('BOING_TX_PRIORITY');
 /**
  * v2 signable hash (security fix #2, cross-chain replay): BLAKE3( "BOING_TX_V2" || chain_id_le(8) ||
  * nonce_le || sender(32) || bincode(payload) || bincode(access_list) ). Matches Rust
@@ -293,11 +300,23 @@ export function signableTransactionHashV2(tx, chainId) {
     const preimage = concatBytes(TX_SIGNING_DOMAIN_V2, writeU64Le(BigInt(chainId)), writeU64Le(tx.nonce), tx.sender, encodeTransactionPayload(tx.payload), encodeAccessList(tx.accessList.read, tx.accessList.write));
     return blake3(preimage);
 }
+/**
+ * Signable digest including an optional priority tip. Tip `0` == [`signableTransactionHashV2`].
+ * Non-zero: BLAKE3(`BOING_TX_PRIORITY` || chain_id || nonce || sender || payload || access_list || tip_le16).
+ */
+export function signableTransactionHashWithTip(tx, chainId, priorityTip = tx.priorityTip ?? 0n) {
+    if (priorityTip === 0n)
+        return signableTransactionHashV2(tx, chainId);
+    const preimage = concatBytes(TX_SIGNING_DOMAIN_PRIORITY, writeU64Le(BigInt(chainId)), writeU64Le(tx.nonce), tx.sender, encodeTransactionPayload(tx.payload), encodeAccessList(tx.accessList.read, tx.accessList.write), writeU128Le(priorityTip));
+    return blake3(preimage);
+}
 const SIGNED_TX_SIGNATURE_TRAIL_BYTES = 8 + 64;
+const SIGNED_TX_TIP_BYTES = 16;
 /**
  * Derives the mempool / receipt **`tx_id`** (32-byte BLAKE3) from **`0x` + bincode(`SignedTransaction`)** hex
  * returned by Boing Express after `boing_signTransaction`. Matches **`Transaction::id()`** / **`boing_getTransactionReceipt`** param
- * per [RPC-API-SPEC.md](https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md) (signable body excludes the trailing serde `Signature` block).
+ * per [RPC-API-SPEC.md](https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md) (signable body excludes the trailing serde `Signature` block
+ * and optional priority tip).
  *
  * @throws if hex is invalid or the trailing signature length field is not 64
  */
@@ -306,12 +325,25 @@ export function transactionIdFromSignedTransactionHex(signedTxHex) {
     if (bytes.length < SIGNED_TX_SIGNATURE_TRAIL_BYTES + 1) {
         throw new Error('Signed transaction bytes too short to derive tx_id');
     }
-    const sigLenOffset = bytes.length - SIGNED_TX_SIGNATURE_TRAIL_BYTES;
-    const dv = new DataView(bytes.buffer, bytes.byteOffset + sigLenOffset, 8);
-    const sigLen = dv.getBigUint64(0, true);
-    if (sigLen !== 64n) {
-        throw new Error(`Unexpected serde signature length field: ${sigLen} (expected 64)`);
+    const tryOffset = (sigLenOffset) => {
+        if (sigLenOffset < 1)
+            return null;
+        const dv = new DataView(bytes.buffer, bytes.byteOffset + sigLenOffset, 8);
+        const sigLen = dv.getBigUint64(0, true);
+        if (sigLen !== 64n)
+            return null;
+        const txBody = bytes.subarray(0, sigLenOffset);
+        return bytesToHex(blake3(txBody));
+    };
+    // Prefer tipped layout (sig then tip) when the trailing 16 bytes look like a tip extension.
+    if (bytes.length >= SIGNED_TX_SIGNATURE_TRAIL_BYTES + SIGNED_TX_TIP_BYTES + 1) {
+        const tipped = tryOffset(bytes.length - SIGNED_TX_SIGNATURE_TRAIL_BYTES - SIGNED_TX_TIP_BYTES);
+        if (tipped)
+            return tipped;
     }
-    const txBody = bytes.subarray(0, sigLenOffset);
-    return bytesToHex(blake3(txBody));
+    const untipped = tryOffset(bytes.length - SIGNED_TX_SIGNATURE_TRAIL_BYTES);
+    if (!untipped) {
+        throw new Error('Unexpected serde signature length field (expected 64)');
+    }
+    return untipped;
 }

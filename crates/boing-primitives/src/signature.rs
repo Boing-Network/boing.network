@@ -85,6 +85,10 @@ fn signable_hash(tx: &Transaction) -> [u8; 32] {
 /// Domain tag prefixed to the v2 signing preimage (security review #2: cross-chain replay).
 pub const TX_SIGNING_DOMAIN_V2: &[u8] = b"BOING_TX_V2";
 
+/// Domain tag when a non-zero priority tip is bound into the signature (optional fee market).
+/// Tip `0` keeps the historical v2 preimage so untipped txs stay compatible.
+pub const TX_SIGNING_DOMAIN_PRIORITY: &[u8] = b"BOING_TX_PRIORITY";
+
 /// v2 signing digest: BLAKE3(`"BOING_TX_V2"` || chain_id_le(8) || nonce_le || sender || bincode(payload)
 /// || bincode(access_list)). Binds the signature to one chain, so a tx signed for testnet (6913)
 /// cannot be replayed on mainnet (6914) or a devnet, and the tag separates tx signatures from any
@@ -100,9 +104,47 @@ pub fn signable_transaction_hash_v2(tx: &Transaction, chain_id: u64) -> [u8; 32]
     *h.finalize().as_bytes()
 }
 
+/// Signable digest including an optional priority tip.
+///
+/// - `priority_tip == 0` → identical to [`signable_transaction_hash_v2`] (existing wallets keep working).
+/// - `priority_tip > 0` → BLAKE3(`"BOING_TX_PRIORITY"` || chain_id || nonce || sender || payload ||
+///   access_list || tip_le16).
+pub fn signable_transaction_hash_with_tip(
+    tx: &Transaction,
+    chain_id: u64,
+    priority_tip: u128,
+) -> [u8; 32] {
+    if priority_tip == 0 {
+        return signable_transaction_hash_v2(tx, chain_id);
+    }
+    let mut h = hasher();
+    h.update(TX_SIGNING_DOMAIN_PRIORITY);
+    h.update(&chain_id.to_le_bytes());
+    h.update(&tx.nonce.to_le_bytes());
+    h.update(tx.sender.0.as_slice());
+    h.update(&bincode::serialize(&tx.payload).unwrap_or_default());
+    h.update(&bincode::serialize(&tx.access_list).unwrap_or_default());
+    h.update(&priority_tip.to_le_bytes());
+    *h.finalize().as_bytes()
+}
+
 /// Sign with the v2 (chain-bound) domain.
 pub fn sign_transaction_v2(tx: &Transaction, signing_key: &SigningKey, chain_id: u64) -> Signature {
     Signature(signing_key.sign(&signable_transaction_hash_v2(tx, chain_id)).to_bytes())
+}
+
+/// Sign binding a priority tip (uses v2 when tip is 0).
+pub fn sign_transaction_with_tip(
+    tx: &Transaction,
+    signing_key: &SigningKey,
+    chain_id: u64,
+    priority_tip: u128,
+) -> Signature {
+    Signature(
+        signing_key
+            .sign(&signable_transaction_hash_with_tip(tx, chain_id, priority_tip))
+            .to_bytes(),
+    )
 }
 
 /// Which signature formats a verifier accepts.
@@ -115,19 +157,48 @@ pub struct TxSigPolicy {
 }
 
 /// Verify under `policy`: a v2 signature for `policy.chain_id` is always accepted; a legacy one only
-/// while `!policy.require_v2`.
+/// while `!policy.require_v2`. Tip must be `0` (use [`verify_signature_with_tip`] for tipped txs).
 pub fn verify_signature_with(
     tx: &Transaction,
     sig: &Signature,
     sender: &AccountId,
     policy: TxSigPolicy,
 ) -> Result<(), SignatureError> {
+    verify_signature_with_tip(tx, sig, sender, policy, 0)
+}
+
+/// Like [`verify_signature_with`], but accepts a priority tip bound into the signature when non-zero.
+pub fn verify_signature_with_tip(
+    tx: &Transaction,
+    sig: &Signature,
+    sender: &AccountId,
+    policy: TxSigPolicy,
+    priority_tip: u128,
+) -> Result<(), SignatureError> {
     let pk = VerifyingKey::from_bytes(&sender.0).map_err(|_| SignatureError::InvalidPublicKey)?;
     let ed_sig = Ed25519Signature::from_bytes(&sig.0);
     if let Some(cid) = policy.chain_id {
-        if pk.verify_strict(&signable_transaction_hash_v2(tx, cid), &ed_sig).is_ok() {
+        if pk
+            .verify_strict(
+                &signable_transaction_hash_with_tip(tx, cid, priority_tip),
+                &ed_sig,
+            )
+            .is_ok()
+        {
             return Ok(());
         }
+        // Untipped path also accepts a plain v2 signature when tip is 0 (same preimage).
+        if priority_tip == 0
+            && pk
+                .verify_strict(&signable_transaction_hash_v2(tx, cid), &ed_sig)
+                .is_ok()
+        {
+            return Ok(());
+        }
+    }
+    if priority_tip > 0 {
+        // Tips require a chain-bound priority signature; never fall back to legacy.
+        return Err(SignatureError::InvalidSignature);
     }
     if policy.require_v2 {
         return Err(if pk.verify_strict(&signable_hash(tx), &ed_sig).is_ok() {
@@ -136,7 +207,8 @@ pub fn verify_signature_with(
             SignatureError::InvalidSignature
         });
     }
-    pk.verify_strict(&signable_hash(tx), &ed_sig).map_err(|_| SignatureError::InvalidSignature)
+    pk.verify_strict(&signable_hash(tx), &ed_sig)
+        .map_err(|_| SignatureError::InvalidSignature)
 }
 
 // Process-wide policy (one chain per node / CLI process). 0 = unset.
@@ -185,11 +257,28 @@ pub fn verify_signature(tx: &Transaction, sig: &Signature, sender: &AccountId) -
     Ok(())
 }
 
-/// Signed transaction — transaction + Ed25519 signature.
+fn is_zero_u128(v: &u128) -> bool {
+    *v == 0
+}
+
+/// Signed transaction — transaction + Ed25519 signature (+ optional priority tip).
+///
+/// `priority_tip` is omitted from the wire encoding when zero so historical
+/// `(tx, signature)` bincode/JSON stay byte-identical. Use [`SignedTransaction::from_bincode`]
+/// when decoding untrusted bytes (RPC submit).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignedTransaction {
     pub tx: Transaction,
     pub signature: Signature,
+    /// Optional priority tip in ledger units (paid to the block proposer on inclusion).
+    #[serde(default, skip_serializing_if = "is_zero_u128")]
+    pub priority_tip: u128,
+}
+
+#[derive(Deserialize)]
+struct LegacySignedTransaction {
+    tx: Transaction,
+    signature: Signature,
 }
 
 impl SignedTransaction {
@@ -201,21 +290,66 @@ impl SignedTransaction {
         }
     }
 
-    /// v2 (chain-bound) signature.
+    /// v2 (chain-bound) signature with tip `0`.
     pub fn new_for_chain(tx: Transaction, signing_key: &SigningKey, chain_id: u64) -> Self {
-        let signature = sign_transaction_v2(&tx, signing_key, chain_id);
-        Self { tx, signature }
+        Self::new_for_chain_with_tip(tx, signing_key, chain_id, 0)
+    }
+
+    /// Chain-bound signature that commits to `priority_tip` when non-zero.
+    pub fn new_for_chain_with_tip(
+        tx: Transaction,
+        signing_key: &SigningKey,
+        chain_id: u64,
+        priority_tip: u128,
+    ) -> Self {
+        let signature = sign_transaction_with_tip(&tx, signing_key, chain_id, priority_tip);
+        Self {
+            tx,
+            signature,
+            priority_tip,
+        }
     }
 
     /// Legacy (domain-less) signature; rejected by nodes after the v2 activation height.
+    /// Tips are not supported on the legacy path (`priority_tip` must stay 0).
     pub fn new_legacy(tx: Transaction, signing_key: &SigningKey) -> Self {
         let signature = sign_transaction(&tx, signing_key);
-        Self { tx, signature }
+        Self {
+            tx,
+            signature,
+            priority_tip: 0,
+        }
     }
 
-    /// Create from a transaction and raw signature (e.g. when deserializing).
+    /// Create from a transaction and raw signature (e.g. when deserializing). Tip defaults to 0.
     pub fn from_parts(tx: Transaction, signature: Signature) -> Self {
-        Self { tx, signature }
+        Self {
+            tx,
+            signature,
+            priority_tip: 0,
+        }
+    }
+
+    pub fn from_parts_with_tip(tx: Transaction, signature: Signature, priority_tip: u128) -> Self {
+        Self {
+            tx,
+            signature,
+            priority_tip,
+        }
+    }
+
+    /// Decode RPC / gossip bytes: tipped encoding or historical `(tx, signature)` only.
+    pub fn from_bincode(bytes: &[u8]) -> Result<Self, bincode::Error> {
+        match bincode::deserialize::<SignedTransaction>(bytes) {
+            Ok(s) => Ok(s),
+            Err(e) => bincode::deserialize::<LegacySignedTransaction>(bytes)
+                .map(|l| Self {
+                    tx: l.tx,
+                    signature: l.signature,
+                    priority_tip: 0,
+                })
+                .map_err(|_| e),
+        }
     }
 
     /// Verify the signature. Sender (AccountId) must equal the public key of the signer.
@@ -225,12 +359,26 @@ impl SignedTransaction {
     }
 
     pub fn verify_with(&self, policy: TxSigPolicy) -> Result<(), SignatureError> {
-        verify_signature_with(&self.tx, &self.signature, &self.tx.sender, policy)
+        verify_signature_with_tip(
+            &self.tx,
+            &self.signature,
+            &self.tx.sender,
+            policy,
+            self.priority_tip,
+        )
     }
 
     /// Human-readable summary for wallet signing UI.
     pub fn display_for_signing(&self) -> String {
-        self.tx.display_for_signing()
+        if self.priority_tip == 0 {
+            self.tx.display_for_signing()
+        } else {
+            format!(
+                "{} (priority tip {})",
+                self.tx.display_for_signing(),
+                self.priority_tip
+            )
+        }
     }
 }
 

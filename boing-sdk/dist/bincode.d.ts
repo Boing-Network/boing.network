@@ -199,6 +199,12 @@ export interface TransactionInput {
         read: Uint8Array[];
         write: Uint8Array[];
     };
+    /**
+     * Optional priority tip (ledger units). `0` / omitted keeps historical wire encoding and v2
+     * signing preimage. Non-zero tips use the `BOING_TX_PRIORITY` domain and append tip to the
+     * signed-tx encoding (matches Rust `SignedTransaction.priority_tip`).
+     */
+    priorityTip?: bigint;
 }
 export declare function encodeTransaction(tx: TransactionInput): Uint8Array;
 /** `Signature` — serde `serialize_bytes` → u64 LE length + 64 raw bytes. */
@@ -211,6 +217,8 @@ export declare function encodeSignedTransaction(tx: TransactionInput, signature6
 export declare function signableTransactionHash(tx: TransactionInput): Uint8Array;
 /** Domain tag of the v2 (chain-bound) signing preimage. */
 export declare const TX_SIGNING_DOMAIN_V2: Uint8Array<ArrayBuffer>;
+/** Domain tag when a non-zero priority tip is bound into the signature. */
+export declare const TX_SIGNING_DOMAIN_PRIORITY: Uint8Array<ArrayBuffer>;
 /**
  * v2 signable hash (security fix #2, cross-chain replay): BLAKE3( "BOING_TX_V2" || chain_id_le(8) ||
  * nonce_le || sender(32) || bincode(payload) || bincode(access_list) ). Matches Rust
@@ -219,9 +227,15 @@ export declare const TX_SIGNING_DOMAIN_V2: Uint8Array<ArrayBuffer>;
  */
 export declare function signableTransactionHashV2(tx: TransactionInput, chainId: bigint | number): Uint8Array;
 /**
+ * Signable digest including an optional priority tip. Tip `0` == [`signableTransactionHashV2`].
+ * Non-zero: BLAKE3(`BOING_TX_PRIORITY` || chain_id || nonce || sender || payload || access_list || tip_le16).
+ */
+export declare function signableTransactionHashWithTip(tx: TransactionInput, chainId: bigint | number, priorityTip?: bigint): Uint8Array;
+/**
  * Derives the mempool / receipt **`tx_id`** (32-byte BLAKE3) from **`0x` + bincode(`SignedTransaction`)** hex
  * returned by Boing Express after `boing_signTransaction`. Matches **`Transaction::id()`** / **`boing_getTransactionReceipt`** param
- * per [RPC-API-SPEC.md](https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md) (signable body excludes the trailing serde `Signature` block).
+ * per [RPC-API-SPEC.md](https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md) (signable body excludes the trailing serde `Signature` block
+ * and optional priority tip).
  *
  * @throws if hex is invalid or the trailing signature length field is not 64
  */

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Optional priority tips** — `TransactionInput.priorityTip`, `withPriorityTip`, `signableTransactionHashWithTip` / `TX_SIGNING_DOMAIN_PRIORITY`. Zero tip keeps historical encode/sign; non-zero tips bind into the signature and wire encoding. See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
+
 ## [0.5.7] - 2026-10-20
 
 ### Changed

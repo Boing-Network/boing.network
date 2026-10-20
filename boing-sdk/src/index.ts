@@ -506,6 +506,8 @@ export {
   encodeSignedTransaction,
   signableTransactionHash,
   signableTransactionHashV2,
+  signableTransactionHashWithTip,
+  TX_SIGNING_DOMAIN_PRIORITY,
   TX_SIGNING_DOMAIN_V2,
   transactionIdFromSignedTransactionHex,
   BatchCallVariant,
@@ -532,6 +534,7 @@ export {
   fetchSigningChainId,
   configureSigningFromNode,
   signingHashFor,
+  withPriorityTip,
 } from './transactionBuilder.js';
 export type { SignOptions, BuildContractCallWithValueInput } from './transactionBuilder.js';
 export type { BuildBatchInput, BuildBatchCall, BuildTransferInput, BuildContractCallInput, BuildDeployWithPurposeInput, Ed25519SecretKey32 } from './transactionBuilder.js';

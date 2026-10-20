@@ -333,10 +333,17 @@ fn fee_policy_json(p: &NetworkFeePolicy) -> serde_json::Value {
         "fee_burn_bps": p.fee_burn_bps,
         "extra_fixed_fee": p.extra_fixed_fee.to_string(),
         "transfer_amount_bps": p.transfer_amount_bps,
+        "blob_base_fee_per_kib": p.blob_base_fee_per_kib.to_string(),
+        "blob_forever_pin_fee_per_kib": p.blob_forever_pin_fee_per_kib.to_string(),
+        "execution_gas_fee_bps": p.execution_gas_fee_bps,
+        "free_tx_min_balance": p.free_tx_min_balance.to_string(),
+        "execution_gas_waived": p.execution_gas_waived(),
+        "optional_priority_tips": true,
         "treasury_account": format!("0x{}", PROTOCOL_TREASURY_HEX),
-        "fee_formula": "network_fee = ceil(gas_used * GAS_PRICE / GAS_UNITS_PER_BOING) + extra_fixed_fee + (transfer_amount * transfer_amount_bps / 10000)",
+        "fee_formula": "network_fee = ceil(gas_used * GAS_PRICE / GAS_UNITS_PER_BOING) * execution_gas_fee_bps/10000 + extra_fixed_fee + (transfer_amount * transfer_amount_bps / 10000) + blob fees; priority_tip paid separately to proposer",
         "gas_price_base_units": boing_tokenomics::GAS_PRICE_BASE_UNITS.to_string(),
-        "fee_formula_base_units": "network_fee = gas_used * gas_price_base_units + extra_fixed_fee + (transfer_amount * transfer_amount_bps / 10000), all in base units (10^18 per BOING); applies from native_currency.base_units_from_height (fee_formula above is the whole-BOING rule before it)",
+        "fee_formula_base_units": "network_fee = gas_used * gas_price_base_units * execution_gas_fee_bps/10000 + extra_fixed_fee + transfer bps + blob_base_fee_per_kib + forever pin; tip not included. Blob/pin fees stay independent of free-by-default execution gas. Applies from native_currency.base_units_from_height.",
+        "note": "Default path: set execution_gas_fee_bps=0 for free inclusion (anti-spam: free_tx_min_balance + mempool free-pending cap). Users attach priority_tip for preferred ordering under congestion. Blob fees are never waived by execution_gas_fee_bps.",
     })
 }
 
@@ -1370,7 +1377,7 @@ async fn dispatch_jsonrpc_request(
                 }
             };
             match hex::decode(hex_tx.trim_start_matches("0x")) {
-                Ok(bytes) => match bincode::deserialize::<SignedTransaction>(&bytes) {
+                Ok(bytes) => match SignedTransaction::from_bincode(&bytes) {
                     Ok(signed) => {
                         let gossip_copy = signed.clone();
                         // Real tx id (same as receipts' `tx_id` / boing_getTransactionReceipt key).
@@ -1399,9 +1406,38 @@ async fn dispatch_jsonrpc_request(
                                 serde_json::json!({
                                     "have": have.to_string(),
                                     "need": need.to_string(),
-                                    "hint": "Request testnet BOING from the faucet and retry. Native fees are ceil(gas_used / 21000) BOING (a token deploy is typically ~10–20 BOING).",
+                                    "hint": "Request testnet BOING from the faucet and retry. With optional fees, need = protocol fee + priority_tip (execution gas may be waived).",
                                 }),
                             ),
+                            Err(MempoolError::FreePendingLimitExceeded { limit, .. }) => {
+                                rpc_error_with_data(
+                                    id,
+                                    -32000,
+                                    format!(
+                                        "free-tx pending limit exceeded (max {limit} zero-tip txs); attach a priority tip or wait"
+                                    ),
+                                    serde_json::json!({
+                                        "reason": "free_pending_limit",
+                                        "limit": limit,
+                                        "hint": "Optional fee market anti-spam: tip for priority, or wait for pending free txs to clear.",
+                                    }),
+                                )
+                            }
+                            Err(MempoolError::FreeTxBalanceGate { have, need }) => {
+                                rpc_error_with_data(
+                                    id,
+                                    -32000,
+                                    format!(
+                                        "free tx rejected: balance {have} below free_tx_min_balance {need}"
+                                    ),
+                                    serde_json::json!({
+                                        "reason": "free_tx_balance_gate",
+                                        "have": have.to_string(),
+                                        "need": need.to_string(),
+                                        "hint": "Hold at least free_tx_min_balance to submit untipped txs, or attach a priority tip.",
+                                    }),
+                                )
+                            },
                             Err(MempoolError::NativeValueNotActive { from }) => rpc_error_with_data(
                                 id,
                                 -32000,
@@ -2478,7 +2514,7 @@ async fn dispatch_jsonrpc_request(
                 }
             };
             match hex::decode(hex_tx.trim_start_matches("0x")) {
-                Ok(bytes) => match bincode::deserialize::<SignedTransaction>(&bytes) {
+                Ok(bytes) => match SignedTransaction::from_bincode(&bytes) {
                     Ok(signed) => {
                         let (mut state_copy, vm, exec_ctx, fee_policy, fee_denom) = {
                             let n = node.read().await;
@@ -2507,12 +2543,14 @@ async fn dispatch_jsonrpc_request(
                         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
                             Ok(out) => {
                                 // Network fee for this tx if included in the next block (ledger units).
-                                let fee = boing_tokenomics::network_fee_amount_in(
+                                let protocol_fee = boing_tokenomics::network_fee_amount_in(
                                     out.gas_used,
                                     &signed.tx.payload,
                                     &fee_policy,
                                     fee_denom,
                                 );
+                                let tip = signed.priority_tip;
+                                let fee = protocol_fee.saturating_add(tip);
                                 rpc_ok(
                                     id,
                                     serde_json::json!({
@@ -2523,6 +2561,8 @@ async fn dispatch_jsonrpc_request(
                                         "suggested_access_list": access_list_to_json(&sug),
                                         "access_list_covers_suggestion": covers,
                                         "network_fee": fee.to_string(),
+                                        "protocol_fee": protocol_fee.to_string(),
+                                        "priority_tip": tip.to_string(),
                                         "network_fee_decimals": fee_denom.decimals(),
                                     }),
                                 )

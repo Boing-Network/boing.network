@@ -96,6 +96,7 @@ fn equivocation_slash_burns_half_active_stake() {
         },
         transactions: vec![],
         signatures: vec![],
+        priority_tips: vec![],
     };
     node.consensus.propose(block.clone()).unwrap();
     let good = block.hash();
