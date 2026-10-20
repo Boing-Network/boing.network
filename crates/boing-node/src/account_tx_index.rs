@@ -233,6 +233,26 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
                 "retention":retention,
             })
         }
+        TransactionPayload::RenewMediaBlobPin {
+            blob_id,
+            size,
+            extend_blocks,
+        } => json!({
+            "kind":"renew_media_blob_pin",
+            "blob_id":hex0x(blob_id),
+            "size":size,
+            "extend_blocks":extend_blocks,
+        }),
+        TransactionPayload::PayBlobSample {
+            blob_id,
+            chunk_index,
+            chunk_count,
+        } => json!({
+            "kind":"pay_blob_sample",
+            "blob_id":hex0x(blob_id),
+            "chunk_index":chunk_index,
+            "chunk_count":chunk_count,
+        }),
     }
 }
 

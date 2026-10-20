@@ -245,7 +245,7 @@ async fn four_validators_quorum_commit_via_votes() {
             tx_root: boing_primitives::Hash::ZERO,
             receipts_root: boing_primitives::Hash::ZERO,
             state_root: boing_primitives::Hash::ZERO,
-            blobs_root: None,
+            blobs_root: boing_primitives::Hash::ZERO,
         },
         transactions: vec![],
         signatures: vec![],

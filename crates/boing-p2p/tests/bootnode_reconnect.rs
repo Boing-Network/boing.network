@@ -45,7 +45,7 @@ fn block_at(height: u64) -> Block {
             tx_root: Hash([0u8; 32]),
             receipts_root: Hash([0u8; 32]),
             state_root: Hash([0u8; 32]),
-            blobs_root: None,
+            blobs_root: boing_primitives::Hash::ZERO,
         },
         transactions: vec![],
         signatures: vec![],

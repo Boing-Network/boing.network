@@ -9,6 +9,12 @@ use serde::{Deserialize, Serialize};
 #[repr(transparent)]
 pub struct Hash(pub [u8; 32]);
 
+impl Default for Hash {
+    fn default() -> Self {
+        Hash::ZERO
+    }
+}
+
 impl Hash {
     pub const ZERO: Hash = Hash([0u8; 32]);
 

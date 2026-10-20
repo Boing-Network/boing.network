@@ -3,9 +3,11 @@
 use boing_primitives::{
     chunk_media_blob, media_blob_das_sample, parse_media_blob_id, BlobRetention,
     MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN, MAX_MEDIA_BLOB_INLINE_BYTES,
-    MAX_MEDIA_BLOB_INLINE_PREFER_BYTES, MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOBS_GOSSIP_TOPIC,
-    MEDIA_BLOB_DAS_CHUNK_BYTES, MEDIA_BLOB_FOREVER_MULTIPLIER, MEDIA_BLOB_GAS_BASE,
-    MEDIA_BLOB_GAS_PER_WORD, MEDIA_BLOB_URI_PREFIX, PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
+    MAX_MEDIA_BLOB_INLINE_PREFER_BYTES, MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS,
+    MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOBS_GOSSIP_TOPIC, MEDIA_BLOB_DAS_CHUNK_BYTES,
+    MEDIA_BLOB_FOREVER_MULTIPLIER, MEDIA_BLOB_GAS_BASE, MEDIA_BLOB_GAS_PER_WORD,
+    MEDIA_BLOB_RS_PARITY_SHARDS, MEDIA_BLOB_URI_PREFIX, MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS,
+    PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
 };
 use serde_json::{json, Value};
 
@@ -42,6 +44,7 @@ fn meta_json(m: &BlobMetaRecord) -> Value {
         "publisher": hex0x(&m.publisher),
         "includedHeight": m.included_height,
         "txId": hex0x(&m.tx_id),
+        "pinUntilHeight": m.pin_until_height,
         "expiryHeight": m.expiry_height(),
     })
 }
@@ -95,13 +98,21 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 "gossipTopic": MEDIA_BLOBS_GOSSIP_TOPIC,
                 "putBlobVariant": 21,
                 "blobAnnounceVariant": 22,
-                "blobsRootInHeader": header_from.is_some(),
-                "blobsRootHeaderActivationHeight": header_from,
+            "blobsRootInHeader": true,
+            "blobsRootHeaderActivationHeight": header_from,
+            "blobsRootVerifiedWhenActivated": header_from.is_some(),
                 "phase3TargetMaxBytes": PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
                 "dasChunkBytes": MEDIA_BLOB_DAS_CHUNK_BYTES,
                 "dasSampleRpc": "boing_getBlobDasSample",
+                "rsParityShards": MEDIA_BLOB_RS_PARITY_SHARDS,
+                "renewMediaBlobPinVariant": 23,
+                "payBlobSampleVariant": 24,
+                "maxRenewExtendBlocks": MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS,
+                "videoPinHorizonBlocksHint": MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS,
                 "foreverPinFeePolicyField": "blob_forever_pin_fee_per_kib",
-                "note": "Phase 4: live cap 16 MiB (still not video-scale). Prefer BlobAnnounce above maxInlinePreferBytes. Optional header blobs_root. XOR chunking + DAS sample RPC. Forever pin fee via NetworkFeePolicy.blob_forever_pin_fee_per_kib (0=off). Full RS market / succinct DAS later.",
+                "pinRenewFeePolicyField": "blob_pin_renew_fee_per_kib_block",
+                "sampleFeePolicyField": "blob_sample_fee_per_chunk",
+                "note": "Phase 5: Reed–Solomon (parity=2) + XOR fallback; RenewMediaBlobPin (23) / PayBlobSample (24); fee hooks blob_pin_renew_fee_per_kib_block + blob_sample_fee_per_chunk (0=off). Live cap 16 MiB — still not multi-minute video. Prefer Announce above 1 MiB.",
             }))
         }
         "boing_getBlobMeta" => {

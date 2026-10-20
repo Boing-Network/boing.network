@@ -2,9 +2,10 @@
 
 use boing_primitives::{
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
-    media_blob_gas, nonce_derived_contract_address, validate_batch_calls, validate_blob_announce,
-    validate_put_blob, AccountId, AccountState, BatchCall, BlobId, BlobRetention, ExecutionLog,
-    Hash, QaPoolVoteKind, Transaction, TransactionPayload,
+    media_blob_gas, media_blob_meta_tx_gas, nonce_derived_contract_address, validate_batch_calls,
+    validate_blob_announce, validate_pay_blob_sample, validate_put_blob,
+    validate_renew_media_blob_pin, AccountId, AccountState, BatchCall, BlobId, BlobRetention,
+    ExecutionLog, Hash, QaPoolVoteKind, Transaction, TransactionPayload,
 };
 use boing_qa::{
     check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaPoolGovernanceConfig,
@@ -558,6 +559,34 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::RenewMediaBlobPin {
+                blob_id,
+                size,
+                extend_blocks,
+            } => {
+                return self.execute_renew_media_blob_pin(
+                    state,
+                    tx,
+                    blob_id,
+                    *size,
+                    *extend_blocks,
+                    exec_ctx.block_height,
+                );
+            }
+            TransactionPayload::PayBlobSample {
+                blob_id,
+                chunk_index,
+                chunk_count,
+            } => {
+                return self.execute_pay_blob_sample(
+                    state,
+                    tx,
+                    blob_id,
+                    *chunk_index,
+                    *chunk_count,
+                    exec_ctx.block_height,
+                );
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -623,6 +652,62 @@ impl Vm {
         let gas_used = media_blob_gas(size as usize, retention);
         Ok(VmExecutionResult {
             gas_used,
+            return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn execute_renew_media_blob_pin(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        blob_id: &BlobId,
+        size: u32,
+        extend_blocks: u64,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        validate_renew_media_blob_pin(blob_id, size, extend_blocks)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn execute_pay_blob_sample(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        chunk_count: u32,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        validate_pay_blob_sample(blob_id, chunk_index, chunk_count)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
             return_data: blob_id.to_vec(),
             logs: Vec::new(),
         })

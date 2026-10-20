@@ -31,6 +31,14 @@ pub struct NetworkFeePolicy {
     /// Minimal on-chain pin-rent path; `0` = off. Prunable blobs are unaffected.
     #[serde(default, with = "u128_string")]
     pub blob_forever_pin_fee_per_kib: u128,
+    /// Phase 5: Forever / pin **renewal** fee (ledger units per KiB per extended block).
+    /// `RenewMediaBlobPin` fee = `ceil(size/1024) * extend_blocks * this`. `0` = off.
+    #[serde(default, with = "u128_string")]
+    pub blob_pin_renew_fee_per_kib_block: u128,
+    /// Phase 5: paid DAS **sample** fee (ledger units per chunk). `PayBlobSample` charges this once.
+    /// `0` = off (market scaffold).
+    #[serde(default, with = "u128_string")]
+    pub blob_sample_fee_per_chunk: u128,
     /// Share of the **execution gas** schedule that is actually charged (basis points).
     /// `10_000` = full historical gas fee; recommended micro default is
     /// [`MICRO_FEE_EXECUTION_GAS_BPS`] (1% → ~0.00021 BOING per transfer).
@@ -141,6 +149,8 @@ impl NetworkFeePolicy {
             transfer_amount_bps: 0,
             blob_base_fee_per_kib: 0,
             blob_forever_pin_fee_per_kib: 0,
+            blob_pin_renew_fee_per_kib_block: 0,
+            blob_sample_fee_per_chunk: 0,
             execution_gas_fee_bps: default_execution_gas_fee_bps(),
             free_tx_min_balance: 0,
             tip_proposer_bps: default_tip_proposer_bps(),
@@ -182,6 +192,8 @@ impl NetworkFeePolicy {
             transfer_amount_bps: 0,
             blob_base_fee_per_kib: 0,
             blob_forever_pin_fee_per_kib: 0,
+            blob_pin_renew_fee_per_kib_block: 0,
+            blob_sample_fee_per_chunk: 0,
             execution_gas_fee_bps: default_execution_gas_fee_bps(),
             free_tx_min_balance: 0,
             tip_proposer_bps: default_tip_proposer_bps(),

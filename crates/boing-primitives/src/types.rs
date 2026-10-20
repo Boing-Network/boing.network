@@ -221,6 +221,26 @@ impl Transaction {
                     ct
                 )
             }
+            TransactionPayload::RenewMediaBlobPin {
+                blob_id,
+                size,
+                extend_blocks,
+            } => format!(
+                "Renew media blob pin {} ({} bytes, +{} blocks)",
+                hex::encode(&blob_id[..8]),
+                size,
+                extend_blocks
+            ),
+            TransactionPayload::PayBlobSample {
+                blob_id,
+                chunk_index,
+                chunk_count,
+            } => format!(
+                "Pay media blob sample {} (chunk {}/{})",
+                hex::encode(&blob_id[..8]),
+                chunk_index,
+                chunk_count
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -312,6 +332,8 @@ impl Transaction {
             | TransactionPayload::NameRelease { .. }
             | TransactionPayload::PutBlob { .. }
             | TransactionPayload::BlobAnnounce { .. }
+            | TransactionPayload::RenewMediaBlobPin { .. }
+            | TransactionPayload::PayBlobSample { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -483,6 +505,20 @@ pub enum TransactionPayload {
         size: u32,
         retention: crate::BlobRetention,
         content_type: String,
+    },
+    /// Extend a media blob pin / retention horizon (index **23**). Phase 5 Forever renewals +
+    /// economics path; `size` is the fee meter (must match sidecar). See `BOING-L1-MEDIA-BLOBS.md`.
+    RenewMediaBlobPin {
+        blob_id: crate::BlobId,
+        size: u32,
+        extend_blocks: u64,
+    },
+    /// Pay for one DAS chunk sample (index **24**). Phase 5 paid-sampling market scaffold —
+    /// charges `blob_sample_fee_per_chunk`; does not yet settle a full market.
+    PayBlobSample {
+        blob_id: crate::BlobId,
+        chunk_index: u32,
+        chunk_count: u32,
     },
 }
 
@@ -749,14 +785,15 @@ pub struct BlockHeader {
     /// Merkle root over receipt leaves ([`receipt_leaf_hash`]) in transaction order.
     pub receipts_root: Hash,
     pub state_root: Hash,
-    /// Soft → consensus media commitment ([`crate::blobs_root_of_transactions`]).
+    /// Media commitment ([`crate::blobs_root_of_transactions`]).
     ///
-    /// **Phase 3 (opt-in):** when `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT` is set and
-    /// `height ≥` that value, producers set `Some(root)` (incl. [`Hash::ZERO`] when the block
-    /// has no media txs). Omitted (`None`) before activation so historical header encodings and
-    /// block hashes stay unchanged. Full DAS / sampling remains a later milestone.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub blobs_root: Option<Hash>,
+    /// **Phase 3+:** when `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT` is active, producers set the
+    /// computed root (possibly [`Hash::ZERO`] if the block has no media txs) and importers verify.
+    /// Before activation producers write [`Hash::ZERO`] and verification is skipped. Always present
+    /// in the bincode header (bincode cannot omit Option fields safely); historical blocks without
+    /// the field decode as ZERO via [`Block::from_bincode`].
+    #[serde(default)]
+    pub blobs_root: Hash,
 }
 
 /// Block — header + transactions (+ the transactions' signatures from the block-signature activation).
@@ -779,7 +816,47 @@ pub struct Block {
 }
 
 #[derive(Deserialize)]
+struct LegacyHeaderNoBlobsRoot {
+    parent_hash: Hash,
+    height: u64,
+    timestamp: u64,
+    proposer: AccountId,
+    tx_root: Hash,
+    receipts_root: Hash,
+    state_root: Hash,
+}
+
+impl From<LegacyHeaderNoBlobsRoot> for BlockHeader {
+    fn from(h: LegacyHeaderNoBlobsRoot) -> Self {
+        BlockHeader {
+            parent_hash: h.parent_hash,
+            height: h.height,
+            timestamp: h.timestamp,
+            proposer: h.proposer,
+            tx_root: h.tx_root,
+            receipts_root: h.receipts_root,
+            state_root: h.state_root,
+            blobs_root: Hash::ZERO,
+        }
+    }
+}
+
+#[derive(Deserialize)]
 struct LegacyBlockEncoding {
+    header: LegacyHeaderNoBlobsRoot,
+    transactions: Vec<Transaction>,
+}
+
+#[derive(Deserialize)]
+struct LegacyBlockWithSigs {
+    header: LegacyHeaderNoBlobsRoot,
+    transactions: Vec<Transaction>,
+    signatures: Vec<crate::signature::Signature>,
+}
+
+/// Current header (incl. `blobs_root`) + txs, signatures omitted (common pre-activation layout).
+#[derive(Deserialize)]
+struct BlockNoSigs {
     header: BlockHeader,
     transactions: Vec<Transaction>,
 }
@@ -798,17 +875,29 @@ impl Block {
         self.priority_tips.get(index).copied().unwrap_or(0)
     }
 
-    /// Decode a bincode-encoded block in either layout: with tips+signatures, signatures only, or
-    /// the historical `(header, transactions)` encoding.
+    fn decode_exact<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> Option<T> {
+        let mut cur = std::io::Cursor::new(bytes);
+        let v = bincode::deserialize_from::<_, T>(&mut cur).ok()?;
+        if cur.position() as usize == bytes.len() {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    /// Decode a bincode-encoded block across layout eras:
+    /// - current header (`blobs_root`) + optional signatures + optional priority tips
+    /// - current header + signatures only / no signatures
+    /// - historical header without `blobs_root` (+ optional signatures)
     pub fn from_bincode(bytes: &[u8]) -> Result<Block, bincode::Error> {
-        // Prefer explicit layout attempts. Relying on `#[serde(default)]` trailing fields with
+        // Prefer exact-length layout attempts. Relying on `#[serde(default)]` trailing fields with
         // bincode is unreliable when prior fields used `skip_serializing_if`.
-        if let Ok(b) = bincode::deserialize::<Block>(bytes) {
+        if let Some(b) = Self::decode_exact::<Block>(bytes) {
             if b.priority_tips.is_empty() || b.priority_tips.len() == b.transactions.len() {
                 return Ok(b);
             }
         }
-        if let Ok(w) = bincode::deserialize::<BlockWithSignaturesOnly>(bytes) {
+        if let Some(w) = Self::decode_exact::<BlockWithSignaturesOnly>(bytes) {
             return Ok(Block {
                 header: w.header,
                 transactions: w.transactions,
@@ -816,13 +905,32 @@ impl Block {
                 priority_tips: Vec::new(),
             });
         }
-        let legacy = bincode::deserialize::<LegacyBlockEncoding>(bytes)?;
-        Ok(Block {
-            header: legacy.header,
-            transactions: legacy.transactions,
-            signatures: Vec::new(),
-            priority_tips: Vec::new(),
-        })
+        if let Some(b) = Self::decode_exact::<BlockNoSigs>(bytes) {
+            return Ok(Block {
+                header: b.header,
+                transactions: b.transactions,
+                signatures: Vec::new(),
+                priority_tips: Vec::new(),
+            });
+        }
+        if let Some(l) = Self::decode_exact::<LegacyBlockWithSigs>(bytes) {
+            return Ok(Block {
+                header: l.header.into(),
+                transactions: l.transactions,
+                signatures: l.signatures,
+                priority_tips: Vec::new(),
+            });
+        }
+        if let Some(l) = Self::decode_exact::<LegacyBlockEncoding>(bytes) {
+            return Ok(Block {
+                header: l.header.into(),
+                transactions: l.transactions,
+                signatures: Vec::new(),
+                priority_tips: Vec::new(),
+            });
+        }
+        // Fall back to best-effort derived decode for a clearer error.
+        bincode::deserialize::<Block>(bytes)
     }
 
     /// The transactions paired with their signatures (`None` when the block carries none or the
@@ -980,13 +1088,12 @@ mod block_encoding_tests {
             tx_root: Hash::ZERO,
             receipts_root: Hash::ZERO,
             state_root: Hash::ZERO,
-            blobs_root: None,
+            blobs_root: Hash::ZERO,
         }
     }
 
     #[test]
-    fn header_without_blobs_root_keeps_historical_encoding() {
-        let h = header();
+    fn legacy_header_without_blobs_root_decodes_as_zero() {
         #[derive(Serialize)]
         struct Old {
             parent_hash: Hash,
@@ -997,6 +1104,7 @@ mod block_encoding_tests {
             receipts_root: Hash,
             state_root: Hash,
         }
+        let h = header();
         let old = bincode::serialize(&Old {
             parent_hash: h.parent_hash,
             height: h.height,
@@ -1007,24 +1115,76 @@ mod block_encoding_tests {
             state_root: h.state_root,
         })
         .unwrap();
-        assert_eq!(bincode::serialize(&h).unwrap(), old);
-        let with = BlockHeader {
-            blobs_root: Some(Hash([9; 32])),
-            ..h.clone()
+        // Current headers always carry blobs_root (ZERO) — longer than legacy.
+        assert_ne!(bincode::serialize(&h).unwrap().len(), old.len());
+        let block_old = {
+            #[derive(Serialize)]
+            struct OldBlock<'a> {
+                header: &'a Old,
+                transactions: &'a Vec<Transaction>,
+            }
+            let txs = Vec::<Transaction>::new();
+            let oh = Old {
+                parent_hash: h.parent_hash,
+                height: h.height,
+                timestamp: h.timestamp,
+                proposer: h.proposer,
+                tx_root: h.tx_root,
+                receipts_root: h.receipts_root,
+                state_root: h.state_root,
+            };
+            bincode::serialize(&OldBlock {
+                header: &oh,
+                transactions: &txs,
+            })
+            .unwrap()
         };
-        assert_ne!(bincode::serialize(&with).unwrap(), old);
-        let j = serde_json::to_value(&h).unwrap();
-        assert!(j.get("blobs_root").is_none());
+        let decoded = Block::from_bincode(&block_old).unwrap();
+        assert_eq!(decoded.header.blobs_root, Hash::ZERO);
+        assert_eq!(decoded.header.height, 7);
     }
 
     #[test]
-    fn unsigned_block_keeps_historical_encoding() {
-        let b = Block { header: header(), transactions: vec![], signatures: vec![], priority_tips: vec![] };
+    fn unsigned_block_roundtrips_and_legacy_decodes() {
+        let b = Block {
+            header: header(),
+            transactions: vec![],
+            signatures: vec![],
+            priority_tips: vec![],
+        };
+        let enc = bincode::serialize(&b).unwrap();
+        assert_eq!(Block::from_bincode(&enc).unwrap(), b);
+        // Historical (header without blobs_root) still decodes.
         #[derive(Serialize)]
-        struct Old<'a> { header: &'a BlockHeader, transactions: &'a Vec<Transaction> }
-        let old = bincode::serialize(&Old { header: &b.header, transactions: &b.transactions }).unwrap();
-        assert_eq!(bincode::serialize(&b).unwrap(), old);
-        assert_eq!(Block::from_bincode(&old).unwrap(), b);
+        struct OldHeader {
+            parent_hash: Hash,
+            height: u64,
+            timestamp: u64,
+            proposer: AccountId,
+            tx_root: Hash,
+            receipts_root: Hash,
+            state_root: Hash,
+        }
+        #[derive(Serialize)]
+        struct OldBlock {
+            header: OldHeader,
+            transactions: Vec<Transaction>,
+        }
+        let legacy = bincode::serialize(&OldBlock {
+            header: OldHeader {
+                parent_hash: Hash::ZERO,
+                height: 7,
+                timestamp: 1,
+                proposer: AccountId([1; 32]),
+                tx_root: Hash::ZERO,
+                receipts_root: Hash::ZERO,
+                state_root: Hash::ZERO,
+            },
+            transactions: vec![],
+        })
+        .unwrap();
+        let decoded = Block::from_bincode(&legacy).unwrap();
+        assert_eq!(decoded.header.blobs_root, Hash::ZERO);
         let j = serde_json::to_value(&b).unwrap();
         assert!(j.get("signatures").is_none());
         let back: Block = serde_json::from_value(j).unwrap();

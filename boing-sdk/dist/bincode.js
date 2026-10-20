@@ -36,6 +36,10 @@ export const PayloadVariant = {
     PutBlob: 21,
     /** Announce blob id + size without inline bytes (P2P / sidecar data plane). */
     BlobAnnounce: 22,
+    /** Extend media blob pin horizon (Phase 5). */
+    RenewMediaBlobPin: 23,
+    /** Pay for one DAS chunk sample (Phase 5 market scaffold). */
+    PayBlobSample: 24,
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export const BlobRetentionVariant = {
@@ -253,6 +257,10 @@ export function encodeTransactionPayload(payload) {
                 : concatBytes(writeU32Le(BlobRetentionVariant.Prunable), writeU64Le(payload.retention.ttlBlocks));
             return concatBytes(writeU32Le(PayloadVariant.BlobAnnounce), need32(payload.blobId, 'blobId'), writeU32Le(payload.size >>> 0), retention, encodeBincodeString(payload.contentType ?? ''));
         }
+        case 'renewMediaBlobPin':
+            return concatBytes(writeU32Le(PayloadVariant.RenewMediaBlobPin), need32(payload.blobId, 'blobId'), writeU32Le(payload.size >>> 0), writeU64Le(payload.extendBlocks));
+        case 'payBlobSample':
+            return concatBytes(writeU32Le(PayloadVariant.PayBlobSample), need32(payload.blobId, 'blobId'), writeU32Le(payload.chunkIndex >>> 0), writeU32Le(payload.chunkCount >>> 0));
         default: {
             const _x = payload;
             return _x;

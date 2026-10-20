@@ -393,7 +393,7 @@ mod tests {
                 tx_root: Hash::ZERO,
                 receipts_root: Hash::ZERO,
                 state_root: Hash::ZERO,
-            blobs_root: None,
+            blobs_root: boing_primitives::Hash::ZERO,
             },
             transactions: vec![],
             signatures: vec![],
