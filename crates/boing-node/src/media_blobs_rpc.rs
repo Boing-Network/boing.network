@@ -3,8 +3,8 @@
 use boing_primitives::{
     parse_media_blob_id, BlobRetention, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
     MAX_MEDIA_BLOB_INLINE_BYTES, MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOBS_GOSSIP_TOPIC,
-    MEDIA_BLOB_FOREVER_MULTIPLIER, MEDIA_BLOB_GAS_BASE, MEDIA_BLOB_GAS_PER_WORD,
-    MEDIA_BLOB_URI_PREFIX,
+    MEDIA_BLOB_DAS_CHUNK_BYTES, MEDIA_BLOB_FOREVER_MULTIPLIER, MEDIA_BLOB_GAS_BASE,
+    MEDIA_BLOB_GAS_PER_WORD, MEDIA_BLOB_URI_PREFIX, PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
 };
 use serde_json::{json, Value};
 
@@ -60,7 +60,9 @@ fn parse_id_param(params: &Value) -> Result<[u8; 32], (i32, String)> {
 /// Dispatch media-blob RPC. `Err((code, message))` on bad params / missing store.
 pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value, (i32, String)> {
     match method {
-        "boing_getMediaBlobParams" => Ok(json!({
+        "boing_getMediaBlobParams" => {
+            let header_from = node.blobs_root_header_activation_height();
+            Ok(json!({
             "active": node.media_blobs_active_at_tip(),
             "activationHeight": node.media_blobs_activation_height(),
             "maxBytes": MAX_MEDIA_BLOB_BYTES,
@@ -74,9 +76,13 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             "gossipTopic": MEDIA_BLOBS_GOSSIP_TOPIC,
             "putBlobVariant": 21,
             "blobAnnounceVariant": 22,
-            "blobsRootInHeader": false,
-            "note": "Phase 2: PutBlob (21) or BlobAnnounce (22) + P2P boing/media-blobs. Soft blobs_root via helper/RPC; not in BlockHeader yet. Independent blob_base_fee_per_kib on NetworkFeePolicy. Cap 1 MiB — not video-scale.",
-        })),
+            "blobsRootInHeader": header_from.is_some(),
+            "blobsRootHeaderActivationHeight": header_from,
+            "phase3TargetMaxBytes": PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
+            "dasChunkBytes": MEDIA_BLOB_DAS_CHUNK_BYTES,
+            "note": "Phase 3 scaffold: optional header blobs_root (BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT). Live cap still 1 MiB; phase3TargetMaxBytes is the DAS/chunking target path, not consensus-live. Pin rents / sampling not charged yet.",
+        }))
+        },
         "boing_getBlobMeta" => {
             let id = parse_id_param(params)?;
             let store = node.media_blob_store().ok_or((

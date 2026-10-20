@@ -146,9 +146,14 @@ struct Args {
     name_registry_activation_height: Option<u64>,
 
     /// Enable L1 media blobs (PutBlob) from this height (all nodes must agree). Overrides
-    /// **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`**. Unset = media blobs off. MVP cap 256 KiB.
+    /// **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`**. Unset = media blobs off. Cap 1 MiB (Phase 2).
     #[arg(long)]
     media_blobs_activation_height: Option<u64>,
+
+    /// Phase 3: pin `blobs_root` into block headers from this height (all nodes must agree).
+    /// Overrides **`BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`**. Unset = omit field (default).
+    #[arg(long)]
+    blobs_root_header_activation_height: Option<u64>,
 
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
@@ -194,6 +199,17 @@ async fn main() -> anyhow::Result<()> {
             "Media blobs (PutBlob): activation_height={} max_bytes={}",
             h,
             boing_primitives::MAX_MEDIA_BLOB_BYTES
+        );
+    }
+    let blobs_root_header_from =
+        boing_node::media_blob_config::resolve_blobs_root_header_activation(
+            args.blobs_root_header_activation_height,
+        )
+        .map_err(|e| anyhow::anyhow!("blobs_root header config: {e}"))?;
+    if let Some(h) = blobs_root_header_from {
+        tracing::info!(
+            "Media blobs Phase 3: blobs_root in BlockHeader from height={}",
+            h
         );
     }
     let open_set = validator_config::resolve_open_validator_set_config(
@@ -306,6 +322,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = media_blobs_from {
                 n.enable_media_blobs(h);
+            }
+            if let Some(h) = blobs_root_header_from {
+                n.enable_blobs_root_header(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -504,6 +523,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = media_blobs_from {
                 n.enable_media_blobs(h);
+            }
+            if let Some(h) = blobs_root_header_from {
+                n.enable_blobs_root_header(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();

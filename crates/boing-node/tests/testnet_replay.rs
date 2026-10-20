@@ -296,6 +296,7 @@ fn craft_next_with(leader: &BoingNode, txs: Vec<SignedTransaction>, all_succeed:
             tx_root: tx_root(&plain),
             receipts_root: receipts_root(&receipts),
             state_root: state.state_root(),
+            blobs_root: None,
         },
         signatures: txs.iter().map(|s| s.signature).collect(),
         transactions: plain,

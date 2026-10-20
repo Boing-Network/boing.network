@@ -5,8 +5,8 @@ use tracing::info;
 use boing_consensus::ConsensusEngine;
 use boing_execution::BlockExecutor;
 use boing_primitives::{
-    receipts_root, tx_root, Account, AccountId, AccountState, Block, BlockHeader, ExecutionReceipt,
-    Transaction,
+    blobs_root_of_transactions, receipts_root, tx_root, Account, AccountId, AccountState, Block,
+    BlockHeader, ExecutionReceipt, Transaction,
 };
 use boing_state::StateStore;
 
@@ -25,6 +25,8 @@ pub struct ProducedProposal {
 pub struct BlockProducer {
     proposer: AccountId,
     max_txs_per_block: usize,
+    /// Phase 3: when `Some(h)`, headers at height ≥ `h` carry `blobs_root`.
+    blobs_root_header_from: Option<u64>,
 }
 
 impl BlockProducer {
@@ -32,6 +34,7 @@ impl BlockProducer {
         Self {
             proposer,
             max_txs_per_block: 1000,
+            blobs_root_header_from: None,
         }
     }
 
@@ -42,6 +45,15 @@ impl BlockProducer {
     pub fn with_max_txs(mut self, max: usize) -> Self {
         self.max_txs_per_block = max;
         self
+    }
+
+    pub fn with_blobs_root_header_from(mut self, from: Option<u64>) -> Self {
+        self.blobs_root_header_from = from;
+        self
+    }
+
+    pub fn set_blobs_root_header_from(&mut self, from: Option<u64>) {
+        self.blobs_root_header_from = from;
     }
 
     /// Build a block proposal if this node is the round leader and the mempool is non-empty.
@@ -145,6 +157,10 @@ impl BlockProducer {
 
         let state_root = state.state_root();
         let rr = receipts_root(&receipts);
+        let blobs_root = self
+            .blobs_root_header_from
+            .filter(|&from| height >= from)
+            .map(|_| blobs_root_of_transactions(&txs));
 
         let block = Block {
             header: BlockHeader {
@@ -155,6 +171,7 @@ impl BlockProducer {
                 tx_root,
                 receipts_root: rr,
                 state_root,
+                blobs_root,
             },
             transactions: txs,
             signatures,

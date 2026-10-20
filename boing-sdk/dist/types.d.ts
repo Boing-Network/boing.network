@@ -350,6 +350,11 @@ export interface BlockHeader {
     /** Merkle root over serialized receipts (see protocol spec). */
     receipts_root: string;
     state_root: string;
+    /**
+     * Phase 3 opt-in: media blob commitment (`blobs_root_of_transactions`).
+     * Omitted before `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`.
+     */
+    blobs_root?: string | null;
 }
 /** One log entry from contract execution (`LOG0`..`LOG4`). */
 export interface ExecutionLog {
