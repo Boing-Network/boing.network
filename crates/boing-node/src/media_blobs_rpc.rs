@@ -1,8 +1,9 @@
 //! JSON-RPC helpers for L1 media blobs.
 
 use boing_primitives::{
-    parse_media_blob_id, BlobRetention, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
-    MAX_MEDIA_BLOB_INLINE_BYTES, MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOBS_GOSSIP_TOPIC,
+    chunk_media_blob, media_blob_das_sample, parse_media_blob_id, BlobRetention,
+    MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN, MAX_MEDIA_BLOB_INLINE_BYTES,
+    MAX_MEDIA_BLOB_INLINE_PREFER_BYTES, MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOBS_GOSSIP_TOPIC,
     MEDIA_BLOB_DAS_CHUNK_BYTES, MEDIA_BLOB_FOREVER_MULTIPLIER, MEDIA_BLOB_GAS_BASE,
     MEDIA_BLOB_GAS_PER_WORD, MEDIA_BLOB_URI_PREFIX, PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
 };
@@ -15,6 +16,7 @@ pub const MEDIA_BLOB_RPC_METHODS: &[&str] = &[
     "boing_getBlob",
     "boing_getBlobMeta",
     "boing_getMediaBlobParams",
+    "boing_getBlobDasSample",
 ];
 
 fn hex0x(b: &[u8]) -> String {
@@ -57,32 +59,51 @@ fn parse_id_param(params: &Value) -> Result<[u8; 32], (i32, String)> {
     parse_media_blob_id(s).ok_or((-32602, format!("invalid blob id: {s}")))
 }
 
+fn parse_chunk_index(params: &Value) -> Result<u32, (i32, String)> {
+    let v = params
+        .get(1)
+        .or_else(|| params.get("chunkIndex"))
+        .ok_or((-32602, "expected chunkIndex (number)".into()))?;
+    if let Some(n) = v.as_u64() {
+        return u32::try_from(n).map_err(|_| (-32602, "chunkIndex out of u32 range".into()));
+    }
+    if let Some(s) = v.as_str() {
+        return s
+            .parse()
+            .map_err(|_| (-32602, format!("invalid chunkIndex: {s}")));
+    }
+    Err((-32602, "chunkIndex must be a number or decimal string".into()))
+}
+
 /// Dispatch media-blob RPC. `Err((code, message))` on bad params / missing store.
 pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value, (i32, String)> {
     match method {
         "boing_getMediaBlobParams" => {
             let header_from = node.blobs_root_header_activation_height();
             Ok(json!({
-            "active": node.media_blobs_active_at_tip(),
-            "activationHeight": node.media_blobs_activation_height(),
-            "maxBytes": MAX_MEDIA_BLOB_BYTES,
-            "maxInlineBytes": MAX_MEDIA_BLOB_INLINE_BYTES,
-            "maxContentTypeLen": MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
-            "maxTtlBlocks": MAX_MEDIA_BLOB_TTL_BLOCKS,
-            "gasBase": MEDIA_BLOB_GAS_BASE,
-            "gasPerWord": MEDIA_BLOB_GAS_PER_WORD,
-            "foreverMultiplier": MEDIA_BLOB_FOREVER_MULTIPLIER,
-            "uriPrefix": MEDIA_BLOB_URI_PREFIX,
-            "gossipTopic": MEDIA_BLOBS_GOSSIP_TOPIC,
-            "putBlobVariant": 21,
-            "blobAnnounceVariant": 22,
-            "blobsRootInHeader": header_from.is_some(),
-            "blobsRootHeaderActivationHeight": header_from,
-            "phase3TargetMaxBytes": PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
-            "dasChunkBytes": MEDIA_BLOB_DAS_CHUNK_BYTES,
-            "note": "Phase 3 scaffold: optional header blobs_root (BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT). Live cap still 1 MiB; phase3TargetMaxBytes is the DAS/chunking target path, not consensus-live. Pin rents / sampling not charged yet.",
-        }))
-        },
+                "active": node.media_blobs_active_at_tip(),
+                "activationHeight": node.media_blobs_activation_height(),
+                "maxBytes": MAX_MEDIA_BLOB_BYTES,
+                "maxInlineBytes": MAX_MEDIA_BLOB_INLINE_BYTES,
+                "maxInlinePreferBytes": MAX_MEDIA_BLOB_INLINE_PREFER_BYTES,
+                "maxContentTypeLen": MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
+                "maxTtlBlocks": MAX_MEDIA_BLOB_TTL_BLOCKS,
+                "gasBase": MEDIA_BLOB_GAS_BASE,
+                "gasPerWord": MEDIA_BLOB_GAS_PER_WORD,
+                "foreverMultiplier": MEDIA_BLOB_FOREVER_MULTIPLIER,
+                "uriPrefix": MEDIA_BLOB_URI_PREFIX,
+                "gossipTopic": MEDIA_BLOBS_GOSSIP_TOPIC,
+                "putBlobVariant": 21,
+                "blobAnnounceVariant": 22,
+                "blobsRootInHeader": header_from.is_some(),
+                "blobsRootHeaderActivationHeight": header_from,
+                "phase3TargetMaxBytes": PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
+                "dasChunkBytes": MEDIA_BLOB_DAS_CHUNK_BYTES,
+                "dasSampleRpc": "boing_getBlobDasSample",
+                "foreverPinFeePolicyField": "blob_forever_pin_fee_per_kib",
+                "note": "Phase 4: live cap 16 MiB (still not video-scale). Prefer BlobAnnounce above maxInlinePreferBytes. Optional header blobs_root. XOR chunking + DAS sample RPC. Forever pin fee via NetworkFeePolicy.blob_forever_pin_fee_per_kib (0=off). Full RS market / succinct DAS later.",
+            }))
+        }
         "boing_getBlobMeta" => {
             let id = parse_id_param(params)?;
             let store = node.media_blob_store().ok_or((
@@ -111,6 +132,37 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                     "dataHex": hex0x(&data),
                 })),
             }
+        }
+        "boing_getBlobDasSample" => {
+            let id = parse_id_param(params)?;
+            let chunk_index = parse_chunk_index(params)?;
+            let store = node.media_blob_store().ok_or((
+                -32000,
+                "media blob store unavailable (no data dir)".into(),
+            ))?;
+            let bytes = store
+                .get_bytes(&id)
+                .map_err(|e| (-32000, e.to_string()))?;
+            let Some(data) = bytes else {
+                return Ok(Value::Null);
+            };
+            let bundle = chunk_media_blob(&data).map_err(|e| (-32000, e.to_string()))?;
+            if bundle.blob_id != id {
+                return Err((-32000, "stored bytes do not match blob id".into()));
+            }
+            let sample =
+                media_blob_das_sample(&bundle, chunk_index).map_err(|e| (-32000, e.to_string()))?;
+            Ok(json!({
+                "blobId": hex0x(&sample.blob_id),
+                "chunkIndex": sample.chunk_index,
+                "chunkCount": sample.chunk_count,
+                "chunkHash": hex0x(&sample.chunk_hash),
+                "chunksRoot": hex0x(sample.chunks_root.as_bytes()),
+                "siblings": sample.siblings.iter().map(|s| hex0x(s)).collect::<Vec<_>>(),
+                "parityChunkHex": hex0x(&bundle.parity_chunk),
+                "originalLen": bundle.original_len,
+                "note": "Light-client DAS hook: merkle inclusion of one data chunk. XOR parity recovers one missing chunk locally — not a full sampling market.",
+            }))
         }
         _ => Err((-32601, format!("unknown media blob method: {method}"))),
     }

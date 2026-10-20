@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.7] - 2026-10-20
+
+### Changed
+
+- **L1 media blobs Phase 4** — live cap **16 MiB** (`MAX_MEDIA_BLOB_BYTES`); prefer BlobAnnounce above `MAX_MEDIA_BLOB_INLINE_PREFER_BYTES` (1 MiB).
+
+### Added
+
+- `chunkMediaBlob` / `recoverMediaBlobXor` / `mediaBlobChunksMerkleRoot`; client `getBlobDasSample`. Forever pin fee is on-chain via `NetworkFeePolicy.blob_forever_pin_fee_per_kib` (see network docs).
+
 ## [0.5.6] - 2026-10-20
 
 ### Added

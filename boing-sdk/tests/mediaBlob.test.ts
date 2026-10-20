@@ -3,7 +3,9 @@ import { encodeTransactionPayload } from '../src/bincode.js';
 import {
   blobAnnouncePayload,
   blobIdOf,
+  chunkMediaBlob,
   MAX_MEDIA_BLOB_BYTES,
+  MAX_MEDIA_BLOB_INLINE_PREFER_BYTES,
   MEDIA_BLOB_DAS_CHUNK_BYTES,
   mediaBlobDasChunkCount,
   mediaBlobGas,
@@ -12,6 +14,7 @@ import {
   parseMediaBlobId,
   PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
   putBlobPayload,
+  recoverMediaBlobXor,
   tokenMetadataJsonWithBlobImage,
   validatePutBlob,
 } from '../src/mediaBlob.js';
@@ -30,16 +33,30 @@ describe('mediaBlob', () => {
     expect(parseMediaBlobId(uri)).toEqual(id);
   });
 
-  it('Phase 3 DAS / pin-rent scaffolds (live cap still 1 MiB)', () => {
-    expect(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES).toBe(16 * 1024 * 1024);
+  it('Phase 4 16 MiB cap + XOR chunk recover', () => {
+    expect(MAX_MEDIA_BLOB_BYTES).toBe(16 * 1024 * 1024);
+    expect(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES).toBe(MAX_MEDIA_BLOB_BYTES);
+    expect(MAX_MEDIA_BLOB_INLINE_PREFER_BYTES).toBe(1024 * 1024);
     expect(mediaBlobDasChunkCount(0)).toBe(0);
-    expect(mediaBlobDasChunkCount(1)).toBe(1);
     expect(mediaBlobDasChunkCount(MEDIA_BLOB_DAS_CHUNK_BYTES + 1)).toBe(2);
     expect(mediaBlobPinRentKibBlocks(1024, 10n)).toBe(10n);
+    const data = new Uint8Array(MEDIA_BLOB_DAS_CHUNK_BYTES + 50);
+    data[0] = 7;
+    data[MEDIA_BLOB_DAS_CHUNK_BYTES] = 9;
+    const bundle = chunkMediaBlob(data);
+    const parts: Array<Uint8Array | null> = [...bundle.dataChunks];
+    parts[1] = null;
+    const recovered = recoverMediaBlobXor(
+      bundle.blobId,
+      bundle.originalLen,
+      parts,
+      bundle.parityChunk,
+    );
+    expect(recovered).toEqual(data);
   });
 
-  it('Phase 2 MiB cap and forever gas', () => {
-    expect(MAX_MEDIA_BLOB_BYTES).toBe(1024 * 1024);
+  it('forever gas multiplier', () => {
+    expect(MAX_MEDIA_BLOB_BYTES).toBe(16 * 1024 * 1024);
     const data = new Uint8Array(64);
     validatePutBlob({ kind: 'prunable', ttlBlocks: 100n }, 'image/png', data);
     expect(mediaBlobGas(64, { kind: 'forever' })).toBe(

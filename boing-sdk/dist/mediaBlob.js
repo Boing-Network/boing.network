@@ -4,13 +4,15 @@
  */
 import { blake3 } from '@noble/hashes/blake3';
 import { bytesToHex, ensureHex, hexToBytes } from './hex.js';
-/** Live consensus hard cap (1 MiB). Not video-scale. */
-export const MAX_MEDIA_BLOB_BYTES = 1024 * 1024;
-/** Phase 3 target raised path once DAS/chunking ships — not consensus-live. */
-export const PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES = 16 * 1024 * 1024;
-/** Suggested DAS chunk size (scaffold). */
+/** Live consensus hard cap (16 MiB). Still not multi-minute video-scale. */
+export const MAX_MEDIA_BLOB_BYTES = 16 * 1024 * 1024;
+/** Alias: Phase 3 target is now the live cap. */
+export const PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES = MAX_MEDIA_BLOB_BYTES;
+/** Prefer BlobAnnounce + gossip above this size (PutBlob still allows up to max). */
+export const MAX_MEDIA_BLOB_INLINE_PREFER_BYTES = 1024 * 1024;
+export const MAX_MEDIA_BLOB_INLINE_BYTES = MAX_MEDIA_BLOB_INLINE_PREFER_BYTES;
+/** DAS / erasure chunk size. */
 export const MEDIA_BLOB_DAS_CHUNK_BYTES = 64 * 1024;
-export const MAX_MEDIA_BLOB_INLINE_BYTES = MAX_MEDIA_BLOB_BYTES;
 export const MAX_MEDIA_BLOB_CONTENT_TYPE_LEN = 64;
 export const MAX_MEDIA_BLOB_TTL_BLOCKS = 1000000n;
 export const MEDIA_BLOB_GAS_BASE = 21000n;
@@ -18,16 +20,134 @@ export const MEDIA_BLOB_GAS_PER_WORD = 16n;
 export const MEDIA_BLOB_FOREVER_MULTIPLIER = 10n;
 export const MEDIA_BLOB_URI_PREFIX = 'boing://blob/';
 export const MEDIA_BLOBS_GOSSIP_TOPIC = 'boing/media-blobs';
-/** Ceil chunk count for Phase 3 DAS scaffold. */
+/** Ceil chunk count for DAS / XOR erasure stubs. */
 export function mediaBlobDasChunkCount(size) {
     if (size <= 0)
         return 0;
     return Math.ceil(size / MEDIA_BLOB_DAS_CHUNK_BYTES);
 }
-/** Scaffold Forever pin-rent units (KiB × blocks) — not charged on-chain yet. */
+/** Forever pin-rent units (KiB × blocks) for off-chain markets; on-chain uses `blob_forever_pin_fee_per_kib`. */
 export function mediaBlobPinRentKibBlocks(size, ttlBlocks) {
     const kib = BigInt(Math.max(1, Math.ceil(size / 1024)));
     return kib * ttlBlocks;
+}
+function chunkHash(bytes) {
+    return blake3(bytes);
+}
+function hashPair(a, b) {
+    const domain = new TextEncoder().encode('BOING_BLOB_CHUNK_MERKLE_V1');
+    const buf = new Uint8Array(domain.length + 64);
+    buf.set(domain, 0);
+    buf.set(a, domain.length);
+    buf.set(b, domain.length + 32);
+    return blake3(buf);
+}
+/** Binary merkle root over 32-byte chunk hashes (matches Rust `media_blob_chunks_merkle_root`). */
+export function mediaBlobChunksMerkleRoot(leaves) {
+    if (leaves.length === 0)
+        return new Uint8Array(32);
+    let layer = leaves.map((l) => new Uint8Array(l));
+    while (layer.length > 1) {
+        const next = [];
+        for (let i = 0; i < layer.length; i += 2) {
+            const left = layer[i];
+            const right = i + 1 < layer.length ? layer[i + 1] : left;
+            next.push(new Uint8Array(hashPair(left, right)));
+        }
+        layer = next;
+    }
+    return layer[0];
+}
+/** Split into DAS-sized chunks + XOR parity (recover one missing data chunk). */
+export function chunkMediaBlob(data) {
+    if (data.length > MAX_MEDIA_BLOB_BYTES) {
+        throw new Error(`media blob exceeds MAX_MEDIA_BLOB_BYTES (${MAX_MEDIA_BLOB_BYTES})`);
+    }
+    const blobId = blobIdOf(data);
+    if (data.length === 0) {
+        return {
+            blobId,
+            originalLen: 0,
+            dataChunks: [],
+            parityChunk: new Uint8Array(0),
+            chunkHashes: [],
+            chunksRoot: new Uint8Array(32),
+        };
+    }
+    const dataChunks = [];
+    for (let off = 0; off < data.length; off += MEDIA_BLOB_DAS_CHUNK_BYTES) {
+        const slice = data.subarray(off, Math.min(off + MEDIA_BLOB_DAS_CHUNK_BYTES, data.length));
+        const padded = new Uint8Array(MEDIA_BLOB_DAS_CHUNK_BYTES);
+        padded.set(slice);
+        dataChunks.push(padded);
+    }
+    const parityChunk = new Uint8Array(MEDIA_BLOB_DAS_CHUNK_BYTES);
+    for (const ch of dataChunks) {
+        for (let i = 0; i < MEDIA_BLOB_DAS_CHUNK_BYTES; i++)
+            parityChunk[i] ^= ch[i];
+    }
+    const chunkHashes = dataChunks.map((c) => chunkHash(c));
+    return {
+        blobId,
+        originalLen: data.length,
+        dataChunks,
+        parityChunk,
+        chunkHashes,
+        chunksRoot: mediaBlobChunksMerkleRoot(chunkHashes),
+    };
+}
+/** Recover bytes when ≤1 data chunk is missing (XOR) or all present. */
+export function recoverMediaBlobXor(blobId, originalLen, dataChunks, parity) {
+    if (originalLen === 0) {
+        const empty = new Uint8Array(0);
+        if (!bytesEqual(blobIdOf(empty), blobId))
+            throw new Error('recovered bytes do not match blob id');
+        return empty;
+    }
+    const missing = dataChunks.map((c, i) => (c == null ? i : -1)).filter((i) => i >= 0);
+    let chunks;
+    if (missing.length === 0) {
+        chunks = dataChunks.map((c) => c);
+    }
+    else if (missing.length === 1) {
+        if (parity.length !== MEDIA_BLOB_DAS_CHUNK_BYTES)
+            throw new Error('cannot recover blob');
+        const miss = missing[0];
+        const recovered = Uint8Array.from(parity);
+        for (let i = 0; i < dataChunks.length; i++) {
+            if (i === miss)
+                continue;
+            const bytes = dataChunks[i];
+            if (!bytes || bytes.length !== MEDIA_BLOB_DAS_CHUNK_BYTES)
+                throw new Error('cannot recover blob');
+            for (let j = 0; j < MEDIA_BLOB_DAS_CHUNK_BYTES; j++)
+                recovered[j] ^= bytes[j];
+        }
+        chunks = dataChunks.map((c, i) => (i === miss ? recovered : c));
+    }
+    else {
+        throw new Error('cannot recover blob');
+    }
+    const out = new Uint8Array(originalLen);
+    let off = 0;
+    for (const ch of chunks) {
+        const n = Math.min(ch.length, originalLen - off);
+        out.set(ch.subarray(0, n), off);
+        off += n;
+        if (off >= originalLen)
+            break;
+    }
+    if (!bytesEqual(blobIdOf(out), blobId))
+        throw new Error('recovered bytes do not match blob id');
+    return out;
+}
+function bytesEqual(a, b) {
+    if (a.length !== b.length)
+        return false;
+    for (let i = 0; i < a.length; i++)
+        if (a[i] !== b[i])
+            return false;
+    return true;
 }
 /** `BlobId = BLAKE3(data)` (32 bytes). */
 export function blobIdOf(data) {

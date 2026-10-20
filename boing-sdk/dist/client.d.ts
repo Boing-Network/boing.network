@@ -131,6 +131,8 @@ export declare class BoingClient {
         meta: Record<string, unknown>;
         dataHex: string;
     } | null>;
+    /** Light-client DAS sample for one chunk (`boing_getBlobDasSample`), or null. */
+    getBlobDasSample(blobId: string | Uint8Array, chunkIndex: number): Promise<Record<string, unknown> | null>;
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
     checkNames(names: string[]): Promise<import('./boingNames.js').BoingCheckNamesResult>;
     /** Names owned by an address (active or in grace) (`boing_namesOwnedBy`). */

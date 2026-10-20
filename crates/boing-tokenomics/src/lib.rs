@@ -261,18 +261,26 @@ pub fn network_fee_amount_in(
         .saturating_add(blob_fee)
 }
 
-/// Independent blob data fee from [`NetworkFeePolicy::blob_base_fee_per_kib`] (KiB rounded up).
+/// Blob data fee + optional Forever pin fee (KiB rounded up).
 fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u128 {
-    if policy.blob_base_fee_per_kib == 0 {
-        return 0;
-    }
-    let size = match payload {
-        TransactionPayload::PutBlob { data, .. } => data.len() as u128,
-        TransactionPayload::BlobAnnounce { size, .. } => *size as u128,
+    let (size, forever) = match payload {
+        TransactionPayload::PutBlob {
+            data, retention, ..
+        } => (data.len() as u128, retention.is_forever()),
+        TransactionPayload::BlobAnnounce {
+            size, retention, ..
+        } => (*size as u128, retention.is_forever()),
         _ => return 0,
     };
     let kib = size.div_ceil(1024).max(1);
-    kib.saturating_mul(policy.blob_base_fee_per_kib)
+    let mut fee = 0u128;
+    if policy.blob_base_fee_per_kib > 0 {
+        fee = fee.saturating_add(kib.saturating_mul(policy.blob_base_fee_per_kib));
+    }
+    if forever && policy.blob_forever_pin_fee_per_kib > 0 {
+        fee = fee.saturating_add(kib.saturating_mul(policy.blob_forever_pin_fee_per_kib));
+    }
+    fee
 }
 
 /// Fee charged for `gas_used` at the fixed [`GAS_PRICE`].
@@ -472,6 +480,35 @@ pub fn block_emission_validators(block_height: u64) -> u128 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn forever_pin_fee_charged_only_for_forever() {
+        let mut policy = NetworkFeePolicy::treasury_default();
+        policy.blob_base_fee_per_kib = 10;
+        policy.blob_forever_pin_fee_per_kib = 100;
+        let data = vec![0u8; 2048]; // 2 KiB
+        let forever = TransactionPayload::PutBlob {
+            retention: boing_primitives::BlobRetention::Forever,
+            content_type: String::new(),
+            data: data.clone(),
+        };
+        let prunable = TransactionPayload::PutBlob {
+            retention: boing_primitives::BlobRetention::Prunable { ttl_blocks: 10 },
+            content_type: String::new(),
+            data,
+        };
+        let d = Denomination::BaseUnits;
+        let gas = 21_000u64;
+        let f = network_fee_amount_in(gas, &forever, &policy, d);
+        let p = network_fee_amount_in(gas, &prunable, &policy, d);
+        // Forever: gas + 2*10 base + 2*100 pin; Prunable: gas + 2*10 base
+        assert_eq!(f.saturating_sub(p), 200);
+        assert_eq!(
+            p.saturating_sub(fee_for_gas_in(gas, d)),
+            20,
+            "prunable still pays blob_base_fee only"
+        );
+    }
 
     #[test]
     fn fee_for_gas_scales_meter_to_whole_boing() {
