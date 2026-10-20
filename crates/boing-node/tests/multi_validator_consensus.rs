@@ -117,6 +117,7 @@ fn spawn_handlers(
                     let _ = n.on_vrf_proof(proof);
                 }
                 boing_p2p::P2pEvent::TransactionReceived(_) => {}
+                boing_p2p::P2pEvent::MediaBlobReceived(_) => {}
             }
         }
     });

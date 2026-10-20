@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-10-20
+
+### Added
+
+- **L1 media blobs Phase 2** — cap **1 MiB**; `blobAnnouncePayload` / `PayloadVariant.BlobAnnounce` (22); `tokenMetadataJsonWithBlobImage`; `extractBoingBlobUri` / `blobIdHexFromBoingUri`; `metadataHashWordToFetchUrls` prefers `boing://blob/0x…`. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
 ## [0.5.4] - 2026-10-20
 
 ### Added

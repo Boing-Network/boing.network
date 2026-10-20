@@ -28,13 +28,17 @@ use tracing::{debug, info, warn};
 
 use crate::block_sync::{BlockRequest, BlockResponse};
 use crate::redial::BootnodeRedial;
-use boing_primitives::{Block, ConsensusVote, EquivocationEvidence, Hash, SignedTransaction, VrfProofGossip};
+use boing_primitives::{
+    Block, ConsensusVote, EquivocationEvidence, Hash, MediaBlobGossip, SignedTransaction,
+    VrfProofGossip, MEDIA_BLOBS_GOSSIP_TOPIC,
+};
 
 const BLOCKS_TOPIC: &str = "boing/blocks";
 const TRANSACTIONS_TOPIC: &str = "boing/transactions";
 const VOTES_TOPIC: &str = "boing/votes";
 const EQUIVOCATION_TOPIC: &str = "boing/equivocation";
 const VRF_PROOFS_TOPIC: &str = "boing/vrf-proofs";
+const MEDIA_BLOBS_TOPIC: &str = MEDIA_BLOBS_GOSSIP_TOPIC;
 
 /// Keepalive / liveness probe interval on every connection.
 pub const PING_INTERVAL: Duration = Duration::from_secs(15);
@@ -66,6 +70,8 @@ pub enum P2pEvent {
     EquivocationReceived(EquivocationEvidence),
     /// Gossiped per-validator ECVRF proof (verified at the P2P edge).
     VrfProofReceived(VrfProofGossip),
+    /// Gossiped media blob bytes (Phase 2 data plane; id verified = BLAKE3(data)).
+    MediaBlobReceived(MediaBlobGossip),
     /// Response from request_block (by hash or height).
     BlockFetched(Block),
 }
@@ -76,6 +82,7 @@ enum BroadcastMsg {
     Vote(ConsensusVote),
     Equivocation(EquivocationEvidence),
     VrfProof(VrfProofGossip),
+    MediaBlob(MediaBlobGossip),
 }
 
 enum Command {
@@ -225,6 +232,7 @@ impl P2pNode {
         let votes_topic = IdentTopic::new(VOTES_TOPIC);
         let equivocation_topic = IdentTopic::new(EQUIVOCATION_TOPIC);
         let vrf_proofs_topic = IdentTopic::new(VRF_PROOFS_TOPIC);
+        let media_blobs_topic = IdentTopic::new(MEDIA_BLOBS_TOPIC);
         let listen_addr = listen_addr.to_string();
         let block_provider = block_provider;
 
@@ -265,6 +273,11 @@ impl P2pNode {
                 .gossipsub
                 .subscribe(&vrf_proofs_topic)
                 .expect("subscribe vrf-proofs");
+            swarm
+                .behaviour_mut()
+                .gossipsub
+                .subscribe(&media_blobs_topic)
+                .expect("subscribe media-blobs");
 
             info!("P2P: listening on {} peer_id={:?}", listen_addr, swarm.local_peer_id());
 
@@ -529,6 +542,46 @@ impl P2pNode {
                                     }
                                 }
                             }
+                            Some(BroadcastMsg::MediaBlob(blob)) => {
+                                match bincode::serialize(&blob) {
+                                    Ok(bytes) => {
+                                        if let Err(e) = swarm
+                                            .behaviour_mut()
+                                            .gossipsub
+                                            .publish(media_blobs_topic.clone(), bytes)
+                                        {
+                                            if matches!(e, PublishError::NoPeersSubscribedToTopic) {
+                                                boing_telemetry::component_debug(
+                                                    "boing_p2p::swarm",
+                                                    "p2p",
+                                                    "gossip_media_blob_no_subscribed_peers",
+                                                    "media blob not gossip-published yet (no subscribed peers)",
+                                                );
+                                            } else {
+                                                boing_telemetry::component_warn(
+                                                    "boing_p2p::swarm",
+                                                    "p2p",
+                                                    "gossip_media_blob_publish_failed",
+                                                    e,
+                                                );
+                                            }
+                                        } else {
+                                            info!(
+                                                "P2P: broadcast media blob size={}",
+                                                blob.data.len()
+                                            );
+                                        }
+                                    }
+                                    Err(e) => {
+                                        boing_telemetry::component_warn(
+                                            "boing_p2p::swarm",
+                                            "p2p",
+                                            "media_blob_serialize_failed",
+                                            e,
+                                        );
+                                    }
+                                }
+                            }
                             None => break,
                         }
                     }
@@ -679,6 +732,21 @@ impl P2pNode {
                                                 "round={} validator={:?}",
                                                 proof.round, proof.validator
                                             ),
+                                        );
+                                    }
+                                }
+                            } else if topic == MEDIA_BLOBS_TOPIC {
+                                if let Ok(blob) =
+                                    bincode::deserialize::<MediaBlobGossip>(&message.data)
+                                {
+                                    if blob.validate().is_ok() {
+                                        let _ = event_tx.send(P2pEvent::MediaBlobReceived(blob));
+                                    } else {
+                                        boing_telemetry::component_warn(
+                                            "boing_p2p::swarm",
+                                            "p2p",
+                                            "gossip_media_blob_invalid",
+                                            "blob id / size / content_type failed validation",
                                         );
                                     }
                                 }
@@ -896,6 +964,16 @@ impl P2pNode {
     pub fn broadcast_vrf_proof(&self, proof: &VrfProofGossip) -> Result<(), P2pError> {
         if let Some(ref ch) = self.broadcast_tx {
             ch.try_send(BroadcastMsg::VrfProof(proof.clone()))
+                .map_err(|e| P2pError::Network(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    /// Gossip media blob bytes on `boing/media-blobs` (Phase 2 data plane). Caller should
+    /// [`MediaBlobGossip::validate`] first; peers re-verify on receive.
+    pub fn broadcast_media_blob(&self, blob: &MediaBlobGossip) -> Result<(), P2pError> {
+        if let Some(ref ch) = self.broadcast_tx {
+            ch.try_send(BroadcastMsg::MediaBlob(blob.clone()))
                 .map_err(|e| P2pError::Network(e.to_string()))?;
         }
         Ok(())

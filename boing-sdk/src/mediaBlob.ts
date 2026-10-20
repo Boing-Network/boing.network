@@ -1,5 +1,5 @@
 /**
- * L1 media blobs — content-addressed PutBlob helpers (not the interface SSTORE blob store).
+ * L1 media blobs — content-addressed PutBlob / BlobAnnounce helpers (not the interface SSTORE store).
  * @see docs/BOING-L1-MEDIA-BLOBS.md
  */
 
@@ -7,14 +7,16 @@ import { blake3 } from '@noble/hashes/blake3';
 import type { TransactionPayloadInput } from './bincode.js';
 import { bytesToHex, ensureHex, hexToBytes } from './hex.js';
 
-/** MVP max payload (matches `boing_primitives::MAX_MEDIA_BLOB_BYTES`). */
-export const MAX_MEDIA_BLOB_BYTES = 256 * 1024;
+/** Phase 2 hard cap (1 MiB). Not video-scale. */
+export const MAX_MEDIA_BLOB_BYTES = 1024 * 1024;
+export const MAX_MEDIA_BLOB_INLINE_BYTES = MAX_MEDIA_BLOB_BYTES;
 export const MAX_MEDIA_BLOB_CONTENT_TYPE_LEN = 64;
 export const MAX_MEDIA_BLOB_TTL_BLOCKS = 1_000_000n;
 export const MEDIA_BLOB_GAS_BASE = 21_000n;
 export const MEDIA_BLOB_GAS_PER_WORD = 16n;
 export const MEDIA_BLOB_FOREVER_MULTIPLIER = 10n;
 export const MEDIA_BLOB_URI_PREFIX = 'boing://blob/';
+export const MEDIA_BLOBS_GOSSIP_TOPIC = 'boing/media-blobs';
 
 export type BlobRetentionInput =
   | { kind: 'forever' }
@@ -79,6 +81,28 @@ export function validatePutBlob(
   return blobIdOf(data);
 }
 
+export function validateBlobAnnounce(
+  blobId: Uint8Array,
+  size: number,
+  retention: BlobRetentionInput,
+  contentType: string,
+): void {
+  if (blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (size <= 0) throw new Error('announce size must be > 0');
+  if (size > MAX_MEDIA_BLOB_BYTES) {
+    throw new Error(`announce size exceeds MAX_MEDIA_BLOB_BYTES (${MAX_MEDIA_BLOB_BYTES})`);
+  }
+  if (contentType.length > MAX_MEDIA_BLOB_CONTENT_TYPE_LEN) {
+    throw new Error(`contentType exceeds ${MAX_MEDIA_BLOB_CONTENT_TYPE_LEN} bytes`);
+  }
+  if (retention.kind === 'prunable') {
+    if (retention.ttlBlocks < 1n) throw new Error('prunable ttlBlocks must be >= 1');
+    if (retention.ttlBlocks > MAX_MEDIA_BLOB_TTL_BLOCKS) {
+      throw new Error(`prunable ttlBlocks exceeds max ${MAX_MEDIA_BLOB_TTL_BLOCKS}`);
+    }
+  }
+}
+
 /** Build a PutBlob payload for `encodeTransaction` / signing. */
 export function putBlobPayload(input: {
   retention: BlobRetentionInput;
@@ -95,11 +119,54 @@ export function putBlobPayload(input: {
   };
 }
 
+/** Build a BlobAnnounce payload (commitment; bytes via P2P / sidecar). */
+export function blobAnnouncePayload(input: {
+  blobId: Uint8Array;
+  size: number;
+  retention: BlobRetentionInput;
+  contentType?: string;
+}): TransactionPayloadInput {
+  const contentType = input.contentType ?? '';
+  validateBlobAnnounce(input.blobId, input.size, input.retention, contentType);
+  return {
+    kind: 'blobAnnounce',
+    blobId: input.blobId,
+    size: input.size,
+    retention: input.retention,
+    contentType,
+  };
+}
+
 /**
- * NFT binding convention: store BlobId as `metadata_hash`, or put
- * `boing://blob/0x{id}` in off-chain JSON and hash that JSON.
+ * NFT binding: store BlobId as `metadata_hash`, or put `boing://blob/0x{id}` in off-chain JSON
+ * and hash that JSON. Prefer JSON + URI for marketplaces (name / attributes alongside media).
  */
 export function metadataHashAsBlobId(blobId: Uint8Array): Uint8Array {
   if (blobId.length !== 32) throw new Error('blobId must be 32 bytes');
   return blobId;
+}
+
+/** Build token metadata JSON that points `image` at an on-chain blob. */
+export function tokenMetadataJsonWithBlobImage(input: {
+  name: string;
+  description?: string;
+  blobId: Uint8Array;
+  attributes?: Array<{ trait_type: string; value: string | number }>;
+  animationBlobId?: Uint8Array;
+}): { json: string; metadataHash: Uint8Array; imageUri: string } {
+  const imageUri = mediaBlobUri(input.blobId);
+  const doc: Record<string, unknown> = {
+    name: input.name,
+    description: input.description ?? '',
+    image: imageUri,
+  };
+  if (input.animationBlobId) {
+    doc.animation_url = mediaBlobUri(input.animationBlobId);
+  }
+  if (input.attributes?.length) {
+    doc.attributes = input.attributes;
+  }
+  const json = JSON.stringify(doc);
+  const metadataHash = blake3(new TextEncoder().encode(json));
+  return { json, metadataHash, imageUri };
 }

@@ -213,6 +213,26 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
                 "retention":retention,
             })
         }
+        TransactionPayload::BlobAnnounce {
+            blob_id,
+            size,
+            retention,
+            content_type,
+        } => {
+            let retention = match retention {
+                boing_primitives::BlobRetention::Forever => json!({"kind":"forever"}),
+                boing_primitives::BlobRetention::Prunable { ttl_blocks } => {
+                    json!({"kind":"prunable","ttl_blocks":ttl_blocks})
+                }
+            };
+            json!({
+                "kind":"blob_announce",
+                "blob_id":hex0x(blob_id),
+                "size":size,
+                "content_type":content_type,
+                "retention":retention,
+            })
+        }
     }
 }
 

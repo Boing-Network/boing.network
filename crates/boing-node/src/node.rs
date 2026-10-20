@@ -1141,25 +1141,48 @@ impl BoingNode {
         }
     }
 
-    /// PutBlob admitted only when media blobs are active at the next height and payload validates.
+    /// PutBlob / BlobAnnounce admitted only when media blobs are active and payload validates.
     fn precheck_media_blob_tx(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
-        let TransactionPayload::PutBlob {
-            retention,
-            content_type,
-            data,
-        } = &signed.tx.payload
-        else {
-            return Ok(());
-        };
         let next = self.chain.height().saturating_add(1);
-        if !self.executor.vm().media_blobs_active(next) {
-            return Err(MempoolError::MediaBlobRejected(format!(
-                "media blobs not active (activation={:?})",
-                self.executor.vm().media_blobs_from()
-            )));
-        }
-        if let Err(e) = boing_primitives::validate_put_blob(*retention, content_type, data) {
-            return Err(MempoolError::MediaBlobRejected(e.to_string()));
+        match &signed.tx.payload {
+            TransactionPayload::PutBlob {
+                retention,
+                content_type,
+                data,
+            } => {
+                if !self.executor.vm().media_blobs_active(next) {
+                    return Err(MempoolError::MediaBlobRejected(format!(
+                        "media blobs not active (activation={:?})",
+                        self.executor.vm().media_blobs_from()
+                    )));
+                }
+                if let Err(e) = boing_primitives::validate_put_blob(*retention, content_type, data)
+                {
+                    return Err(MempoolError::MediaBlobRejected(e.to_string()));
+                }
+            }
+            TransactionPayload::BlobAnnounce {
+                blob_id,
+                size,
+                retention,
+                content_type,
+            } => {
+                if !self.executor.vm().media_blobs_active(next) {
+                    return Err(MempoolError::MediaBlobRejected(format!(
+                        "media blobs not active (activation={:?})",
+                        self.executor.vm().media_blobs_from()
+                    )));
+                }
+                if let Err(e) = boing_primitives::validate_blob_announce(
+                    blob_id,
+                    *size,
+                    *retention,
+                    content_type,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(e.to_string()));
+                }
+            }
+            _ => {}
         }
         Ok(())
     }

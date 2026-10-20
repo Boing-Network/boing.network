@@ -17,12 +17,27 @@ export function ipfsUriToGatewayUrl(uri: string, gatewayBase = 'https://ipfs.io/
   return `${base}${path}`;
 }
 
-/** Pull the first http(s) or ipfs:// URL from free text. */
+/** Pull the first `boing://blob/…` URI from free text (L1 media blobs). */
+export function extractBoingBlobUri(...sources: (string | null | undefined)[]): string | null {
+  for (const raw of sources) {
+    if (raw == null) continue;
+    const text = raw.trim();
+    if (!text) continue;
+    const m = /\bboing:\/\/blob\/0x[0-9a-fA-F]{64}\b/.exec(text);
+    if (m && m[0].length <= MAX_URL) return m[0];
+  }
+  return null;
+}
+
+/** Pull the first http(s), ipfs://, or boing://blob/ URL from free text. */
 export function extractHttpOrIpfsUrl(...sources: (string | null | undefined)[]): string | null {
   for (const raw of sources) {
     if (raw == null) continue;
     const text = raw.trim();
     if (!text) continue;
+
+    const blob = extractBoingBlobUri(text);
+    if (blob) return blob;
 
     const ipfsWord = /\bipfs:\/\/[^\s"'<>]+/i.exec(text);
     if (ipfsWord) {
@@ -48,12 +63,15 @@ function readMetadataImageField(value: unknown): string | null {
 export function resolveImageUrlFromMetadataJson(json: unknown): string | null {
   if (json == null || typeof json !== 'object') return null;
   const o = json as Record<string, unknown>;
-  for (const key of ['image', 'image_url', 'logo', 'logoURI', 'animation_url']) {
+  for (const key of ['image', 'image_url', 'logo', 'logoURI', 'animation_url', 'content_hash']) {
     const u = readMetadataImageField(o[key]);
     if (u) {
+      const blob = extractBoingBlobUri(u);
+      if (blob) return blob;
       const g = extractHttpOrIpfsUrl(u);
       if (g) return g;
       if (/^https?:\/\//i.test(u) && u.length <= MAX_URL) return u;
+      if (/^boing:\/\/blob\//i.test(u) && u.length <= MAX_URL) return u;
     }
   }
   return null;
@@ -92,7 +110,10 @@ function isZeroWordHex(hex32: string): boolean {
 
 /**
  * Candidate fetch URLs for a 32-byte on-chain metadata commitment (reference NFT `metadata_hash` slot).
- * Tries: embedded URI text, then `ipfs.io/ipfs/{hex}`.
+ * Order: embedded `boing://blob/` / http(s) / ipfs text, then **direct** `boing://blob/0x{word}`
+ * (when the hash *is* a BlobId), then `ipfs.io/ipfs/{hex}` fallback.
+ *
+ * Resolve `boing://blob/…` with RPC `boing_getBlob` (see `mediaBlob.ts` / `BoingClient.getBlob`).
  */
 export function metadataHashWordToFetchUrls(metadataHashHex32: string): string[] {
   const hex = metadataHashHex32.replace(/^0x/i, '');
@@ -108,10 +129,22 @@ export function metadataHashWordToFetchUrls(metadataHashHex32: string): string[]
     /* ignore */
   }
 
+  const boingBlob = `boing://blob/0x${hex.toLowerCase()}`;
+  if (!out.includes(boingBlob)) out.push(boingBlob);
+
   const ipfsPath = `https://ipfs.io/ipfs/${hex}`;
   if (!out.includes(ipfsPath)) out.push(ipfsPath);
 
   return out.slice(0, 4);
+}
+
+/**
+ * If `uri` is `boing://blob/0x…`, return the 32-byte id hex (with 0x); else null.
+ * Use with `BoingClient.getBlob(id)`.
+ */
+export function blobIdHexFromBoingUri(uri: string): string | null {
+  const m = /^boing:\/\/blob\/(0x[0-9a-fA-F]{64})$/i.exec(uri.trim());
+  return m ? m[1].toLowerCase() : null;
 }
 
 export type FetchMetadataJsonResult =

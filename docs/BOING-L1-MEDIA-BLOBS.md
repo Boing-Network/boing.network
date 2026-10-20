@@ -1,62 +1,68 @@
 # Boing L1 media blobs
 
-> 👋 **Everyday users:** this is how images / GIFs / short clips can live **on Boing itself** instead of only on HTTPS or IPFS. v1 is a small, honest cap — not “50 GB movies on L1.”  
-> 🛠️ **Developers:** `TransactionPayload::PutBlob` (index **21**), RPC `boing_getBlob` / `boing_getBlobMeta` / `boing_getMediaBlobParams`, SDK `mediaBlob.ts`.  
-> 🛰️ **Operators:** enable with `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` or `--media-blobs-activation-height` (all nodes must agree). Sidecar path: `{data_dir}/blobs/`.
+> 👋 **Everyday users:** this is how images / GIFs / short clips can live **on Boing itself** instead of only on HTTPS or IPFS. Phase 2 raises the honest cap to **1 MiB** — still not “50 GB movies on L1.”  
+> 🛠️ **Developers:** `PutBlob` (index **21**), `BlobAnnounce` (**22**), RPC `boing_getBlob*`, P2P topic `boing/media-blobs`, SDK `mediaBlob.ts`.  
+> 🛰️ **Operators:** `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` / `--media-blobs-activation-height`. Optional `blob_base_fee_per_kib` in `network_fee_config.json`. Sidecar: `{data_dir}/blobs/`.
 
-**Contrast:** the [interface blob store](INTERFACE-REGISTRY.md) packs small JSON into **contract SSTORE** (~24 KiB). Media blobs use a **separate size-scaled fee schedule** and a **node sidecar** — do not stuff art into SSTORE.
+**Contrast:** the [interface blob store](INTERFACE-REGISTRY.md) packs small JSON into **contract SSTORE** (~24 KiB). Media blobs use a **separate size-scaled fee schedule** (+ optional independent KiB levy) and a **node sidecar** — do not stuff art into SSTORE.
 
-Project design / roadmap (Nico): store doc `docs/boing-l1-media-blobs.md` in the Boing Network Cursor project.
+Project design: Cursor store `docs/boing-l1-media-blobs.md`. Phase 1 merged as [#53](https://github.com/Boing-Network/boing.network/pull/53) (`964807a`).
 
 ---
 
-## MVP caps (v1)
+## Caps (Phase 2)
 
 | Knob | Value |
 |------|------:|
-| Max payload | **256 KiB** (`MAX_MEDIA_BLOB_BYTES`) |
+| Max payload | **1 MiB** (`MAX_MEDIA_BLOB_BYTES`) |
 | Max `content_type` | 64 UTF-8 bytes |
 | Retention | `Prunable { ttl_blocks }` or `Forever` |
 | Max prunable TTL | 1_000_000 blocks |
 | Blob id | `BLAKE3(data)` (32 bytes) |
 | URI | `boing://blob/0x{64 hex}` |
+| Gossip topic | `boing/media-blobs` |
 
-Raise caps in later phases; video-scale needs a data plane (announce + gossip / DAS), not bigger PutBlob txs alone.
+**Honest limit:** 1 MiB fits images / GIF / short clips. Multi-minute mp4 and planet-scale DAS are **Phase 3** — do not claim them here.
 
 ---
 
-## Fee model (sketch)
+## Tx types
+
+| Variant | Index | Bytes in tx? | Role |
+|---------|------:|:------------:|------|
+| `PutBlob` | 21 | yes | Inline publish (≤1 MiB) |
+| `BlobAnnounce` | 22 | no | Pay for size + commit id; bytes via P2P/RPC sidecar |
+
+---
+
+## Fee model
 
 ```
 blob_gas = 21_000 + ceil(size / 32) * 16
 effective_gas = blob_gas * (Forever ? 10 : 1)
-fee = network_fee_amount_in(effective_gas, PutBlob, NetworkFeePolicy)
+gas_fee = network gas price × effective_gas
+blob_data_fee = ceil(size / 1024) * NetworkFeePolicy.blob_base_fee_per_kib   # 0 = off
+fee = gas_fee + extra_fixed_fee + blob_data_fee
 ```
 
-Same BOING fee path as other txs (`ceil(gas / 21_000)` whole-BOING era, or base-unit price). **Not** SSTORE (20_000 gas/word).
+`blob_base_fee_per_kib` is the **independent blob fee market knob** (governance / operator JSON). It does not affect Transfer / ContractCall gas — media congestion stays separable from execution.
 
-| Retention | Who pays ongoing storage (MVP) |
-|-----------|--------------------------------|
-| **Prunable** | Upfront size×1 fee; nodes may delete after `included_height + ttl_blocks` |
-| **Forever** | Upfront size×10 fee = prepaid best-effort on full nodes — **not** a cryptographic eternity guarantee until pin markets (Phase 3) |
+---
 
-### What makes gas fees lessen on Boing?
+## Soft `blobs_root` (not in header yet)
 
-1. **Governance / fee policy** — lower schedule or `NetworkFeePolicy` extras (testnet operator RPC / governance).  
-2. **Efficiency** — avoid SSTORE for media; keep contracts lean.  
-3. **Separate blob fee market** — data gas must not bid against swap / transfer gas (this feature’s point).  
-4. **Congestion** — later: independent blob base fee (EIP-4844-style) + execution base fee.
+`blobs_root_of_transactions(txs)` = BLAKE3(`BOING_BLOBS_ROOT_V1` ‖ blob ids in tx order).
+
+**Not** in `BlockHeader` today (would change every block hash). Phase 2 ships the helper + RPC note; a future activation can pin it into the header. Full DAS is later.
 
 ---
 
 ## NFT binding
 
-Reference NFT `metadata_hash` is an opaque 32-byte word ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)):
+Reference NFT `metadata_hash` ([BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md)):
 
-1. **Direct:** `metadata_hash = BlobId` when the token *is* the media file.  
-2. **Indirect (recommended):** JSON with `"image": "boing://blob/0x…"`, `metadata_hash = BLAKE3(JSON)`. Resolve via `boing_getBlob`.
-
-Does **not** block Finance marketplace `mint_batch` work — hashes stay the same; media fetch gains an on-chain URI when blobs are enabled.
+1. **Direct:** `metadata_hash = BlobId` when the token *is* the media file. Resolvers try `boing://blob/0x{hash}`.  
+2. **Indirect (recommended):** JSON with `"image": "boing://blob/0x…"` (optional `animation_url` / `content_hash`); `metadata_hash = BLAKE3(JSON)`. SDK: `tokenMetadataJsonWithBlobImage`, `metadataHashWordToFetchUrls`, `blobIdHexFromBoingUri` → `getBlob`.
 
 ---
 
@@ -64,11 +70,9 @@ Does **not** block Finance marketplace `mint_batch` work — hashes stay the sam
 
 | Method | Role |
 |--------|------|
-| `boing_getMediaBlobParams` | Caps, activation, gas knobs |
+| `boing_getMediaBlobParams` | Caps, activation, gossip topic, variant indexes |
 | `boing_getBlobMeta` | Metadata or `null` |
 | `boing_getBlob` | `{ meta, dataHex }` or `null` |
-
-Publish: sign a `PutBlob` tx and `boing_submitTransaction` (same as any payload). Feature off until activation height.
 
 ---
 
@@ -76,10 +80,10 @@ Publish: sign a `PutBlob` tx and `boing_submitTransaction` (same as any payload)
 
 | Phase | Status |
 |-------|--------|
-| 0 Design | This doc + project store design |
-| 1 MVP PutBlob + sidecar + RPC + SDK | Scaffolding in this PR (256 KiB) |
-| 2 Announce + P2P data plane, optional `blobs_root`, 1 MiB+ | Next |
-| 3 Video-scale DA, pin rents, independent blob base fee | Later |
+| 0 Design | Done |
+| 1 MVP PutBlob + sidecar + RPC (256 KiB) | **Merged** #53 |
+| 2 1 MiB, BlobAnnounce, P2P gossip, blob_base_fee_per_kib, soft blobs_root, NFT SDK | This PR (draft) |
+| 3 Video-scale DA / pin rents / header blobs_root + sampling | Later |
 
 ---
 
@@ -87,8 +91,7 @@ Publish: sign a `PutBlob` tx and `boing_submitTransaction` (same as any payload)
 
 ```bash
 BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT=1
-# or
+# network_fee_config.json may include:
+#   "blob_base_fee_per_kib": "0"
 boing-node --media-blobs-activation-height 1 --data-dir ./data
 ```
-
-Unset = PutBlob rejected (safe default for existing testnet until operators coordinate).

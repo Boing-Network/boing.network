@@ -134,6 +134,7 @@ fn spawn_p2p_ingest(
                     let mut n = node.write().await;
                     let _ = n.on_vrf_proof(proof);
                 }
+                boing_p2p::P2pEvent::MediaBlobReceived(_) => {}
                 boing_p2p::P2pEvent::TransactionReceived(signed) => {
                     if signed.verify().is_err() {
                         continue;

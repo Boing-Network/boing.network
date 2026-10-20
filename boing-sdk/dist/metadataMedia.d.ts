@@ -4,7 +4,9 @@
  */
 /** Rewrite `ipfs://…` to a public HTTPS gateway URL. */
 export declare function ipfsUriToGatewayUrl(uri: string, gatewayBase?: string): string | null;
-/** Pull the first http(s) or ipfs:// URL from free text. */
+/** Pull the first `boing://blob/…` URI from free text (L1 media blobs). */
+export declare function extractBoingBlobUri(...sources: (string | null | undefined)[]): string | null;
+/** Pull the first http(s), ipfs://, or boing://blob/ URL from free text. */
 export declare function extractHttpOrIpfsUrl(...sources: (string | null | undefined)[]): string | null;
 /** Best-effort image URL from parsed off-chain JSON (OpenSea-style keys). */
 export declare function resolveImageUrlFromMetadataJson(json: unknown): string | null;
@@ -15,9 +17,17 @@ export declare function resolveImageUrlFromMetadataJson(json: unknown): string |
 export declare function resolveImageUrlFromSources(...sources: (string | null | undefined)[]): string | null;
 /**
  * Candidate fetch URLs for a 32-byte on-chain metadata commitment (reference NFT `metadata_hash` slot).
- * Tries: embedded URI text, then `ipfs.io/ipfs/{hex}`.
+ * Order: embedded `boing://blob/` / http(s) / ipfs text, then **direct** `boing://blob/0x{word}`
+ * (when the hash *is* a BlobId), then `ipfs.io/ipfs/{hex}` fallback.
+ *
+ * Resolve `boing://blob/…` with RPC `boing_getBlob` (see `mediaBlob.ts` / `BoingClient.getBlob`).
  */
 export declare function metadataHashWordToFetchUrls(metadataHashHex32: string): string[];
+/**
+ * If `uri` is `boing://blob/0x…`, return the 32-byte id hex (with 0x); else null.
+ * Use with `BoingClient.getBlob(id)`.
+ */
+export declare function blobIdHexFromBoingUri(uri: string): string | null;
 export type FetchMetadataJsonResult = {
     ok: true;
     url: string;
