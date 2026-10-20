@@ -88,6 +88,11 @@ pub fn boing_testnet_history() -> ExecutionHistory {
         security_v4_from: BOING_TESTNET_SECURITY_V4_FROM,
         base_units_from: BOING_TESTNET_BASE_UNITS_FROM,
         native_value_from: BOING_TESTNET_NATIVE_VALUE_FROM,
+        // Honor reduced execution_gas_fee_bps only after operators opt in via env/CLI
+        // (`BOING_MICRO_FEES_ACTIVATION_HEIGHT`); until then keep full historical gas for replay.
+        // `u64::MAX` = never via history alone (policy BPS ignored for reduction until env sets a height,
+        // or a future preset pins a concrete height). Overridden by env when set.
+        micro_fees_from: u64::MAX,
     }
 }
 
@@ -185,6 +190,33 @@ pub fn preset_from_env() -> Option<NetworkPreset> {
     }
     let chain_id: u64 = std::env::var("BOING_CHAIN_ID").ok()?.trim().parse().ok()?;
     preset_for_chain(chain_id)
+}
+
+/// Resolve micro-fee activation height: CLI, else `BOING_MICRO_FEES_ACTIVATION_HEIGHT`, else keep
+/// the history preset value (`u64::MAX` on public testnet until operators opt in).
+pub fn resolve_micro_fees_from(
+    cli: Option<u64>,
+    history: &mut boing_execution::ExecutionHistory,
+) -> Result<(), String> {
+    let from_env = match std::env::var("BOING_MICRO_FEES_ACTIVATION_HEIGHT") {
+        Ok(s) => {
+            let s = s.trim();
+            if s.is_empty() {
+                None
+            } else {
+                Some(
+                    s.parse::<u64>()
+                        .map_err(|_| format!("invalid BOING_MICRO_FEES_ACTIVATION_HEIGHT: {s}"))?,
+                )
+            }
+        }
+        Err(std::env::VarError::NotPresent) => None,
+        Err(e) => return Err(e.to_string()),
+    };
+    if let Some(h) = cli.or(from_env) {
+        history.micro_fees_from = h;
+    }
+    Ok(())
 }
 
 /// Apply a preset to a freshly constructed node: installs the historical execution eras and, if the

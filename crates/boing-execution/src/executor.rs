@@ -98,11 +98,37 @@ impl BlockExecutor {
     }
 
     /// Fee policy + remainder rule in force at `height`.
+    ///
+    /// Before [`ExecutionHistory::micro_fees_from`], `execution_gas_fee_bps` is clamped to **10000**
+    /// (full historical gas) so reduced/micro/waived BPS cannot change past state roots. After that
+    /// height (or with no history / `micro_fees_from = 0`), the configured BPS applies.
     pub fn fee_rule_at(&self, height: u64) -> (NetworkFeePolicy, boing_tokenomics::FeeRemainder) {
-        if let Some(era) = self.history.as_ref().and_then(|h| h.fee_era_at(height)) {
-            return (era.policy.clone(), era.remainder);
+        let (mut policy, remainder) =
+            if let Some(era) = self.history.as_ref().and_then(|h| h.fee_era_at(height)) {
+                (era.policy.clone(), era.remainder)
+            } else {
+                (
+                    self.fee_policy.clone(),
+                    boing_tokenomics::FeeRemainder::Treasury,
+                )
+            };
+        let micro_ok = self
+            .history
+            .as_ref()
+            .map(|h| h.micro_fees_active(height))
+            .unwrap_or(true);
+        if !micro_ok && policy.execution_gas_fee_bps < 10_000 {
+            policy.execution_gas_fee_bps = 10_000;
         }
-        (self.fee_policy.clone(), boing_tokenomics::FeeRemainder::Treasury)
+        (policy, remainder)
+    }
+
+    /// Whether micro / reduced execution-gas BPS is active at `height`.
+    pub fn micro_fees_active(&self, height: u64) -> bool {
+        self.history
+            .as_ref()
+            .map(|h| h.micro_fees_active(height))
+            .unwrap_or(true)
     }
 
     /// Whether failed txs pay the failed-tx fee at `height` (always, for chains without history).

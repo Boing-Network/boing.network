@@ -536,6 +536,15 @@ export {
   signingHashFor,
   withPriorityTip,
 } from './transactionBuilder.js';
+export {
+  GAS_PRICE_BASE_UNITS,
+  MICRO_FEE_EXECUTION_GAS_BPS,
+  GAS_PER_TRANSFER,
+  estimateExecutionGasFee,
+  estimateMicroTransferFee,
+  suggestPriorityTipLadder,
+  estimateTotalFeeWithTip,
+} from './fees.js';
 export type { SignOptions, BuildContractCallWithValueInput } from './transactionBuilder.js';
 export type { BuildBatchInput, BuildBatchCall, BuildTransferInput, BuildContractCallInput, BuildDeployWithPurposeInput, Ed25519SecretKey32 } from './transactionBuilder.js';
 export {

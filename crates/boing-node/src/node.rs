@@ -518,9 +518,15 @@ impl BoingNode {
     }
 
     fn apply_fee_policy_without_persist(&mut self, policy: NetworkFeePolicy) {
-        self.mempool
-            .set_optional_fees_active(policy.execution_gas_waived());
+        self.sync_mempool_optional_fees_flag(&policy);
         self.executor.set_fee_policy(policy);
+    }
+
+    /// Legacy free-pending caps only when gas is waived *and* micro-fee height allows reduced BPS.
+    fn sync_mempool_optional_fees_flag(&self, policy: &NetworkFeePolicy) {
+        let next = self.chain.height().saturating_add(1);
+        let active = policy.execution_gas_waived() && self.executor.micro_fees_active(next);
+        self.mempool.set_optional_fees_active(active);
     }
 
     /// Replace native fee split / extra levies; persists `network_fee_config.json` when a data dir is set.

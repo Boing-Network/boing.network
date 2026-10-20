@@ -155,6 +155,11 @@ struct Args {
     #[arg(long)]
     blobs_root_header_activation_height: Option<u64>,
 
+    /// Honor reduced `execution_gas_fee_bps` (micro fee / waive) from this height. Overrides
+    /// **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`**. Below it, gas is always the full historical schedule.
+    #[arg(long)]
+    micro_fees_activation_height: Option<u64>,
+
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
@@ -295,12 +300,18 @@ async fn main() -> anyhow::Result<()> {
                 validator_key.clone(),
             )
             .map_err(|e| anyhow::anyhow!("P2P init: {}", e))?;
-            if let Some(preset) = boing_node::network_preset::preset_from_env() {
+            if let Some(mut preset) = boing_node::network_preset::preset_from_env() {
+                boing_node::network_preset::resolve_micro_fees_from(
+                    args.micro_fees_activation_height,
+                    &mut preset.history,
+                )
+                .map_err(|e| anyhow::anyhow!("micro fees config: {e}"))?;
                 let rewrote = boing_node::network_preset::apply_preset(&mut n, &preset);
                 tracing::info!(
-                    "Network preset: chain {} (historical execution eras until height {}; genesis {})",
+                    "Network preset: chain {} (historical execution eras until height {}; micro_fees_from={}; genesis {})",
                     preset.chain_id,
                     preset.history.current_from,
+                    preset.history.micro_fees_from,
                     if rewrote { "set from preset" } else { "unchanged" }
                 );
             }
@@ -496,12 +507,18 @@ async fn main() -> anyhow::Result<()> {
                 validator_key,
             )
             .expect("node init");
-            if let Some(preset) = boing_node::network_preset::preset_from_env() {
+            if let Some(mut preset) = boing_node::network_preset::preset_from_env() {
+                boing_node::network_preset::resolve_micro_fees_from(
+                    args.micro_fees_activation_height,
+                    &mut preset.history,
+                )
+                .map_err(|e| anyhow::anyhow!("micro fees config: {e}"))?;
                 let rewrote = boing_node::network_preset::apply_preset(&mut n, &preset);
                 tracing::info!(
-                    "Network preset: chain {} (historical execution eras until height {}; genesis {})",
+                    "Network preset: chain {} (historical execution eras until height {}; micro_fees_from={}; genesis {})",
                     preset.chain_id,
                     preset.history.current_from,
+                    preset.history.micro_fees_from,
                     if rewrote { "set from preset" } else { "unchanged" }
                 );
             }

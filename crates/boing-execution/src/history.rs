@@ -51,6 +51,10 @@ pub struct ExecutionHistory {
     /// `NATIVE_TRANSFER` opcodes execute (and pass deploy QA). Below it those payloads fail and those
     /// bytes stay invalid bytecode, exactly as before. `0` = from genesis.
     pub native_value_from: u64,
+    /// First height at which [`NetworkFeePolicy::execution_gas_fee_bps`] below 10_000 is honored
+    /// (micro-fee / waive). Below it, execution gas is always charged at the full historical schedule
+    /// so replay stays exact. `0` = honor policy BPS from genesis (new chains / local).
+    pub micro_fees_from: u64,
 }
 
 impl ExecutionHistory {
@@ -72,6 +76,11 @@ impl ExecutionHistory {
 
     pub fn native_value_active(&self, height: u64) -> bool {
         height >= self.native_value_from
+    }
+
+    /// Whether reduced `execution_gas_fee_bps` (micro / waive) applies at `height`.
+    pub fn micro_fees_active(&self, height: u64) -> bool {
+        height >= self.micro_fees_from
     }
 
     pub fn denomination_at(&self, height: u64) -> boing_primitives::Denomination {
