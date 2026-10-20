@@ -264,7 +264,7 @@ pub fn network_fee_amount_in(
         .saturating_add(blob_fee)
 }
 
-/// Protocol fee plus an optional priority tip (tip is paid in full to the block proposer).
+/// Protocol fee plus an optional priority tip (tip split follows [`NetworkFeePolicy`] tip BPS).
 pub fn total_fee_with_tip_in(
     gas_used: u64,
     payload: &TransactionPayload,
@@ -287,13 +287,15 @@ pub fn execution_gas_fee_in(gas_used: u64, policy: &NetworkFeePolicy, denom: Den
     full.saturating_mul(policy.execution_gas_fee_bps as u128) / 10_000
 }
 
-/// Debit `tip` from `sender` and credit 100% to `fee_recipient` (block proposer).
-/// Tips are not split by [`NetworkFeePolicy`] BPS — they are a direct priority payment.
+/// Debit `tip` from `sender` and split per [`NetworkFeePolicy`] tip BPS
+/// (`tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps`). Default policy pays **100% to the
+/// block proposer** (`fee_recipient`). Rounding remainder goes to the proposer.
 pub fn charge_priority_tip(
     state: &mut StateStore,
     sender: &AccountId,
     tip: u128,
     fee_recipient: &AccountId,
+    policy: &NetworkFeePolicy,
 ) -> Result<(), FeeError> {
     if tip == 0 {
         return Ok(());
@@ -306,7 +308,16 @@ pub fn charge_priority_tip(
         });
     }
     sender_state.balance -= tip;
-    credit_account(state, *fee_recipient, tip);
+    let to_proposer = tip.saturating_mul(policy.tip_proposer_bps as u128) / 10_000;
+    let to_treasury = tip.saturating_mul(policy.tip_treasury_bps as u128) / 10_000;
+    let to_burn = tip.saturating_mul(policy.tip_burn_bps as u128) / 10_000;
+    let allocated = to_proposer
+        .saturating_add(to_treasury)
+        .saturating_add(to_burn);
+    let rest = tip.saturating_sub(allocated);
+    credit_account(state, *fee_recipient, to_proposer.saturating_add(rest));
+    credit_account(state, PROTOCOL_TREASURY, to_treasury);
+    credit_account(state, FEE_BURN_SINK, to_burn);
     Ok(())
 }
 
@@ -612,7 +623,7 @@ mod tests {
     }
 
     #[test]
-    fn charge_priority_tip_credits_proposer_only() {
+    fn charge_priority_tip_credits_proposer_only_by_default() {
         let sender = AccountId([1u8; 32]);
         let proposer = AccountId([2u8; 32]);
         let mut state = StateStore::new();
@@ -625,10 +636,37 @@ mod tests {
                 ..Default::default()
             },
         });
-        charge_priority_tip(&mut state, &sender, 10, &proposer).unwrap();
+        let policy = NetworkFeePolicy::micro_fee_default();
+        charge_priority_tip(&mut state, &sender, 10, &proposer, &policy).unwrap();
         assert_eq!(state.get(&sender).unwrap().balance, 40);
         assert_eq!(state.get(&proposer).unwrap().balance, 10);
         assert!(state.get(&PROTOCOL_TREASURY).is_none());
+    }
+
+    #[test]
+    fn charge_priority_tip_honors_treasury_and_burn_share() {
+        let sender = AccountId([1u8; 32]);
+        let proposer = AccountId([2u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: sender,
+            state: AccountState {
+                balance: 100,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        let mut policy = NetworkFeePolicy::micro_fee_default();
+        policy.tip_proposer_bps = 7_000;
+        policy.tip_treasury_bps = 2_000;
+        policy.tip_burn_bps = 1_000;
+        policy.validate().unwrap();
+        charge_priority_tip(&mut state, &sender, 100, &proposer, &policy).unwrap();
+        assert_eq!(state.get(&sender).unwrap().balance, 0);
+        assert_eq!(state.get(&proposer).unwrap().balance, 70);
+        assert_eq!(state.get(&PROTOCOL_TREASURY).unwrap().balance, 20);
+        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 10);
     }
 
     #[test]

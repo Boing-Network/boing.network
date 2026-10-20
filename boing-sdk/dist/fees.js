@@ -38,3 +38,32 @@ export function suggestPriorityTipLadder() {
 export function estimateTotalFeeWithTip(gasUsed, priorityTip = 0n, executionGasFeeBps = MICRO_FEE_EXECUTION_GAS_BPS) {
     return estimateExecutionGasFee(gasUsed, executionGasFeeBps) + priorityTip;
 }
+/** Format ledger base units as a short BOING decimal string (18 decimals, trim trailing zeros). */
+export function formatBoingFromBaseUnits(baseUnits, maxFrac = 8) {
+    if (baseUnits < 0n)
+        throw new RangeError('baseUnits must be >= 0');
+    const whole = baseUnits / 1000000000000000000n;
+    const frac = baseUnits % 1000000000000000000n;
+    if (frac === 0n)
+        return whole.toString();
+    const fracStr = frac.toString().padStart(18, '0').slice(0, Math.max(0, maxFrac)).replace(/0+$/, '');
+    return fracStr.length > 0 ? `${whole}.${fracStr}` : whole.toString();
+}
+/**
+ * Wallet-ready tip ladder: same tiers as [`suggestPriorityTipLadder`] plus display strings.
+ * `baseFee` is the micro transfer fee; `totalWithTip` = baseFee + tip.
+ */
+export function formatTipLadderForUi(maxFrac = 8) {
+    const baseFee = estimateMicroTransferFee();
+    return suggestPriorityTipLadder().map(({ label, tip }) => {
+        const totalWithTip = baseFee + tip;
+        return {
+            label,
+            tip,
+            tipBoing: formatBoingFromBaseUnits(tip, maxFrac),
+            baseFee,
+            totalWithTip,
+            totalBoing: formatBoingFromBaseUnits(totalWithTip, maxFrac),
+        };
+    });
+}

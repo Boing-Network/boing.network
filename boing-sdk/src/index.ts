@@ -544,7 +544,10 @@ export {
   estimateMicroTransferFee,
   suggestPriorityTipLadder,
   estimateTotalFeeWithTip,
+  formatBoingFromBaseUnits,
+  formatTipLadderForUi,
 } from './fees.js';
+export type { PriorityTipTier } from './fees.js';
 export type { SignOptions, BuildContractCallWithValueInput } from './transactionBuilder.js';
 export type { BuildBatchInput, BuildBatchCall, BuildTransferInput, BuildContractCallInput, BuildDeployWithPurposeInput, Ed25519SecretKey32 } from './transactionBuilder.js';
 export {

@@ -43,6 +43,16 @@ pub struct NetworkFeePolicy {
     /// `0` = off.
     #[serde(default, with = "u128_string")]
     pub free_tx_min_balance: u128,
+    /// Share of each **priority tip** credited to the block proposer (basis points).
+    /// Default **10000** (100% to proposer). Independent of [`Self::fee_validators_bps`].
+    #[serde(default = "default_tip_proposer_bps")]
+    pub tip_proposer_bps: u16,
+    /// Share of each priority tip credited to [`crate::PROTOCOL_TREASURY`].
+    #[serde(default = "default_tip_treasury_bps")]
+    pub tip_treasury_bps: u16,
+    /// Share of each priority tip credited to [`crate::FEE_BURN_SINK`].
+    #[serde(default = "default_tip_burn_bps")]
+    pub tip_burn_bps: u16,
 }
 
 /// Recommended micro-fee share of the historical gas schedule (1%).
@@ -62,6 +72,18 @@ fn default_treasury_bps() -> u16 {
 }
 
 fn default_burn_bps() -> u16 {
+    0
+}
+
+fn default_tip_proposer_bps() -> u16 {
+    10_000
+}
+
+fn default_tip_treasury_bps() -> u16 {
+    0
+}
+
+fn default_tip_burn_bps() -> u16 {
     0
 }
 
@@ -121,6 +143,9 @@ impl NetworkFeePolicy {
             blob_forever_pin_fee_per_kib: 0,
             execution_gas_fee_bps: default_execution_gas_fee_bps(),
             free_tx_min_balance: 0,
+            tip_proposer_bps: default_tip_proposer_bps(),
+            tip_treasury_bps: default_tip_treasury_bps(),
+            tip_burn_bps: default_tip_burn_bps(),
         }
     }
 
@@ -159,6 +184,9 @@ impl NetworkFeePolicy {
             blob_forever_pin_fee_per_kib: 0,
             execution_gas_fee_bps: default_execution_gas_fee_bps(),
             free_tx_min_balance: 0,
+            tip_proposer_bps: default_tip_proposer_bps(),
+            tip_treasury_bps: default_tip_treasury_bps(),
+            tip_burn_bps: default_tip_burn_bps(),
         }
     }
 
@@ -176,6 +204,15 @@ impl NetworkFeePolicy {
         if sum != 10_000 {
             return Err(format!(
                 "fee_validators_bps + fee_treasury_bps + fee_burn_bps must equal 10000 (got {sum})"
+            ));
+        }
+        let tip_sum = self
+            .tip_proposer_bps
+            .saturating_add(self.tip_treasury_bps)
+            .saturating_add(self.tip_burn_bps);
+        if tip_sum != 10_000 {
+            return Err(format!(
+                "tip_proposer_bps + tip_treasury_bps + tip_burn_bps must equal 10000 (got {tip_sum})"
             ));
         }
         if self.transfer_amount_bps > 10_000 {
@@ -231,5 +268,20 @@ mod tests {
         assert_eq!(p.execution_gas_fee_bps, MICRO_FEE_EXECUTION_GAS_BPS);
         assert!(!p.execution_gas_waived());
         assert_eq!(NetworkFeePolicy::optional_fees_default(), p);
+        assert_eq!(p.tip_proposer_bps, 10_000, "tips default 100% to proposer");
+    }
+
+    #[test]
+    fn omitted_tip_split_keeps_full_proposer() {
+        let raw = br#"{
+            "fee_validators_bps": 0,
+            "fee_treasury_bps": 10000,
+            "fee_burn_bps": 0
+        }"#;
+        let p = network_fee_policy_from_json(raw).unwrap();
+        p.validate().unwrap();
+        assert_eq!(p.tip_proposer_bps, 10_000);
+        assert_eq!(p.tip_treasury_bps, 0);
+        assert_eq!(p.tip_burn_bps, 0);
     }
 }

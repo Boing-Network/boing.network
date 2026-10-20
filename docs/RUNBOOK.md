@@ -84,7 +84,7 @@ Produces blocks when there are pending transactions.
 cargo run -p boing-node -- --data-dir ./boing-data --rpc-port 8545
 ```
 
-Persists chain, QA policy (`qa_registry.json` / `qa_pool_config.json`), and native fee policy (`network_fee_config.json`). Override at start with `--qa-registry`, `--qa-pool-config`, and `--network-fee-config`. Canonical shapes: [`docs/config/qa_pool_config.canonical.json`](config/qa_pool_config.canonical.json), [`docs/config/network_fee_config.canonical.json`](config/network_fee_config.canonical.json). Default fee split is **100% to `PROTOCOL_TREASURY`**; mining emission still credits the round proposer.
+Persists chain, QA policy (`qa_registry.json` / `qa_pool_config.json`), and native fee policy (`network_fee_config.json`). Override at start with `--qa-registry`, `--qa-pool-config`, and `--network-fee-config`. Canonical shapes: [`docs/config/qa_pool_config.canonical.json`](config/qa_pool_config.canonical.json), [`docs/config/network_fee_config.canonical.json`](config/network_fee_config.canonical.json) (**micro** `execution_gas_fee_bps=100` + tip BPS). Protocol gas split defaults **100% to `PROTOCOL_TREASURY`**; tips default **100% to the proposer** (`tip_proposer_bps`); mining emission still credits the round proposer. See [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md).
 
 ### Mempool: pending transactions per sender
 
@@ -237,7 +237,7 @@ For security incidents and vulnerabilities:
 
 - **Block time:** ~2 seconds (configurable via tokenomics)
 - **Throughput:** Parallel transfer batches; access-list batching reduces conflicts
-- **Gas:** Fixed per tx type (Transfer, Bond, Unbond, ContractCall, ContractDeploy, QaPoolVote); **fee market v0** charges `ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)` (1 BOING per 21,000 gas, so a transfer costs 1 BOING) plus optional `extra_fixed_fee` / `transfer_amount_bps`. Default split is **100% protocol treasury** (`PROTOCOL_TREASURY`); block **emission** still goes to the round proposer. Override via `network_fee_config.json` / `boing_operatorApplyFeePolicy` (see [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §8.4).
+- **Gas / fees:** Fixed gas per tx type; **fee market v1** scales the historical schedule by `execution_gas_fee_bps` (recommended **100** → ~**0.00021 BOING**/transfer) plus optional `extra_fixed_fee` / `transfer_amount_bps` / blob fees. Optional **`priority_tip`** for inclusion priority (split via `tip_*_bps`, default 100% proposer). Protocol gas default split is **100% treasury**; block **emission** still goes to the round proposer. Height gate: `BOING_MICRO_FEES_ACTIVATION_HEIGHT`. Override via `network_fee_config.json` / `boing_operatorApplyFeePolicy` ([OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md), [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §8.4).
 - **Batching:** Scheduler groups non-conflicting txs; transfers with disjoint access lists run in parallel
 
 ## 6c. Decentralization Design

@@ -368,6 +368,28 @@ Users should **not** have to enter their password every time they open the walle
 
 ---
 
+## Priority tips (micro base fee + optional tip)
+
+Product direction: users always pay a **tiny base execution fee** (~0.00021 BOING per transfer at `execution_gas_fee_bps=100`); tips are **optional** for faster inclusion under congestion. See [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md).
+
+**boing-sdk helpers** (pin Express to a commit that includes `fees.ts`):
+
+| Helper | Use |
+|--------|-----|
+| `estimateMicroTransferFee()` | Base fee for a plain transfer |
+| `suggestPriorityTipLadder()` / `formatTipLadderForUi()` | `normal` / `faster` / `priority` / `urgent` tip tiers |
+| `withPriorityTip(tx, tip)` / `TransactionInput.priorityTip` | Bind tip into encode + `BOING_TX_PRIORITY` signing |
+| `estimateTotalFeeWithTip(gas, tip)` | Base + tip (blobs/extras not included) |
+
+**Wallet UX checklist (Express):**
+
+1. Show simulated **network fee** (already via `boing_simulateTransaction` / `network_fee`).
+2. Offer an optional tip selector using `formatTipLadderForUi()` (default **normal** / tip `0`).
+3. When tip &gt; 0, sign with SDK `signTransactionInput` / `withPriorityTip` (local Express bincode must omit tip when zero and append tip when non-zero).
+4. Confirm total ≈ base fee + tip before submit; tip does not replace the micro base fee.
+
+---
+
 ## Reference: Boing Network repo
 
 | What | Where |
@@ -375,6 +397,7 @@ Users should **not** have to enter their password every time they open the walle
 | RPC methods, params, errors | docs/RPC-API-SPEC.md |
 | Address, Transaction, AccountState, bincode | crates/boing-primitives/src/types.rs |
 | Signable hash, SignedTransaction | crates/boing-primitives/src/signature.rs |
+| Fee market / tips | docs/OPTIONAL-PRIORITY-FEES.md; boing-sdk `fees.ts` |
 | Faucet | RPC boing_faucetRequest; or boing.network/faucet |
 
 ---
