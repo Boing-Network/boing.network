@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-10-20
+
+### Added
+
+- **L1 media blobs (MVP)** — `mediaBlob.ts` (`blobIdOf`, `putBlobPayload`, URI helpers, gas math), `PayloadVariant.PutBlob` (21) + `BlobRetentionVariant`, client `getMediaBlobParams` / `getBlobMeta` / `getBlob`. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md). Cap **256 KiB**; separate from interface SSTORE blobs.
 - **Linked NFT↔token registry v2** (creator-only claims, `docs/BOING-LINKED-NFT-TOKEN.md`): `CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX` now points to the v2 registry `0xf704485a…55dd` (v1 kept as `CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_V1_HEX`). New: `claim_self` / `get_asset_deployer` selectors and encoders, `buildLinkedNftTokenClaimSelfInitSnippetHex` (asset init code claims itself for the deploy tx sender), claimer / deployer storage keys, `LINKED_NFT_TOKEN_TOPIC_CLAIM_V2_HEX`, `LINKED_NFT_TOKEN_REGISTRY_CREATE2_SALT_V2_HEX`, `DEFAULT_LINKED_NFT_TOKEN_REGISTRY_V2_RUNTIME_BYTECODE_HEX`, `buildLinkedNftTokenRegistryV2DeployMetaTx`; `buildLinkedNftTokenRegisterFlowTxs({ includeClaims: false })` and `buildLinkedNftTokenProjectPack({ claimAtDeploy: true })` (`LINKED_NFT_TOKEN_PROJECT_PACK_SUBMIT_ORDER_CLAIM_AT_DEPLOY`). On v2 a `claim_asset` by anyone other than the recorded deployer fails.
 - **Native value on contract calls** (testnet height 1150, `docs/NATIVE-VALUE-AND-WBOING.md`): `contractCallWithValue` payload (bincode variant 20) and batch step (`BatchCall` 2), `buildContractCallWithValueTransaction`, value steps in `buildBatchTransaction`, `BOING_TESTNET_NATIVE_VALUE_FROM`, `nativeValueActiveAt`.
 - **wBOING** (`nativeValue.ts`): `WRAPPED_BOING_BYTECODE_HEX`, `encodeWboing*Calldata`, `buildWrapBoingTransaction`, `buildUnwrapBoingTransaction`, topics and supply key.

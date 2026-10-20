@@ -38,6 +38,14 @@ fn main() {
     let p = bincode::serialize(&claim).unwrap();
     println!("ClaimUnbond: len={} hex={}", p.len(), hex::encode(&p));
 
+    let put = TransactionPayload::PutBlob {
+        retention: boing_primitives::BlobRetention::Forever,
+        content_type: "image/png".into(),
+        data: vec![0x89, 0x50, 0x4e, 0x47],
+    };
+    let p = bincode::serialize(&put).unwrap();
+    println!("PutBlob: len={} hex={}", p.len(), hex::encode(&p));
+
     let qv = TransactionPayload::QaPoolVote {
         subject: boing_primitives::Hash([3u8; 32]),
         vote: boing_primitives::QaPoolVoteKind::Allow,

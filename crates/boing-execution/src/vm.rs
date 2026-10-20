@@ -2,8 +2,9 @@
 
 use boing_primitives::{
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
-    nonce_derived_contract_address, validate_batch_calls, AccountId, AccountState, BatchCall,
-    ExecutionLog, Hash, QaPoolVoteKind, Transaction, TransactionPayload,
+    media_blob_gas, nonce_derived_contract_address, validate_batch_calls, validate_put_blob,
+    AccountId, AccountState, BatchCall, BlobRetention, ExecutionLog, Hash, QaPoolVoteKind,
+    Transaction, TransactionPayload,
 };
 use boing_qa::{
     check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaPoolGovernanceConfig,
@@ -97,6 +98,8 @@ pub struct Vm {
     /// From this height the ledger is in base units (10^18 per BOING); whole-BOING prices (bond, name
     /// rent, QA reward / min stake) are scaled by [`Denomination::scale`]. 0 = from genesis.
     base_units_from: u64,
+    /// Media blob PutBlob activation: `None` = feature off; `Some(h)` = active at height ≥ `h`.
+    media_blobs_from: Option<u64>,
 }
 
 impl Vm {
@@ -117,6 +120,19 @@ impl Vm {
 
     pub fn set_base_units_from(&mut self, from: u64) {
         self.base_units_from = from;
+    }
+
+    /// Enable L1 media blobs from `height` (`None` disables PutBlob).
+    pub fn set_media_blobs_from(&mut self, from: Option<u64>) {
+        self.media_blobs_from = from;
+    }
+
+    pub fn media_blobs_from(&self) -> Option<u64> {
+        self.media_blobs_from
+    }
+
+    pub fn media_blobs_active(&self, height: u64) -> bool {
+        self.media_blobs_from.is_some_and(|h| height >= h)
     }
 
     pub fn base_units_from(&self) -> u64 {
@@ -187,6 +203,7 @@ impl Vm {
             registration_v2_from: 0,
             security_v4_from: 0,
             base_units_from: 0,
+            media_blobs_from: None,
         }
     }
 
@@ -201,6 +218,7 @@ impl Vm {
             registration_v2_from: 0,
             security_v4_from: 0,
             base_units_from: 0,
+            media_blobs_from: None,
         }
     }
 
@@ -218,6 +236,7 @@ impl Vm {
             registration_v2_from: 0,
             security_v4_from: 0,
             base_units_from: 0,
+            media_blobs_from: None,
         }
     }
 
@@ -490,10 +509,55 @@ impl Vm {
                     self.denomination_at(exec_ctx.block_height).unit(),
                 )?
             }
+            TransactionPayload::PutBlob {
+                retention,
+                content_type,
+                data,
+            } => {
+                return self.execute_put_blob(
+                    state,
+                    tx,
+                    *retention,
+                    content_type,
+                    data,
+                    exec_ctx.block_height,
+                );
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
             return_data: Vec::new(),
+            logs: Vec::new(),
+        })
+    }
+
+    /// Validate + meter a media PutBlob; return_data is the 32-byte [`boing_primitives::BlobId`].
+    /// Bytes are not written into account SMT — the node sidecar persists them from the block tx.
+    fn execute_put_blob(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        retention: BlobRetention,
+        content_type: &str,
+        data: &[u8],
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        let blob_id = validate_put_blob(retention, content_type, data)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        let gas_used = media_blob_gas(data.len(), retention);
+        Ok(VmExecutionResult {
+            gas_used,
+            return_data: blob_id.to_vec(),
             logs: Vec::new(),
         })
     }
@@ -1558,6 +1622,10 @@ pub enum VmError {
     NativeValueNotActive,
     #[error("Native balance / transfer is not available for this storage backend")]
     NativeValueNotSupported,
+    #[error("Media blobs (PutBlob) are not active at this height (activation={from:?})")]
+    MediaBlobsNotActive { from: Option<u64> },
+    #[error("Media blob: {0}")]
+    MediaBlob(String),
 }
 
 /// Apply CREATE2-style deploy from inside a contract: QA, address derivation, account insert, optional init, runtime install.

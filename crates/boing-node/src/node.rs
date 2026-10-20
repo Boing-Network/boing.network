@@ -26,6 +26,7 @@ use crate::chain::ChainState;
 use crate::dapp_registry::DappRegistry;
 use crate::intent_pool::IntentPool;
 use crate::logging;
+use crate::media_blob_store::MediaBlobStore;
 use crate::mempool::{Mempool, MempoolError};
 use crate::persistence::{Persistence, PersistenceError};
 
@@ -99,6 +100,8 @@ pub struct BoingNode {
     pub anchor_fallback_wait: Option<(u64, Instant)>,
     /// Round in which this node last cast its own vote (never vote twice in one round).
     pub last_local_vote_round: Option<u64>,
+    /// Sidecar for L1 media blob bytes (`data/blobs/`). Required for `boing_getBlob` serving.
+    pub media_blob_store: Option<MediaBlobStore>,
 }
 
 /// Default wait before an anchor proposes in place of an offline open-validator leader.
@@ -200,6 +203,7 @@ impl BoingNode {
             anchor_fallback_timeout: DEFAULT_ANCHOR_FALLBACK_TIMEOUT,
             anchor_fallback_wait: None,
             last_local_vote_round: None,
+            media_blob_store: None,
         }
     }
 
@@ -442,6 +446,10 @@ impl BoingNode {
             }
 
             node.persistence = Some(persistence);
+            match MediaBlobStore::open(path) {
+                Ok(store) => node.media_blob_store = Some(store),
+                Err(e) => tracing::warn!("media blob store: could not open: {e}"),
+            }
 
             let (load_reg, load_pool, load_slash, load_fee) = {
                 let p = node.persistence.as_ref().expect("just set");
@@ -579,6 +587,13 @@ impl BoingNode {
         block: &boing_primitives::Block,
         receipts: &[ExecutionReceipt],
     ) {
+        if let Some(ref store) = self.media_blob_store {
+            if let Err(e) = store.ingest_block_txs(block.header.height, &block.transactions) {
+                tracing::warn!("media blob store: ingest height {}: {e}", block.header.height);
+            } else {
+                let _ = store.prune_expired(block.header.height);
+            }
+        }
         if let Some(ref p) = self.persistence {
             if let Err(e) = p.save_block(block) {
                 logging::log_persistence_warn("save_block", &e);
@@ -1126,6 +1141,29 @@ impl BoingNode {
         }
     }
 
+    /// PutBlob admitted only when media blobs are active at the next height and payload validates.
+    fn precheck_media_blob_tx(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
+        let TransactionPayload::PutBlob {
+            retention,
+            content_type,
+            data,
+        } = &signed.tx.payload
+        else {
+            return Ok(());
+        };
+        let next = self.chain.height().saturating_add(1);
+        if !self.executor.vm().media_blobs_active(next) {
+            return Err(MempoolError::MediaBlobRejected(format!(
+                "media blobs not active (activation={:?})",
+                self.executor.vm().media_blobs_from()
+            )));
+        }
+        if let Err(e) = boing_primitives::validate_put_blob(*retention, content_type, data) {
+            return Err(MempoolError::MediaBlobRejected(e.to_string()));
+        }
+        Ok(())
+    }
+
     /// Name registry txs are admitted only when the registry is configured and active at the next
     /// height, and only if they would execute (bad label, unmatured commit, taken name, not owner, rent
     /// unaffordable → rejected up front). Keeps pre-activation chains free of the new variants.
@@ -1162,6 +1200,41 @@ impl BoingNode {
     /// persisted state; nothing changes on-chain before `params.activation_height`.
     pub fn enable_name_registry(&mut self, params: boing_state::NameRegistryParams) {
         self.state.set_name_registry_params(Some(params));
+    }
+
+    /// Enable L1 media blobs (PutBlob) from `activation_height`. All nodes must agree.
+    /// Opens / keeps the sidecar when `data_dir` was configured; for in-memory tests call
+    /// [`Self::attach_media_blob_store`] first if RPC getBlob is needed.
+    pub fn enable_media_blobs(&mut self, activation_height: u64) {
+        self.executor.set_media_blobs_from(Some(activation_height));
+        self.vm.set_media_blobs_from(Some(activation_height));
+    }
+
+    /// Attach a media blob sidecar (tests / custom data paths).
+    pub fn attach_media_blob_store(&mut self, store: MediaBlobStore) {
+        self.media_blob_store = Some(store);
+    }
+
+    pub fn media_blob_store(&self) -> Option<&MediaBlobStore> {
+        self.media_blob_store.as_ref()
+    }
+
+    pub fn media_blobs_activation_height(&self) -> Option<u64> {
+        self.executor.vm().media_blobs_from()
+    }
+
+    pub fn media_blobs_active_at_tip(&self) -> bool {
+        let next = self.chain.height().saturating_add(1);
+        self.executor.vm().media_blobs_active(next)
+    }
+
+    /// Media blob JSON-RPC (`boing_getBlob`, `boing_getBlobMeta`, `boing_getMediaBlobParams`).
+    pub fn media_blobs_rpc(
+        &self,
+        method: &str,
+        params: &serde_json::Value,
+    ) -> Result<serde_json::Value, (i32, String)> {
+        crate::media_blobs_rpc::dispatch(self, method, params)
     }
 
     /// Use a network's genesis (proposer + height-0 allocations) instead of the local-identity
@@ -1224,6 +1297,7 @@ impl BoingNode {
         vm.set_security_v4_from(self.executor.vm().security_v4_from());
         vm.set_base_units_from(self.executor.vm().base_units_from());
         vm.set_native_value_from(self.executor.vm().native_value_from());
+        vm.set_media_blobs_from(self.executor.vm().media_blobs_from());
         vm
     }
 
@@ -1263,6 +1337,7 @@ impl BoingNode {
         self.precheck_native_value_tx(&signed)?;
         self.precheck_open_validator_tx(&signed)?;
         self.precheck_name_tx(&signed)?;
+        self.precheck_media_blob_tx(&signed)?;
         self.precheck_sender_can_pay_fee(&signed)?;
         match self.mempool.insert(signed.clone()) {
             Ok(()) => {

@@ -387,6 +387,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | Bond | 21,000 |
 | Unbond | 21,000 |
 | QaPoolVote | 21,000 |
+| **PutBlob** (media) | `21_000 + ceil(size/32)×16`, then ×10 if `Forever` retention — **not** SSTORE; see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md). MVP cap **256 KiB**. Activation: `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. |
 
 ### 8.2 Opcode Gas
 

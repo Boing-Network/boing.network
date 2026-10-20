@@ -2,6 +2,7 @@
 //!
 //! Types, hashing, signatures, and shared data structures.
 
+pub mod blobs;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -19,6 +20,12 @@ pub mod vrf_proof;
 
 pub use denomination::{
     format_boing, parse_boing, Denomination, ParseBoingError, BASE_UNITS_PER_BOING, BOING_DECIMALS,
+};
+pub use blobs::{
+    blob_id_hex, blob_id_of, media_blob_gas, media_blob_gas_raw, media_blob_uri, parse_media_blob_id,
+    validate_put_blob, BlobError, BlobId, BlobRetention, MAX_MEDIA_BLOB_BYTES,
+    MAX_MEDIA_BLOB_CONTENT_TYPE_LEN, MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOB_FOREVER_MULTIPLIER,
+    MEDIA_BLOB_GAS_BASE, MEDIA_BLOB_GAS_PER_WORD, MEDIA_BLOB_URI_PREFIX,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};

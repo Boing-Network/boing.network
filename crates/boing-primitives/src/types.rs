@@ -171,6 +171,31 @@ impl Transaction {
                     crate::format_boing(*value)
                 )
             }
+            TransactionPayload::PutBlob {
+                retention,
+                content_type,
+                data,
+            } => {
+                let id = crate::blob_id_of(data);
+                let ret = match retention {
+                    crate::BlobRetention::Forever => "forever".into(),
+                    crate::BlobRetention::Prunable { ttl_blocks } => {
+                        format!("prunable/{ttl_blocks}")
+                    }
+                };
+                let ct = if content_type.is_empty() {
+                    "unknown".into()
+                } else {
+                    content_type.clone()
+                };
+                format!(
+                    "Put media blob {} ({} bytes, {}, {})",
+                    hex::encode(&id[..8]),
+                    data.len(),
+                    ret,
+                    ct
+                )
+            }
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -260,6 +285,7 @@ impl Transaction {
             | TransactionPayload::NameSetTarget { .. }
             | TransactionPayload::NameSetPrimary { .. }
             | TransactionPayload::NameRelease { .. }
+            | TransactionPayload::PutBlob { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -413,6 +439,16 @@ pub enum TransactionPayload {
         contract: AccountId,
         calldata: Vec<u8>,
         value: u128,
+    },
+    /// Publish a content-addressed media blob (index **21**). Payload carries bytes (MVP cap
+    /// [`crate::MAX_MEDIA_BLOB_BYTES`]); id is `BLAKE3(data)`. Bytes are stored in a node sidecar;
+    /// consensus keeps metadata only. Separate fee schedule via size-scaled blob gas — not SSTORE.
+    /// See `docs/BOING-L1-MEDIA-BLOBS.md`.
+    PutBlob {
+        retention: crate::BlobRetention,
+        /// Optional MIME hint (max [`crate::MAX_MEDIA_BLOB_CONTENT_TYPE_LEN`] UTF-8 bytes).
+        content_type: String,
+        data: Vec<u8>,
     },
 }
 

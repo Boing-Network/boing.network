@@ -159,6 +159,11 @@ impl BlockExecutor {
         &self.vm
     }
 
+    /// Enable L1 media PutBlob from `height` (`None` = disabled). Must match all validators.
+    pub fn set_media_blobs_from(&mut self, from: Option<u64>) {
+        self.vm.set_media_blobs_from(from);
+    }
+
     /// Execute all transactions. Returns total gas used and one receipt per tx (in block order).
     /// On error, state may be partially applied (caller should revert if needed).
     /// Transfer-only batches run in parallel; other batches run sequentially.

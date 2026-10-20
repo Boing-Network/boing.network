@@ -193,6 +193,26 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             json!({"kind":"name_set_primary","name":name})
         }
         TransactionPayload::NameRelease { name } => json!({"kind":"name_release","name":name}),
+        TransactionPayload::PutBlob {
+            retention,
+            content_type,
+            data,
+        } => {
+            let id = boing_primitives::blob_id_of(data);
+            let retention = match retention {
+                boing_primitives::BlobRetention::Forever => json!({"kind":"forever"}),
+                boing_primitives::BlobRetention::Prunable { ttl_blocks } => {
+                    json!({"kind":"prunable","ttl_blocks":ttl_blocks})
+                }
+            };
+            json!({
+                "kind":"put_blob",
+                "blob_id":hex0x(&id),
+                "size":data.len(),
+                "content_type":content_type,
+                "retention":retention,
+            })
+        }
     }
 }
 
