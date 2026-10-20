@@ -7,8 +7,12 @@ import { blake3 } from '@noble/hashes/blake3';
 import type { TransactionPayloadInput } from './bincode.js';
 import { bytesToHex, ensureHex, hexToBytes } from './hex.js';
 
-/** Phase 2 hard cap (1 MiB). Not video-scale. */
+/** Live consensus hard cap (1 MiB). Not video-scale. */
 export const MAX_MEDIA_BLOB_BYTES = 1024 * 1024;
+/** Phase 3 target raised path once DAS/chunking ships — not consensus-live. */
+export const PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES = 16 * 1024 * 1024;
+/** Suggested DAS chunk size (scaffold). */
+export const MEDIA_BLOB_DAS_CHUNK_BYTES = 64 * 1024;
 export const MAX_MEDIA_BLOB_INLINE_BYTES = MAX_MEDIA_BLOB_BYTES;
 export const MAX_MEDIA_BLOB_CONTENT_TYPE_LEN = 64;
 export const MAX_MEDIA_BLOB_TTL_BLOCKS = 1_000_000n;
@@ -17,6 +21,18 @@ export const MEDIA_BLOB_GAS_PER_WORD = 16n;
 export const MEDIA_BLOB_FOREVER_MULTIPLIER = 10n;
 export const MEDIA_BLOB_URI_PREFIX = 'boing://blob/';
 export const MEDIA_BLOBS_GOSSIP_TOPIC = 'boing/media-blobs';
+
+/** Ceil chunk count for Phase 3 DAS scaffold. */
+export function mediaBlobDasChunkCount(size: number): number {
+  if (size <= 0) return 0;
+  return Math.ceil(size / MEDIA_BLOB_DAS_CHUNK_BYTES);
+}
+
+/** Scaffold Forever pin-rent units (KiB × blocks) — not charged on-chain yet. */
+export function mediaBlobPinRentKibBlocks(size: number, ttlBlocks: bigint): bigint {
+  const kib = BigInt(Math.max(1, Math.ceil(size / 1024)));
+  return kib * ttlBlocks;
+}
 
 export type BlobRetentionInput =
   | { kind: 'forever' }

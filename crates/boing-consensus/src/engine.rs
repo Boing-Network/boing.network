@@ -393,6 +393,7 @@ mod tests {
                 tx_root: Hash::ZERO,
                 receipts_root: Hash::ZERO,
                 state_root: Hash::ZERO,
+            blobs_root: None,
             },
             transactions: vec![],
             signatures: vec![],

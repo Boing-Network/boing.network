@@ -3,8 +3,12 @@
  * @see docs/BOING-L1-MEDIA-BLOBS.md
  */
 import type { TransactionPayloadInput } from './bincode.js';
-/** Phase 2 hard cap (1 MiB). Not video-scale. */
+/** Live consensus hard cap (1 MiB). Not video-scale. */
 export declare const MAX_MEDIA_BLOB_BYTES: number;
+/** Phase 3 target raised path once DAS/chunking ships — not consensus-live. */
+export declare const PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES: number;
+/** Suggested DAS chunk size (scaffold). */
+export declare const MEDIA_BLOB_DAS_CHUNK_BYTES: number;
 export declare const MAX_MEDIA_BLOB_INLINE_BYTES: number;
 export declare const MAX_MEDIA_BLOB_CONTENT_TYPE_LEN = 64;
 export declare const MAX_MEDIA_BLOB_TTL_BLOCKS = 1000000n;
@@ -13,6 +17,10 @@ export declare const MEDIA_BLOB_GAS_PER_WORD = 16n;
 export declare const MEDIA_BLOB_FOREVER_MULTIPLIER = 10n;
 export declare const MEDIA_BLOB_URI_PREFIX = "boing://blob/";
 export declare const MEDIA_BLOBS_GOSSIP_TOPIC = "boing/media-blobs";
+/** Ceil chunk count for Phase 3 DAS scaffold. */
+export declare function mediaBlobDasChunkCount(size: number): number;
+/** Scaffold Forever pin-rent units (KiB × blocks) — not charged on-chain yet. */
+export declare function mediaBlobPinRentKibBlocks(size: number, ttlBlocks: bigint): bigint;
 export type BlobRetentionInput = {
     kind: 'forever';
 } | {

@@ -4,9 +4,13 @@ import {
   blobAnnouncePayload,
   blobIdOf,
   MAX_MEDIA_BLOB_BYTES,
+  MEDIA_BLOB_DAS_CHUNK_BYTES,
+  mediaBlobDasChunkCount,
   mediaBlobGas,
+  mediaBlobPinRentKibBlocks,
   mediaBlobUri,
   parseMediaBlobId,
+  PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
   putBlobPayload,
   tokenMetadataJsonWithBlobImage,
   validatePutBlob,
@@ -24,6 +28,14 @@ describe('mediaBlob', () => {
     const uri = mediaBlobUri(id);
     expect(uri.startsWith('boing://blob/0x')).toBe(true);
     expect(parseMediaBlobId(uri)).toEqual(id);
+  });
+
+  it('Phase 3 DAS / pin-rent scaffolds (live cap still 1 MiB)', () => {
+    expect(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES).toBe(16 * 1024 * 1024);
+    expect(mediaBlobDasChunkCount(0)).toBe(0);
+    expect(mediaBlobDasChunkCount(1)).toBe(1);
+    expect(mediaBlobDasChunkCount(MEDIA_BLOB_DAS_CHUNK_BYTES + 1)).toBe(2);
+    expect(mediaBlobPinRentKibBlocks(1024, 10n)).toBe(10n);
   });
 
   it('Phase 2 MiB cap and forever gas', () => {

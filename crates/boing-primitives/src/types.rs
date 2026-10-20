@@ -749,6 +749,14 @@ pub struct BlockHeader {
     /// Merkle root over receipt leaves ([`receipt_leaf_hash`]) in transaction order.
     pub receipts_root: Hash,
     pub state_root: Hash,
+    /// Soft → consensus media commitment ([`crate::blobs_root_of_transactions`]).
+    ///
+    /// **Phase 3 (opt-in):** when `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT` is set and
+    /// `height ≥` that value, producers set `Some(root)` (incl. [`Hash::ZERO`] when the block
+    /// has no media txs). Omitted (`None`) before activation so historical header encodings and
+    /// block hashes stay unchanged. Full DAS / sampling remains a later milestone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blobs_root: Option<Hash>,
 }
 
 /// Block — header + transactions (+ the transactions' signatures from the block-signature activation).
@@ -929,7 +937,41 @@ mod block_encoding_tests {
             tx_root: Hash::ZERO,
             receipts_root: Hash::ZERO,
             state_root: Hash::ZERO,
+            blobs_root: None,
         }
+    }
+
+    #[test]
+    fn header_without_blobs_root_keeps_historical_encoding() {
+        let h = header();
+        #[derive(Serialize)]
+        struct Old {
+            parent_hash: Hash,
+            height: u64,
+            timestamp: u64,
+            proposer: AccountId,
+            tx_root: Hash,
+            receipts_root: Hash,
+            state_root: Hash,
+        }
+        let old = bincode::serialize(&Old {
+            parent_hash: h.parent_hash,
+            height: h.height,
+            timestamp: h.timestamp,
+            proposer: h.proposer,
+            tx_root: h.tx_root,
+            receipts_root: h.receipts_root,
+            state_root: h.state_root,
+        })
+        .unwrap();
+        assert_eq!(bincode::serialize(&h).unwrap(), old);
+        let with = BlockHeader {
+            blobs_root: Some(Hash([9; 32])),
+            ..h.clone()
+        };
+        assert_ne!(bincode::serialize(&with).unwrap(), old);
+        let j = serde_json::to_value(&h).unwrap();
+        assert!(j.get("blobs_root").is_none());
     }
 
     #[test]

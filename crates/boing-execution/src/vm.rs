@@ -100,6 +100,9 @@ pub struct Vm {
     base_units_from: u64,
     /// Media blob PutBlob activation: `None` = feature off; `Some(h)` = active at height ≥ `h`.
     media_blobs_from: Option<u64>,
+    /// Phase 3: pin `blobs_root` into [`boing_primitives::BlockHeader`] from this height.
+    /// `None` = omit field (historical encoding). Independent of PutBlob activation.
+    blobs_root_header_from: Option<u64>,
 }
 
 impl Vm {
@@ -133,6 +136,19 @@ impl Vm {
 
     pub fn media_blobs_active(&self, height: u64) -> bool {
         self.media_blobs_from.is_some_and(|h| height >= h)
+    }
+
+    /// Enable header `blobs_root` from `height` (`None` keeps the field omitted).
+    pub fn set_blobs_root_header_from(&mut self, from: Option<u64>) {
+        self.blobs_root_header_from = from;
+    }
+
+    pub fn blobs_root_header_from(&self) -> Option<u64> {
+        self.blobs_root_header_from
+    }
+
+    pub fn blobs_root_header_active(&self, height: u64) -> bool {
+        self.blobs_root_header_from.is_some_and(|h| height >= h)
     }
 
     pub fn base_units_from(&self) -> u64 {
@@ -204,6 +220,7 @@ impl Vm {
             security_v4_from: 0,
             base_units_from: 0,
             media_blobs_from: None,
+            blobs_root_header_from: None,
         }
     }
 
@@ -219,6 +236,7 @@ impl Vm {
             security_v4_from: 0,
             base_units_from: 0,
             media_blobs_from: None,
+            blobs_root_header_from: None,
         }
     }
 
@@ -237,6 +255,7 @@ impl Vm {
             security_v4_from: 0,
             base_units_from: 0,
             media_blobs_from: None,
+            blobs_root_header_from: None,
         }
     }
 

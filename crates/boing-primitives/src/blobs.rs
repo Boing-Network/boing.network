@@ -3,6 +3,9 @@
 //! Bytes live in a node sidecar (not account SMT / SSTORE). Consensus records metadata via
 //! [`crate::TransactionPayload::PutBlob`] (inline) or [`crate::TransactionPayload::BlobAnnounce`]
 //! (commitment; bytes arrive via P2P / RPC). See `docs/BOING-L1-MEDIA-BLOBS.md`.
+//!
+//! Phase 3 scaffolding (not video-scale yet): optional header [`crate::BlockHeader::blobs_root`],
+//! DAS / chunk sizing stubs, pin-rent sketch, and a documented larger-caps *target* path.
 
 use serde::{Deserialize, Serialize};
 
@@ -15,10 +18,18 @@ pub const MEDIA_BLOB_URI_PREFIX: &str = "boing://blob/";
 /// Gossipsub topic for out-of-band media blob bytes (`boing/media-blobs`).
 pub const MEDIA_BLOBS_GOSSIP_TOPIC: &str = "boing/media-blobs";
 
-/// Phase 2 hard cap: **1 MiB**. Honest limit — still not video-scale; larger needs DAS / chunking.
+/// Phase 2 / current consensus hard cap: **1 MiB**. Honest limit — still not video-scale.
 pub const MAX_MEDIA_BLOB_BYTES: usize = 1024 * 1024;
 
-/// Preferred inline PutBlob ceiling before preferring BlobAnnounce + gossip (same as hard cap in Phase 2).
+/// Phase 3 **target** raised path once DAS / chunking + header `blobs_root` are coordinated.
+/// Not consensus-live — do not admit payloads this large until a hard-fork activation raises
+/// [`MAX_MEDIA_BLOB_BYTES`].
+pub const PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES: usize = 16 * 1024 * 1024;
+
+/// Suggested erasure / DAS chunk size for the Phase 3 larger-caps path (scaffold only).
+pub const MEDIA_BLOB_DAS_CHUNK_BYTES: usize = 64 * 1024;
+
+/// Preferred inline PutBlob ceiling before preferring BlobAnnounce + gossip (same as hard cap).
 pub const MAX_MEDIA_BLOB_INLINE_BYTES: usize = MAX_MEDIA_BLOB_BYTES;
 
 /// Max UTF-8 length of the optional MIME / content-type hint.
@@ -234,10 +245,10 @@ pub fn media_blob_gas(size: usize, retention: BlobRetention) -> u64 {
     media_blob_gas_raw(size).saturating_mul(retention.gas_multiplier())
 }
 
-/// Soft commitment over blob ids referenced by PutBlob / BlobAnnounce in a block (tx order).
+/// Soft / header commitment over blob ids referenced by PutBlob / BlobAnnounce in a block (tx order).
 ///
-/// **Not yet in [`crate::BlockHeader`]** — adding it would change every block hash. Phase 2 exposes
-/// this helper + RPC soft field; a future activation height can pin it into the header (DAS later).
+/// Phase 3: when header activation is on, producers set [`crate::BlockHeader::blobs_root`] =
+/// `Some(this)`. Pre-activation headers omit the field so hashes stay unchanged.
 #[must_use]
 pub fn blobs_root_of_transactions(txs: &[Transaction]) -> Hash {
     let mut ids: Vec<BlobId> = Vec::new();
@@ -257,6 +268,40 @@ pub fn blobs_root_of_transactions(txs: &[Transaction]) -> Hash {
         h.update(id);
     }
     Hash(*h.finalize().as_bytes())
+}
+
+/// How many DAS chunks a payload of `size` bytes would need (Phase 3 scaffold; ceil division).
+#[must_use]
+pub fn media_blob_das_chunk_count(size: usize) -> usize {
+    if size == 0 {
+        return 0;
+    }
+    size.div_ceil(MEDIA_BLOB_DAS_CHUNK_BYTES)
+}
+
+/// Whether `size` is within the Phase 3 *target* raised path (not the live consensus cap).
+#[must_use]
+pub fn within_phase3_target_cap(size: usize) -> bool {
+    size <= PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES
+}
+
+/// Scaffold Forever pin-rent units (KiB × blocks). Not charged on-chain yet — economics TBD.
+///
+/// Sketch: `ceil(size/1024) * ttl_blocks` so operators can prototype markets without consensus fees.
+#[must_use]
+pub fn media_blob_pin_rent_kib_blocks(size: usize, ttl_blocks: u64) -> u128 {
+    let kib = (size as u128).div_ceil(1024).max(1);
+    kib.saturating_mul(ttl_blocks as u128)
+}
+
+/// Chunk descriptor for future erasure-coded DA (not wired to P2P / consensus yet).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaBlobChunkRef {
+    pub blob_id: BlobId,
+    pub chunk_index: u32,
+    pub chunk_count: u32,
+    /// BLAKE3 of this chunk’s bytes (when available).
+    pub chunk_hash: [u8; 32],
 }
 
 #[cfg(test)]
@@ -319,5 +364,20 @@ mod tests {
     #[test]
     fn blobs_root_empty_is_zero() {
         assert_eq!(blobs_root_of_transactions(&[]), Hash::ZERO);
+    }
+
+    #[test]
+    fn phase3_das_and_pin_rent_scaffolds() {
+        assert_eq!(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES, 16 * 1024 * 1024);
+        assert_eq!(media_blob_das_chunk_count(0), 0);
+        assert_eq!(media_blob_das_chunk_count(1), 1);
+        assert_eq!(
+            media_blob_das_chunk_count(MEDIA_BLOB_DAS_CHUNK_BYTES + 1),
+            2
+        );
+        assert!(within_phase3_target_cap(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES));
+        assert!(!within_phase3_target_cap(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES + 1));
+        assert_eq!(media_blob_pin_rent_kib_blocks(1024, 10), 10);
+        assert_eq!(media_blob_pin_rent_kib_blocks(1025, 10), 20);
     }
 }

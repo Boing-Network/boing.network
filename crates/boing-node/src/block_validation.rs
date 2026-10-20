@@ -3,7 +3,8 @@
 use boing_consensus::ConsensusEngine;
 use boing_execution::BlockExecutor;
 use boing_primitives::{
-    receipts_root, tx_root, Account, AccountId, AccountState, Block, ExecutionReceipt, Hash,
+    blobs_root_of_transactions, receipts_root, tx_root, Account, AccountId, AccountState, Block,
+    ExecutionReceipt, Hash,
 };
 use boing_state::StateStore;
 
@@ -85,6 +86,19 @@ pub fn validate_and_execute_block(
         return Err(BlockValidationError::InvalidStateRoot {
             expected: block.header.state_root,
             computed: computed_root,
+        });
+    }
+
+    // 7. Optional Phase 3 header blobs_root (activation-gated; omit before fork).
+    let expected_blobs = if executor.vm().blobs_root_header_active(block.header.height) {
+        Some(blobs_root_of_transactions(&block.transactions))
+    } else {
+        None
+    };
+    if block.header.blobs_root != expected_blobs {
+        return Err(BlockValidationError::InvalidBlobsRoot {
+            expected: expected_blobs,
+            found: block.header.blobs_root,
         });
     }
 
@@ -173,6 +187,11 @@ pub enum BlockValidationError {
     ExecutionFailed(String),
     #[error("Invalid state root: expected {expected:?}, computed {computed:?}")]
     InvalidStateRoot { expected: Hash, computed: Hash },
+    #[error("Invalid blobs_root: expected {expected:?}, found {found:?}")]
+    InvalidBlobsRoot {
+        expected: Option<Hash>,
+        found: Option<Hash>,
+    },
     #[error("No validators configured")]
     NoValidators,
     #[error("Block must carry one signature per transaction: {expected} txs, {found} signatures")]

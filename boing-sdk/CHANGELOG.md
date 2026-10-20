@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.6] - 2026-10-20
+
+### Added
+
+- **L1 media blobs Phase 3 scaffold** — `PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES` (16 MiB, not live), `MEDIA_BLOB_DAS_CHUNK_BYTES`, `mediaBlobDasChunkCount`, `mediaBlobPinRentKibBlocks`; optional `BlockHeader.blobs_root`. Live cap remains **1 MiB**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
 ## [0.5.5] - 2026-10-20
 
 ### Added

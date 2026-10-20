@@ -1233,6 +1233,15 @@ impl BoingNode {
         self.vm.set_media_blobs_from(Some(activation_height));
     }
 
+    /// Phase 3: pin `blobs_root` into produced / validated headers from `activation_height`.
+    pub fn enable_blobs_root_header(&mut self, activation_height: u64) {
+        self.executor
+            .set_blobs_root_header_from(Some(activation_height));
+        self.vm.set_blobs_root_header_from(Some(activation_height));
+        self.producer
+            .set_blobs_root_header_from(Some(activation_height));
+    }
+
     /// Attach a media blob sidecar (tests / custom data paths).
     pub fn attach_media_blob_store(&mut self, store: MediaBlobStore) {
         self.media_blob_store = Some(store);
@@ -1244,6 +1253,10 @@ impl BoingNode {
 
     pub fn media_blobs_activation_height(&self) -> Option<u64> {
         self.executor.vm().media_blobs_from()
+    }
+
+    pub fn blobs_root_header_activation_height(&self) -> Option<u64> {
+        self.executor.vm().blobs_root_header_from()
     }
 
     pub fn media_blobs_active_at_tip(&self) -> bool {
@@ -1321,6 +1334,7 @@ impl BoingNode {
         vm.set_base_units_from(self.executor.vm().base_units_from());
         vm.set_native_value_from(self.executor.vm().native_value_from());
         vm.set_media_blobs_from(self.executor.vm().media_blobs_from());
+        vm.set_blobs_root_header_from(self.executor.vm().blobs_root_header_from());
         vm
     }
 
