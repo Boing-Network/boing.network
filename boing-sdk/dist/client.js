@@ -497,6 +497,24 @@ export class BoingClient {
     async getNameInfo(name) {
         return this.request('boing_getNameInfo', [name]);
     }
+    /** MVP caps / activation for L1 media blobs (`boing_getMediaBlobParams`). */
+    async getMediaBlobParams() {
+        return this.request('boing_getMediaBlobParams', []);
+    }
+    /** Sidecar metadata for a content-addressed blob, or null (`boing_getBlobMeta`). */
+    async getBlobMeta(blobId) {
+        const id = typeof blobId === 'string'
+            ? blobId
+            : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        return this.request('boing_getBlobMeta', [id]);
+    }
+    /** Bytes + meta for a media blob, or null (`boing_getBlob`). */
+    async getBlob(blobId) {
+        const id = typeof blobId === 'string'
+            ? blobId
+            : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        return this.request('boing_getBlob', [id]);
+    }
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
     async checkNames(names) {
         return this.request('boing_checkNames', [names]);

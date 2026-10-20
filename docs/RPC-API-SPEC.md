@@ -951,6 +951,9 @@ Names are normalized: trimmed, lowercased, optional `.boing` suffix stripped; 3-
 | `boing_resolveName` | `[name]` | `null` or `{ name, display, owner, target, registered_at, expires_at, status }` (only **active** names resolve; names in grace do not) |
 | `boing_reverseName` | `[address]` | `null` or `{ name, display, address, verified: true }`; only returned when the primary name is active and still resolves to `address` |
 | `boing_getNameInfo` | `[name]` | `{ input, name, display, valid, reserved, available, status, rent_per_year, record?, registry, head_height }` |
+| `boing_getMediaBlobParams` | `[]` | Caps / activation / gas knobs for L1 media blobs ([BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)) |
+| `boing_getBlobMeta` | `[blobId]` | Metadata object or `null` (`blobId`: `0x…` / hex / `boing://blob/0x…`) |
+| `boing_getBlob` | `[blobId]` | `{ meta, dataHex }` or `null` |
 | `boing_checkNames` | `[[name, ...]]` (1-25) | `{ registry, results: [ <same shape as getNameInfo without record> ] }` |
 | `boing_namesOwnedBy` | `[address]` | array of records (active and grace) owned by `address` |
 

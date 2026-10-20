@@ -376,6 +376,9 @@ pub enum MempoolError {
     /// Name registry tx would fail (or the registry is not active yet).
     #[error("name tx rejected: {0}")]
     NameRejected(String),
+    /// PutBlob rejected (feature off, oversize, bad retention, …).
+    #[error("media blob rejected: {0}")]
+    MediaBlobRejected(String),
     /// Native value on contract calls before the activation height.
     #[error("native value on contract calls is not active until height {from}")]
     NativeValueNotActive { from: u64 },

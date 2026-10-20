@@ -145,6 +145,11 @@ struct Args {
     #[arg(long)]
     name_registry_activation_height: Option<u64>,
 
+    /// Enable L1 media blobs (PutBlob) from this height (all nodes must agree). Overrides
+    /// **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`**. Unset = media blobs off. MVP cap 256 KiB.
+    #[arg(long)]
+    media_blobs_activation_height: Option<u64>,
+
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
@@ -178,6 +183,17 @@ async fn main() -> anyhow::Result<()> {
             p.grace_blocks,
             p.commit_min_age,
             p.commit_max_age
+        );
+    }
+    let media_blobs_from = boing_node::media_blob_config::resolve_media_blobs_activation(
+        args.media_blobs_activation_height,
+    )
+    .map_err(|e| anyhow::anyhow!("media blobs config: {e}"))?;
+    if let Some(h) = media_blobs_from {
+        tracing::info!(
+            "Media blobs (PutBlob): activation_height={} max_bytes={}",
+            h,
+            boing_primitives::MAX_MEDIA_BLOB_BYTES
         );
     }
     let open_set = validator_config::resolve_open_validator_set_config(
@@ -287,6 +303,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(p) = &name_params {
                 n.enable_name_registry(p.clone());
+            }
+            if let Some(h) = media_blobs_from {
+                n.enable_media_blobs(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -458,6 +477,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(p) = &name_params {
                 n.enable_name_registry(p.clone());
+            }
+            if let Some(h) = media_blobs_from {
+                n.enable_media_blobs(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();

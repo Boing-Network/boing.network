@@ -32,6 +32,13 @@ export const PayloadVariant = {
     NameRelease: 19,
     /** Contract call carrying native BOING (`value`, base units). Testnet: from height 1150. */
     ContractCallWithValue: 20,
+    /** L1 media blob publish (`docs/BOING-L1-MEDIA-BLOBS.md`). MVP cap 256 KiB. */
+    PutBlob: 21,
+};
+/** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
+export const BlobRetentionVariant = {
+    Prunable: 0,
+    Forever: 1,
 };
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
 export const BatchCallVariant = {
@@ -232,6 +239,12 @@ export function encodeTransactionPayload(payload) {
             return concatBytes(writeU32Le(PayloadVariant.NameSetPrimary), encodeOptionString(payload.name));
         case 'nameRelease':
             return concatBytes(writeU32Le(PayloadVariant.NameRelease), encodeBincodeString(payload.name));
+        case 'putBlob': {
+            const retention = payload.retention.kind === 'forever'
+                ? writeU32Le(BlobRetentionVariant.Forever)
+                : concatBytes(writeU32Le(BlobRetentionVariant.Prunable), writeU64Le(payload.retention.ttlBlocks));
+            return concatBytes(writeU32Le(PayloadVariant.PutBlob), retention, encodeBincodeString(payload.contentType ?? ''), encodeByteVec(payload.data));
+        }
         default: {
             const _x = payload;
             return _x;

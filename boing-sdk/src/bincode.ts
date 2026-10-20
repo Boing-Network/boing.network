@@ -34,6 +34,14 @@ export const PayloadVariant = {
   NameRelease: 19,
   /** Contract call carrying native BOING (`value`, base units). Testnet: from height 1150. */
   ContractCallWithValue: 20,
+  /** L1 media blob publish (`docs/BOING-L1-MEDIA-BLOBS.md`). MVP cap 256 KiB. */
+  PutBlob: 21,
+} as const;
+
+/** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
+export const BlobRetentionVariant = {
+  Prunable: 0,
+  Forever: 1,
 } as const;
 
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
@@ -221,7 +229,13 @@ export type TransactionPayloadInput =
   | { kind: 'nameTransfer'; name: string; newOwner: Uint8Array }
   | { kind: 'nameSetTarget'; name: string; target: Uint8Array }
   | { kind: 'nameSetPrimary'; name: string | null }
-  | { kind: 'nameRelease'; name: string };
+  | { kind: 'nameRelease'; name: string }
+  | {
+      kind: 'putBlob';
+      retention: { kind: 'forever' } | { kind: 'prunable'; ttlBlocks: bigint };
+      contentType?: string;
+      data: Uint8Array;
+    };
 
 function need32(b: Uint8Array, what: string): Uint8Array {
   if (b.length !== 32) throw new Error(`${what} must be 32 bytes`);
@@ -346,6 +360,21 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
       return concatBytes(writeU32Le(PayloadVariant.NameSetPrimary), encodeOptionString(payload.name));
     case 'nameRelease':
       return concatBytes(writeU32Le(PayloadVariant.NameRelease), encodeBincodeString(payload.name));
+    case 'putBlob': {
+      const retention =
+        payload.retention.kind === 'forever'
+          ? writeU32Le(BlobRetentionVariant.Forever)
+          : concatBytes(
+              writeU32Le(BlobRetentionVariant.Prunable),
+              writeU64Le(payload.retention.ttlBlocks),
+            );
+      return concatBytes(
+        writeU32Le(PayloadVariant.PutBlob),
+        retention,
+        encodeBincodeString(payload.contentType ?? ''),
+        encodeByteVec(payload.data),
+      );
+    }
     default: {
       const _x: never = payload;
       return _x;

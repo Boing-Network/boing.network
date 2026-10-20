@@ -30,6 +30,13 @@ export declare const PayloadVariant: {
     readonly NameRelease: 19;
     /** Contract call carrying native BOING (`value`, base units). Testnet: from height 1150. */
     readonly ContractCallWithValue: 20;
+    /** L1 media blob publish (`docs/BOING-L1-MEDIA-BLOBS.md`). MVP cap 256 KiB. */
+    readonly PutBlob: 21;
+};
+/** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
+export declare const BlobRetentionVariant: {
+    readonly Prunable: 0;
+    readonly Forever: 1;
 };
 /** `BatchCall` discriminants (Rust `boing_primitives::BatchCall`). */
 export declare const BatchCallVariant: {
@@ -159,6 +166,16 @@ export type TransactionPayloadInput = {
 } | {
     kind: 'nameRelease';
     name: string;
+} | {
+    kind: 'putBlob';
+    retention: {
+        kind: 'forever';
+    } | {
+        kind: 'prunable';
+        ttlBlocks: bigint;
+    };
+    contentType?: string;
+    data: Uint8Array;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

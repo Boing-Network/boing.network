@@ -74,6 +74,8 @@ Canonical testnet interfaces (USDC, USDC/tBOING v9 pool, custody router, LP vaul
 `website/public/interfaces/testnet/`.
 ## Built-in hosting on Boing (interface blob store)
 
+> **Not for NFT media / GIF / mp4.** This store is for small interface JSON via contract **SSTORE** (~24 KiB). For content-addressed media with a separate fee schedule, see **[BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)** (`PutBlob`, `boing://blob/…`).
+
 Publishers don't need their own web hosting. The interface JSON can live on-chain in the
 **interface blob store**, which is an ordinary contract that sits next to the registry. It needs no consensus change.
 

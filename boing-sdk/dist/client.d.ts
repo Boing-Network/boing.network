@@ -122,6 +122,15 @@ export declare class BoingClient {
     reverseName(addressHex: string): Promise<import('./boingNames.js').BoingReverseName | null>;
     /** Validity, availability, rent, record (any status) and registry params (`boing_getNameInfo`). */
     getNameInfo(name: string): Promise<import('./boingNames.js').BoingNameInfo>;
+    /** MVP caps / activation for L1 media blobs (`boing_getMediaBlobParams`). */
+    getMediaBlobParams(): Promise<Record<string, unknown>>;
+    /** Sidecar metadata for a content-addressed blob, or null (`boing_getBlobMeta`). */
+    getBlobMeta(blobId: string | Uint8Array): Promise<Record<string, unknown> | null>;
+    /** Bytes + meta for a media blob, or null (`boing_getBlob`). */
+    getBlob(blobId: string | Uint8Array): Promise<{
+        meta: Record<string, unknown>;
+        dataHex: string;
+    } | null>;
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
     checkNames(names: string[]): Promise<import('./boingNames.js').BoingCheckNamesResult>;
     /** Names owned by an address (active or in grace) (`boing_namesOwnedBy`). */

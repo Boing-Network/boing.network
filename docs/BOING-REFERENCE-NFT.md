@@ -114,13 +114,15 @@ These are **optional conventions** on top of `owner_of`, `transfer_nft`, and `se
 
 ### Optional metadata keys (off-chain / URI)
 
-When `metadata_hash` points to JSON (IPFS, HTTPS), recommended keys for marketplaces:
+When `metadata_hash` points to JSON (IPFS, HTTPS, or L1 media), recommended keys for marketplaces:
 
 | Key | Use |
 |-----|-----|
 | `name` | Display name |
 | `description` | Human-readable description |
-| `image` | Thumbnail / media URI |
+| `image` | Thumbnail / media URI (`https://…`, `ipfs://…`, or **`boing://blob/0x…`** — see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)) |
+
+**L1 media binding:** `metadata_hash` may be the blob id itself (`BLAKE3` of the media bytes), or the hash of JSON whose `image` / `animation_url` is `boing://blob/0x{64 hex}`. Clients fetch bytes with `boing_getBlob`.
 | `attributes` | Array of `{ trait_type, value }` for rarity UIs |
 | `seller_fee_basis_points` | Optional royalty hint (0–10000); **enforce in contract** if royalties are binding |
 | `fee_recipient` | Optional `AccountId` hex for royalty receiver (off-chain hint) |

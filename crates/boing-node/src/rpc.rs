@@ -438,7 +438,10 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getContractCode",
     "boing_getContractStorage",
     "boing_getDexToken",
+    "boing_getBlob",
+    "boing_getBlobMeta",
     "boing_getLogs",
+    "boing_getMediaBlobParams",
     "boing_getNetworkFeePolicy",
     "boing_getNameInfo",
     "boing_getNetworkInfo",
@@ -2060,6 +2063,17 @@ async fn dispatch_jsonrpc_request(
                 .unwrap_or(serde_json::Value::Array(vec![]));
             let n = node.read().await;
             match n.names_rpc(req.method.as_str(), &params) {
+                Ok(v) => rpc_ok(id, v),
+                Err((code, msg)) => rpc_error(id, code, msg),
+            }
+        }
+        "boing_getBlob" | "boing_getBlobMeta" | "boing_getMediaBlobParams" => {
+            let params = req
+                .params
+                .clone()
+                .unwrap_or(serde_json::Value::Array(vec![]));
+            let n = node.read().await;
+            match n.media_blobs_rpc(req.method.as_str(), &params) {
                 Ok(v) => rpc_ok(id, v),
                 Err((code, msg)) => rpc_error(id, code, msg),
             }
