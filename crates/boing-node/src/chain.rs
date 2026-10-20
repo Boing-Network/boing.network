@@ -36,6 +36,7 @@ impl ChainState {
             },
             transactions: vec![],
             signatures: vec![],
+            priority_tips: vec![],
         }
     }
 

@@ -49,6 +49,7 @@ fn block_at(height: u64) -> Block {
         },
         transactions: vec![],
         signatures: vec![],
+        priority_tips: vec![],
     }
 }
 

@@ -12,6 +12,7 @@ import {
   encodeSignedTransaction,
   signableTransactionHash,
   signableTransactionHashV2,
+  signableTransactionHashWithTip,
   type TransactionInput,
 } from './bincode.js';
 import { bytesToHex, hexToAccountId, validateHex32 } from './hex.js';
@@ -227,6 +228,8 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
 /** Signing options. `chainId` selects the v2 (chain-bound) domain; `null` forces the legacy format. */
 export interface SignOptions {
   chainId?: bigint | number | null;
+  /** Override `tx.priorityTip` for the signing digest (encoding still uses `tx.priorityTip`). */
+  priorityTip?: bigint;
 }
 
 let defaultSigningChainId: bigint | null = null;
@@ -269,7 +272,22 @@ export async function configureSigningFromNode(client: BoingClient): Promise<big
 /** Digest to sign for `tx` under `opts` (v2 when a chain id is known, else legacy). */
 export function signingHashFor(tx: TransactionInput, opts?: SignOptions): Uint8Array {
   const cid = opts && opts.chainId !== undefined ? opts.chainId : defaultSigningChainId;
-  return cid == null ? signableTransactionHash(tx) : signableTransactionHashV2(tx, cid);
+  const tip = opts?.priorityTip ?? tx.priorityTip ?? 0n;
+  if (cid == null) {
+    if (tip !== 0n) {
+      throw new Error('priority tip requires a chain id (v2 / BOING_TX_PRIORITY signing)');
+    }
+    return signableTransactionHash(tx);
+  }
+  return tip === 0n
+    ? signableTransactionHashV2(tx, cid)
+    : signableTransactionHashWithTip(tx, cid, tip);
+}
+
+/** Attach a priority tip (ledger units) for preferred inclusion under congestion. */
+export function withPriorityTip(tx: TransactionInput, priorityTip: bigint): TransactionInput {
+  if (priorityTip < 0n) throw new RangeError('priorityTip must be >= 0');
+  return { ...tx, priorityTip };
 }
 
 /** Like `signTransactionInput`, but first adopts the node's advertised chain id (v2) when `client` is given. */

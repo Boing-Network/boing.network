@@ -7,7 +7,9 @@ use rayon::prelude::*;
 use boing_primitives::{AccountId, ExecutionReceipt, Transaction, TransactionPayload};
 use boing_state::{StateCheckpoint, StateStore};
 use boing_primitives::{Denomination, BASE_UNITS_PER_BOING};
-use boing_tokenomics::{network_fee_amount_in, NetworkFeePolicy};
+use boing_tokenomics::{
+    charge_priority_tip, network_fee_amount_in, NetworkFeePolicy,
+};
 
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
 
@@ -182,6 +184,35 @@ impl BlockExecutor {
         state: &mut StateStore,
         fee_recipient: AccountId,
     ) -> Result<(u64, Vec<ExecutionReceipt>), ExecutionError> {
+        self.execute_block_with_tips(
+            block_height,
+            block_timestamp,
+            txs,
+            state,
+            fee_recipient,
+            &[],
+        )
+    }
+
+    /// Like [`Self::execute_block`], with per-tx priority tips (empty = all zero).
+    /// Tips are charged after the protocol fee and credited 100% to `fee_recipient`.
+    pub fn execute_block_with_tips(
+        &self,
+        block_height: u64,
+        block_timestamp: u64,
+        txs: &[Transaction],
+        state: &mut StateStore,
+        fee_recipient: AccountId,
+        priority_tips: &[u128],
+    ) -> Result<(u64, Vec<ExecutionReceipt>), ExecutionError> {
+        if !priority_tips.is_empty() && priority_tips.len() != txs.len() {
+            return Err(ExecutionError::ConflictDetected(format!(
+                "priority_tips length {} != txs length {}",
+                priority_tips.len(),
+                txs.len()
+            )));
+        }
+        let tip_at = |i: usize| priority_tips.get(i).copied().unwrap_or(0);
         let exec_ctx = VmExecutionContext {
             block_height,
             block_timestamp,
@@ -292,6 +323,8 @@ impl BlockExecutor {
                         fee_remainder,
                     )
                     .map_err(ExecutionError::Fee)?;
+                    charge_priority_tip(state, &txs[idx].sender, tip_at(idx), &fee_recipient)
+                        .map_err(ExecutionError::Fee)?;
                     receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
                         &txs[idx],
                         block_height,
@@ -328,14 +361,17 @@ impl BlockExecutor {
                     match self.vm.execute_with_context(tx, state, exec_ctx) {
                         Ok(out) => {
                             let fee = network_fee_amount_in(out.gas_used, &tx.payload, &fee_policy, denom);
-                            match boing_tokenomics::charge_and_distribute_fee_with_remainder(
+                            let tip = tip_at(idx);
+                            let fee_ok = boing_tokenomics::charge_and_distribute_fee_with_remainder(
                                 state,
                                 &tx.sender,
                                 fee,
                                 &fee_recipient,
                                 &fee_policy,
                                 fee_remainder,
-                            ) {
+                            )
+                            .and_then(|_| charge_priority_tip(state, &tx.sender, tip, &fee_recipient));
+                            match fee_ok {
                                 Ok(()) => {
                                     total_gas = total_gas.saturating_add(out.gas_used);
                                     receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
@@ -400,7 +436,8 @@ pub fn failed_tx_fee_amount(policy: &NetworkFeePolicy) -> u128 {
 
 /// [`failed_tx_fee_amount`] in the ledger unit `denom`.
 pub fn failed_tx_fee_amount_in(policy: &NetworkFeePolicy, denom: Denomination) -> u128 {
-    boing_tokenomics::fee_for_gas_in(FAILED_TX_GAS, denom).saturating_add(policy.extra_fixed_fee)
+    boing_tokenomics::execution_gas_fee_in(FAILED_TX_GAS, policy, denom)
+        .saturating_add(policy.extra_fixed_fee)
 }
 
 /// Fee rule for failed txs in one block (`None` before the activation height).

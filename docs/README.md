@@ -61,6 +61,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) | Connect `window.boing`, simulate, submit, native DEX |
 | [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC methods, errors, DEX discovery, HTTP probes |
 | [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) | Crypto, bincode, VM, gas, QA rules |
+| [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md) | Free-by-default execution gas + optional priority tips (fee market v1 draft) |
 | [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md) | Error codes wallets and UIs should map |
 | [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) | Signable hash + bincode layout |
 | [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md) | Pinned fungible / NFT bytecode |

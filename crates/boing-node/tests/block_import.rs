@@ -46,6 +46,7 @@ fn test_chains_to() {
         },
         transactions: vec![],
         signatures: vec![],
+        priority_tips: vec![],
     };
     assert!(chains_to(&block, chain.latest_hash(), chain.height()));
     assert!(!chains_to(&block, chain.latest_hash(), chain.height() + 1));
@@ -96,6 +97,7 @@ fn test_validate_and_execute_block() {
             blobs_root: None,
         },
         signatures: sigs(&txs),
+        priority_tips: vec![],
         transactions: txs,
     };
 
@@ -165,6 +167,7 @@ fn test_import_block() {
             blobs_root: None,
         },
         signatures: sigs(&txs),
+        priority_tips: vec![],
         transactions: txs,
     };
 

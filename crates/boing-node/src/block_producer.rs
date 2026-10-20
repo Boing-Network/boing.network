@@ -107,6 +107,13 @@ impl BlockProducer {
         }
         let txs: Vec<Transaction> = signed_txs.iter().map(|s| s.tx.clone()).collect();
         let signatures: Vec<boing_primitives::Signature> = signed_txs.iter().map(|s| s.signature).collect();
+        let priority_tips: Vec<u128> = signed_txs.iter().map(|s| s.priority_tip).collect();
+        // Omit all-zero tip vector from the block encoding (historical wire compatibility).
+        let priority_tips_field: Vec<u128> = if priority_tips.iter().any(|&t| t != 0) {
+            priority_tips.clone()
+        } else {
+            Vec::new()
+        };
 
         let block_timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -115,12 +122,13 @@ impl BlockProducer {
         let tx_root = tx_root(&txs);
 
         let checkpoint = state.checkpoint();
-        let receipts = match executor.execute_block(
+        let receipts = match executor.execute_block_with_tips(
             height,
             block_timestamp,
             &txs,
             state,
             self.proposer,
+            &priority_tips,
         ) {
             Ok((_gas, r)) => r,
             Err(e) => {
@@ -175,6 +183,7 @@ impl BlockProducer {
             },
             transactions: txs,
             signatures,
+            priority_tips: priority_tips_field,
         };
 
         let new_state = state.snapshot();

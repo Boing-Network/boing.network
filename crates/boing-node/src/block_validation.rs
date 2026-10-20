@@ -26,7 +26,14 @@ pub fn validate_and_execute_block(
     // 1b. Transaction signatures (security review #16): from the activation height every tx must
     // carry a valid signature in the format required at this height; signatures present below it
     // must be valid too. Without this an importer cannot tell a forged tx from a real one.
+    // Tips (when present) are bound into the signature preimage.
     verify_block_tx_signatures(block, executor)?;
+    if !block.priority_tips.is_empty() && block.priority_tips.len() != block.transactions.len() {
+        return Err(BlockValidationError::InvalidPriorityTips {
+            expected: block.transactions.len(),
+            found: block.priority_tips.len(),
+        });
+    }
 
     // 2. Proposer in validator set and is the round leader for this height
     if !validator_set.contains(&block.header.proposer) {
@@ -41,13 +48,15 @@ pub fn validate_and_execute_block(
 
     // 3. Execute on snapshot
     let mut state = parent_state.snapshot();
+    let tips = &block.priority_tips;
     let (_gas, receipts) = executor
-        .execute_block(
+        .execute_block_with_tips(
             block.header.height,
             block.header.timestamp,
             &block.transactions,
             &mut state,
             block.header.proposer,
+            tips,
         )
         .map_err(|e| BlockValidationError::ExecutionFailed(e.to_string()))?;
 
@@ -125,9 +134,13 @@ pub fn verify_block_tx_signatures(block: &Block, executor: &BlockExecutor) -> Re
         height,
     );
     for (index, (tx, sig)) in block.transactions.iter().zip(&block.signatures).enumerate() {
-        boing_primitives::verify_signature_with(tx, sig, &tx.sender, policy).map_err(|e| {
-            BlockValidationError::InvalidTxSignature { index, reason: e.to_string() }
-        })?;
+        let tip = block.priority_tip_at(index);
+        boing_primitives::verify_signature_with_tip(tx, sig, &tx.sender, policy, tip).map_err(
+            |e| BlockValidationError::InvalidTxSignature {
+                index,
+                reason: e.to_string(),
+            },
+        )?;
     }
     Ok(())
 }
@@ -196,6 +209,8 @@ pub enum BlockValidationError {
     NoValidators,
     #[error("Block must carry one signature per transaction: {expected} txs, {found} signatures")]
     MissingTxSignatures { expected: usize, found: usize },
+    #[error("Block priority_tips length {found} does not match {expected} transactions")]
+    InvalidPriorityTips { expected: usize, found: usize },
     #[error("Transaction {index} has an invalid signature: {reason}")]
     InvalidTxSignature { index: usize, reason: String },
 }

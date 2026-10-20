@@ -51,6 +51,7 @@ fn craft(leader: &BoingNode, txs: Vec<Transaction>, signatures: Vec<boing_primit
         },
         transactions: txs,
         signatures,
+        priority_tips: vec![],
     }
 }
 

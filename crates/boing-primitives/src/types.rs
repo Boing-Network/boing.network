@@ -770,6 +770,12 @@ pub struct Block {
     /// historical blocks keep their exact encoding (bincode, JSON and CBOR).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub signatures: Vec<crate::signature::Signature>,
+    /// Optional priority tips (ledger units), same order as `transactions`.
+    /// Empty means every tip is `0` (historical / untipped blocks). When non-empty must match
+    /// `transactions.len()`. Omitted when empty so historical encodings stay byte-identical.
+    /// Not part of the header or block hash; verified with signatures on import.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub priority_tips: Vec<u128>,
 }
 
 #[derive(Deserialize)]
@@ -778,29 +784,66 @@ struct LegacyBlockEncoding {
     transactions: Vec<Transaction>,
 }
 
+#[derive(Deserialize)]
+struct BlockWithSignaturesOnly {
+    header: BlockHeader,
+    transactions: Vec<Transaction>,
+    #[serde(default)]
+    signatures: Vec<crate::signature::Signature>,
+}
+
 impl Block {
-    /// Decode a bincode-encoded block in either layout: with signatures, or the historical
-    /// `(header, transactions)` encoding (which every block without signatures still uses).
+    /// Tip at `index`, or `0` when the block has no tip vector.
+    pub fn priority_tip_at(&self, index: usize) -> u128 {
+        self.priority_tips.get(index).copied().unwrap_or(0)
+    }
+
+    /// Decode a bincode-encoded block in either layout: with tips+signatures, signatures only, or
+    /// the historical `(header, transactions)` encoding.
     pub fn from_bincode(bytes: &[u8]) -> Result<Block, bincode::Error> {
-        match bincode::deserialize::<Block>(bytes) {
-            Ok(b) => Ok(b),
-            Err(e) => bincode::deserialize::<LegacyBlockEncoding>(bytes)
-                .map(|l| Block { header: l.header, transactions: l.transactions, signatures: Vec::new() })
-                .map_err(|_| e),
+        // Prefer explicit layout attempts. Relying on `#[serde(default)]` trailing fields with
+        // bincode is unreliable when prior fields used `skip_serializing_if`.
+        if let Ok(b) = bincode::deserialize::<Block>(bytes) {
+            if b.priority_tips.is_empty() || b.priority_tips.len() == b.transactions.len() {
+                return Ok(b);
+            }
         }
+        if let Ok(w) = bincode::deserialize::<BlockWithSignaturesOnly>(bytes) {
+            return Ok(Block {
+                header: w.header,
+                transactions: w.transactions,
+                signatures: w.signatures,
+                priority_tips: Vec::new(),
+            });
+        }
+        let legacy = bincode::deserialize::<LegacyBlockEncoding>(bytes)?;
+        Ok(Block {
+            header: legacy.header,
+            transactions: legacy.transactions,
+            signatures: Vec::new(),
+            priority_tips: Vec::new(),
+        })
     }
 
     /// The transactions paired with their signatures (`None` when the block carries none or the
-    /// counts differ).
+    /// counts differ). Tips default to 0 when the tip vector is empty.
     pub fn signed_transactions(&self) -> Option<Vec<crate::signature::SignedTransaction>> {
         if self.signatures.len() != self.transactions.len() {
+            return None;
+        }
+        if !self.priority_tips.is_empty() && self.priority_tips.len() != self.transactions.len() {
             return None;
         }
         Some(
             self.transactions
                 .iter()
                 .zip(&self.signatures)
-                .map(|(tx, sig)| crate::signature::SignedTransaction { tx: tx.clone(), signature: *sig })
+                .enumerate()
+                .map(|(i, (tx, sig))| crate::signature::SignedTransaction {
+                    tx: tx.clone(),
+                    signature: *sig,
+                    priority_tip: self.priority_tip_at(i),
+                })
                 .collect(),
         )
     }
@@ -976,7 +1019,7 @@ mod block_encoding_tests {
 
     #[test]
     fn unsigned_block_keeps_historical_encoding() {
-        let b = Block { header: header(), transactions: vec![], signatures: vec![] };
+        let b = Block { header: header(), transactions: vec![], signatures: vec![], priority_tips: vec![] };
         #[derive(Serialize)]
         struct Old<'a> { header: &'a BlockHeader, transactions: &'a Vec<Transaction> }
         let old = bincode::serialize(&Old { header: &b.header, transactions: &b.transactions }).unwrap();
@@ -996,7 +1039,7 @@ mod block_encoding_tests {
             payload: TransactionPayload::Transfer { to: AccountId([3; 32]), amount: 1 },
             access_list: AccessList::default(),
         };
-        let b = Block { header: header(), transactions: vec![tx], signatures: vec![Signature([5; 64])] };
+        let b = Block { header: header(), transactions: vec![tx], signatures: vec![Signature([5; 64])], priority_tips: vec![] };
         let enc = bincode::serialize(&b).unwrap();
         assert_eq!(Block::from_bincode(&enc).unwrap(), b);
         let back: Block = serde_json::from_str(&serde_json::to_string(&b).unwrap()).unwrap();

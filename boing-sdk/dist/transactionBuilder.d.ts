@@ -108,6 +108,8 @@ export declare function buildDeployWithPurposeTransaction(input: BuildDeployWith
 /** Signing options. `chainId` selects the v2 (chain-bound) domain; `null` forces the legacy format. */
 export interface SignOptions {
     chainId?: bigint | number | null;
+    /** Override `tx.priorityTip` for the signing digest (encoding still uses `tx.priorityTip`). */
+    priorityTip?: bigint;
 }
 /**
  * Process default chain id for v2 signing (used when `SignOptions.chainId` is omitted).
@@ -121,6 +123,8 @@ export declare function fetchSigningChainId(client: BoingClient): Promise<bigint
 export declare function configureSigningFromNode(client: BoingClient): Promise<bigint | null>;
 /** Digest to sign for `tx` under `opts` (v2 when a chain id is known, else legacy). */
 export declare function signingHashFor(tx: TransactionInput, opts?: SignOptions): Uint8Array;
+/** Attach a priority tip (ledger units) for preferred inclusion under congestion. */
+export declare function withPriorityTip(tx: TransactionInput, priorityTip: bigint): TransactionInput;
 /** Like `signTransactionInput`, but first adopts the node's advertised chain id (v2) when `client` is given. */
 export declare function signTransactionInputForClient(client: BoingClient | null | undefined, tx: TransactionInput, secretKey32: Ed25519SecretKey32): Promise<string>;
 export declare function signTransactionInput(tx: TransactionInput, secretKey32: Ed25519SecretKey32, opts?: SignOptions): Promise<string>;
