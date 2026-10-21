@@ -169,9 +169,9 @@ impl BlockProducer {
             .blobs_root_header_from
             .is_some_and(|from| height >= from)
         {
-            blobs_root_of_transactions(&txs)
+            Some(blobs_root_of_transactions(&txs))
         } else {
-            boing_primitives::Hash::ZERO
+            None
         };
 
         let block = Block {

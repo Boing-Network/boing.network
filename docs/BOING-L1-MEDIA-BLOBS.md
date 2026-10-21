@@ -57,7 +57,7 @@ All KiB levies `0` = off.
 
 ## Header `blobs_root`
 
-Always present in bincode as a `Hash` (ZERO before activation). When header activation is on, producers set `blobs_root_of_transactions` and import verifies. Legacy headers without the field decode as ZERO.
+Optional in bincode (`None` / omitted before activation). When header activation is on, producers set `Some(blobs_root_of_transactions)` (incl. `Some(ZERO)` for empty media) and import verifies. Legacy headers without the field decode as `None` so historical [`Block::hash`] values stay stable.
 
 ---
 

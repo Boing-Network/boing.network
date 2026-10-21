@@ -74,7 +74,7 @@ fn craft(leader: &BoingNode, txs: Vec<Transaction>, signatures: Vec<boing_primit
             tx_root: tx_root(&txs),
             receipts_root: receipts_root(&receipts),
             state_root: state.state_root(),
-            blobs_root: boing_primitives::Hash::ZERO,
+            blobs_root: None,
         },
         transactions: txs,
         signatures,
