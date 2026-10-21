@@ -110,6 +110,7 @@ export declare const PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES: number;
 export declare const PHASE6_VIDEO_SEGMENT_TARGET_BYTES: number;
 export declare const PHASE6_MAX_VIDEO_SEGMENTS = 256;
 export declare const PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES = 32;
+export declare const PHASE6_MAX_SAMPLE_OFFERS = 1024;
 export type MediaBlobSampleOffer = {
     blobId: Uint8Array;
     chunkIndex: number;
@@ -125,11 +126,20 @@ export type MediaBlobSegmentManifest = {
 };
 /** Suggested segment count if splitting totalBytes into live-cap chunks. */
 export declare function suggestedVideoSegmentCount(totalBytes: bigint): number;
+/** Split bytes into segments each ≤ live MAX_MEDIA_BLOB_BYTES; refuses above Phase 6 design target. */
+export declare function splitIntoLiveCapSegments(data: Uint8Array): Uint8Array[];
 export declare function validateSegmentManifest(m: MediaBlobSegmentManifest): void;
-/** Scaffold matcher: paidFee must cover askFee (pairs with PayBlobSample on-chain). */
-export declare function matchSampleOffer(offer: MediaBlobSampleOffer, paidFee: bigint): MediaBlobSampleOffer & {
+/** Build manifest from segment bytes (each segment must be ≤ live 16 MiB). */
+export declare function manifestFromSegmentBytes(contentType: string, segments: Uint8Array[]): MediaBlobSegmentManifest;
+/** Content-addressed id of an ordered segment manifest. */
+export declare function segmentManifestId(m: MediaBlobSegmentManifest): Uint8Array;
+/** Match helper: paidFee must cover askFee (pairs with PayBlobSample on-chain). */
+export declare function matchSampleOffer(offer: MediaBlobSampleOffer, paidFee: bigint, tipHeight?: bigint): MediaBlobSampleOffer & {
     paidFee: bigint;
+    matchedAtHeight: bigint;
 };
+/** Height-bound deterministic seed (matches Rust `das_light_client_seed`). */
+export declare function dasLightClientSeed(blobId: Uint8Array, tipHeight: bigint): bigint;
 /** Deterministic light-client sample indices (scaffold; not VRF-bound). */
 export declare function dasLightClientSampleIndices(blobSize: number, sampleCount: number, seed: bigint): number[];
 //# sourceMappingURL=mediaBlob.d.ts.map

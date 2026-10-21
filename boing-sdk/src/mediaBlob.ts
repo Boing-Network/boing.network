@@ -360,13 +360,14 @@ export function tokenMetadataJsonWithBlobImage(input: {
   return { json, metadataHash, imageUri };
 }
 
-// --- Phase 6 scaffolds (not consensus-activated) ---
+// --- Phase 6 (not consensus-activated; live Put/Announce cap remains 16 MiB) ---
 
 /** Design target for a future multi-minute path (not live). Live cap remains 16 MiB. */
 export const PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES = 256 * 1024 * 1024;
 export const PHASE6_VIDEO_SEGMENT_TARGET_BYTES = MAX_MEDIA_BLOB_BYTES;
 export const PHASE6_MAX_VIDEO_SEGMENTS = 256;
 export const PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES = 32;
+export const PHASE6_MAX_SAMPLE_OFFERS = 1024;
 
 export type MediaBlobSampleOffer = {
   blobId: Uint8Array;
@@ -390,6 +391,22 @@ export function suggestedVideoSegmentCount(totalBytes: bigint): number {
   return Number((totalBytes + seg - 1n) / seg);
 }
 
+/** Split bytes into segments each ≤ live MAX_MEDIA_BLOB_BYTES; refuses above Phase 6 design target. */
+export function splitIntoLiveCapSegments(data: Uint8Array): Uint8Array[] {
+  if (data.length === 0) throw new Error('segment data empty');
+  if (data.length > PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES) {
+    throw new Error('total exceeds Phase 6 design target (not a live consensus rule)');
+  }
+  const out: Uint8Array[] = [];
+  for (let i = 0; i < data.length; i += PHASE6_VIDEO_SEGMENT_TARGET_BYTES) {
+    out.push(data.subarray(i, Math.min(i + PHASE6_VIDEO_SEGMENT_TARGET_BYTES, data.length)));
+  }
+  if (out.length > PHASE6_MAX_VIDEO_SEGMENTS) {
+    throw new Error(`too many segments (max ${PHASE6_MAX_VIDEO_SEGMENTS})`);
+  }
+  return out;
+}
+
 export function validateSegmentManifest(m: MediaBlobSegmentManifest): void {
   if (m.segmentBlobIds.length === 0) throw new Error('segment manifest empty');
   if (m.segmentBlobIds.length > PHASE6_MAX_VIDEO_SEGMENTS) {
@@ -404,18 +421,79 @@ export function validateSegmentManifest(m: MediaBlobSegmentManifest): void {
   }
 }
 
-/** Scaffold matcher: paidFee must cover askFee (pairs with PayBlobSample on-chain). */
+/** Build manifest from segment bytes (each segment must be ≤ live 16 MiB). */
+export function manifestFromSegmentBytes(
+  contentType: string,
+  segments: Uint8Array[],
+): MediaBlobSegmentManifest {
+  if (segments.length === 0) throw new Error('segment manifest empty');
+  let total = 0n;
+  const ids: Uint8Array[] = [];
+  for (const seg of segments) {
+    if (seg.length === 0) throw new Error('empty segment');
+    if (seg.length > MAX_MEDIA_BLOB_BYTES) {
+      throw new Error(`segment exceeds live MAX_MEDIA_BLOB_BYTES (${MAX_MEDIA_BLOB_BYTES})`);
+    }
+    total += BigInt(seg.length);
+    ids.push(blobIdOf(seg));
+  }
+  const m = { contentType, totalBytes: total, segmentBlobIds: ids };
+  validateSegmentManifest(m);
+  return m;
+}
+
+/** Content-addressed id of an ordered segment manifest. */
+export function segmentManifestId(m: MediaBlobSegmentManifest): Uint8Array {
+  validateSegmentManifest(m);
+  const domain = new TextEncoder().encode('BOING_BLOB_SEG_MANIFEST_V0');
+  const total = new Uint8Array(8);
+  new DataView(total.buffer).setBigUint64(0, m.totalBytes, true);
+  const ct = new TextEncoder().encode(m.contentType);
+  const count = new Uint8Array(4);
+  new DataView(count.buffer).setUint32(0, m.segmentBlobIds.length, true);
+  const parts = [domain, total, ct, count, ...m.segmentBlobIds];
+  let len = 0;
+  for (const p of parts) len += p.length;
+  const buf = new Uint8Array(len);
+  let o = 0;
+  for (const p of parts) {
+    buf.set(p, o);
+    o += p.length;
+  }
+  return blake3(buf);
+}
+
+/** Match helper: paidFee must cover askFee (pairs with PayBlobSample on-chain). */
 export function matchSampleOffer(
   offer: MediaBlobSampleOffer,
   paidFee: bigint,
-): MediaBlobSampleOffer & { paidFee: bigint } {
+  tipHeight: bigint = 0n,
+): MediaBlobSampleOffer & { paidFee: bigint; matchedAtHeight: bigint } {
   if (offer.chunkCount <= 0 || offer.chunkIndex < 0 || offer.chunkIndex >= offer.chunkCount) {
     throw new Error('chunkIndex out of range');
+  }
+  if (offer.expiresAtHeight > 0n && tipHeight > offer.expiresAtHeight) {
+    throw new Error('sample offer expired');
   }
   if (paidFee < offer.askFee) {
     throw new Error(`sample fee ${paidFee} below ask ${offer.askFee}`);
   }
-  return { ...offer, paidFee };
+  return { ...offer, paidFee, matchedAtHeight: tipHeight };
+}
+
+/** Height-bound deterministic seed (matches Rust `das_light_client_seed`). */
+export function dasLightClientSeed(blobId: Uint8Array, tipHeight: bigint): bigint {
+  if (blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  const domain = new TextEncoder().encode('BOING_BLOB_DAS_LC_V0');
+  const h = new Uint8Array(8);
+  new DataView(h.buffer).setBigUint64(0, tipHeight, true);
+  const buf = new Uint8Array(domain.length + 32 + 8);
+  buf.set(domain, 0);
+  buf.set(blobId, domain.length);
+  buf.set(h, domain.length + 32);
+  const dig = blake3(buf);
+  const view = new DataView(dig.buffer, dig.byteOffset, 8);
+  return view.getBigUint64(0, true);
 }
 
 /** Deterministic light-client sample indices (scaffold; not VRF-bound). */
@@ -433,5 +511,13 @@ export function dasLightClientSampleIndices(
     x = x * 6364136223846793005n + 1n;
     out.push(Number(x % BigInt(n)));
   }
-  return [...new Set(out)].sort((a, b) => a - b);
+  let uniq = [...new Set(out)].sort((a, b) => a - b);
+  let fill = seed + 1n;
+  while (uniq.length < take) {
+    fill = fill * 6364136223846793005n + 1n;
+    const i = Number(fill % BigInt(n));
+    if (!uniq.includes(i)) uniq.push(i);
+    if (fill === seed) break;
+  }
+  return uniq.sort((a, b) => a - b);
 }

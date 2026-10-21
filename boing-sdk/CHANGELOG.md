@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **L1 media blobs Phase 6 scaffold** — `PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES` (256 MiB design target, not live), `matchSampleOffer`, `validateSegmentManifest` / `suggestedVideoSegmentCount`, `dasLightClientSampleIndices`. Network: `blobs_phase6`. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+- **L1 media blobs Phase 6** — `PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES` (256 MiB design target, **not** live), `splitIntoLiveCapSegments` / `manifestFromSegmentBytes` / `segmentManifestId`, sample-offer match with expiry, `dasLightClientSeed` + indices. Client RPCs: `getBlobDasLightClientBatch`, `putBlobSampleOffer`, `listBlobSampleOffers`, `matchBlobSampleOffer` (node-local book). Live Put/Announce cap remains **16 MiB**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
 
 ## [0.5.8] - 2026-10-20
 

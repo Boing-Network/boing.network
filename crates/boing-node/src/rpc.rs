@@ -450,8 +450,12 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getContractStorage",
     "boing_getDexToken",
     "boing_getBlob",
+    "boing_getBlobDasLightClientBatch",
     "boing_getBlobDasSample",
     "boing_getBlobMeta",
+    "boing_listBlobSampleOffers",
+    "boing_matchBlobSampleOffer",
+    "boing_putBlobSampleOffer",
     "boing_getLogs",
     "boing_getMediaBlobParams",
     "boing_getNetworkFeePolicy",
@@ -2108,7 +2112,14 @@ async fn dispatch_jsonrpc_request(
                 Err((code, msg)) => rpc_error(id, code, msg),
             }
         }
-        "boing_getBlob" | "boing_getBlobMeta" | "boing_getMediaBlobParams" | "boing_getBlobDasSample" => {
+        "boing_getBlob"
+        | "boing_getBlobMeta"
+        | "boing_getMediaBlobParams"
+        | "boing_getBlobDasSample"
+        | "boing_getBlobDasLightClientBatch"
+        | "boing_putBlobSampleOffer"
+        | "boing_listBlobSampleOffers"
+        | "boing_matchBlobSampleOffer" => {
             let params = req
                 .params
                 .clone()

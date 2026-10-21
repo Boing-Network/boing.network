@@ -182,9 +182,24 @@ pub enum BlobError {
     RenewExtendTooLarge { extend: u64, max: u64 },
     #[error("sample chunk index {index} out of range (count={count})")]
     SampleChunkOutOfRange { index: u32, count: u32 },
-    /// Phase 6 sampling-market scaffold: paid fee below the provider ask.
+    /// Phase 6 sampling-market: paid fee below the provider ask.
     #[error("sample fee {paid} below ask {ask}")]
     SampleFeeTooLow { paid: u128, ask: u128 },
+    #[error("no matching sample offer")]
+    SampleOfferNotFound,
+    #[error("sample offer expired at height {expires_at_height} (tip {tip_height})")]
+    SampleOfferExpired {
+        expires_at_height: u64,
+        tip_height: u64,
+    },
+    #[error("sample market full (max {max} offers)")]
+    SampleMarketFull { max: usize },
+    #[error("segment manifest empty or zero total_bytes")]
+    SegmentManifestEmpty,
+    #[error("segment manifest has {count} segments (max {max})")]
+    SegmentManifestTooMany { count: usize, max: usize },
+    #[error("segment manifest total_bytes {total_bytes} exceeds Phase 6 design max {max}")]
+    SegmentManifestTooLarge { total_bytes: u64, max: u64 },
 }
 
 /// `BLAKE3(data)` as [`BlobId`].

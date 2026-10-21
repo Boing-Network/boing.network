@@ -133,6 +133,31 @@ export declare class BoingClient {
     } | null>;
     /** Light-client DAS sample for one chunk (`boing_getBlobDasSample`), or null. */
     getBlobDasSample(blobId: string | Uint8Array, chunkIndex: number): Promise<Record<string, unknown> | null>;
+    /**
+     * Height-bound DAS light-client sample batch (`boing_getBlobDasLightClientBatch`), or null.
+     * Merkle samples only — not a succinct aggregate proof.
+     */
+    getBlobDasLightClientBatch(blobId: string | Uint8Array, sampleCount?: number): Promise<Record<string, unknown> | null>;
+    /** Upsert a node-local sample offer (`boing_putBlobSampleOffer`) — not consensus. */
+    putBlobSampleOffer(offer: {
+        blobId: string | Uint8Array;
+        chunkIndex: number;
+        chunkCount: number;
+        provider: string;
+        askFee: bigint | string | number;
+        expiresAtHeight?: bigint | string | number;
+    }): Promise<Record<string, unknown>>;
+    /** List node-local sample offers for a blob (`boing_listBlobSampleOffers`). */
+    listBlobSampleOffers(blobId: string | Uint8Array, chunkIndex?: number): Promise<Record<string, unknown>>;
+    /** Match against the node-local sample book (`boing_matchBlobSampleOffer`). */
+    matchBlobSampleOffer(input: {
+        blobId: string | Uint8Array;
+        chunkIndex: number;
+        chunkCount: number;
+        payer: string;
+        paidFee: bigint | string | number;
+        provider?: string;
+    }): Promise<Record<string, unknown>>;
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
     checkNames(names: string[]): Promise<import('./boingNames.js').BoingCheckNamesResult>;
     /** Names owned by an address (active or in grace) (`boing_namesOwnedBy`). */

@@ -9,12 +9,14 @@ use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
 use boing_primitives::{
-    blob_id_hex, blob_id_of, BlobId, BlobRetention, Transaction, TransactionPayload,
+    blob_id_hex, blob_id_of, BlobId, BlobRetention, MediaBlobSampleMarket, MediaBlobSampleOffer,
+    Transaction, TransactionPayload,
 };
 use serde::{Deserialize, Serialize};
 
 const BLOBS_DIR: &str = "blobs";
 const INDEX_FILE: &str = "index.bin";
+const SAMPLE_OFFERS_FILE: &str = "sample_offers.bin";
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BlobMetaRecord {
@@ -53,6 +55,8 @@ struct BlobIndex {
 pub struct MediaBlobStore {
     dir: PathBuf,
     index: RwLock<BlobIndex>,
+    /// Phase 6: node-local sample offer book (not consensus).
+    sample_market: RwLock<MediaBlobSampleMarket>,
 }
 
 impl MediaBlobStore {
@@ -66,14 +70,61 @@ impl MediaBlobStore {
         } else {
             BlobIndex::default()
         };
+        let offers_path = dir.join(SAMPLE_OFFERS_FILE);
+        let sample_market = if offers_path.exists() {
+            let bytes = fs::read(&offers_path)?;
+            bincode::deserialize(&bytes).unwrap_or_default()
+        } else {
+            MediaBlobSampleMarket::default()
+        };
         Ok(Self {
             dir,
             index: RwLock::new(index),
+            sample_market: RwLock::new(sample_market),
         })
     }
 
     fn index_path(&self) -> PathBuf {
         self.dir.join(INDEX_FILE)
+    }
+
+    fn sample_offers_path(&self) -> PathBuf {
+        self.dir.join(SAMPLE_OFFERS_FILE)
+    }
+
+    fn persist_sample_market(&self, market: &MediaBlobSampleMarket) -> std::io::Result<()> {
+        let bytes = bincode::serialize(market)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        fs::write(self.sample_offers_path(), bytes)
+    }
+
+    /// Upsert a Phase 6 sample offer into the node-local book.
+    pub fn upsert_sample_offer(&self, offer: MediaBlobSampleOffer) -> Result<(), String> {
+        let mut m = self
+            .sample_market
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        m.upsert_offer(offer).map_err(|e| e.to_string())?;
+        self.persist_sample_market(&m).map_err(|e| e.to_string())
+    }
+
+    pub fn sample_market_snapshot(&self) -> MediaBlobSampleMarket {
+        self.sample_market
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    pub fn prune_sample_offers(&self, tip_height: u64) -> std::io::Result<usize> {
+        let mut m = self
+            .sample_market
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let n = m.prune_expired(tip_height);
+        if n > 0 {
+            self.persist_sample_market(&m)?;
+        }
+        Ok(n)
     }
 
     fn data_path(&self, id: &BlobId) -> PathBuf {
