@@ -60,6 +60,7 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> BoingNode 
         anchor_fallback_timeout: boing_node::node::DEFAULT_ANCHOR_FALLBACK_TIMEOUT,
         anchor_fallback_wait: None,
         last_local_vote_round: None,
+        media_blob_store: None,
     }
 }
 
