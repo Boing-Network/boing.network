@@ -743,3 +743,36 @@ export function verifyDasSuccinctProofStub(
 
 /** Alias: activated max after coordinated cap raise. */
 export const PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+
+/** Phase 9: cancel sample offer and refund SMT escrow (`CancelBlobSampleOffer`, variant 27). */
+export function cancelBlobSampleOfferPayload(input: {
+  blobId: Uint8Array;
+  chunkIndex: number;
+}): TransactionPayloadInput {
+  if (input.blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (input.chunkIndex < 0) throw new Error('chunkIndex out of range');
+  return {
+    kind: 'cancelBlobSampleOffer',
+    blobId: input.blobId,
+    chunkIndex: input.chunkIndex,
+  };
+}
+
+/** Phase 9 activated max alias. */
+export const PHASE9_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+
+/** Domain tag for ask-fee escrow account (BLAKE3 → AccountId). */
+export const PHASE9_ASK_ESCROW_DOMAIN = 'BOING_BLOB_SAMPLE_ASK_ESCROW_V1';
+
+/** System ask-escrow account id (matches Rust `blob_sample_ask_escrow_account`). */
+export function blobSampleAskEscrowAccount(): Uint8Array {
+  return blake3(new TextEncoder().encode(PHASE9_ASK_ESCROW_DOMAIN));
+}
+
+/** DAS LC seed from consensus leader VRF output (same mixer as `dasLightClientSeedFromVrf`). */
+export function dasLightClientSeedFromLeaderVrf(
+  blobId: Uint8Array,
+  leaderVrfOutput: Uint8Array,
+): bigint {
+  return dasLightClientSeedFromVrf(blobId, leaderVrfOutput);
+}

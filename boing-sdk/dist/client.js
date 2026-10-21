@@ -615,6 +615,20 @@ export class BoingClient {
             },
         ]);
     }
+    /** Leader-election VRF output for DAS LC (`boing_getLeaderVrfOutput`). Null under RoundRobin. */
+    async getLeaderVrfOutput(round) {
+        return this.request('boing_getLeaderVrfOutput', round === undefined ? [] : [round]);
+    }
+    /** SMT-resident sample offers (`boing_listSmtBlobSampleOffers`). */
+    async listSmtBlobSampleOffers(blobId, chunkIndex) {
+        const id = typeof blobId === 'string'
+            ? blobId
+            : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        const params = [id];
+        if (chunkIndex !== undefined)
+            params.push(chunkIndex);
+        return this.request('boing_listSmtBlobSampleOffers', params);
+    }
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
     async checkNames(names) {
         return this.request('boing_checkNames', [names]);

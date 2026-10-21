@@ -4,6 +4,7 @@
 
 pub mod names;
 pub mod open_validators;
+pub mod sample_offers;
 mod qa_pending;
 mod sparse_merkle;
 mod store;
@@ -15,6 +16,9 @@ pub use names::{
 pub use open_validators::{
     LivenessEntry, LivenessStats, OpenValidatorError, OpenValidatorParams, OpenValidatorRegistry,
     ValidatorRecord, ValidatorStatus,
+};
+pub use sample_offers::{
+    EscrowedSampleOffer, SampleOfferRegistry, SampleOfferRegistryError,
 };
 pub use qa_pending::{unpaid_counted_voters, QaPendingRecord};
 pub use sparse_merkle::{

@@ -9,6 +9,7 @@
 //! Phase 6: [`crate::blobs_phase6`] (sampling market, DAS LC batch, segment manifests).
 //! Phase 7: [`crate::blobs_phase7`] — on-chain offer/settle txs, VRF DAS seed, gated cap raise.
 //! Phase 8: [`crate::blobs_phase8`] — consensus-replay market, succinct proof envelope, activation notes.
+//! Phase 9: [`crate::blobs_phase9`] — SMT escrow helpers, leader-VRF DAS LC path, extended ops notes.
 
 use serde::{Deserialize, Serialize};
 

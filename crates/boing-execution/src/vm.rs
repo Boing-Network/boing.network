@@ -1,18 +1,22 @@
 //! Boing VM — deterministic execution engine.
 
 use boing_primitives::{
-    contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
-    media_blob_gas, media_blob_meta_tx_gas, nonce_derived_contract_address, validate_batch_calls,
-    validate_blob_announce_with_cap, validate_pay_blob_sample, validate_pay_blob_sample_with_max_chunks,
-    validate_put_blob_with_cap, validate_renew_media_blob_pin, validate_register_blob_sample_offer,
-    media_blob_max_bytes_at, media_blob_max_das_chunks_at, AccountId, AccountState, BatchCall, BlobId, BlobRetention,
+    blob_sample_ask_escrow_account, contract_deploy_init_body, contract_deploy_uses_init_code,
+    create2_contract_address, media_blob_gas, media_blob_max_bytes_at, media_blob_max_das_chunks_at,
+    media_blob_meta_tx_gas, nonce_derived_contract_address, validate_batch_calls,
+    validate_blob_announce_with_cap, validate_pay_blob_sample,
+    validate_pay_blob_sample_with_max_chunks, validate_put_blob_with_cap,
+    validate_register_blob_sample_offer, validate_renew_media_blob_pin,
+    validate_settle_blob_sample_match, AccountId, AccountState, BatchCall, BlobId, BlobRetention,
     ExecutionLog, Hash, QaPoolVoteKind, Transaction, TransactionPayload,
 };
 use boing_qa::{
     check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaPoolGovernanceConfig,
     QaQuorumDecision, QaResult, RuleRegistry,
 };
-use boing_state::{unpaid_counted_voters, QaPendingRecord, StateStore};
+use boing_state::{
+    unpaid_counted_voters, EscrowedSampleOffer, QaPendingRecord, StateStore,
+};
 
 use super::interpreter::{Interpreter, VmExecutionContext};
 use crate::gas::base;
@@ -640,6 +644,18 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::CancelBlobSampleOffer {
+                blob_id,
+                chunk_index,
+            } => {
+                return self.execute_cancel_blob_sample_offer(
+                    state,
+                    tx,
+                    blob_id,
+                    *chunk_index,
+                    exec_ctx.block_height,
+                );
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -795,6 +811,33 @@ impl Vm {
             expires_at_height,
         )
         .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
+        // Refund any expired offers' escrow before admitting a new one.
+        self.refund_expired_sample_offers(state, height)?;
+
+        let escrow = blob_sample_ask_escrow_account();
+        let offer = EscrowedSampleOffer {
+            blob_id: *blob_id,
+            chunk_index,
+            chunk_count,
+            provider: tx.sender,
+            ask_fee,
+            expires_at_height,
+            registered_at_height: height,
+        };
+        let prev = state
+            .sample_offers_mut()
+            .register(offer)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        if let Some(old) = prev {
+            if old.ask_fee > 0 {
+                move_native(state, escrow, old.provider, old.ask_fee)?;
+            }
+        }
+        if ask_fee > 0 {
+            move_native(state, tx.sender, escrow, ask_fee)?;
+        }
+
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce
@@ -825,7 +868,27 @@ impl Vm {
         let max_chunks = media_blob_max_das_chunks_at(height, self.media_blobs_phase7_cap_from);
         validate_pay_blob_sample_with_max_chunks(blob_id, chunk_index, chunk_count, max_chunks)
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
-        let _ = provider;
+
+        self.refund_expired_sample_offers(state, height)?;
+
+        let offer = state
+            .sample_offers_mut()
+            .settle(blob_id, chunk_index, provider, height)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        if offer.chunk_count != chunk_count {
+            return Err(VmError::MediaBlob(
+                "settle chunk_count does not match registered offer".into(),
+            ));
+        }
+        validate_settle_blob_sample_match(&offer.to_on_chain(), &tx.sender, height, provider)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
+        let escrow = blob_sample_ask_escrow_account();
+        if offer.ask_fee > 0 {
+            // Release prepaid ask to provider (already held in escrow from Register).
+            move_native(state, escrow, *provider, offer.ask_fee)?;
+        }
+
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce
@@ -836,6 +899,55 @@ impl Vm {
             return_data: blob_id.to_vec(),
             logs: Vec::new(),
         })
+    }
+
+    fn execute_cancel_blob_sample_offer(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        self.refund_expired_sample_offers(state, height)?;
+        let offer = state
+            .sample_offers_mut()
+            .cancel(blob_id, chunk_index, &tx.sender)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let escrow = blob_sample_ask_escrow_account();
+        if offer.ask_fee > 0 {
+            move_native(state, escrow, tx.sender, offer.ask_fee)?;
+        }
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn refund_expired_sample_offers(
+        &self,
+        state: &mut StateStore,
+        height: u64,
+    ) -> Result<(), VmError> {
+        let expired = state.sample_offers_mut().take_expired(height);
+        let escrow = blob_sample_ask_escrow_account();
+        for o in expired {
+            if o.ask_fee > 0 {
+                move_native(state, escrow, o.provider, o.ask_fee)?;
+            }
+        }
+        Ok(())
     }
 
     fn execute_contract_deploy(

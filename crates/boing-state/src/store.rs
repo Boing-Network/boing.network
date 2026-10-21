@@ -8,6 +8,7 @@ use boing_primitives::{Account, AccountId, AccountState, Hash};
 use crate::names::{NameRegistry, NameRegistryParams};
 use crate::open_validators::{OpenValidatorParams, OpenValidatorRegistry};
 use crate::qa_pending::QaPendingRecord;
+use crate::sample_offers::SampleOfferRegistry;
 use crate::sparse_merkle::{hash_account_leaf, hash_contract_code, SparseMerkleTree};
 
 /// Type alias for persisted contract storage entries: ((contract, key), value).
@@ -57,6 +58,7 @@ enum Undo {
     /// capped / paid; recorded only when a tx actually touches them).
     OpenValidators(Box<OpenValidatorRegistry>),
     Names(Box<NameRegistry>),
+    SampleOffers(Box<SampleOfferRegistry>),
 }
 
 /// State store with Sparse Merkle tree for state_root.
@@ -78,6 +80,8 @@ pub struct StateStore {
     names: NameRegistry,
     /// Node config for the name registry (not committed; `None` = registry off).
     name_registry_params: Option<NameRegistryParams>,
+    /// Media-blob sample-offer registry (committed once non-empty). Phase 9.
+    sample_offers: SampleOfferRegistry,
     /// Undo journal for live checkpoints (see [`StateCheckpoint`]).
     journal: Vec<Undo>,
     /// Shared with every live checkpoint; `strong_count > 1` means journaling is on.
@@ -87,6 +91,7 @@ pub struct StateStore {
     /// Journal index of the registry snapshot taken since `last_cp_pos`, if any.
     ov_snap_pos: Option<usize>,
     names_snap_pos: Option<usize>,
+    sample_offers_snap_pos: Option<usize>,
 }
 
 impl StateStore {
@@ -110,6 +115,7 @@ impl StateStore {
         self.last_cp_pos = 0;
         self.ov_snap_pos = None;
         self.names_snap_pos = None;
+        self.sample_offers_snap_pos = None;
         false
     }
 
@@ -252,6 +258,12 @@ impl StateStore {
             self.tree
                 .insert_leaf_hash(NameRegistry::smt_key(), Hash(self.names.commitment()));
         }
+        if !self.sample_offers.is_empty() {
+            self.tree.insert_leaf_hash(
+                SampleOfferRegistry::smt_key(),
+                Hash(self.sample_offers.commitment()),
+            );
+        }
         self.tree.root()
     }
 
@@ -287,6 +299,7 @@ impl StateStore {
         out.open_validator_params = self.open_validator_params.clone();
         out.names = self.names.clone();
         out.name_registry_params = self.name_registry_params.clone();
+        out.sample_offers = self.sample_offers.clone();
         out
     }
 
@@ -344,6 +357,7 @@ impl StateStore {
                 }
                 Undo::OpenValidators(reg) => self.open_validators = *reg,
                 Undo::Names(reg) => self.names = *reg,
+                Undo::SampleOffers(reg) => self.sample_offers = *reg,
             }
         }
         // Checkpoints created after `cp` are dead (nested scopes); keep the live-position bound.
@@ -353,6 +367,9 @@ impl StateStore {
         }
         if matches!(self.names_snap_pos, Some(p) if p >= cp.pos) {
             self.names_snap_pos = None;
+        }
+        if matches!(self.sample_offers_snap_pos, Some(p) if p >= cp.pos) {
+            self.sample_offers_snap_pos = None;
         }
     }
 
@@ -527,6 +544,25 @@ impl StateStore {
 
     pub fn set_name_registry_params(&mut self, params: Option<NameRegistryParams>) {
         self.name_registry_params = params;
+    }
+
+    /// Media-blob sample-offer registry (read).
+    pub fn sample_offers(&self) -> &SampleOfferRegistry {
+        &self.sample_offers
+    }
+
+    pub fn sample_offers_mut(&mut self) -> &mut SampleOfferRegistry {
+        if self.journaling() && self.snapshot_needed(self.sample_offers_snap_pos) {
+            self.sample_offers_snap_pos = Some(self.journal.len());
+            self.journal
+                .push(Undo::SampleOffers(Box::new(self.sample_offers.clone())));
+        }
+        &mut self.sample_offers
+    }
+
+    /// Replace the sample-offer registry (persistence load).
+    pub fn load_sample_offers(&mut self, reg: SampleOfferRegistry) {
+        *self.sample_offers_mut() = reg;
     }
 
     /// Open-mode node config (`None` = open mode off).

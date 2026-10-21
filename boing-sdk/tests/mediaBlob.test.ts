@@ -35,6 +35,8 @@ import {
   buildDasSuccinctProofStub,
   verifyDasSuccinctProofStub,
   PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
+  cancelBlobSampleOfferPayload,
+  blobSampleAskEscrowAccount,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -169,6 +171,15 @@ describe('mediaBlob', () => {
     expect(settle[0]).toBe(26);
     expect(mediaBlobMaxBytesAt(false)).toBe(MAX_MEDIA_BLOB_BYTES);
     expect(mediaBlobMaxBytesAt(true)).toBe(256 * 1024 * 1024);
+  });
+
+  it('encodes Phase 9 CancelBlobSampleOffer (27) and escrow account', () => {
+    const id = blobIdOf(new Uint8Array([4, 5, 6]));
+    const cancel = encodeTransactionPayload(
+      cancelBlobSampleOfferPayload({ blobId: id, chunkIndex: 0 }),
+    );
+    expect(cancel[0]).toBe(27);
+    expect(blobSampleAskEscrowAccount().length).toBe(32);
   });
 
   it('Phase 8 settle quote and succinct stub envelope', () => {

@@ -42,6 +42,8 @@ export declare const PayloadVariant: {
     readonly RegisterBlobSampleOffer: 25;
     /** Settle sample match against a registered provider (Phase 7). */
     readonly SettleBlobSampleMatch: 26;
+    /** Cancel sample offer and refund escrow (Phase 9). */
+    readonly CancelBlobSampleOffer: 27;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -220,6 +222,10 @@ export type TransactionPayloadInput = {
     chunkIndex: number;
     chunkCount: number;
     provider: Uint8Array;
+} | {
+    kind: 'cancelBlobSampleOffer';
+    blobId: Uint8Array;
+    chunkIndex: number;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

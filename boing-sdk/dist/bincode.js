@@ -44,6 +44,8 @@ export const PayloadVariant = {
     RegisterBlobSampleOffer: 25,
     /** Settle sample match against a registered provider (Phase 7). */
     SettleBlobSampleMatch: 26,
+    /** Cancel sample offer and refund escrow (Phase 9). */
+    CancelBlobSampleOffer: 27,
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export const BlobRetentionVariant = {
@@ -269,6 +271,8 @@ export function encodeTransactionPayload(payload) {
             return concatBytes(writeU32Le(PayloadVariant.RegisterBlobSampleOffer), need32(payload.blobId, 'blobId'), writeU32Le(payload.chunkIndex >>> 0), writeU32Le(payload.chunkCount >>> 0), writeU128Le(payload.askFee), writeU64Le(payload.expiresAtHeight));
         case 'settleBlobSampleMatch':
             return concatBytes(writeU32Le(PayloadVariant.SettleBlobSampleMatch), need32(payload.blobId, 'blobId'), writeU32Le(payload.chunkIndex >>> 0), writeU32Le(payload.chunkCount >>> 0), need32(payload.provider, 'provider'));
+        case 'cancelBlobSampleOffer':
+            return concatBytes(writeU32Le(PayloadVariant.CancelBlobSampleOffer), need32(payload.blobId, 'blobId'), writeU32Le(payload.chunkIndex >>> 0));
         default: {
             const _x = payload;
             return _x;

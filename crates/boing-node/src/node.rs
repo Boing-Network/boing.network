@@ -1293,31 +1293,44 @@ impl BoingNode {
                 ) {
                     return Err(MempoolError::MediaBlobRejected(e.to_string()));
                 }
-                if let Some(store) = self.media_blob_store() {
-                    let market = store.sample_market_snapshot();
-                    let tip = self.chain.height();
-                    if market
-                        .match_pay_blob_sample(
-                            blob_id,
-                            *chunk_index,
-                            *chunk_count,
-                            signed.tx.sender,
-                            u128::MAX, // fee checked via protocol sample fee; offer ask gated separately
-                            tip,
-                            Some(provider),
-                        )
-                        .is_err()
-                    {
-                        // Soft: allow settle without local book (other node may have registered on-chain).
-                        // Hard-fail only when a conflicting expired/wrong-provider offer is present.
-                        if let Some(o) = market.best_offer(blob_id, *chunk_index, tip) {
-                            if &o.provider == provider && o.is_expired(tip) {
-                                return Err(MempoolError::MediaBlobRejected(
-                                    "sample offer expired".into(),
-                                ));
-                            }
+                let tip = self.chain.height();
+                // Prefer SMT-resident book (Phase 9); soft-fallback to sidecar replay book.
+                if let Some(o) = self.state.sample_offers().get(blob_id, *chunk_index, provider) {
+                    if o.chunk_count != *chunk_count {
+                        return Err(MempoolError::MediaBlobRejected(
+                            "settle chunk_count does not match registered offer".into(),
+                        ));
+                    }
+                    if o.is_expired(tip) {
+                        return Err(MempoolError::MediaBlobRejected(
+                            "sample offer expired".into(),
+                        ));
+                    }
+                } else if let Some(store) = self.media_blob_store() {
+                    let on = store.onchain_sample_market_snapshot();
+                    if let Some(o) = on.best_offer(blob_id, *chunk_index, tip) {
+                        if &o.provider == provider && o.is_expired(tip) {
+                            return Err(MempoolError::MediaBlobRejected(
+                                "sample offer expired".into(),
+                            ));
                         }
                     }
+                }
+            }
+            TransactionPayload::CancelBlobSampleOffer {
+                blob_id,
+                chunk_index,
+            } => {
+                require_active()?;
+                if self
+                    .state
+                    .sample_offers()
+                    .get(blob_id, *chunk_index, &signed.tx.sender)
+                    .is_none()
+                {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "no matching sample offer to cancel".into(),
+                    ));
                 }
             }
             _ => {}

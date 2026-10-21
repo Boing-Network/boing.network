@@ -7,6 +7,7 @@ pub mod blobs_erasure;
 pub mod blobs_phase6;
 pub mod blobs_phase7;
 pub mod blobs_phase8;
+pub mod blobs_phase9;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -69,6 +70,11 @@ pub use blobs_phase8::{
     ConsensusNativeSampleMarket, DasSuccinctProof, DasSuccinctProofKind,
     PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE8_CAP_ACTIVATION_ENV,
     PHASE8_DAS_SUCCINCT_PROOF_DOMAIN, PHASE8_MAX_SAMPLE_OFFERS,
+};
+pub use blobs_phase9::{
+    blob_sample_ask_escrow_account, das_light_client_seed_from_leader_vrf,
+    phase9_cap_activation_checklist, sample_offer_market_key, PHASE9_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
+    PHASE9_ASK_ESCROW_DOMAIN, PHASE9_CAP_ACTIVATION_ENV, PHASE9_SAMPLE_OFFER_REGISTRY_DOMAIN,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};

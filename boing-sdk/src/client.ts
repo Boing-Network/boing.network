@@ -831,6 +831,28 @@ export class BoingClient {
     ]);
   }
 
+  /** Leader-election VRF output for DAS LC (`boing_getLeaderVrfOutput`). Null under RoundRobin. */
+  async getLeaderVrfOutput(round?: number): Promise<Record<string, unknown>> {
+    return this.request(
+      'boing_getLeaderVrfOutput',
+      round === undefined ? [] : [round],
+    );
+  }
+
+  /** SMT-resident sample offers (`boing_listSmtBlobSampleOffers`). */
+  async listSmtBlobSampleOffers(
+    blobId: string | Uint8Array,
+    chunkIndex?: number,
+  ): Promise<Record<string, unknown>> {
+    const id =
+      typeof blobId === 'string'
+        ? blobId
+        : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+    const params: unknown[] = [id];
+    if (chunkIndex !== undefined) params.push(chunkIndex);
+    return this.request('boing_listSmtBlobSampleOffers', params);
+  }
+
   /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
   async checkNames(names: string[]): Promise<import('./boingNames.js').BoingCheckNamesResult> {
     return this.request('boing_checkNames', [names]);

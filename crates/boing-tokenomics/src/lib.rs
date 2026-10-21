@@ -364,8 +364,9 @@ fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u12
         }
         TransactionPayload::PayBlobSample { .. }
         | TransactionPayload::SettleBlobSampleMatch { .. } => policy.blob_sample_fee_per_chunk,
-        // Register is metadata-only (gas); ask_fee is settled off the protocol sample fee path.
-        TransactionPayload::RegisterBlobSampleOffer { .. } => 0,
+        // Register/Cancel: gas only; ask_fee is SMT-escrowed (Phase 9), not the protocol sample fee.
+        TransactionPayload::RegisterBlobSampleOffer { .. }
+        | TransactionPayload::CancelBlobSampleOffer { .. } => 0,
         _ => 0,
     }
 }
