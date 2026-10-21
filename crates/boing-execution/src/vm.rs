@@ -8,7 +8,7 @@ use boing_primitives::{
     validate_pay_blob_sample_with_max_chunks, validate_put_blob_with_cap,
     validate_register_blob_sample_offer, validate_renew_media_blob_pin,
     validate_settle_blob_sample_match, AccountId, AccountState, BatchCall, BlobId, BlobRetention,
-    ExecutionLog, Hash, QaPoolVoteKind, Transaction, TransactionPayload,
+    ExecutionLog, Hash, MediaBlobDasSample, QaPoolVoteKind, Transaction, TransactionPayload,
 };
 use boing_qa::{
     check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaPoolGovernanceConfig,
@@ -656,6 +656,44 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::ChallengeBlobSampleServe {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                provider,
+            } => {
+                return self.execute_challenge_blob_sample_serve(
+                    state,
+                    tx,
+                    blob_id,
+                    *chunk_index,
+                    *chunk_count,
+                    provider,
+                    exec_ctx.block_height,
+                );
+            }
+            TransactionPayload::RespondBlobSampleServe {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                challenger,
+                chunk_hash,
+                chunks_root,
+                siblings,
+            } => {
+                return self.execute_respond_blob_sample_serve(
+                    state,
+                    tx,
+                    blob_id,
+                    *chunk_index,
+                    *chunk_count,
+                    challenger,
+                    *chunk_hash,
+                    *chunks_root,
+                    siblings,
+                    exec_ctx.block_height,
+                );
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -948,6 +986,96 @@ impl Vm {
             }
         }
         Ok(())
+    }
+
+    fn execute_challenge_blob_sample_serve(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        chunk_count: u32,
+        provider: &AccountId,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        let max_chunks = media_blob_max_das_chunks_at(height, self.media_blobs_phase7_cap_from);
+        validate_pay_blob_sample_with_max_chunks(blob_id, chunk_index, chunk_count, max_chunks)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        state
+            .sample_serve_mut()
+            .challenge(
+                *blob_id,
+                chunk_index,
+                chunk_count,
+                *provider,
+                tx.sender,
+                height,
+            )
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn execute_respond_blob_sample_serve(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        chunk_count: u32,
+        challenger: &AccountId,
+        chunk_hash: [u8; 32],
+        chunks_root: [u8; 32],
+        siblings: &[ [u8; 32] ],
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        let sample = MediaBlobDasSample {
+            blob_id: *blob_id,
+            chunk_index,
+            chunk_count,
+            chunk_hash,
+            chunks_root: Hash(chunks_root),
+            siblings: siblings.to_vec(),
+        };
+        state
+            .sample_serve_mut()
+            .respond(
+                blob_id,
+                chunk_index,
+                &tx.sender,
+                challenger,
+                height,
+                &sample,
+            )
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
     }
 
     fn execute_contract_deploy(

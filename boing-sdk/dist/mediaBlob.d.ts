@@ -239,4 +239,27 @@ export declare const PHASE9_ASK_ESCROW_DOMAIN = "BOING_BLOB_SAMPLE_ASK_ESCROW_V1
 export declare function blobSampleAskEscrowAccount(): Uint8Array;
 /** DAS LC seed from consensus leader VRF output (same mixer as `dasLightClientSeedFromVrf`). */
 export declare function dasLightClientSeedFromLeaderVrf(blobId: Uint8Array, leaderVrfOutput: Uint8Array): bigint;
+/** Phase 10: challenge sample serve (`ChallengeBlobSampleServe`, variant 28). */
+export declare function challengeBlobSampleServePayload(input: {
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+    provider: Uint8Array;
+}): TransactionPayloadInput;
+/** Phase 10: respond to serve challenge with DAS merkle sample (variant 29). */
+export declare function respondBlobSampleServePayload(input: {
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+    challenger: Uint8Array;
+    chunkHash: Uint8Array;
+    chunksRoot: Uint8Array;
+    siblings: Uint8Array[];
+}): TransactionPayloadInput;
+/** Phase 10 serve-challenge window (blocks). */
+export declare const PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+/** Phase 10 activated max alias. */
+export declare const PHASE10_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+/** Honest plan strings for succinct DAS path (matches Rust). */
+export declare function phase10DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

@@ -176,6 +176,10 @@ export declare class BoingClient {
     getLeaderVrfOutput(round?: number): Promise<Record<string, unknown>>;
     /** SMT-resident sample offers (`boing_listSmtBlobSampleOffers`). */
     listSmtBlobSampleOffers(blobId: string | Uint8Array, chunkIndex?: number): Promise<Record<string, unknown>>;
+    /** Sample-serve challenges (`boing_listBlobSampleServeChallenges`). */
+    listBlobSampleServeChallenges(blobId: string | Uint8Array): Promise<Record<string, unknown>>;
+    /** Succinct DAS proof roadmap (`boing_getBlobDasSuccinctProofPlan`). */
+    getBlobDasSuccinctProofPlan(): Promise<Record<string, unknown>>;
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
     checkNames(names: string[]): Promise<import('./boingNames.js').BoingCheckNamesResult>;
     /** Names owned by an address (active or in grace) (`boing_namesOwnedBy`). */

@@ -8,6 +8,7 @@ pub mod blobs_phase6;
 pub mod blobs_phase7;
 pub mod blobs_phase8;
 pub mod blobs_phase9;
+pub mod blobs_phase10;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -75,6 +76,16 @@ pub use blobs_phase9::{
     blob_sample_ask_escrow_account, das_light_client_seed_from_leader_vrf,
     phase9_cap_activation_checklist, sample_offer_market_key, PHASE9_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
     PHASE9_ASK_ESCROW_DOMAIN, PHASE9_CAP_ACTIVATION_ENV, PHASE9_SAMPLE_OFFER_REGISTRY_DOMAIN,
+};
+pub use blobs_phase10::{
+    build_das_succinct_proof_reserved_placeholder, open_serve_challenge,
+    phase10_cap_activation_checklist, phase10_das_succinct_proof_plan, serve_challenge_key,
+    validate_challenge_blob_sample_serve, validate_respond_blob_sample_serve,
+    verify_das_succinct_proof_reserved, BlobSampleServeChallenge, BlobSampleServeChallengeStatus,
+    DasSuccinctProofReserved, PHASE10_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE10_CAP_ACTIVATION_ENV,
+    PHASE10_DAS_RESERVED_OPAQUE_DOMAIN, PHASE10_MAX_OPAQUE_PROOF_BYTES,
+    PHASE10_MAX_SERVE_CHALLENGES, PHASE10_SERVE_CHALLENGE_REGISTRY_DOMAIN,
+    PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};

@@ -287,6 +287,31 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "blob_id":hex0x(blob_id),
             "chunk_index":chunk_index,
         }),
+        TransactionPayload::ChallengeBlobSampleServe {
+            blob_id,
+            chunk_index,
+            chunk_count,
+            provider,
+        } => json!({
+            "kind":"challenge_blob_sample_serve",
+            "blob_id":hex0x(blob_id),
+            "chunk_index":chunk_index,
+            "chunk_count":chunk_count,
+            "provider":hex0x(&provider.0),
+        }),
+        TransactionPayload::RespondBlobSampleServe {
+            blob_id,
+            chunk_index,
+            chunk_count,
+            challenger,
+            ..
+        } => json!({
+            "kind":"respond_blob_sample_serve",
+            "blob_id":hex0x(blob_id),
+            "chunk_index":chunk_index,
+            "chunk_count":chunk_count,
+            "challenger":hex0x(&challenger.0),
+        }),
     }
 }
 

@@ -37,6 +37,9 @@ import {
   PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
   cancelBlobSampleOfferPayload,
   blobSampleAskEscrowAccount,
+  challengeBlobSampleServePayload,
+  respondBlobSampleServePayload,
+  phase10DasSuccinctProofPlan,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -180,6 +183,36 @@ describe('mediaBlob', () => {
     );
     expect(cancel[0]).toBe(27);
     expect(blobSampleAskEscrowAccount().length).toBe(32);
+  });
+
+  it('encodes Phase 10 Challenge/Respond serve (28/29)', () => {
+    const id = blobIdOf(new Uint8Array([7, 8, 9]));
+    const provider = new Uint8Array(32);
+    provider[0] = 2;
+    const challenger = new Uint8Array(32);
+    challenger[0] = 3;
+    const ch = encodeTransactionPayload(
+      challengeBlobSampleServePayload({
+        blobId: id,
+        chunkIndex: 0,
+        chunkCount: 1,
+        provider,
+      }),
+    );
+    expect(ch[0]).toBe(28);
+    const resp = encodeTransactionPayload(
+      respondBlobSampleServePayload({
+        blobId: id,
+        chunkIndex: 0,
+        chunkCount: 1,
+        challenger,
+        chunkHash: new Uint8Array(32),
+        chunksRoot: new Uint8Array(32),
+        siblings: [],
+      }),
+    );
+    expect(resp[0]).toBe(29);
+    expect(phase10DasSuccinctProofPlan().length).toBeGreaterThan(0);
   });
 
   it('Phase 8 settle quote and succinct stub envelope', () => {

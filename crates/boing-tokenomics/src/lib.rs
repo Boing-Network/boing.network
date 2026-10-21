@@ -366,7 +366,9 @@ fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u12
         | TransactionPayload::SettleBlobSampleMatch { .. } => policy.blob_sample_fee_per_chunk,
         // Register/Cancel: gas only; ask_fee is SMT-escrowed (Phase 9), not the protocol sample fee.
         TransactionPayload::RegisterBlobSampleOffer { .. }
-        | TransactionPayload::CancelBlobSampleOffer { .. } => 0,
+        | TransactionPayload::CancelBlobSampleOffer { .. }
+        | TransactionPayload::ChallengeBlobSampleServe { .. }
+        | TransactionPayload::RespondBlobSampleServe { .. } => 0,
         _ => 0,
     }
 }

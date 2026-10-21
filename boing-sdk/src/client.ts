@@ -853,6 +853,22 @@ export class BoingClient {
     return this.request('boing_listSmtBlobSampleOffers', params);
   }
 
+  /** Sample-serve challenges (`boing_listBlobSampleServeChallenges`). */
+  async listBlobSampleServeChallenges(
+    blobId: string | Uint8Array,
+  ): Promise<Record<string, unknown>> {
+    const id =
+      typeof blobId === 'string'
+        ? blobId
+        : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+    return this.request('boing_listBlobSampleServeChallenges', [id]);
+  }
+
+  /** Succinct DAS proof roadmap (`boing_getBlobDasSuccinctProofPlan`). */
+  async getBlobDasSuccinctProofPlan(): Promise<Record<string, unknown>> {
+    return this.request('boing_getBlobDasSuccinctProofPlan', []);
+  }
+
   /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
   async checkNames(names: string[]): Promise<import('./boingNames.js').BoingCheckNamesResult> {
     return this.request('boing_checkNames', [names]);

@@ -44,6 +44,10 @@ export declare const PayloadVariant: {
     readonly SettleBlobSampleMatch: 26;
     /** Cancel sample offer and refund escrow (Phase 9). */
     readonly CancelBlobSampleOffer: 27;
+    /** Challenge sample serve availability (Phase 10). */
+    readonly ChallengeBlobSampleServe: 28;
+    /** Respond to serve challenge with DAS sample (Phase 10). */
+    readonly RespondBlobSampleServe: 29;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -226,6 +230,21 @@ export type TransactionPayloadInput = {
     kind: 'cancelBlobSampleOffer';
     blobId: Uint8Array;
     chunkIndex: number;
+} | {
+    kind: 'challengeBlobSampleServe';
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+    provider: Uint8Array;
+} | {
+    kind: 'respondBlobSampleServe';
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+    challenger: Uint8Array;
+    chunkHash: Uint8Array;
+    chunksRoot: Uint8Array;
+    siblings: Uint8Array[];
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

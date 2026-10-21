@@ -46,6 +46,10 @@ export const PayloadVariant = {
     SettleBlobSampleMatch: 26,
     /** Cancel sample offer and refund escrow (Phase 9). */
     CancelBlobSampleOffer: 27,
+    /** Challenge sample serve availability (Phase 10). */
+    ChallengeBlobSampleServe: 28,
+    /** Respond to serve challenge with DAS sample (Phase 10). */
+    RespondBlobSampleServe: 29,
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export const BlobRetentionVariant = {
@@ -273,6 +277,24 @@ export function encodeTransactionPayload(payload) {
             return concatBytes(writeU32Le(PayloadVariant.SettleBlobSampleMatch), need32(payload.blobId, 'blobId'), writeU32Le(payload.chunkIndex >>> 0), writeU32Le(payload.chunkCount >>> 0), need32(payload.provider, 'provider'));
         case 'cancelBlobSampleOffer':
             return concatBytes(writeU32Le(PayloadVariant.CancelBlobSampleOffer), need32(payload.blobId, 'blobId'), writeU32Le(payload.chunkIndex >>> 0));
+        case 'challengeBlobSampleServe':
+            return concatBytes(writeU32Le(PayloadVariant.ChallengeBlobSampleServe), need32(payload.blobId, 'blobId'), writeU32Le(payload.chunkIndex >>> 0), writeU32Le(payload.chunkCount >>> 0), need32(payload.provider, 'provider'));
+        case 'respondBlobSampleServe': {
+            const sibs = payload.siblings;
+            const parts = [
+                writeU32Le(PayloadVariant.RespondBlobSampleServe),
+                need32(payload.blobId, 'blobId'),
+                writeU32Le(payload.chunkIndex >>> 0),
+                writeU32Le(payload.chunkCount >>> 0),
+                need32(payload.challenger, 'challenger'),
+                need32(payload.chunkHash, 'chunkHash'),
+                need32(payload.chunksRoot, 'chunksRoot'),
+                writeU64Le(BigInt(sibs.length)),
+            ];
+            for (const s of sibs)
+                parts.push(need32(s, 'sibling'));
+            return concatBytes(...parts);
+        }
         default: {
             const _x = payload;
             return _x;

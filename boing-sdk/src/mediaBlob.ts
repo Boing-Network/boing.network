@@ -776,3 +776,67 @@ export function dasLightClientSeedFromLeaderVrf(
 ): bigint {
   return dasLightClientSeedFromVrf(blobId, leaderVrfOutput);
 }
+
+/** Phase 10: challenge sample serve (`ChallengeBlobSampleServe`, variant 28). */
+export function challengeBlobSampleServePayload(input: {
+  blobId: Uint8Array;
+  chunkIndex: number;
+  chunkCount: number;
+  provider: Uint8Array;
+}): TransactionPayloadInput {
+  if (input.blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (input.provider.length !== 32) throw new Error('provider must be 32 bytes');
+  if (input.chunkCount <= 0 || input.chunkIndex < 0 || input.chunkIndex >= input.chunkCount) {
+    throw new Error('chunkIndex out of range');
+  }
+  return {
+    kind: 'challengeBlobSampleServe',
+    blobId: input.blobId,
+    chunkIndex: input.chunkIndex,
+    chunkCount: input.chunkCount,
+    provider: input.provider,
+  };
+}
+
+/** Phase 10: respond to serve challenge with DAS merkle sample (variant 29). */
+export function respondBlobSampleServePayload(input: {
+  blobId: Uint8Array;
+  chunkIndex: number;
+  chunkCount: number;
+  challenger: Uint8Array;
+  chunkHash: Uint8Array;
+  chunksRoot: Uint8Array;
+  siblings: Uint8Array[];
+}): TransactionPayloadInput {
+  if (input.blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (input.challenger.length !== 32) throw new Error('challenger must be 32 bytes');
+  if (input.chunkHash.length !== 32 || input.chunksRoot.length !== 32) {
+    throw new Error('chunkHash/chunksRoot must be 32 bytes');
+  }
+  return {
+    kind: 'respondBlobSampleServe',
+    blobId: input.blobId,
+    chunkIndex: input.chunkIndex,
+    chunkCount: input.chunkCount,
+    challenger: input.challenger,
+    chunkHash: input.chunkHash,
+    chunksRoot: input.chunksRoot,
+    siblings: input.siblings,
+  };
+}
+
+/** Phase 10 serve-challenge window (blocks). */
+export const PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+
+/** Phase 10 activated max alias. */
+export const PHASE10_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE9_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+
+/** Honest plan strings for succinct DAS path (matches Rust). */
+export function phase10DasSuccinctProofPlan(): string[] {
+  return [
+    'StubBlake3V0: BLAKE3 commitment over merkle LC batch — implemented; not a SNARK.',
+    'ReservedRealV1: opaque proof envelope accepted for encoding/RPC scaffolding; verify always rejects.',
+    'Next: wire IPA/KZG/SNARK verifier behind ReservedRealV1 and flip is_implemented when production-ready.',
+    'Leader-VRF LC: use boing_getLeaderVrfOutput / useLeaderVrf when consensus is in VRF mode.',
+  ];
+}
