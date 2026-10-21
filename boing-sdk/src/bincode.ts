@@ -46,6 +46,8 @@ export const PayloadVariant = {
   RegisterBlobSampleOffer: 25,
   /** Settle sample match against a registered provider (Phase 7). */
   SettleBlobSampleMatch: 26,
+  /** Cancel sample offer and refund escrow (Phase 9). */
+  CancelBlobSampleOffer: 27,
 } as const;
 
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
@@ -269,6 +271,11 @@ export type TransactionPayloadInput =
       chunkIndex: number;
       chunkCount: number;
       provider: Uint8Array;
+    }
+  | {
+      kind: 'cancelBlobSampleOffer';
+      blobId: Uint8Array;
+      chunkIndex: number;
     };
 
 function need32(b: Uint8Array, what: string): Uint8Array {
@@ -455,6 +462,12 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
         writeU32Le(payload.chunkIndex >>> 0),
         writeU32Le(payload.chunkCount >>> 0),
         need32(payload.provider, 'provider'),
+      );
+    case 'cancelBlobSampleOffer':
+      return concatBytes(
+        writeU32Le(PayloadVariant.CancelBlobSampleOffer),
+        need32(payload.blobId, 'blobId'),
+        writeU32Le(payload.chunkIndex >>> 0),
       );
     default: {
       const _x: never = payload;

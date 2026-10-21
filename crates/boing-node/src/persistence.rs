@@ -25,6 +25,7 @@ const NETWORK_FEE_CONFIG_FILE: &str = "network_fee_config.json";
 const QA_PENDING_FILE: &str = "qa_pending.bin";
 const OPEN_VALIDATORS_FILE: &str = "open_validators.bin";
 const NAMES_FILE: &str = "names.bin";
+const SAMPLE_OFFERS_FILE: &str = "sample_offers_registry.bin";
 /// Node-local jailing snapshots (not committed to the state root).
 const OPEN_VALIDATOR_JAIL_STATS_FILE: &str = "open_validator_jail_stats.bin";
 const SLASH_REGISTRY_FILE: &str = "slash_registry.json";
@@ -199,6 +200,18 @@ impl Persistence {
             std::fs::write(&tmp, bytes)?;
             std::fs::rename(tmp, &names_path)?;
         }
+        let sample_offers_path = self.state_dir().join(SAMPLE_OFFERS_FILE);
+        if state.sample_offers().is_empty() {
+            if sample_offers_path.exists() {
+                std::fs::remove_file(&sample_offers_path)?;
+            }
+        } else {
+            let bytes = bincode::serialize(state.sample_offers())
+                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let tmp = sample_offers_path.with_extension("bin.tmp");
+            std::fs::write(&tmp, bytes)?;
+            std::fs::rename(tmp, &sample_offers_path)?;
+        }
         let js_path = self.state_dir().join(OPEN_VALIDATOR_JAIL_STATS_FILE);
         if state.open_validators().last_jail.is_empty() {
             if js_path.exists() {
@@ -293,6 +306,13 @@ impl Persistence {
             let reg: boing_state::NameRegistry = bincode::deserialize(&bytes)
                 .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
             state.load_names(reg);
+        }
+        let sample_offers_path = self.state_dir().join(SAMPLE_OFFERS_FILE);
+        if sample_offers_path.exists() {
+            let bytes = std::fs::read(&sample_offers_path)?;
+            let reg: boing_state::SampleOfferRegistry = bincode::deserialize(&bytes)
+                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            state.load_sample_offers(reg);
         }
         Ok(Some(state))
     }

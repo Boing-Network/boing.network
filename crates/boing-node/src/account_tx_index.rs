@@ -279,6 +279,14 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "chunk_count":chunk_count,
             "provider":hex0x(&provider.0),
         }),
+        TransactionPayload::CancelBlobSampleOffer {
+            blob_id,
+            chunk_index,
+        } => json!({
+            "kind":"cancel_blob_sample_offer",
+            "blob_id":hex0x(blob_id),
+            "chunk_index":chunk_index,
+        }),
     }
 }
 

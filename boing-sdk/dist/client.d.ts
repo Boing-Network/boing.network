@@ -172,6 +172,10 @@ export declare class BoingClient {
         vrfOutput?: string | Uint8Array;
         commitment?: string | Uint8Array;
     }): Promise<Record<string, unknown>>;
+    /** Leader-election VRF output for DAS LC (`boing_getLeaderVrfOutput`). Null under RoundRobin. */
+    getLeaderVrfOutput(round?: number): Promise<Record<string, unknown>>;
+    /** SMT-resident sample offers (`boing_listSmtBlobSampleOffers`). */
+    listSmtBlobSampleOffers(blobId: string | Uint8Array, chunkIndex?: number): Promise<Record<string, unknown>>;
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
     checkNames(names: string[]): Promise<import('./boingNames.js').BoingCheckNamesResult>;
     /** Names owned by an address (active or in grace) (`boing_namesOwnedBy`). */

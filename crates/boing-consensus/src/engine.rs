@@ -225,6 +225,31 @@ impl ConsensusEngine {
         }
     }
 
+    /// VRF **output** bytes used for leader election at `round` (Phase 9 DAS LC wiring).
+    ///
+    /// - [`LeaderElection::Vrf`]: winning ECVRF output when a full verified set is present;
+    ///   otherwise [`dummy_vrf_output`]`.output` (same fallback as [`Self::leader`]).
+    /// - [`LeaderElection::RoundRobin`]: `None` — LC clients should use height-bound seeds.
+    pub fn leader_vrf_output(&self, round: u64) -> Option<[u8; 32]> {
+        match self.leader_election {
+            LeaderElection::RoundRobin => None,
+            LeaderElection::Vrf => {
+                if let Some(map) = self.vrf_proofs.get(&round) {
+                    let proofs: Vec<(AccountId, VrfOutput)> =
+                        map.iter().map(|(id, v)| (*id, v.clone())).collect();
+                    if let Some(leader) =
+                        leader_from_ecvrf_proofs(&self.validators, round, &proofs)
+                    {
+                        if let Some((_, vrf)) = proofs.iter().find(|(id, _)| *id == leader) {
+                            return Some(vrf.output);
+                        }
+                    }
+                }
+                Some(dummy_vrf_output(round).output)
+            }
+        }
+    }
+
     /// Shared proposal checks: height, round-leader proposer, validator membership.
     fn validate_proposal(&self, block: &Block) -> Result<(), ConsensusError> {
         if block.header.height != self.round {

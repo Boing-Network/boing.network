@@ -226,4 +226,17 @@ export declare function buildDasSuccinctProofStubVrf(input: {
 export declare function verifyDasSuccinctProofStub(proof: DasSuccinctProof, expected: DasSuccinctProof): boolean;
 /** Alias: activated max after coordinated cap raise. */
 export declare const PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+/** Phase 9: cancel sample offer and refund SMT escrow (`CancelBlobSampleOffer`, variant 27). */
+export declare function cancelBlobSampleOfferPayload(input: {
+    blobId: Uint8Array;
+    chunkIndex: number;
+}): TransactionPayloadInput;
+/** Phase 9 activated max alias. */
+export declare const PHASE9_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+/** Domain tag for ask-fee escrow account (BLAKE3 → AccountId). */
+export declare const PHASE9_ASK_ESCROW_DOMAIN = "BOING_BLOB_SAMPLE_ASK_ESCROW_V1";
+/** System ask-escrow account id (matches Rust `blob_sample_ask_escrow_account`). */
+export declare function blobSampleAskEscrowAccount(): Uint8Array;
+/** DAS LC seed from consensus leader VRF output (same mixer as `dasLightClientSeedFromVrf`). */
+export declare function dasLightClientSeedFromLeaderVrf(blobId: Uint8Array, leaderVrfOutput: Uint8Array): bigint;
 //# sourceMappingURL=mediaBlob.d.ts.map

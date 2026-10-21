@@ -266,6 +266,14 @@ impl Transaction {
                 chunk_count,
                 hex::encode(&provider.0[..8])
             ),
+            TransactionPayload::CancelBlobSampleOffer {
+                blob_id,
+                chunk_index,
+            } => format!(
+                "Cancel media blob sample offer {} (chunk {})",
+                hex::encode(&blob_id[..8]),
+                chunk_index
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -361,6 +369,7 @@ impl Transaction {
             | TransactionPayload::PayBlobSample { .. }
             | TransactionPayload::RegisterBlobSampleOffer { .. }
             | TransactionPayload::SettleBlobSampleMatch { .. }
+            | TransactionPayload::CancelBlobSampleOffer { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -557,11 +566,17 @@ pub enum TransactionPayload {
     },
     /// Settle a sample match against a registered provider (index **26**). Payer = tx sender;
     /// charges `blob_sample_fee_per_chunk` like [`PayBlobSample`]. Phase 7 on-chain matcher path.
+    /// Phase 9: also releases SMT-escrowed `ask_fee` to `provider`.
     SettleBlobSampleMatch {
         blob_id: crate::BlobId,
         chunk_index: u32,
         chunk_count: u32,
         provider: AccountId,
+    },
+    /// Cancel a registered sample offer and refund escrowed ask (index **27**). Provider = tx sender.
+    CancelBlobSampleOffer {
+        blob_id: crate::BlobId,
+        chunk_index: u32,
     },
 }
 

@@ -4,7 +4,7 @@ use boing_primitives::{
     build_das_light_client_batch_from_bytes, build_das_light_client_batch_vrf,
     build_das_succinct_proof_stub, build_das_succinct_proof_stub_vrf, chunk_media_blob,
     match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
-    phase8_cap_activation_checklist, verify_das_succinct_proof, AccountId, BlobRetention,
+    phase9_cap_activation_checklist, verify_das_succinct_proof, AccountId, BlobRetention,
     BlobSampleOfferSource, BlobSampleSettleQuote, DasSuccinctProof, DasSuccinctProofKind,
     MediaBlobSampleOffer, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
     MAX_MEDIA_BLOB_INLINE_BYTES, MAX_MEDIA_BLOB_INLINE_PREFER_BYTES,
@@ -31,6 +31,8 @@ pub const MEDIA_BLOB_RPC_METHODS: &[&str] = &[
     "boing_matchBlobSampleOffer",
     "boing_quoteBlobSampleSettle",
     "boing_verifyBlobDasSuccinctProof",
+    "boing_getLeaderVrfOutput",
+    "boing_listSmtBlobSampleOffers",
 ];
 
 fn hex0x(b: &[u8]) -> String {
@@ -369,12 +371,23 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "capActivationChecklist",
-                json!(phase8_cap_activation_checklist(phase7_from)),
+                json!(phase9_cap_activation_checklist(phase7_from)),
+            );
+            put(&mut m, "cancelBlobSampleOfferVariant", json!(27));
+            put(
+                &mut m,
+                "askEscrowAccount",
+                json!(hex0x(&boing_primitives::blob_sample_ask_escrow_account().0)),
+            );
+            put(
+                &mut m,
+                "smtSampleOfferCount",
+                json!(node.state.sample_offers().len()),
             );
             put(
                 &mut m,
                 "note",
-                json!("Phase 8: consensus-replay sample book (Register/Settle) + local gossip book; versioned succinct DAS proof envelope (StubBlake3V0 only); gated 256 MiB via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe)."),
+                json!("Phase 9: SMT-resident sample offers + ask_fee escrow; CancelBlobSampleOffer (27); leader-VRF LC path (boing_getLeaderVrfOutput / useLeaderVrf); StubBlake3V0 succinct envelope (not a SNARK); gated 256 MiB via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe)."),
             );
             Ok(Value::Object(m))
         }
@@ -452,6 +465,10 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .get(2)
                 .or_else(|| params.get("vrfOutput"))
                 .and_then(|v| v.as_str());
+            let use_leader_vrf = params
+                .get("useLeaderVrf")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let tip = node.chain.height();
             let store = node.media_blob_store().ok_or((
                 -32000,
@@ -463,6 +480,11 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             let Some(data) = bytes else {
                 return Ok(Value::Null);
             };
+            let leader_vrf = if use_leader_vrf {
+                node.consensus.leader_vrf_output(tip)
+            } else {
+                None
+            };
             let (batch, proof, seed_mode) = if let Some(vrf_s) = vrf_hex {
                 let vrf = parse_hex32(vrf_s, "vrfOutput")?;
                 let bundle = chunk_media_blob(&data).map_err(|e| (-32000, e.to_string()))?;
@@ -470,6 +492,12 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                     .map_err(|e| (-32000, e.to_string()))?;
                 let proof = build_das_succinct_proof_stub_vrf(&batch, &vrf);
                 (batch, proof, "vrf")
+            } else if let Some(vrf) = leader_vrf {
+                let bundle = chunk_media_blob(&data).map_err(|e| (-32000, e.to_string()))?;
+                let batch = build_das_light_client_batch_vrf(&bundle, &vrf, sample_count as usize)
+                    .map_err(|e| (-32000, e.to_string()))?;
+                let proof = build_das_succinct_proof_stub_vrf(&batch, &vrf);
+                (batch, proof, "leaderVrf")
             } else {
                 let batch =
                     build_das_light_client_batch_from_bytes(&data, tip, sample_count as usize)
@@ -751,6 +779,55 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 "ok": ok,
                 "proof": proof_json(&built),
                 "note": "Verifies StubBlake3V0 against local merkle LC batch. Not a SNARK verifier.",
+            }))
+        }
+        "boing_getLeaderVrfOutput" => {
+            let round = params
+                .get(0)
+                .or_else(|| params.get("round"))
+                .or_else(|| params.get("height"))
+                .map(|v| parse_u64_field(&json!({ "round": v }), &["round"], None))
+                .transpose()?
+                .unwrap_or_else(|| node.chain.height());
+            let mode = format!("{:?}", node.consensus.leader_election());
+            match node.consensus.leader_vrf_output(round) {
+                Some(out) => Ok(json!({
+                    "round": round,
+                    "leaderElection": mode,
+                    "vrfOutput": hex0x(&out),
+                    "note": "VRF mode: ECVRF winner output when full set present, else dummy_vrf_output. RoundRobin returns null — use height-bound LC seeds.",
+                })),
+                None => Ok(json!({
+                    "round": round,
+                    "leaderElection": mode,
+                    "vrfOutput": Value::Null,
+                    "note": "RoundRobin (or no VRF output): DAS LC should use height-bound seeds.",
+                })),
+            }
+        }
+        "boing_listSmtBlobSampleOffers" => {
+            let id = parse_id_param(params)?;
+            let chunk_index = params
+                .get(1)
+                .or_else(|| params.get("chunkIndex"))
+                .map(|v| parse_u32(v, "chunkIndex"))
+                .transpose()?;
+            let tip = node.chain.height();
+            let offers = node.state.sample_offers().list(&id, chunk_index, tip);
+            Ok(json!({
+                "blobId": hex0x(&id),
+                "tipHeight": tip,
+                "source": "smt",
+                "offers": offers.iter().map(|o| {
+                    let mut v = offer_json(&o.to_media_offer());
+                    if let Some(obj) = v.as_object_mut() {
+                        obj.insert("source".into(), json!("smt"));
+                        obj.insert("registeredAtHeight".into(), json!(o.registered_at_height));
+                        obj.insert("escrowedAsk".into(), json!(o.ask_fee.to_string()));
+                    }
+                    v
+                }).collect::<Vec<_>>(),
+                "note": "SMT-resident SampleOfferRegistry (Phase 9). ask_fee is escrowed in the system ask account.",
             }))
         }
         _ => Err((-32601, format!("unknown media blob method: {method}"))),

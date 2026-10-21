@@ -98,6 +98,17 @@ fn main() {
         hex::encode(&p)
     );
 
+    let cancel = TransactionPayload::CancelBlobSampleOffer {
+        blob_id: boing_primitives::blob_id_of(&[0x89, 0x50, 0x4e, 0x47]),
+        chunk_index: 0,
+    };
+    let p = bincode::serialize(&cancel).unwrap();
+    println!(
+        "CancelBlobSampleOffer: len={} hex={}",
+        p.len(),
+        hex::encode(&p)
+    );
+
     let qv = TransactionPayload::QaPoolVote {
         subject: boing_primitives::Hash([3u8; 32]),
         vote: boing_primitives::QaPoolVoteKind::Allow,
