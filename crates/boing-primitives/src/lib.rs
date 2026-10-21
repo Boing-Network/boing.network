@@ -4,6 +4,7 @@
 
 pub mod blobs;
 pub mod blobs_erasure;
+pub mod blobs_phase6;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -41,6 +42,15 @@ pub use blobs_erasure::{
     chunk_media_blob_rs, chunk_media_blob_rs_with_parity, media_blob_rs_chunk_refs,
     media_blob_rs_data_shards_for_size, recover_media_blob_rs, MediaBlobRsBundle,
     MEDIA_BLOB_RS_MAX_DATA_SHARDS, MEDIA_BLOB_RS_MIN_DATA_SHARDS, MEDIA_BLOB_RS_PARITY_SHARDS,
+};
+pub use blobs_phase6::{
+    build_das_light_client_batch, build_das_light_client_batch_from_bytes,
+    das_light_client_sample_indices, das_light_client_seed, manifest_from_segment_bytes,
+    match_sample_offer, split_into_live_cap_segments, MediaBlobDasLightClientBatch,
+    MediaBlobSampleMarket, MediaBlobSampleMatch, MediaBlobSampleOffer, MediaBlobSegmentManifest,
+    PHASE6_DAS_LIGHT_CLIENT_DOMAIN, PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES, PHASE6_MAX_SAMPLE_OFFERS,
+    PHASE6_MAX_VIDEO_SEGMENTS, PHASE6_SEGMENT_MANIFEST_DOMAIN, PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES,
+    PHASE6_VIDEO_SEGMENT_TARGET_BYTES,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};

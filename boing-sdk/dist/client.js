@@ -522,6 +522,58 @@ export class BoingClient {
             : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
         return this.request('boing_getBlobDasSample', [id, chunkIndex]);
     }
+    /**
+     * Height-bound DAS light-client sample batch (`boing_getBlobDasLightClientBatch`), or null.
+     * Merkle samples only — not a succinct aggregate proof.
+     */
+    async getBlobDasLightClientBatch(blobId, sampleCount = 8) {
+        const id = typeof blobId === 'string'
+            ? blobId
+            : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        return this.request('boing_getBlobDasLightClientBatch', [id, sampleCount]);
+    }
+    /** Upsert a node-local sample offer (`boing_putBlobSampleOffer`) — not consensus. */
+    async putBlobSampleOffer(offer) {
+        const blobId = typeof offer.blobId === 'string'
+            ? offer.blobId
+            : `0x${Array.from(offer.blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        return this.request('boing_putBlobSampleOffer', [
+            {
+                blobId,
+                chunkIndex: offer.chunkIndex,
+                chunkCount: offer.chunkCount,
+                provider: offer.provider,
+                askFee: offer.askFee.toString(),
+                expiresAtHeight: (offer.expiresAtHeight ?? 0).toString(),
+            },
+        ]);
+    }
+    /** List node-local sample offers for a blob (`boing_listBlobSampleOffers`). */
+    async listBlobSampleOffers(blobId, chunkIndex) {
+        const id = typeof blobId === 'string'
+            ? blobId
+            : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        const params = [id];
+        if (chunkIndex !== undefined)
+            params.push(chunkIndex);
+        return this.request('boing_listBlobSampleOffers', params);
+    }
+    /** Match against the node-local sample book (`boing_matchBlobSampleOffer`). */
+    async matchBlobSampleOffer(input) {
+        const blobId = typeof input.blobId === 'string'
+            ? input.blobId
+            : `0x${Array.from(input.blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        return this.request('boing_matchBlobSampleOffer', [
+            {
+                blobId,
+                chunkIndex: input.chunkIndex,
+                chunkCount: input.chunkCount,
+                payer: input.payer,
+                paidFee: input.paidFee.toString(),
+                ...(input.provider ? { provider: input.provider } : {}),
+            },
+        ]);
+    }
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
     async checkNames(names) {
         return this.request('boing_checkNames', [names]);

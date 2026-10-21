@@ -4,6 +4,10 @@ import {
   blobAnnouncePayload,
   blobIdOf,
   chunkMediaBlob,
+  dasLightClientSampleIndices,
+  dasLightClientSeed,
+  matchSampleOffer,
+  manifestFromSegmentBytes,
   MAX_MEDIA_BLOB_BYTES,
   MAX_MEDIA_BLOB_INLINE_PREFER_BYTES,
   MEDIA_BLOB_DAS_CHUNK_BYTES,
@@ -13,12 +17,17 @@ import {
   mediaBlobUri,
   parseMediaBlobId,
   PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
+  PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES,
   payBlobSamplePayload,
   putBlobPayload,
   recoverMediaBlobXor,
   renewMediaBlobPinPayload,
+  segmentManifestId,
+  splitIntoLiveCapSegments,
+  suggestedVideoSegmentCount,
   tokenMetadataJsonWithBlobImage,
   validatePutBlob,
+  validateSegmentManifest,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -67,6 +76,54 @@ describe('mediaBlob', () => {
     expect(() =>
       validatePutBlob({ kind: 'forever' }, '', new Uint8Array(MAX_MEDIA_BLOB_BYTES + 1)),
     ).toThrow(/MAX_MEDIA_BLOB_BYTES/);
+  });
+
+  it('Phase 6: segments (live-cap), sample match expiry, LC seed', () => {
+    expect(suggestedVideoSegmentCount(BigInt(16 * 1024 * 1024 * 3 + 1))).toBe(4);
+    expect(PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES).toBe(256 * 1024 * 1024);
+    const data = new Uint8Array(MAX_MEDIA_BLOB_BYTES + 100);
+    data.fill(9);
+    const segs = splitIntoLiveCapSegments(data);
+    expect(segs.length).toBe(2);
+    expect(segs.every((s) => s.length <= MAX_MEDIA_BLOB_BYTES)).toBe(true);
+    const manifest = manifestFromSegmentBytes('video/mp4', segs);
+    expect(manifest.totalBytes).toBe(BigInt(data.length));
+    expect(segmentManifestId(manifest)).toHaveLength(32);
+    const matched = matchSampleOffer(
+      {
+        blobId: new Uint8Array(32),
+        chunkIndex: 0,
+        chunkCount: 4,
+        providerHex: '0x' + '11'.repeat(32),
+        askFee: 5n,
+        expiresAtHeight: 100n,
+      },
+      5n,
+      50n,
+    );
+    expect(matched.paidFee).toBe(5n);
+    expect(() =>
+      matchSampleOffer(
+        {
+          blobId: new Uint8Array(32),
+          chunkIndex: 0,
+          chunkCount: 4,
+          providerHex: '0x',
+          askFee: 5n,
+          expiresAtHeight: 10n,
+        },
+        5n,
+        11n,
+      ),
+    ).toThrow(/expired/);
+    validateSegmentManifest({
+      contentType: 'video/mp4',
+      totalBytes: 32n * 1024n * 1024n,
+      segmentBlobIds: [new Uint8Array(32), new Uint8Array(32)],
+    });
+    const seed = dasLightClientSeed(new Uint8Array(32), 42n);
+    const idxs = dasLightClientSampleIndices(130_000, 3, seed);
+    expect(idxs.length).toBeGreaterThan(0);
   });
 
   it('encodes RenewMediaBlobPin (23) and PayBlobSample (24)', () => {

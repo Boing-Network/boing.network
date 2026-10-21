@@ -121,5 +121,60 @@ fn put_blob_round_trip_rpc() {
     let bad = put_tx(&sk, 1, oversize, BlobRetention::Forever);
     assert!(n.submit_transaction(bad).is_err());
 
+    // Phase 6: DAS light-client batch + node-local sample offer book
+    let lc = n
+        .media_blobs_rpc(
+            "boing_getBlobDasLightClientBatch",
+            &json!([format!("0x{}", hex::encode(id)), 4]),
+        )
+        .unwrap();
+    assert!(lc["samples"].as_array().unwrap().len() >= 1);
+    assert_eq!(lc["blobId"], format!("0x{}", hex::encode(id)));
+
+    let provider = format!("0x{}", hex::encode([9u8; 32]));
+    let put_offer = n
+        .media_blobs_rpc(
+            "boing_putBlobSampleOffer",
+            &json!([{
+                "blobId": format!("0x{}", hex::encode(id)),
+                "chunkIndex": 0,
+                "chunkCount": 1,
+                "provider": provider,
+                "askFee": "7",
+                "expiresAtHeight": 0,
+            }]),
+        )
+        .unwrap();
+    assert_eq!(put_offer["ok"], true);
+    let listed = n
+        .media_blobs_rpc(
+            "boing_listBlobSampleOffers",
+            &json!([format!("0x{}", hex::encode(id))]),
+        )
+        .unwrap();
+    assert_eq!(listed["offers"].as_array().unwrap().len(), 1);
+    let matched = n
+        .media_blobs_rpc(
+            "boing_matchBlobSampleOffer",
+            &json!([{
+                "blobId": format!("0x{}", hex::encode(id)),
+                "chunkIndex": 0,
+                "chunkCount": 1,
+                "payer": format!("0x{}", hex::encode(idk(&sk).0)),
+                "paidFee": "7",
+            }]),
+        )
+        .unwrap();
+    assert_eq!(matched["offer"]["askFee"], "7");
+
+    let params = n
+        .media_blobs_rpc("boing_getMediaBlobParams", &json!([]))
+        .unwrap();
+    assert_eq!(params["maxBytes"], MAX_MEDIA_BLOB_BYTES);
+    assert_eq!(
+        params["phase6TargetMaxBytes"],
+        boing_primitives::PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES
+    );
+
     let _ = std::fs::remove_dir_all(dir);
 }
