@@ -109,6 +109,19 @@ fn main() {
         hex::encode(&p)
     );
 
+    let chal = TransactionPayload::ChallengeBlobSampleServe {
+        blob_id: boing_primitives::blob_id_of(&[0x89, 0x50, 0x4e, 0x47]),
+        chunk_index: 0,
+        chunk_count: 1,
+        provider: AccountId([9u8; 32]),
+    };
+    let p = bincode::serialize(&chal).unwrap();
+    println!(
+        "ChallengeBlobSampleServe: len={} hex={}",
+        p.len(),
+        hex::encode(&p)
+    );
+
     let qv = TransactionPayload::QaPoolVote {
         subject: boing_primitives::Hash([3u8; 32]),
         vote: boing_primitives::QaPoolVoteKind::Allow,

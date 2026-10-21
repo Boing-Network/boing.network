@@ -274,6 +274,31 @@ impl Transaction {
                 hex::encode(&blob_id[..8]),
                 chunk_index
             ),
+            TransactionPayload::ChallengeBlobSampleServe {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                provider,
+            } => format!(
+                "Challenge media blob sample serve {} (chunk {}/{}, provider {})",
+                hex::encode(&blob_id[..8]),
+                chunk_index,
+                chunk_count,
+                hex::encode(&provider.0[..8])
+            ),
+            TransactionPayload::RespondBlobSampleServe {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                challenger,
+                ..
+            } => format!(
+                "Respond media blob sample serve {} (chunk {}/{}, challenger {})",
+                hex::encode(&blob_id[..8]),
+                chunk_index,
+                chunk_count,
+                hex::encode(&challenger.0[..8])
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -370,6 +395,8 @@ impl Transaction {
             | TransactionPayload::RegisterBlobSampleOffer { .. }
             | TransactionPayload::SettleBlobSampleMatch { .. }
             | TransactionPayload::CancelBlobSampleOffer { .. }
+            | TransactionPayload::ChallengeBlobSampleServe { .. }
+            | TransactionPayload::RespondBlobSampleServe { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -577,6 +604,23 @@ pub enum TransactionPayload {
     CancelBlobSampleOffer {
         blob_id: crate::BlobId,
         chunk_index: u32,
+    },
+    /// Challenge that a provider failed to serve a settled sample (index **28**). Challenger = sender.
+    ChallengeBlobSampleServe {
+        blob_id: crate::BlobId,
+        chunk_index: u32,
+        chunk_count: u32,
+        provider: AccountId,
+    },
+    /// Provider responds to a serve challenge with a DAS merkle sample (index **29**).
+    RespondBlobSampleServe {
+        blob_id: crate::BlobId,
+        chunk_index: u32,
+        chunk_count: u32,
+        challenger: AccountId,
+        chunk_hash: [u8; 32],
+        chunks_root: [u8; 32],
+        siblings: Vec<[u8; 32]>,
     },
 }
 

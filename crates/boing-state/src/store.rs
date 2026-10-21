@@ -9,6 +9,7 @@ use crate::names::{NameRegistry, NameRegistryParams};
 use crate::open_validators::{OpenValidatorParams, OpenValidatorRegistry};
 use crate::qa_pending::QaPendingRecord;
 use crate::sample_offers::SampleOfferRegistry;
+use crate::sample_serve::SampleServeChallengeRegistry;
 use crate::sparse_merkle::{hash_account_leaf, hash_contract_code, SparseMerkleTree};
 
 /// Type alias for persisted contract storage entries: ((contract, key), value).
@@ -59,6 +60,7 @@ enum Undo {
     OpenValidators(Box<OpenValidatorRegistry>),
     Names(Box<NameRegistry>),
     SampleOffers(Box<SampleOfferRegistry>),
+    SampleServe(Box<SampleServeChallengeRegistry>),
 }
 
 /// State store with Sparse Merkle tree for state_root.
@@ -82,6 +84,8 @@ pub struct StateStore {
     name_registry_params: Option<NameRegistryParams>,
     /// Media-blob sample-offer registry (committed once non-empty). Phase 9.
     sample_offers: SampleOfferRegistry,
+    /// Sample-serve challenge registry (committed once non-empty). Phase 10.
+    sample_serve: SampleServeChallengeRegistry,
     /// Undo journal for live checkpoints (see [`StateCheckpoint`]).
     journal: Vec<Undo>,
     /// Shared with every live checkpoint; `strong_count > 1` means journaling is on.
@@ -92,6 +96,7 @@ pub struct StateStore {
     ov_snap_pos: Option<usize>,
     names_snap_pos: Option<usize>,
     sample_offers_snap_pos: Option<usize>,
+    sample_serve_snap_pos: Option<usize>,
 }
 
 impl StateStore {
@@ -116,6 +121,7 @@ impl StateStore {
         self.ov_snap_pos = None;
         self.names_snap_pos = None;
         self.sample_offers_snap_pos = None;
+        self.sample_serve_snap_pos = None;
         false
     }
 
@@ -264,6 +270,12 @@ impl StateStore {
                 Hash(self.sample_offers.commitment()),
             );
         }
+        if !self.sample_serve.is_empty() {
+            self.tree.insert_leaf_hash(
+                SampleServeChallengeRegistry::smt_key(),
+                Hash(self.sample_serve.commitment()),
+            );
+        }
         self.tree.root()
     }
 
@@ -300,6 +312,7 @@ impl StateStore {
         out.names = self.names.clone();
         out.name_registry_params = self.name_registry_params.clone();
         out.sample_offers = self.sample_offers.clone();
+        out.sample_serve = self.sample_serve.clone();
         out
     }
 
@@ -358,6 +371,7 @@ impl StateStore {
                 Undo::OpenValidators(reg) => self.open_validators = *reg,
                 Undo::Names(reg) => self.names = *reg,
                 Undo::SampleOffers(reg) => self.sample_offers = *reg,
+                Undo::SampleServe(reg) => self.sample_serve = *reg,
             }
         }
         // Checkpoints created after `cp` are dead (nested scopes); keep the live-position bound.
@@ -370,6 +384,9 @@ impl StateStore {
         }
         if matches!(self.sample_offers_snap_pos, Some(p) if p >= cp.pos) {
             self.sample_offers_snap_pos = None;
+        }
+        if matches!(self.sample_serve_snap_pos, Some(p) if p >= cp.pos) {
+            self.sample_serve_snap_pos = None;
         }
     }
 
@@ -563,6 +580,25 @@ impl StateStore {
     /// Replace the sample-offer registry (persistence load).
     pub fn load_sample_offers(&mut self, reg: SampleOfferRegistry) {
         *self.sample_offers_mut() = reg;
+    }
+
+    /// Sample-serve challenge registry (read).
+    pub fn sample_serve(&self) -> &SampleServeChallengeRegistry {
+        &self.sample_serve
+    }
+
+    pub fn sample_serve_mut(&mut self) -> &mut SampleServeChallengeRegistry {
+        if self.journaling() && self.snapshot_needed(self.sample_serve_snap_pos) {
+            self.sample_serve_snap_pos = Some(self.journal.len());
+            self.journal
+                .push(Undo::SampleServe(Box::new(self.sample_serve.clone())));
+        }
+        &mut self.sample_serve
+    }
+
+    /// Replace the sample-serve registry (persistence load).
+    pub fn load_sample_serve(&mut self, reg: SampleServeChallengeRegistry) {
+        *self.sample_serve_mut() = reg;
     }
 
     /// Open-mode node config (`None` = open mode off).

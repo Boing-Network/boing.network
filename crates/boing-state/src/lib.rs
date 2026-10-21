@@ -5,6 +5,7 @@
 pub mod names;
 pub mod open_validators;
 pub mod sample_offers;
+pub mod sample_serve;
 mod qa_pending;
 mod sparse_merkle;
 mod store;
@@ -20,6 +21,7 @@ pub use open_validators::{
 pub use sample_offers::{
     EscrowedSampleOffer, SampleOfferRegistry, SampleOfferRegistryError,
 };
+pub use sample_serve::{SampleServeChallengeError, SampleServeChallengeRegistry};
 pub use qa_pending::{unpaid_counted_voters, QaPendingRecord};
 pub use sparse_merkle::{
     hash_account_leaf, hash_contract_code, MerkleProof, ProofStep, SparseMerkleTree,

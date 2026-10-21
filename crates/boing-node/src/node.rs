@@ -1333,6 +1333,49 @@ impl BoingNode {
                     ));
                 }
             }
+            TransactionPayload::ChallengeBlobSampleServe {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                provider,
+            } => {
+                require_active()?;
+                let max_chunks = boing_primitives::media_blob_max_das_chunks_at(
+                    next,
+                    self.executor.vm().media_blobs_phase7_cap_from(),
+                );
+                if let Err(e) = boing_primitives::validate_pay_blob_sample_with_max_chunks(
+                    blob_id,
+                    *chunk_index,
+                    *chunk_count,
+                    max_chunks,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(e.to_string()));
+                }
+                if provider == &signed.tx.sender {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "cannot challenge own sample serve".into(),
+                    ));
+                }
+            }
+            TransactionPayload::RespondBlobSampleServe {
+                blob_id,
+                chunk_index,
+                challenger,
+                ..
+            } => {
+                require_active()?;
+                if self
+                    .state
+                    .sample_serve()
+                    .get(blob_id, *chunk_index, &signed.tx.sender, challenger)
+                    .is_none()
+                {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "no matching open serve challenge".into(),
+                    ));
+                }
+            }
             _ => {}
         }
         Ok(())

@@ -4,7 +4,8 @@ use boing_primitives::{
     build_das_light_client_batch_from_bytes, build_das_light_client_batch_vrf,
     build_das_succinct_proof_stub, build_das_succinct_proof_stub_vrf, chunk_media_blob,
     match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
-    phase9_cap_activation_checklist, verify_das_succinct_proof, AccountId, BlobRetention,
+    phase10_cap_activation_checklist, phase10_das_succinct_proof_plan, verify_das_succinct_proof,
+    AccountId, BlobRetention, BlobSampleServeChallengeStatus,
     BlobSampleOfferSource, BlobSampleSettleQuote, DasSuccinctProof, DasSuccinctProofKind,
     MediaBlobSampleOffer, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
     MAX_MEDIA_BLOB_INLINE_BYTES, MAX_MEDIA_BLOB_INLINE_PREFER_BYTES,
@@ -33,6 +34,8 @@ pub const MEDIA_BLOB_RPC_METHODS: &[&str] = &[
     "boing_verifyBlobDasSuccinctProof",
     "boing_getLeaderVrfOutput",
     "boing_listSmtBlobSampleOffers",
+    "boing_listBlobSampleServeChallenges",
+    "boing_getBlobDasSuccinctProofPlan",
 ];
 
 fn hex0x(b: &[u8]) -> String {
@@ -371,9 +374,16 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "capActivationChecklist",
-                json!(phase9_cap_activation_checklist(phase7_from)),
+                json!(phase10_cap_activation_checklist(phase7_from)),
             );
             put(&mut m, "cancelBlobSampleOfferVariant", json!(27));
+            put(&mut m, "challengeBlobSampleServeVariant", json!(28));
+            put(&mut m, "respondBlobSampleServeVariant", json!(29));
+            put(
+                &mut m,
+                "serveChallengeWindowBlocks",
+                json!(boing_primitives::PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS),
+            );
             put(
                 &mut m,
                 "askEscrowAccount",
@@ -386,8 +396,18 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             );
             put(
                 &mut m,
+                "smtServeChallengeCount",
+                json!(node.state.sample_serve().len()),
+            );
+            put(
+                &mut m,
+                "dasSuccinctProofPlan",
+                json!(phase10_das_succinct_proof_plan()),
+            );
+            put(
+                &mut m,
                 "note",
-                json!("Phase 9: SMT-resident sample offers + ask_fee escrow; CancelBlobSampleOffer (27); leader-VRF LC path (boing_getLeaderVrfOutput / useLeaderVrf); StubBlake3V0 succinct envelope (not a SNARK); gated 256 MiB via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe)."),
+                json!("Phase 10: serve challenge/respond (28/29); ReservedRealV1 opaque DAS path (verify rejects); SMT offers + ask escrow; leader-VRF LC; StubBlake3V0; gated 256 MiB via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe)."),
             );
             Ok(Value::Object(m))
         }
@@ -830,6 +850,41 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 "note": "SMT-resident SampleOfferRegistry (Phase 9). ask_fee is escrowed in the system ask account.",
             }))
         }
+        "boing_listBlobSampleServeChallenges" => {
+            let id = parse_id_param(params)?;
+            let tip = node.chain.height();
+            let _ = node.state.sample_serve().len(); // read path
+            // resolve expired for display: clone + resolve
+            let mut reg = node.state.sample_serve().clone();
+            let expired = reg.resolve_expired(tip);
+            let list = reg.list_for_blob(&id, tip);
+            Ok(json!({
+                "blobId": hex0x(&id),
+                "tipHeight": tip,
+                "resolvedExpiredThisCall": expired,
+                "challenges": list.iter().map(|c| json!({
+                    "blobId": hex0x(&c.blob_id),
+                    "chunkIndex": c.chunk_index,
+                    "chunkCount": c.chunk_count,
+                    "provider": hex0x(&c.provider.0),
+                    "challenger": hex0x(&c.challenger.0),
+                    "openedAtHeight": c.opened_at_height,
+                    "deadlineHeight": c.deadline_height,
+                    "status": match c.status {
+                        BlobSampleServeChallengeStatus::Open => "open",
+                        BlobSampleServeChallengeStatus::Responded => "responded",
+                        BlobSampleServeChallengeStatus::FailedServe => "failedServe",
+                    },
+                })).collect::<Vec<_>>(),
+                "note": "FailedServe is a signal only — no automatic slash yet (Phase 10).",
+            }))
+        }
+        "boing_getBlobDasSuccinctProofPlan" => Ok(json!({
+            "kinds": ["stubBlake3V0", "reservedRealV1"],
+            "plan": phase10_das_succinct_proof_plan(),
+            "maxOpaqueProofBytes": boing_primitives::PHASE10_MAX_OPAQUE_PROOF_BYTES,
+            "note": "ReservedRealV1 opaque envelopes encode/store but verify always rejects until a real succinct system is wired.",
+        })),
         _ => Err((-32601, format!("unknown media blob method: {method}"))),
     }
 }

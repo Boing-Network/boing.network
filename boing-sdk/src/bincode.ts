@@ -48,6 +48,10 @@ export const PayloadVariant = {
   SettleBlobSampleMatch: 26,
   /** Cancel sample offer and refund escrow (Phase 9). */
   CancelBlobSampleOffer: 27,
+  /** Challenge sample serve availability (Phase 10). */
+  ChallengeBlobSampleServe: 28,
+  /** Respond to serve challenge with DAS sample (Phase 10). */
+  RespondBlobSampleServe: 29,
 } as const;
 
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
@@ -276,6 +280,23 @@ export type TransactionPayloadInput =
       kind: 'cancelBlobSampleOffer';
       blobId: Uint8Array;
       chunkIndex: number;
+    }
+  | {
+      kind: 'challengeBlobSampleServe';
+      blobId: Uint8Array;
+      chunkIndex: number;
+      chunkCount: number;
+      provider: Uint8Array;
+    }
+  | {
+      kind: 'respondBlobSampleServe';
+      blobId: Uint8Array;
+      chunkIndex: number;
+      chunkCount: number;
+      challenger: Uint8Array;
+      chunkHash: Uint8Array;
+      chunksRoot: Uint8Array;
+      siblings: Uint8Array[];
     };
 
 function need32(b: Uint8Array, what: string): Uint8Array {
@@ -469,6 +490,29 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
         need32(payload.blobId, 'blobId'),
         writeU32Le(payload.chunkIndex >>> 0),
       );
+    case 'challengeBlobSampleServe':
+      return concatBytes(
+        writeU32Le(PayloadVariant.ChallengeBlobSampleServe),
+        need32(payload.blobId, 'blobId'),
+        writeU32Le(payload.chunkIndex >>> 0),
+        writeU32Le(payload.chunkCount >>> 0),
+        need32(payload.provider, 'provider'),
+      );
+    case 'respondBlobSampleServe': {
+      const sibs = payload.siblings;
+      const parts: Uint8Array[] = [
+        writeU32Le(PayloadVariant.RespondBlobSampleServe),
+        need32(payload.blobId, 'blobId'),
+        writeU32Le(payload.chunkIndex >>> 0),
+        writeU32Le(payload.chunkCount >>> 0),
+        need32(payload.challenger, 'challenger'),
+        need32(payload.chunkHash, 'chunkHash'),
+        need32(payload.chunksRoot, 'chunksRoot'),
+        writeU64Le(BigInt(sibs.length)),
+      ];
+      for (const s of sibs) parts.push(need32(s, 'sibling'));
+      return concatBytes(...parts);
+    }
     default: {
       const _x: never = payload;
       return _x;
