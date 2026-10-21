@@ -142,4 +142,35 @@ export declare function matchSampleOffer(offer: MediaBlobSampleOffer, paidFee: b
 export declare function dasLightClientSeed(blobId: Uint8Array, tipHeight: bigint): bigint;
 /** Deterministic light-client sample indices (scaffold; not VRF-bound). */
 export declare function dasLightClientSampleIndices(blobSize: number, sampleCount: number, seed: bigint): number[];
+/** Phase 7: register on-chain sample offer (`RegisterBlobSampleOffer`, variant 25). */
+export declare function registerBlobSampleOfferPayload(input: {
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+    askFee: bigint;
+    expiresAtHeight?: bigint;
+}): TransactionPayloadInput;
+/** Phase 7: settle sample match (`SettleBlobSampleMatch`, variant 26). */
+export declare function settleBlobSampleMatchPayload(input: {
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+    provider: Uint8Array;
+}): TransactionPayloadInput;
+/** Phase 7 design / activated max (only live after cap activation height). */
+export declare const PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+/** Effective max bytes: raised only when `phase7CapActive`. Default = live 16 MiB. */
+export declare function mediaBlobMaxBytesAt(phase7CapActive: boolean): number;
+/** VRF-bound DAS seed (matches Rust `das_light_client_seed_from_vrf`). Caller must verify VRF. */
+export declare function dasLightClientSeedFromVrf(blobId: Uint8Array, vrfOutput: Uint8Array): bigint;
+/** Honest succinct commitment stub (not a SNARK). */
+export declare function dasSuccinctCommitmentStub(input: {
+    blobId: Uint8Array;
+    chunksRoot: Uint8Array;
+    seedHeight: bigint;
+    samples: Array<{
+        chunkIndex: number;
+        chunkHash: Uint8Array;
+    }>;
+}): Uint8Array;
 //# sourceMappingURL=mediaBlob.d.ts.map

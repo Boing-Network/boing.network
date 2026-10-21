@@ -6,8 +6,8 @@
 //!
 //! Phase 4: live cap **16 MiB**, XOR chunking, Forever pin fee, DAS sample hooks.
 //! Phase 5: Reed–Solomon path ([`crate::blobs_erasure`]), renew / sample txs, sampling fee hooks.
-//! Phase 6 scaffolds: [`crate::blobs_phase6`] (sampling market match, DAS light-client batch,
-//! segmented video manifest) — **not** consensus-activated.
+//! Phase 6: [`crate::blobs_phase6`] (sampling market, DAS LC batch, segment manifests).
+//! Phase 7: [`crate::blobs_phase7`] — on-chain offer/settle txs, VRF DAS seed, gated cap raise.
 
 use serde::{Deserialize, Serialize};
 
@@ -319,6 +319,21 @@ pub fn validate_pay_blob_sample(
     chunk_index: u32,
     chunk_count: u32,
 ) -> Result<(), BlobError> {
+    validate_pay_blob_sample_with_max_chunks(
+        blob_id,
+        chunk_index,
+        chunk_count,
+        media_blob_das_chunk_count(MAX_MEDIA_BLOB_BYTES) as u32,
+    )
+}
+
+/// Like [`validate_pay_blob_sample`], but with an explicit max chunk count (Phase 7 raised cap).
+pub fn validate_pay_blob_sample_with_max_chunks(
+    blob_id: &BlobId,
+    chunk_index: u32,
+    chunk_count: u32,
+    max_chunks: u32,
+) -> Result<(), BlobError> {
     let _ = blob_id;
     if chunk_count == 0 || chunk_index >= chunk_count {
         return Err(BlobError::SampleChunkOutOfRange {
@@ -326,13 +341,57 @@ pub fn validate_pay_blob_sample(
             count: chunk_count,
         });
     }
-    let max_chunks = media_blob_das_chunk_count(MAX_MEDIA_BLOB_BYTES) as u32;
     if chunk_count > max_chunks {
         return Err(BlobError::SampleChunkOutOfRange {
             index: chunk_index,
             count: chunk_count,
         });
     }
+    Ok(())
+}
+
+/// Validate PutBlob against an explicit size cap (Phase 7 gated raise).
+pub fn validate_put_blob_with_cap(
+    retention: BlobRetention,
+    content_type: &str,
+    data: &[u8],
+    max_bytes: usize,
+) -> Result<BlobId, BlobError> {
+    retention.validate()?;
+    if data.len() > max_bytes {
+        return Err(BlobError::TooLarge { size: data.len() });
+    }
+    if content_type.len() > MAX_MEDIA_BLOB_CONTENT_TYPE_LEN {
+        return Err(BlobError::ContentTypeTooLong {
+            len: content_type.len(),
+        });
+    }
+    Ok(blob_id_of(data))
+}
+
+/// Validate BlobAnnounce against an explicit size cap.
+pub fn validate_blob_announce_with_cap(
+    blob_id: &BlobId,
+    size: u32,
+    retention: BlobRetention,
+    content_type: &str,
+    max_bytes: usize,
+) -> Result<(), BlobError> {
+    retention.validate()?;
+    if size == 0 {
+        return Err(BlobError::AnnounceSizeZero);
+    }
+    if size as usize > max_bytes {
+        return Err(BlobError::TooLarge {
+            size: size as usize,
+        });
+    }
+    if content_type.len() > MAX_MEDIA_BLOB_CONTENT_TYPE_LEN {
+        return Err(BlobError::ContentTypeTooLong {
+            len: content_type.len(),
+        });
+    }
+    let _ = blob_id;
     Ok(())
 }
 

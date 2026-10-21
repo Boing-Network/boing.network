@@ -241,6 +241,31 @@ impl Transaction {
                 chunk_index,
                 chunk_count
             ),
+            TransactionPayload::RegisterBlobSampleOffer {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                ask_fee,
+                ..
+            } => format!(
+                "Register media blob sample offer {} (chunk {}/{}, ask {})",
+                hex::encode(&blob_id[..8]),
+                chunk_index,
+                chunk_count,
+                ask_fee
+            ),
+            TransactionPayload::SettleBlobSampleMatch {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                provider,
+            } => format!(
+                "Settle media blob sample {} (chunk {}/{}, provider {})",
+                hex::encode(&blob_id[..8]),
+                chunk_index,
+                chunk_count,
+                hex::encode(&provider.0[..8])
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -334,6 +359,8 @@ impl Transaction {
             | TransactionPayload::BlobAnnounce { .. }
             | TransactionPayload::RenewMediaBlobPin { .. }
             | TransactionPayload::PayBlobSample { .. }
+            | TransactionPayload::RegisterBlobSampleOffer { .. }
+            | TransactionPayload::SettleBlobSampleMatch { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -519,6 +546,22 @@ pub enum TransactionPayload {
         blob_id: crate::BlobId,
         chunk_index: u32,
         chunk_count: u32,
+    },
+    /// Register an on-chain DAS sample offer (index **25**). Provider = tx sender. Phase 7.
+    RegisterBlobSampleOffer {
+        blob_id: crate::BlobId,
+        chunk_index: u32,
+        chunk_count: u32,
+        ask_fee: u128,
+        expires_at_height: u64,
+    },
+    /// Settle a sample match against a registered provider (index **26**). Payer = tx sender;
+    /// charges `blob_sample_fee_per_chunk` like [`PayBlobSample`]. Phase 7 on-chain matcher path.
+    SettleBlobSampleMatch {
+        blob_id: crate::BlobId,
+        chunk_index: u32,
+        chunk_count: u32,
+        provider: AccountId,
     },
 }
 

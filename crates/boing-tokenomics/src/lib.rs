@@ -362,7 +362,10 @@ fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u12
             kib.saturating_mul(*extend_blocks as u128)
                 .saturating_mul(policy.blob_pin_renew_fee_per_kib_block)
         }
-        TransactionPayload::PayBlobSample { .. } => policy.blob_sample_fee_per_chunk,
+        TransactionPayload::PayBlobSample { .. }
+        | TransactionPayload::SettleBlobSampleMatch { .. } => policy.blob_sample_fee_per_chunk,
+        // Register is metadata-only (gas); ask_fee is settled off the protocol sample fee path.
+        TransactionPayload::RegisterBlobSampleOffer { .. } => 0,
         _ => 0,
     }
 }

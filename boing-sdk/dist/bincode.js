@@ -40,6 +40,10 @@ export const PayloadVariant = {
     RenewMediaBlobPin: 23,
     /** Pay for one DAS chunk sample (Phase 5 market scaffold). */
     PayBlobSample: 24,
+    /** Register on-chain sample offer (Phase 7). */
+    RegisterBlobSampleOffer: 25,
+    /** Settle sample match against a registered provider (Phase 7). */
+    SettleBlobSampleMatch: 26,
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export const BlobRetentionVariant = {
@@ -261,6 +265,10 @@ export function encodeTransactionPayload(payload) {
             return concatBytes(writeU32Le(PayloadVariant.RenewMediaBlobPin), need32(payload.blobId, 'blobId'), writeU32Le(payload.size >>> 0), writeU64Le(payload.extendBlocks));
         case 'payBlobSample':
             return concatBytes(writeU32Le(PayloadVariant.PayBlobSample), need32(payload.blobId, 'blobId'), writeU32Le(payload.chunkIndex >>> 0), writeU32Le(payload.chunkCount >>> 0));
+        case 'registerBlobSampleOffer':
+            return concatBytes(writeU32Le(PayloadVariant.RegisterBlobSampleOffer), need32(payload.blobId, 'blobId'), writeU32Le(payload.chunkIndex >>> 0), writeU32Le(payload.chunkCount >>> 0), writeU128Le(payload.askFee), writeU64Le(payload.expiresAtHeight));
+        case 'settleBlobSampleMatch':
+            return concatBytes(writeU32Le(PayloadVariant.SettleBlobSampleMatch), need32(payload.blobId, 'blobId'), writeU32Le(payload.chunkIndex >>> 0), writeU32Le(payload.chunkCount >>> 0), need32(payload.provider, 'provider'));
         default: {
             const _x = payload;
             return _x;

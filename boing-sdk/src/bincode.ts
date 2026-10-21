@@ -42,6 +42,10 @@ export const PayloadVariant = {
   RenewMediaBlobPin: 23,
   /** Pay for one DAS chunk sample (Phase 5 market scaffold). */
   PayBlobSample: 24,
+  /** Register on-chain sample offer (Phase 7). */
+  RegisterBlobSampleOffer: 25,
+  /** Settle sample match against a registered provider (Phase 7). */
+  SettleBlobSampleMatch: 26,
 } as const;
 
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
@@ -250,7 +254,22 @@ export type TransactionPayloadInput =
       contentType?: string;
     }
   | { kind: 'renewMediaBlobPin'; blobId: Uint8Array; size: number; extendBlocks: bigint }
-  | { kind: 'payBlobSample'; blobId: Uint8Array; chunkIndex: number; chunkCount: number };
+  | { kind: 'payBlobSample'; blobId: Uint8Array; chunkIndex: number; chunkCount: number }
+  | {
+      kind: 'registerBlobSampleOffer';
+      blobId: Uint8Array;
+      chunkIndex: number;
+      chunkCount: number;
+      askFee: bigint;
+      expiresAtHeight: bigint;
+    }
+  | {
+      kind: 'settleBlobSampleMatch';
+      blobId: Uint8Array;
+      chunkIndex: number;
+      chunkCount: number;
+      provider: Uint8Array;
+    };
 
 function need32(b: Uint8Array, what: string): Uint8Array {
   if (b.length !== 32) throw new Error(`${what} must be 32 bytes`);
@@ -419,6 +438,23 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
         need32(payload.blobId, 'blobId'),
         writeU32Le(payload.chunkIndex >>> 0),
         writeU32Le(payload.chunkCount >>> 0),
+      );
+    case 'registerBlobSampleOffer':
+      return concatBytes(
+        writeU32Le(PayloadVariant.RegisterBlobSampleOffer),
+        need32(payload.blobId, 'blobId'),
+        writeU32Le(payload.chunkIndex >>> 0),
+        writeU32Le(payload.chunkCount >>> 0),
+        writeU128Le(payload.askFee),
+        writeU64Le(payload.expiresAtHeight),
+      );
+    case 'settleBlobSampleMatch':
+      return concatBytes(
+        writeU32Le(PayloadVariant.SettleBlobSampleMatch),
+        need32(payload.blobId, 'blobId'),
+        writeU32Le(payload.chunkIndex >>> 0),
+        writeU32Le(payload.chunkCount >>> 0),
+        need32(payload.provider, 'provider'),
       );
     default: {
       const _x: never = payload;

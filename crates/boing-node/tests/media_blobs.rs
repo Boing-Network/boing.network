@@ -175,6 +175,23 @@ fn put_blob_round_trip_rpc() {
         params["phase6TargetMaxBytes"],
         boing_primitives::PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES
     );
+    assert_eq!(params["effectiveMaxBytesAtTip"], MAX_MEDIA_BLOB_BYTES);
+    assert_eq!(params["phase7CapActiveAtTip"], false);
+    assert_eq!(params["registerBlobSampleOfferVariant"], 25);
+    assert_eq!(params["settleBlobSampleMatchVariant"], 26);
+
+    // Phase 7 gated cap: still 16 MiB until activation; then effective max rises.
+    n.enable_media_blobs_phase7_cap(0);
+    let params2 = n
+        .media_blobs_rpc("boing_getMediaBlobParams", &json!([]))
+        .unwrap();
+    assert_eq!(params2["phase7CapActiveAtTip"], true);
+    assert_eq!(
+        params2["effectiveMaxBytesAtTip"],
+        boing_primitives::PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES
+    );
+    // Default constant unchanged (Fly boot safety).
+    assert_eq!(MAX_MEDIA_BLOB_BYTES, 16 * 1024 * 1024);
 
     let _ = std::fs::remove_dir_all(dir);
 }

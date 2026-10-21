@@ -521,3 +521,101 @@ export function dasLightClientSampleIndices(
   }
   return uniq.sort((a, b) => a - b);
 }
+
+
+/** Phase 7: register on-chain sample offer (`RegisterBlobSampleOffer`, variant 25). */
+export function registerBlobSampleOfferPayload(input: {
+  blobId: Uint8Array;
+  chunkIndex: number;
+  chunkCount: number;
+  askFee: bigint;
+  expiresAtHeight?: bigint;
+}): TransactionPayloadInput {
+  if (input.blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (input.chunkCount <= 0 || input.chunkIndex < 0 || input.chunkIndex >= input.chunkCount) {
+    throw new Error('chunkIndex out of range');
+  }
+  if (input.askFee < 0n) throw new Error('askFee must be >= 0');
+  return {
+    kind: 'registerBlobSampleOffer',
+    blobId: input.blobId,
+    chunkIndex: input.chunkIndex,
+    chunkCount: input.chunkCount,
+    askFee: input.askFee,
+    expiresAtHeight: input.expiresAtHeight ?? 0n,
+  };
+}
+
+/** Phase 7: settle sample match (`SettleBlobSampleMatch`, variant 26). */
+export function settleBlobSampleMatchPayload(input: {
+  blobId: Uint8Array;
+  chunkIndex: number;
+  chunkCount: number;
+  provider: Uint8Array;
+}): TransactionPayloadInput {
+  if (input.blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (input.provider.length !== 32) throw new Error('provider must be 32 bytes');
+  if (input.chunkCount <= 0 || input.chunkIndex < 0 || input.chunkIndex >= input.chunkCount) {
+    throw new Error('chunkIndex out of range');
+  }
+  return {
+    kind: 'settleBlobSampleMatch',
+    blobId: input.blobId,
+    chunkIndex: input.chunkIndex,
+    chunkCount: input.chunkCount,
+    provider: input.provider,
+  };
+}
+
+/** Phase 7 design / activated max (only live after cap activation height). */
+export const PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES;
+
+/** Effective max bytes: raised only when `phase7CapActive`. Default = live 16 MiB. */
+export function mediaBlobMaxBytesAt(phase7CapActive: boolean): number {
+  return phase7CapActive ? PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES : MAX_MEDIA_BLOB_BYTES;
+}
+
+/** VRF-bound DAS seed (matches Rust `das_light_client_seed_from_vrf`). Caller must verify VRF. */
+export function dasLightClientSeedFromVrf(blobId: Uint8Array, vrfOutput: Uint8Array): bigint {
+  if (blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (vrfOutput.length !== 32) throw new Error('vrfOutput must be 32 bytes');
+  const domain = new TextEncoder().encode('BOING_BLOB_DAS_VRF_SEED_V0');
+  const lc = new TextEncoder().encode('BOING_BLOB_DAS_LC_V0');
+  const buf = new Uint8Array(domain.length + lc.length + 64);
+  let o = 0;
+  buf.set(domain, o); o += domain.length;
+  buf.set(lc, o); o += lc.length;
+  buf.set(blobId, o); o += 32;
+  buf.set(vrfOutput, o);
+  const dig = blake3(buf);
+  return new DataView(dig.buffer, dig.byteOffset, 8).getBigUint64(0, true);
+}
+
+/** Honest succinct commitment stub (not a SNARK). */
+export function dasSuccinctCommitmentStub(input: {
+  blobId: Uint8Array;
+  chunksRoot: Uint8Array;
+  seedHeight: bigint;
+  samples: Array<{ chunkIndex: number; chunkHash: Uint8Array }>;
+}): Uint8Array {
+  const domain = new TextEncoder().encode('BOING_BLOB_DAS_SUCCINCT_STUB_V0');
+  const h = new Uint8Array(8);
+  new DataView(h.buffer).setBigUint64(0, input.seedHeight, true);
+  const count = new Uint8Array(4);
+  new DataView(count.buffer).setUint32(0, input.samples.length, true);
+  const parts: Uint8Array[] = [domain, input.blobId, input.chunksRoot, h, count];
+  for (const s of input.samples) {
+    const idx = new Uint8Array(4);
+    new DataView(idx.buffer).setUint32(0, s.chunkIndex >>> 0, true);
+    parts.push(idx, s.chunkHash);
+  }
+  let len = 0;
+  for (const p of parts) len += p.length;
+  const buf = new Uint8Array(len);
+  let o = 0;
+  for (const p of parts) {
+    buf.set(p, o);
+    o += p.length;
+  }
+  return blake3(buf);
+}

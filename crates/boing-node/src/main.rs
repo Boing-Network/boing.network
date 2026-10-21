@@ -146,7 +146,7 @@ struct Args {
     name_registry_activation_height: Option<u64>,
 
     /// Enable L1 media blobs (PutBlob) from this height (all nodes must agree). Overrides
-    /// **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`**. Unset = media blobs off. Cap 1 MiB (Phase 2).
+    /// **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`**. Unset = media blobs off. Default live cap **16 MiB**.
     #[arg(long)]
     media_blobs_activation_height: Option<u64>,
 
@@ -154,6 +154,11 @@ struct Args {
     /// Overrides **`BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`**. Unset = omit field (default).
     #[arg(long)]
     blobs_root_header_activation_height: Option<u64>,
+
+    /// Phase 7: raise Put/Announce max toward 256 MiB from this height (all nodes must agree).
+    /// Overrides **`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`**. Unset = keep **16 MiB** (Fly-safe).
+    #[arg(long)]
+    media_blobs_phase7_cap_activation_height: Option<u64>,
 
     /// Honor reduced `execution_gas_fee_bps` (micro fee / waive) from this height. Overrides
     /// **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`**. Below it, gas is always the full historical schedule.
@@ -215,6 +220,18 @@ async fn main() -> anyhow::Result<()> {
     if let Some(h) = blobs_root_header_from {
         tracing::info!(
             "Media blobs Phase 3: blobs_root in BlockHeader from height={}",
+            h
+        );
+    }
+    let phase7_cap_from =
+        boing_node::media_blob_config::resolve_media_blobs_phase7_cap_activation(
+            args.media_blobs_phase7_cap_activation_height,
+        )
+        .map_err(|e| anyhow::anyhow!("media blobs phase7 cap config: {e}"))?;
+    if let Some(h) = phase7_cap_from {
+        tracing::info!(
+            "Media blobs Phase 7: raised Put/Announce cap ({} bytes) from height={} — all validators must agree",
+            boing_primitives::PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
             h
         );
     }
@@ -337,6 +354,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = blobs_root_header_from {
                 n.enable_blobs_root_header(h);
+            }
+            if let Some(h) = phase7_cap_from {
+                n.enable_media_blobs_phase7_cap(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -545,6 +565,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = blobs_root_header_from {
                 n.enable_blobs_root_header(h);
+            }
+            if let Some(h) = phase7_cap_from {
+                n.enable_media_blobs_phase7_cap(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();

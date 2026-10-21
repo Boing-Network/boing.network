@@ -152,48 +152,151 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
     match method {
         "boing_getMediaBlobParams" => {
             let header_from = node.blobs_root_header_activation_height();
-            Ok(json!({
-                "active": node.media_blobs_active_at_tip(),
-                "activationHeight": node.media_blobs_activation_height(),
-                "maxBytes": MAX_MEDIA_BLOB_BYTES,
-                "maxInlineBytes": MAX_MEDIA_BLOB_INLINE_BYTES,
-                "maxInlinePreferBytes": MAX_MEDIA_BLOB_INLINE_PREFER_BYTES,
-                "maxContentTypeLen": MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
-                "maxTtlBlocks": MAX_MEDIA_BLOB_TTL_BLOCKS,
-                "gasBase": MEDIA_BLOB_GAS_BASE,
-                "gasPerWord": MEDIA_BLOB_GAS_PER_WORD,
-                "foreverMultiplier": MEDIA_BLOB_FOREVER_MULTIPLIER,
-                "uriPrefix": MEDIA_BLOB_URI_PREFIX,
-                "gossipTopic": MEDIA_BLOBS_GOSSIP_TOPIC,
-                "putBlobVariant": 21,
-                "blobAnnounceVariant": 22,
-                "blobsRootInHeader": true,
-                "blobsRootHeaderActivationHeight": header_from,
-                "blobsRootVerifiedWhenActivated": header_from.is_some(),
-                "phase3TargetMaxBytes": PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
-                "dasChunkBytes": MEDIA_BLOB_DAS_CHUNK_BYTES,
-                "dasSampleRpc": "boing_getBlobDasSample",
-                "dasLightClientBatchRpc": "boing_getBlobDasLightClientBatch",
-                "rsParityShards": MEDIA_BLOB_RS_PARITY_SHARDS,
-                "renewMediaBlobPinVariant": 23,
-                "payBlobSampleVariant": 24,
-                "maxRenewExtendBlocks": MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS,
-                "videoPinHorizonBlocksHint": MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS,
-                "foreverPinFeePolicyField": "blob_forever_pin_fee_per_kib",
-                "pinRenewFeePolicyField": "blob_pin_renew_fee_per_kib_block",
-                "sampleFeePolicyField": "blob_sample_fee_per_chunk",
-                "phase6TargetMaxBytes": PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES,
-                "phase6VideoSegmentTargetBytes": PHASE6_VIDEO_SEGMENT_TARGET_BYTES,
-                "phase6MaxVideoSegments": PHASE6_MAX_VIDEO_SEGMENTS,
-                "phase6MaxDasLightClientSamples": PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES,
-                "phase6MaxSampleOffers": PHASE6_MAX_SAMPLE_OFFERS,
-                "sampleOfferRpcs": [
+            let next = node.chain.height().saturating_add(1);
+            let phase7_from = node.media_blobs_phase7_cap_activation_height();
+            let mut m = serde_json::Map::new();
+            let put = |m: &mut serde_json::Map<String, Value>, k: &str, v: Value| {
+                m.insert(k.into(), v);
+            };
+            put(&mut m, "active", json!(node.media_blobs_active_at_tip()));
+            put(
+                &mut m,
+                "activationHeight",
+                json!(node.media_blobs_activation_height()),
+            );
+            put(&mut m, "maxBytes", json!(MAX_MEDIA_BLOB_BYTES));
+            put(&mut m, "maxInlineBytes", json!(MAX_MEDIA_BLOB_INLINE_BYTES));
+            put(
+                &mut m,
+                "maxInlinePreferBytes",
+                json!(MAX_MEDIA_BLOB_INLINE_PREFER_BYTES),
+            );
+            put(
+                &mut m,
+                "maxContentTypeLen",
+                json!(MAX_MEDIA_BLOB_CONTENT_TYPE_LEN),
+            );
+            put(&mut m, "maxTtlBlocks", json!(MAX_MEDIA_BLOB_TTL_BLOCKS));
+            put(&mut m, "gasBase", json!(MEDIA_BLOB_GAS_BASE));
+            put(&mut m, "gasPerWord", json!(MEDIA_BLOB_GAS_PER_WORD));
+            put(
+                &mut m,
+                "foreverMultiplier",
+                json!(MEDIA_BLOB_FOREVER_MULTIPLIER),
+            );
+            put(&mut m, "uriPrefix", json!(MEDIA_BLOB_URI_PREFIX));
+            put(&mut m, "gossipTopic", json!(MEDIA_BLOBS_GOSSIP_TOPIC));
+            put(&mut m, "putBlobVariant", json!(21));
+            put(&mut m, "blobAnnounceVariant", json!(22));
+            put(&mut m, "blobsRootInHeader", json!(true));
+            put(
+                &mut m,
+                "blobsRootHeaderActivationHeight",
+                json!(header_from),
+            );
+            put(
+                &mut m,
+                "blobsRootVerifiedWhenActivated",
+                json!(header_from.is_some()),
+            );
+            put(
+                &mut m,
+                "phase3TargetMaxBytes",
+                json!(PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES),
+            );
+            put(&mut m, "dasChunkBytes", json!(MEDIA_BLOB_DAS_CHUNK_BYTES));
+            put(&mut m, "dasSampleRpc", json!("boing_getBlobDasSample"));
+            put(
+                &mut m,
+                "dasLightClientBatchRpc",
+                json!("boing_getBlobDasLightClientBatch"),
+            );
+            put(&mut m, "rsParityShards", json!(MEDIA_BLOB_RS_PARITY_SHARDS));
+            put(&mut m, "renewMediaBlobPinVariant", json!(23));
+            put(&mut m, "payBlobSampleVariant", json!(24));
+            put(&mut m, "registerBlobSampleOfferVariant", json!(25));
+            put(&mut m, "settleBlobSampleMatchVariant", json!(26));
+            put(
+                &mut m,
+                "phase7ActivatedMaxBytes",
+                json!(boing_primitives::PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES),
+            );
+            put(&mut m, "phase7CapActivationHeight", json!(phase7_from));
+            put(
+                &mut m,
+                "phase7CapActiveAtTip",
+                json!(phase7_from.is_some_and(|h| next >= h)),
+            );
+            put(
+                &mut m,
+                "effectiveMaxBytesAtTip",
+                json!(node.executor.vm().media_blob_max_bytes(next)),
+            );
+            put(
+                &mut m,
+                "maxRenewExtendBlocks",
+                json!(MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS),
+            );
+            put(
+                &mut m,
+                "videoPinHorizonBlocksHint",
+                json!(MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS),
+            );
+            put(
+                &mut m,
+                "foreverPinFeePolicyField",
+                json!("blob_forever_pin_fee_per_kib"),
+            );
+            put(
+                &mut m,
+                "pinRenewFeePolicyField",
+                json!("blob_pin_renew_fee_per_kib_block"),
+            );
+            put(
+                &mut m,
+                "sampleFeePolicyField",
+                json!("blob_sample_fee_per_chunk"),
+            );
+            put(
+                &mut m,
+                "phase6TargetMaxBytes",
+                json!(PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES),
+            );
+            put(
+                &mut m,
+                "phase6VideoSegmentTargetBytes",
+                json!(PHASE6_VIDEO_SEGMENT_TARGET_BYTES),
+            );
+            put(
+                &mut m,
+                "phase6MaxVideoSegments",
+                json!(PHASE6_MAX_VIDEO_SEGMENTS),
+            );
+            put(
+                &mut m,
+                "phase6MaxDasLightClientSamples",
+                json!(PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES),
+            );
+            put(
+                &mut m,
+                "phase6MaxSampleOffers",
+                json!(PHASE6_MAX_SAMPLE_OFFERS),
+            );
+            put(
+                &mut m,
+                "sampleOfferRpcs",
+                json!([
                     "boing_putBlobSampleOffer",
                     "boing_listBlobSampleOffers",
-                    "boing_matchBlobSampleOffer",
-                ],
-                "note": "Phase 5 live: RS (parity=2) + Renew/PayBlobSample. Phase 6: node-local sample offer book + DAS light-client batch RPC + segment helpers. Design target 256 MiB via segments — live Put/Announce cap remains 16 MiB. Sample book is not consensus.",
-            }))
+                    "boing_matchBlobSampleOffer"
+                ]),
+            );
+            put(
+                &mut m,
+                "note",
+                json!("Phase 7: on-chain RegisterBlobSampleOffer (25) / SettleBlobSampleMatch (26); VRF DAS seed + succinct stub; gated 256 MiB cap via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB)."),
+            );
+            Ok(Value::Object(m))
         }
         "boing_getBlobMeta" => {
             let id = parse_id_param(params)?;
