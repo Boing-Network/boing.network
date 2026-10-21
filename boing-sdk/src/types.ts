@@ -378,10 +378,10 @@ export interface BlockHeader {
   receipts_root: string;
   state_root: string;
   /**
-   * Phase 3 opt-in: media blob commitment (`blobs_root_of_transactions`).
-   * Omitted before `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`.
+   * Media blob commitment (`blobs_root_of_transactions`).
+   * Zero / omitted in JSON before activation; always present in bincode headers.
    */
-  blobs_root?: string | null;
+  blobs_root?: string;
 }
 
 /** One log entry from contract execution (`LOG0`..`LOG4`). */

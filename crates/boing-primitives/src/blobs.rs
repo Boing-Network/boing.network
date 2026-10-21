@@ -4,8 +4,8 @@
 //! [`crate::TransactionPayload::PutBlob`] (inline) or [`crate::TransactionPayload::BlobAnnounce`]
 //! (commitment; bytes arrive via P2P / RPC). See `docs/BOING-L1-MEDIA-BLOBS.md`.
 //!
-//! Phase 4: live cap raised to **16 MiB** (still not video-scale), real chunking + XOR recovery
-//! stubs, Forever pin-fee hook, and light-client DAS sample / merkle inclusion hooks.
+//! Phase 4: live cap **16 MiB**, XOR chunking, Forever pin fee, DAS sample hooks.
+//! Phase 5: Reed–Solomon path ([`crate::blobs_erasure`]), renew / sample txs, sampling fee hooks.
 
 use serde::{Deserialize, Serialize};
 
@@ -41,6 +41,12 @@ pub const MAX_MEDIA_BLOB_CONTENT_TYPE_LEN: usize = 64;
 
 /// Soft cap on prunable TTL (blocks).
 pub const MAX_MEDIA_BLOB_TTL_BLOCKS: u64 = 1_000_000;
+
+/// Max blocks a single [`crate::TransactionPayload::RenewMediaBlobPin`] may extend.
+pub const MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS: u64 = 1_000_000;
+
+/// Suggested pin horizon for multi-minute / large Forever media economics docs (not a hard cap).
+pub const MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS: u64 = 150_000;
 
 /// Base gas for PutBlob / BlobAnnounce before size and retention scaling.
 pub const MEDIA_BLOB_GAS_BASE: u64 = 21_000;
@@ -160,6 +166,20 @@ pub enum BlobError {
     RecoveryIdMismatch,
     #[error("DAS sample proof does not verify against chunks_root")]
     DasProofInvalid,
+    #[error("invalid Reed–Solomon params (data={data}, parity={parity})")]
+    RsInvalidParams { data: usize, parity: usize },
+    #[error("Reed–Solomon encode failed")]
+    RsEncodeFailed,
+    #[error("Reed–Solomon reconstruct failed")]
+    RsReconstructFailed,
+    #[error("Reed–Solomon shard count mismatch: expected {expected}, got {got}")]
+    RsShardCountMismatch { expected: usize, got: usize },
+    #[error("renew extend_blocks must be >= 1")]
+    RenewExtendZero,
+    #[error("renew extend_blocks {extend} exceeds max {max}")]
+    RenewExtendTooLarge { extend: u64, max: u64 },
+    #[error("sample chunk index {index} out of range (count={count})")]
+    SampleChunkOutOfRange { index: u32, count: u32 },
 }
 
 /// `BLAKE3(data)` as [`BlobId`].
@@ -247,6 +267,59 @@ pub fn validate_blob_announce(
     }
     let _ = blob_id;
     Ok(())
+}
+
+/// Validate Forever / prunable pin renewal (Phase 5).
+pub fn validate_renew_media_blob_pin(
+    blob_id: &BlobId,
+    size: u32,
+    extend_blocks: u64,
+) -> Result<(), BlobError> {
+    let _ = blob_id;
+    if size == 0 || size as usize > MAX_MEDIA_BLOB_BYTES {
+        return Err(BlobError::TooLarge {
+            size: size as usize,
+        });
+    }
+    if extend_blocks == 0 {
+        return Err(BlobError::RenewExtendZero);
+    }
+    if extend_blocks > MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS {
+        return Err(BlobError::RenewExtendTooLarge {
+            extend: extend_blocks,
+            max: MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS,
+        });
+    }
+    Ok(())
+}
+
+/// Validate paid sample payment stub (Phase 5 market scaffolding).
+pub fn validate_pay_blob_sample(
+    blob_id: &BlobId,
+    chunk_index: u32,
+    chunk_count: u32,
+) -> Result<(), BlobError> {
+    let _ = blob_id;
+    if chunk_count == 0 || chunk_index >= chunk_count {
+        return Err(BlobError::SampleChunkOutOfRange {
+            index: chunk_index,
+            count: chunk_count,
+        });
+    }
+    let max_chunks = media_blob_das_chunk_count(MAX_MEDIA_BLOB_BYTES) as u32;
+    if chunk_count > max_chunks {
+        return Err(BlobError::SampleChunkOutOfRange {
+            index: chunk_index,
+            count: chunk_count,
+        });
+    }
+    Ok(())
+}
+
+/// Base gas for renew / sample txs (metadata only).
+#[must_use]
+pub fn media_blob_meta_tx_gas() -> u64 {
+    MEDIA_BLOB_GAS_BASE
 }
 
 /// Size-scaled blob gas before retention multiplier.

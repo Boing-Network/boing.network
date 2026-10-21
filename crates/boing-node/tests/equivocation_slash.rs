@@ -68,6 +68,7 @@ fn node_with_validators(validators: Vec<AccountId>, stakes: &[(AccountId, u128)]
         anchor_fallback_timeout: boing_node::node::DEFAULT_ANCHOR_FALLBACK_TIMEOUT,
         anchor_fallback_wait: None,
         last_local_vote_round: None,
+        media_blob_store: None,
     }
 }
 
@@ -92,7 +93,7 @@ fn equivocation_slash_burns_half_active_stake() {
             tx_root: Hash::ZERO,
             receipts_root: Hash::ZERO,
             state_root: Hash::ZERO,
-            blobs_root: None,
+            blobs_root: boing_primitives::Hash::ZERO,
         },
         transactions: vec![],
         signatures: vec![],

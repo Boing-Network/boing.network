@@ -165,10 +165,14 @@ impl BlockProducer {
 
         let state_root = state.state_root();
         let rr = receipts_root(&receipts);
-        let blobs_root = self
+        let blobs_root = if self
             .blobs_root_header_from
-            .filter(|&from| height >= from)
-            .map(|_| blobs_root_of_transactions(&txs));
+            .is_some_and(|from| height >= from)
+        {
+            blobs_root_of_transactions(&txs)
+        } else {
+            boing_primitives::Hash::ZERO
+        };
 
         let block = Block {
             header: BlockHeader {

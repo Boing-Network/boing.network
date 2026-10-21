@@ -13,8 +13,10 @@ import {
   mediaBlobUri,
   parseMediaBlobId,
   PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
+  payBlobSamplePayload,
   putBlobPayload,
   recoverMediaBlobXor,
+  renewMediaBlobPinPayload,
   tokenMetadataJsonWithBlobImage,
   validatePutBlob,
 } from '../src/mediaBlob.js';
@@ -65,6 +67,18 @@ describe('mediaBlob', () => {
     expect(() =>
       validatePutBlob({ kind: 'forever' }, '', new Uint8Array(MAX_MEDIA_BLOB_BYTES + 1)),
     ).toThrow(/MAX_MEDIA_BLOB_BYTES/);
+  });
+
+  it('encodes RenewMediaBlobPin (23) and PayBlobSample (24)', () => {
+    const id = blobIdOf(new Uint8Array([1, 2, 3]));
+    const renew = encodeTransactionPayload(
+      renewMediaBlobPinPayload({ blobId: id, size: 3, extendBlocks: 100n }),
+    );
+    expect(renew[0]).toBe(23);
+    const sample = encodeTransactionPayload(
+      payBlobSamplePayload({ blobId: id, chunkIndex: 0, chunkCount: 1 }),
+    );
+    expect(sample[0]).toBe(24);
   });
 
   it('encodes PutBlob (21) and BlobAnnounce (22)', () => {

@@ -463,6 +463,7 @@ async fn main() -> anyhow::Result<()> {
                                     publisher: [0u8; 32],
                                     included_height: n.chain.height(),
                                     tx_id: [0u8; 32],
+                                    pin_until_height: None,
                                 };
                                 if let Err(e) = store.put(meta, &blob.data) {
                                     logging::log_p2p_event_warn("gossip_media_blob_store", &e);

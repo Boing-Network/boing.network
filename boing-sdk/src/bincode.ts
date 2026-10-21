@@ -38,6 +38,10 @@ export const PayloadVariant = {
   PutBlob: 21,
   /** Announce blob id + size without inline bytes (P2P / sidecar data plane). */
   BlobAnnounce: 22,
+  /** Extend media blob pin horizon (Phase 5). */
+  RenewMediaBlobPin: 23,
+  /** Pay for one DAS chunk sample (Phase 5 market scaffold). */
+  PayBlobSample: 24,
 } as const;
 
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
@@ -244,7 +248,9 @@ export type TransactionPayloadInput =
       size: number;
       retention: { kind: 'forever' } | { kind: 'prunable'; ttlBlocks: bigint };
       contentType?: string;
-    };
+    }
+  | { kind: 'renewMediaBlobPin'; blobId: Uint8Array; size: number; extendBlocks: bigint }
+  | { kind: 'payBlobSample'; blobId: Uint8Array; chunkIndex: number; chunkCount: number };
 
 function need32(b: Uint8Array, what: string): Uint8Array {
   if (b.length !== 32) throw new Error(`${what} must be 32 bytes`);
@@ -400,6 +406,20 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
         encodeBincodeString(payload.contentType ?? ''),
       );
     }
+    case 'renewMediaBlobPin':
+      return concatBytes(
+        writeU32Le(PayloadVariant.RenewMediaBlobPin),
+        need32(payload.blobId, 'blobId'),
+        writeU32Le(payload.size >>> 0),
+        writeU64Le(payload.extendBlocks),
+      );
+    case 'payBlobSample':
+      return concatBytes(
+        writeU32Le(PayloadVariant.PayBlobSample),
+        need32(payload.blobId, 'blobId'),
+        writeU32Le(payload.chunkIndex >>> 0),
+        writeU32Le(payload.chunkCount >>> 0),
+      );
     default: {
       const _x: never = payload;
       return _x;

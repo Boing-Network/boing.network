@@ -25,10 +25,17 @@ pub struct BlobMetaRecord {
     pub publisher: [u8; 32],
     pub included_height: u64,
     pub tx_id: [u8; 32],
+    /// Phase 5: optional paid pin horizon (renewals extend this). When set, overrides prunable TTL
+    /// for GC; Forever blobs with `None` stay best-effort until a renew sets a horizon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pin_until_height: Option<u64>,
 }
 
 impl BlobMetaRecord {
     pub fn expiry_height(&self) -> Option<u64> {
+        if let Some(p) = self.pin_until_height {
+            return Some(p);
+        }
         self.retention.expiry_height(self.included_height)
     }
 
@@ -112,32 +119,70 @@ impl MediaBlobStore {
         Ok(Some(fs::read(path)?))
     }
 
-    /// Apply PutBlob txs from a committed block (payload bytes are consensus-visible in the block).
+    /// Apply PutBlob / RenewMediaBlobPin from a committed block.
     pub fn ingest_block_txs(&self, height: u64, txs: &[Transaction]) -> std::io::Result<usize> {
         let mut n = 0;
         for tx in txs {
-            let TransactionPayload::PutBlob {
-                retention,
-                content_type,
-                data,
-            } = &tx.payload
-            else {
-                continue;
-            };
-            let blob_id = blob_id_of(data);
-            let meta = BlobMetaRecord {
-                blob_id,
-                size: data.len() as u32,
-                content_type: content_type.clone(),
-                retention: *retention,
-                publisher: tx.sender.0,
-                included_height: height,
-                tx_id: tx.id().0,
-            };
-            self.put(meta, data)?;
-            n += 1;
+            match &tx.payload {
+                TransactionPayload::PutBlob {
+                    retention,
+                    content_type,
+                    data,
+                } => {
+                    let blob_id = blob_id_of(data);
+                    let meta = BlobMetaRecord {
+                        blob_id,
+                        size: data.len() as u32,
+                        content_type: content_type.clone(),
+                        retention: *retention,
+                        publisher: tx.sender.0,
+                        included_height: height,
+                        tx_id: tx.id().0,
+                        pin_until_height: None,
+                    };
+                    self.put(meta, data)?;
+                    n += 1;
+                }
+                TransactionPayload::RenewMediaBlobPin {
+                    blob_id,
+                    size,
+                    extend_blocks,
+                } => {
+                    if self.renew_pin(blob_id, *size, height, *extend_blocks, tx.id().0)? {
+                        n += 1;
+                    }
+                }
+                _ => {}
+            }
         }
         Ok(n)
+    }
+
+    /// Extend `pin_until_height` from `max(current_expiry_or_height, height) + extend_blocks`.
+    pub fn renew_pin(
+        &self,
+        blob_id: &BlobId,
+        size: u32,
+        height: u64,
+        extend_blocks: u64,
+        renew_tx_id: [u8; 32],
+    ) -> std::io::Result<bool> {
+        let key = blob_id_hex(blob_id);
+        let mut idx = self.index.write().unwrap_or_else(|e| e.into_inner());
+        let Some(meta) = idx.entries.get_mut(&key) else {
+            return Ok(false);
+        };
+        if meta.size != size {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "renew size mismatch",
+            ));
+        }
+        let base = meta.expiry_height().unwrap_or(height).max(height);
+        meta.pin_until_height = Some(base.saturating_add(extend_blocks));
+        meta.tx_id = renew_tx_id;
+        self.persist_index(&idx)?;
+        Ok(true)
     }
 
     /// Drop pruneable blobs past TTL relative to `tip_height`. Forever blobs are never removed here.
@@ -198,6 +243,7 @@ mod tests {
             publisher: [1u8; 32],
             included_height: 5,
             tx_id: [2u8; 32],
+            pin_until_height: None,
         };
         store.put(meta, &data).unwrap();
         assert_eq!(store.get_meta(&id).unwrap().content_type, "image/png");

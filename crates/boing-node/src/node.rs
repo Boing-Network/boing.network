@@ -1163,21 +1163,25 @@ impl BoingNode {
         }
     }
 
-    /// PutBlob / BlobAnnounce admitted only when media blobs are active and payload validates.
+    /// PutBlob / BlobAnnounce / renew / sample admitted only when media blobs are active.
     fn precheck_media_blob_tx(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
         let next = self.chain.height().saturating_add(1);
+        let require_active = || -> Result<(), MempoolError> {
+            if !self.executor.vm().media_blobs_active(next) {
+                return Err(MempoolError::MediaBlobRejected(format!(
+                    "media blobs not active (activation={:?})",
+                    self.executor.vm().media_blobs_from()
+                )));
+            }
+            Ok(())
+        };
         match &signed.tx.payload {
             TransactionPayload::PutBlob {
                 retention,
                 content_type,
                 data,
             } => {
-                if !self.executor.vm().media_blobs_active(next) {
-                    return Err(MempoolError::MediaBlobRejected(format!(
-                        "media blobs not active (activation={:?})",
-                        self.executor.vm().media_blobs_from()
-                    )));
-                }
+                require_active()?;
                 if let Err(e) = boing_primitives::validate_put_blob(*retention, content_type, data)
                 {
                     return Err(MempoolError::MediaBlobRejected(e.to_string()));
@@ -1189,18 +1193,52 @@ impl BoingNode {
                 retention,
                 content_type,
             } => {
-                if !self.executor.vm().media_blobs_active(next) {
-                    return Err(MempoolError::MediaBlobRejected(format!(
-                        "media blobs not active (activation={:?})",
-                        self.executor.vm().media_blobs_from()
-                    )));
-                }
+                require_active()?;
                 if let Err(e) = boing_primitives::validate_blob_announce(
                     blob_id,
                     *size,
                     *retention,
                     content_type,
                 ) {
+                    return Err(MempoolError::MediaBlobRejected(e.to_string()));
+                }
+            }
+            TransactionPayload::RenewMediaBlobPin {
+                blob_id,
+                size,
+                extend_blocks,
+            } => {
+                require_active()?;
+                if let Err(e) =
+                    boing_primitives::validate_renew_media_blob_pin(blob_id, *size, *extend_blocks)
+                {
+                    return Err(MempoolError::MediaBlobRejected(e.to_string()));
+                }
+                if let Some(store) = self.media_blob_store() {
+                    match store.get_meta(blob_id) {
+                        Some(m) if m.size == *size => {}
+                        Some(_) => {
+                            return Err(MempoolError::MediaBlobRejected(
+                                "renew size does not match sidecar meta".into(),
+                            ));
+                        }
+                        None => {
+                            return Err(MempoolError::MediaBlobRejected(
+                                "renew target blob not in sidecar".into(),
+                            ));
+                        }
+                    }
+                }
+            }
+            TransactionPayload::PayBlobSample {
+                blob_id,
+                chunk_index,
+                chunk_count,
+            } => {
+                require_active()?;
+                if let Err(e) =
+                    boing_primitives::validate_pay_blob_sample(blob_id, *chunk_index, *chunk_count)
+                {
                     return Err(MempoolError::MediaBlobRejected(e.to_string()));
                 }
             }

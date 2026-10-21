@@ -34,6 +34,10 @@ export declare const PayloadVariant: {
     readonly PutBlob: 21;
     /** Announce blob id + size without inline bytes (P2P / sidecar data plane). */
     readonly BlobAnnounce: 22;
+    /** Extend media blob pin horizon (Phase 5). */
+    readonly RenewMediaBlobPin: 23;
+    /** Pay for one DAS chunk sample (Phase 5 market scaffold). */
+    readonly PayBlobSample: 24;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -189,6 +193,16 @@ export type TransactionPayloadInput = {
         ttlBlocks: bigint;
     };
     contentType?: string;
+} | {
+    kind: 'renewMediaBlobPin';
+    blobId: Uint8Array;
+    size: number;
+    extendBlocks: bigint;
+} | {
+    kind: 'payBlobSample';
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

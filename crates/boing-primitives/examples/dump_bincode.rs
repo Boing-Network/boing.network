@@ -55,6 +55,22 @@ fn main() {
     let p = bincode::serialize(&ann).unwrap();
     println!("BlobAnnounce: len={} hex={}", p.len(), hex::encode(&p));
 
+    let renew = TransactionPayload::RenewMediaBlobPin {
+        blob_id: boing_primitives::blob_id_of(&[0x89, 0x50, 0x4e, 0x47]),
+        size: 4,
+        extend_blocks: 1000,
+    };
+    let p = bincode::serialize(&renew).unwrap();
+    println!("RenewMediaBlobPin: len={} hex={}", p.len(), hex::encode(&p));
+
+    let sample = TransactionPayload::PayBlobSample {
+        blob_id: boing_primitives::blob_id_of(&[0x89, 0x50, 0x4e, 0x47]),
+        chunk_index: 0,
+        chunk_count: 1,
+    };
+    let p = bincode::serialize(&sample).unwrap();
+    println!("PayBlobSample: len={} hex={}", p.len(), hex::encode(&p));
+
     let qv = TransactionPayload::QaPoolVote {
         subject: boing_primitives::Hash([3u8; 32]),
         vote: boing_primitives::QaPoolVoteKind::Allow,

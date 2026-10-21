@@ -321,26 +321,50 @@ pub fn charge_priority_tip(
     Ok(())
 }
 
-/// Blob data fee + optional Forever pin fee (KiB rounded up).
+/// Blob data fee + Forever pin / renew / sample fees (Phase 4–5).
 fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u128 {
-    let (size, forever) = match payload {
+    match payload {
         TransactionPayload::PutBlob {
             data, retention, ..
-        } => (data.len() as u128, retention.is_forever()),
+        } => {
+            let kib = (data.len() as u128).div_ceil(1024).max(1);
+            let mut fee = 0u128;
+            if policy.blob_base_fee_per_kib > 0 {
+                fee = fee.saturating_add(kib.saturating_mul(policy.blob_base_fee_per_kib));
+            }
+            if retention.is_forever() && policy.blob_forever_pin_fee_per_kib > 0 {
+                fee = fee.saturating_add(kib.saturating_mul(policy.blob_forever_pin_fee_per_kib));
+            }
+            fee
+        }
         TransactionPayload::BlobAnnounce {
             size, retention, ..
-        } => (*size as u128, retention.is_forever()),
-        _ => return 0,
-    };
-    let kib = size.div_ceil(1024).max(1);
-    let mut fee = 0u128;
-    if policy.blob_base_fee_per_kib > 0 {
-        fee = fee.saturating_add(kib.saturating_mul(policy.blob_base_fee_per_kib));
+        } => {
+            let kib = (*size as u128).div_ceil(1024).max(1);
+            let mut fee = 0u128;
+            if policy.blob_base_fee_per_kib > 0 {
+                fee = fee.saturating_add(kib.saturating_mul(policy.blob_base_fee_per_kib));
+            }
+            if retention.is_forever() && policy.blob_forever_pin_fee_per_kib > 0 {
+                fee = fee.saturating_add(kib.saturating_mul(policy.blob_forever_pin_fee_per_kib));
+            }
+            fee
+        }
+        TransactionPayload::RenewMediaBlobPin {
+            size,
+            extend_blocks,
+            ..
+        } => {
+            if policy.blob_pin_renew_fee_per_kib_block == 0 {
+                return 0;
+            }
+            let kib = (*size as u128).div_ceil(1024).max(1);
+            kib.saturating_mul(*extend_blocks as u128)
+                .saturating_mul(policy.blob_pin_renew_fee_per_kib_block)
+        }
+        TransactionPayload::PayBlobSample { .. } => policy.blob_sample_fee_per_chunk,
+        _ => 0,
     }
-    if forever && policy.blob_forever_pin_fee_per_kib > 0 {
-        fee = fee.saturating_add(kib.saturating_mul(policy.blob_forever_pin_fee_per_kib));
-    }
-    fee
 }
 
 /// Fee charged for `gas_used` at the fixed [`GAS_PRICE`].

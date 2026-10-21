@@ -98,11 +98,11 @@ pub fn validate_and_execute_block(
         });
     }
 
-    // 7. Optional Phase 3 header blobs_root (activation-gated; omit before fork).
+    // 7. Phase 3+ header blobs_root (activation-gated; ZERO before fork).
     let expected_blobs = if executor.vm().blobs_root_header_active(block.header.height) {
-        Some(blobs_root_of_transactions(&block.transactions))
+        blobs_root_of_transactions(&block.transactions)
     } else {
-        None
+        Hash::ZERO
     };
     if block.header.blobs_root != expected_blobs {
         return Err(BlockValidationError::InvalidBlobsRoot {
@@ -201,10 +201,7 @@ pub enum BlockValidationError {
     #[error("Invalid state root: expected {expected:?}, computed {computed:?}")]
     InvalidStateRoot { expected: Hash, computed: Hash },
     #[error("Invalid blobs_root: expected {expected:?}, found {found:?}")]
-    InvalidBlobsRoot {
-        expected: Option<Hash>,
-        found: Option<Hash>,
-    },
+    InvalidBlobsRoot { expected: Hash, found: Hash },
     #[error("No validators configured")]
     NoValidators,
     #[error("Block must carry one signature per transaction: {expected} txs, {found} signatures")]

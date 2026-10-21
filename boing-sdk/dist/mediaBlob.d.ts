@@ -67,6 +67,24 @@ export declare function blobAnnouncePayload(input: {
     retention: BlobRetentionInput;
     contentType?: string;
 }): TransactionPayloadInput;
+/** Max extend_blocks for RenewMediaBlobPin. */
+export declare const MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS = 1000000n;
+/** Suggested Forever pin horizon for large / video-ish media (docs hint). */
+export declare const MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS = 150000n;
+/** Reed–Solomon parity shard count (matches Rust Phase 5). */
+export declare const MEDIA_BLOB_RS_PARITY_SHARDS = 2;
+/** Phase 5: extend pin horizon (`RenewMediaBlobPin`, variant 23). */
+export declare function renewMediaBlobPinPayload(input: {
+    blobId: Uint8Array;
+    size: number;
+    extendBlocks: bigint;
+}): TransactionPayloadInput;
+/** Phase 5: pay for one DAS sample (`PayBlobSample`, variant 24). */
+export declare function payBlobSamplePayload(input: {
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+}): TransactionPayloadInput;
 /**
  * NFT binding: store BlobId as `metadata_hash`, or put `boing://blob/0x{id}` in off-chain JSON
  * and hash that JSON. Prefer JSON + URI for marketplaces (name / attributes alongside media).

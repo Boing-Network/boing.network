@@ -241,6 +241,45 @@ export function blobAnnouncePayload(input) {
         contentType,
     };
 }
+/** Max extend_blocks for RenewMediaBlobPin. */
+export const MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS = 1000000n;
+/** Suggested Forever pin horizon for large / video-ish media (docs hint). */
+export const MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS = 150000n;
+/** Reed–Solomon parity shard count (matches Rust Phase 5). */
+export const MEDIA_BLOB_RS_PARITY_SHARDS = 2;
+/** Phase 5: extend pin horizon (`RenewMediaBlobPin`, variant 23). */
+export function renewMediaBlobPinPayload(input) {
+    if (input.blobId.length !== 32)
+        throw new Error('blobId must be 32 bytes');
+    if (input.size <= 0 || input.size > MAX_MEDIA_BLOB_BYTES) {
+        throw new Error(`renew size out of range (1..=${MAX_MEDIA_BLOB_BYTES})`);
+    }
+    if (input.extendBlocks < 1n)
+        throw new Error('extendBlocks must be >= 1');
+    if (input.extendBlocks > MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS) {
+        throw new Error(`extendBlocks exceeds max ${MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS}`);
+    }
+    return {
+        kind: 'renewMediaBlobPin',
+        blobId: input.blobId,
+        size: input.size,
+        extendBlocks: input.extendBlocks,
+    };
+}
+/** Phase 5: pay for one DAS sample (`PayBlobSample`, variant 24). */
+export function payBlobSamplePayload(input) {
+    if (input.blobId.length !== 32)
+        throw new Error('blobId must be 32 bytes');
+    if (input.chunkCount <= 0 || input.chunkIndex < 0 || input.chunkIndex >= input.chunkCount) {
+        throw new Error('chunkIndex out of range');
+    }
+    return {
+        kind: 'payBlobSample',
+        blobId: input.blobId,
+        chunkIndex: input.chunkIndex,
+        chunkCount: input.chunkCount,
+    };
+}
 /**
  * NFT binding: store BlobId as `metadata_hash`, or put `boing://blob/0x{id}` in off-chain JSON
  * and hash that JSON. Prefer JSON + URI for marketplaces (name / attributes alongside media).
