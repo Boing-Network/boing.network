@@ -19,7 +19,7 @@ pub use open_validators::{
     ValidatorRecord, ValidatorStatus,
 };
 pub use sample_offers::{
-    EscrowedSampleOffer, SampleOfferRegistry, SampleOfferRegistryError,
+    EscrowedSampleOffer, SampleOfferRegistry, SampleOfferRegistryError, SettledSampleMatch,
 };
 pub use sample_serve::{SampleServeChallengeError, SampleServeChallengeRegistry};
 pub use qa_pending::{unpaid_counted_voters, QaPendingRecord};

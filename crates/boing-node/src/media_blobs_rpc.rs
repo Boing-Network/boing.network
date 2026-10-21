@@ -4,7 +4,7 @@ use boing_primitives::{
     build_das_light_client_batch_from_bytes, build_das_light_client_batch_vrf,
     build_das_succinct_proof_stub, build_das_succinct_proof_stub_vrf, chunk_media_blob,
     match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
-    phase11_cap_activation_checklist, phase11_das_succinct_proof_plan, verify_das_succinct_proof,
+    phase12_cap_activation_checklist, phase12_das_succinct_proof_plan, verify_das_succinct_proof,
     AccountId, BlobRetention, BlobSampleServeChallengeStatus,
     BlobSampleOfferSource, BlobSampleSettleQuote, DasSuccinctProof, DasSuccinctProofKind,
     MediaBlobSampleOffer, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
@@ -374,7 +374,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "capActivationChecklist",
-                json!(phase11_cap_activation_checklist(phase7_from)),
+                json!(phase12_cap_activation_checklist(phase7_from)),
             );
             put(&mut m, "cancelBlobSampleOfferVariant", json!(27));
             put(&mut m, "challengeBlobSampleServeVariant", json!(28));
@@ -402,7 +402,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "dasSuccinctProofPlan",
-                json!(boing_primitives::phase11_das_succinct_proof_plan()),
+                json!(boing_primitives::phase12_das_succinct_proof_plan()),
             );
             put(
                 &mut m,
@@ -416,6 +416,21 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             );
             put(
                 &mut m,
+                "failedServeAppealWindowBlocks",
+                json!(boing_primitives::PHASE12_FAILED_SERVE_APPEAL_WINDOW_BLOCKS),
+            );
+            put(
+                &mut m,
+                "requireSettleForChallenge",
+                json!(true),
+            );
+            put(
+                &mut m,
+                "settleReceiptCount",
+                json!(node.state.sample_offers().settle_receipt_count()),
+            );
+            put(
+                &mut m,
                 "serveChallengeBondEscrow",
                 json!(hex0x(
                     &boing_primitives::blob_sample_serve_challenge_bond_escrow_account().0
@@ -424,7 +439,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "note",
-                json!("Phase 11: serve challenge bond + FailedServe provider penalty burn; txs 28/29; ReservedRealV1 envelope checks (verify still rejects); SMT offers + ask escrow; leader-VRF LC; StubBlake3V0; gated 256 MiB via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe)."),
+                json!("Phase 12: settle-before-challenge; FailedServe SlashRegistry audit (slashId); bond+penalty escrow; ReservedRealV1 envelope checks (verify still rejects); SMT offers + ask escrow; leader-VRF LC; StubBlake3V0; gated 256 MiB via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT."),
             );
             Ok(Value::Object(m))
         }
@@ -890,20 +905,21 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                     "bondAmount": c.bond_amount.to_string(),
                     "providerPenalty": c.provider_penalty.to_string(),
                     "bondSettled": c.bond_settled,
+                    "slashId": c.slash_id,
                     "status": match c.status {
                         BlobSampleServeChallengeStatus::Open => "open",
                         BlobSampleServeChallengeStatus::Responded => "responded",
                         BlobSampleServeChallengeStatus::FailedServe => "failedServe",
                     },
                 })).collect::<Vec<_>>(),
-                "note": "Phase 11: FailedServe refunds challenger bond and burns provider penalty (end-of-block + challenge/respond touch). RPC clone resolve is display-only.",
+                "note": "Phase 12: FailedServe refunds bond, burns penalty, assigns slashId (mirrored to boing_listSlashRecords as blobFailedServe). RPC clone resolve is display-only.",
             }))
         }
         "boing_getBlobDasSuccinctProofPlan" => Ok(json!({
             "kinds": ["stubBlake3V0", "reservedRealV1"],
-            "plan": phase11_das_succinct_proof_plan(),
+            "plan": phase12_das_succinct_proof_plan(),
             "maxOpaqueProofBytes": boing_primitives::PHASE10_MAX_OPAQUE_PROOF_BYTES,
-            "note": "ReservedRealV1: Phase 11 adds envelope structure checks; verify still rejects until a real succinct system is wired.",
+            "note": "ReservedRealV1: envelope structure checks; verify still rejects until a real succinct system is wired.",
         })),
         _ => Err((-32601, format!("unknown media blob method: {method}"))),
     }

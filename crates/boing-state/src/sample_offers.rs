@@ -7,11 +7,22 @@
 use std::collections::BTreeMap;
 
 use boing_primitives::{
-    blob_id_hex, hasher, sample_offer_market_key, validate_pay_blob_sample, AccountId, BlobError,
-    BlobId, MediaBlobSampleOffer, OnChainBlobSampleOffer, PHASE6_MAX_SAMPLE_OFFERS,
-    PHASE9_SAMPLE_OFFER_REGISTRY_DOMAIN,
+    blob_id_hex, hasher, sample_offer_market_key, settle_receipt_key, validate_pay_blob_sample,
+    AccountId, BlobError, BlobId, MediaBlobSampleOffer, OnChainBlobSampleOffer,
+    PHASE12_MAX_SETTLE_RECEIPTS, PHASE6_MAX_SAMPLE_OFFERS, PHASE9_SAMPLE_OFFER_REGISTRY_DOMAIN,
 };
 use serde::{Deserialize, Serialize};
+
+/// Receipt that a payer settled a sample match (Phase 12 — gates Challenge).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SettledSampleMatch {
+    pub blob_id: BlobId,
+    pub chunk_index: u32,
+    pub chunk_count: u32,
+    pub provider: AccountId,
+    pub payer: AccountId,
+    pub settled_at_height: u64,
+}
 
 /// Escrowed on-chain sample offer (provider prepaid `ask_fee` into the escrow account).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -79,6 +90,9 @@ pub enum SampleOfferRegistryError {
 pub struct SampleOfferRegistry {
     /// Key: `blob_hex:chunk:provider_hex` → escrowed offer.
     offers: BTreeMap<String, EscrowedSampleOffer>,
+    /// Key: settle_receipt_key → settled match (Phase 12).
+    #[serde(default)]
+    settled_receipts: BTreeMap<String, SettledSampleMatch>,
 }
 
 impl SampleOfferRegistry {
@@ -89,11 +103,15 @@ impl SampleOfferRegistry {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.offers.is_empty()
+        self.offers.is_empty() && self.settled_receipts.is_empty()
     }
 
     pub fn len(&self) -> usize {
         self.offers.len()
+    }
+
+    pub fn settle_receipt_count(&self) -> usize {
+        self.settled_receipts.len()
     }
 
     pub fn commitment(&self) -> [u8; 32] {
@@ -208,6 +226,58 @@ impl SampleOfferRegistry {
             }
         });
         out
+    }
+
+    /// Record a settle receipt so the payer may later Challenge the provider.
+    pub fn record_settle_receipt(
+        &mut self,
+        receipt: SettledSampleMatch,
+    ) -> Result<(), SampleOfferRegistryError> {
+        let key = settle_receipt_key(
+            &receipt.blob_id,
+            receipt.chunk_index,
+            &receipt.provider,
+            &receipt.payer,
+        );
+        if !self.settled_receipts.contains_key(&key)
+            && self.settled_receipts.len() >= PHASE12_MAX_SETTLE_RECEIPTS
+        {
+            // Evict oldest by settled_at_height to admit new receipt.
+            if let Some(oldest_key) = self
+                .settled_receipts
+                .iter()
+                .min_by_key(|(_, r)| r.settled_at_height)
+                .map(|(k, _)| k.clone())
+            {
+                self.settled_receipts.remove(&oldest_key);
+            }
+        }
+        self.settled_receipts.insert(key, receipt);
+        Ok(())
+    }
+
+    pub fn has_settle_receipt(
+        &self,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        provider: &AccountId,
+        payer: &AccountId,
+    ) -> bool {
+        self.settled_receipts.contains_key(&settle_receipt_key(
+            blob_id, chunk_index, provider, payer,
+        ))
+    }
+
+    pub fn get_settle_receipt(
+        &self,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        provider: &AccountId,
+        payer: &AccountId,
+    ) -> Option<&SettledSampleMatch> {
+        self.settled_receipts.get(&settle_receipt_key(
+            blob_id, chunk_index, provider, payer,
+        ))
     }
 }
 

@@ -63,6 +63,9 @@ pub struct BlobSampleServeChallenge {
     pub provider_penalty: u128,
     /// True after bond (and FailedServe penalty) have been settled.
     pub bond_settled: bool,
+    /// Consensus FailedServe slash id (Phase 12); `None` until FailedServe settle assigns one.
+    #[serde(default)]
+    pub slash_id: Option<u64>,
 }
 
 impl BlobSampleServeChallenge {
@@ -152,6 +155,7 @@ pub fn open_serve_challenge_with_bond(
         bond_amount,
         provider_penalty,
         bond_settled: false,
+        slash_id: None,
     })
 }
 

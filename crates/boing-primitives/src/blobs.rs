@@ -12,6 +12,7 @@
 //! Phase 9: [`crate::blobs_phase9`] — SMT escrow helpers, leader-VRF DAS LC path, extended ops notes.
 //! Phase 10: [`crate::blobs_phase10`] — serve challenges, ReservedRealV1 opaque DAS path.
 //! Phase 11: [`crate::blobs_phase11`] — serve-challenge bond / FailedServe slash, ReservedRealV1 envelope checks.
+//! Phase 12: [`crate::blobs_phase12`] — settle-before-challenge, FailedServe SlashRegistry audit ids.
 
 use serde::{Deserialize, Serialize};
 

@@ -275,4 +275,13 @@ export declare const PHASE11_FAILED_SERVE_PENALTY: bigint;
 export declare function blobSampleServeChallengeBondEscrowAccount(): Uint8Array;
 /** Honest plan strings for succinct DAS path (Phase 11 progress; verify still rejects). */
 export declare function phase11DasSuccinctProofPlan(): string[];
+/** Phase 12 aliases / constants. */
+export declare const PHASE12_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE12_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE12_SERVE_CHALLENGE_BOND: bigint;
+export declare const PHASE12_FAILED_SERVE_PENALTY: bigint;
+export declare const PHASE12_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE12_SETTLE_RECEIPT_DOMAIN = "BOING_BLOB_SETTLE_RECEIPT_V1";
+/** Honest plan strings for Phase 12 (settle-before-challenge + FailedServe audit). */
+export declare function phase12DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

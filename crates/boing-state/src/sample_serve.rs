@@ -26,9 +26,25 @@ pub enum SampleServeChallengeError {
     Blob(#[from] BlobError),
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SampleServeChallengeRegistry {
     challenges: BTreeMap<String, BlobSampleServeChallenge>,
+    /// Monotonic FailedServe slash ids (consensus-local; Phase 12).
+    #[serde(default = "default_next_slash_id")]
+    next_failed_serve_slash_id: u64,
+}
+
+fn default_next_slash_id() -> u64 {
+    1
+}
+
+impl Default for SampleServeChallengeRegistry {
+    fn default() -> Self {
+        Self {
+            challenges: BTreeMap::new(),
+            next_failed_serve_slash_id: 1,
+        }
+    }
 }
 
 impl SampleServeChallengeRegistry {
@@ -181,6 +197,38 @@ impl SampleServeChallengeRegistry {
         if let Some(c) = self.get_mut(blob_id, chunk_index, provider, challenger) {
             c.bond_settled = true;
         }
+    }
+
+    /// Assign the next consensus FailedServe slash id to a settled challenge.
+    pub fn assign_failed_serve_slash_id(
+        &mut self,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        provider: &AccountId,
+        challenger: &AccountId,
+    ) -> Option<u64> {
+        let key = serve_challenge_key(blob_id, chunk_index, provider, challenger);
+        if let Some(existing) = self.challenges.get(&key).and_then(|c| c.slash_id) {
+            return Some(existing);
+        }
+        if !self.challenges.contains_key(&key) {
+            return None;
+        }
+        if self.next_failed_serve_slash_id == 0 {
+            self.next_failed_serve_slash_id = 1;
+        }
+        let id = self.next_failed_serve_slash_id;
+        self.next_failed_serve_slash_id = id.saturating_add(1);
+        self.challenges.get_mut(&key)?.slash_id = Some(id);
+        Some(id)
+    }
+
+    /// Challenges that have a slash_id (for node SlashRegistry mirror).
+    pub fn challenges_with_slash_id(&self) -> Vec<&BlobSampleServeChallenge> {
+        self.challenges
+            .values()
+            .filter(|c| c.slash_id.is_some())
+            .collect()
     }
 }
 
