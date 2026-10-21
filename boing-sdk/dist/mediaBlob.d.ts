@@ -260,6 +260,19 @@ export declare function respondBlobSampleServePayload(input: {
 export declare const PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
 /** Phase 10 activated max alias. */
 export declare const PHASE10_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
-/** Honest plan strings for succinct DAS path (matches Rust). */
+/** Honest plan strings for succinct DAS path (matches Rust Phase 10). */
 export declare function phase10DasSuccinctProofPlan(): string[];
+/** Phase 11 serve-challenge window (same as Phase 10). */
+export declare const PHASE11_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+/** Phase 11 activated max alias. */
+export declare const PHASE11_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+/** Domain tag for serve-challenge bond escrow account (BLAKE3 → AccountId). */
+export declare const PHASE11_SERVE_CHALLENGE_BOND_ESCROW_DOMAIN = "BOING_BLOB_SERVE_CHALLENGE_BOND_V1";
+/** Challenger bond + provider penalty amounts (1 BOING = 10^18 base units). */
+export declare const PHASE11_SERVE_CHALLENGE_BOND: bigint;
+export declare const PHASE11_FAILED_SERVE_PENALTY: bigint;
+/** System serve-challenge bond escrow account id. */
+export declare function blobSampleServeChallengeBondEscrowAccount(): Uint8Array;
+/** Honest plan strings for succinct DAS path (Phase 11 progress; verify still rejects). */
+export declare function phase11DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

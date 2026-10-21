@@ -1526,6 +1526,9 @@ async fn dispatch_jsonrpc_request(
                         boing_governance::SlashReason::Equivocation => "equivocation".to_string(),
                         boing_governance::SlashReason::Liveness => "liveness".to_string(),
                         boing_governance::SlashReason::Fraud => "fraud".to_string(),
+                        boing_governance::SlashReason::BlobFailedServe => {
+                            "blobFailedServe".to_string()
+                        }
                         boing_governance::SlashReason::Other(x) => format!("other:{x}"),
                     };
                     serde_json::json!({

@@ -831,12 +831,39 @@ export const PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
 /** Phase 10 activated max alias. */
 export const PHASE10_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE9_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
 
-/** Honest plan strings for succinct DAS path (matches Rust). */
+/** Honest plan strings for succinct DAS path (matches Rust Phase 10). */
 export function phase10DasSuccinctProofPlan(): string[] {
   return [
     'StubBlake3V0: BLAKE3 commitment over merkle LC batch — implemented; not a SNARK.',
     'ReservedRealV1: opaque proof envelope accepted for encoding/RPC scaffolding; verify always rejects.',
     'Next: wire IPA/KZG/SNARK verifier behind ReservedRealV1 and flip is_implemented when production-ready.',
     'Leader-VRF LC: use boing_getLeaderVrfOutput / useLeaderVrf when consensus is in VRF mode.',
+  ];
+}
+
+/** Phase 11 serve-challenge window (same as Phase 10). */
+export const PHASE11_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS;
+
+/** Phase 11 activated max alias. */
+export const PHASE11_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE10_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+
+/** Domain tag for serve-challenge bond escrow account (BLAKE3 → AccountId). */
+export const PHASE11_SERVE_CHALLENGE_BOND_ESCROW_DOMAIN = 'BOING_BLOB_SERVE_CHALLENGE_BOND_V1';
+
+/** Challenger bond + provider penalty amounts (1 BOING = 10^18 base units). */
+export const PHASE11_SERVE_CHALLENGE_BOND = 10n ** 18n;
+export const PHASE11_FAILED_SERVE_PENALTY = 10n ** 18n;
+
+/** System serve-challenge bond escrow account id. */
+export function blobSampleServeChallengeBondEscrowAccount(): Uint8Array {
+  return blake3(new TextEncoder().encode(PHASE11_SERVE_CHALLENGE_BOND_ESCROW_DOMAIN));
+}
+
+/** Honest plan strings for succinct DAS path (Phase 11 progress; verify still rejects). */
+export function phase11DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase10DasSuccinctProofPlan(),
+    'Phase 11: ReservedRealV1 envelope structure checks (kind/size/commitment rebind) — still not availability evidence.',
+    'ReservedRealV1 verify remains reject-until-wired; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }

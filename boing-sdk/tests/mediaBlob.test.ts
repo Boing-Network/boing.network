@@ -40,6 +40,9 @@ import {
   challengeBlobSampleServePayload,
   respondBlobSampleServePayload,
   phase10DasSuccinctProofPlan,
+  phase11DasSuccinctProofPlan,
+  PHASE11_SERVE_CHALLENGE_BOND,
+  blobSampleServeChallengeBondEscrowAccount,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -213,6 +216,11 @@ describe('mediaBlob', () => {
     );
     expect(resp[0]).toBe(29);
     expect(phase10DasSuccinctProofPlan().length).toBeGreaterThan(0);
+    expect(phase11DasSuccinctProofPlan().length).toBeGreaterThan(
+      phase10DasSuccinctProofPlan().length,
+    );
+    expect(PHASE11_SERVE_CHALLENGE_BOND).toBe(10n ** 18n);
+    expect(blobSampleServeChallengeBondEscrowAccount().length).toBe(32);
   });
 
   it('Phase 8 settle quote and succinct stub envelope', () => {

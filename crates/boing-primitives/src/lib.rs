@@ -9,6 +9,7 @@ pub mod blobs_phase7;
 pub mod blobs_phase8;
 pub mod blobs_phase9;
 pub mod blobs_phase10;
+pub mod blobs_phase11;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -79,13 +80,23 @@ pub use blobs_phase9::{
 };
 pub use blobs_phase10::{
     build_das_succinct_proof_reserved_placeholder, open_serve_challenge,
-    phase10_cap_activation_checklist, phase10_das_succinct_proof_plan, serve_challenge_key,
-    validate_challenge_blob_sample_serve, validate_respond_blob_sample_serve,
-    verify_das_succinct_proof_reserved, BlobSampleServeChallenge, BlobSampleServeChallengeStatus,
-    DasSuccinctProofReserved, PHASE10_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE10_CAP_ACTIVATION_ENV,
+    open_serve_challenge_with_bond, phase10_cap_activation_checklist,
+    phase10_das_succinct_proof_plan, serve_challenge_key, validate_challenge_blob_sample_serve,
+    validate_respond_blob_sample_serve, verify_das_succinct_proof_reserved,
+    BlobSampleServeChallenge, BlobSampleServeChallengeStatus, DasSuccinctProofReserved,
+    PHASE10_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE10_CAP_ACTIVATION_ENV,
     PHASE10_DAS_RESERVED_OPAQUE_DOMAIN, PHASE10_MAX_OPAQUE_PROOF_BYTES,
     PHASE10_MAX_SERVE_CHALLENGES, PHASE10_SERVE_CHALLENGE_REGISTRY_DOMAIN,
     PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS,
+};
+pub use blobs_phase11::{
+    blob_sample_serve_challenge_bond_escrow_account, phase11_cap_activation_checklist,
+    phase11_das_succinct_proof_plan, validate_das_succinct_proof_reserved_envelope,
+    verify_das_succinct_proof_reserved_phase11, PHASE11_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
+    PHASE11_CAP_ACTIVATION_ENV, PHASE11_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
+    PHASE11_FAILED_SERVE_PENALTY, PHASE11_FAILED_SERVE_SLASH_REASON,
+    PHASE11_SERVE_CHALLENGE_BOND, PHASE11_SERVE_CHALLENGE_BOND_ESCROW_DOMAIN,
+    PHASE11_SERVE_CHALLENGE_WINDOW_BLOCKS,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};
