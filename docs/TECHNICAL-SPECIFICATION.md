@@ -387,7 +387,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | Bond | 21,000 |
 | Unbond | 21,000 |
 | QaPoolVote | 21,000 |
-| **PutBlob** / **BlobAnnounce** / **Renew** / **PayBlobSample** / **RegisterBlobSampleOffer** / **SettleBlobSampleMatch** (media) | Blob gas + optional `blob_*` fee policy fields — **not** SSTORE; see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md). Default live cap **16 MiB**; RS parity=2; DAS LC batch; Phase 7 on-chain offer/settle (25/26) + optional gated 256 MiB raise via `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (unset = Fly-safe 16 MiB). Activation: `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. |
+| **PutBlob** / **BlobAnnounce** / **Renew** / **PayBlobSample** / **RegisterBlobSampleOffer** / **SettleBlobSampleMatch** (media) | Blob gas + optional `blob_*` fee policy fields — **not** SSTORE; see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md). Default live cap **16 MiB**; RS parity=2; DAS LC batch + succinct stub envelope; Phase 7/8 on-chain Register/Settle (25/26) with consensus-replay offer book + optional gated 256 MiB raise via `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (unset = Fly-safe 16 MiB). Activation: `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. |
 
 ### 8.2 Opcode Gas
 

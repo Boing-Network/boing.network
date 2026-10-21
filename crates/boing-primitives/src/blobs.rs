@@ -8,6 +8,7 @@
 //! Phase 5: Reed–Solomon path ([`crate::blobs_erasure`]), renew / sample txs, sampling fee hooks.
 //! Phase 6: [`crate::blobs_phase6`] (sampling market, DAS LC batch, segment manifests).
 //! Phase 7: [`crate::blobs_phase7`] — on-chain offer/settle txs, VRF DAS seed, gated cap raise.
+//! Phase 8: [`crate::blobs_phase8`] — consensus-replay market, succinct proof envelope, activation notes.
 
 use serde::{Deserialize, Serialize};
 

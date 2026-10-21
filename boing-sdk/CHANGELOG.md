@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
 
+## [0.5.11] - 2026-10-21
+
+### Added
+
+- **L1 media blobs Phase 8** — `quoteBlobSampleSettle`; `buildDasSuccinctProofStub` / `buildDasSuccinctProofStubVrf` / `verifyDasSuccinctProofStub` (StubBlake3V0 — **not** a SNARK); `PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES`. Client: `quoteBlobSampleSettle`, `verifyBlobDasSuccinctProof`; LC batch may pass optional `vrfOutput`. Live Put/Announce stays **16 MiB** unless gated Phase 7 cap activation is set. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
 ## [0.5.10] - 2026-10-21
 
 ### Added

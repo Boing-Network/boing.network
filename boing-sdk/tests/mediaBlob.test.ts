@@ -21,6 +21,7 @@ import {
   mediaBlobMaxBytesAt,
   payBlobSamplePayload,
   putBlobPayload,
+  quoteBlobSampleSettle,
   recoverMediaBlobXor,
   registerBlobSampleOfferPayload,
   renewMediaBlobPinPayload,
@@ -31,6 +32,9 @@ import {
   tokenMetadataJsonWithBlobImage,
   validatePutBlob,
   validateSegmentManifest,
+  buildDasSuccinctProofStub,
+  verifyDasSuccinctProofStub,
+  PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -165,6 +169,33 @@ describe('mediaBlob', () => {
     expect(settle[0]).toBe(26);
     expect(mediaBlobMaxBytesAt(false)).toBe(MAX_MEDIA_BLOB_BYTES);
     expect(mediaBlobMaxBytesAt(true)).toBe(256 * 1024 * 1024);
+  });
+
+  it('Phase 8 settle quote and succinct stub envelope', () => {
+    const id = blobIdOf(new Uint8Array([9, 8, 7]));
+    const provider = new Uint8Array(32);
+    provider[0] = 1;
+    const q = quoteBlobSampleSettle({
+      blobId: id,
+      chunkIndex: 0,
+      chunkCount: 1,
+      provider,
+      askFee: 50n,
+      protocolSampleFee: 10n,
+    });
+    expect(q.total).toBe(60n);
+    expect(PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES).toBe(256 * 1024 * 1024);
+    const proof = buildDasSuccinctProofStub({
+      blobId: id,
+      chunksRoot: new Uint8Array(32),
+      seedHeight: 7n,
+      samples: [{ chunkIndex: 0, chunkHash: new Uint8Array(32) }],
+    });
+    expect(proof.kind).toBe(0);
+    expect(verifyDasSuccinctProofStub(proof, proof)).toBe(true);
+    const bad = { ...proof, commitment: new Uint8Array(32) };
+    bad.commitment[0] = 1;
+    expect(verifyDasSuccinctProofStub(bad, proof)).toBe(false);
   });
 
   it('encodes PutBlob (21) and BlobAnnounce (22)', () => {

@@ -523,14 +523,20 @@ export class BoingClient {
         return this.request('boing_getBlobDasSample', [id, chunkIndex]);
     }
     /**
-     * Height-bound DAS light-client sample batch (`boing_getBlobDasLightClientBatch`), or null.
-     * Merkle samples only — not a succinct aggregate proof.
+     * DAS light-client sample batch (`boing_getBlobDasLightClientBatch`), or null.
+     * Includes StubBlake3V0 succinct proof envelope (not a SNARK). Optional `vrfOutput` binds indices.
      */
-    async getBlobDasLightClientBatch(blobId, sampleCount = 8) {
+    async getBlobDasLightClientBatch(blobId, sampleCount = 8, vrfOutput) {
         const id = typeof blobId === 'string'
             ? blobId
             : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
-        return this.request('boing_getBlobDasLightClientBatch', [id, sampleCount]);
+        const params = [id, sampleCount];
+        if (vrfOutput !== undefined) {
+            params.push(typeof vrfOutput === 'string'
+                ? vrfOutput
+                : `0x${Array.from(vrfOutput, (b) => b.toString(16).padStart(2, '0')).join('')}`);
+        }
+        return this.request('boing_getBlobDasLightClientBatch', params);
     }
     /** Upsert a node-local sample offer (`boing_putBlobSampleOffer`) — not consensus. */
     async putBlobSampleOffer(offer) {
@@ -558,7 +564,7 @@ export class BoingClient {
             params.push(chunkIndex);
         return this.request('boing_listBlobSampleOffers', params);
     }
-    /** Match against the node-local sample book (`boing_matchBlobSampleOffer`). */
+    /** Match preferring consensus-replay book, then local (`boing_matchBlobSampleOffer`). */
     async matchBlobSampleOffer(input) {
         const blobId = typeof input.blobId === 'string'
             ? input.blobId
@@ -571,6 +577,41 @@ export class BoingClient {
                 payer: input.payer,
                 paidFee: input.paidFee.toString(),
                 ...(input.provider ? { provider: input.provider } : {}),
+                ...(input.protocolSampleFee !== undefined
+                    ? { protocolSampleFee: input.protocolSampleFee.toString() }
+                    : {}),
+            },
+        ]);
+    }
+    /** Quote settle fees against best offer (`boing_quoteBlobSampleSettle`). */
+    async quoteBlobSampleSettle(input) {
+        const blobId = typeof input.blobId === 'string'
+            ? input.blobId
+            : `0x${Array.from(input.blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        return this.request('boing_quoteBlobSampleSettle', [
+            {
+                blobId,
+                chunkIndex: input.chunkIndex,
+                ...(input.protocolSampleFee !== undefined
+                    ? { protocolSampleFee: input.protocolSampleFee.toString() }
+                    : {}),
+            },
+        ]);
+    }
+    /** Verify StubBlake3V0 succinct DAS envelope (`boing_verifyBlobDasSuccinctProof`). */
+    async verifyBlobDasSuccinctProof(input) {
+        const blobId = typeof input.blobId === 'string'
+            ? input.blobId
+            : `0x${Array.from(input.blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        const hex32 = (v) => typeof v === 'string'
+            ? v
+            : `0x${Array.from(v, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+        return this.request('boing_verifyBlobDasSuccinctProof', [
+            {
+                blobId,
+                sampleCount: input.sampleCount ?? 8,
+                ...(input.vrfOutput !== undefined ? { vrfOutput: hex32(input.vrfOutput) } : {}),
+                ...(input.commitment !== undefined ? { commitment: hex32(input.commitment) } : {}),
             },
         ]);
     }
