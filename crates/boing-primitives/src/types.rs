@@ -787,13 +787,13 @@ pub struct BlockHeader {
     pub state_root: Hash,
     /// Media commitment ([`crate::blobs_root_of_transactions`]).
     ///
-    /// **Phase 3+:** when `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT` is active, producers set the
-    /// computed root (possibly [`Hash::ZERO`] if the block has no media txs) and importers verify.
-    /// Before activation producers write [`Hash::ZERO`] and verification is skipped. Always present
-    /// in the bincode header (bincode cannot omit Option fields safely); historical blocks without
-    /// the field decode as ZERO via [`Block::from_bincode`].
-    #[serde(default)]
-    pub blobs_root: Hash,
+    /// **Phase 3+:** when `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT` is active, producers set
+    /// `Some(root)` (incl. [`Hash::ZERO`] when the block has no media txs) and importers verify.
+    /// Before activation the field is omitted (`None`) so historical header encodings and
+    /// [`Block::hash`] stay unchanged. Decode historical bytes via [`Block::from_bincode`]
+    /// (exact-length layout attempts — do not rely on bincode `Option` defaults mid-header).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blobs_root: Option<Hash>,
 }
 
 /// Block — header + transactions (+ the transactions' signatures from the block-signature activation).
@@ -836,7 +836,7 @@ impl From<LegacyHeaderNoBlobsRoot> for BlockHeader {
             tx_root: h.tx_root,
             receipts_root: h.receipts_root,
             state_root: h.state_root,
-            blobs_root: Hash::ZERO,
+            blobs_root: None,
         }
     }
 }
@@ -1088,12 +1088,12 @@ mod block_encoding_tests {
             tx_root: Hash::ZERO,
             receipts_root: Hash::ZERO,
             state_root: Hash::ZERO,
-            blobs_root: Hash::ZERO,
+            blobs_root: None,
         }
     }
 
     #[test]
-    fn legacy_header_without_blobs_root_decodes_as_zero() {
+    fn legacy_header_without_blobs_root_decodes_as_none() {
         #[derive(Serialize)]
         struct Old {
             parent_hash: Hash,
@@ -1115,8 +1115,13 @@ mod block_encoding_tests {
             state_root: h.state_root,
         })
         .unwrap();
-        // Current headers always carry blobs_root (ZERO) — longer than legacy.
-        assert_ne!(bincode::serialize(&h).unwrap().len(), old.len());
+        // Inactive headers omit blobs_root — same bincode as pre-Phase-3.
+        assert_eq!(bincode::serialize(&h).unwrap().len(), old.len());
+        let with = BlockHeader {
+            blobs_root: Some(Hash([9; 32])),
+            ..h.clone()
+        };
+        assert!(bincode::serialize(&with).unwrap().len() > old.len());
         let block_old = {
             #[derive(Serialize)]
             struct OldBlock<'a> {
@@ -1140,8 +1145,23 @@ mod block_encoding_tests {
             .unwrap()
         };
         let decoded = Block::from_bincode(&block_old).unwrap();
-        assert_eq!(decoded.header.blobs_root, Hash::ZERO);
+        assert_eq!(decoded.header.blobs_root, None);
         assert_eq!(decoded.header.height, 7);
+        // Hash must match the historical (no blobs_root) id.
+        let mut hh = hasher();
+        hh.update(&old);
+        let mut out = [0u8; 32];
+        out.copy_from_slice(hh.finalize().as_bytes());
+        assert_eq!(
+            Block {
+                header: h,
+                transactions: vec![],
+                signatures: vec![],
+                priority_tips: vec![],
+            }
+            .hash(),
+            Hash(out)
+        );
     }
 
     #[test]
@@ -1184,11 +1204,35 @@ mod block_encoding_tests {
         })
         .unwrap();
         let decoded = Block::from_bincode(&legacy).unwrap();
-        assert_eq!(decoded.header.blobs_root, Hash::ZERO);
+        assert_eq!(decoded.header.blobs_root, None);
         let j = serde_json::to_value(&b).unwrap();
         assert!(j.get("signatures").is_none());
         let back: Block = serde_json::from_value(j).unwrap();
         assert_eq!(back, b);
+    }
+
+    #[test]
+    fn fly_testnet_sample_blocks_decode_and_chain() {
+        // Samples pulled from boing-testnet-1 volume (pre–blobs_root header era).
+        let dir = std::path::Path::new("/tmp/boing-chain-sample");
+        if !dir.join("0.bin").is_file() {
+            return;
+        }
+        let g = Block::from_bincode(&std::fs::read(dir.join("0.bin")).unwrap()).unwrap();
+        let b1 = Block::from_bincode(&std::fs::read(dir.join("1.bin")).unwrap()).unwrap();
+        assert_eq!(g.header.height, 0);
+        assert_eq!(b1.header.height, 1);
+        assert_eq!(g.header.blobs_root, None);
+        assert_eq!(b1.header.blobs_root, None);
+        assert_eq!(
+            g.hash(),
+            b1.header.parent_hash,
+            "historical parent link must survive Option blobs_root + exact decode"
+        );
+        for name in ["919.bin", "920.bin", "1050.bin", "1150.bin", "1187.bin"] {
+            let b = Block::from_bincode(&std::fs::read(dir.join(name)).unwrap()).unwrap();
+            assert!(b.header.blobs_root.is_none());
+        }
     }
 
     #[test]
