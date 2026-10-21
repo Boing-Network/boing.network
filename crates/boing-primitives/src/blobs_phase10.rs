@@ -2,7 +2,8 @@
 //! and activation ops notes (Fly-safe default unchanged).
 //!
 //! Honest scope:
-//! - Challenge / respond **availability** after settle (registry + txs) — no automatic slash yet.
+//! - Challenge / respond **availability** after settle (registry + txs).
+//! - Bond / FailedServe slash economics are Phase 11 (`blobs_phase11`).
 //! - ReservedRealV1 stores opaque proof bytes but **always rejects** verify (not a SNARK).
 //! - Cap activation checklist extended; default remains unset → 16 MiB.
 
@@ -41,7 +42,7 @@ pub const PHASE10_DAS_RESERVED_OPAQUE_DOMAIN: &[u8] = b"BOING_BLOB_DAS_RESERVED_
 pub enum BlobSampleServeChallengeStatus {
     Open,
     Responded,
-    /// Deadline passed without a valid respond (availability failure signal — no slash yet).
+    /// Deadline passed without a valid respond (availability failure; Phase 11 settles bond/slash).
     FailedServe,
 }
 
@@ -56,6 +57,12 @@ pub struct BlobSampleServeChallenge {
     pub opened_at_height: u64,
     pub deadline_height: u64,
     pub status: BlobSampleServeChallengeStatus,
+    /// Challenger bond escrowed at open (Phase 11); 0 = legacy / no bond.
+    pub bond_amount: u128,
+    /// Provider penalty burned on FailedServe (Phase 11); 0 = none.
+    pub provider_penalty: u128,
+    /// True after bond (and FailedServe penalty) have been settled.
+    pub bond_settled: bool,
 }
 
 impl BlobSampleServeChallenge {
@@ -103,6 +110,29 @@ pub fn open_serve_challenge(
     challenger: AccountId,
     tip_height: u64,
 ) -> Result<BlobSampleServeChallenge, BlobError> {
+    open_serve_challenge_with_bond(
+        blob_id,
+        chunk_index,
+        chunk_count,
+        provider,
+        challenger,
+        tip_height,
+        0,
+        0,
+    )
+}
+
+/// Build an open challenge with explicit bond / provider-penalty amounts (Phase 11).
+pub fn open_serve_challenge_with_bond(
+    blob_id: BlobId,
+    chunk_index: u32,
+    chunk_count: u32,
+    provider: AccountId,
+    challenger: AccountId,
+    tip_height: u64,
+    bond_amount: u128,
+    provider_penalty: u128,
+) -> Result<BlobSampleServeChallenge, BlobError> {
     validate_challenge_blob_sample_serve(
         &blob_id,
         chunk_index,
@@ -119,6 +149,9 @@ pub fn open_serve_challenge(
         opened_at_height: tip_height,
         deadline_height: tip_height.saturating_add(PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS),
         status: BlobSampleServeChallengeStatus::Open,
+        bond_amount,
+        provider_penalty,
+        bond_settled: false,
     })
 }
 

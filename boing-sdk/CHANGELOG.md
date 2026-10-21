@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
 
+## [0.5.14] - 2026-10-21
+
+### Added
+
+- **L1 media blobs Phase 11** — `PHASE11_SERVE_CHALLENGE_BOND` / `PHASE11_FAILED_SERVE_PENALTY`; `blobSampleServeChallengeBondEscrowAccount`; `phase11DasSuccinctProofPlan`. Challenge escrows bond+penalty; FailedServe refunds bond and burns penalty; ReservedRealV1 envelope checks (verify still rejects). Live Put/Announce stays **16 MiB** unless gated. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
 ## [0.5.13] - 2026-10-21
 
 ### Added

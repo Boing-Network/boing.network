@@ -11,6 +11,7 @@
 //! Phase 8: [`crate::blobs_phase8`] — consensus-replay market, succinct proof envelope, activation notes.
 //! Phase 9: [`crate::blobs_phase9`] — SMT escrow helpers, leader-VRF DAS LC path, extended ops notes.
 //! Phase 10: [`crate::blobs_phase10`] — serve challenges, ReservedRealV1 opaque DAS path.
+//! Phase 11: [`crate::blobs_phase11`] — serve-challenge bond / FailedServe slash, ReservedRealV1 envelope checks.
 
 use serde::{Deserialize, Serialize};
 

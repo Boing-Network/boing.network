@@ -1,12 +1,13 @@
-//! SMT-resident sample-serve challenge registry (Phase 10).
+//! SMT-resident sample-serve challenge registry (Phase 10/11).
 //!
 //! After settle, a challenger can open a window for the provider to prove availability
-//! via a DAS merkle sample. FailedServe is a consensus signal — no automatic slash yet.
+//! via a DAS merkle sample. Phase 11 escrows a challenger bond and settles FailedServe
+//! (bond refund + provider penalty) in the VM / end-of-block hook.
 
 use std::collections::BTreeMap;
 
 use boing_primitives::{
-    blob_id_hex, hasher, open_serve_challenge, serve_challenge_key,
+    blob_id_hex, hasher, open_serve_challenge_with_bond, serve_challenge_key,
     validate_respond_blob_sample_serve, AccountId, BlobError, BlobId, BlobSampleServeChallenge,
     BlobSampleServeChallengeStatus, MediaBlobDasSample, PHASE10_MAX_SERVE_CHALLENGES,
     PHASE10_SERVE_CHALLENGE_REGISTRY_DOMAIN,
@@ -63,13 +64,23 @@ impl SampleServeChallengeRegistry {
             .get(&serve_challenge_key(blob_id, chunk_index, provider, challenger))
     }
 
+    pub fn get_mut(
+        &mut self,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        provider: &AccountId,
+        challenger: &AccountId,
+    ) -> Option<&mut BlobSampleServeChallenge> {
+        self.challenges
+            .get_mut(&serve_challenge_key(blob_id, chunk_index, provider, challenger))
+    }
+
     pub fn list_for_blob(
         &self,
         blob_id: &BlobId,
         tip_height: u64,
     ) -> Vec<&BlobSampleServeChallenge> {
         let want = blob_id_hex(blob_id);
-        // resolve expired views for listing without mutating
         self.challenges
             .values()
             .filter(|c| blob_id_hex(&c.blob_id) == want)
@@ -80,7 +91,7 @@ impl SampleServeChallengeRegistry {
             .collect()
     }
 
-    /// Open a new challenge. Rejects duplicate open keys.
+    /// Open a new challenge with bond / penalty amounts. Rejects duplicate open keys.
     pub fn challenge(
         &mut self,
         blob_id: BlobId,
@@ -89,15 +100,19 @@ impl SampleServeChallengeRegistry {
         provider: AccountId,
         challenger: AccountId,
         tip_height: u64,
+        bond_amount: u128,
+        provider_penalty: u128,
     ) -> Result<BlobSampleServeChallenge, SampleServeChallengeError> {
-        self.resolve_expired(tip_height);
-        let c = open_serve_challenge(
+        let _ = self.take_newly_failed(tip_height);
+        let c = open_serve_challenge_with_bond(
             blob_id,
             chunk_index,
             chunk_count,
             provider,
             challenger,
             tip_height,
+            bond_amount,
+            provider_penalty,
         )?;
         let key = c.market_key();
         if let Some(existing) = self.challenges.get(&key) {
@@ -125,8 +140,8 @@ impl SampleServeChallengeRegistry {
         challenger: &AccountId,
         tip_height: u64,
         sample: &MediaBlobDasSample,
-    ) -> Result<(), SampleServeChallengeError> {
-        self.resolve_expired(tip_height);
+    ) -> Result<&BlobSampleServeChallenge, SampleServeChallengeError> {
+        let _ = self.take_newly_failed(tip_height);
         let key = serve_challenge_key(blob_id, chunk_index, provider, challenger);
         let c = self
             .challenges
@@ -134,19 +149,38 @@ impl SampleServeChallengeRegistry {
             .ok_or(SampleServeChallengeError::NotFound)?;
         validate_respond_blob_sample_serve(c, tip_height, sample)?;
         c.status = BlobSampleServeChallengeStatus::Responded;
-        Ok(())
+        Ok(c)
     }
 
-    /// Mark open challenges past deadline as FailedServe.
-    pub fn resolve_expired(&mut self, tip_height: u64) -> usize {
-        let mut n = 0;
+    /// Mark open challenges past deadline as FailedServe; return those still needing bond settle.
+    pub fn take_newly_failed(&mut self, tip_height: u64) -> Vec<BlobSampleServeChallenge> {
+        let mut out = Vec::new();
         for c in self.challenges.values_mut() {
             if c.status == BlobSampleServeChallengeStatus::Open && tip_height > c.deadline_height {
                 c.status = BlobSampleServeChallengeStatus::FailedServe;
-                n += 1;
+            }
+            if c.status == BlobSampleServeChallengeStatus::FailedServe && !c.bond_settled {
+                out.push(c.clone());
             }
         }
-        n
+        out
+    }
+
+    /// Mark open challenges past deadline as FailedServe (status only; prefer [`take_newly_failed`]).
+    pub fn resolve_expired(&mut self, tip_height: u64) -> usize {
+        self.take_newly_failed(tip_height).len()
+    }
+
+    pub fn mark_bond_settled(
+        &mut self,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        provider: &AccountId,
+        challenger: &AccountId,
+    ) {
+        if let Some(c) = self.get_mut(blob_id, chunk_index, provider, challenger) {
+            c.bond_settled = true;
+        }
     }
 }
 
@@ -170,6 +204,8 @@ mod tests {
             provider,
             challenger,
             1,
+            0,
+            0,
         )
         .unwrap();
         r.respond(
@@ -197,10 +233,14 @@ mod tests {
             AccountId([2u8; 32]),
             AccountId([3u8; 32]),
             1,
+            10,
+            20,
         )
         .unwrap();
-        let n = r.resolve_expired(10_000);
-        assert_eq!(n, 1);
+        let failed = r.take_newly_failed(10_000);
+        assert_eq!(failed.len(), 1);
+        assert_eq!(failed[0].bond_amount, 10);
+        assert_eq!(failed[0].provider_penalty, 20);
         assert_eq!(
             r.get(&[9u8; 32], 0, &AccountId([2u8; 32]), &AccountId([3u8; 32]))
                 .unwrap()

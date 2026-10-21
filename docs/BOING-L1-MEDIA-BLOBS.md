@@ -4,7 +4,7 @@
 > 🛠️ **Developers:** PutBlob **21** … Cancel **27**, ChallengeServe **28**, RespondServe **29**; DAS RPCs; SDK `mediaBlob.ts`.  
 > 🛰️ **Operators:** `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. Optional header: `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`. Optional **gated** 256 MiB raise: `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (**unset = stay 16 MiB — Fly-safe**).
 
-Project design: Cursor store `docs/boing-l1-media-blobs.md`. Merges: #53–#57 · #65 · #66 · #67 · #68 · #69 (`0747903`).
+Project design: Cursor store `docs/boing-l1-media-blobs.md`. Merges: #53–#57 · #65 · #66 · #67 · #68 · #69 (`0747903`) · #71 (`ed058ec`).
 
 ---
 
@@ -37,16 +37,16 @@ Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActiva
 | RegisterBlobSampleOffer | 25 | Escrow `ask_fee` + SMT offer |
 | SettleBlobSampleMatch | 26 | Protocol fee + release ask escrow |
 | CancelBlobSampleOffer | 27 | Refund ask escrow |
-| ChallengeBlobSampleServe | 28 | Open serve-availability challenge |
-| RespondBlobSampleServe | 29 | Provider DAS merkle response |
+| ChallengeBlobSampleServe | 28 | Open serve-availability challenge (**escrows challenger bond**) |
+| RespondBlobSampleServe | 29 | Provider DAS merkle response (**bond → provider**) |
 
 ---
 
 ## Sampling / DAS / challenges
 
 - SMT offer book + ask escrow (Phase 9)  
-- Serve challenges (Phase 10): window **256** blocks; timeout → `failedServe` signal (**no automatic slash yet**)  
-- Succinct DAS: StubBlake3V0 implemented; ReservedRealV1 opaque envelope **verify rejects** until a real system is wired (`boing_getBlobDasSuccinctProofPlan`)  
+- Serve challenges (Phase 10/11): window **256** blocks; Challenge escrows challenger bond **1 BOING** + provider penalty **1 BOING**; Respond → both to provider; FailedServe → bond refund + penalty burn (end-of-block settle)  
+- Succinct DAS: StubBlake3V0 implemented; ReservedRealV1 opaque envelope + structure checks; **verify rejects** until a real system is wired (`boing_getBlobDasSuccinctProofPlan`)  
 - Leader-VRF LC: `boing_getLeaderVrfOutput` / `useLeaderVrf`  
 
 ---
@@ -55,14 +55,14 @@ Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActiva
 
 | Phase | Status |
 |-------|--------|
-| 1–9 | **Merged** (#69 · `0747903`) |
-| 10 Serve challenge / reserved DAS path | **This PR (draft)** |
+| 1–10 | **Merged** (#71 · `ed058ec`) |
+| 11 Serve-challenge bond / FailedServe slash | **This PR (draft)** |
 
 ### Still later
 
-- Automatic slash / bond on failed serve  
-- Real IPA/KZG/SNARK verify for ReservedRealV1  
+- Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
 - Coordinated public-testnet 256 MiB activation  
+- Optional SlashRegistry audit records for FailedServe (balance burn is live)  
 
 ---
 

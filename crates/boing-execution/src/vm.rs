@@ -1,14 +1,15 @@
 //! Boing VM — deterministic execution engine.
 
 use boing_primitives::{
-    blob_sample_ask_escrow_account, contract_deploy_init_body, contract_deploy_uses_init_code,
-    create2_contract_address, media_blob_gas, media_blob_max_bytes_at, media_blob_max_das_chunks_at,
-    media_blob_meta_tx_gas, nonce_derived_contract_address, validate_batch_calls,
-    validate_blob_announce_with_cap, validate_pay_blob_sample,
-    validate_pay_blob_sample_with_max_chunks, validate_put_blob_with_cap,
+    blob_sample_ask_escrow_account, blob_sample_serve_challenge_bond_escrow_account,
+    contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
+    media_blob_gas, media_blob_max_bytes_at, media_blob_max_das_chunks_at, media_blob_meta_tx_gas,
+    nonce_derived_contract_address, validate_batch_calls, validate_blob_announce_with_cap,
+    validate_pay_blob_sample, validate_pay_blob_sample_with_max_chunks, validate_put_blob_with_cap,
     validate_register_blob_sample_offer, validate_renew_media_blob_pin,
     validate_settle_blob_sample_match, AccountId, AccountState, BatchCall, BlobId, BlobRetention,
     ExecutionLog, Hash, MediaBlobDasSample, QaPoolVoteKind, Transaction, TransactionPayload,
+    PHASE11_FAILED_SERVE_PENALTY, PHASE11_SERVE_CHALLENGE_BOND,
 };
 use boing_qa::{
     check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaPoolGovernanceConfig,
@@ -1006,6 +1007,23 @@ impl Vm {
         let max_chunks = media_blob_max_das_chunks_at(height, self.media_blobs_phase7_cap_from);
         validate_pay_blob_sample_with_max_chunks(blob_id, chunk_index, chunk_count, max_chunks)
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
+        // Settle any expired challenges before admitting a new one.
+        settle_expired_serve_challenges(state, height)?;
+
+        let bond = PHASE11_SERVE_CHALLENGE_BOND;
+        let penalty = PHASE11_FAILED_SERVE_PENALTY;
+        let challenger_bal = state.get(&tx.sender).map(|s| s.balance).unwrap_or(0);
+        if challenger_bal < bond {
+            return Err(VmError::InsufficientBalance);
+        }
+        let provider_bal = state.get(provider).map(|s| s.balance).unwrap_or(0);
+        if provider_bal < penalty {
+            return Err(VmError::MediaBlob(
+                "provider balance below FailedServe penalty; cannot open challenge".into(),
+            ));
+        }
+
         state
             .sample_serve_mut()
             .challenge(
@@ -1015,8 +1033,20 @@ impl Vm {
                 *provider,
                 tx.sender,
                 height,
+                bond,
+                penalty,
             )
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
+        let escrow = blob_sample_serve_challenge_bond_escrow_account();
+        // Escrow challenger bond + provider penalty up front so expiry settle cannot fail.
+        if bond > 0 {
+            move_native(state, tx.sender, escrow, bond)?;
+        }
+        if penalty > 0 {
+            move_native(state, *provider, escrow, penalty)?;
+        }
+
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce
@@ -1047,6 +1077,8 @@ impl Vm {
                 from: self.media_blobs_from,
             });
         }
+        settle_expired_serve_challenges(state, height)?;
+
         let sample = MediaBlobDasSample {
             blob_id: *blob_id,
             chunk_index,
@@ -1055,7 +1087,7 @@ impl Vm {
             chunks_root: Hash(chunks_root),
             siblings: siblings.to_vec(),
         };
-        state
+        let challenge = state
             .sample_serve_mut()
             .respond(
                 blob_id,
@@ -1065,7 +1097,26 @@ impl Vm {
                 height,
                 &sample,
             )
-            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?
+            .clone();
+
+        // Valid respond: challenger bond → provider; escrowed provider penalty refunded.
+        if !challenge.bond_settled {
+            let escrow = blob_sample_serve_challenge_bond_escrow_account();
+            if challenge.bond_amount > 0 {
+                move_native(state, escrow, tx.sender, challenge.bond_amount)?;
+            }
+            if challenge.provider_penalty > 0 {
+                move_native(state, escrow, tx.sender, challenge.provider_penalty)?;
+            }
+            state.sample_serve_mut().mark_bond_settled(
+                blob_id,
+                chunk_index,
+                &tx.sender,
+                challenger,
+            );
+        }
+
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce
@@ -1494,6 +1545,44 @@ impl Vm {
             logs,
         })
     }
+}
+
+/// Settle expired serve challenges: mark FailedServe, refund challenger bond, burn provider penalty.
+///
+/// Called at the start of Challenge/Respond and once per block (producer + importer) so FailedServe
+/// settles automatically without waiting for another sample tx.
+pub fn settle_expired_serve_challenges(
+    state: &mut StateStore,
+    height: u64,
+) -> Result<usize, VmError> {
+    let failed = state.sample_serve_mut().take_newly_failed(height);
+    if failed.is_empty() {
+        return Ok(0);
+    }
+    let escrow = blob_sample_serve_challenge_bond_escrow_account();
+    let burn = boing_tokenomics::FEE_BURN_SINK;
+    let mut n = 0usize;
+    for c in failed {
+        if c.bond_settled {
+            continue;
+        }
+        // Bond was escrowed from challenger at open → refund challenger.
+        if c.bond_amount > 0 {
+            move_native(state, escrow, c.challenger, c.bond_amount)?;
+        }
+        // Penalty was escrowed from provider at open → burn.
+        if c.provider_penalty > 0 {
+            move_native(state, escrow, burn, c.provider_penalty)?;
+        }
+        state.sample_serve_mut().mark_bond_settled(
+            &c.blob_id,
+            c.chunk_index,
+            &c.provider,
+            &c.challenger,
+        );
+        n = n.saturating_add(1);
+    }
+    Ok(n)
 }
 
 /// Move native BOING `from -> to` (journaled through [`StateStore::get_mut`] / `insert`, so a tx

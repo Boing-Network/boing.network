@@ -16,6 +16,8 @@ pub enum SlashReason {
     Liveness,
     /// Incorrect execution or fraud proof.
     Fraud,
+    /// Media-blob sample provider failed to respond to a serve challenge (Phase 11).
+    BlobFailedServe,
     /// Other (should include details).
     Other(String),
 }

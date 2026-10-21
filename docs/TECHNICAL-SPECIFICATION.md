@@ -387,7 +387,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | Bond | 21,000 |
 | Unbond | 21,000 |
 | QaPoolVote | 21,000 |
-| **PutBlob** / **BlobAnnounce** / **Renew** / **PayBlobSample** / **RegisterBlobSampleOffer** / **SettleBlobSampleMatch** / **CancelBlobSampleOffer** / **ChallengeBlobSampleServe** / **RespondBlobSampleServe** (media) | Blob gas + optional `blob_*` fee policy fields — **not** SSTORE; see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md). Default live cap **16 MiB**; RS parity=2; DAS LC + StubBlake3V0 / ReservedRealV1 opaque; Phase 9–10 SMT offer escrow + serve challenges (25–29) + optional gated 256 MiB raise via `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (unset = Fly-safe 16 MiB). Activation: `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. |
+| **PutBlob** / **BlobAnnounce** / **Renew** / **PayBlobSample** / **RegisterBlobSampleOffer** / **SettleBlobSampleMatch** / **CancelBlobSampleOffer** / **ChallengeBlobSampleServe** / **RespondBlobSampleServe** (media) | Blob gas + optional `blob_*` fee policy fields — **not** SSTORE; see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md). Default live cap **16 MiB**; RS parity=2; DAS LC + StubBlake3V0 / ReservedRealV1 opaque; Phase 9–11 SMT offer escrow + serve challenges (25–29) with Phase 11 bond/FailedServe penalty + optional gated 256 MiB raise via `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (unset = Fly-safe 16 MiB). Activation: `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. |
 
 ### 8.2 Opcode Gas
 

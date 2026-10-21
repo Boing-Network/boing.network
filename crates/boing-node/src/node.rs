@@ -1357,6 +1357,24 @@ impl BoingNode {
                         "cannot challenge own sample serve".into(),
                     ));
                 }
+                let bond = boing_primitives::PHASE11_SERVE_CHALLENGE_BOND;
+                let penalty = boing_primitives::PHASE11_FAILED_SERVE_PENALTY;
+                let challenger_bal = self
+                    .state
+                    .get(&signed.tx.sender)
+                    .map(|s| s.balance)
+                    .unwrap_or(0);
+                if challenger_bal < bond {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "insufficient balance for serve-challenge bond".into(),
+                    ));
+                }
+                let provider_bal = self.state.get(provider).map(|s| s.balance).unwrap_or(0);
+                if provider_bal < penalty {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "provider balance below FailedServe penalty".into(),
+                    ));
+                }
             }
             TransactionPayload::RespondBlobSampleServe {
                 blob_id,
