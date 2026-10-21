@@ -349,8 +349,14 @@ impl BlockExecutor {
                         fee_remainder,
                     )
                     .map_err(ExecutionError::Fee)?;
-                    charge_priority_tip(state, &txs[idx].sender, tip_at(idx), &fee_recipient)
-                        .map_err(ExecutionError::Fee)?;
+                    charge_priority_tip(
+                        state,
+                        &txs[idx].sender,
+                        tip_at(idx),
+                        &fee_recipient,
+                        &fee_policy,
+                    )
+                    .map_err(ExecutionError::Fee)?;
                     receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
                         &txs[idx],
                         block_height,
@@ -396,7 +402,15 @@ impl BlockExecutor {
                                 &fee_policy,
                                 fee_remainder,
                             )
-                            .and_then(|_| charge_priority_tip(state, &tx.sender, tip, &fee_recipient));
+                            .and_then(|_| {
+                                charge_priority_tip(
+                                    state,
+                                    &tx.sender,
+                                    tip,
+                                    &fee_recipient,
+                                    &fee_policy,
+                                )
+                            });
                             match fee_ok {
                                 Ok(()) => {
                                     total_gas = total_gas.saturating_add(out.gas_used);

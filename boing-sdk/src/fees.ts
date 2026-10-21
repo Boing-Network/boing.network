@@ -30,11 +30,16 @@ export function estimateMicroTransferFee(): bigint {
   return estimateExecutionGasFee(GAS_PER_TRANSFER, MICRO_FEE_EXECUTION_GAS_BPS);
 }
 
+export type PriorityTipTier = {
+  label: 'normal' | 'faster' | 'priority' | 'urgent';
+  tip: bigint;
+};
+
 /**
  * Suggested tip ladder in base units for wallets (untipped → light → medium → urgent).
  * Tips are optional; the base micro fee remains the spam deterrent.
  */
-export function suggestPriorityTipLadder(): { label: string; tip: bigint }[] {
+export function suggestPriorityTipLadder(): PriorityTipTier[] {
   const micro = estimateMicroTransferFee();
   return [
     { label: 'normal', tip: 0n },
@@ -51,4 +56,40 @@ export function estimateTotalFeeWithTip(
   executionGasFeeBps: number = MICRO_FEE_EXECUTION_GAS_BPS,
 ): bigint {
   return estimateExecutionGasFee(gasUsed, executionGasFeeBps) + priorityTip;
+}
+
+/** Format ledger base units as a short BOING decimal string (18 decimals, trim trailing zeros). */
+export function formatBoingFromBaseUnits(baseUnits: bigint, maxFrac = 8): string {
+  if (baseUnits < 0n) throw new RangeError('baseUnits must be >= 0');
+  const whole = baseUnits / 1_000_000_000_000_000_000n;
+  const frac = baseUnits % 1_000_000_000_000_000_000n;
+  if (frac === 0n) return whole.toString();
+  const fracStr = frac.toString().padStart(18, '0').slice(0, Math.max(0, maxFrac)).replace(/0+$/, '');
+  return fracStr.length > 0 ? `${whole}.${fracStr}` : whole.toString();
+}
+
+/**
+ * Wallet-ready tip ladder: same tiers as [`suggestPriorityTipLadder`] plus display strings.
+ * `baseFee` is the micro transfer fee; `totalWithTip` = baseFee + tip.
+ */
+export function formatTipLadderForUi(maxFrac = 8): {
+  label: PriorityTipTier['label'];
+  tip: bigint;
+  tipBoing: string;
+  baseFee: bigint;
+  totalWithTip: bigint;
+  totalBoing: string;
+}[] {
+  const baseFee = estimateMicroTransferFee();
+  return suggestPriorityTipLadder().map(({ label, tip }) => {
+    const totalWithTip = baseFee + tip;
+    return {
+      label,
+      tip,
+      tipBoing: formatBoingFromBaseUnits(tip, maxFrac),
+      baseFee,
+      totalWithTip,
+      totalBoing: formatBoingFromBaseUnits(totalWithTip, maxFrac),
+    };
+  });
 }

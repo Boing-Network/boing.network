@@ -337,14 +337,17 @@ fn fee_policy_json(p: &NetworkFeePolicy) -> serde_json::Value {
         "blob_forever_pin_fee_per_kib": p.blob_forever_pin_fee_per_kib.to_string(),
         "execution_gas_fee_bps": p.execution_gas_fee_bps,
         "free_tx_min_balance": p.free_tx_min_balance.to_string(),
+        "tip_proposer_bps": p.tip_proposer_bps,
+        "tip_treasury_bps": p.tip_treasury_bps,
+        "tip_burn_bps": p.tip_burn_bps,
         "execution_gas_waived": p.execution_gas_waived(),
         "micro_fee_execution_gas_bps": boing_tokenomics::MICRO_FEE_EXECUTION_GAS_BPS,
         "optional_priority_tips": true,
         "treasury_account": format!("0x{}", PROTOCOL_TREASURY_HEX),
-        "fee_formula": "network_fee = ceil(gas_used * GAS_PRICE / GAS_UNITS_PER_BOING) * execution_gas_fee_bps/10000 + extra_fixed_fee + (transfer_amount * transfer_amount_bps / 10000) + blob fees; priority_tip paid separately to proposer",
+        "fee_formula": "network_fee = ceil(gas_used * GAS_PRICE / GAS_UNITS_PER_BOING) * execution_gas_fee_bps/10000 + extra_fixed_fee + (transfer_amount * transfer_amount_bps / 10000) + blob fees; priority_tip paid separately (tip_proposer/treasury/burn BPS)",
         "gas_price_base_units": boing_tokenomics::GAS_PRICE_BASE_UNITS.to_string(),
         "fee_formula_base_units": "network_fee = gas_used * gas_price_base_units * execution_gas_fee_bps/10000 + extra_fixed_fee + transfer bps + blob fees; tip not included. Recommended execution_gas_fee_bps=100 (micro: ~0.00021 BOING/transfer). Blob/pin fees stay independent. Applies from native_currency.base_units_from_height.",
-        "note": "Product target: always charge a tiny base execution fee (Solana-like) so spam costs money; attach priority_tip for preferred inclusion under congestion. Prefer execution_gas_fee_bps=100 (micro_fee_default). Waiving gas (bps=0) is supported but not recommended. Blob fees are never scaled by execution_gas_fee_bps.",
+        "note": "Product target: always charge a tiny base execution fee (Solana-like) so spam costs money; attach priority_tip for preferred inclusion under congestion. Prefer execution_gas_fee_bps=100 (micro_fee_default). Waiving gas (bps=0) is supported but not recommended. Blob fees are never scaled by execution_gas_fee_bps. Tips default 100% to the proposer (tip_*_bps).",
     })
 }
 
@@ -1407,7 +1410,7 @@ async fn dispatch_jsonrpc_request(
                                 serde_json::json!({
                                     "have": have.to_string(),
                                     "need": need.to_string(),
-                                    "hint": "Request testnet BOING from the faucet and retry. With optional fees, need = protocol fee + priority_tip (execution gas may be waived).",
+                                    "hint": "Request testnet BOING from the faucet and retry. Need = protocol fee (micro base by default) + optional priority_tip.",
                                 }),
                             ),
                             Err(MempoolError::FreePendingLimitExceeded { limit, .. }) => {
@@ -1420,7 +1423,7 @@ async fn dispatch_jsonrpc_request(
                                     serde_json::json!({
                                         "reason": "free_pending_limit",
                                         "limit": limit,
-                                        "hint": "Optional fee market anti-spam: tip for priority, or wait for pending free txs to clear.",
+                                        "hint": "Legacy path only when execution_gas_fee_bps=0: tip for priority, or wait for pending waived-gas txs to clear. Prefer a micro base fee instead.",
                                     }),
                                 )
                             }
@@ -1435,7 +1438,7 @@ async fn dispatch_jsonrpc_request(
                                         "reason": "free_tx_balance_gate",
                                         "have": have.to_string(),
                                         "need": need.to_string(),
-                                        "hint": "Hold at least free_tx_min_balance to submit untipped txs, or attach a priority tip.",
+                                        "hint": "Legacy gate only when execution gas is waived. Prefer micro_fee_default(); otherwise hold free_tx_min_balance or attach a tip.",
                                     }),
                                 )
                             },

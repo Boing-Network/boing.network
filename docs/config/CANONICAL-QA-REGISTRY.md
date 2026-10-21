@@ -15,7 +15,7 @@ This folder holds **reference JSON** that matches the **default governance shape
 | [`qa_content_blocklist.en.json`](qa_content_blocklist.en.json) | English **content policy** terms for `asset_name` / `asset_symbol` (vulgarity, slurs, hate). Merged into the registry by `npm run apply-public-testnet-qa-policy`. |
 | [`qa_pool_config.public-testnet.json`](qa_pool_config.public-testnet.json) | Open testnet pool governance (dev voting, generous caps) — applied together with the public registry. |
 | [`qa_pool_config.canonical.json`](qa_pool_config.canonical.json) | Default **production-style pool governance** (`QaPoolGovernanceConfig::production_default()`): **`public_membership`**, bounded queue, 3-vote quorum floor, 1 BOING per counted vote, 7-day review window. |
-| [`network_fee_config.canonical.json`](network_fee_config.canonical.json) | Default native fee policy: **100% of tx fees to `PROTOCOL_TREASURY`**. |
+| [`network_fee_config.canonical.json`](network_fee_config.canonical.json) | Recommended native fee policy: **micro** `execution_gas_fee_bps=100`, protocol gas **100% to `PROTOCOL_TREASURY`**, tips **100% proposer** (`tip_proposer_bps`). |
 
 ## Live vs canonical
 

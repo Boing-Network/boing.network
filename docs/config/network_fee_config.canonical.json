@@ -3,5 +3,12 @@
   "fee_treasury_bps": 10000,
   "fee_burn_bps": 0,
   "extra_fixed_fee": "0",
-  "transfer_amount_bps": 0
+  "transfer_amount_bps": 0,
+  "blob_base_fee_per_kib": "0",
+  "blob_forever_pin_fee_per_kib": "0",
+  "execution_gas_fee_bps": 100,
+  "free_tx_min_balance": "0",
+  "tip_proposer_bps": 10000,
+  "tip_treasury_bps": 0,
+  "tip_burn_bps": 0
 }

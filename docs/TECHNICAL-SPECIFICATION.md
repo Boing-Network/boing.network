@@ -426,7 +426,7 @@ protocol_fee = (gas_used × price) × execution_gas_fee_bps / 10_000
 total = protocol_fee + priority_tip
 ```
 
-`execution_gas_fee_bps` defaults to **10000** (full historical gas, replay-safe). Recommended operator setting is **100** (`MICRO_FEE_EXECUTION_GAS_BPS` → ~**0.00021 BOING** per transfer). Height gate: `BOING_MICRO_FEES_ACTIVATION_HEIGHT` / `ExecutionHistory.micro_fees_from`. Blob/pin fees are never scaled by that BPS. Optional **`priority_tip`** on `SignedTransaction` (and block `priority_tips`) is paid **100% to the proposer**. See [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md).
+`execution_gas_fee_bps` defaults to **10000** (full historical gas, replay-safe). Recommended operator setting is **100** (`MICRO_FEE_EXECUTION_GAS_BPS` → ~**0.00021 BOING** per transfer). Height gate: `BOING_MICRO_FEES_ACTIVATION_HEIGHT` / `ExecutionHistory.micro_fees_from`. Blob/pin fees are never scaled by that BPS. Optional **`priority_tip`** on `SignedTransaction` (and block `priority_tips`) is split by **`tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps`** (default **100% proposer**). See [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md).
 
 The protocol fee is deducted from the sender and split by **`NetworkFeePolicy`** (defaults **100% treasury**):
 
