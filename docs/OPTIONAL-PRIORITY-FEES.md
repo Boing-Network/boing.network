@@ -45,7 +45,7 @@ Apply live with `boing_operatorApplyFeePolicy` (operator auth when configured) o
    - CLI: `--micro-fees-activation-height <height>`
    - Template: [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example)
    - Below that height: full historical gas. At/after (or no history / new chain): honor `execution_gas_fee_bps`.
-3. **Apply micro fee policy** — write `execution_gas_fee_bps: 100` into `network_fee_config.json` or call `boing_operatorApplyFeePolicy` with `NetworkFeePolicy::micro_fee_default()` JSON.
+3. **Apply micro fee policy** — write `execution_gas_fee_bps: 100` into `network_fee_config.json`, call `boing_operatorApplyFeePolicy`, or run **`npm run apply-micro-fee-policy`** (loads the canonical JSON).
 4. **Verify** — `boing_getNetworkFeePolicy` should show `execution_gas_fee_bps: 100`, `micro_fee_execution_gas_bps: 100`, and tip BPS fields.
 
 Fresh / private chains with no `ExecutionHistory`: micro BPS applies from genesis once the policy is loaded (no height gate needed).

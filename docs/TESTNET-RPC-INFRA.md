@@ -90,6 +90,7 @@ Some Cloudflare / WAF edges in front of **`https://testnet-rpc.boing.network/`**
 8. **VibeMiner** — [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md); app reads **`GET https://boing.network/api/networks`**.
 9. **Optional: native DEX full stack** — **`npm run deploy-native-dex-full-stack`** from [examples/native-boing-tutorial](../examples/native-boing-tutorial/) after **`boing-sdk`** build. For **public** testnet, publish canonical pool id per [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) (**OPS-1**).
 10. **Optional: QA content policy** — Edit [`docs/config/qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json), then **`npm run apply-public-testnet-qa-policy`** (requires **`BOING_OPERATOR_RPC_TOKEN`** when the node enforces operator auth). Restart nodes after upgrading **`boing-node`** so **`boing_qaCheck`** uses the live registry.
+11. **Micro fee market (recommended)** — Product target is Solana-like micro fees, not gasless. Set **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`** on public nodes (current tip or tip+1), then **`npm run apply-micro-fee-policy`** (loads [`docs/config/network_fee_config.canonical.json`](config/network_fee_config.canonical.json) via **`boing_operatorApplyFeePolicy`**). Confirm with **`boing_getNetworkFeePolicy`**. Details: [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md), [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
 
 **Later upgrades** to the RPC binary: [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
 
@@ -106,7 +107,7 @@ Cloudflare returns **530** when a **Tunnel** hostname cannot reach its connector
 | **Cloudflare Pages / website** | `PUBLIC_TESTNET_RPC_URL`, `PUBLIC_BOOTNODES` | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md) |
 | **boing.finance** | `REACT_APP_BOING_NATIVE_AMM_POOL`, `REACT_APP_BOING_NATIVE_VM_*` | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) §3 |
 | **Tutorial / scripts** | `BOING_RPC_URL`, `BOING_POOL_HEX` | [examples/native-boing-tutorial/README.md](../examples/native-boing-tutorial/README.md) |
-| **Public `boing-node`** | `BOING_CHAIN_ID`, `BOING_CHAIN_NAME`, `BOING_CANONICAL_NATIVE_*`, `BOING_DEX_*`, optional `BOING_OPERATOR_RPC_TOKEN` | [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example), [RUNBOOK.md](RUNBOOK.md) §8 |
+| **Public `boing-node`** | `BOING_CHAIN_ID`, `BOING_CHAIN_NAME`, `BOING_CANONICAL_NATIVE_*`, `BOING_DEX_*`, optional `BOING_OPERATOR_RPC_TOKEN`, optional `BOING_MICRO_FEES_ACTIVATION_HEIGHT` | [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example), [RUNBOOK.md](RUNBOOK.md) §8, [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md) |
 | **Relaxed testnet rate limits** | `BOING_RATE_PROFILE=dev` or `--dev-rate-limits` | [RUNBOOK.md](RUNBOOK.md) §2 — **not** for public RPC |
 
 ---

@@ -281,9 +281,9 @@ Read the effective native fee policy (same JSON shape as `network_fee_config.jso
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[]` | None |
-| Result | object | `fee_validators_bps`, `fee_treasury_bps`, `fee_burn_bps` (must sum to 10000), `extra_fixed_fee` (u128 decimal string), `transfer_amount_bps`, `treasury_account` (`0x5452454153555259…0001`), `fee_formula`. |
+| Result | object | `fee_validators_bps`, `fee_treasury_bps`, `fee_burn_bps` (must sum to 10000), `extra_fixed_fee` (u128 decimal string), `transfer_amount_bps`, `execution_gas_fee_bps`, `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (must sum to 10000; default 100%/0%/0), `treasury_account` (`0x5452454153555259…0001`), `fee_formula`, `micro_fee_execution_gas_bps`. |
 
-Default production policy: **100% of native fees to the protocol treasury** (0 / 10000 / 0). Block **emission** (mining rewards) still goes to the round **proposer**.
+Recommended operator policy: **`execution_gas_fee_bps=100`** (micro; ~0.00021 BOING/transfer) with protocol gas **100% treasury** and tips **100% proposer**. Apply via **`npm run apply-micro-fee-policy`**. Block **emission** still goes to the round **proposer**. See [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md).
 
 ---
 
