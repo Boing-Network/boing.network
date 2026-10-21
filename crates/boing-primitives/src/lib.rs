@@ -5,6 +5,7 @@
 pub mod blobs;
 pub mod blobs_erasure;
 pub mod blobs_phase6;
+pub mod blobs_phase7;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -28,7 +29,8 @@ pub use blobs::{
     media_blob_chunk_merkle_proof, media_blob_chunks_merkle_root, media_blob_das_chunk_count,
     media_blob_das_sample, media_blob_gas, media_blob_gas_raw, media_blob_meta_tx_gas,
     media_blob_pin_rent_kib_blocks, media_blob_uri, parse_media_blob_id, recover_media_blob_xor,
-    validate_blob_announce, validate_pay_blob_sample, validate_put_blob,
+    validate_blob_announce, validate_blob_announce_with_cap, validate_pay_blob_sample,
+    validate_pay_blob_sample_with_max_chunks, validate_put_blob, validate_put_blob_with_cap,
     validate_renew_media_blob_pin, verify_media_blob_das_sample, within_phase3_target_cap,
     BlobError, BlobId, BlobRetention, MediaBlobChunkRef, MediaBlobDasSample, MediaBlobErasureBundle,
     MediaBlobGossip, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
@@ -51,6 +53,13 @@ pub use blobs_phase6::{
     PHASE6_DAS_LIGHT_CLIENT_DOMAIN, PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES, PHASE6_MAX_SAMPLE_OFFERS,
     PHASE6_MAX_VIDEO_SEGMENTS, PHASE6_SEGMENT_MANIFEST_DOMAIN, PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES,
     PHASE6_VIDEO_SEGMENT_TARGET_BYTES,
+};
+pub use blobs_phase7::{
+    das_light_client_sample_indices_vrf, das_light_client_seed_from_vrf,
+    das_succinct_commitment_stub, media_blob_max_bytes_at, media_blob_max_das_chunks_at,
+    phase7_cap_active, validate_register_blob_sample_offer, validate_settle_blob_sample_match,
+    OnChainBlobSampleOffer, PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE7_CAP_ACTIVATION_ENV,
+    PHASE7_DAS_SUCCINCT_STUB_DOMAIN, PHASE7_DAS_VRF_SEED_DOMAIN,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};

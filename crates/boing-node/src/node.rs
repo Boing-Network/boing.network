@@ -1182,8 +1182,13 @@ impl BoingNode {
                 data,
             } => {
                 require_active()?;
-                if let Err(e) = boing_primitives::validate_put_blob(*retention, content_type, data)
-                {
+                let max = self.executor.vm().media_blob_max_bytes(next);
+                if let Err(e) = boing_primitives::validate_put_blob_with_cap(
+                    *retention,
+                    content_type,
+                    data,
+                    max,
+                ) {
                     return Err(MempoolError::MediaBlobRejected(e.to_string()));
                 }
             }
@@ -1194,11 +1199,13 @@ impl BoingNode {
                 content_type,
             } => {
                 require_active()?;
-                if let Err(e) = boing_primitives::validate_blob_announce(
+                let max = self.executor.vm().media_blob_max_bytes(next);
+                if let Err(e) = boing_primitives::validate_blob_announce_with_cap(
                     blob_id,
                     *size,
                     *retention,
                     content_type,
+                    max,
                 ) {
                     return Err(MempoolError::MediaBlobRejected(e.to_string()));
                 }
@@ -1236,10 +1243,81 @@ impl BoingNode {
                 chunk_count,
             } => {
                 require_active()?;
-                if let Err(e) =
-                    boing_primitives::validate_pay_blob_sample(blob_id, *chunk_index, *chunk_count)
-                {
+                let max_chunks = boing_primitives::media_blob_max_das_chunks_at(
+                    next,
+                    self.executor.vm().media_blobs_phase7_cap_from(),
+                );
+                if let Err(e) = boing_primitives::validate_pay_blob_sample_with_max_chunks(
+                    blob_id,
+                    *chunk_index,
+                    *chunk_count,
+                    max_chunks,
+                ) {
                     return Err(MempoolError::MediaBlobRejected(e.to_string()));
+                }
+            }
+            TransactionPayload::RegisterBlobSampleOffer {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                ask_fee,
+                expires_at_height,
+            } => {
+                require_active()?;
+                if let Err(e) = boing_primitives::validate_register_blob_sample_offer(
+                    blob_id,
+                    *chunk_index,
+                    *chunk_count,
+                    *ask_fee,
+                    *expires_at_height,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(e.to_string()));
+                }
+            }
+            TransactionPayload::SettleBlobSampleMatch {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                provider,
+            } => {
+                require_active()?;
+                let max_chunks = boing_primitives::media_blob_max_das_chunks_at(
+                    next,
+                    self.executor.vm().media_blobs_phase7_cap_from(),
+                );
+                if let Err(e) = boing_primitives::validate_pay_blob_sample_with_max_chunks(
+                    blob_id,
+                    *chunk_index,
+                    *chunk_count,
+                    max_chunks,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(e.to_string()));
+                }
+                if let Some(store) = self.media_blob_store() {
+                    let market = store.sample_market_snapshot();
+                    let tip = self.chain.height();
+                    if market
+                        .match_pay_blob_sample(
+                            blob_id,
+                            *chunk_index,
+                            *chunk_count,
+                            signed.tx.sender,
+                            u128::MAX, // fee checked via protocol sample fee; offer ask gated separately
+                            tip,
+                            Some(provider),
+                        )
+                        .is_err()
+                    {
+                        // Soft: allow settle without local book (other node may have registered on-chain).
+                        // Hard-fail only when a conflicting expired/wrong-provider offer is present.
+                        if let Some(o) = market.best_offer(blob_id, *chunk_index, tip) {
+                            if &o.provider == provider && o.is_expired(tip) {
+                                return Err(MempoolError::MediaBlobRejected(
+                                    "sample offer expired".into(),
+                                ));
+                            }
+                        }
+                    }
                 }
             }
             _ => {}
@@ -1291,6 +1369,19 @@ impl BoingNode {
     pub fn enable_media_blobs(&mut self, activation_height: u64) {
         self.executor.set_media_blobs_from(Some(activation_height));
         self.vm.set_media_blobs_from(Some(activation_height));
+    }
+
+    /// Phase 7: raise Put/Announce max toward 256 MiB from `activation_height`.
+    /// Unset / unused keeps the **16 MiB** live max (Fly boot-safe).
+    pub fn enable_media_blobs_phase7_cap(&mut self, activation_height: u64) {
+        self.executor
+            .set_media_blobs_phase7_cap_from(Some(activation_height));
+        self.vm
+            .set_media_blobs_phase7_cap_from(Some(activation_height));
+    }
+
+    pub fn media_blobs_phase7_cap_activation_height(&self) -> Option<u64> {
+        self.executor.vm().media_blobs_phase7_cap_from()
     }
 
     /// Phase 3: pin `blobs_root` into produced / validated headers from `activation_height`.
@@ -1395,6 +1486,7 @@ impl BoingNode {
         vm.set_native_value_from(self.executor.vm().native_value_from());
         vm.set_media_blobs_from(self.executor.vm().media_blobs_from());
         vm.set_blobs_root_header_from(self.executor.vm().blobs_root_header_from());
+        vm.set_media_blobs_phase7_cap_from(self.executor.vm().media_blobs_phase7_cap_from());
         vm
     }
 

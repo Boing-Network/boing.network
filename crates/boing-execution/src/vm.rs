@@ -3,8 +3,9 @@
 use boing_primitives::{
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
     media_blob_gas, media_blob_meta_tx_gas, nonce_derived_contract_address, validate_batch_calls,
-    validate_blob_announce, validate_pay_blob_sample, validate_put_blob,
-    validate_renew_media_blob_pin, AccountId, AccountState, BatchCall, BlobId, BlobRetention,
+    validate_blob_announce_with_cap, validate_pay_blob_sample, validate_pay_blob_sample_with_max_chunks,
+    validate_put_blob_with_cap, validate_renew_media_blob_pin, validate_register_blob_sample_offer,
+    media_blob_max_bytes_at, media_blob_max_das_chunks_at, AccountId, AccountState, BatchCall, BlobId, BlobRetention,
     ExecutionLog, Hash, QaPoolVoteKind, Transaction, TransactionPayload,
 };
 use boing_qa::{
@@ -104,6 +105,8 @@ pub struct Vm {
     /// Phase 3: pin `blobs_root` into [`boing_primitives::BlockHeader`] from this height.
     /// `None` = omit field (historical encoding). Independent of PutBlob activation.
     blobs_root_header_from: Option<u64>,
+    /// Phase 7: raise Put/Announce max toward 256 MiB from this height. `None` = stay at 16 MiB.
+    media_blobs_phase7_cap_from: Option<u64>,
 }
 
 impl Vm {
@@ -137,6 +140,19 @@ impl Vm {
 
     pub fn media_blobs_active(&self, height: u64) -> bool {
         self.media_blobs_from.is_some_and(|h| height >= h)
+    }
+
+    /// Phase 7 gated cap raise (`None` keeps the 16 MiB live max — Fly-safe default).
+    pub fn set_media_blobs_phase7_cap_from(&mut self, from: Option<u64>) {
+        self.media_blobs_phase7_cap_from = from;
+    }
+
+    pub fn media_blobs_phase7_cap_from(&self) -> Option<u64> {
+        self.media_blobs_phase7_cap_from
+    }
+
+    pub fn media_blob_max_bytes(&self, height: u64) -> usize {
+        media_blob_max_bytes_at(height, self.media_blobs_phase7_cap_from)
     }
 
     /// Enable header `blobs_root` from `height` (`None` keeps the field omitted).
@@ -222,6 +238,7 @@ impl Vm {
             base_units_from: 0,
             media_blobs_from: None,
             blobs_root_header_from: None,
+            media_blobs_phase7_cap_from: None,
         }
     }
 
@@ -238,6 +255,7 @@ impl Vm {
             base_units_from: 0,
             media_blobs_from: None,
             blobs_root_header_from: None,
+            media_blobs_phase7_cap_from: None,
         }
     }
 
@@ -257,6 +275,7 @@ impl Vm {
             base_units_from: 0,
             media_blobs_from: None,
             blobs_root_header_from: None,
+            media_blobs_phase7_cap_from: None,
         }
     }
 
@@ -587,6 +606,40 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::RegisterBlobSampleOffer {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                ask_fee,
+                expires_at_height,
+            } => {
+                return self.execute_register_blob_sample_offer(
+                    state,
+                    tx,
+                    blob_id,
+                    *chunk_index,
+                    *chunk_count,
+                    *ask_fee,
+                    *expires_at_height,
+                    exec_ctx.block_height,
+                );
+            }
+            TransactionPayload::SettleBlobSampleMatch {
+                blob_id,
+                chunk_index,
+                chunk_count,
+                provider,
+            } => {
+                return self.execute_settle_blob_sample_match(
+                    state,
+                    tx,
+                    blob_id,
+                    *chunk_index,
+                    *chunk_count,
+                    provider,
+                    exec_ctx.block_height,
+                );
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -611,7 +664,8 @@ impl Vm {
                 from: self.media_blobs_from,
             });
         }
-        let blob_id = validate_put_blob(retention, content_type, data)
+        let max = self.media_blob_max_bytes(height);
+        let blob_id = validate_put_blob_with_cap(retention, content_type, data, max)
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
@@ -642,7 +696,8 @@ impl Vm {
                 from: self.media_blobs_from,
             });
         }
-        validate_blob_announce(blob_id, size, retention, content_type)
+        let max = self.media_blob_max_bytes(height);
+        validate_blob_announce_with_cap(blob_id, size, retention, content_type, max)
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
@@ -701,6 +756,76 @@ impl Vm {
         }
         validate_pay_blob_sample(blob_id, chunk_index, chunk_count)
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn execute_register_blob_sample_offer(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        chunk_count: u32,
+        ask_fee: u128,
+        expires_at_height: u64,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        let max_chunks = media_blob_max_das_chunks_at(height, self.media_blobs_phase7_cap_from);
+        validate_pay_blob_sample_with_max_chunks(blob_id, chunk_index, chunk_count, max_chunks)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        validate_register_blob_sample_offer(
+            blob_id,
+            chunk_index,
+            chunk_count,
+            ask_fee,
+            expires_at_height,
+        )
+        .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn execute_settle_blob_sample_match(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        chunk_count: u32,
+        provider: &AccountId,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        let max_chunks = media_blob_max_das_chunks_at(height, self.media_blobs_phase7_cap_from);
+        validate_pay_blob_sample_with_max_chunks(blob_id, chunk_index, chunk_count, max_chunks)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let _ = provider;
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce

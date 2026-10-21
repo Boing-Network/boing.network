@@ -9,8 +9,8 @@ use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
 use boing_primitives::{
-    blob_id_hex, blob_id_of, BlobId, BlobRetention, MediaBlobSampleMarket, MediaBlobSampleOffer,
-    Transaction, TransactionPayload,
+    blob_id_hex, blob_id_of, AccountId, BlobId, BlobRetention, MediaBlobSampleMarket,
+    MediaBlobSampleOffer, Transaction, TransactionPayload,
 };
 use serde::{Deserialize, Serialize};
 
@@ -200,6 +200,40 @@ impl MediaBlobStore {
                     extend_blocks,
                 } => {
                     if self.renew_pin(blob_id, *size, height, *extend_blocks, tx.id().0)? {
+                        n += 1;
+                    }
+                }
+                TransactionPayload::RegisterBlobSampleOffer {
+                    blob_id,
+                    chunk_index,
+                    chunk_count,
+                    ask_fee,
+                    expires_at_height,
+                } => {
+                    let offer = MediaBlobSampleOffer {
+                        blob_id: *blob_id,
+                        chunk_index: *chunk_index,
+                        chunk_count: *chunk_count,
+                        provider: AccountId(tx.sender.0),
+                        ask_fee: *ask_fee,
+                        expires_at_height: *expires_at_height,
+                    };
+                    self.upsert_sample_offer(offer)
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                    n += 1;
+                }
+                TransactionPayload::SettleBlobSampleMatch {
+                    blob_id,
+                    chunk_index,
+                    provider,
+                    ..
+                } => {
+                    let mut m = self
+                        .sample_market
+                        .write()
+                        .unwrap_or_else(|e| e.into_inner());
+                    if m.remove_offer(blob_id, *chunk_index, provider) {
+                        self.persist_sample_market(&m)?;
                         n += 1;
                     }
                 }

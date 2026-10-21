@@ -18,11 +18,14 @@ import {
   parseMediaBlobId,
   PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
   PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES,
+  mediaBlobMaxBytesAt,
   payBlobSamplePayload,
   putBlobPayload,
   recoverMediaBlobXor,
+  registerBlobSampleOfferPayload,
   renewMediaBlobPinPayload,
   segmentManifestId,
+  settleBlobSampleMatchPayload,
   splitIntoLiveCapSegments,
   suggestedVideoSegmentCount,
   tokenMetadataJsonWithBlobImage,
@@ -136,6 +139,32 @@ describe('mediaBlob', () => {
       payBlobSamplePayload({ blobId: id, chunkIndex: 0, chunkCount: 1 }),
     );
     expect(sample[0]).toBe(24);
+  });
+
+  it('encodes Phase 7 RegisterBlobSampleOffer (25) and SettleBlobSampleMatch (26)', () => {
+    const id = blobIdOf(new Uint8Array([1, 2, 3]));
+    const provider = new Uint8Array(32);
+    provider[0] = 9;
+    const reg = encodeTransactionPayload(
+      registerBlobSampleOfferPayload({
+        blobId: id,
+        chunkIndex: 0,
+        chunkCount: 1,
+        askFee: 7n,
+      }),
+    );
+    expect(reg[0]).toBe(25);
+    const settle = encodeTransactionPayload(
+      settleBlobSampleMatchPayload({
+        blobId: id,
+        chunkIndex: 0,
+        chunkCount: 1,
+        provider,
+      }),
+    );
+    expect(settle[0]).toBe(26);
+    expect(mediaBlobMaxBytesAt(false)).toBe(MAX_MEDIA_BLOB_BYTES);
+    expect(mediaBlobMaxBytesAt(true)).toBe(256 * 1024 * 1024);
   });
 
   it('encodes PutBlob (21) and BlobAnnounce (22)', () => {

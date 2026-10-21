@@ -196,6 +196,11 @@ impl BlockExecutor {
         self.vm.set_blobs_root_header_from(from);
     }
 
+    /// Phase 7 gated Put/Announce cap raise (`None` = keep 16 MiB).
+    pub fn set_media_blobs_phase7_cap_from(&mut self, from: Option<u64>) {
+        self.vm.set_media_blobs_phase7_cap_from(from);
+    }
+
     /// Execute all transactions. Returns total gas used and one receipt per tx (in block order).
     /// On error, state may be partially applied (caller should revert if needed).
     /// Transfer-only batches run in parallel; other batches run sequentially.

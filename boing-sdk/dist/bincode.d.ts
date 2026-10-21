@@ -38,6 +38,10 @@ export declare const PayloadVariant: {
     readonly RenewMediaBlobPin: 23;
     /** Pay for one DAS chunk sample (Phase 5 market scaffold). */
     readonly PayBlobSample: 24;
+    /** Register on-chain sample offer (Phase 7). */
+    readonly RegisterBlobSampleOffer: 25;
+    /** Settle sample match against a registered provider (Phase 7). */
+    readonly SettleBlobSampleMatch: 26;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -203,6 +207,19 @@ export type TransactionPayloadInput = {
     blobId: Uint8Array;
     chunkIndex: number;
     chunkCount: number;
+} | {
+    kind: 'registerBlobSampleOffer';
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+    askFee: bigint;
+    expiresAtHeight: bigint;
+} | {
+    kind: 'settleBlobSampleMatch';
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+    provider: Uint8Array;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

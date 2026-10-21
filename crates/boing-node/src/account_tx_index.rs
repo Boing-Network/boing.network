@@ -253,6 +253,32 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "chunk_index":chunk_index,
             "chunk_count":chunk_count,
         }),
+        TransactionPayload::RegisterBlobSampleOffer {
+            blob_id,
+            chunk_index,
+            chunk_count,
+            ask_fee,
+            expires_at_height,
+        } => json!({
+            "kind":"register_blob_sample_offer",
+            "blob_id":hex0x(blob_id),
+            "chunk_index":chunk_index,
+            "chunk_count":chunk_count,
+            "ask_fee":ask_fee.to_string(),
+            "expires_at_height":expires_at_height,
+        }),
+        TransactionPayload::SettleBlobSampleMatch {
+            blob_id,
+            chunk_index,
+            chunk_count,
+            provider,
+        } => json!({
+            "kind":"settle_blob_sample_match",
+            "blob_id":hex0x(blob_id),
+            "chunk_index":chunk_index,
+            "chunk_count":chunk_count,
+            "provider":hex0x(&provider.0),
+        }),
     }
 }
 

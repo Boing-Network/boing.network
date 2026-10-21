@@ -387,7 +387,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | Bond | 21,000 |
 | Unbond | 21,000 |
 | QaPoolVote | 21,000 |
-| **PutBlob** / **BlobAnnounce** / **RenewMediaBlobPin** / **PayBlobSample** (media) | Blob gas + optional `blob_base_fee_per_kib`, Forever `blob_forever_pin_fee_per_kib`, renew `blob_pin_renew_fee_per_kib_block`, sample `blob_sample_fee_per_chunk` — **not** SSTORE; see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md). Live cap **16 MiB**; RS parity=2; DAS sample + light-client batch RPC. Phase 6: node-local sample offer book + segment helpers (`blobs_phase6`) — design 256 MiB via segments, **not** a raised live cap. Activation: `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. |
+| **PutBlob** / **BlobAnnounce** / **Renew** / **PayBlobSample** / **RegisterBlobSampleOffer** / **SettleBlobSampleMatch** (media) | Blob gas + optional `blob_*` fee policy fields — **not** SSTORE; see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md). Default live cap **16 MiB**; RS parity=2; DAS LC batch; Phase 7 on-chain offer/settle (25/26) + optional gated 256 MiB raise via `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (unset = Fly-safe 16 MiB). Activation: `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. |
 
 ### 8.2 Opcode Gas
 
