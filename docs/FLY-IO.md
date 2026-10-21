@@ -34,6 +34,7 @@ Both apps:
 - Stay running (`auto_stop_machines = "off"`, `min_machines_running = 1`)
 - Set **`BOING_CHAIN_ID=6913`**, **`BOING_CHAIN_NAME=Boing Testnet`**, browser CORS for the official sites
 - Require **`BOING_OPERATOR_RPC_TOKEN`** for operator QA RPCs
+- Optional fee market: set **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`**, then **`npm run apply-micro-fee-policy`** for Solana-like micro fees ([OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md))
 
 Only **testnet-1** runs `--validator`, so the two machines do not fork as independent block producers. Both enable `--faucet-enable` so the deterministic faucet account exists on every node (otherwise peers cannot execute faucet transactions). Promote a second validator later with a shared `--validators` / `BOING_VALIDATOR_KEY` set ([TESTNET.md](TESTNET.md) §1, [RUNBOOK.md](RUNBOOK.md) §8.1).
 
