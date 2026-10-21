@@ -134,10 +134,10 @@ export declare class BoingClient {
     /** Light-client DAS sample for one chunk (`boing_getBlobDasSample`), or null. */
     getBlobDasSample(blobId: string | Uint8Array, chunkIndex: number): Promise<Record<string, unknown> | null>;
     /**
-     * Height-bound DAS light-client sample batch (`boing_getBlobDasLightClientBatch`), or null.
-     * Merkle samples only — not a succinct aggregate proof.
+     * DAS light-client sample batch (`boing_getBlobDasLightClientBatch`), or null.
+     * Includes StubBlake3V0 succinct proof envelope (not a SNARK). Optional `vrfOutput` binds indices.
      */
-    getBlobDasLightClientBatch(blobId: string | Uint8Array, sampleCount?: number): Promise<Record<string, unknown> | null>;
+    getBlobDasLightClientBatch(blobId: string | Uint8Array, sampleCount?: number, vrfOutput?: string | Uint8Array): Promise<Record<string, unknown> | null>;
     /** Upsert a node-local sample offer (`boing_putBlobSampleOffer`) — not consensus. */
     putBlobSampleOffer(offer: {
         blobId: string | Uint8Array;
@@ -149,7 +149,7 @@ export declare class BoingClient {
     }): Promise<Record<string, unknown>>;
     /** List node-local sample offers for a blob (`boing_listBlobSampleOffers`). */
     listBlobSampleOffers(blobId: string | Uint8Array, chunkIndex?: number): Promise<Record<string, unknown>>;
-    /** Match against the node-local sample book (`boing_matchBlobSampleOffer`). */
+    /** Match preferring consensus-replay book, then local (`boing_matchBlobSampleOffer`). */
     matchBlobSampleOffer(input: {
         blobId: string | Uint8Array;
         chunkIndex: number;
@@ -157,6 +157,20 @@ export declare class BoingClient {
         payer: string;
         paidFee: bigint | string | number;
         provider?: string;
+        protocolSampleFee?: bigint | string | number;
+    }): Promise<Record<string, unknown>>;
+    /** Quote settle fees against best offer (`boing_quoteBlobSampleSettle`). */
+    quoteBlobSampleSettle(input: {
+        blobId: string | Uint8Array;
+        chunkIndex: number;
+        protocolSampleFee?: bigint | string | number;
+    }): Promise<Record<string, unknown>>;
+    /** Verify StubBlake3V0 succinct DAS envelope (`boing_verifyBlobDasSuccinctProof`). */
+    verifyBlobDasSuccinctProof(input: {
+        blobId: string | Uint8Array;
+        sampleCount?: number;
+        vrfOutput?: string | Uint8Array;
+        commitment?: string | Uint8Array;
     }): Promise<Record<string, unknown>>;
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
     checkNames(names: string[]): Promise<import('./boingNames.js').BoingCheckNamesResult>;

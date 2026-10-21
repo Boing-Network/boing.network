@@ -173,4 +173,57 @@ export declare function dasSuccinctCommitmentStub(input: {
         chunkHash: Uint8Array;
     }>;
 }): Uint8Array;
+/** Phase 8: settle quote = protocol sample fee + provider ask. */
+export type BlobSampleSettleQuote = {
+    protocolSampleFee: bigint;
+    askFee: bigint;
+    total: bigint;
+    provider: Uint8Array;
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+};
+export declare function quoteBlobSampleSettle(input: {
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+    provider: Uint8Array;
+    askFee: bigint;
+    protocolSampleFee: bigint;
+}): BlobSampleSettleQuote;
+/** Phase 8 succinct proof kind: 0 = StubBlake3V0 (not a SNARK), 1 = reserved. */
+export declare const DAS_SUCCINCT_PROOF_KIND_STUB_BLAKE3_V0 = 0;
+export declare const DAS_SUCCINCT_PROOF_KIND_RESERVED_REAL_V1 = 1;
+export type DasSuccinctProof = {
+    kind: number;
+    commitment: Uint8Array;
+    blobId: Uint8Array;
+    chunksRoot: Uint8Array;
+    seedHeight: bigint;
+    vrfOutput?: Uint8Array;
+    sampleIndices: number[];
+};
+/** Build StubBlake3V0 envelope (matches Rust `build_das_succinct_proof_stub`). */
+export declare function buildDasSuccinctProofStub(input: {
+    blobId: Uint8Array;
+    chunksRoot: Uint8Array;
+    seedHeight: bigint;
+    samples: Array<{
+        chunkIndex: number;
+        chunkHash: Uint8Array;
+    }>;
+}): DasSuccinctProof;
+/** VRF-bound stub envelope (matches Rust `build_das_succinct_proof_stub_vrf`). */
+export declare function buildDasSuccinctProofStubVrf(input: {
+    blobId: Uint8Array;
+    chunksRoot: Uint8Array;
+    samples: Array<{
+        chunkIndex: number;
+        chunkHash: Uint8Array;
+    }>;
+}, vrfOutput: Uint8Array): DasSuccinctProof;
+/** Verify StubBlake3V0 against expected commitment; reserved kinds always fail. */
+export declare function verifyDasSuccinctProofStub(proof: DasSuccinctProof, expected: DasSuccinctProof): boolean;
+/** Alias: activated max after coordinated cap raise. */
+export declare const PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
 //# sourceMappingURL=mediaBlob.d.ts.map

@@ -619,3 +619,127 @@ export function dasSuccinctCommitmentStub(input: {
   }
   return blake3(buf);
 }
+
+/** Phase 8: settle quote = protocol sample fee + provider ask. */
+export type BlobSampleSettleQuote = {
+  protocolSampleFee: bigint;
+  askFee: bigint;
+  total: bigint;
+  provider: Uint8Array;
+  blobId: Uint8Array;
+  chunkIndex: number;
+  chunkCount: number;
+};
+
+export function quoteBlobSampleSettle(input: {
+  blobId: Uint8Array;
+  chunkIndex: number;
+  chunkCount: number;
+  provider: Uint8Array;
+  askFee: bigint;
+  protocolSampleFee: bigint;
+}): BlobSampleSettleQuote {
+  if (input.blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (input.provider.length !== 32) throw new Error('provider must be 32 bytes');
+  if (input.askFee < 0n || input.protocolSampleFee < 0n) {
+    throw new Error('fees must be >= 0');
+  }
+  return {
+    protocolSampleFee: input.protocolSampleFee,
+    askFee: input.askFee,
+    total: input.protocolSampleFee + input.askFee,
+    provider: input.provider,
+    blobId: input.blobId,
+    chunkIndex: input.chunkIndex,
+    chunkCount: input.chunkCount,
+  };
+}
+
+/** Phase 8 succinct proof kind: 0 = StubBlake3V0 (not a SNARK), 1 = reserved. */
+export const DAS_SUCCINCT_PROOF_KIND_STUB_BLAKE3_V0 = 0;
+export const DAS_SUCCINCT_PROOF_KIND_RESERVED_REAL_V1 = 1;
+
+export type DasSuccinctProof = {
+  kind: number;
+  commitment: Uint8Array;
+  blobId: Uint8Array;
+  chunksRoot: Uint8Array;
+  seedHeight: bigint;
+  vrfOutput?: Uint8Array;
+  sampleIndices: number[];
+};
+
+/** Build StubBlake3V0 envelope (matches Rust `build_das_succinct_proof_stub`). */
+export function buildDasSuccinctProofStub(input: {
+  blobId: Uint8Array;
+  chunksRoot: Uint8Array;
+  seedHeight: bigint;
+  samples: Array<{ chunkIndex: number; chunkHash: Uint8Array }>;
+}): DasSuccinctProof {
+  const commitment = dasSuccinctCommitmentStub(input);
+  return {
+    kind: DAS_SUCCINCT_PROOF_KIND_STUB_BLAKE3_V0,
+    commitment,
+    blobId: input.blobId,
+    chunksRoot: input.chunksRoot,
+    seedHeight: input.seedHeight,
+    sampleIndices: input.samples.map((s) => s.chunkIndex),
+  };
+}
+
+/** VRF-bound stub envelope (matches Rust `build_das_succinct_proof_stub_vrf`). */
+export function buildDasSuccinctProofStubVrf(
+  input: {
+    blobId: Uint8Array;
+    chunksRoot: Uint8Array;
+    samples: Array<{ chunkIndex: number; chunkHash: Uint8Array }>;
+  },
+  vrfOutput: Uint8Array,
+): DasSuccinctProof {
+  if (vrfOutput.length !== 32) throw new Error('vrfOutput must be 32 bytes');
+  const base = buildDasSuccinctProofStub({
+    ...input,
+    seedHeight: 0n,
+  });
+  const domain = new TextEncoder().encode('BOING_BLOB_DAS_SUCCINCT_PROOF_V0');
+  const buf = new Uint8Array(domain.length + 1 + 32 + 32);
+  let o = 0;
+  buf.set(domain, o);
+  o += domain.length;
+  buf[o++] = DAS_SUCCINCT_PROOF_KIND_STUB_BLAKE3_V0;
+  buf.set(base.commitment, o);
+  o += 32;
+  buf.set(vrfOutput, o);
+  return {
+    ...base,
+    seedHeight: 0n,
+    vrfOutput,
+    commitment: blake3(buf),
+  };
+}
+
+/** Verify StubBlake3V0 against expected commitment; reserved kinds always fail. */
+export function verifyDasSuccinctProofStub(
+  proof: DasSuccinctProof,
+  expected: DasSuccinctProof,
+): boolean {
+  if (proof.kind !== DAS_SUCCINCT_PROOF_KIND_STUB_BLAKE3_V0) return false;
+  if (expected.kind !== DAS_SUCCINCT_PROOF_KIND_STUB_BLAKE3_V0) return false;
+  if (proof.commitment.length !== 32 || expected.commitment.length !== 32) return false;
+  if (proof.blobId.length !== 32 || expected.blobId.length !== 32) return false;
+  if (
+    proof.sampleIndices.length !== expected.sampleIndices.length ||
+    proof.sampleIndices.some((v, i) => v !== expected.sampleIndices[i])
+  ) {
+    return false;
+  }
+  for (let i = 0; i < 32; i++) {
+    if (proof.commitment[i] !== expected.commitment[i]) return false;
+    if (proof.blobId[i] !== expected.blobId[i]) return false;
+    if (proof.chunksRoot[i] !== expected.chunksRoot[i]) return false;
+  }
+  return proof.seedHeight === expected.seedHeight;
+}
+
+/** Alias: activated max after coordinated cap raise. */
+export const PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES;

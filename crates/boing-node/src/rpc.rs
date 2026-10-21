@@ -456,6 +456,8 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_listBlobSampleOffers",
     "boing_matchBlobSampleOffer",
     "boing_putBlobSampleOffer",
+    "boing_quoteBlobSampleSettle",
+    "boing_verifyBlobDasSuccinctProof",
     "boing_getLogs",
     "boing_getMediaBlobParams",
     "boing_getNetworkFeePolicy",
@@ -2119,7 +2121,9 @@ async fn dispatch_jsonrpc_request(
         | "boing_getBlobDasLightClientBatch"
         | "boing_putBlobSampleOffer"
         | "boing_listBlobSampleOffers"
-        | "boing_matchBlobSampleOffer" => {
+        | "boing_matchBlobSampleOffer"
+        | "boing_quoteBlobSampleSettle"
+        | "boing_verifyBlobDasSuccinctProof" => {
             let params = req
                 .params
                 .clone()
