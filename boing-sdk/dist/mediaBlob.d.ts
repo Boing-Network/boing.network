@@ -105,4 +105,31 @@ export declare function tokenMetadataJsonWithBlobImage(input: {
     metadataHash: Uint8Array;
     imageUri: string;
 };
+/** Design target for a future multi-minute path (not live). Live cap remains 16 MiB. */
+export declare const PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE6_VIDEO_SEGMENT_TARGET_BYTES: number;
+export declare const PHASE6_MAX_VIDEO_SEGMENTS = 256;
+export declare const PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES = 32;
+export type MediaBlobSampleOffer = {
+    blobId: Uint8Array;
+    chunkIndex: number;
+    chunkCount: number;
+    providerHex: string;
+    askFee: bigint;
+    expiresAtHeight: bigint;
+};
+export type MediaBlobSegmentManifest = {
+    contentType: string;
+    totalBytes: bigint;
+    segmentBlobIds: Uint8Array[];
+};
+/** Suggested segment count if splitting totalBytes into live-cap chunks. */
+export declare function suggestedVideoSegmentCount(totalBytes: bigint): number;
+export declare function validateSegmentManifest(m: MediaBlobSegmentManifest): void;
+/** Scaffold matcher: paidFee must cover askFee (pairs with PayBlobSample on-chain). */
+export declare function matchSampleOffer(offer: MediaBlobSampleOffer, paidFee: bigint): MediaBlobSampleOffer & {
+    paidFee: bigint;
+};
+/** Deterministic light-client sample indices (scaffold; not VRF-bound). */
+export declare function dasLightClientSampleIndices(blobSize: number, sampleCount: number, seed: bigint): number[];
 //# sourceMappingURL=mediaBlob.d.ts.map

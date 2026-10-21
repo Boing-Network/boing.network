@@ -307,3 +307,56 @@ export function tokenMetadataJsonWithBlobImage(input) {
     const metadataHash = blake3(new TextEncoder().encode(json));
     return { json, metadataHash, imageUri };
 }
+// --- Phase 6 scaffolds (not consensus-activated) ---
+/** Design target for a future multi-minute path (not live). Live cap remains 16 MiB. */
+export const PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES = 256 * 1024 * 1024;
+export const PHASE6_VIDEO_SEGMENT_TARGET_BYTES = MAX_MEDIA_BLOB_BYTES;
+export const PHASE6_MAX_VIDEO_SEGMENTS = 256;
+export const PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES = 32;
+/** Suggested segment count if splitting totalBytes into live-cap chunks. */
+export function suggestedVideoSegmentCount(totalBytes) {
+    if (totalBytes <= 0n)
+        return 0;
+    const seg = BigInt(PHASE6_VIDEO_SEGMENT_TARGET_BYTES);
+    return Number((totalBytes + seg - 1n) / seg);
+}
+export function validateSegmentManifest(m) {
+    if (m.segmentBlobIds.length === 0)
+        throw new Error('segment manifest empty');
+    if (m.segmentBlobIds.length > PHASE6_MAX_VIDEO_SEGMENTS) {
+        throw new Error(`too many segments (max ${PHASE6_MAX_VIDEO_SEGMENTS})`);
+    }
+    if (m.totalBytes <= 0n)
+        throw new Error('totalBytes must be > 0');
+    if (m.totalBytes > BigInt(PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES)) {
+        throw new Error('totalBytes exceeds Phase 6 design target (not a live consensus rule)');
+    }
+    for (const id of m.segmentBlobIds) {
+        if (id.length !== 32)
+            throw new Error('segment blobId must be 32 bytes');
+    }
+}
+/** Scaffold matcher: paidFee must cover askFee (pairs with PayBlobSample on-chain). */
+export function matchSampleOffer(offer, paidFee) {
+    if (offer.chunkCount <= 0 || offer.chunkIndex < 0 || offer.chunkIndex >= offer.chunkCount) {
+        throw new Error('chunkIndex out of range');
+    }
+    if (paidFee < offer.askFee) {
+        throw new Error(`sample fee ${paidFee} below ask ${offer.askFee}`);
+    }
+    return { ...offer, paidFee };
+}
+/** Deterministic light-client sample indices (scaffold; not VRF-bound). */
+export function dasLightClientSampleIndices(blobSize, sampleCount, seed) {
+    const n = mediaBlobDasChunkCount(blobSize);
+    if (n === 0 || sampleCount <= 0)
+        return [];
+    const take = Math.min(sampleCount, PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES, n);
+    const out = [];
+    let x = seed ^ (BigInt(n) * 0x9e3779b97f4a7c15n);
+    for (let i = 0; i < take; i++) {
+        x = x * 6364136223846793005n + 1n;
+        out.push(Number(x % BigInt(n)));
+    }
+    return [...new Set(out)].sort((a, b) => a - b);
+}

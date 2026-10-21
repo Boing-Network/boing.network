@@ -112,7 +112,10 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 "foreverPinFeePolicyField": "blob_forever_pin_fee_per_kib",
                 "pinRenewFeePolicyField": "blob_pin_renew_fee_per_kib_block",
                 "sampleFeePolicyField": "blob_sample_fee_per_chunk",
-                "note": "Phase 5: Reed–Solomon (parity=2) + XOR fallback; RenewMediaBlobPin (23) / PayBlobSample (24); fee hooks blob_pin_renew_fee_per_kib_block + blob_sample_fee_per_chunk (0=off). Live cap 16 MiB — still not multi-minute video. Prefer Announce above 1 MiB.",
+                "phase6TargetMaxBytes": boing_primitives::PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES,
+                "phase6MaxVideoSegments": boing_primitives::PHASE6_MAX_VIDEO_SEGMENTS,
+                "phase6MaxDasLightClientSamples": boing_primitives::PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES,
+                "note": "Phase 5 live: RS (parity=2) + RenewMediaBlobPin (23) / PayBlobSample (24). Phase 6 scaffold only: sampling-market match + DAS light-client batch + segmented video target (256 MiB design — not consensus). Live cap 16 MiB.",
             }))
         }
         "boing_getBlobMeta" => {

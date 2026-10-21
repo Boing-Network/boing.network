@@ -4,6 +4,8 @@ import {
   blobAnnouncePayload,
   blobIdOf,
   chunkMediaBlob,
+  dasLightClientSampleIndices,
+  matchSampleOffer,
   MAX_MEDIA_BLOB_BYTES,
   MAX_MEDIA_BLOB_INLINE_PREFER_BYTES,
   MEDIA_BLOB_DAS_CHUNK_BYTES,
@@ -13,12 +15,15 @@ import {
   mediaBlobUri,
   parseMediaBlobId,
   PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
+  PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES,
   payBlobSamplePayload,
   putBlobPayload,
   recoverMediaBlobXor,
   renewMediaBlobPinPayload,
+  suggestedVideoSegmentCount,
   tokenMetadataJsonWithBlobImage,
   validatePutBlob,
+  validateSegmentManifest,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -67,6 +72,43 @@ describe('mediaBlob', () => {
     expect(() =>
       validatePutBlob({ kind: 'forever' }, '', new Uint8Array(MAX_MEDIA_BLOB_BYTES + 1)),
     ).toThrow(/MAX_MEDIA_BLOB_BYTES/);
+  });
+
+  it('Phase 6 scaffold: segment count + sample match + LC indices', () => {
+    expect(suggestedVideoSegmentCount(BigInt(16 * 1024 * 1024 * 3 + 1))).toBe(4);
+    expect(PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES).toBe(256 * 1024 * 1024);
+    const matched = matchSampleOffer(
+      {
+        blobId: new Uint8Array(32),
+        chunkIndex: 0,
+        chunkCount: 4,
+        providerHex: '0x' + '11'.repeat(32),
+        askFee: 5n,
+        expiresAtHeight: 0n,
+      },
+      5n,
+    );
+    expect(matched.paidFee).toBe(5n);
+    expect(() =>
+      matchSampleOffer(
+        {
+          blobId: new Uint8Array(32),
+          chunkIndex: 0,
+          chunkCount: 4,
+          providerHex: '0x',
+          askFee: 5n,
+          expiresAtHeight: 0n,
+        },
+        4n,
+      ),
+    ).toThrow(/below ask/);
+    validateSegmentManifest({
+      contentType: 'video/mp4',
+      totalBytes: 32n * 1024n * 1024n,
+      segmentBlobIds: [new Uint8Array(32), new Uint8Array(32)],
+    });
+    const idxs = dasLightClientSampleIndices(130_000, 3, 42n);
+    expect(idxs.length).toBeGreaterThan(0);
   });
 
   it('encodes RenewMediaBlobPin (23) and PayBlobSample (24)', () => {

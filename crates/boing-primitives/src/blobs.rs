@@ -6,6 +6,8 @@
 //!
 //! Phase 4: live cap **16 MiB**, XOR chunking, Forever pin fee, DAS sample hooks.
 //! Phase 5: Reed–Solomon path ([`crate::blobs_erasure`]), renew / sample txs, sampling fee hooks.
+//! Phase 6 scaffolds: [`crate::blobs_phase6`] (sampling market match, DAS light-client batch,
+//! segmented video manifest) — **not** consensus-activated.
 
 use serde::{Deserialize, Serialize};
 
@@ -180,6 +182,9 @@ pub enum BlobError {
     RenewExtendTooLarge { extend: u64, max: u64 },
     #[error("sample chunk index {index} out of range (count={count})")]
     SampleChunkOutOfRange { index: u32, count: u32 },
+    /// Phase 6 sampling-market scaffold: paid fee below the provider ask.
+    #[error("sample fee {paid} below ask {ask}")]
+    SampleFeeTooLow { paid: u128, ask: u128 },
 }
 
 /// `BLAKE3(data)` as [`BlobId`].
