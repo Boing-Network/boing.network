@@ -1023,8 +1023,8 @@ impl Vm {
         validate_pay_blob_sample_with_max_chunks(blob_id, chunk_index, chunk_count, max_chunks)
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
 
-        // Settle any expired challenges before admitting a new one.
-        settle_expired_serve_challenges(state, height)?;
+        // Settle any expired challenges + prune stale settle receipts before admitting a new one.
+        apply_media_blob_block_housekeeping(state, height)?;
 
         // Phase 12: challenger must have previously settled a match with this provider.
         let has_receipt = state.sample_offers().has_settle_receipt(
@@ -1104,7 +1104,7 @@ impl Vm {
                 from: self.media_blobs_from,
             });
         }
-        settle_expired_serve_challenges(state, height)?;
+        apply_media_blob_block_housekeeping(state, height)?;
 
         let sample = MediaBlobDasSample {
             blob_id: *blob_id,
@@ -1143,6 +1143,13 @@ impl Vm {
                 challenger,
             );
         }
+        // Phase 13: consume settle receipt so the challenge gate cannot be reused forever.
+        let _ = state.sample_offers_mut().remove_settle_receipt(
+            blob_id,
+            chunk_index,
+            &tx.sender,
+            challenger,
+        );
 
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
@@ -1614,9 +1621,26 @@ pub fn settle_expired_serve_challenges(
             &c.provider,
             &c.challenger,
         );
+        // Phase 13: consume settle receipt when FailedServe closes the challenge.
+        let _ = state.sample_offers_mut().remove_settle_receipt(
+            &c.blob_id,
+            c.chunk_index,
+            &c.provider,
+            &c.challenger,
+        );
         n = n.saturating_add(1);
     }
     Ok(n)
+}
+
+/// Housekeeping: settle FailedServe + prune stale settle receipts (end-of-block / tx entry).
+pub fn apply_media_blob_block_housekeeping(
+    state: &mut StateStore,
+    height: u64,
+) -> Result<usize, VmError> {
+    let settled = settle_expired_serve_challenges(state, height)?;
+    let _ = state.sample_offers_mut().prune_settle_receipts(height);
+    Ok(settled)
 }
 
 /// Move native BOING `from -> to` (journaled through [`StateStore::get_mut`] / `insert`, so a tx

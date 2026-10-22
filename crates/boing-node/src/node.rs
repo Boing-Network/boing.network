@@ -649,7 +649,8 @@ impl BoingNode {
     }
 
     /// Mirror consensus FailedServe `slash_id`s into the node-local SlashRegistry (Phase 12).
-    /// Balance burn already happened in VM settle; this is audit / RPC only (no unburn on appeal).
+    /// Balance burn happens in VM settle; approved appeals restore balance via
+    /// [`Self::resolve_slash_appeal`] (Phase 13).
     fn sync_failed_serve_slash_records(&mut self) {
         let mut mirrored = 0usize;
         for c in self.state.sample_serve().challenges_with_slash_id() {
@@ -957,7 +958,8 @@ impl BoingNode {
         Ok(id)
     }
 
-    /// Resolve a pending appeal. If approved, restores burned stake from the fee burn sink.
+    /// Resolve a pending appeal. If approved, restores from the fee burn sink:
+    /// stake for equivocation/liveness/fraud; **balance** for BlobFailedServe (Phase 13).
     /// Returns the amount restored (0 if rejected or nothing to restore).
     pub fn resolve_slash_appeal(
         &mut self,
@@ -976,15 +978,20 @@ impl BoingNode {
         let Some(slash) = self.slash_registry.get_slash(slash_id) else {
             return Err(SlashingError::SlashNotFound);
         };
-        let validator = AccountId(slash.validator);
+        let account = AccountId(slash.validator);
         let amount = slash.amount;
-        let restored =
-            boing_tokenomics::restore_equivocation_slash(&mut self.state, &validator, amount);
+        let reason = slash.reason.clone();
+        let restored = match &reason {
+            SlashReason::BlobFailedServe => {
+                boing_tokenomics::restore_failed_serve_penalty(&mut self.state, &account, amount)
+            }
+            _ => boing_tokenomics::restore_equivocation_slash(&mut self.state, &account, amount),
+        };
         if restored > 0 {
             self.refresh_native_aggregates();
             info!(
-                "Slash appeal approved: slash_id={} appeal_id={} restored={}",
-                slash_id, appeal_id, restored
+                "Slash appeal approved: slash_id={} appeal_id={} restored={} reason={:?}",
+                slash_id, appeal_id, restored, reason
             );
         }
         Ok(restored)

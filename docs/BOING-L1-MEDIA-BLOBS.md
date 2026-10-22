@@ -4,7 +4,7 @@
 > 🛠️ **Developers:** PutBlob **21** … Cancel **27**, ChallengeServe **28**, RespondServe **29**; DAS RPCs; SDK `mediaBlob.ts`.  
 > 🛰️ **Operators:** `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. Optional header: `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`. Optional **gated** 256 MiB raise: `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (**unset = stay 16 MiB — Fly-safe**).
 
-Project design: Cursor store `docs/boing-l1-media-blobs.md`. Merges: #53–#57 · #65 · #66 · #67 · #68 · #69 · #71 · #72 (`d4debf3`).
+Project design: Cursor store `docs/boing-l1-media-blobs.md`. Merges: #53–#57 · #65 · #66 · #67 · #68 · #69 · #71 · #72 · #74 (`4f6e61c`).
 
 ---
 
@@ -22,7 +22,7 @@ Project design: Cursor store `docs/boing-l1-media-blobs.md`. Merges: #53–#57 �
 
 ### Coordinated public-testnet 256 MiB activation
 
-Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActivationChecklist` for pre-flight, roll order, rollback, and monitoring. Do not activate on Fly until coordinated.
+Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActivationChecklist`. Do not activate on Fly until coordinated.
 
 ---
 
@@ -35,18 +35,18 @@ Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActiva
 | RenewMediaBlobPin | 23 | Extend pin horizon |
 | PayBlobSample | 24 | Protocol sample fee |
 | RegisterBlobSampleOffer | 25 | Escrow `ask_fee` + SMT offer |
-| SettleBlobSampleMatch | 26 | Protocol fee + release ask escrow + **settle receipt** |
+| SettleBlobSampleMatch | 26 | Protocol fee + release ask escrow + settle receipt |
 | CancelBlobSampleOffer | 27 | Refund ask escrow |
-| ChallengeBlobSampleServe | 28 | Open serve challenge (**requires prior Settle**; escrows bond+penalty) |
-| RespondBlobSampleServe | 29 | Provider DAS merkle response (**bond+penalty → provider**) |
+| ChallengeBlobSampleServe | 28 | Open serve challenge (requires prior Settle; escrows bond+penalty) |
+| RespondBlobSampleServe | 29 | Provider DAS merkle response (bond+penalty → provider) |
 
 ---
 
 ## Sampling / DAS / challenges
 
 - SMT offer book + ask escrow (Phase 9)  
-- Serve challenges (Phase 10–12): settle-before-challenge; bond/penalty escrow; FailedServe → bond refund + penalty burn + consensus `slashId` mirrored to `boing_listSlashRecords` (`blobFailedServe`)  
-- Succinct DAS: StubBlake3V0 implemented; ReservedRealV1 opaque envelope + structure checks; **verify rejects** until a real system is wired  
+- Serve challenges (Phase 10–13): settle-before-challenge; bond/penalty; FailedServe burn + `slashId`; **approved appeal restores provider balance**; settle-receipt TTL prune  
+- Succinct DAS: StubBlake3V0; ReservedRealV1 envelope checks; **verify rejects** until a real system is wired  
 - Leader-VRF LC: `boing_getLeaderVrfOutput` / `useLeaderVrf`  
 
 ---
@@ -55,27 +55,23 @@ Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActiva
 
 | Phase | Status |
 |-------|--------|
-| 1–11 | **Merged** (#72 · `d4debf3`) |
-| 12 Settle-before-challenge / FailedServe SlashRegistry audit | **This PR (draft)** |
+| 1–12 | **Merged** (#74 · `4f6e61c`) |
+| 13 FailedServe appeal unburn / receipt prune | **This PR (draft)** |
 
 ### Still later
 
 - Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
 - Coordinated public-testnet 256 MiB activation  
-- FailedServe appeal → native unburn (if ever desired)  
+- Consensus-backed slash-appeal tx (operator RPC restore is the thin MVP)  
 
 ---
 
 ## Env
 
 ```bash
-# Admission (Put/Announce/sample txs) — set identical H on every validator:
-BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT=<tip+N>
+# Admission — already coordinated on Fly at 1200; do not change unless operators re-agree:
+# BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT=1200
 
 # Unset keeps 16 MiB (Fly / public testnet until coordinated):
 # BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT=…
 ```
-
-### Fly admission activation (operators)
-
-Secret/env name: **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`**. Set the **same** height on **boing-testnet-1** and **boing-testnet-2**. Choose `H = tip + N` (e.g. tip+50) so both apps restart before tip reaches H. Leave **`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` unset**. See store roadmap Activation checklist for flyctl commands.

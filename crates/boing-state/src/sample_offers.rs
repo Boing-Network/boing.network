@@ -9,7 +9,8 @@ use std::collections::BTreeMap;
 use boing_primitives::{
     blob_id_hex, hasher, sample_offer_market_key, settle_receipt_key, validate_pay_blob_sample,
     AccountId, BlobError, BlobId, MediaBlobSampleOffer, OnChainBlobSampleOffer,
-    PHASE12_MAX_SETTLE_RECEIPTS, PHASE6_MAX_SAMPLE_OFFERS, PHASE9_SAMPLE_OFFER_REGISTRY_DOMAIN,
+    PHASE12_MAX_SETTLE_RECEIPTS, PHASE13_SETTLE_RECEIPT_TTL_BLOCKS, PHASE6_MAX_SAMPLE_OFFERS,
+    PHASE9_SAMPLE_OFFER_REGISTRY_DOMAIN,
 };
 use serde::{Deserialize, Serialize};
 
@@ -279,6 +280,28 @@ impl SampleOfferRegistry {
             blob_id, chunk_index, provider, payer,
         ))
     }
+
+    /// Remove a settle receipt (consumed when a serve challenge closes).
+    pub fn remove_settle_receipt(
+        &mut self,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        provider: &AccountId,
+        payer: &AccountId,
+    ) -> bool {
+        self.settled_receipts
+            .remove(&settle_receipt_key(blob_id, chunk_index, provider, payer))
+            .is_some()
+    }
+
+    /// Drop settle receipts older than [`PHASE13_SETTLE_RECEIPT_TTL_BLOCKS`].
+    pub fn prune_settle_receipts(&mut self, tip_height: u64) -> usize {
+        let before = self.settled_receipts.len();
+        self.settled_receipts.retain(|_, r| {
+            tip_height.saturating_sub(r.settled_at_height) <= PHASE13_SETTLE_RECEIPT_TTL_BLOCKS
+        });
+        before.saturating_sub(self.settled_receipts.len())
+    }
 }
 
 #[cfg(test)]
@@ -321,5 +344,37 @@ mod tests {
         })
         .unwrap();
         assert_ne!(empty, r.commitment());
+    }
+
+    #[test]
+    fn settle_receipt_prune_and_remove() {
+        let mut r = SampleOfferRegistry::default();
+        let blob = [9u8; 32];
+        let provider = AccountId([1u8; 32]);
+        let payer = AccountId([2u8; 32]);
+        r.record_settle_receipt(SettledSampleMatch {
+            blob_id: blob,
+            chunk_index: 0,
+            chunk_count: 1,
+            provider,
+            payer,
+            settled_at_height: 10,
+        })
+        .unwrap();
+        assert!(r.has_settle_receipt(&blob, 0, &provider, &payer));
+        assert_eq!(r.prune_settle_receipts(10 + PHASE13_SETTLE_RECEIPT_TTL_BLOCKS), 0);
+        assert_eq!(r.prune_settle_receipts(10 + PHASE13_SETTLE_RECEIPT_TTL_BLOCKS + 1), 1);
+        assert!(!r.has_settle_receipt(&blob, 0, &provider, &payer));
+        r.record_settle_receipt(SettledSampleMatch {
+            blob_id: blob,
+            chunk_index: 0,
+            chunk_count: 1,
+            provider,
+            payer,
+            settled_at_height: 100,
+        })
+        .unwrap();
+        assert!(r.remove_settle_receipt(&blob, 0, &provider, &payer));
+        assert!(!r.has_settle_receipt(&blob, 0, &provider, &payer));
     }
 }

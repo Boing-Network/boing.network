@@ -177,9 +177,10 @@ pub use native_amm_lp_vault::{
     SELECTOR_NATIVE_AMM_LP_VAULT_DEPOSIT_ADD,
 };
 pub use vm::{
-    settle_expired_serve_challenges, GAS_BATCH_BASE, GAS_BATCH_CONTRACT_BUDGET,
-    GAS_PER_BATCH_CONTRACT_CALL_STEP, GAS_PER_BATCH_TRANSFER, GAS_PER_CONTRACT_CALL,
-    GAS_PER_CONTRACT_DEPLOY_INIT, TransferState, Vm, VmError, VmExecutionResult,
+    apply_media_blob_block_housekeeping, settle_expired_serve_challenges, GAS_BATCH_BASE,
+    GAS_BATCH_CONTRACT_BUDGET, GAS_PER_BATCH_CONTRACT_CALL_STEP, GAS_PER_BATCH_TRANSFER,
+    GAS_PER_CONTRACT_CALL, GAS_PER_CONTRACT_DEPLOY_INIT, TransferState, Vm, VmError,
+    VmExecutionResult,
 };
 pub use boing_primitives::{Transaction, AccessList};
 pub use native_amm_v8::{

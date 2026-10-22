@@ -182,6 +182,40 @@ pub fn restore_equivocation_slash(
     restore
 }
 
+/// Reverse a media-blob FailedServe penalty: debit [`FEE_BURN_SINK`] and credit provider **balance**.
+/// Returns the amount actually restored (may be less if the burn sink is short).
+pub fn restore_failed_serve_penalty(
+    state: &mut StateStore,
+    provider: &AccountId,
+    amount: u128,
+) -> u128 {
+    if amount == 0 {
+        return 0;
+    }
+    let available = state.get(&FEE_BURN_SINK).map(|s| s.balance).unwrap_or(0);
+    let restore = amount.min(available);
+    if restore == 0 {
+        return 0;
+    }
+    if let Some(sink) = state.get_mut(&FEE_BURN_SINK) {
+        sink.balance = sink.balance.saturating_sub(restore);
+    }
+    if let Some(st) = state.get_mut(provider) {
+        st.balance = st.balance.saturating_add(restore);
+    } else {
+        state.insert(Account {
+            id: *provider,
+            state: AccountState {
+                balance: restore,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+    }
+    restore
+}
+
 /// dApp incentive cap per epoch (governance parameter; placeholder).
 pub const DAPP_CAP_PER_EPOCH: u128 = 50_000;
 
@@ -821,6 +855,27 @@ mod tests {
         let restored = restore_equivocation_slash(&mut state, &v, burned);
         assert_eq!(restored, burned);
         assert_eq!(state.get(&v).unwrap().stake, 10_000);
+        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 0);
+    }
+
+    #[test]
+    fn restore_failed_serve_returns_balance_from_burn_sink() {
+        let p = AccountId([7u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: p,
+            state: AccountState {
+                balance: 100,
+                nonce: 0,
+                stake: 50,
+                ..Default::default()
+            },
+        });
+        credit_account(&mut state, FEE_BURN_SINK, 1_000);
+        let restored = restore_failed_serve_penalty(&mut state, &p, 1_000);
+        assert_eq!(restored, 1_000);
+        assert_eq!(state.get(&p).unwrap().balance, 1_100);
+        assert_eq!(state.get(&p).unwrap().stake, 50);
         assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 0);
     }
 
