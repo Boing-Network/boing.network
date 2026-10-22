@@ -17,6 +17,7 @@ pub mod blobs_phase15;
 pub mod blobs_phase16;
 pub mod blobs_phase17;
 pub mod blobs_phase18;
+pub mod blobs_phase19;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -163,6 +164,16 @@ pub use blobs_phase18::{
     PHASE18_RESOLVE_THRESHOLD_NUM, PHASE18_SERVE_CHALLENGE_WINDOW_BLOCKS,
     PHASE18_SETTLE_RECEIPT_TTL_BLOCKS, PHASE18_SUBMIT_SLASH_APPEAL_TX_INDEX,
     SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN, SlashAppealBallotSignature,
+};
+pub use blobs_phase19::{
+    phase19_cap_activation_checklist, phase19_committee_requires_attested,
+    phase19_das_succinct_proof_plan, phase19_resolve_threshold_met,
+    PHASE19_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE19_CAP_ACTIVATION_ENV,
+    PHASE19_FAILED_SERVE_APPEAL_WINDOW_BLOCKS, PHASE19_MAX_APPEAL_EVIDENCE_BYTES,
+    PHASE19_MAX_SETTLE_RECEIPTS, PHASE19_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
+    PHASE19_RESOLVE_SLASH_APPEAL_TX_INDEX, PHASE19_RESOLVE_THRESHOLD_DEN,
+    PHASE19_RESOLVE_THRESHOLD_NUM, PHASE19_SERVE_CHALLENGE_WINDOW_BLOCKS,
+    PHASE19_SETTLE_RECEIPT_TTL_BLOCKS, PHASE19_SUBMIT_SLASH_APPEAL_TX_INDEX,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};
