@@ -184,13 +184,14 @@ fn put_blob_round_trip_rpc() {
     assert_eq!(params["consensusSlashAppealTxs"], true);
     assert_eq!(params["consensusEquivocationSlashAppeals"], true);
     assert_eq!(params["consensusSlashAppealThresholdResolve"], true);
+    assert_eq!(params["consensusSlashAppealStakeWeightedResolve"], true);
     assert_eq!(
         params["slashAppealResolveThresholdNum"],
-        boing_primitives::PHASE16_RESOLVE_THRESHOLD_NUM
+        boing_primitives::PHASE17_RESOLVE_THRESHOLD_NUM
     );
     assert_eq!(
         params["slashAppealResolveThresholdDen"],
-        boing_primitives::PHASE16_RESOLVE_THRESHOLD_DEN
+        boing_primitives::PHASE17_RESOLVE_THRESHOLD_DEN
     );
     assert_eq!(
         params["maxAppealEvidenceBytes"],

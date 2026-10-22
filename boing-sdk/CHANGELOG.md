@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
 
+## [0.5.20] - 2026-10-22
+
+### Added
+
+- **L1 media blobs Phase 17** — `phase17DasSuccinctProofPlan`; `PHASE17_*` aliases including `PHASE17_RESOLVE_THRESHOLD_NUM` / `DEN` (⌈2W/3⌉); **ResolveSlashAppeal (31)** is stake-weighted quorum over pinned resolvers (weight = bonded stake at cast); versioned `slash_appeals_registry.bin` (no required clear); still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
 ## [0.5.19] - 2026-10-22
 
 ### Added
