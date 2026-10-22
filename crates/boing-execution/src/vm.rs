@@ -1193,11 +1193,7 @@ impl Vm {
         evidence: &[u8],
         height: u64,
     ) -> Result<VmExecutionResult, VmError> {
-        if !self.media_blobs_active(height) {
-            return Err(VmError::MediaBlobsNotActive {
-                from: self.media_blobs_from,
-            });
-        }
+        // Phase 15: always-on — equivocation/liveness appeals must work when media is inactive.
         state
             .slash_appeals_mut()
             .submit_appeal(
@@ -1227,11 +1223,8 @@ impl Vm {
         approved: bool,
         height: u64,
     ) -> Result<VmExecutionResult, VmError> {
-        if !self.media_blobs_active(height) {
-            return Err(VmError::MediaBlobsNotActive {
-                from: self.media_blobs_from,
-            });
-        }
+        // Phase 15: always-on — not gated on media-blobs activation.
+        let _ = height;
         if !sender_may_resolve_slash_appeal(state, &tx.sender) {
             return Err(VmError::MediaBlob(
                 "ResolveSlashAppeal requires a consensus validator".into(),
@@ -1723,23 +1716,25 @@ pub fn settle_expired_serve_challenges(
             &c.provider,
             &c.challenger,
         );
-        let slash_id = state.sample_serve_mut().assign_failed_serve_slash_id(
-            &c.blob_id,
-            c.chunk_index,
-            &c.provider,
-            &c.challenger,
-        );
-        // Phase 14: seed consensus slash book so Submit/Resolve txs can unburn without RPC.
-        if let Some(id) = slash_id {
-            let _ = state.slash_appeals_mut().record_slash_with_id(
-                id,
+        // Phase 15: allocate from the shared consensus slash-id allocator, then pin onto the
+        // challenge so FailedServe ids cannot collide with equivocation/liveness rows.
+        let slash_id = state
+            .slash_appeals_mut()
+            .record_slash(
                 c.provider,
                 c.provider_penalty,
                 boing_state::ConsensusSlashReason::BlobFailedServe,
                 height,
                 PHASE14_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
-            );
-        }
+            )
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let _ = state.sample_serve_mut().set_failed_serve_slash_id(
+            &c.blob_id,
+            c.chunk_index,
+            &c.provider,
+            &c.challenger,
+            slash_id,
+        );
         // Phase 13: consume settle receipt when FailedServe closes the challenge.
         let _ = state.sample_offers_mut().remove_settle_receipt(
             &c.blob_id,
@@ -2765,5 +2760,69 @@ mod slash_appeal_phase14_tests {
         let mut resolve2 = resolve.clone();
         resolve2.nonce = 1;
         assert!(vm.execute_with_context(&resolve2, &mut state, ctx(4)).is_err());
+    }
+
+    #[test]
+    fn equivocation_appeal_restores_stake_when_media_inactive() {
+        let offender = AccountId([11u8; 32]);
+        let validator = AccountId([12u8; 32]);
+        let mut state = StateStore::new();
+        fund(&mut state, offender, 100, 10_000, 0);
+        fund(&mut state, validator, 1_000_000, 0, 0);
+        // Burn sink already holds the slashed stake.
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 5_000, 0, 0);
+        state.get_mut(&offender).unwrap().stake = 5_000;
+        let slash_id = state
+            .slash_appeals_mut()
+            .record_slash(
+                offender,
+                5_000,
+                ConsensusSlashReason::Equivocation,
+                10,
+                1_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![validator]));
+
+        // Media blobs inactive — Phase 15 always-on for 30/31.
+        let vm = Vm::new();
+        assert!(vm.media_blobs_from().is_none());
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: offender,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id,
+                    evidence: b"ok".to_vec(),
+                },
+                access_list: AccessList::new(vec![offender], vec![offender]),
+            },
+            &mut state,
+            ctx(50),
+        )
+        .unwrap();
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: validator,
+                payload: TransactionPayload::ResolveSlashAppeal {
+                    appeal_id: 1,
+                    approved: true,
+                },
+                access_list: AccessList::new(vec![validator], vec![validator]),
+            },
+            &mut state,
+            ctx(51),
+        )
+        .unwrap();
+        assert!(state.slash_appeals().is_reversed(slash_id));
+        assert_eq!(state.get(&offender).unwrap().stake, 10_000);
+        assert_eq!(
+            state
+                .get(&boing_tokenomics::FEE_BURN_SINK)
+                .unwrap()
+                .balance,
+            0
+        );
     }
 }

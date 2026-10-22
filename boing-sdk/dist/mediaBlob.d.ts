@@ -311,4 +311,14 @@ export declare function encodeResolveSlashAppeal(input: {
 }): TransactionPayloadInput;
 /** Honest plan strings for Phase 14 (consensus slash-appeal txs; ReservedRealV1 still rejects). */
 export declare function phase14DasSuccinctProofPlan(): string[];
+/** Phase 15 aliases / constants. */
+export declare const PHASE15_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE15_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE15_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE15_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE15_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE15_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE15_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+/** Honest plan strings for Phase 15 (consensus equivocation/liveness appeals; still 16 MiB). */
+export declare function phase15DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

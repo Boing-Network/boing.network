@@ -13,6 +13,7 @@ pub mod blobs_phase11;
 pub mod blobs_phase12;
 pub mod blobs_phase13;
 pub mod blobs_phase14;
+pub mod blobs_phase15;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -121,6 +122,14 @@ pub use blobs_phase14::{
     PHASE14_MAX_SETTLE_RECEIPTS, PHASE14_RESOLVE_SLASH_APPEAL_TX_INDEX,
     PHASE14_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE14_SETTLE_RECEIPT_TTL_BLOCKS,
     PHASE14_SUBMIT_SLASH_APPEAL_TX_INDEX,
+};
+pub use blobs_phase15::{
+    phase15_cap_activation_checklist, phase15_das_succinct_proof_plan,
+    PHASE15_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE15_CAP_ACTIVATION_ENV,
+    PHASE15_FAILED_SERVE_APPEAL_WINDOW_BLOCKS, PHASE15_MAX_APPEAL_EVIDENCE_BYTES,
+    PHASE15_MAX_SETTLE_RECEIPTS, PHASE15_RESOLVE_SLASH_APPEAL_TX_INDEX,
+    PHASE15_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE15_SETTLE_RECEIPT_TTL_BLOCKS,
+    PHASE15_SUBMIT_SLASH_APPEAL_TX_INDEX,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};

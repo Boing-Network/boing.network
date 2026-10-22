@@ -40,15 +40,17 @@ Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActiva
 | ChallengeBlobSampleServe | 28 | Open serve challenge (requires prior Settle; escrows bond+penalty) |
 | RespondBlobSampleServe | 29 | Provider DAS merkle response (bond+penalty → provider) |
 | SubmitSlashAppeal | 30 | Consensus appeal against a slash (evidence ≤ 4096 B) |
-| ResolveSlashAppeal | 31 | Validator-set approve/reject; FailedServe **balance** restore on approve |
+| ResolveSlashAppeal | 31 | Validator-set approve/reject; FailedServe **balance** or equivocation/liveness **stake** restore on approve |
 
 ---
 
 ## Sampling / DAS / challenges
 
 - SMT offer book + ask escrow (Phase 9)  
-- Serve challenges (Phase 10–14): settle-before-challenge; bond/penalty; FailedServe burn + `slashId` + **consensus slash-appeal book**; **Submit/Resolve txs** restore provider balance on multi-validator nets; settle-receipt TTL prune  
-- Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated for FailedServe** (prefer txs 30/31); still useful for legacy equivocation-only local mirrors  
+- Serve challenges (Phase 10–15): settle-before-challenge; bond/penalty; FailedServe burn + shared consensus `slashId`; **Submit/Resolve txs** restore provider balance (FailedServe) or stake (equivocation/liveness) on multi-validator nets; settle-receipt TTL prune  
+- Equivocation/liveness **detection** remains node-local (evidence gossip + apply); Phase 15 seeds the consensus appeal book at slash time so 30/31 replay restore  
+- Submit/Resolve (**30**/**31**) are **always admitted** (not gated on media-blobs activation)  
+- Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated** for FailedServe / equivocation / liveness when the consensus book owns the slash (prefer txs 30/31); refuses double credit after consensus reverse  
 - Resolve is **ops/validator-approved**, not SNARK verification of evidence  
 - Succinct DAS: StubBlake3V0; ReservedRealV1 envelope checks; **verify rejects** until a real system is wired  
 - Leader-VRF LC: `boing_getLeaderVrfOutput` / `useLeaderVrf`  
@@ -59,14 +61,13 @@ Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActiva
 
 | Phase | Status |
 |-------|--------|
-| 1–13 | **Merged** (#75) |
-| 14 Consensus slash-appeal txs 30/31 | **This PR** |
+| 1–14 | **Merged** (#76) |
+| 15 Consensus equivocation/liveness slash appeals | **This PR** |
 
 ### Still later
 
 - Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
 - Coordinated public-testnet 256 MiB activation  
-- Move equivocation/liveness slash records fully into the consensus appeal book  
 - Cryptographic / committee threshold resolve policy (beyond “any validator”)  
 
 ---

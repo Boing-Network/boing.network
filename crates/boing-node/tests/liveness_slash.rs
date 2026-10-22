@@ -122,6 +122,14 @@ fn leader_timeout_slash_after_miss_threshold() {
         .list_slashes()
         .iter()
         .any(|s| s.reason == boing_governance::SlashReason::Liveness && s.amount == 1_000));
+    // Phase 15: consensus book seeded for liveness as well.
+    assert!(node
+        .state
+        .slash_appeals()
+        .list_slashes()
+        .iter()
+        .any(|s| matches!(s.reason, boing_state::ConsensusSlashReason::Liveness)
+            && s.amount == 1_000));
 }
 
 #[test]

@@ -182,6 +182,7 @@ fn put_blob_round_trip_rpc() {
     assert_eq!(params["submitSlashAppealVariant"], 30);
     assert_eq!(params["resolveSlashAppealVariant"], 31);
     assert_eq!(params["consensusSlashAppealTxs"], true);
+    assert_eq!(params["consensusEquivocationSlashAppeals"], true);
     assert_eq!(
         params["maxAppealEvidenceBytes"],
         boing_primitives::PHASE14_MAX_APPEAL_EVIDENCE_BYTES
