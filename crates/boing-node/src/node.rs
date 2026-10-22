@@ -1494,8 +1494,23 @@ impl BoingNode {
                     ));
                 }
             }
-            TransactionPayload::ResolveSlashAppeal { .. }
-            | TransactionPayload::ResolveSlashAppealAttested { .. } => {
+            TransactionPayload::ResolveSlashAppeal { .. } => {
+                if !self.consensus.validators().contains(&signed.tx.sender) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppeal requires a consensus validator".into(),
+                    ));
+                }
+                // Phase 19: reject unattested 31 early when multi-pin committee is configured.
+                if let Some(set) = self.state.slash_appeal_resolvers() {
+                    if boing_primitives::phase19_committee_requires_attested(set.len()) {
+                        return Err(MempoolError::MediaBlobRejected(
+                            "ResolveSlashAppeal (31) rejected when |slash_appeal_resolvers| > 1; use ResolveSlashAppealAttested (32)"
+                                .into(),
+                        ));
+                    }
+                }
+            }
+            TransactionPayload::ResolveSlashAppealAttested { .. } => {
                 if !self.consensus.validators().contains(&signed.tx.sender) {
                     return Err(MempoolError::MediaBlobRejected(
                         "ResolveSlashAppeal requires a consensus validator".into(),

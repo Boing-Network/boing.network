@@ -879,3 +879,36 @@ export function phase18DasSuccinctProofPlan() {
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }
+/** Phase 19 aliases / constants. */
+export const PHASE19_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE18_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE19_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE18_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE19_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE18_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE19_SETTLE_RECEIPT_TTL_BLOCKS = PHASE18_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE19_MAX_APPEAL_EVIDENCE_BYTES = PHASE18_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE19_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE18_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE19_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE18_RESOLVE_SLASH_APPEAL_TX_INDEX;
+/** Attested resolve payload index (`ResolveSlashAppealAttested`). */
+export const PHASE19_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE18_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+/** Fixed stake-weighted resolve quorum numerator (⌈2W/3⌉). */
+export const PHASE19_RESOLVE_THRESHOLD_NUM = PHASE18_RESOLVE_THRESHOLD_NUM;
+/** Fixed stake-weighted resolve quorum denominator. */
+export const PHASE19_RESOLVE_THRESHOLD_DEN = PHASE18_RESOLVE_THRESHOLD_DEN;
+/**
+ * True when a multi-pin committee must use attested resolve (32).
+ * `pinnedLen` is `|slash_appeal_resolvers|` when the host pin set is present.
+ */
+export function phase19CommitteeRequiresAttested(pinnedLen) {
+    return pinnedLen > 1;
+}
+/** Honest plan strings for Phase 19 (committee attested-required; still 16 MiB). */
+export function phase19DasSuccinctProofPlan() {
+    return [
+        ...phase18DasSuccinctProofPlan(),
+        'Phase 19: when |pinned slash_appeal_resolvers| > 1, ResolveSlashAppealAttested (32) is required; unattested ResolveSlashAppeal (31) is rejected.',
+        'Phase 19: solo / unpinned / |pinned| ≤ 1 keep 31 for UX and historical replay; stake-weighted ⌈2W/3⌉ finalize math unchanged.',
+        'Phase 19: mid-tally historical votes with ballot_signature=None keep their weight; new multi-pin casts must use 32.',
+        'Phase 19: slash_appeals_registry.bin remains V3 (V2/legacy load); do not clear on upgrade — policy is execution-time only.',
+        'Phase 19: true BLS aggregate of resolve ballots is still later — do not invent BLS crates or fake-BLS naming.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

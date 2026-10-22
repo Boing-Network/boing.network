@@ -372,4 +372,25 @@ export declare const PHASE18_RESOLVE_THRESHOLD_NUM = 2;
 export declare const PHASE18_RESOLVE_THRESHOLD_DEN = 3;
 /** Honest plan strings for Phase 18 (Ed25519 attested resolve + registry V3; still 16 MiB). */
 export declare function phase18DasSuccinctProofPlan(): string[];
+/** Phase 19 aliases / constants. */
+export declare const PHASE19_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE19_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE19_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE19_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE19_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE19_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE19_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+/** Attested resolve payload index (`ResolveSlashAppealAttested`). */
+export declare const PHASE19_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+/** Fixed stake-weighted resolve quorum numerator (⌈2W/3⌉). */
+export declare const PHASE19_RESOLVE_THRESHOLD_NUM = 2;
+/** Fixed stake-weighted resolve quorum denominator. */
+export declare const PHASE19_RESOLVE_THRESHOLD_DEN = 3;
+/**
+ * True when a multi-pin committee must use attested resolve (32).
+ * `pinnedLen` is `|slash_appeal_resolvers|` when the host pin set is present.
+ */
+export declare function phase19CommitteeRequiresAttested(pinnedLen: number): boolean;
+/** Honest plan strings for Phase 19 (committee attested-required; still 16 MiB). */
+export declare function phase19DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map
