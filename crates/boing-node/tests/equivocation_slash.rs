@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use boing_execution::{Vm, VmExecutionContext};
 use boing_node::node::BoingNode;
 use boing_primitives::{
-    AccessList, Account, AccountId, AccountState, Block, BlockHeader, ConsensusVote,
-    EquivocationEvidence, Hash, Transaction, TransactionPayload,
+    sign_slash_appeal_resolve_ballot, AccessList, Account, AccountId, AccountState, Block,
+    BlockHeader, ConsensusVote, EquivocationEvidence, Hash, Transaction, TransactionPayload,
 };
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
@@ -182,11 +182,16 @@ fn conflicting_observed_votes_slash_via_on_consensus_vote() {
 
 #[test]
 fn consensus_slash_appeal_txs_restore_stake_when_approved() {
-    let v1 = AccountId([1u8; 32]);
-    let v3 = AccountId([3u8; 32]);
-    let v4 = AccountId([4u8; 32]);
+    // Phase 19: multi-pin committee must cast via attested 32.
+    let key1 = SigningKey::generate(&mut OsRng);
+    let key3 = SigningKey::generate(&mut OsRng);
+    let key4 = SigningKey::generate(&mut OsRng);
     let key = SigningKey::generate(&mut OsRng);
+    let v1 = AccountId(key1.verifying_key().to_bytes());
+    let v3 = AccountId(key3.verifying_key().to_bytes());
+    let v4 = AccountId(key4.verifying_key().to_bytes());
     let offender = AccountId(key.verifying_key().to_bytes());
+    let chain_id = 6913u64;
     let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
     // Fund offender for SubmitSlashAppeal nonce / gas path.
     node.state.get_mut(&offender).unwrap().balance = 1_000_000;
@@ -205,7 +210,8 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
 
     // Media inactive: Submit/Resolve still execute (always-on admission).
     // Phase 17: equal stakes among 4 pinned resolvers → W=20_000; need ⌈2W/3⌉ ≈ 3 votes.
-    let vm = Vm::new();
+    let mut vm = Vm::new();
+    vm.set_registration_proof_rule(Some(chain_id), 0);
     assert!(vm.media_blobs_from().is_none());
     node.state.get_mut(&v1).unwrap().stake = 5_000;
     for id in [v3, v4] {
@@ -238,13 +244,15 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
     .unwrap();
     let appeal_id = node.state.slash_appeals().list_appeals()[0].id;
     // First approve: still pending.
+    let sig1 = sign_slash_appeal_resolve_ballot(chain_id, appeal_id, slash_id, true, &key1);
     vm.execute_with_context(
         &Transaction {
             nonce: 0,
             sender: v1,
-            payload: TransactionPayload::ResolveSlashAppeal {
+            payload: TransactionPayload::ResolveSlashAppealAttested {
                 appeal_id,
                 approved: true,
+                ballot_signature: sig1,
             },
             access_list: AccessList::new(vec![v1], vec![v1]),
         },
@@ -255,14 +263,16 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
     assert!(!node.state.slash_appeals().is_reversed(slash_id));
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
     // Second + third approve → finalize + restore.
-    for (i, voter) in [v3, v4].into_iter().enumerate() {
+    for (i, (voter, sk)) in [(v3, &key3), (v4, &key4)].into_iter().enumerate() {
+        let sig = sign_slash_appeal_resolve_ballot(chain_id, appeal_id, slash_id, true, sk);
         vm.execute_with_context(
             &Transaction {
                 nonce: 0,
                 sender: voter,
-                payload: TransactionPayload::ResolveSlashAppeal {
+                payload: TransactionPayload::ResolveSlashAppealAttested {
                     appeal_id,
                     approved: true,
+                    ballot_signature: sig,
                 },
                 access_list: AccessList::new(vec![voter], vec![voter]),
             },
@@ -302,11 +312,16 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
 
 #[test]
 fn consensus_slash_appeal_rejected_keeps_burn() {
-    let v1 = AccountId([1u8; 32]);
-    let v3 = AccountId([3u8; 32]);
-    let v4 = AccountId([4u8; 32]);
+    // Phase 19: multi-pin committee must cast via attested 32.
+    let key1 = SigningKey::generate(&mut OsRng);
+    let key3 = SigningKey::generate(&mut OsRng);
+    let key4 = SigningKey::generate(&mut OsRng);
     let key = SigningKey::generate(&mut OsRng);
+    let v1 = AccountId(key1.verifying_key().to_bytes());
+    let v3 = AccountId(key3.verifying_key().to_bytes());
+    let v4 = AccountId(key4.verifying_key().to_bytes());
     let offender = AccountId(key.verifying_key().to_bytes());
+    let chain_id = 6913u64;
     let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
     node.state.get_mut(&offender).unwrap().balance = 1_000_000;
 
@@ -317,7 +332,8 @@ fn consensus_slash_appeal_rejected_keeps_burn() {
     let slash_id = *node.slashed_equivocations.get(&(offender, 4)).unwrap();
 
     // Phase 17: equal stakes among 4 pinned resolvers → need 3 reject votes to finalize.
-    let vm = Vm::new();
+    let mut vm = Vm::new();
+    vm.set_registration_proof_rule(Some(chain_id), 0);
     node.state.get_mut(&v1).unwrap().stake = 5_000;
     for id in [v3, v4] {
         node.state.insert(Account {
@@ -347,14 +363,19 @@ fn consensus_slash_appeal_rejected_keeps_burn() {
     )
     .unwrap();
     let appeal_id = node.state.slash_appeals().list_appeals()[0].id;
-    for (i, voter) in [v1, v3, v4].into_iter().enumerate() {
+    for (i, (voter, sk)) in [(v1, &key1), (v3, &key3), (v4, &key4)]
+        .into_iter()
+        .enumerate()
+    {
+        let sig = sign_slash_appeal_resolve_ballot(chain_id, appeal_id, slash_id, false, sk);
         vm.execute_with_context(
             &Transaction {
                 nonce: 0,
                 sender: voter,
-                payload: TransactionPayload::ResolveSlashAppeal {
+                payload: TransactionPayload::ResolveSlashAppealAttested {
                     appeal_id,
                     approved: false,
+                    ballot_signature: sig,
                 },
                 access_list: AccessList::new(vec![voter], vec![voter]),
             },

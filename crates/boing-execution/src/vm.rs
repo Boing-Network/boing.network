@@ -2921,10 +2921,17 @@ mod slash_appeal_phase14_tests {
     #[test]
     fn phase17_equal_stakes_needs_two_approves_before_restore() {
         // Equal stakes [100,100,100] → W=300; need 200 (two votes).
+        // Phase 19: multi-pin casts use attested 32 (31 rejected when |pinned|>1).
+        use boing_primitives::sign_slash_appeal_resolve_ballot;
+        use ed25519_dalek::SigningKey;
+
         let provider = AccountId([20u8; 32]);
-        let v1 = AccountId([21u8; 32]);
-        let v2 = AccountId([22u8; 32]);
+        let key1 = SigningKey::from_bytes(&[21u8; 32]);
+        let key2 = SigningKey::from_bytes(&[22u8; 32]);
+        let v1 = AccountId(key1.verifying_key().to_bytes());
+        let v2 = AccountId(key2.verifying_key().to_bytes());
         let v3 = AccountId([23u8; 32]);
+        let chain_id = 6913u64;
         let mut state = StateStore::new();
         fund(&mut state, provider, 100, 0, 0);
         fund(&mut state, v1, 1_000_000, 100, 0);
@@ -2945,6 +2952,7 @@ mod slash_appeal_phase14_tests {
         state.set_slash_appeal_resolvers(Some(vec![v1, v2, v3]));
         let mut vm = Vm::new();
         vm.set_media_blobs_from(Some(0));
+        vm.set_registration_proof_rule(Some(chain_id), 0);
         vm.execute_with_context(
             &Transaction {
                 nonce: 0,
@@ -2961,13 +2969,15 @@ mod slash_appeal_phase14_tests {
         .unwrap();
 
         // First approve: still Pending, no restore.
+        let sig1 = sign_slash_appeal_resolve_ballot(chain_id, 1, 42, true, &key1);
         vm.execute_with_context(
             &Transaction {
                 nonce: 0,
                 sender: v1,
-                payload: TransactionPayload::ResolveSlashAppeal {
+                payload: TransactionPayload::ResolveSlashAppealAttested {
                     appeal_id: 1,
                     approved: true,
+                    ballot_signature: sig1,
                 },
                 access_list: AccessList::new(vec![v1], vec![v1]),
             },
@@ -2983,13 +2993,15 @@ mod slash_appeal_phase14_tests {
         );
 
         // Second approve: Finalized + restore.
+        let sig2 = sign_slash_appeal_resolve_ballot(chain_id, 1, 42, true, &key2);
         vm.execute_with_context(
             &Transaction {
                 nonce: 0,
                 sender: v2,
-                payload: TransactionPayload::ResolveSlashAppeal {
+                payload: TransactionPayload::ResolveSlashAppealAttested {
                     appeal_id: 1,
                     approved: true,
+                    ballot_signature: sig2,
                 },
                 access_list: AccessList::new(vec![v2], vec![v2]),
             },
@@ -3004,10 +3016,16 @@ mod slash_appeal_phase14_tests {
     #[test]
     fn phase17_whale_one_shot_finalize() {
         // Stakes [900,50,50] → W=1000; whale alone finalizes.
+        // Phase 19: multi-pin casts use attested 32 (31 rejected when |pinned|>1).
+        use boing_primitives::sign_slash_appeal_resolve_ballot;
+        use ed25519_dalek::SigningKey;
+
         let provider = AccountId([30u8; 32]);
-        let whale = AccountId([31u8; 32]);
+        let whale_key = SigningKey::from_bytes(&[31u8; 32]);
+        let whale = AccountId(whale_key.verifying_key().to_bytes());
         let small1 = AccountId([32u8; 32]);
         let small2 = AccountId([33u8; 32]);
+        let chain_id = 6913u64;
         let mut state = StateStore::new();
         fund(&mut state, provider, 100, 0, 0);
         fund(&mut state, whale, 1_000_000, 900, 0);
@@ -3028,6 +3046,7 @@ mod slash_appeal_phase14_tests {
         state.set_slash_appeal_resolvers(Some(vec![whale, small1, small2]));
         let mut vm = Vm::new();
         vm.set_media_blobs_from(Some(0));
+        vm.set_registration_proof_rule(Some(chain_id), 0);
         vm.execute_with_context(
             &Transaction {
                 nonce: 0,
@@ -3042,13 +3061,15 @@ mod slash_appeal_phase14_tests {
             ctx(2),
         )
         .unwrap();
+        let sig = sign_slash_appeal_resolve_ballot(chain_id, 1, 99, true, &whale_key);
         vm.execute_with_context(
             &Transaction {
                 nonce: 0,
                 sender: whale,
-                payload: TransactionPayload::ResolveSlashAppeal {
+                payload: TransactionPayload::ResolveSlashAppealAttested {
                     appeal_id: 1,
                     approved: true,
+                    ballot_signature: sig,
                 },
                 access_list: AccessList::new(vec![whale], vec![whale]),
             },
