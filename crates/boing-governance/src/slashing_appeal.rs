@@ -83,18 +83,65 @@ impl SlashRegistry {
     ) -> u64 {
         let id = self.next_slash_id;
         self.next_slash_id += 1;
+        self.insert_slash_record(
+            id,
+            validator,
+            amount,
+            reason,
+            block_height,
+            appeal_window_blocks,
+        );
+        id
+    }
+
+    /// Record a slash with a caller-chosen id (Phase 12 FailedServe consensus mirror).
+    /// No-ops if `id` already exists. Bumps `next_slash_id` past `id` when needed.
+    pub fn record_slash_with_id(
+        &mut self,
+        id: u64,
+        validator: [u8; 32],
+        amount: u128,
+        reason: SlashReason,
+        block_height: u64,
+        appeal_window_blocks: u64,
+    ) -> u64 {
+        if self.slashes.contains_key(&id) {
+            return id;
+        }
+        self.insert_slash_record(
+            id,
+            validator,
+            amount,
+            reason,
+            block_height,
+            appeal_window_blocks,
+        );
+        if self.next_slash_id <= id {
+            self.next_slash_id = id.saturating_add(1);
+        }
+        id
+    }
+
+    fn insert_slash_record(
+        &mut self,
+        id: u64,
+        validator: [u8; 32],
+        amount: u128,
+        reason: SlashReason,
+        block_height: u64,
+        appeal_window_blocks: u64,
+    ) {
         self.slashes.insert(
             id,
             SlashRecord {
                 id,
                 validator,
                 amount,
-                reason: reason.clone(),
+                reason,
                 block_height,
                 appeal_deadline: block_height.saturating_add(appeal_window_blocks),
             },
         );
-        id
     }
 
     /// Submit an appeal for a slash at `current_height`. Returns appeal ID or error.

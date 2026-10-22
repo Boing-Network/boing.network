@@ -5,12 +5,14 @@ use boing_primitives::{
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
     media_blob_gas, media_blob_max_bytes_at, media_blob_max_das_chunks_at, media_blob_meta_tx_gas,
     nonce_derived_contract_address, validate_batch_calls, validate_blob_announce_with_cap,
-    validate_pay_blob_sample, validate_pay_blob_sample_with_max_chunks, validate_put_blob_with_cap,
+    validate_challenge_requires_settle, validate_pay_blob_sample,
+    validate_pay_blob_sample_with_max_chunks, validate_put_blob_with_cap,
     validate_register_blob_sample_offer, validate_renew_media_blob_pin,
     validate_settle_blob_sample_match, AccountId, AccountState, BatchCall, BlobId, BlobRetention,
     ExecutionLog, Hash, MediaBlobDasSample, QaPoolVoteKind, Transaction, TransactionPayload,
     PHASE11_FAILED_SERVE_PENALTY, PHASE11_SERVE_CHALLENGE_BOND,
 };
+use boing_state::SettledSampleMatch;
 use boing_qa::{
     check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaPoolGovernanceConfig,
     QaQuorumDecision, QaResult, RuleRegistry,
@@ -928,6 +930,19 @@ impl Vm {
             move_native(state, escrow, *provider, offer.ask_fee)?;
         }
 
+        // Phase 12: retain settle receipt so payer may Challenge this provider.
+        state
+            .sample_offers_mut()
+            .record_settle_receipt(SettledSampleMatch {
+                blob_id: *blob_id,
+                chunk_index,
+                chunk_count: offer.chunk_count,
+                provider: *provider,
+                payer: tx.sender,
+                settled_at_height: height,
+            })
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce
@@ -1010,6 +1025,18 @@ impl Vm {
 
         // Settle any expired challenges before admitting a new one.
         settle_expired_serve_challenges(state, height)?;
+
+        // Phase 12: challenger must have previously settled a match with this provider.
+        let has_receipt = state.sample_offers().has_settle_receipt(
+            blob_id,
+            chunk_index,
+            provider,
+            &tx.sender,
+        );
+        validate_challenge_requires_settle(has_receipt)
+            .map_err(|e| VmError::MediaBlob(format!(
+                "challenge requires prior SettleBlobSampleMatch: {e}"
+            )))?;
 
         let bond = PHASE11_SERVE_CHALLENGE_BOND;
         let penalty = PHASE11_FAILED_SERVE_PENALTY;
@@ -1547,7 +1574,8 @@ impl Vm {
     }
 }
 
-/// Settle expired serve challenges: mark FailedServe, refund challenger bond, burn provider penalty.
+/// Settle expired serve challenges: mark FailedServe, refund challenger bond, burn provider penalty,
+/// and assign a consensus `slash_id` (Phase 12) for SlashRegistry mirroring.
 ///
 /// Called at the start of Challenge/Respond and once per block (producer + importer) so FailedServe
 /// settles automatically without waiting for another sample tx.
@@ -1575,6 +1603,12 @@ pub fn settle_expired_serve_challenges(
             move_native(state, escrow, burn, c.provider_penalty)?;
         }
         state.sample_serve_mut().mark_bond_settled(
+            &c.blob_id,
+            c.chunk_index,
+            &c.provider,
+            &c.challenger,
+        );
+        let _ = state.sample_serve_mut().assign_failed_serve_slash_id(
             &c.blob_id,
             c.chunk_index,
             &c.provider,

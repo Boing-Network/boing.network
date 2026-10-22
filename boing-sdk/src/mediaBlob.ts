@@ -867,3 +867,20 @@ export function phase11DasSuccinctProofPlan(): string[] {
     'ReservedRealV1 verify remains reject-until-wired; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }
+
+/** Phase 12 aliases / constants. */
+export const PHASE12_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE11_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE12_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE11_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE12_SERVE_CHALLENGE_BOND = PHASE11_SERVE_CHALLENGE_BOND;
+export const PHASE12_FAILED_SERVE_PENALTY = PHASE11_FAILED_SERVE_PENALTY;
+export const PHASE12_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export const PHASE12_SETTLE_RECEIPT_DOMAIN = 'BOING_BLOB_SETTLE_RECEIPT_V1';
+
+/** Honest plan strings for Phase 12 (settle-before-challenge + FailedServe audit). */
+export function phase12DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase11DasSuccinctProofPlan(),
+    'Phase 12: FailedServe assigns consensus slash_id and mirrors SlashRegistry (BlobFailedServe); balance burn remains the economic slash.',
+    'Phase 12: Challenge requires prior SettleBlobSampleMatch receipt (payer = challenger).',
+  ];
+}

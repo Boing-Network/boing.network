@@ -41,6 +41,7 @@ import {
   respondBlobSampleServePayload,
   phase10DasSuccinctProofPlan,
   phase11DasSuccinctProofPlan,
+  phase12DasSuccinctProofPlan,
   PHASE11_SERVE_CHALLENGE_BOND,
   blobSampleServeChallengeBondEscrowAccount,
 } from '../src/mediaBlob.js';
@@ -218,6 +219,9 @@ describe('mediaBlob', () => {
     expect(phase10DasSuccinctProofPlan().length).toBeGreaterThan(0);
     expect(phase11DasSuccinctProofPlan().length).toBeGreaterThan(
       phase10DasSuccinctProofPlan().length,
+    );
+    expect(phase12DasSuccinctProofPlan().length).toBeGreaterThan(
+      phase11DasSuccinctProofPlan().length,
     );
     expect(PHASE11_SERVE_CHALLENGE_BOND).toBe(10n ** 18n);
     expect(blobSampleServeChallengeBondEscrowAccount().length).toBe(32);

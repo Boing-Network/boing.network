@@ -637,6 +637,7 @@ impl BoingNode {
         self.emit_head_subscriber_event();
         self.maybe_refresh_stake_validators(height);
         self.sync_open_validator_set();
+        self.sync_failed_serve_slash_records();
         self.anchor_fallback_wait = None;
         // Successful commit clears leader-timeout accounting for this height's proposer.
         self.liveness_miss_streak
@@ -645,6 +646,32 @@ impl BoingNode {
         info!("Block committed: height={} hash={:?}", height, hash);
         self.maybe_publish_vrf_proof_for_current_round();
         hash
+    }
+
+    /// Mirror consensus FailedServe `slash_id`s into the node-local SlashRegistry (Phase 12).
+    /// Balance burn already happened in VM settle; this is audit / RPC only (no unburn on appeal).
+    fn sync_failed_serve_slash_records(&mut self) {
+        let mut mirrored = 0usize;
+        for c in self.state.sample_serve().challenges_with_slash_id() {
+            let Some(id) = c.slash_id else {
+                continue;
+            };
+            if self.slash_registry.get_slash(id).is_some() {
+                continue;
+            }
+            self.slash_registry.record_slash_with_id(
+                id,
+                c.provider.0,
+                c.provider_penalty,
+                SlashReason::BlobFailedServe,
+                c.deadline_height.saturating_add(1),
+                boing_primitives::PHASE12_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
+            );
+            mirrored = mirrored.saturating_add(1);
+        }
+        if mirrored > 0 {
+            self.persist_slash_registry();
+        }
     }
 
     /// Prove + gossip local ECVRF for the current consensus round when VRF leader mode is on.
@@ -1057,6 +1084,7 @@ impl BoingNode {
         self.emit_head_subscriber_event();
         self.maybe_refresh_stake_validators(block.header.height);
         self.sync_open_validator_set();
+        self.sync_failed_serve_slash_records();
         self.maybe_publish_vrf_proof_for_current_round();
         Ok(())
     }
@@ -1373,6 +1401,16 @@ impl BoingNode {
                 if provider_bal < penalty {
                     return Err(MempoolError::MediaBlobRejected(
                         "provider balance below FailedServe penalty".into(),
+                    ));
+                }
+                if !self.state.sample_offers().has_settle_receipt(
+                    blob_id,
+                    *chunk_index,
+                    provider,
+                    &signed.tx.sender,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "challenge requires prior SettleBlobSampleMatch".into(),
                     ));
                 }
             }
