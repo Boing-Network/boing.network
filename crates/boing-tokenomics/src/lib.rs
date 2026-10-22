@@ -402,7 +402,9 @@ fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u12
         TransactionPayload::RegisterBlobSampleOffer { .. }
         | TransactionPayload::CancelBlobSampleOffer { .. }
         | TransactionPayload::ChallengeBlobSampleServe { .. }
-        | TransactionPayload::RespondBlobSampleServe { .. } => 0,
+        | TransactionPayload::RespondBlobSampleServe { .. }
+        | TransactionPayload::SubmitSlashAppeal { .. }
+        | TransactionPayload::ResolveSlashAppeal { .. } => 0,
         _ => 0,
     }
 }

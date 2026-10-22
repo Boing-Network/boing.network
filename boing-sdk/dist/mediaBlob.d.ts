@@ -291,4 +291,24 @@ export declare const PHASE13_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
 export declare const PHASE13_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
 /** Honest plan strings for Phase 13 (FailedServe balance unburn + receipt TTL). */
 export declare function phase13DasSuccinctProofPlan(): string[];
+/** Phase 14 aliases / constants. */
+export declare const PHASE14_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE14_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE14_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE14_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE14_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE14_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE14_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+/** Phase 14: submit consensus slash appeal (`SubmitSlashAppeal`, variant 30). */
+export declare function encodeSubmitSlashAppeal(input: {
+    slashId: bigint;
+    evidence?: Uint8Array;
+}): TransactionPayloadInput;
+/** Phase 14: resolve consensus slash appeal (`ResolveSlashAppeal`, variant 31). */
+export declare function encodeResolveSlashAppeal(input: {
+    appealId: bigint;
+    approved: boolean;
+}): TransactionPayloadInput;
+/** Honest plan strings for Phase 14 (consensus slash-appeal txs; ReservedRealV1 still rejects). */
+export declare function phase14DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

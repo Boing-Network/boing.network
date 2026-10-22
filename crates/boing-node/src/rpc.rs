@@ -1537,20 +1537,31 @@ async fn dispatch_jsonrpc_request(
                 .and_then(|o| o.get("slashId").or_else(|| o.get("slash_id")))
                 .and_then(|v| v.as_u64());
             let n = node.read().await;
+            // Prefer consensus slash-appeal book (Phase 14); keep localMirror rows for ids not in consensus.
+            let consensus_ids: std::collections::HashSet<u64> = n
+                .state
+                .slash_appeals()
+                .list_slashes()
+                .into_iter()
+                .map(|s| s.id)
+                .collect();
             let mut slashes: Vec<serde_json::Value> = n
-                .slash_registry
+                .state
+                .slash_appeals()
                 .list_slashes()
                 .into_iter()
                 .filter(|s| filter_slash_id.map(|id| s.id == id).unwrap_or(true))
                 .filter_map(|s| {
                     let reason = match &s.reason {
-                        boing_governance::SlashReason::Equivocation => "equivocation".to_string(),
-                        boing_governance::SlashReason::Liveness => "liveness".to_string(),
-                        boing_governance::SlashReason::Fraud => "fraud".to_string(),
-                        boing_governance::SlashReason::BlobFailedServe => {
+                        boing_state::ConsensusSlashReason::Equivocation => {
+                            "equivocation".to_string()
+                        }
+                        boing_state::ConsensusSlashReason::Liveness => "liveness".to_string(),
+                        boing_state::ConsensusSlashReason::Fraud => "fraud".to_string(),
+                        boing_state::ConsensusSlashReason::BlobFailedServe => {
                             "blobFailedServe".to_string()
                         }
-                        boing_governance::SlashReason::Other(x) => format!("other:{x}"),
+                        boing_state::ConsensusSlashReason::Other(x) => format!("other:{x}"),
                     };
                     if let Some(ref want) = filter_reason {
                         if !reason.eq_ignore_ascii_case(want) {
@@ -1558,41 +1569,108 @@ async fn dispatch_jsonrpc_request(
                         }
                     }
                     let penalty_kind = match &s.reason {
-                        boing_governance::SlashReason::BlobFailedServe => "balancePenalty",
+                        boing_state::ConsensusSlashReason::BlobFailedServe => "balancePenalty",
                         _ => "stakeSlash",
                     };
                     Some(serde_json::json!({
                         "id": s.id,
-                        "validator": format!("0x{}", hex::encode(s.validator)),
+                        "validator": format!("0x{}", hex::encode(s.account.0)),
                         "amount": s.amount.to_string(),
                         "reason": reason,
                         "penaltyKind": penalty_kind,
                         "block_height": s.block_height,
                         "appeal_deadline": s.appeal_deadline,
-                        "reversed": n.slash_registry.is_slash_reversed(s.id),
+                        "reversed": s.reversed,
+                        "source": "consensus",
                     }))
                 })
                 .collect();
+            for s in n.slash_registry.list_slashes() {
+                if consensus_ids.contains(&s.id) {
+                    continue;
+                }
+                if filter_slash_id.map(|id| s.id == id) == Some(false) {
+                    continue;
+                }
+                let reason = match &s.reason {
+                    boing_governance::SlashReason::Equivocation => "equivocation".to_string(),
+                    boing_governance::SlashReason::Liveness => "liveness".to_string(),
+                    boing_governance::SlashReason::Fraud => "fraud".to_string(),
+                    boing_governance::SlashReason::BlobFailedServe => {
+                        "blobFailedServe".to_string()
+                    }
+                    boing_governance::SlashReason::Other(x) => format!("other:{x}"),
+                };
+                if let Some(ref want) = filter_reason {
+                    if !reason.eq_ignore_ascii_case(want) {
+                        continue;
+                    }
+                }
+                let penalty_kind = match &s.reason {
+                    boing_governance::SlashReason::BlobFailedServe => "balancePenalty",
+                    _ => "stakeSlash",
+                };
+                slashes.push(serde_json::json!({
+                    "id": s.id,
+                    "validator": format!("0x{}", hex::encode(s.validator)),
+                    "amount": s.amount.to_string(),
+                    "reason": reason,
+                    "penaltyKind": penalty_kind,
+                    "block_height": s.block_height,
+                    "appeal_deadline": s.appeal_deadline,
+                    "reversed": n.slash_registry.is_slash_reversed(s.id),
+                    "source": "localMirror",
+                }));
+            }
             slashes.sort_by_key(|v| v.get("id").and_then(|x| x.as_u64()).unwrap_or(0));
+            let consensus_appeal_slash_ids: std::collections::HashSet<u64> = n
+                .state
+                .slash_appeals()
+                .list_appeals()
+                .into_iter()
+                .map(|a| a.slash_id)
+                .collect();
             let mut appeals: Vec<serde_json::Value> = n
-                .slash_registry
+                .state
+                .slash_appeals()
                 .list_appeals()
                 .into_iter()
                 .filter(|a| filter_slash_id.map(|id| a.slash_id == id).unwrap_or(true))
                 .map(|a| {
                     let status = match a.status {
-                        boing_governance::AppealStatus::Pending => "pending",
-                        boing_governance::AppealStatus::Approved => "approved",
-                        boing_governance::AppealStatus::Rejected => "rejected",
+                        boing_state::ConsensusAppealStatus::Pending => "pending",
+                        boing_state::ConsensusAppealStatus::Approved => "approved",
+                        boing_state::ConsensusAppealStatus::Rejected => "rejected",
                     };
                     serde_json::json!({
                         "id": a.id,
                         "slash_id": a.slash_id,
                         "status": status,
                         "evidence_len": a.evidence.len(),
+                        "source": "consensus",
                     })
                 })
                 .collect();
+            for a in n.slash_registry.list_appeals() {
+                if consensus_appeal_slash_ids.contains(&a.slash_id) {
+                    continue;
+                }
+                if filter_slash_id.map(|id| a.slash_id == id) == Some(false) {
+                    continue;
+                }
+                let status = match a.status {
+                    boing_governance::AppealStatus::Pending => "pending",
+                    boing_governance::AppealStatus::Approved => "approved",
+                    boing_governance::AppealStatus::Rejected => "rejected",
+                };
+                appeals.push(serde_json::json!({
+                    "id": a.id,
+                    "slash_id": a.slash_id,
+                    "status": status,
+                    "evidence_len": a.evidence.len(),
+                    "source": "localMirror",
+                }));
+            }
             appeals.sort_by_key(|v| v.get("id").and_then(|x| x.as_u64()).unwrap_or(0));
             let persisted = n.persistence.is_some();
             rpc_ok(
@@ -1601,7 +1679,7 @@ async fn dispatch_jsonrpc_request(
                     "slashes": slashes,
                     "appeals": appeals,
                     "persisted": persisted,
-                    "note": "Optional params: { reason, slashId }. BlobFailedServe approved appeals restore provider balance (Phase 13).",
+                    "note": "Optional params: { reason, slashId }. Prefer consensus Submit/Resolve txs (30/31) for FailedServe; operator RPC is secondary. source=consensus|localMirror.",
                 }),
             )
         }
@@ -1668,7 +1746,12 @@ async fn dispatch_jsonrpc_request(
             match n.submit_slash_appeal(slash_id, evidence) {
                 Ok(appeal_id) => rpc_ok(
                     id,
-                    serde_json::json!({ "appeal_id": appeal_id, "slash_id": slash_id }),
+                    serde_json::json!({
+                        "appeal_id": appeal_id,
+                        "slash_id": slash_id,
+                        "deprecatedForFailedServe": true,
+                        "preferTx": "SubmitSlashAppeal (index 30)",
+                    }),
                 ),
                 Err(e) => rpc_error(id, -32060, e.to_string()),
             }
@@ -1739,6 +1822,8 @@ async fn dispatch_jsonrpc_request(
                         "appeal_id": appeal_id,
                         "approved": approved,
                         "restored": restored.to_string(),
+                        "deprecatedForFailedServe": true,
+                        "preferTx": "ResolveSlashAppeal (index 31)",
                     }),
                 ),
                 Err(e) => rpc_error(id, -32061, e.to_string()),

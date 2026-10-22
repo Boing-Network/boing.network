@@ -11,6 +11,7 @@ use boing_primitives::{
     validate_settle_blob_sample_match, AccountId, AccountState, BatchCall, BlobId, BlobRetention,
     ExecutionLog, Hash, MediaBlobDasSample, QaPoolVoteKind, Transaction, TransactionPayload,
     PHASE11_FAILED_SERVE_PENALTY, PHASE11_SERVE_CHALLENGE_BOND,
+    PHASE14_FAILED_SERVE_APPEAL_WINDOW_BLOCKS, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
 };
 use boing_state::SettledSampleMatch;
 use boing_qa::{
@@ -697,6 +698,27 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::SubmitSlashAppeal { slash_id, evidence } => {
+                return self.execute_submit_slash_appeal(
+                    state,
+                    tx,
+                    *slash_id,
+                    evidence,
+                    exec_ctx.block_height,
+                );
+            }
+            TransactionPayload::ResolveSlashAppeal {
+                appeal_id,
+                approved,
+            } => {
+                return self.execute_resolve_slash_appeal(
+                    state,
+                    tx,
+                    *appeal_id,
+                    *approved,
+                    exec_ctx.block_height,
+                );
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -1163,6 +1185,92 @@ impl Vm {
         })
     }
 
+    fn execute_submit_slash_appeal(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        slash_id: u64,
+        evidence: &[u8],
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        state
+            .slash_appeals_mut()
+            .submit_appeal(
+                slash_id,
+                evidence.to_vec(),
+                height,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+            )
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: slash_id.to_le_bytes().to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn execute_resolve_slash_appeal(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        appeal_id: u64,
+        approved: bool,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        if !sender_may_resolve_slash_appeal(state, &tx.sender) {
+            return Err(VmError::MediaBlob(
+                "ResolveSlashAppeal requires a consensus validator".into(),
+            ));
+        }
+        let slash = state
+            .slash_appeals_mut()
+            .resolve_appeal(appeal_id, approved)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?
+            .clone();
+        if approved {
+            let restored = match slash.reason {
+                boing_state::ConsensusSlashReason::BlobFailedServe => {
+                    boing_tokenomics::restore_failed_serve_penalty(
+                        state,
+                        &slash.account,
+                        slash.amount,
+                    )
+                }
+                _ => boing_tokenomics::restore_equivocation_slash(
+                    state,
+                    &slash.account,
+                    slash.amount,
+                ),
+            };
+            let _ = restored;
+        }
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: appeal_id.to_le_bytes().to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
     fn execute_contract_deploy(
         &self,
         state: &mut StateStore,
@@ -1582,7 +1690,7 @@ impl Vm {
 }
 
 /// Settle expired serve challenges: mark FailedServe, refund challenger bond, burn provider penalty,
-/// and assign a consensus `slash_id` (Phase 12) for SlashRegistry mirroring.
+/// assign a consensus `slash_id` (Phase 12), and seed the consensus slash-appeal book (Phase 14).
 ///
 /// Called at the start of Challenge/Respond and once per block (producer + importer) so FailedServe
 /// settles automatically without waiting for another sample tx.
@@ -1615,12 +1723,23 @@ pub fn settle_expired_serve_challenges(
             &c.provider,
             &c.challenger,
         );
-        let _ = state.sample_serve_mut().assign_failed_serve_slash_id(
+        let slash_id = state.sample_serve_mut().assign_failed_serve_slash_id(
             &c.blob_id,
             c.chunk_index,
             &c.provider,
             &c.challenger,
         );
+        // Phase 14: seed consensus slash book so Submit/Resolve txs can unburn without RPC.
+        if let Some(id) = slash_id {
+            let _ = state.slash_appeals_mut().record_slash_with_id(
+                id,
+                c.provider,
+                c.provider_penalty,
+                boing_state::ConsensusSlashReason::BlobFailedServe,
+                height,
+                PHASE14_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
+            );
+        }
         // Phase 13: consume settle receipt when FailedServe closes the challenge.
         let _ = state.sample_offers_mut().remove_settle_receipt(
             &c.blob_id,
@@ -1631,6 +1750,22 @@ pub fn settle_expired_serve_challenges(
         n = n.saturating_add(1);
     }
     Ok(n)
+}
+
+/// Thin MVP: host-pinned consensus validator set, else open Active / bonded stake.
+fn sender_may_resolve_slash_appeal(state: &StateStore, sender: &AccountId) -> bool {
+    if let Some(set) = state.slash_appeal_resolvers() {
+        return set.iter().any(|a| a == sender);
+    }
+    if let Some(rec) = state.open_validators().records.get(sender) {
+        if matches!(
+            rec.status,
+            boing_state::ValidatorStatus::Active | boing_state::ValidatorStatus::Pending
+        ) {
+            return true;
+        }
+    }
+    state.get(sender).is_some_and(|s| s.stake > 0)
 }
 
 /// Housekeeping: settle FailedServe + prune stale settle receipts (end-of-block / tx entry).
@@ -2396,5 +2531,239 @@ mod registration_proof_rule_tests {
         assert!(vm.registration_proof_ok(10, &owner, &node_id, &v2));
         assert!(!vm.registration_proof_ok(10, &owner, &node_id, &other), "other chain rejected");
         assert!(!vm.registration_proof_ok(10, &AccountId([8u8; 32]), &node_id, &v2), "bound to owner");
+    }
+}
+
+#[cfg(test)]
+mod slash_appeal_phase14_tests {
+    use super::*;
+    use boing_primitives::{Account, AccessList, PHASE14_MAX_APPEAL_EVIDENCE_BYTES};
+    use boing_state::ConsensusSlashReason;
+
+    fn fund(state: &mut StateStore, id: AccountId, balance: u128, stake: u128, nonce: u64) {
+        state.insert(Account {
+            id,
+            state: AccountState {
+                balance,
+                nonce,
+                stake,
+                ..Default::default()
+            },
+        });
+    }
+
+    fn ctx(h: u64) -> VmExecutionContext {
+        VmExecutionContext {
+            block_height: h,
+            block_timestamp: 0,
+            native_value: false,
+        }
+    }
+
+    #[test]
+    fn submit_resolve_approved_restores_failed_serve_balance() {
+        let provider = AccountId([2u8; 32]);
+        let validator = AccountId([3u8; 32]);
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 50, 0);
+        fund(&mut state, validator, 1_000_000, 0, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                7,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                10,
+                1_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![validator]));
+
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+
+        let submit = Transaction {
+            nonce: 0,
+            sender: provider,
+            payload: TransactionPayload::SubmitSlashAppeal {
+                slash_id: 7,
+                evidence: b"ok".to_vec(),
+            },
+            access_list: AccessList::new(vec![provider], vec![provider]),
+        };
+        vm.execute_with_context(&submit, &mut state, ctx(50)).unwrap();
+        assert_eq!(state.slash_appeals().list_appeals().len(), 1);
+
+        let resolve = Transaction {
+            nonce: 0,
+            sender: validator,
+            payload: TransactionPayload::ResolveSlashAppeal {
+                appeal_id: 1,
+                approved: true,
+            },
+            access_list: AccessList::new(vec![validator], vec![validator]),
+        };
+        vm.execute_with_context(&resolve, &mut state, ctx(51)).unwrap();
+        assert!(state.slash_appeals().is_reversed(7));
+        assert_eq!(state.get(&provider).unwrap().balance, 1_100);
+        assert_eq!(state.get(&provider).unwrap().stake, 50);
+    }
+
+    #[test]
+    fn reject_resolve_leaves_balance_unchanged() {
+        let provider = AccountId([4u8; 32]);
+        let validator = AccountId([5u8; 32]);
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, validator, 1_000_000, 0, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 500, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                1,
+                provider,
+                500,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                100,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![validator]));
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        let submit = Transaction {
+            nonce: 0,
+            sender: provider,
+            payload: TransactionPayload::SubmitSlashAppeal {
+                slash_id: 1,
+                evidence: vec![],
+            },
+            access_list: AccessList::new(vec![provider], vec![provider]),
+        };
+        vm.execute_with_context(&submit, &mut state, ctx(2)).unwrap();
+        let resolve = Transaction {
+            nonce: 0,
+            sender: validator,
+            payload: TransactionPayload::ResolveSlashAppeal {
+                appeal_id: 1,
+                approved: false,
+            },
+            access_list: AccessList::new(vec![validator], vec![validator]),
+        };
+        vm.execute_with_context(&resolve, &mut state, ctx(3)).unwrap();
+        assert!(!state.slash_appeals().is_reversed(1));
+        assert_eq!(state.get(&provider).unwrap().balance, 100);
+    }
+
+    #[test]
+    fn evidence_oversize_and_non_validator_rejected() {
+        let provider = AccountId([6u8; 32]);
+        let validator = AccountId([7u8; 32]);
+        let outsider = AccountId([8u8; 32]);
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, validator, 1_000_000, 0, 0);
+        fund(&mut state, outsider, 1_000_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                1,
+                provider,
+                10,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                100,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![validator]));
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+
+        let oversize = Transaction {
+            nonce: 0,
+            sender: provider,
+            payload: TransactionPayload::SubmitSlashAppeal {
+                slash_id: 1,
+                evidence: vec![0u8; PHASE14_MAX_APPEAL_EVIDENCE_BYTES + 1],
+            },
+            access_list: AccessList::new(vec![provider], vec![provider]),
+        };
+        assert!(vm.execute_with_context(&oversize, &mut state, ctx(2)).is_err());
+
+        let submit = Transaction {
+            nonce: 0,
+            sender: provider,
+            payload: TransactionPayload::SubmitSlashAppeal {
+                slash_id: 1,
+                evidence: vec![],
+            },
+            access_list: AccessList::new(vec![provider], vec![provider]),
+        };
+        vm.execute_with_context(&submit, &mut state, ctx(2)).unwrap();
+
+        let bad = Transaction {
+            nonce: 0,
+            sender: outsider,
+            payload: TransactionPayload::ResolveSlashAppeal {
+                appeal_id: 1,
+                approved: true,
+            },
+            access_list: AccessList::new(vec![outsider], vec![outsider]),
+        };
+        let err = vm.execute_with_context(&bad, &mut state, ctx(3)).unwrap_err();
+        assert!(format!("{err}").contains("consensus validator"));
+    }
+
+    #[test]
+    fn double_resolve_rejected() {
+        let provider = AccountId([9u8; 32]);
+        let validator = AccountId([10u8; 32]);
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 0, 0, 0);
+        fund(&mut state, validator, 1_000_000, 0, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 50, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                3,
+                provider,
+                50,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                100,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![validator]));
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 3,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(2),
+        )
+        .unwrap();
+        let resolve = Transaction {
+            nonce: 0,
+            sender: validator,
+            payload: TransactionPayload::ResolveSlashAppeal {
+                appeal_id: 1,
+                approved: true,
+            },
+            access_list: AccessList::new(vec![validator], vec![validator]),
+        };
+        vm.execute_with_context(&resolve, &mut state, ctx(3)).unwrap();
+        let mut resolve2 = resolve.clone();
+        resolve2.nonce = 1;
+        assert!(vm.execute_with_context(&resolve2, &mut state, ctx(4)).is_err());
     }
 }

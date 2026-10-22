@@ -1,10 +1,10 @@
 # Boing L1 media blobs
 
 > 👋 **Everyday users:** images / GIFs / short clips can live **on Boing**. Default live cap **16 MiB**.  
-> 🛠️ **Developers:** PutBlob **21** … Cancel **27**, ChallengeServe **28**, RespondServe **29**; DAS RPCs; SDK `mediaBlob.ts`.  
+> 🛠️ **Developers:** PutBlob **21** … Cancel **27**, ChallengeServe **28**, RespondServe **29**, SubmitSlashAppeal **30**, ResolveSlashAppeal **31**; DAS RPCs; SDK `mediaBlob.ts`.  
 > 🛰️ **Operators:** `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. Optional header: `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`. Optional **gated** 256 MiB raise: `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (**unset = stay 16 MiB — Fly-safe**).
 
-Project design: Cursor store `docs/boing-l1-media-blobs.md`. Merges: #53–#57 · #65 · #66 · #67 · #68 · #69 · #71 · #72 · #74 (`4f6e61c`).
+Project design: Cursor store `docs/boing-l1-media-blobs.md`. Merges: #53–#57 · #65 · #66 · #67 · #68 · #69 · #71 · #72 · #74 · #75.
 
 ---
 
@@ -39,13 +39,17 @@ Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActiva
 | CancelBlobSampleOffer | 27 | Refund ask escrow |
 | ChallengeBlobSampleServe | 28 | Open serve challenge (requires prior Settle; escrows bond+penalty) |
 | RespondBlobSampleServe | 29 | Provider DAS merkle response (bond+penalty → provider) |
+| SubmitSlashAppeal | 30 | Consensus appeal against a slash (evidence ≤ 4096 B) |
+| ResolveSlashAppeal | 31 | Validator-set approve/reject; FailedServe **balance** restore on approve |
 
 ---
 
 ## Sampling / DAS / challenges
 
 - SMT offer book + ask escrow (Phase 9)  
-- Serve challenges (Phase 10–13): settle-before-challenge; bond/penalty; FailedServe burn + `slashId`; **approved appeal restores provider balance**; settle-receipt TTL prune  
+- Serve challenges (Phase 10–14): settle-before-challenge; bond/penalty; FailedServe burn + `slashId` + **consensus slash-appeal book**; **Submit/Resolve txs** restore provider balance on multi-validator nets; settle-receipt TTL prune  
+- Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated for FailedServe** (prefer txs 30/31); still useful for legacy equivocation-only local mirrors  
+- Resolve is **ops/validator-approved**, not SNARK verification of evidence  
 - Succinct DAS: StubBlake3V0; ReservedRealV1 envelope checks; **verify rejects** until a real system is wired  
 - Leader-VRF LC: `boing_getLeaderVrfOutput` / `useLeaderVrf`  
 
@@ -55,14 +59,15 @@ Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActiva
 
 | Phase | Status |
 |-------|--------|
-| 1–12 | **Merged** (#74 · `4f6e61c`) |
-| 13 FailedServe appeal unburn / receipt prune | **This PR (draft)** |
+| 1–13 | **Merged** (#75) |
+| 14 Consensus slash-appeal txs 30/31 | **This PR** |
 
 ### Still later
 
 - Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
 - Coordinated public-testnet 256 MiB activation  
-- Consensus-backed slash-appeal tx (operator RPC restore is the thin MVP)  
+- Move equivocation/liveness slash records fully into the consensus appeal book  
+- Cryptographic / committee threshold resolve policy (beyond “any validator”)  
 
 ---
 

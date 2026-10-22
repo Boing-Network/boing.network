@@ -27,6 +27,7 @@ const OPEN_VALIDATORS_FILE: &str = "open_validators.bin";
 const NAMES_FILE: &str = "names.bin";
 const SAMPLE_OFFERS_FILE: &str = "sample_offers_registry.bin";
 const SAMPLE_SERVE_FILE: &str = "sample_serve_challenges.bin";
+const SLASH_APPEALS_FILE: &str = "slash_appeals_registry.bin";
 /// Node-local jailing snapshots (not committed to the state root).
 const OPEN_VALIDATOR_JAIL_STATS_FILE: &str = "open_validator_jail_stats.bin";
 const SLASH_REGISTRY_FILE: &str = "slash_registry.json";
@@ -225,6 +226,18 @@ impl Persistence {
             std::fs::write(&tmp, bytes)?;
             std::fs::rename(tmp, &sample_serve_path)?;
         }
+        let slash_appeals_path = self.state_dir().join(SLASH_APPEALS_FILE);
+        if state.slash_appeals().is_empty() {
+            if slash_appeals_path.exists() {
+                std::fs::remove_file(&slash_appeals_path)?;
+            }
+        } else {
+            let bytes = bincode::serialize(state.slash_appeals())
+                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let tmp = slash_appeals_path.with_extension("bin.tmp");
+            std::fs::write(&tmp, bytes)?;
+            std::fs::rename(tmp, &slash_appeals_path)?;
+        }
         let js_path = self.state_dir().join(OPEN_VALIDATOR_JAIL_STATS_FILE);
         if state.open_validators().last_jail.is_empty() {
             if js_path.exists() {
@@ -333,6 +346,13 @@ impl Persistence {
             let reg: boing_state::SampleServeChallengeRegistry = bincode::deserialize(&bytes)
                 .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
             state.load_sample_serve(reg);
+        }
+        let slash_appeals_path = self.state_dir().join(SLASH_APPEALS_FILE);
+        if slash_appeals_path.exists() {
+            let bytes = std::fs::read(&slash_appeals_path)?;
+            let reg: boing_state::SlashAppealRegistry = bincode::deserialize(&bytes)
+                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            state.load_slash_appeals(reg);
         }
         Ok(Some(state))
     }

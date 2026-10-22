@@ -122,6 +122,28 @@ fn main() {
         hex::encode(&p)
     );
 
+    let submit = TransactionPayload::SubmitSlashAppeal {
+        slash_id: 1,
+        evidence: b"evidence".to_vec(),
+    };
+    let p = bincode::serialize(&submit).unwrap();
+    println!(
+        "SubmitSlashAppeal: len={} hex={}",
+        p.len(),
+        hex::encode(&p)
+    );
+
+    let resolve = TransactionPayload::ResolveSlashAppeal {
+        appeal_id: 1,
+        approved: true,
+    };
+    let p = bincode::serialize(&resolve).unwrap();
+    println!(
+        "ResolveSlashAppeal: len={} hex={}",
+        p.len(),
+        hex::encode(&p)
+    );
+
     let qv = TransactionPayload::QaPoolVote {
         subject: boing_primitives::Hash([3u8; 32]),
         vote: boing_primitives::QaPoolVoteKind::Allow,

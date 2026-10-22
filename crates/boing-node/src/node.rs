@@ -946,11 +946,18 @@ impl BoingNode {
     }
 
     /// Submit an appeal for a recorded slash (must be within the appeal window at current chain height).
+    ///
+    /// **Deprecated for FailedServe:** prefer consensus tx `SubmitSlashAppeal` (index 30). This RPC
+    /// only mutates the node-local `SlashRegistry` mirror.
     pub fn submit_slash_appeal(
         &mut self,
         slash_id: u64,
         evidence: Vec<u8>,
     ) -> Result<u64, SlashingError> {
+        if self.state.slash_appeals().get_slash(slash_id).is_some() {
+            // Consensus book owns FailedServe appeals; avoid dual-path confusion.
+            return Err(SlashingError::AppealAlreadyExists);
+        }
         let id = self
             .slash_registry
             .submit_appeal(slash_id, evidence, self.chain.height())?;
@@ -961,6 +968,9 @@ impl BoingNode {
     /// Resolve a pending appeal. If approved, restores from the fee burn sink:
     /// stake for equivocation/liveness/fraud; **balance** for BlobFailedServe (Phase 13).
     /// Returns the amount restored (0 if rejected or nothing to restore).
+    ///
+    /// **Deprecated for FailedServe:** prefer consensus tx `ResolveSlashAppeal` (index 31).
+    /// Refuses restore when the consensus appeal book already reversed the slash (no double credit).
     pub fn resolve_slash_appeal(
         &mut self,
         appeal_id: u64,
@@ -975,6 +985,10 @@ impl BoingNode {
             return Err(SlashingError::AppealNotFound);
         };
         let slash_id = appeal.slash_id;
+        if self.state.slash_appeals().is_reversed(slash_id) {
+            // Consensus Resolve already restored — do not double-credit via operator RPC.
+            return Ok(0);
+        }
         let Some(slash) = self.slash_registry.get_slash(slash_id) else {
             return Err(SlashingError::SlashNotFound);
         };
@@ -1436,6 +1450,28 @@ impl BoingNode {
                 {
                     return Err(MempoolError::MediaBlobRejected(
                         "no matching open serve challenge".into(),
+                    ));
+                }
+            }
+            TransactionPayload::SubmitSlashAppeal { slash_id, evidence } => {
+                require_active()?;
+                if evidence.len() > boing_primitives::PHASE14_MAX_APPEAL_EVIDENCE_BYTES {
+                    return Err(MempoolError::MediaBlobRejected(format!(
+                        "appeal evidence exceeds max {} bytes",
+                        boing_primitives::PHASE14_MAX_APPEAL_EVIDENCE_BYTES
+                    )));
+                }
+                if self.state.slash_appeals().get_slash(*slash_id).is_none() {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "slash record not found in consensus appeal book".into(),
+                    ));
+                }
+            }
+            TransactionPayload::ResolveSlashAppeal { .. } => {
+                require_active()?;
+                if !self.consensus.validators().contains(&signed.tx.sender) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppeal requires a consensus validator".into(),
                     ));
                 }
             }

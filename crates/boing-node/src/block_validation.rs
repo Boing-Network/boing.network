@@ -48,6 +48,8 @@ pub fn validate_and_execute_block(
 
     // 3. Execute on snapshot
     let mut state = parent_state.snapshot();
+    // Phase 14: pin consensus validators for ResolveSlashAppeal (not committed).
+    state.set_slash_appeal_resolvers(Some(validator_set.to_vec()));
     let tips = &block.priority_tips;
     let (_gas, receipts) = executor
         .execute_block_with_tips(

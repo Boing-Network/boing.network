@@ -48,6 +48,10 @@ export declare const PayloadVariant: {
     readonly ChallengeBlobSampleServe: 28;
     /** Respond to serve challenge with DAS sample (Phase 10). */
     readonly RespondBlobSampleServe: 29;
+    /** Submit consensus slash appeal (Phase 14). */
+    readonly SubmitSlashAppeal: 30;
+    /** Resolve consensus slash appeal (Phase 14). */
+    readonly ResolveSlashAppeal: 31;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -245,6 +249,14 @@ export type TransactionPayloadInput = {
     chunkHash: Uint8Array;
     chunksRoot: Uint8Array;
     siblings: Uint8Array[];
+} | {
+    kind: 'submitSlashAppeal';
+    slashId: bigint;
+    evidence: Uint8Array;
+} | {
+    kind: 'resolveSlashAppeal';
+    appealId: bigint;
+    approved: boolean;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

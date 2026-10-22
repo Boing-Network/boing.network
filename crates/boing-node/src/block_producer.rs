@@ -122,6 +122,8 @@ impl BlockProducer {
         let tx_root = tx_root(&txs);
 
         let checkpoint = state.checkpoint();
+        // Phase 14: pin consensus validators for ResolveSlashAppeal (not committed).
+        state.set_slash_appeal_resolvers(Some(consensus.validators().to_vec()));
         let receipts = match executor.execute_block_with_tips(
             height,
             block_timestamp,

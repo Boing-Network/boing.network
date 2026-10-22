@@ -299,6 +299,19 @@ impl Transaction {
                 chunk_count,
                 hex::encode(&challenger.0[..8])
             ),
+            TransactionPayload::SubmitSlashAppeal { slash_id, evidence } => format!(
+                "Submit slash appeal for slash_id {} ({} evidence bytes)",
+                slash_id,
+                evidence.len()
+            ),
+            TransactionPayload::ResolveSlashAppeal {
+                appeal_id,
+                approved,
+            } => format!(
+                "Resolve slash appeal {} ({})",
+                appeal_id,
+                if *approved { "approve" } else { "reject" }
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -397,6 +410,8 @@ impl Transaction {
             | TransactionPayload::CancelBlobSampleOffer { .. }
             | TransactionPayload::ChallengeBlobSampleServe { .. }
             | TransactionPayload::RespondBlobSampleServe { .. }
+            | TransactionPayload::SubmitSlashAppeal { .. }
+            | TransactionPayload::ResolveSlashAppeal { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -621,6 +636,17 @@ pub enum TransactionPayload {
         chunk_hash: [u8; 32],
         chunks_root: [u8; 32],
         siblings: Vec<[u8; 32]>,
+    },
+    /// Submit a consensus slash appeal (index **30**). Phase 14 — evidence opaque, size-capped.
+    SubmitSlashAppeal {
+        slash_id: u64,
+        evidence: Vec<u8>,
+    },
+    /// Resolve a pending consensus slash appeal (index **31**). Sender must be a consensus validator.
+    /// Approve restores FailedServe **balance** (or stake for other reasons); not a SNARK verifier.
+    ResolveSlashAppeal {
+        appeal_id: u64,
+        approved: bool,
     },
 }
 
