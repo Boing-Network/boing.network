@@ -393,4 +393,26 @@ export declare const PHASE19_RESOLVE_THRESHOLD_DEN = 3;
 export declare function phase19CommitteeRequiresAttested(pinnedLen: number): boolean;
 /** Honest plan strings for Phase 19 (committee attested-required; still 16 MiB). */
 export declare function phase19DasSuccinctProofPlan(): string[];
+/** Phase 20 aliases / constants. */
+export declare const PHASE20_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE20_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE20_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE20_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE20_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE20_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE20_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+/** Attested resolve payload index (`ResolveSlashAppealAttested`). */
+export declare const PHASE20_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+/** Fixed stake-weighted resolve quorum numerator (⌈2W/3⌉). */
+export declare const PHASE20_RESOLVE_THRESHOLD_NUM = 2;
+/** Fixed stake-weighted resolve quorum denominator. */
+export declare const PHASE20_RESOLVE_THRESHOLD_DEN = 3;
+/** Sentinel: pre-V4 Pending appeals use live-W fallback when snapshot is this value + zero pin commit. */
+export declare const PHASE20_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+/**
+ * True when a multi-pin committee must use attested resolve (32) (Phase 19 alias).
+ */
+export declare function phase20CommitteeRequiresAttested(pinnedLen: number): boolean;
+/** Honest plan strings for Phase 20 (electorate W snapshot at Submit; still 16 MiB). */
+export declare function phase20DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

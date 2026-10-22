@@ -20,6 +20,7 @@
 //! Phase 17: [`crate::blobs_phase17`] — stake-weighted ResolveSlashAppeal (⌈2W/3⌉) + versioned registry.
 //! Phase 18: [`crate::blobs_phase18`] — Ed25519 attested ResolveSlashAppealAttested (32) + registry V3.
 //! Phase 19: [`crate::blobs_phase19`] — require 32 when `|slash_appeal_resolvers| > 1`; keep 31 for solo/unpinned/`|pinned|≤1`.
+//! Phase 20: [`crate::blobs_phase20`] — snapshot electorate W (+ pin-set commitment) at SubmitSlashAppeal; Resolve uses frozen W; registry V4.
 
 use serde::{Deserialize, Serialize};
 

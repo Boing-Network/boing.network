@@ -34,24 +34,35 @@ const SLASH_APPEALS_MAGIC: &[u8; 4] = b"BSAR";
 const SLASH_APPEALS_VERSION_V2: u32 = 2;
 /// Phase 18 payload version (weighted ResolveVote + optional ballot).
 const SLASH_APPEALS_VERSION_V3: u32 = 3;
+/// Phase 20 payload version (electorate W snapshot + pin-set commitment).
+const SLASH_APPEALS_VERSION_V4: u32 = 4;
 /// Node-local jailing snapshots (not committed to the state root).
 const OPEN_VALIDATOR_JAIL_STATS_FILE: &str = "open_validator_jail_stats.bin";
 const SLASH_REGISTRY_FILE: &str = "slash_registry.json";
 
-/// Encode `SlashAppealRegistry` as Phase 18 V3 envelope: magic + u32 version + bincode.
-pub fn encode_slash_appeals_v3(
+/// Encode `SlashAppealRegistry` as Phase 20 V4 envelope: magic + u32 version + bincode.
+pub fn encode_slash_appeals_v4(
     reg: &boing_state::SlashAppealRegistry,
 ) -> Result<Vec<u8>, PersistenceError> {
     let payload = bincode::serialize(reg)
         .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
     let mut out = Vec::with_capacity(4 + 4 + payload.len());
     out.extend_from_slice(SLASH_APPEALS_MAGIC);
-    out.extend_from_slice(&SLASH_APPEALS_VERSION_V3.to_le_bytes());
+    out.extend_from_slice(&SLASH_APPEALS_VERSION_V4.to_le_bytes());
     out.extend_from_slice(&payload);
     Ok(out)
 }
 
-/// Encode as Phase 17 V2 envelope (tests / migration fixtures). Prefer [`encode_slash_appeals_v3`].
+/// Encode a raw V3-shaped payload as Phase 18 V3 envelope (tests / migration fixtures).
+pub fn encode_slash_appeals_v3_fixture(payload: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(4 + 4 + payload.len());
+    out.extend_from_slice(SLASH_APPEALS_MAGIC);
+    out.extend_from_slice(&SLASH_APPEALS_VERSION_V3.to_le_bytes());
+    out.extend_from_slice(payload);
+    out
+}
+
+/// Encode as Phase 17 V2 envelope (tests / migration fixtures). Prefer [`encode_slash_appeals_v4`].
 pub fn encode_slash_appeals_v2_fixture(
     payload: &[u8],
 ) -> Vec<u8> {
@@ -62,14 +73,19 @@ pub fn encode_slash_appeals_v2_fixture(
     out
 }
 
-/// Decode slash-appeals registry: V3 envelope, else V2 (ballot=None), else legacy
-/// Phase 16 bool votes (weight=0), else Phase 14/15 (empty votes). Corrupt → hard error (no wipe).
+/// Decode slash-appeals registry: V4 envelope, else V3 (legacy snapshot sentinel), else V2
+/// (ballot=None), else legacy Phase 16 bool votes (weight=0), else Phase 14/15 (empty votes).
+/// Corrupt → hard error (no wipe).
 pub fn decode_slash_appeals(bytes: &[u8]) -> Result<boing_state::SlashAppealRegistry, PersistenceError> {
     if bytes.len() >= 8 && &bytes[..4] == SLASH_APPEALS_MAGIC {
         let ver = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
-        if ver == SLASH_APPEALS_VERSION_V3 {
+        if ver == SLASH_APPEALS_VERSION_V4 {
             return bincode::deserialize(&bytes[8..])
                 .map_err(|e| PersistenceError::Serialization(e.to_string()));
+        }
+        if ver == SLASH_APPEALS_VERSION_V3 {
+            return boing_state::SlashAppealRegistry::from_legacy_phase18_v3(&bytes[8..])
+                .map_err(PersistenceError::Serialization);
         }
         if ver == SLASH_APPEALS_VERSION_V2 {
             return boing_state::SlashAppealRegistry::from_legacy_phase17_v2(&bytes[8..])
@@ -87,7 +103,7 @@ pub fn decode_slash_appeals(bytes: &[u8]) -> Result<boing_state::SlashAppealRegi
         return Ok(reg);
     }
     Err(PersistenceError::Serialization(
-        "corrupt or unsupported slash_appeals_registry.bin (not V3, V2, Phase 16, or Phase 14/15)"
+        "corrupt or unsupported slash_appeals_registry.bin (not V4, V3, V2, Phase 16, or Phase 14/15)"
             .into(),
     ))
 }
@@ -292,7 +308,7 @@ impl Persistence {
                 std::fs::remove_file(&slash_appeals_path)?;
             }
         } else {
-            let bytes = encode_slash_appeals_v3(state.slash_appeals())?;
+            let bytes = encode_slash_appeals_v4(state.slash_appeals())?;
             let tmp = slash_appeals_path.with_extension("bin.tmp");
             std::fs::write(&tmp, bytes)?;
             std::fs::rename(tmp, &slash_appeals_path)?;
@@ -598,7 +614,7 @@ mod slash_appeals_envelope_tests {
     }
 
     #[test]
-    fn v3_roundtrip() {
+    fn v4_roundtrip() {
         let mut reg = SlashAppealRegistry::new();
         reg.record_slash_with_id(
             1,
@@ -610,19 +626,106 @@ mod slash_appeals_envelope_tests {
         )
         .unwrap();
         let aid = reg
-            .submit_appeal(1, b"ev".to_vec(), 1, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
+            .submit_appeal(
+                1,
+                b"ev".to_vec(),
+                1,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                300,
+                [0xABu8; 32],
+            )
             .unwrap();
         let sig = boing_primitives::SlashAppealBallotSignature([0x42u8; 64]);
         reg.cast_resolve_vote(aid, acct(2), true, 50, 100, Some(sig))
             .unwrap();
-        let bytes = encode_slash_appeals_v3(&reg).unwrap();
+        let bytes = encode_slash_appeals_v4(&reg).unwrap();
         assert_eq!(&bytes[..4], b"BSAR");
-        assert_eq!(u32::from_le_bytes(bytes[4..8].try_into().unwrap()), 3);
+        assert_eq!(u32::from_le_bytes(bytes[4..8].try_into().unwrap()), 4);
         let back = decode_slash_appeals(&bytes).unwrap();
         assert_eq!(back.get_appeal(aid).unwrap().votes.len(), 1);
         let v = back.get_appeal(aid).unwrap().votes.get(&acct(2)).unwrap();
         assert_eq!(v.weight, 50);
         assert_eq!(v.ballot_signature, Some(sig));
+        assert_eq!(back.get_appeal(aid).unwrap().electorate_w_snapshot, 300);
+        assert_eq!(back.get_appeal(aid).unwrap().pin_set_commitment, [0xABu8; 32]);
+    }
+
+    #[test]
+    fn load_v3_migrates_legacy_snapshot_sentinel() {
+        #[derive(Serialize)]
+        struct V3Vote {
+            approved: bool,
+            weight: u128,
+            ballot_signature: Option<boing_primitives::SlashAppealBallotSignature>,
+        }
+        #[derive(Serialize)]
+        struct V3Appeal {
+            id: u64,
+            slash_id: u64,
+            evidence: Vec<u8>,
+            status: ConsensusAppealStatus,
+            votes: BTreeMap<AccountId, V3Vote>,
+        }
+        #[derive(Serialize)]
+        struct V3Reg {
+            slashes: BTreeMap<u64, boing_state::ConsensusSlashRecord>,
+            appeals: BTreeMap<u64, V3Appeal>,
+            next_appeal_id: u64,
+        }
+        let mut slashes = BTreeMap::new();
+        slashes.insert(
+            1,
+            boing_state::ConsensusSlashRecord {
+                id: 1,
+                account: acct(1),
+                amount: 100,
+                reason: ConsensusSlashReason::BlobFailedServe,
+                block_height: 1,
+                appeal_deadline: 100,
+                reversed: false,
+            },
+        );
+        let mut votes = BTreeMap::new();
+        votes.insert(
+            acct(2),
+            V3Vote {
+                approved: true,
+                weight: 50,
+                ballot_signature: None,
+            },
+        );
+        let mut appeals = BTreeMap::new();
+        appeals.insert(
+            1,
+            V3Appeal {
+                id: 1,
+                slash_id: 1,
+                evidence: b"ev".to_vec(),
+                status: ConsensusAppealStatus::Pending,
+                votes,
+            },
+        );
+        let payload = bincode::serialize(&V3Reg {
+            slashes,
+            appeals,
+            next_appeal_id: 2,
+        })
+        .unwrap();
+        let bytes = encode_slash_appeals_v3_fixture(&payload);
+        let reg = decode_slash_appeals(&bytes).unwrap();
+        let a = reg.get_appeal(1).unwrap();
+        assert_eq!(
+            a.electorate_w_snapshot,
+            boing_primitives::PHASE20_LEGACY_ELECTORATE_W_SENTINEL
+        );
+        assert_eq!(
+            a.pin_set_commitment,
+            boing_primitives::PHASE20_LEGACY_PIN_SET_COMMITMENT
+        );
+        assert_eq!(a.votes.get(&acct(2)).unwrap().weight, 50);
+        // Next save is V4.
+        let saved = encode_slash_appeals_v4(&reg).unwrap();
+        assert_eq!(u32::from_le_bytes(saved[4..8].try_into().unwrap()), 4);
     }
 
     #[test]
