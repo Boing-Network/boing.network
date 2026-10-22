@@ -1,20 +1,21 @@
-//! Consensus slash + appeal book (Phase 14/15/16).
+//! Consensus slash + appeal book (Phase 14/15/16/17).
 //!
 //! FailedServe settle and equivocation/liveness slash-apply insert rows with consensus-allocated
 //! `slash_id`s; `SubmitSlashAppeal` / `ResolveSlashAppeal` txs mutate this book so every validator
 //! replays the same economics once a row exists.
 //!
-//! Phase 16: ResolveSlashAppeal casts an N-of-M vote; finalize only when ⌈2M/3⌉ approve or reject.
+//! Phase 16: equal-weight N-of-M vote (⌈2M/3⌉).
+//! Phase 17: stake-weighted ⌈2W/3⌉; vote records carry weight at cast; versioned persistence.
 
 use std::collections::BTreeMap;
 
 use boing_primitives::{
-    hasher, phase16_resolve_threshold_met, AccountId, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+    hasher, phase17_resolve_threshold_met, AccountId, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
 };
 use serde::{Deserialize, Serialize};
 
-/// Domain tag for SMT commitment of the slash-appeal registry.
-pub const SLASH_APPEAL_REGISTRY_DOMAIN: &[u8] = b"BOING_SLASH_APPEAL_REGISTRY_V1";
+/// Domain tag for SMT commitment of the slash-appeal registry (Phase 17 weighted votes).
+pub const SLASH_APPEAL_REGISTRY_DOMAIN: &[u8] = b"BOING_SLASH_APPEAL_REGISTRY_V2";
 
 /// Reason for a consensus slash record.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,14 +35,21 @@ pub enum ConsensusAppealStatus {
     Rejected,
 }
 
-/// Outcome of casting a ResolveSlashAppeal vote (Phase 16).
+/// One ResolveSlashAppeal vote (Phase 17): approve/reject plus bonded stake at cast.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResolveVote {
+    pub approved: bool,
+    pub weight: u128,
+}
+
+/// Outcome of casting a ResolveSlashAppeal vote (Phase 17).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CastResolveOutcome {
     /// Threshold not yet met; slash remains unreverted.
     Pending {
-        approve_count: usize,
-        reject_count: usize,
-        m: usize,
+        approve_weight: u128,
+        reject_weight: u128,
+        electorate_w: u128,
     },
     /// Approve or reject quorum reached; funds restored only when `approved` is true.
     Finalized { approved: bool },
@@ -67,13 +75,9 @@ pub struct ConsensusSlashAppeal {
     pub slash_id: u64,
     pub evidence: Vec<u8>,
     pub status: ConsensusAppealStatus,
-    /// Phase 16: one vote per voter (`true` = approve, `false` = reject).
-    /// `#[serde(default)]` so empty/missing votes deserialize cleanly on new rows;
-    /// empty registries and fresh appeals load without ops action. Registries that
-    /// already persisted Phase 14/15 *pending appeals* may need a one-time clear of
-    /// `slash_appeals_registry.bin` on upgrade (bincode is positional).
+    /// Phase 17: one vote per voter with stake weight recorded at cast.
     #[serde(default)]
-    pub votes: BTreeMap<AccountId, bool>,
+    pub votes: BTreeMap<AccountId, ResolveVote>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -98,7 +102,7 @@ pub enum SlashAppealError {
     SlashIdExists,
 }
 
-/// Consensus registry of slashes and appeals (Phase 14/15/16).
+/// Consensus registry of slashes and appeals (Phase 14/15/16/17).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SlashAppealRegistry {
     slashes: BTreeMap<u64, ConsensusSlashRecord>,
@@ -109,6 +113,40 @@ pub struct SlashAppealRegistry {
     /// so Phase 14 `slash_appeals_registry.bin` files remain loadable.
     #[serde(skip)]
     next_slash_id: u64,
+}
+
+/// Phase 16 on-disk appeal shape (`votes: BTreeMap<AccountId, bool>`).
+#[derive(Clone, Debug, Deserialize)]
+struct LegacyPhase16Appeal {
+    id: u64,
+    slash_id: u64,
+    evidence: Vec<u8>,
+    status: ConsensusAppealStatus,
+    #[serde(default)]
+    votes: BTreeMap<AccountId, bool>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct LegacyPhase16Registry {
+    slashes: BTreeMap<u64, ConsensusSlashRecord>,
+    appeals: BTreeMap<u64, LegacyPhase16Appeal>,
+    next_appeal_id: u64,
+}
+
+/// Phase 14/15 on-disk appeal shape (no votes field).
+#[derive(Clone, Debug, Deserialize)]
+struct LegacyPhase14Appeal {
+    id: u64,
+    slash_id: u64,
+    evidence: Vec<u8>,
+    status: ConsensusAppealStatus,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct LegacyPhase14Registry {
+    slashes: BTreeMap<u64, ConsensusSlashRecord>,
+    appeals: BTreeMap<u64, LegacyPhase14Appeal>,
+    next_appeal_id: u64,
 }
 
 impl Default for SlashAppealRegistry {
@@ -142,6 +180,74 @@ impl SlashAppealRegistry {
         h.update(SLASH_APPEAL_REGISTRY_DOMAIN);
         h.update(&bincode::serialize(self).unwrap_or_default());
         *h.finalize().as_bytes()
+    }
+
+    /// Migrate Phase 16 bool votes → weighted records with `weight = 0`.
+    pub fn migrate_bool_votes(votes: BTreeMap<AccountId, bool>) -> BTreeMap<AccountId, ResolveVote> {
+        votes
+            .into_iter()
+            .map(|(id, approved)| {
+                (
+                    id,
+                    ResolveVote {
+                        approved,
+                        weight: 0,
+                    },
+                )
+            })
+            .collect()
+    }
+
+    /// Build a registry from a legacy Phase 16 bare-bincode decode (bool votes → weight 0).
+    pub fn from_legacy_phase16(legacy: &[u8]) -> Result<Self, String> {
+        let leg: LegacyPhase16Registry =
+            bincode::deserialize(legacy).map_err(|e| e.to_string())?;
+        let mut reg = Self {
+            slashes: leg.slashes,
+            appeals: BTreeMap::new(),
+            next_appeal_id: leg.next_appeal_id.max(1),
+            next_slash_id: 1,
+        };
+        for (id, a) in leg.appeals {
+            reg.appeals.insert(
+                id,
+                ConsensusSlashAppeal {
+                    id: a.id,
+                    slash_id: a.slash_id,
+                    evidence: a.evidence,
+                    status: a.status,
+                    votes: Self::migrate_bool_votes(a.votes),
+                },
+            );
+        }
+        reg.bump_next_slash_id_past_max();
+        Ok(reg)
+    }
+
+    /// Build a registry from a legacy Phase 14/15 bare-bincode decode (no votes → empty).
+    pub fn from_legacy_phase14(legacy: &[u8]) -> Result<Self, String> {
+        let leg: LegacyPhase14Registry =
+            bincode::deserialize(legacy).map_err(|e| e.to_string())?;
+        let mut reg = Self {
+            slashes: leg.slashes,
+            appeals: BTreeMap::new(),
+            next_appeal_id: leg.next_appeal_id.max(1),
+            next_slash_id: 1,
+        };
+        for (id, a) in leg.appeals {
+            reg.appeals.insert(
+                id,
+                ConsensusSlashAppeal {
+                    id: a.id,
+                    slash_id: a.slash_id,
+                    evidence: a.evidence,
+                    status: a.status,
+                    votes: BTreeMap::new(),
+                },
+            );
+        }
+        reg.bump_next_slash_id_past_max();
+        Ok(reg)
     }
 
     /// Ensure allocator is strictly above any already-recorded slash id (upgrade hygiene).
@@ -262,14 +368,16 @@ impl SlashAppealRegistry {
         Ok(id)
     }
 
-    /// Cast a ResolveSlashAppeal vote (Phase 16). Finalizes when approve or reject
-    /// reaches ⌈2M/3⌉ of `electorate_m`. On approve finalize, marks the slash `reversed`.
+    /// Cast a ResolveSlashAppeal vote (Phase 17). Finalizes when approve or reject
+    /// weight reaches ⌈2W/3⌉ of `electorate_w`. On approve finalize, marks the slash
+    /// `reversed`. When `electorate_w == 0`, never finalizes (stay Pending).
     pub fn cast_resolve_vote(
         &mut self,
         appeal_id: u64,
         voter: AccountId,
         approved: bool,
-        electorate_m: usize,
+        voter_weight: u128,
+        electorate_w: u128,
     ) -> Result<CastResolveOutcome, SlashAppealError> {
         let slash_id = {
             let appeal = self
@@ -282,30 +390,31 @@ impl SlashAppealRegistry {
             if appeal.votes.contains_key(&voter) {
                 return Err(SlashAppealError::AlreadyVoted);
             }
-            appeal.votes.insert(voter, approved);
+            appeal.votes.insert(
+                voter,
+                ResolveVote {
+                    approved,
+                    weight: voter_weight,
+                },
+            );
             appeal.slash_id
         };
 
-        let (approve_count, reject_count) = {
-            let appeal = self.appeals.get(&appeal_id).expect("appeal present");
-            let approve = appeal.votes.values().filter(|&&v| v).count();
-            let reject = appeal.votes.values().filter(|&&v| !v).count();
-            (approve, reject)
-        };
+        let (approve_weight, reject_weight) = self.weight_tallies(appeal_id).expect("appeal present");
 
-        if phase16_resolve_threshold_met(approve_count, electorate_m) {
+        if phase17_resolve_threshold_met(approve_weight, electorate_w) {
             self.finalize_appeal(appeal_id, slash_id, true)?;
             return Ok(CastResolveOutcome::Finalized { approved: true });
         }
-        if phase16_resolve_threshold_met(reject_count, electorate_m) {
+        if phase17_resolve_threshold_met(reject_weight, electorate_w) {
             self.finalize_appeal(appeal_id, slash_id, false)?;
             return Ok(CastResolveOutcome::Finalized { approved: false });
         }
 
         Ok(CastResolveOutcome::Pending {
-            approve_count,
-            reject_count,
-            m: electorate_m,
+            approve_weight,
+            reject_weight,
+            electorate_w,
         })
     }
 
@@ -339,7 +448,7 @@ impl SlashAppealRegistry {
         Ok(())
     }
 
-    /// Thin M=1 one-shot helper (tests / solo paths). Prefer [`Self::cast_resolve_vote`].
+    /// Thin W=1 one-shot helper (tests / solo paths). Prefer [`Self::cast_resolve_vote`].
     pub fn resolve_appeal(
         &mut self,
         appeal_id: u64,
@@ -348,7 +457,7 @@ impl SlashAppealRegistry {
         // Distinct sentinel so repeated legacy calls after finalize hit AppealAlreadyResolved,
         // not AlreadyVoted, matching Phase 14/15 test expectations.
         let voter = AccountId([0xff; 32]);
-        match self.cast_resolve_vote(appeal_id, voter, approved, 1)? {
+        match self.cast_resolve_vote(appeal_id, voter, approved, 1, 1)? {
             CastResolveOutcome::Finalized { .. } | CastResolveOutcome::Pending { .. } => {}
         }
         let slash_id = self
@@ -382,11 +491,26 @@ impl SlashAppealRegistry {
             .unwrap_or(false)
     }
 
-    /// Approve / reject tallies for RPC display.
+    /// Approve / reject vote counts for RPC display.
     pub fn vote_tallies(&self, appeal_id: u64) -> Option<(usize, usize)> {
         let appeal = self.appeals.get(&appeal_id)?;
-        let approve = appeal.votes.values().filter(|&&v| v).count();
-        let reject = appeal.votes.values().filter(|&&v| !v).count();
+        let approve = appeal.votes.values().filter(|v| v.approved).count();
+        let reject = appeal.votes.values().filter(|v| !v.approved).count();
+        Some((approve, reject))
+    }
+
+    /// Approve / reject weight tallies (sum of recorded vote weights).
+    pub fn weight_tallies(&self, appeal_id: u64) -> Option<(u128, u128)> {
+        let appeal = self.appeals.get(&appeal_id)?;
+        let mut approve = 0u128;
+        let mut reject = 0u128;
+        for v in appeal.votes.values() {
+            if v.approved {
+                approve = approve.saturating_add(v.weight);
+            } else {
+                reject = reject.saturating_add(v.weight);
+            }
+        }
         Some((approve, reject))
     }
 }
@@ -460,29 +584,30 @@ mod tests {
     }
 
     #[test]
-    fn phase16_m1_one_shot_finalize() {
+    fn phase17_w1_one_shot_finalize() {
         let mut reg = SlashAppealRegistry::new();
         let aid = seed_appeal(&mut reg, 1);
         let out = reg
-            .cast_resolve_vote(aid, acct(10), true, 1)
+            .cast_resolve_vote(aid, acct(10), true, 1, 1)
             .unwrap();
         assert_eq!(out, CastResolveOutcome::Finalized { approved: true });
         assert!(reg.is_reversed(1));
     }
 
     #[test]
-    fn phase16_m3_needs_two_approves() {
+    fn phase17_equal_stakes_needs_two_of_three() {
+        // Stakes [100,100,100] → W=300; ⌈2*300/3⌉=200.
         let mut reg = SlashAppealRegistry::new();
         let aid = seed_appeal(&mut reg, 2);
         let out = reg
-            .cast_resolve_vote(aid, acct(10), true, 3)
+            .cast_resolve_vote(aid, acct(10), true, 100, 300)
             .unwrap();
         assert_eq!(
             out,
             CastResolveOutcome::Pending {
-                approve_count: 1,
-                reject_count: 0,
-                m: 3
+                approve_weight: 100,
+                reject_weight: 0,
+                electorate_w: 300
             }
         );
         assert!(!reg.is_reversed(2));
@@ -491,7 +616,7 @@ mod tests {
             ConsensusAppealStatus::Pending
         );
         let out2 = reg
-            .cast_resolve_vote(aid, acct(11), true, 3)
+            .cast_resolve_vote(aid, acct(11), true, 100, 300)
             .unwrap();
         assert_eq!(out2, CastResolveOutcome::Finalized { approved: true });
         assert!(reg.is_reversed(2));
@@ -502,15 +627,28 @@ mod tests {
     }
 
     #[test]
-    fn phase16_reject_path() {
+    fn phase17_whale_one_shot() {
+        // Stakes [900,50,50] → W=1000; 900 alone meets ⌈2*1000/3⌉.
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 5);
+        let out = reg
+            .cast_resolve_vote(aid, acct(90), true, 900, 1000)
+            .unwrap();
+        assert_eq!(out, CastResolveOutcome::Finalized { approved: true });
+        assert!(reg.is_reversed(5));
+    }
+
+    #[test]
+    fn phase17_reject_path() {
         let mut reg = SlashAppealRegistry::new();
         let aid = seed_appeal(&mut reg, 3);
         assert!(matches!(
-            reg.cast_resolve_vote(aid, acct(1), false, 3).unwrap(),
+            reg.cast_resolve_vote(aid, acct(1), false, 100, 300)
+                .unwrap(),
             CastResolveOutcome::Pending { .. }
         ));
         let out = reg
-            .cast_resolve_vote(aid, acct(2), false, 3)
+            .cast_resolve_vote(aid, acct(2), false, 100, 300)
             .unwrap();
         assert_eq!(out, CastResolveOutcome::Finalized { approved: false });
         assert!(!reg.is_reversed(3));
@@ -521,12 +659,35 @@ mod tests {
     }
 
     #[test]
-    fn phase16_double_vote_rejected() {
+    fn phase17_w0_stays_pending() {
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 8);
+        let out = reg
+            .cast_resolve_vote(aid, acct(1), true, 0, 0)
+            .unwrap();
+        assert_eq!(
+            out,
+            CastResolveOutcome::Pending {
+                approve_weight: 0,
+                reject_weight: 0,
+                electorate_w: 0
+            }
+        );
+        assert!(!reg.is_reversed(8));
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            ConsensusAppealStatus::Pending
+        );
+    }
+
+    #[test]
+    fn phase17_double_vote_rejected() {
         let mut reg = SlashAppealRegistry::new();
         let aid = seed_appeal(&mut reg, 4);
-        reg.cast_resolve_vote(aid, acct(5), true, 3).unwrap();
+        reg.cast_resolve_vote(aid, acct(5), true, 100, 300)
+            .unwrap();
         assert!(matches!(
-            reg.cast_resolve_vote(aid, acct(5), false, 3),
+            reg.cast_resolve_vote(aid, acct(5), false, 100, 300),
             Err(SlashAppealError::AlreadyVoted)
         ));
     }
@@ -573,12 +734,16 @@ mod tests {
         let aid = reg
             .submit_appeal(9, b"x".to_vec(), 1, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
             .unwrap();
-        reg.cast_resolve_vote(aid, acct(1), true, 3).unwrap();
+        reg.cast_resolve_vote(aid, acct(1), true, 50, 300).unwrap();
         let bytes = bincode::serialize(&reg).unwrap();
         let back: SlashAppealRegistry = bincode::deserialize(&bytes).unwrap();
         assert_eq!(back.list_slashes().len(), 1);
         assert_eq!(back.list_appeals().len(), 1);
         assert_eq!(back.get_appeal(aid).unwrap().votes.len(), 1);
+        assert_eq!(
+            back.get_appeal(aid).unwrap().votes.get(&acct(1)).unwrap().weight,
+            50
+        );
     }
 
     #[test]
@@ -603,9 +768,113 @@ mod tests {
     }
 
     #[test]
+    fn migrate_phase16_bool_votes_weight_zero() {
+        // Build a Phase-16-shaped registry via a temporary bool-vote layout.
+        #[derive(Serialize)]
+        struct P16Appeal {
+            id: u64,
+            slash_id: u64,
+            evidence: Vec<u8>,
+            status: ConsensusAppealStatus,
+            votes: BTreeMap<AccountId, bool>,
+        }
+        #[derive(Serialize)]
+        struct P16Reg {
+            slashes: BTreeMap<u64, ConsensusSlashRecord>,
+            appeals: BTreeMap<u64, P16Appeal>,
+            next_appeal_id: u64,
+        }
+        let mut slashes = BTreeMap::new();
+        slashes.insert(
+            1,
+            ConsensusSlashRecord {
+                id: 1,
+                account: acct(1),
+                amount: 10,
+                reason: ConsensusSlashReason::BlobFailedServe,
+                block_height: 1,
+                appeal_deadline: 100,
+                reversed: false,
+            },
+        );
+        let mut votes = BTreeMap::new();
+        votes.insert(acct(2), true);
+        let mut appeals = BTreeMap::new();
+        appeals.insert(
+            1,
+            P16Appeal {
+                id: 1,
+                slash_id: 1,
+                evidence: b"e".to_vec(),
+                status: ConsensusAppealStatus::Pending,
+                votes,
+            },
+        );
+        let bytes = bincode::serialize(&P16Reg {
+            slashes,
+            appeals,
+            next_appeal_id: 2,
+        })
+        .unwrap();
+        let reg = SlashAppealRegistry::from_legacy_phase16(&bytes).unwrap();
+        let v = reg.get_appeal(1).unwrap().votes.get(&acct(2)).unwrap();
+        assert!(v.approved);
+        assert_eq!(v.weight, 0);
+        assert_eq!(reg.list_slashes().len(), 1);
+    }
+
+    #[test]
+    fn migrate_phase14_no_votes() {
+        #[derive(Serialize)]
+        struct P14Appeal {
+            id: u64,
+            slash_id: u64,
+            evidence: Vec<u8>,
+            status: ConsensusAppealStatus,
+        }
+        #[derive(Serialize)]
+        struct P14Reg {
+            slashes: BTreeMap<u64, ConsensusSlashRecord>,
+            appeals: BTreeMap<u64, P14Appeal>,
+            next_appeal_id: u64,
+        }
+        let mut slashes = BTreeMap::new();
+        slashes.insert(
+            3,
+            ConsensusSlashRecord {
+                id: 3,
+                account: acct(3),
+                amount: 7,
+                reason: ConsensusSlashReason::Equivocation,
+                block_height: 2,
+                appeal_deadline: 20,
+                reversed: false,
+            },
+        );
+        let mut appeals = BTreeMap::new();
+        appeals.insert(
+            1,
+            P14Appeal {
+                id: 1,
+                slash_id: 3,
+                evidence: vec![],
+                status: ConsensusAppealStatus::Pending,
+            },
+        );
+        let bytes = bincode::serialize(&P14Reg {
+            slashes,
+            appeals,
+            next_appeal_id: 2,
+        })
+        .unwrap();
+        let reg = SlashAppealRegistry::from_legacy_phase14(&bytes).unwrap();
+        assert!(reg.get_appeal(1).unwrap().votes.is_empty());
+        assert_eq!(reg.get_slash(3).unwrap().amount, 7);
+    }
+
+    #[test]
     fn shared_allocator_bumps_past_legacy_ids() {
         let mut reg = SlashAppealRegistry::new();
-        // Simulate Phase 14 FailedServe rows recorded with known ids 1..3.
         for id in 1..=3u64 {
             reg.record_slash_with_id(
                 id,

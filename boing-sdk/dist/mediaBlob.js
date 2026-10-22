@@ -815,3 +815,28 @@ export function phase16DasSuccinctProofPlan() {
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }
+/** Phase 17 aliases / constants. */
+export const PHASE17_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE16_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE17_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE16_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE17_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE16_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE17_SETTLE_RECEIPT_TTL_BLOCKS = PHASE16_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE17_MAX_APPEAL_EVIDENCE_BYTES = PHASE16_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE17_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE16_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE17_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE16_RESOLVE_SLASH_APPEAL_TX_INDEX;
+/** Fixed stake-weighted resolve quorum numerator (⌈2W/3⌉ via integer `weight * DEN >= NUM * W`). */
+export const PHASE17_RESOLVE_THRESHOLD_NUM = 2;
+/** Fixed stake-weighted resolve quorum denominator. */
+export const PHASE17_RESOLVE_THRESHOLD_DEN = 3;
+/** Honest plan strings for Phase 17 (stake-weighted ResolveSlashAppeal + versioned registry; still 16 MiB). */
+export function phase17DasSuccinctProofPlan() {
+    return [
+        ...phase16DasSuccinctProofPlan(),
+        'Phase 17: ResolveSlashAppeal (31) is stake-weighted ⌈2W/3⌉ over host-pinned slash_appeal_resolvers (weight = bonded stake at cast).',
+        'Phase 17: finalize (restore balance/stake or keep burn) only when approve or reject weight meets the threshold; one vote per voter; no flip.',
+        'Phase 17: when fallback eligibility without a pinned resolver set, effective W=1 so one eligible vote finalizes (solo-dev UX).',
+        'Phase 17: W=0 with a non-empty pinned set never finalizes — pin bonded resolvers or rebond.',
+        'Phase 17: slash_appeals_registry.bin is versioned (magic+u32+bincode); legacy Phase 14–16 loads migrate without required clear.',
+        'Phase 17: ResolveSlashAppeal remains ops/validator-approved voting — not SNARK/IPA/KZG verification of appeal evidence.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

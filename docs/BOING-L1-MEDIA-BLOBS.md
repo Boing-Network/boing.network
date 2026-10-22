@@ -40,19 +40,21 @@ Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActiva
 | ChallengeBlobSampleServe | 28 | Open serve challenge (requires prior Settle; escrows bond+penalty) |
 | RespondBlobSampleServe | 29 | Provider DAS merkle response (bond+penalty → provider) |
 | SubmitSlashAppeal | 30 | Consensus appeal against a slash (evidence ≤ 4096 B) |
-| ResolveSlashAppeal | 31 | N-of-M committee vote (⌈2M/3⌉) over pinned resolvers; FailedServe **balance** or equivocation/liveness **stake** restore only when approve threshold met |
+| ResolveSlashAppeal | 31 | Stake-weighted vote (⌈2W/3⌉ of bonded stake among pinned resolvers); FailedServe **balance** or equivocation/liveness **stake** restore only when approve threshold met |
 
 ---
 
 ## Sampling / DAS / challenges
 
 - SMT offer book + ask escrow (Phase 9)  
-- Serve challenges (Phase 10–16): settle-before-challenge; bond/penalty; FailedServe burn + shared consensus `slashId`; **Submit/Resolve txs** restore provider balance (FailedServe) or stake (equivocation/liveness) on multi-validator nets; settle-receipt TTL prune  
+- Serve challenges (Phase 10–17): settle-before-challenge; bond/penalty; FailedServe burn + shared consensus `slashId`; **Submit/Resolve txs** restore provider balance (FailedServe) or stake (equivocation/liveness) on multi-validator nets; settle-receipt TTL prune  
 - Equivocation/liveness **detection** remains node-local (evidence gossip + apply); Phase 15 seeds the consensus appeal book at slash time so 30/31 replay restore  
-- Phase 16: **ResolveSlashAppeal (31)** is an N-of-M vote (⌈2M/3⌉ approve **or** reject) over host-pinned `slash_appeal_resolvers`; one vote per voter; finalize/restore only at threshold. When no pinned set, M=1 (solo-dev one-shot). Payload index unchanged.  
+- Phase 16: equal-weight N-of-M (⌈2M/3⌉) over host-pinned `slash_appeal_resolvers`  
+- Phase 17: **ResolveSlashAppeal (31)** is **stake-weighted** ⌈2W/3⌉ (weight = bonded stake at cast) over the same pinned set; one vote per voter; finalize/restore only at threshold. Unpinned / empty pin → effective W=1 (solo-dev one-shot). W=0 with a non-empty pin never finalizes. Payload index unchanged.  
+- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode V2); legacy Phase 14–16 bare bincode loads without required clear. Mid-tally migrated Phase 16 votes get `weight=0` — **re-cast from bonded resolvers** if an appeal was mid-vote at upgrade.  
 - Submit/Resolve (**30**/**31**) are **always admitted** (not gated on media-blobs activation)  
 - Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated** for FailedServe / equivocation / liveness when the consensus book owns the slash (prefer txs 30/31); refuses double credit after consensus reverse  
-- Resolve is **ops/validator committee voting**, not SNARK verification of evidence  
+- Resolve is **ops/validator stake-weighted voting**, not SNARK verification of evidence  
 - Succinct DAS: StubBlake3V0; ReservedRealV1 envelope checks; **verify rejects** until a real system is wired  
 - Leader-VRF LC: `boing_getLeaderVrfOutput` / `useLeaderVrf`  
 
@@ -62,13 +64,27 @@ Default **unset → 16 MiB** (Fly-safe). See `boing_getMediaBlobParams.capActiva
 
 | Phase | Status |
 |-------|--------|
-| 1–15 | **Merged** (#77) |
-| 16 Committee threshold slash-appeal resolve | **This PR** |
+| 1–16 | **Merged** (#78) |
+| 17 Stake-weighted slash-appeal resolve + versioned registry | **This PR** |
 
 ### Still later
 
+- Cryptographic attest / BLS aggregates of resolve votes  
 - Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
 - Coordinated public-testnet 256 MiB activation  
+
+---
+
+## Ops / migration (Phase 17)
+
+| Item | Guidance |
+|------|----------|
+| `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` | **Leave at 1200** (both Fly apps). Do not change. |
+| `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` | **Leave unset** (16 MiB Fly-safe). |
+| `slash_appeals_registry.bin` | **Do not clear.** Node loads V2 or migrates legacy bare bincode and rewrites V2 on next save. |
+| Mid-tally at upgrade | Survives; pre-upgrade bool votes migrate with `weight=0`. Re-cast from bonded resolvers if needed. |
+| Pinned resolvers | Prefer accounts with **non-zero bonded stake** (W=0 never finalizes). |
+| Binary upgrade | Roll all validators together (commitment domain V2). |
 
 ---
 

@@ -28,9 +28,52 @@ const NAMES_FILE: &str = "names.bin";
 const SAMPLE_OFFERS_FILE: &str = "sample_offers_registry.bin";
 const SAMPLE_SERVE_FILE: &str = "sample_serve_challenges.bin";
 const SLASH_APPEALS_FILE: &str = "slash_appeals_registry.bin";
+/// Phase 17 on-disk envelope magic for `slash_appeals_registry.bin`.
+const SLASH_APPEALS_MAGIC: &[u8; 4] = b"BSAR";
+/// Phase 17 payload version (weighted ResolveVote layout).
+const SLASH_APPEALS_VERSION_V2: u32 = 2;
 /// Node-local jailing snapshots (not committed to the state root).
 const OPEN_VALIDATOR_JAIL_STATS_FILE: &str = "open_validator_jail_stats.bin";
 const SLASH_REGISTRY_FILE: &str = "slash_registry.json";
+
+/// Encode `SlashAppealRegistry` as Phase 17 V2 envelope: magic + u32 version + bincode.
+pub fn encode_slash_appeals_v2(
+    reg: &boing_state::SlashAppealRegistry,
+) -> Result<Vec<u8>, PersistenceError> {
+    let payload = bincode::serialize(reg)
+        .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+    let mut out = Vec::with_capacity(4 + 4 + payload.len());
+    out.extend_from_slice(SLASH_APPEALS_MAGIC);
+    out.extend_from_slice(&SLASH_APPEALS_VERSION_V2.to_le_bytes());
+    out.extend_from_slice(&payload);
+    Ok(out)
+}
+
+/// Decode slash-appeals registry: V2 envelope, else legacy Phase 16 bool votes
+/// (weight=0), else Phase 14/15 (empty votes). Corrupt bytes → hard error (no wipe).
+pub fn decode_slash_appeals(bytes: &[u8]) -> Result<boing_state::SlashAppealRegistry, PersistenceError> {
+    if bytes.len() >= 8 && &bytes[..4] == SLASH_APPEALS_MAGIC {
+        let ver = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
+        if ver == SLASH_APPEALS_VERSION_V2 {
+            return bincode::deserialize(&bytes[8..])
+                .map_err(|e| PersistenceError::Serialization(e.to_string()));
+        }
+        return Err(PersistenceError::Serialization(format!(
+            "unsupported slash_appeals_registry.bin version {ver}"
+        )));
+    }
+    // Legacy bare bincode: try Phase 16 (bool votes) then Phase 14/15 (no votes).
+    if let Ok(reg) = boing_state::SlashAppealRegistry::from_legacy_phase16(bytes) {
+        return Ok(reg);
+    }
+    if let Ok(reg) = boing_state::SlashAppealRegistry::from_legacy_phase14(bytes) {
+        return Ok(reg);
+    }
+    Err(PersistenceError::Serialization(
+        "corrupt or unsupported slash_appeals_registry.bin (not V2, Phase 16, or Phase 14/15)"
+            .into(),
+    ))
+}
 
 /// Chain metadata stored on disk.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -232,8 +275,7 @@ impl Persistence {
                 std::fs::remove_file(&slash_appeals_path)?;
             }
         } else {
-            let bytes = bincode::serialize(state.slash_appeals())
-                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let bytes = encode_slash_appeals_v2(state.slash_appeals())?;
             let tmp = slash_appeals_path.with_extension("bin.tmp");
             std::fs::write(&tmp, bytes)?;
             std::fs::rename(tmp, &slash_appeals_path)?;
@@ -350,8 +392,7 @@ impl Persistence {
         let slash_appeals_path = self.state_dir().join(SLASH_APPEALS_FILE);
         if slash_appeals_path.exists() {
             let bytes = std::fs::read(&slash_appeals_path)?;
-            let reg: boing_state::SlashAppealRegistry = bincode::deserialize(&bytes)
-                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let reg = decode_slash_appeals(&bytes)?;
             state.load_slash_appeals(reg);
         }
         Ok(Some(state))
@@ -524,5 +565,158 @@ impl Persistence {
         serde_json::from_slice(&bytes)
             .map(Some)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod slash_appeals_envelope_tests {
+    use super::*;
+    use boing_primitives::{AccountId, PHASE14_MAX_APPEAL_EVIDENCE_BYTES};
+    use boing_state::{ConsensusAppealStatus, ConsensusSlashReason, SlashAppealRegistry};
+    use serde::Serialize;
+    use std::collections::BTreeMap;
+
+    fn acct(b: u8) -> AccountId {
+        AccountId([b; 32])
+    }
+
+    #[test]
+    fn v2_roundtrip() {
+        let mut reg = SlashAppealRegistry::new();
+        reg.record_slash_with_id(
+            1,
+            acct(1),
+            100,
+            ConsensusSlashReason::BlobFailedServe,
+            1,
+            100,
+        )
+        .unwrap();
+        let aid = reg
+            .submit_appeal(1, b"ev".to_vec(), 1, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
+            .unwrap();
+        reg.cast_resolve_vote(aid, acct(2), true, 50, 100)
+            .unwrap();
+        let bytes = encode_slash_appeals_v2(&reg).unwrap();
+        assert_eq!(&bytes[..4], b"BSAR");
+        let back = decode_slash_appeals(&bytes).unwrap();
+        assert_eq!(back.get_appeal(aid).unwrap().votes.len(), 1);
+        assert_eq!(
+            back.get_appeal(aid)
+                .unwrap()
+                .votes
+                .get(&acct(2))
+                .unwrap()
+                .weight,
+            50
+        );
+    }
+
+    #[test]
+    fn load_legacy_phase16_bool_votes() {
+        #[derive(Serialize)]
+        struct P16Appeal {
+            id: u64,
+            slash_id: u64,
+            evidence: Vec<u8>,
+            status: ConsensusAppealStatus,
+            votes: BTreeMap<AccountId, bool>,
+        }
+        #[derive(Serialize)]
+        struct P16Reg {
+            slashes: BTreeMap<u64, boing_state::ConsensusSlashRecord>,
+            appeals: BTreeMap<u64, P16Appeal>,
+            next_appeal_id: u64,
+        }
+        let mut slashes = BTreeMap::new();
+        slashes.insert(
+            1,
+            boing_state::ConsensusSlashRecord {
+                id: 1,
+                account: acct(1),
+                amount: 10,
+                reason: ConsensusSlashReason::BlobFailedServe,
+                block_height: 1,
+                appeal_deadline: 100,
+                reversed: false,
+            },
+        );
+        let mut votes = BTreeMap::new();
+        votes.insert(acct(9), true);
+        let mut appeals = BTreeMap::new();
+        appeals.insert(
+            1,
+            P16Appeal {
+                id: 1,
+                slash_id: 1,
+                evidence: vec![],
+                status: ConsensusAppealStatus::Pending,
+                votes,
+            },
+        );
+        let legacy = bincode::serialize(&P16Reg {
+            slashes,
+            appeals,
+            next_appeal_id: 2,
+        })
+        .unwrap();
+        let reg = decode_slash_appeals(&legacy).unwrap();
+        let v = reg.get_appeal(1).unwrap().votes.get(&acct(9)).unwrap();
+        assert!(v.approved);
+        assert_eq!(v.weight, 0);
+    }
+
+    #[test]
+    fn load_legacy_phase14_no_votes() {
+        #[derive(Serialize)]
+        struct P14Appeal {
+            id: u64,
+            slash_id: u64,
+            evidence: Vec<u8>,
+            status: ConsensusAppealStatus,
+        }
+        #[derive(Serialize)]
+        struct P14Reg {
+            slashes: BTreeMap<u64, boing_state::ConsensusSlashRecord>,
+            appeals: BTreeMap<u64, P14Appeal>,
+            next_appeal_id: u64,
+        }
+        let mut slashes = BTreeMap::new();
+        slashes.insert(
+            2,
+            boing_state::ConsensusSlashRecord {
+                id: 2,
+                account: acct(2),
+                amount: 5,
+                reason: ConsensusSlashReason::Equivocation,
+                block_height: 1,
+                appeal_deadline: 50,
+                reversed: false,
+            },
+        );
+        let mut appeals = BTreeMap::new();
+        appeals.insert(
+            1,
+            P14Appeal {
+                id: 1,
+                slash_id: 2,
+                evidence: b"x".to_vec(),
+                status: ConsensusAppealStatus::Pending,
+            },
+        );
+        let legacy = bincode::serialize(&P14Reg {
+            slashes,
+            appeals,
+            next_appeal_id: 2,
+        })
+        .unwrap();
+        let reg = decode_slash_appeals(&legacy).unwrap();
+        assert!(reg.get_appeal(1).unwrap().votes.is_empty());
+    }
+
+    #[test]
+    fn corrupt_file_errors_no_wipe() {
+        let err = decode_slash_appeals(b"not-a-registry").unwrap_err();
+        assert!(matches!(err, PersistenceError::Serialization(_)));
     }
 }

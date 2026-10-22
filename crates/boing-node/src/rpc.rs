@@ -1642,8 +1642,22 @@ async fn dispatch_jsonrpc_request(
                         boing_state::ConsensusAppealStatus::Approved => "approved",
                         boing_state::ConsensusAppealStatus::Rejected => "rejected",
                     };
-                    let approve_votes = a.votes.values().filter(|&&v| v).count();
-                    let reject_votes = a.votes.values().filter(|&&v| !v).count();
+                    let approve_votes = a.votes.values().filter(|v| v.approved).count();
+                    let reject_votes = a.votes.values().filter(|v| !v.approved).count();
+                    let (approve_weight, reject_weight) = n
+                        .state
+                        .slash_appeals()
+                        .weight_tallies(a.id)
+                        .unwrap_or((0, 0));
+                    let pinned: Option<Vec<_>> =
+                        n.state.slash_appeal_resolvers().map(|s| s.to_vec());
+                    let electorate_weight = match pinned.as_deref() {
+                        Some(set) if !set.is_empty() => set
+                            .iter()
+                            .map(|id| n.state.get(id).map(|s| s.stake).unwrap_or(0))
+                            .fold(0u128, |acc, s| acc.saturating_add(s)),
+                        _ => 1u128,
+                    };
                     serde_json::json!({
                         "id": a.id,
                         "slash_id": a.slash_id,
@@ -1652,6 +1666,9 @@ async fn dispatch_jsonrpc_request(
                         "approveVotes": approve_votes,
                         "rejectVotes": reject_votes,
                         "voteCount": a.votes.len(),
+                        "approveWeight": approve_weight.to_string(),
+                        "rejectWeight": reject_weight.to_string(),
+                        "electorateWeight": electorate_weight.to_string(),
                         "source": "consensus",
                     })
                 })

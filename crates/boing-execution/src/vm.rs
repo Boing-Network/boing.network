@@ -1230,15 +1230,26 @@ impl Vm {
                 "ResolveSlashAppeal requires a consensus validator".into(),
             ));
         }
-        // Phase 16: electorate M = |pinned slash_appeal_resolvers|; when unset/empty, M=1
+        // Phase 17: electorate W = sum of bonded stake over pinned slash_appeal_resolvers;
+        // voter weight = sender stake at cast. When unset/empty pin set, effective W=1
         // so the single eligible voter path still one-shot finalizes (solo-dev UX).
-        let electorate_m = match state.slash_appeal_resolvers() {
-            Some(set) if !set.is_empty() => set.len(),
-            _ => 1,
+        // W=0 with a non-empty pin set never finalizes (stay Pending).
+        let pinned: Option<Vec<AccountId>> =
+            state.slash_appeal_resolvers().map(|s| s.to_vec());
+        let (voter_weight, electorate_w) = match pinned.as_deref() {
+            Some(set) if !set.is_empty() => {
+                let mut w = 0u128;
+                for id in set {
+                    w = w.saturating_add(state.get(id).map(|a| a.stake).unwrap_or(0));
+                }
+                let voter_w = state.get(&tx.sender).map(|a| a.stake).unwrap_or(0);
+                (voter_w, w)
+            }
+            _ => (1u128, 1u128),
         };
         let outcome = state
             .slash_appeals_mut()
-            .cast_resolve_vote(appeal_id, tx.sender, approved, electorate_m)
+            .cast_resolve_vote(appeal_id, tx.sender, approved, voter_weight, electorate_w)
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
         if matches!(
             outcome,
@@ -2579,7 +2590,7 @@ mod slash_appeal_phase14_tests {
         let validator = AccountId([3u8; 32]);
         let mut state = StateStore::new();
         fund(&mut state, provider, 100, 50, 0);
-        fund(&mut state, validator, 1_000_000, 0, 0);
+        fund(&mut state, validator, 1_000_000, 1_000, 0);
         fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
         state
             .slash_appeals_mut()
@@ -2630,7 +2641,7 @@ mod slash_appeal_phase14_tests {
         let validator = AccountId([5u8; 32]);
         let mut state = StateStore::new();
         fund(&mut state, provider, 100, 0, 0);
-        fund(&mut state, validator, 1_000_000, 0, 0);
+        fund(&mut state, validator, 1_000_000, 1_000, 0);
         fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 500, 0, 0);
         state
             .slash_appeals_mut()
@@ -2677,7 +2688,7 @@ mod slash_appeal_phase14_tests {
         let outsider = AccountId([8u8; 32]);
         let mut state = StateStore::new();
         fund(&mut state, provider, 100, 0, 0);
-        fund(&mut state, validator, 1_000_000, 0, 0);
+        fund(&mut state, validator, 1_000_000, 1_000, 0);
         fund(&mut state, outsider, 1_000_000, 0, 0);
         state
             .slash_appeals_mut()
@@ -2735,7 +2746,7 @@ mod slash_appeal_phase14_tests {
         let validator = AccountId([10u8; 32]);
         let mut state = StateStore::new();
         fund(&mut state, provider, 0, 0, 0);
-        fund(&mut state, validator, 1_000_000, 0, 0);
+        fund(&mut state, validator, 1_000_000, 1_000, 0);
         fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 50, 0, 0);
         state
             .slash_appeals_mut()
@@ -2786,7 +2797,7 @@ mod slash_appeal_phase14_tests {
         let validator = AccountId([12u8; 32]);
         let mut state = StateStore::new();
         fund(&mut state, offender, 100, 10_000, 0);
-        fund(&mut state, validator, 1_000_000, 0, 0);
+        fund(&mut state, validator, 1_000_000, 1_000, 0);
         // Burn sink already holds the slashed stake.
         fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 5_000, 0, 0);
         state.get_mut(&offender).unwrap().stake = 5_000;
@@ -2845,16 +2856,17 @@ mod slash_appeal_phase14_tests {
     }
 
     #[test]
-    fn phase16_m3_threshold_needs_two_approves_before_restore() {
+    fn phase17_equal_stakes_needs_two_approves_before_restore() {
+        // Equal stakes [100,100,100] → W=300; need 200 (two votes).
         let provider = AccountId([20u8; 32]);
         let v1 = AccountId([21u8; 32]);
         let v2 = AccountId([22u8; 32]);
         let v3 = AccountId([23u8; 32]);
         let mut state = StateStore::new();
         fund(&mut state, provider, 100, 0, 0);
-        fund(&mut state, v1, 1_000_000, 0, 0);
-        fund(&mut state, v2, 1_000_000, 0, 0);
-        fund(&mut state, v3, 1_000_000, 0, 0);
+        fund(&mut state, v1, 1_000_000, 100, 0);
+        fund(&mut state, v2, 1_000_000, 100, 0);
+        fund(&mut state, v3, 1_000_000, 100, 0);
         fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
         state
             .slash_appeals_mut()
@@ -2923,6 +2935,65 @@ mod slash_appeal_phase14_tests {
         )
         .unwrap();
         assert!(state.slash_appeals().is_reversed(42));
+        assert_eq!(state.get(&provider).unwrap().balance, 1_100);
+    }
+
+    #[test]
+    fn phase17_whale_one_shot_finalize() {
+        // Stakes [900,50,50] → W=1000; whale alone finalizes.
+        let provider = AccountId([30u8; 32]);
+        let whale = AccountId([31u8; 32]);
+        let small1 = AccountId([32u8; 32]);
+        let small2 = AccountId([33u8; 32]);
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, whale, 1_000_000, 900, 0);
+        fund(&mut state, small1, 1_000_000, 50, 0);
+        fund(&mut state, small2, 1_000_000, 50, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                99,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                1_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![whale, small1, small2]));
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 99,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(2),
+        )
+        .unwrap();
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: whale,
+                payload: TransactionPayload::ResolveSlashAppeal {
+                    appeal_id: 1,
+                    approved: true,
+                },
+                access_list: AccessList::new(vec![whale], vec![whale]),
+            },
+            &mut state,
+            ctx(3),
+        )
+        .unwrap();
+        assert!(state.slash_appeals().is_reversed(99));
         assert_eq!(state.get(&provider).unwrap().balance, 1_100);
     }
 }

@@ -17,6 +17,7 @@
 //! Phase 14: [`crate::blobs_phase14`] — consensus Submit/Resolve slash-appeal txs (30/31).
 //! Phase 15: [`crate::blobs_phase15`] — seed equivocation/liveness into consensus appeal book.
 //! Phase 16: [`crate::blobs_phase16`] — committee threshold ResolveSlashAppeal (⌈2M/3⌉).
+//! Phase 17: [`crate::blobs_phase17`] — stake-weighted ResolveSlashAppeal (⌈2W/3⌉) + versioned registry.
 
 use serde::{Deserialize, Serialize};
 

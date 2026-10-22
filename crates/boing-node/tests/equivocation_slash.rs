@@ -204,20 +204,22 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
         .is_err());
 
     // Media inactive: Submit/Resolve still execute (always-on admission).
-    // Phase 16: M=4 needs ⌈2*4/3⌉=3 approve votes to finalize.
+    // Phase 17: equal stakes among 4 pinned resolvers → W=20_000; need ⌈2W/3⌉ ≈ 3 votes.
     let vm = Vm::new();
     assert!(vm.media_blobs_from().is_none());
+    node.state.get_mut(&v1).unwrap().stake = 5_000;
     for id in [v3, v4] {
         node.state.insert(Account {
             id,
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
+                stake: 5_000,
                 ..Default::default()
             },
         });
     }
+    // offender already holds 5_000 post-slash.
     node.state
         .set_slash_appeal_resolvers(Some(vec![v1, offender, v3, v4]));
     vm.execute_with_context(
@@ -314,15 +316,16 @@ fn consensus_slash_appeal_rejected_keeps_burn() {
     assert!(node.on_equivocation_evidence(ev));
     let slash_id = *node.slashed_equivocations.get(&(offender, 4)).unwrap();
 
-    // Phase 16: M=4 needs 3 reject votes to finalize Rejected.
+    // Phase 17: equal stakes among 4 pinned resolvers → need 3 reject votes to finalize.
     let vm = Vm::new();
+    node.state.get_mut(&v1).unwrap().stake = 5_000;
     for id in [v3, v4] {
         node.state.insert(Account {
             id,
             state: AccountState {
                 balance: 1_000_000,
                 nonce: 0,
-                stake: 0,
+                stake: 5_000,
                 ..Default::default()
             },
         });
