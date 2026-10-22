@@ -50,8 +50,10 @@ export declare const PayloadVariant: {
     readonly RespondBlobSampleServe: 29;
     /** Submit consensus slash appeal (Phase 14). */
     readonly SubmitSlashAppeal: 30;
-    /** Resolve consensus slash appeal (Phase 14). */
+    /** Resolve consensus slash appeal (Phase 14; unattested). */
     readonly ResolveSlashAppeal: 31;
+    /** Attested resolve with Ed25519 ballot (Phase 18). */
+    readonly ResolveSlashAppealAttested: 32;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -257,6 +259,12 @@ export type TransactionPayloadInput = {
     kind: 'resolveSlashAppeal';
     appealId: bigint;
     approved: boolean;
+} | {
+    kind: 'resolveSlashAppealAttested';
+    appealId: bigint;
+    approved: boolean;
+    /** 64-byte Ed25519 ballot signature (raw `[u8; 64]`, no length prefix). */
+    ballotSignature: Uint8Array;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {
