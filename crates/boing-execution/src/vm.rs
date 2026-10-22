@@ -1223,19 +1223,37 @@ impl Vm {
         approved: bool,
         height: u64,
     ) -> Result<VmExecutionResult, VmError> {
-        // Phase 15: always-on — not gated on media-blobs activation.
+        // Phase 15/16: always-on — not gated on media-blobs activation.
         let _ = height;
         if !sender_may_resolve_slash_appeal(state, &tx.sender) {
             return Err(VmError::MediaBlob(
                 "ResolveSlashAppeal requires a consensus validator".into(),
             ));
         }
-        let slash = state
+        // Phase 16: electorate M = |pinned slash_appeal_resolvers|; when unset/empty, M=1
+        // so the single eligible voter path still one-shot finalizes (solo-dev UX).
+        let electorate_m = match state.slash_appeal_resolvers() {
+            Some(set) if !set.is_empty() => set.len(),
+            _ => 1,
+        };
+        let outcome = state
             .slash_appeals_mut()
-            .resolve_appeal(appeal_id, approved)
-            .map_err(|e| VmError::MediaBlob(e.to_string()))?
-            .clone();
-        if approved {
+            .cast_resolve_vote(appeal_id, tx.sender, approved, electorate_m)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        if matches!(
+            outcome,
+            boing_state::CastResolveOutcome::Finalized { approved: true }
+        ) {
+            let slash_id = state
+                .slash_appeals()
+                .get_appeal(appeal_id)
+                .map(|a| a.slash_id)
+                .ok_or_else(|| VmError::MediaBlob("appeal not found after finalize".into()))?;
+            let slash = state
+                .slash_appeals()
+                .get_slash(slash_id)
+                .cloned()
+                .ok_or_else(|| VmError::MediaBlob("slash not found after finalize".into()))?;
             let restored = match slash.reason {
                 boing_state::ConsensusSlashReason::BlobFailedServe => {
                     boing_tokenomics::restore_failed_serve_penalty(
@@ -2824,5 +2842,87 @@ mod slash_appeal_phase14_tests {
                 .balance,
             0
         );
+    }
+
+    #[test]
+    fn phase16_m3_threshold_needs_two_approves_before_restore() {
+        let provider = AccountId([20u8; 32]);
+        let v1 = AccountId([21u8; 32]);
+        let v2 = AccountId([22u8; 32]);
+        let v3 = AccountId([23u8; 32]);
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, v1, 1_000_000, 0, 0);
+        fund(&mut state, v2, 1_000_000, 0, 0);
+        fund(&mut state, v3, 1_000_000, 0, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                42,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                1_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![v1, v2, v3]));
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 42,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(2),
+        )
+        .unwrap();
+
+        // First approve: still Pending, no restore.
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: v1,
+                payload: TransactionPayload::ResolveSlashAppeal {
+                    appeal_id: 1,
+                    approved: true,
+                },
+                access_list: AccessList::new(vec![v1], vec![v1]),
+            },
+            &mut state,
+            ctx(3),
+        )
+        .unwrap();
+        assert!(!state.slash_appeals().is_reversed(42));
+        assert_eq!(state.get(&provider).unwrap().balance, 100);
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().status,
+            boing_state::ConsensusAppealStatus::Pending
+        );
+
+        // Second approve: Finalized + restore.
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: v2,
+                payload: TransactionPayload::ResolveSlashAppeal {
+                    appeal_id: 1,
+                    approved: true,
+                },
+                access_list: AccessList::new(vec![v2], vec![v2]),
+            },
+            &mut state,
+            ctx(4),
+        )
+        .unwrap();
+        assert!(state.slash_appeals().is_reversed(42));
+        assert_eq!(state.get(&provider).unwrap().balance, 1_100);
     }
 }

@@ -321,4 +321,18 @@ export declare const PHASE15_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
 export declare const PHASE15_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
 /** Honest plan strings for Phase 15 (consensus equivocation/liveness appeals; still 16 MiB). */
 export declare function phase15DasSuccinctProofPlan(): string[];
+/** Phase 16 aliases / constants. */
+export declare const PHASE16_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE16_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE16_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE16_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE16_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE16_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE16_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+/** Fixed resolve quorum numerator (⌈2M/3⌉ via integer `votes * DEN >= NUM * M`). */
+export declare const PHASE16_RESOLVE_THRESHOLD_NUM = 2;
+/** Fixed resolve quorum denominator. */
+export declare const PHASE16_RESOLVE_THRESHOLD_DEN = 3;
+/** Honest plan strings for Phase 16 (committee threshold ResolveSlashAppeal; still 16 MiB). */
+export declare function phase16DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

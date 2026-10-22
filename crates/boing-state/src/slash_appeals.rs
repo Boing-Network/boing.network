@@ -1,12 +1,16 @@
-//! Consensus slash + appeal book (Phase 14/15).
+//! Consensus slash + appeal book (Phase 14/15/16).
 //!
 //! FailedServe settle and equivocation/liveness slash-apply insert rows with consensus-allocated
 //! `slash_id`s; `SubmitSlashAppeal` / `ResolveSlashAppeal` txs mutate this book so every validator
 //! replays the same economics once a row exists.
+//!
+//! Phase 16: ResolveSlashAppeal casts an N-of-M vote; finalize only when ⌈2M/3⌉ approve or reject.
 
 use std::collections::BTreeMap;
 
-use boing_primitives::{hasher, AccountId, PHASE14_MAX_APPEAL_EVIDENCE_BYTES};
+use boing_primitives::{
+    hasher, phase16_resolve_threshold_met, AccountId, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+};
 use serde::{Deserialize, Serialize};
 
 /// Domain tag for SMT commitment of the slash-appeal registry.
@@ -30,6 +34,19 @@ pub enum ConsensusAppealStatus {
     Rejected,
 }
 
+/// Outcome of casting a ResolveSlashAppeal vote (Phase 16).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CastResolveOutcome {
+    /// Threshold not yet met; slash remains unreverted.
+    Pending {
+        approve_count: usize,
+        reject_count: usize,
+        m: usize,
+    },
+    /// Approve or reject quorum reached; funds restored only when `approved` is true.
+    Finalized { approved: bool },
+}
+
 /// Consensus slash record (seeded on FailedServe settle / equivocation / liveness).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConsensusSlashRecord {
@@ -50,6 +67,13 @@ pub struct ConsensusSlashAppeal {
     pub slash_id: u64,
     pub evidence: Vec<u8>,
     pub status: ConsensusAppealStatus,
+    /// Phase 16: one vote per voter (`true` = approve, `false` = reject).
+    /// `#[serde(default)]` so empty/missing votes deserialize cleanly on new rows;
+    /// empty registries and fresh appeals load without ops action. Registries that
+    /// already persisted Phase 14/15 *pending appeals* may need a one-time clear of
+    /// `slash_appeals_registry.bin` on upgrade (bincode is positional).
+    #[serde(default)]
+    pub votes: BTreeMap<AccountId, bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -62,6 +86,8 @@ pub enum SlashAppealError {
     AppealAlreadyExists,
     #[error("appeal already resolved")]
     AppealAlreadyResolved,
+    #[error("voter already cast a resolve vote on this appeal")]
+    AlreadyVoted,
     #[error("appeal window closed")]
     AppealWindowClosed,
     #[error("evidence exceeds max ({max} bytes)")]
@@ -72,7 +98,7 @@ pub enum SlashAppealError {
     SlashIdExists,
 }
 
-/// Consensus registry of slashes and appeals (Phase 14/15).
+/// Consensus registry of slashes and appeals (Phase 14/15/16).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SlashAppealRegistry {
     slashes: BTreeMap<u64, ConsensusSlashRecord>,
@@ -230,18 +256,21 @@ impl SlashAppealRegistry {
                 slash_id,
                 evidence,
                 status: ConsensusAppealStatus::Pending,
+                votes: BTreeMap::new(),
             },
         );
         Ok(id)
     }
 
-    /// Resolve a pending appeal. On approve, marks the slash `reversed` and returns a reference
-    /// to the slash record for the caller to restore funds.
-    pub fn resolve_appeal(
+    /// Cast a ResolveSlashAppeal vote (Phase 16). Finalizes when approve or reject
+    /// reaches ⌈2M/3⌉ of `electorate_m`. On approve finalize, marks the slash `reversed`.
+    pub fn cast_resolve_vote(
         &mut self,
         appeal_id: u64,
+        voter: AccountId,
         approved: bool,
-    ) -> Result<&ConsensusSlashRecord, SlashAppealError> {
+        electorate_m: usize,
+    ) -> Result<CastResolveOutcome, SlashAppealError> {
         let slash_id = {
             let appeal = self
                 .appeals
@@ -250,13 +279,53 @@ impl SlashAppealRegistry {
             if appeal.status != ConsensusAppealStatus::Pending {
                 return Err(SlashAppealError::AppealAlreadyResolved);
             }
+            if appeal.votes.contains_key(&voter) {
+                return Err(SlashAppealError::AlreadyVoted);
+            }
+            appeal.votes.insert(voter, approved);
+            appeal.slash_id
+        };
+
+        let (approve_count, reject_count) = {
+            let appeal = self.appeals.get(&appeal_id).expect("appeal present");
+            let approve = appeal.votes.values().filter(|&&v| v).count();
+            let reject = appeal.votes.values().filter(|&&v| !v).count();
+            (approve, reject)
+        };
+
+        if phase16_resolve_threshold_met(approve_count, electorate_m) {
+            self.finalize_appeal(appeal_id, slash_id, true)?;
+            return Ok(CastResolveOutcome::Finalized { approved: true });
+        }
+        if phase16_resolve_threshold_met(reject_count, electorate_m) {
+            self.finalize_appeal(appeal_id, slash_id, false)?;
+            return Ok(CastResolveOutcome::Finalized { approved: false });
+        }
+
+        Ok(CastResolveOutcome::Pending {
+            approve_count,
+            reject_count,
+            m: electorate_m,
+        })
+    }
+
+    fn finalize_appeal(
+        &mut self,
+        appeal_id: u64,
+        slash_id: u64,
+        approved: bool,
+    ) -> Result<(), SlashAppealError> {
+        {
+            let appeal = self
+                .appeals
+                .get_mut(&appeal_id)
+                .ok_or(SlashAppealError::AppealNotFound)?;
             appeal.status = if approved {
                 ConsensusAppealStatus::Approved
             } else {
                 ConsensusAppealStatus::Rejected
             };
-            appeal.slash_id
-        };
+        }
         let slash = self
             .slashes
             .get_mut(&slash_id)
@@ -267,6 +336,26 @@ impl SlashAppealRegistry {
             }
             slash.reversed = true;
         }
+        Ok(())
+    }
+
+    /// Thin M=1 one-shot helper (tests / solo paths). Prefer [`Self::cast_resolve_vote`].
+    pub fn resolve_appeal(
+        &mut self,
+        appeal_id: u64,
+        approved: bool,
+    ) -> Result<&ConsensusSlashRecord, SlashAppealError> {
+        // Distinct sentinel so repeated legacy calls after finalize hit AppealAlreadyResolved,
+        // not AlreadyVoted, matching Phase 14/15 test expectations.
+        let voter = AccountId([0xff; 32]);
+        match self.cast_resolve_vote(appeal_id, voter, approved, 1)? {
+            CastResolveOutcome::Finalized { .. } | CastResolveOutcome::Pending { .. } => {}
+        }
+        let slash_id = self
+            .appeals
+            .get(&appeal_id)
+            .ok_or(SlashAppealError::AppealNotFound)?
+            .slash_id;
         Ok(self.slashes.get(&slash_id).expect("slash present"))
     }
 
@@ -292,6 +381,14 @@ impl SlashAppealRegistry {
             .map(|s| s.reversed)
             .unwrap_or(false)
     }
+
+    /// Approve / reject tallies for RPC display.
+    pub fn vote_tallies(&self, appeal_id: u64) -> Option<(usize, usize)> {
+        let appeal = self.appeals.get(&appeal_id)?;
+        let approve = appeal.votes.values().filter(|&&v| v).count();
+        let reject = appeal.votes.values().filter(|&&v| !v).count();
+        Some((approve, reject))
+    }
 }
 
 /// Default evidence cap used by callers that do not override.
@@ -307,11 +404,9 @@ mod tests {
         AccountId([b; 32])
     }
 
-    #[test]
-    fn slash_appeal_submit_resolve_approved() {
-        let mut reg = SlashAppealRegistry::new();
+    fn seed_appeal(reg: &mut SlashAppealRegistry, slash_id: u64) -> u64 {
         reg.record_slash_with_id(
-            7,
+            slash_id,
             acct(1),
             1000,
             ConsensusSlashReason::BlobFailedServe,
@@ -319,9 +414,19 @@ mod tests {
             1000,
         )
         .unwrap();
-        let aid = reg
-            .submit_appeal(7, b"evidence".to_vec(), 150, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
-            .unwrap();
+        reg.submit_appeal(
+            slash_id,
+            b"evidence".to_vec(),
+            150,
+            PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn slash_appeal_submit_resolve_approved() {
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 7);
         assert_eq!(aid, 1);
         assert!(reg
             .submit_appeal(7, vec![], 150, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
@@ -352,6 +457,78 @@ mod tests {
             .unwrap();
         reg.resolve_appeal(aid, false).unwrap();
         assert!(!reg.is_reversed(1));
+    }
+
+    #[test]
+    fn phase16_m1_one_shot_finalize() {
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 1);
+        let out = reg
+            .cast_resolve_vote(aid, acct(10), true, 1)
+            .unwrap();
+        assert_eq!(out, CastResolveOutcome::Finalized { approved: true });
+        assert!(reg.is_reversed(1));
+    }
+
+    #[test]
+    fn phase16_m3_needs_two_approves() {
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 2);
+        let out = reg
+            .cast_resolve_vote(aid, acct(10), true, 3)
+            .unwrap();
+        assert_eq!(
+            out,
+            CastResolveOutcome::Pending {
+                approve_count: 1,
+                reject_count: 0,
+                m: 3
+            }
+        );
+        assert!(!reg.is_reversed(2));
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            ConsensusAppealStatus::Pending
+        );
+        let out2 = reg
+            .cast_resolve_vote(aid, acct(11), true, 3)
+            .unwrap();
+        assert_eq!(out2, CastResolveOutcome::Finalized { approved: true });
+        assert!(reg.is_reversed(2));
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            ConsensusAppealStatus::Approved
+        );
+    }
+
+    #[test]
+    fn phase16_reject_path() {
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 3);
+        assert!(matches!(
+            reg.cast_resolve_vote(aid, acct(1), false, 3).unwrap(),
+            CastResolveOutcome::Pending { .. }
+        ));
+        let out = reg
+            .cast_resolve_vote(aid, acct(2), false, 3)
+            .unwrap();
+        assert_eq!(out, CastResolveOutcome::Finalized { approved: false });
+        assert!(!reg.is_reversed(3));
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            ConsensusAppealStatus::Rejected
+        );
+    }
+
+    #[test]
+    fn phase16_double_vote_rejected() {
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 4);
+        reg.cast_resolve_vote(aid, acct(5), true, 3).unwrap();
+        assert!(matches!(
+            reg.cast_resolve_vote(aid, acct(5), false, 3),
+            Err(SlashAppealError::AlreadyVoted)
+        ));
     }
 
     #[test]
@@ -393,13 +570,36 @@ mod tests {
             10,
         )
         .unwrap();
-        let _ = reg
+        let aid = reg
             .submit_appeal(9, b"x".to_vec(), 1, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
             .unwrap();
+        reg.cast_resolve_vote(aid, acct(1), true, 3).unwrap();
         let bytes = bincode::serialize(&reg).unwrap();
         let back: SlashAppealRegistry = bincode::deserialize(&bytes).unwrap();
         assert_eq!(back.list_slashes().len(), 1);
         assert_eq!(back.list_appeals().len(), 1);
+        assert_eq!(back.get_appeal(aid).unwrap().votes.len(), 1);
+    }
+
+    #[test]
+    fn empty_votes_roundtrip() {
+        let mut reg = SlashAppealRegistry::new();
+        reg.record_slash_with_id(
+            1,
+            acct(1),
+            10,
+            ConsensusSlashReason::BlobFailedServe,
+            1,
+            10,
+        )
+        .unwrap();
+        let aid = reg
+            .submit_appeal(1, vec![], 1, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
+            .unwrap();
+        assert!(reg.get_appeal(aid).unwrap().votes.is_empty());
+        let bytes = bincode::serialize(&reg).unwrap();
+        let back: SlashAppealRegistry = bincode::deserialize(&bytes).unwrap();
+        assert!(back.get_appeal(aid).unwrap().votes.is_empty());
     }
 
     #[test]
