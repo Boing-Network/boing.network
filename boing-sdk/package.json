@@ -1,6 +1,6 @@
 {
   "name": "boing-sdk",
-  "version": "0.5.17",
+  "version": "0.5.18",
   "description": "Seamless SDK for building on Boing Network",
   "type": "module",
   "main": "dist/index.js",

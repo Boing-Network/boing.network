@@ -773,3 +773,22 @@ export function phase14DasSuccinctProofPlan() {
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }
+/** Phase 15 aliases / constants. */
+export const PHASE15_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE14_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE15_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE14_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE15_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE14_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE15_SETTLE_RECEIPT_TTL_BLOCKS = PHASE14_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE15_MAX_APPEAL_EVIDENCE_BYTES = PHASE14_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE15_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE14_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE15_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE14_RESOLVE_SLASH_APPEAL_TX_INDEX;
+/** Honest plan strings for Phase 15 (consensus equivocation/liveness appeals; still 16 MiB). */
+export function phase15DasSuccinctProofPlan() {
+    return [
+        ...phase14DasSuccinctProofPlan(),
+        'Phase 15: equivocation/liveness slashes seed the consensus SlashAppealRegistry; Submit/Resolve (30/31) restore stake on multi-validator replay.',
+        'Phase 15: slash detection/apply remains node-local (evidence gossip); appeal submit/resolve txs are consensus-replayable once a row exists.',
+        'Phase 15: Submit/Resolve (30/31) are always admitted (not gated on media-blobs activation) so equivocation/liveness appeals work when media is inactive.',
+        'Phase 15: ResolveSlashAppeal remains ops/validator-approved — not SNARK/IPA/KZG verification of appeal evidence.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

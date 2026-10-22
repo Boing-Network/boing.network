@@ -199,7 +199,10 @@ impl SampleServeChallengeRegistry {
         }
     }
 
-    /// Assign the next consensus FailedServe slash id to a settled challenge.
+    /// Assign the next local FailedServe slash id to a settled challenge.
+    ///
+    /// Prefer [`Self::set_failed_serve_slash_id`] with a consensus-book id (Phase 15 shared
+    /// allocator) so FailedServe ids stay non-colliding with equivocation/liveness rows.
     pub fn assign_failed_serve_slash_id(
         &mut self,
         blob_id: &BlobId,
@@ -220,6 +223,30 @@ impl SampleServeChallengeRegistry {
         let id = self.next_failed_serve_slash_id;
         self.next_failed_serve_slash_id = id.saturating_add(1);
         self.challenges.get_mut(&key)?.slash_id = Some(id);
+        Some(id)
+    }
+
+    /// Pin a caller-chosen consensus slash id onto a settled challenge (Phase 15).
+    /// No-ops if already assigned. Bumps the local counter past `id` for hygiene.
+    pub fn set_failed_serve_slash_id(
+        &mut self,
+        blob_id: &BlobId,
+        chunk_index: u32,
+        provider: &AccountId,
+        challenger: &AccountId,
+        id: u64,
+    ) -> Option<u64> {
+        let key = serve_challenge_key(blob_id, chunk_index, provider, challenger);
+        if let Some(existing) = self.challenges.get(&key).and_then(|c| c.slash_id) {
+            return Some(existing);
+        }
+        if !self.challenges.contains_key(&key) {
+            return None;
+        }
+        self.challenges.get_mut(&key)?.slash_id = Some(id);
+        if self.next_failed_serve_slash_id <= id {
+            self.next_failed_serve_slash_id = id.saturating_add(1);
+        }
         Some(id)
     }
 

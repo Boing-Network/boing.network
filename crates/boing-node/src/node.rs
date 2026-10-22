@@ -905,14 +905,39 @@ impl BoingNode {
     }
 
     /// Burn a fraction of the offender's active stake (local + gossiped evidence; deduped per round).
-    /// Records an auditable slash with an appeal window when first applied.
+    ///
+    /// Phase 15: also seeds the consensus [`boing_state::SlashAppealRegistry`] so Submit/Resolve
+    /// txs (30/31) can restore stake on multi-validator replay. Detection/apply itself remains
+    /// node-local (evidence gossip); validators that saw the same evidence apply the same slash
+    /// (same social/ops model as today's local SlashRegistry mirror).
     fn apply_equivocation_slash(&mut self, validator: AccountId, round: u64) -> bool {
         let key = (validator, round);
         if self.slashed_equivocations.contains_key(&key) {
             return false;
         }
         let burned = boing_tokenomics::slash_equivocation_stake(&mut self.state, &validator);
-        let slash_id = self.slash_registry.record_slash(
+        let slash_id = self
+            .state
+            .slash_appeals_mut()
+            .record_slash(
+                validator,
+                burned,
+                boing_state::ConsensusSlashReason::Equivocation,
+                round,
+                boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS,
+            )
+            .unwrap_or_else(|_| {
+                // Extremely defensive: fall back to local-only id if consensus insert somehow fails.
+                self.slash_registry.record_slash(
+                    validator.0,
+                    burned,
+                    SlashReason::Equivocation,
+                    round,
+                    boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS,
+                )
+            });
+        self.slash_registry.record_slash_with_id(
+            slash_id,
             validator.0,
             burned,
             SlashReason::Equivocation,
@@ -947,15 +972,15 @@ impl BoingNode {
 
     /// Submit an appeal for a recorded slash (must be within the appeal window at current chain height).
     ///
-    /// **Deprecated for FailedServe:** prefer consensus tx `SubmitSlashAppeal` (index 30). This RPC
-    /// only mutates the node-local `SlashRegistry` mirror.
+    /// **Deprecated for FailedServe / equivocation / liveness:** prefer consensus tx
+    /// `SubmitSlashAppeal` (index 30). This RPC only mutates the node-local `SlashRegistry` mirror.
     pub fn submit_slash_appeal(
         &mut self,
         slash_id: u64,
         evidence: Vec<u8>,
     ) -> Result<u64, SlashingError> {
         if self.state.slash_appeals().get_slash(slash_id).is_some() {
-            // Consensus book owns FailedServe appeals; avoid dual-path confusion.
+            // Consensus book owns appeals for this slash_id; avoid dual-path confusion.
             return Err(SlashingError::AppealAlreadyExists);
         }
         let id = self
@@ -969,8 +994,9 @@ impl BoingNode {
     /// stake for equivocation/liveness/fraud; **balance** for BlobFailedServe (Phase 13).
     /// Returns the amount restored (0 if rejected or nothing to restore).
     ///
-    /// **Deprecated for FailedServe:** prefer consensus tx `ResolveSlashAppeal` (index 31).
-    /// Refuses restore when the consensus appeal book already reversed the slash (no double credit).
+    /// **Deprecated for FailedServe / equivocation / liveness:** prefer consensus tx
+    /// `ResolveSlashAppeal` (index 31). Refuses restore when the consensus appeal book already
+    /// reversed the slash (no double credit).
     pub fn resolve_slash_appeal(
         &mut self,
         appeal_id: u64,
@@ -1453,8 +1479,9 @@ impl BoingNode {
                     ));
                 }
             }
+            // Phase 15: Submit/Resolve always admitted (not gated on media-blobs activation) so
+            // equivocation/liveness appeals work when media is inactive.
             TransactionPayload::SubmitSlashAppeal { slash_id, evidence } => {
-                require_active()?;
                 if evidence.len() > boing_primitives::PHASE14_MAX_APPEAL_EVIDENCE_BYTES {
                     return Err(MempoolError::MediaBlobRejected(format!(
                         "appeal evidence exceeds max {} bytes",
@@ -1468,7 +1495,6 @@ impl BoingNode {
                 }
             }
             TransactionPayload::ResolveSlashAppeal { .. } => {
-                require_active()?;
                 if !self.consensus.validators().contains(&signed.tx.sender) {
                     return Err(MempoolError::MediaBlobRejected(
                         "ResolveSlashAppeal requires a consensus validator".into(),
@@ -1822,7 +1848,28 @@ impl BoingNode {
         }
         *streak = 0;
         let burned = boing_tokenomics::slash_liveness_stake(&mut self.state, &leader);
-        let slash_id = self.slash_registry.record_slash(
+        // Phase 15: seed consensus appeal book (detection remains node-local; 30/31 replay restore).
+        let slash_id = self
+            .state
+            .slash_appeals_mut()
+            .record_slash(
+                leader,
+                burned,
+                boing_state::ConsensusSlashReason::Liveness,
+                next_height,
+                boing_tokenomics::LIVENESS_APPEAL_WINDOW_BLOCKS,
+            )
+            .unwrap_or_else(|_| {
+                self.slash_registry.record_slash(
+                    leader.0,
+                    burned,
+                    SlashReason::Liveness,
+                    next_height,
+                    boing_tokenomics::LIVENESS_APPEAL_WINDOW_BLOCKS,
+                )
+            });
+        self.slash_registry.record_slash_with_id(
+            slash_id,
             leader.0,
             burned,
             SlashReason::Liveness,

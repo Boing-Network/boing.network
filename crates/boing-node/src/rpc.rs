@@ -1679,7 +1679,7 @@ async fn dispatch_jsonrpc_request(
                     "slashes": slashes,
                     "appeals": appeals,
                     "persisted": persisted,
-                    "note": "Optional params: { reason, slashId }. Prefer consensus Submit/Resolve txs (30/31) for FailedServe; operator RPC is secondary. source=consensus|localMirror.",
+                    "note": "Optional params: { reason, slashId }. Prefer consensus Submit/Resolve txs (30/31) for FailedServe / equivocation / liveness; operator RPC is secondary. source=consensus|localMirror.",
                 }),
             )
         }
@@ -1750,6 +1750,7 @@ async fn dispatch_jsonrpc_request(
                         "appeal_id": appeal_id,
                         "slash_id": slash_id,
                         "deprecatedForFailedServe": true,
+                        "deprecatedForEquivocationLiveness": true,
                         "preferTx": "SubmitSlashAppeal (index 30)",
                     }),
                 ),
@@ -1823,6 +1824,7 @@ async fn dispatch_jsonrpc_request(
                         "approved": approved,
                         "restored": restored.to_string(),
                         "deprecatedForFailedServe": true,
+                        "deprecatedForEquivocationLiveness": true,
                         "preferTx": "ResolveSlashAppeal (index 31)",
                     }),
                 ),

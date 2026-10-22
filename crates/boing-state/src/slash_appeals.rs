@@ -1,7 +1,8 @@
-//! Consensus slash + appeal book (Phase 14).
+//! Consensus slash + appeal book (Phase 14/15).
 //!
-//! FailedServe settle inserts a slash row with a known `slash_id`; `SubmitSlashAppeal` /
-//! `ResolveSlashAppeal` txs mutate this book so every validator replays the same economics.
+//! FailedServe settle and equivocation/liveness slash-apply insert rows with consensus-allocated
+//! `slash_id`s; `SubmitSlashAppeal` / `ResolveSlashAppeal` txs mutate this book so every validator
+//! replays the same economics once a row exists.
 
 use std::collections::BTreeMap;
 
@@ -29,7 +30,7 @@ pub enum ConsensusAppealStatus {
     Rejected,
 }
 
-/// Consensus slash record (seeded on FailedServe settle with a known id).
+/// Consensus slash record (seeded on FailedServe settle / equivocation / liveness).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConsensusSlashRecord {
     pub id: u64,
@@ -71,13 +72,17 @@ pub enum SlashAppealError {
     SlashIdExists,
 }
 
-/// Consensus registry of slashes and appeals (Phase 14).
+/// Consensus registry of slashes and appeals (Phase 14/15).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SlashAppealRegistry {
     slashes: BTreeMap<u64, ConsensusSlashRecord>,
     appeals: BTreeMap<u64, ConsensusSlashAppeal>,
-    /// Next appeal id (slash ids come from FailedServe / caller-chosen ids).
+    /// Next appeal id.
     next_appeal_id: u64,
+    /// Shared consensus slash-id allocator (Phase 15). Not persisted — derived via bump-past-max
+    /// so Phase 14 `slash_appeals_registry.bin` files remain loadable.
+    #[serde(skip)]
+    next_slash_id: u64,
 }
 
 impl Default for SlashAppealRegistry {
@@ -92,6 +97,7 @@ impl SlashAppealRegistry {
             slashes: BTreeMap::new(),
             appeals: BTreeMap::new(),
             next_appeal_id: 1,
+            next_slash_id: 1,
         }
     }
 
@@ -112,7 +118,41 @@ impl SlashAppealRegistry {
         *h.finalize().as_bytes()
     }
 
-    /// Insert a slash with a known id (FailedServe path). No-ops if `id` already exists.
+    /// Ensure allocator is strictly above any already-recorded slash id (upgrade hygiene).
+    fn bump_next_slash_id_past_max(&mut self) {
+        let max = self.slashes.keys().next_back().copied().unwrap_or(0);
+        if self.next_slash_id <= max {
+            self.next_slash_id = max.saturating_add(1);
+        }
+        if self.next_slash_id == 0 {
+            self.next_slash_id = 1;
+        }
+    }
+
+    /// Allocate a new consensus slash id and insert the row.
+    pub fn record_slash(
+        &mut self,
+        account: AccountId,
+        amount: u128,
+        reason: ConsensusSlashReason,
+        block_height: u64,
+        appeal_window_blocks: u64,
+    ) -> Result<u64, SlashAppealError> {
+        self.bump_next_slash_id_past_max();
+        let id = self.next_slash_id;
+        self.next_slash_id = id.saturating_add(1);
+        self.record_slash_with_id(
+            id,
+            account,
+            amount,
+            reason,
+            block_height,
+            appeal_window_blocks,
+        )
+    }
+
+    /// Insert a slash with a known id (determinism when id already known). No-ops if `id`
+    /// already exists. Bumps `next_slash_id` past `id` when needed.
     pub fn record_slash_with_id(
         &mut self,
         id: u64,
@@ -123,6 +163,9 @@ impl SlashAppealRegistry {
         appeal_window_blocks: u64,
     ) -> Result<u64, SlashAppealError> {
         if self.slashes.contains_key(&id) {
+            if self.next_slash_id <= id {
+                self.next_slash_id = id.saturating_add(1);
+            }
             return Ok(id);
         }
         self.slashes.insert(
@@ -137,7 +180,20 @@ impl SlashAppealRegistry {
                 reversed: false,
             },
         );
+        if self.next_slash_id <= id {
+            self.next_slash_id = id.saturating_add(1);
+        }
         Ok(id)
+    }
+
+    /// Peek the next slash id that [`Self::record_slash`] would allocate (after bump-past-max).
+    pub fn peek_next_slash_id(&self) -> u64 {
+        let max = self.slashes.keys().next_back().copied().unwrap_or(0);
+        let mut next = self.next_slash_id.max(1);
+        if next <= max {
+            next = max.saturating_add(1);
+        }
+        next
     }
 
     /// Submit an appeal at `tip_height`. Evidence must be ≤ `max_evidence` (typically
@@ -344,5 +400,70 @@ mod tests {
         let back: SlashAppealRegistry = bincode::deserialize(&bytes).unwrap();
         assert_eq!(back.list_slashes().len(), 1);
         assert_eq!(back.list_appeals().len(), 1);
+    }
+
+    #[test]
+    fn shared_allocator_bumps_past_legacy_ids() {
+        let mut reg = SlashAppealRegistry::new();
+        // Simulate Phase 14 FailedServe rows recorded with known ids 1..3.
+        for id in 1..=3u64 {
+            reg.record_slash_with_id(
+                id,
+                acct(id as u8),
+                10,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                100,
+            )
+            .unwrap();
+        }
+        assert_eq!(reg.peek_next_slash_id(), 4);
+        let id = reg
+            .record_slash(
+                acct(9),
+                50,
+                ConsensusSlashReason::Equivocation,
+                2,
+                1000,
+            )
+            .unwrap();
+        assert_eq!(id, 4);
+        let id2 = reg
+            .record_slash(
+                acct(8),
+                20,
+                ConsensusSlashReason::Liveness,
+                3,
+                1000,
+            )
+            .unwrap();
+        assert_eq!(id2, 5);
+        assert_eq!(reg.list_slashes().len(), 5);
+    }
+
+    #[test]
+    fn record_slash_allocates_monotonic_ids() {
+        let mut reg = SlashAppealRegistry::new();
+        let a = reg
+            .record_slash(
+                acct(1),
+                100,
+                ConsensusSlashReason::Equivocation,
+                1,
+                10,
+            )
+            .unwrap();
+        let b = reg
+            .record_slash(
+                acct(2),
+                200,
+                ConsensusSlashReason::Liveness,
+                2,
+                10,
+            )
+            .unwrap();
+        assert_eq!(a, 1);
+        assert_eq!(b, 2);
+        assert_ne!(a, b);
     }
 }

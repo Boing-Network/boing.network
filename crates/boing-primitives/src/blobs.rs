@@ -15,6 +15,7 @@
 //! Phase 12: [`crate::blobs_phase12`] — settle-before-challenge, FailedServe SlashRegistry audit ids.
 //! Phase 13: [`crate::blobs_phase13`] — FailedServe appeal balance unburn, settle-receipt TTL.
 //! Phase 14: [`crate::blobs_phase14`] — consensus Submit/Resolve slash-appeal txs (30/31).
+//! Phase 15: [`crate::blobs_phase15`] — seed equivocation/liveness into consensus appeal book.
 
 use serde::{Deserialize, Serialize};
 
