@@ -792,3 +792,26 @@ export function phase15DasSuccinctProofPlan() {
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }
+/** Phase 16 aliases / constants. */
+export const PHASE16_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE15_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE16_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE15_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE16_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE15_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE16_SETTLE_RECEIPT_TTL_BLOCKS = PHASE15_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE16_MAX_APPEAL_EVIDENCE_BYTES = PHASE15_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE16_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE15_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE16_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE15_RESOLVE_SLASH_APPEAL_TX_INDEX;
+/** Fixed resolve quorum numerator (⌈2M/3⌉ via integer `votes * DEN >= NUM * M`). */
+export const PHASE16_RESOLVE_THRESHOLD_NUM = 2;
+/** Fixed resolve quorum denominator. */
+export const PHASE16_RESOLVE_THRESHOLD_DEN = 3;
+/** Honest plan strings for Phase 16 (committee threshold ResolveSlashAppeal; still 16 MiB). */
+export function phase16DasSuccinctProofPlan() {
+    return [
+        ...phase15DasSuccinctProofPlan(),
+        'Phase 16: ResolveSlashAppeal (31) is an N-of-M committee vote over host-pinned slash_appeal_resolvers (⌈2M/3⌉ approve or reject).',
+        'Phase 16: finalize (restore balance/stake or keep burn) only when the approve or reject threshold is met; one vote per voter; no flip.',
+        'Phase 16: when fallback eligibility without a pinned resolver set, M=1 so one eligible vote finalizes (solo-dev UX).',
+        'Phase 16: ResolveSlashAppeal remains ops/validator-approved voting — not SNARK/IPA/KZG verification of appeal evidence.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

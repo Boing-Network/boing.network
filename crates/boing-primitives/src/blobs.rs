@@ -16,6 +16,7 @@
 //! Phase 13: [`crate::blobs_phase13`] — FailedServe appeal balance unburn, settle-receipt TTL.
 //! Phase 14: [`crate::blobs_phase14`] — consensus Submit/Resolve slash-appeal txs (30/31).
 //! Phase 15: [`crate::blobs_phase15`] — seed equivocation/liveness into consensus appeal book.
+//! Phase 16: [`crate::blobs_phase16`] — committee threshold ResolveSlashAppeal (⌈2M/3⌉).
 
 use serde::{Deserialize, Serialize};
 

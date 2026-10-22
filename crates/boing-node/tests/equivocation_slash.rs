@@ -204,8 +204,20 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
         .is_err());
 
     // Media inactive: Submit/Resolve still execute (always-on admission).
+    // Phase 16: M=4 needs ⌈2*4/3⌉=3 approve votes to finalize.
     let vm = Vm::new();
     assert!(vm.media_blobs_from().is_none());
+    for id in [v3, v4] {
+        node.state.insert(Account {
+            id,
+            state: AccountState {
+                balance: 1_000_000,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+    }
     node.state
         .set_slash_appeal_resolvers(Some(vec![v1, offender, v3, v4]));
     vm.execute_with_context(
@@ -223,6 +235,7 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
     )
     .unwrap();
     let appeal_id = node.state.slash_appeals().list_appeals()[0].id;
+    // First approve: still pending.
     vm.execute_with_context(
         &Transaction {
             nonce: 0,
@@ -237,6 +250,25 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
         ctx(node.chain.height().saturating_add(2)),
     )
     .unwrap();
+    assert!(!node.state.slash_appeals().is_reversed(slash_id));
+    assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
+    // Second + third approve → finalize + restore.
+    for (i, voter) in [v3, v4].into_iter().enumerate() {
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: voter,
+                payload: TransactionPayload::ResolveSlashAppeal {
+                    appeal_id,
+                    approved: true,
+                },
+                access_list: AccessList::new(vec![voter], vec![voter]),
+            },
+            &mut node.state,
+            ctx(node.chain.height().saturating_add(3 + i as u64)),
+        )
+        .unwrap();
+    }
 
     assert!(node.state.slash_appeals().is_reversed(slash_id));
     assert_eq!(node.state.get(&offender).unwrap().stake, 10_000);
@@ -248,7 +280,7 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
         0
     );
 
-    // Second consensus resolve → rejected; stake stays restored (no double credit).
+    // Further resolve after finalize → rejected; stake stays restored (no double credit).
     let err = vm.execute_with_context(
         &Transaction {
             nonce: 1,
@@ -260,7 +292,7 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
             access_list: AccessList::new(vec![v1], vec![v1]),
         },
         &mut node.state,
-        ctx(node.chain.height().saturating_add(3)),
+        ctx(node.chain.height().saturating_add(10)),
     );
     assert!(err.is_err());
     assert_eq!(node.state.get(&offender).unwrap().stake, 10_000);
@@ -282,7 +314,19 @@ fn consensus_slash_appeal_rejected_keeps_burn() {
     assert!(node.on_equivocation_evidence(ev));
     let slash_id = *node.slashed_equivocations.get(&(offender, 4)).unwrap();
 
+    // Phase 16: M=4 needs 3 reject votes to finalize Rejected.
     let vm = Vm::new();
+    for id in [v3, v4] {
+        node.state.insert(Account {
+            id,
+            state: AccountState {
+                balance: 1_000_000,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+    }
     node.state
         .set_slash_appeal_resolvers(Some(vec![v1, offender, v3, v4]));
     vm.execute_with_context(
@@ -300,20 +344,22 @@ fn consensus_slash_appeal_rejected_keeps_burn() {
     )
     .unwrap();
     let appeal_id = node.state.slash_appeals().list_appeals()[0].id;
-    vm.execute_with_context(
-        &Transaction {
-            nonce: 0,
-            sender: v1,
-            payload: TransactionPayload::ResolveSlashAppeal {
-                appeal_id,
-                approved: false,
+    for (i, voter) in [v1, v3, v4].into_iter().enumerate() {
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: voter,
+                payload: TransactionPayload::ResolveSlashAppeal {
+                    appeal_id,
+                    approved: false,
+                },
+                access_list: AccessList::new(vec![voter], vec![voter]),
             },
-            access_list: AccessList::new(vec![v1], vec![v1]),
-        },
-        &mut node.state,
-        ctx(node.chain.height().saturating_add(2)),
-    )
-    .unwrap();
+            &mut node.state,
+            ctx(node.chain.height().saturating_add(2 + i as u64)),
+        )
+        .unwrap();
+    }
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
     assert!(!node.state.slash_appeals().is_reversed(slash_id));
 }

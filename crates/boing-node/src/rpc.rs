@@ -1642,11 +1642,16 @@ async fn dispatch_jsonrpc_request(
                         boing_state::ConsensusAppealStatus::Approved => "approved",
                         boing_state::ConsensusAppealStatus::Rejected => "rejected",
                     };
+                    let approve_votes = a.votes.values().filter(|&&v| v).count();
+                    let reject_votes = a.votes.values().filter(|&&v| !v).count();
                     serde_json::json!({
                         "id": a.id,
                         "slash_id": a.slash_id,
                         "status": status,
                         "evidence_len": a.evidence.len(),
+                        "approveVotes": approve_votes,
+                        "rejectVotes": reject_votes,
+                        "voteCount": a.votes.len(),
                         "source": "consensus",
                     })
                 })

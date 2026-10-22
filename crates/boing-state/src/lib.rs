@@ -24,8 +24,8 @@ pub use sample_offers::{
 };
 pub use sample_serve::{SampleServeChallengeError, SampleServeChallengeRegistry};
 pub use slash_appeals::{
-    ConsensusAppealStatus, ConsensusSlashAppeal, ConsensusSlashReason, ConsensusSlashRecord,
-    SlashAppealError, SlashAppealRegistry, SLASH_APPEAL_REGISTRY_DOMAIN,
+    CastResolveOutcome, ConsensusAppealStatus, ConsensusSlashAppeal, ConsensusSlashReason,
+    ConsensusSlashRecord, SlashAppealError, SlashAppealRegistry, SLASH_APPEAL_REGISTRY_DOMAIN,
 };
 pub use qa_pending::{unpaid_counted_voters, QaPendingRecord};
 pub use sparse_merkle::{
