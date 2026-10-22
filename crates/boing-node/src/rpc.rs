@@ -28,6 +28,7 @@ use axum::{
 use governor::{Quota, RateLimiter};
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroU32;
+use subtle::ConstantTimeEq;
 use tokio::sync::{broadcast, Mutex as TokioMutex, RwLock};
 use tower::ServiceBuilder;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -79,8 +80,9 @@ pub struct RpcState {
     pub faucet_signer: Option<Arc<ed25519_dalek::SigningKey>>,
     pub faucet_cooldown: Option<FaucetCooldown>,
     pub faucet_submit_lock: Option<FaucetSubmitLock>,
-    /// When set, `boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`, and
-    /// **admin-only** `boing_qaPoolVote` require header `X-Boing-Operator: <token>`.
+    /// Operator methods (`boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`,
+    /// `boing_submitSlashAppeal`, `boing_resolveSlashAppeal`, **admin-only** `boing_qaPoolVote`)
+    /// require header `X-Boing-Operator: <token>`. When `None`, those methods are rejected.
     /// Public-membership QA votes do not use this header.
     pub operator_rpc_token: Option<Arc<str>>,
     /// Broadcast channel for WebSocket **`/ws`** **newHeads** subscribers (clone per connection).
@@ -106,14 +108,19 @@ pub struct RpcHttpMetrics {
 
 impl RpcState {
     fn operator_authorized(&self, headers: &HeaderMap) -> bool {
-        match &self.operator_rpc_token {
-            None => true,
-            Some(expected) => headers
-                .get("x-boing-operator")
-                .and_then(|v| v.to_str().ok())
-                .is_some_and(|v| v == expected.as_ref()),
-        }
+        operator_token_matches(self.operator_rpc_token.as_deref(), headers)
     }
+}
+
+/// Fails closed: with no configured token every operator call is rejected.
+/// The header is compared in constant time (length is not treated as secret).
+fn operator_token_matches(expected: Option<&str>, headers: &HeaderMap) -> bool {
+    let Some(expected) = expected else {
+        return false;
+    };
+    headers
+        .get("x-boing-operator")
+        .is_some_and(|v| bool::from(v.as_bytes().ct_eq(expected.as_bytes())))
 }
 
 #[derive(Debug, Deserialize)]
@@ -931,6 +938,39 @@ fn end_user_network_hints_from(get: impl Fn(&str) -> Option<String>) -> serde_js
         "canonical_native_amm_lp_vault": acct("BOING_CANONICAL_NATIVE_AMM_LP_VAULT"),
         "canonical_native_lp_share_token": acct("BOING_CANONICAL_NATIVE_LP_SHARE_TOKEN"),
     })
+}
+
+#[cfg(test)]
+mod operator_auth_tests {
+    use super::*;
+
+    fn with_header(v: &str) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert("x-boing-operator", HeaderValue::from_str(v).unwrap());
+        h
+    }
+
+    #[test]
+    fn unset_token_rejects() {
+        assert!(!operator_token_matches(None, &HeaderMap::new()));
+        assert!(!operator_token_matches(None, &with_header("anything")));
+        assert!(!operator_token_matches(None, &with_header("")));
+    }
+
+    #[test]
+    fn wrong_or_missing_token_rejects() {
+        let t = Some("s3cret");
+        assert!(!operator_token_matches(t, &HeaderMap::new()));
+        for bad in ["s3creT", "s3cre", "s3cretx", ""] {
+            assert!(!operator_token_matches(t, &with_header(bad)), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn correct_token_accepts() {
+        let t = Some("s3cret");
+        assert!(operator_token_matches(t, &with_header("s3cret")));
+    }
 }
 
 #[cfg(test)]

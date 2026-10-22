@@ -66,7 +66,7 @@ Then push to `main`; the deploy workflow will use them.
 
 ### Public RPC: QA operator methods
 
-If the JSON-RPC endpoint is reachable from the open internet, set a long random secret in the node environment as **`BOING_OPERATOR_RPC_TOKEN`**. When set, **`boing_qaPoolVote`** and **`boing_operatorApplyQaPolicy`** require the HTTP header **`X-Boing-Operator: <same value>`** (in addition to normal governance checks for votes). Without this, a public RPC could allow anyone to submit votes using a guessed or known admin address hex. Local dev can omit the variable to keep prior behavior. See [RPC-API-SPEC.md](RPC-API-SPEC.md).
+If the JSON-RPC endpoint is reachable from the open internet, set a long random secret in the node environment as **`BOING_OPERATOR_RPC_TOKEN`**. When set, **`boing_qaPoolVote`** and **`boing_operatorApplyQaPolicy`** require the HTTP header **`X-Boing-Operator: <same value>`** (in addition to normal governance checks for votes). Without this, a public RPC could allow anyone to submit votes using a guessed or known admin address hex. If the variable is unset, operator methods are rejected; set it for local dev too if you use them. See [RPC-API-SPEC.md](RPC-API-SPEC.md).
 
 **Read-only transparency:** **`boing_getQaRegistry`**, **`boing_qaPoolList`**, and **`boing_qaPoolConfig`** do not use the operator token — they are intended for public explorers (e.g. [boing.observer/qa](https://boing.observer/qa)). Canonical baseline JSON for docs lives under [docs/config/CANONICAL-QA-REGISTRY.md](config/CANONICAL-QA-REGISTRY.md).
 
