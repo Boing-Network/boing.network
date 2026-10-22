@@ -1516,12 +1516,33 @@ async fn dispatch_jsonrpc_request(
             )
         }
         "boing_listSlashRecords" => {
+            // Optional filter object: { reason?, slashId? } or [{ reason?, slashId? }].
+            let filter_obj = req.params.as_ref().and_then(|p| {
+                if let Some(o) = p.as_object() {
+                    Some(o.clone())
+                } else {
+                    p.as_array()
+                        .and_then(|a| a.first())
+                        .and_then(|v| v.as_object())
+                        .cloned()
+                }
+            });
+            let filter_reason = filter_obj
+                .as_ref()
+                .and_then(|o| o.get("reason"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let filter_slash_id = filter_obj
+                .as_ref()
+                .and_then(|o| o.get("slashId").or_else(|| o.get("slash_id")))
+                .and_then(|v| v.as_u64());
             let n = node.read().await;
             let mut slashes: Vec<serde_json::Value> = n
                 .slash_registry
                 .list_slashes()
                 .into_iter()
-                .map(|s| {
+                .filter(|s| filter_slash_id.map(|id| s.id == id).unwrap_or(true))
+                .filter_map(|s| {
                     let reason = match &s.reason {
                         boing_governance::SlashReason::Equivocation => "equivocation".to_string(),
                         boing_governance::SlashReason::Liveness => "liveness".to_string(),
@@ -1531,15 +1552,25 @@ async fn dispatch_jsonrpc_request(
                         }
                         boing_governance::SlashReason::Other(x) => format!("other:{x}"),
                     };
-                    serde_json::json!({
+                    if let Some(ref want) = filter_reason {
+                        if !reason.eq_ignore_ascii_case(want) {
+                            return None;
+                        }
+                    }
+                    let penalty_kind = match &s.reason {
+                        boing_governance::SlashReason::BlobFailedServe => "balancePenalty",
+                        _ => "stakeSlash",
+                    };
+                    Some(serde_json::json!({
                         "id": s.id,
                         "validator": format!("0x{}", hex::encode(s.validator)),
                         "amount": s.amount.to_string(),
                         "reason": reason,
+                        "penaltyKind": penalty_kind,
                         "block_height": s.block_height,
                         "appeal_deadline": s.appeal_deadline,
                         "reversed": n.slash_registry.is_slash_reversed(s.id),
-                    })
+                    }))
                 })
                 .collect();
             slashes.sort_by_key(|v| v.get("id").and_then(|x| x.as_u64()).unwrap_or(0));
@@ -1547,6 +1578,7 @@ async fn dispatch_jsonrpc_request(
                 .slash_registry
                 .list_appeals()
                 .into_iter()
+                .filter(|a| filter_slash_id.map(|id| a.slash_id == id).unwrap_or(true))
                 .map(|a| {
                     let status = match a.status {
                         boing_governance::AppealStatus::Pending => "pending",
@@ -1569,6 +1601,7 @@ async fn dispatch_jsonrpc_request(
                     "slashes": slashes,
                     "appeals": appeals,
                     "persisted": persisted,
+                    "note": "Optional params: { reason, slashId }. BlobFailedServe approved appeals restore provider balance (Phase 13).",
                 }),
             )
         }

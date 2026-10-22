@@ -884,3 +884,18 @@ export function phase12DasSuccinctProofPlan(): string[] {
     'Phase 12: Challenge requires prior SettleBlobSampleMatch receipt (payer = challenger).',
   ];
 }
+
+/** Phase 13 aliases / constants. */
+export const PHASE13_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE12_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE13_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE12_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE13_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE12_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE13_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+
+/** Honest plan strings for Phase 13 (FailedServe balance unburn + receipt TTL). */
+export function phase13DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase12DasSuccinctProofPlan(),
+    'Phase 13: approved BlobFailedServe appeal restores provider native balance from FEE_BURN_SINK (not stake).',
+    'Phase 13: settle receipts TTL-prune and are consumed when a serve challenge closes (Respond / FailedServe).',
+  ];
+}

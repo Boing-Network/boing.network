@@ -13,6 +13,7 @@
 //! Phase 10: [`crate::blobs_phase10`] — serve challenges, ReservedRealV1 opaque DAS path.
 //! Phase 11: [`crate::blobs_phase11`] — serve-challenge bond / FailedServe slash, ReservedRealV1 envelope checks.
 //! Phase 12: [`crate::blobs_phase12`] — settle-before-challenge, FailedServe SlashRegistry audit ids.
+//! Phase 13: [`crate::blobs_phase13`] — FailedServe appeal balance unburn, settle-receipt TTL.
 
 use serde::{Deserialize, Serialize};
 

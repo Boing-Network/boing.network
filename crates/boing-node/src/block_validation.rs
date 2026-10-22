@@ -1,7 +1,7 @@
 //! Block import and validation — validate blocks from peers.
 
 use boing_consensus::ConsensusEngine;
-use boing_execution::{settle_expired_serve_challenges, BlockExecutor};
+use boing_execution::{apply_media_blob_block_housekeeping, BlockExecutor};
 use boing_primitives::{
     blobs_root_of_transactions, receipts_root, tx_root, Account, AccountId, AccountState, Block,
     ExecutionReceipt, Hash,
@@ -77,8 +77,8 @@ pub fn validate_and_execute_block(
         }
     }
 
-    // 4b. Phase 11: settle FailedServe bonds/penalties (deterministic; matches producer).
-    settle_expired_serve_challenges(&mut state, block.header.height)
+    // 4b. Phase 11–13: settle FailedServe + prune settle receipts (deterministic; matches producer).
+    apply_media_blob_block_housekeeping(&mut state, block.header.height)
         .map_err(|e| BlockValidationError::ExecutionFailed(e.to_string()))?;
 
     // 4c. Open validator-set bookkeeping (no-op unless open mode is configured).

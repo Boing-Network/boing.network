@@ -284,4 +284,11 @@ export declare const PHASE12_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
 export declare const PHASE12_SETTLE_RECEIPT_DOMAIN = "BOING_BLOB_SETTLE_RECEIPT_V1";
 /** Honest plan strings for Phase 12 (settle-before-challenge + FailedServe audit). */
 export declare function phase12DasSuccinctProofPlan(): string[];
+/** Phase 13 aliases / constants. */
+export declare const PHASE13_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE13_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE13_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE13_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+/** Honest plan strings for Phase 13 (FailedServe balance unburn + receipt TTL). */
+export declare function phase13DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

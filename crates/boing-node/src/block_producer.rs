@@ -3,7 +3,7 @@
 use tracing::info;
 
 use boing_consensus::ConsensusEngine;
-use boing_execution::{settle_expired_serve_challenges, BlockExecutor};
+use boing_execution::{apply_media_blob_block_housekeeping, BlockExecutor};
 use boing_primitives::{
     blobs_root_of_transactions, receipts_root, tx_root, Account, AccountId, AccountState, Block,
     BlockHeader, ExecutionReceipt, Transaction,
@@ -161,8 +161,8 @@ impl BlockProducer {
             }
         }
 
-        // Phase 11: settle FailedServe bonds/penalties even when no sample txs are in the block.
-        if let Err(e) = settle_expired_serve_challenges(state, height) {
+        // Phase 11–13: settle FailedServe + prune stale settle receipts even without sample txs.
+        if let Err(e) = apply_media_blob_block_housekeeping(state, height) {
             boing_telemetry::component_warn(
                 "boing_node::block_producer",
                 "block_producer",
