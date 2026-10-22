@@ -736,3 +736,40 @@ export function phase13DasSuccinctProofPlan() {
         'Phase 13: settle receipts TTL-prune and are consumed when a serve challenge closes (Respond / FailedServe).',
     ];
 }
+/** Phase 14 aliases / constants. */
+export const PHASE14_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE13_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE14_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE13_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE14_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE13_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE14_SETTLE_RECEIPT_TTL_BLOCKS = PHASE13_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE14_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export const PHASE14_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export const PHASE14_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+/** Phase 14: submit consensus slash appeal (`SubmitSlashAppeal`, variant 30). */
+export function encodeSubmitSlashAppeal(input) {
+    const evidence = input.evidence ?? new Uint8Array();
+    if (evidence.length > PHASE14_MAX_APPEAL_EVIDENCE_BYTES) {
+        throw new Error(`evidence exceeds max ${PHASE14_MAX_APPEAL_EVIDENCE_BYTES} bytes`);
+    }
+    return {
+        kind: 'submitSlashAppeal',
+        slashId: input.slashId,
+        evidence,
+    };
+}
+/** Phase 14: resolve consensus slash appeal (`ResolveSlashAppeal`, variant 31). */
+export function encodeResolveSlashAppeal(input) {
+    return {
+        kind: 'resolveSlashAppeal',
+        appealId: input.appealId,
+        approved: input.approved,
+    };
+}
+/** Honest plan strings for Phase 14 (consensus slash-appeal txs; ReservedRealV1 still rejects). */
+export function phase14DasSuccinctProofPlan() {
+    return [
+        ...phase13DasSuccinctProofPlan(),
+        'Phase 14: SubmitSlashAppeal (30) / ResolveSlashAppeal (31) are consensus txs; FailedServe unburn replays with the block.',
+        'Phase 14: ResolveSlashAppeal is ops/validator-approved — not SNARK/IPA/KZG verification of appeal evidence.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

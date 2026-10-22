@@ -50,6 +50,10 @@ export const PayloadVariant = {
     ChallengeBlobSampleServe: 28,
     /** Respond to serve challenge with DAS sample (Phase 10). */
     RespondBlobSampleServe: 29,
+    /** Submit consensus slash appeal (Phase 14). */
+    SubmitSlashAppeal: 30,
+    /** Resolve consensus slash appeal (Phase 14). */
+    ResolveSlashAppeal: 31,
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export const BlobRetentionVariant = {
@@ -295,6 +299,10 @@ export function encodeTransactionPayload(payload) {
                 parts.push(need32(s, 'sibling'));
             return concatBytes(...parts);
         }
+        case 'submitSlashAppeal':
+            return concatBytes(writeU32Le(PayloadVariant.SubmitSlashAppeal), writeU64Le(payload.slashId), writeU64Le(BigInt(payload.evidence.length)), payload.evidence);
+        case 'resolveSlashAppeal':
+            return concatBytes(writeU32Le(PayloadVariant.ResolveSlashAppeal), writeU64Le(payload.appealId), Uint8Array.of(payload.approved ? 1 : 0));
         default: {
             const _x = payload;
             return _x;

@@ -179,6 +179,13 @@ fn put_blob_round_trip_rpc() {
     assert_eq!(params["phase7CapActiveAtTip"], false);
     assert_eq!(params["registerBlobSampleOfferVariant"], 25);
     assert_eq!(params["settleBlobSampleMatchVariant"], 26);
+    assert_eq!(params["submitSlashAppealVariant"], 30);
+    assert_eq!(params["resolveSlashAppealVariant"], 31);
+    assert_eq!(params["consensusSlashAppealTxs"], true);
+    assert_eq!(
+        params["maxAppealEvidenceBytes"],
+        boing_primitives::PHASE14_MAX_APPEAL_EVIDENCE_BYTES
+    );
 
     // Phase 7 gated cap: still 16 MiB until activation; then effective max rises.
     n.enable_media_blobs_phase7_cap(0);

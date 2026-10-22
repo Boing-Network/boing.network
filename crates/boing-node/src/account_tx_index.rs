@@ -312,6 +312,16 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "chunk_count":chunk_count,
             "challenger":hex0x(&challenger.0),
         }),
+        TransactionPayload::SubmitSlashAppeal { slash_id, evidence } => json!({
+            "kind":"submit_slash_appeal",
+            "slash_id":slash_id,
+            "evidence_len":evidence.len(),
+        }),
+        TransactionPayload::ResolveSlashAppeal { appeal_id, approved } => json!({
+            "kind":"resolve_slash_appeal",
+            "appeal_id":appeal_id,
+            "approved":approved,
+        }),
     }
 }
 

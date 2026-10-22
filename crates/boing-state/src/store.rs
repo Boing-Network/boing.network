@@ -10,6 +10,7 @@ use crate::open_validators::{OpenValidatorParams, OpenValidatorRegistry};
 use crate::qa_pending::QaPendingRecord;
 use crate::sample_offers::SampleOfferRegistry;
 use crate::sample_serve::SampleServeChallengeRegistry;
+use crate::slash_appeals::SlashAppealRegistry;
 use crate::sparse_merkle::{hash_account_leaf, hash_contract_code, SparseMerkleTree};
 
 /// Type alias for persisted contract storage entries: ((contract, key), value).
@@ -61,6 +62,7 @@ enum Undo {
     Names(Box<NameRegistry>),
     SampleOffers(Box<SampleOfferRegistry>),
     SampleServe(Box<SampleServeChallengeRegistry>),
+    SlashAppeals(Box<SlashAppealRegistry>),
 }
 
 /// State store with Sparse Merkle tree for state_root.
@@ -86,6 +88,10 @@ pub struct StateStore {
     sample_offers: SampleOfferRegistry,
     /// Sample-serve challenge registry (committed once non-empty). Phase 10.
     sample_serve: SampleServeChallengeRegistry,
+    /// Consensus slash-appeal registry (committed once non-empty). Phase 14.
+    slash_appeals: SlashAppealRegistry,
+    /// Host-supplied consensus validator set for ResolveSlashAppeal (not committed).
+    slash_appeal_resolvers: Option<Vec<AccountId>>,
     /// Undo journal for live checkpoints (see [`StateCheckpoint`]).
     journal: Vec<Undo>,
     /// Shared with every live checkpoint; `strong_count > 1` means journaling is on.
@@ -97,6 +103,7 @@ pub struct StateStore {
     names_snap_pos: Option<usize>,
     sample_offers_snap_pos: Option<usize>,
     sample_serve_snap_pos: Option<usize>,
+    slash_appeals_snap_pos: Option<usize>,
 }
 
 impl StateStore {
@@ -122,6 +129,7 @@ impl StateStore {
         self.names_snap_pos = None;
         self.sample_offers_snap_pos = None;
         self.sample_serve_snap_pos = None;
+        self.slash_appeals_snap_pos = None;
         false
     }
 
@@ -276,6 +284,12 @@ impl StateStore {
                 Hash(self.sample_serve.commitment()),
             );
         }
+        if !self.slash_appeals.is_empty() {
+            self.tree.insert_leaf_hash(
+                SlashAppealRegistry::smt_key(),
+                Hash(self.slash_appeals.commitment()),
+            );
+        }
         self.tree.root()
     }
 
@@ -313,6 +327,8 @@ impl StateStore {
         out.name_registry_params = self.name_registry_params.clone();
         out.sample_offers = self.sample_offers.clone();
         out.sample_serve = self.sample_serve.clone();
+        out.slash_appeals = self.slash_appeals.clone();
+        out.slash_appeal_resolvers = self.slash_appeal_resolvers.clone();
         out
     }
 
@@ -372,6 +388,7 @@ impl StateStore {
                 Undo::Names(reg) => self.names = *reg,
                 Undo::SampleOffers(reg) => self.sample_offers = *reg,
                 Undo::SampleServe(reg) => self.sample_serve = *reg,
+                Undo::SlashAppeals(reg) => self.slash_appeals = *reg,
             }
         }
         // Checkpoints created after `cp` are dead (nested scopes); keep the live-position bound.
@@ -387,6 +404,9 @@ impl StateStore {
         }
         if matches!(self.sample_serve_snap_pos, Some(p) if p >= cp.pos) {
             self.sample_serve_snap_pos = None;
+        }
+        if matches!(self.slash_appeals_snap_pos, Some(p) if p >= cp.pos) {
+            self.slash_appeals_snap_pos = None;
         }
     }
 
@@ -599,6 +619,34 @@ impl StateStore {
     /// Replace the sample-serve registry (persistence load).
     pub fn load_sample_serve(&mut self, reg: SampleServeChallengeRegistry) {
         *self.sample_serve_mut() = reg;
+    }
+
+    /// Consensus slash-appeal registry (read). Phase 14.
+    pub fn slash_appeals(&self) -> &SlashAppealRegistry {
+        &self.slash_appeals
+    }
+
+    pub fn slash_appeals_mut(&mut self) -> &mut SlashAppealRegistry {
+        if self.journaling() && self.snapshot_needed(self.slash_appeals_snap_pos) {
+            self.slash_appeals_snap_pos = Some(self.journal.len());
+            self.journal
+                .push(Undo::SlashAppeals(Box::new(self.slash_appeals.clone())));
+        }
+        &mut self.slash_appeals
+    }
+
+    /// Replace the slash-appeal registry (persistence load).
+    pub fn load_slash_appeals(&mut self, reg: SlashAppealRegistry) {
+        *self.slash_appeals_mut() = reg;
+    }
+
+    /// Host-pinned consensus validators allowed to ResolveSlashAppeal (not committed).
+    pub fn slash_appeal_resolvers(&self) -> Option<&[AccountId]> {
+        self.slash_appeal_resolvers.as_deref()
+    }
+
+    pub fn set_slash_appeal_resolvers(&mut self, set: Option<Vec<AccountId>>) {
+        self.slash_appeal_resolvers = set;
     }
 
     /// Open-mode node config (`None` = open mode off).
