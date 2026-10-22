@@ -1641,6 +1641,7 @@ async fn dispatch_jsonrpc_request(
                         boing_state::ConsensusAppealStatus::Pending => "pending",
                         boing_state::ConsensusAppealStatus::Approved => "approved",
                         boing_state::ConsensusAppealStatus::Rejected => "rejected",
+                        boing_state::ConsensusAppealStatus::Expired => "expired",
                     };
                     let approve_votes = a.votes.values().filter(|v| v.approved).count();
                     let reject_votes = a.votes.values().filter(|v| !v.approved).count();
@@ -1698,6 +1699,7 @@ async fn dispatch_jsonrpc_request(
                         "electorateWeight": electorate_weight.to_string(),
                         "electorateWSnapshot": a.electorate_w_snapshot.to_string(),
                         "pinSetCommitment": format!("0x{}", hex::encode(a.pin_set_commitment)),
+                        "resolveDeadline": a.resolve_deadline,
                         "votes": votes,
                         "source": "consensus",
                     })

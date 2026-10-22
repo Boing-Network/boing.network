@@ -1263,12 +1263,16 @@ impl Vm {
         height: u64,
     ) -> Result<VmExecutionResult, VmError> {
         // Phase 15/16/18: always-on — not gated on media-blobs activation.
-        let _ = height;
+        // Phase 21: tip vs resolve_deadline — expire Pending and reject after window.
         if !sender_may_resolve_slash_appeal(state, &tx.sender) {
             return Err(VmError::MediaBlob(
                 "ResolveSlashAppeal requires a consensus validator".into(),
             ));
         }
+        state
+            .slash_appeals_mut()
+            .gate_resolve_window(appeal_id, height)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
         // Phase 18 attested path: look up pending appeal slash_id and verify ballot
         // against tx.sender + chain_id before casting.
         // Phase 19: when |pinned slash_appeal_resolvers| > 1, unattested 31 is rejected
@@ -1906,13 +1910,15 @@ fn sender_may_resolve_slash_appeal(state: &StateStore, sender: &AccountId) -> bo
     state.get(sender).is_some_and(|s| s.stake > 0)
 }
 
-/// Housekeeping: settle FailedServe + prune stale settle receipts (end-of-block / tx entry).
+/// Housekeeping: settle FailedServe + prune stale settle receipts + expire overdue appeals.
 pub fn apply_media_blob_block_housekeeping(
     state: &mut StateStore,
     height: u64,
 ) -> Result<usize, VmError> {
     let settled = settle_expired_serve_challenges(state, height)?;
     let _ = state.sample_offers_mut().prune_settle_receipts(height);
+    // Phase 21: stuck Pending (W=0 / incomplete tallies) → Expired; no restore.
+    let _ = state.slash_appeals_mut().expire_pending_appeals(height);
     Ok(settled)
 }
 
@@ -3927,6 +3933,277 @@ mod slash_appeal_phase14_tests {
         assert_eq!(
             state.slash_appeals().get_appeal(1).unwrap().status,
             boing_state::ConsensusAppealStatus::Pending
+        );
+    }
+
+    #[test]
+    fn phase21_submit_stores_resolve_deadline_h_plus_1000() {
+        let provider = AccountId([110u8; 32]);
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                210,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                5_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(None);
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 210,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(50),
+        )
+        .unwrap();
+        let appeal = state.slash_appeals().get_appeal(1).unwrap();
+        assert_eq!(
+            appeal.resolve_deadline,
+            boing_primitives::phase21_resolve_deadline(50)
+        );
+        assert_eq!(appeal.resolve_deadline, 1050);
+    }
+
+    #[test]
+    fn phase21_late_resolve_expires_and_rejects() {
+        let provider = AccountId([111u8; 32]);
+        let validator = AccountId([112u8; 32]);
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, validator, 1_000_000, 1_000, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                211,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                5_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(None);
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 211,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(10),
+        )
+        .unwrap();
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().resolve_deadline,
+            1010
+        );
+        let err = vm
+            .execute_with_context(
+                &Transaction {
+                    nonce: 0,
+                    sender: validator,
+                    payload: TransactionPayload::ResolveSlashAppeal {
+                        appeal_id: 1,
+                        approved: true,
+                    },
+                    access_list: AccessList::new(vec![validator], vec![validator]),
+                },
+                &mut state,
+                ctx(1011),
+            )
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("resolve window closed"),
+            "got {err}"
+        );
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().status,
+            boing_state::ConsensusAppealStatus::Expired
+        );
+        assert!(state.slash_appeals().get_appeal(1).unwrap().votes.is_empty());
+        assert!(!state.slash_appeals().is_reversed(211));
+    }
+
+    #[test]
+    fn phase21_housekeeping_expires_stuck_pending() {
+        let provider = AccountId([113u8; 32]);
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                212,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                5_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(None);
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 212,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(5),
+        )
+        .unwrap();
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().status,
+            boing_state::ConsensusAppealStatus::Pending
+        );
+        apply_media_blob_block_housekeeping(&mut state, 1006).unwrap();
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().status,
+            boing_state::ConsensusAppealStatus::Expired
+        );
+        assert!(!state.slash_appeals().is_reversed(212));
+    }
+
+    #[test]
+    fn phase21_frozen_w_still_works_before_deadline() {
+        // Phase 20 frozen W + Phase 19 multi-pin attested still finalize before deadline.
+        use boing_primitives::sign_slash_appeal_resolve_ballot;
+        use ed25519_dalek::SigningKey;
+
+        let provider = AccountId([114u8; 32]);
+        let key1 = SigningKey::from_bytes(&[115u8; 32]);
+        let key2 = SigningKey::from_bytes(&[116u8; 32]);
+        let key3 = SigningKey::from_bytes(&[117u8; 32]);
+        let v1 = AccountId(key1.verifying_key().to_bytes());
+        let v2 = AccountId(key2.verifying_key().to_bytes());
+        let v3 = AccountId(key3.verifying_key().to_bytes());
+        let chain_id = 6913u64;
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, v1, 1_000_000, 100, 0);
+        fund(&mut state, v2, 1_000_000, 100, 0);
+        fund(&mut state, v3, 1_000_000, 100, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                213,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                5_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![v1, v2, v3]));
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.set_registration_proof_rule(Some(chain_id), 0);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 213,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(2),
+        )
+        .unwrap();
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().electorate_w_snapshot,
+            300
+        );
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().resolve_deadline,
+            1002
+        );
+        // Unattested 31 still rejected for multi-pin (Phase 19).
+        let err = vm
+            .execute_with_context(
+                &Transaction {
+                    nonce: 0,
+                    sender: v1,
+                    payload: TransactionPayload::ResolveSlashAppeal {
+                        appeal_id: 1,
+                        approved: true,
+                    },
+                    access_list: AccessList::new(vec![v1], vec![v1]),
+                },
+                &mut state,
+                ctx(3),
+            )
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("ResolveSlashAppealAttested"),
+            "got {err}"
+        );
+        let sig1 = sign_slash_appeal_resolve_ballot(chain_id, 1, 213, true, &key1);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: v1,
+                payload: TransactionPayload::ResolveSlashAppealAttested {
+                    appeal_id: 1,
+                    approved: true,
+                    ballot_signature: sig1,
+                },
+                access_list: AccessList::new(vec![v1], vec![v1]),
+            },
+            &mut state,
+            ctx(4),
+        )
+        .unwrap();
+        let sig2 = sign_slash_appeal_resolve_ballot(chain_id, 1, 213, true, &key2);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: v2,
+                payload: TransactionPayload::ResolveSlashAppealAttested {
+                    appeal_id: 1,
+                    approved: true,
+                    ballot_signature: sig2,
+                },
+                access_list: AccessList::new(vec![v2], vec![v2]),
+            },
+            &mut state,
+            ctx(5),
+        )
+        .unwrap();
+        assert!(state.slash_appeals().is_reversed(213));
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().status,
+            boing_state::ConsensusAppealStatus::Approved
         );
     }
 }

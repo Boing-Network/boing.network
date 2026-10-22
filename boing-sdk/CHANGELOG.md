@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
 
+## [0.5.24] - 2026-10-22
+
+### Added
+
+- **L1 media blobs Phase 21** — `phase21DasSuccinctProofPlan`; `PHASE21_*` aliases including `PHASE21_RESOLVE_WINDOW_BLOCKS` (**1000**); SubmitSlashAppeal (**30**) stores `resolve_deadline` (submit height + window); Resolve (**31**/**32**) rejects after deadline (Pending → **Expired**, no vote / no restore); housekeeping expires stuck Pending (W=0 / incomplete); registry **V5** with V4/legacy load (no required clear; pre-V5 derives deadline from `slash.appeal_deadline`); txs 30/31/32 unchanged; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; Phase 19/20 W + attested policy unchanged; **true BLS / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
 ## [0.5.23] - 2026-10-22
 
 ### Added

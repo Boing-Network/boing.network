@@ -26,9 +26,9 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 | CancelBlobSampleOffer | 27 | Cancel + refund ask escrow |
 | ChallengeBlobSampleServe | 28 | Open serve challenge (requires prior Settle; escrows bond+penalty) |
 | RespondBlobSampleServe | 29 | Provider DAS merkle response (bond+penalty → provider) |
-| SubmitSlashAppeal | 30 | Consensus appeal against a slash (evidence ≤ 4096 B); **snapshots electorate W** |
-| ResolveSlashAppeal | 31 | Unattested stake-weighted vote (⌈2W/3⌉ vs **frozen W**); solo / unpinned / `|pinned|≤1` only |
-| ResolveSlashAppealAttested | 32 | Ed25519 ballot + same frozen-W ⌈2W/3⌉ (**required** when `|pinned|>1`) |
+| SubmitSlashAppeal | 30 | Consensus appeal against a slash (evidence ≤ 4096 B); **snapshots electorate W** + **resolve_deadline** |
+| ResolveSlashAppeal | 31 | Unattested stake-weighted vote (⌈2W/3⌉ vs **frozen W**); solo / unpinned / `|pinned|≤1` only; rejects after resolve_deadline |
+| ResolveSlashAppealAttested | 32 | Ed25519 ballot + same frozen-W ⌈2W/3⌉ (**required** when `|pinned|>1`); same resolve window |
 
 ---
 
@@ -42,7 +42,8 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 - Phase 18: **ResolveSlashAppealAttested (32)** carries a domain-separated Ed25519 ballot (`BOING_SLASH_APPEAL_RESOLVE_BALLOT_V1` over `chain_id|appeal_id|slash_id|approved|voter`); verified against `tx.sender`; ballots accumulate and are **verified individually** (thin attest — **not** BLS).  
 - Phase 19: when host-pinned `|slash_appeal_resolvers| > 1`, **32 is required**; unattested **31** is rejected. Solo / unpinned / `|pinned|≤1` keep **31**. Historical unattested votes mid-tally **keep their weight**; new multi-pin casts must use **32**.  
 - Phase 20: **SubmitSlashAppeal (30)** snapshots `electorate_w_snapshot` (Σ bonded stake over pinned resolvers at Submit) and a pin-set commitment; **Resolve (31/32)** uses that frozen W for ⌈2W/3⌉ (voter weight still at cast). Pin-set change vs snapshot rejects Resolve. Unpinned → snapshot W=1. W=0 at Submit stays Pending (no rewrite). Pre-V4 Pending rows use live-W fallback (sentinel).  
-- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V4**); V3 / V2 / legacy Phase 14–16 loads without required clear.  
+- Phase 21: **Submit** stores `resolve_deadline = tip + 1000`. **Resolve (31/32)** after deadline expires Pending → **Expired** (no vote; no restore) and rejects `ResolveWindowClosed`. Block housekeeping `expire_pending_appeals` cleans stuck Pending (W=0 / incomplete tallies).  
+- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`.  
 - Submit/Resolve/Attested (**30**/**31**/**32**) are **always admitted** (not gated on media-blobs activation); mempool may reject **31** early when `|pinned|>1`  
 - Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated** for FailedServe / equivocation / liveness when the consensus book owns the slash (prefer txs 30/32); refuses double credit after consensus reverse  
 - Resolve is **ops/validator stake-weighted voting** (+ Ed25519 ballot when required), not SNARK verification of evidence  
@@ -55,30 +56,29 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 
 | Phase | Status |
 |-------|--------|
-| 1–19 | **Merged** (#81) |
-| 20 Snapshot electorate W at SubmitSlashAppeal | **This PR** |
+| 1–20 | **Merged** (#82) |
+| 21 Resolve expiry + Pending cleanup | **This PR** |
 
 ### Still later
 
-- Appeal / resolve **expiry** cleanup for stuck Pending tallies  
 - True **BLS aggregate** of resolve ballots (dual-key registration + `blst`)  
 - Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
 - Coordinated public-testnet 256 MiB activation  
 
 ---
 
-## Ops / migration (Phase 20)
+## Ops / migration (Phase 21)
 
 | Item | Guidance |
 |------|----------|
 | `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` | **Leave at 1200** (both Fly apps). Do not change. |
 | `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` | **Leave unset** (16 MiB Fly-safe). |
-| `slash_appeals_registry.bin` | **Do not clear.** Save V4; load V4 or migrate V3 / V2 / Phase 14–16 in memory. |
-| Mid-tally at upgrade | Pre-V4 Pending appeals: **legacy live-W fallback** (sentinel `electorate_w_snapshot=0` + zero pin commit) so in-flight tallies can still finalize. **New** Submits always snapshot. |
-| Clients | SDK **0.5.23**; no new encode API for 30/31/32 payloads (behavior is node-side). RPC may show `electorateWSnapshot` / `pinSetCommitment`. |
-| Pin set / stake | Prefer stable pin set + bonded resolvers before Submit; changing pins mid-Pending rejects Resolve (commitment mismatch). |
-| Binary upgrade | Roll validators together (new Submit fields + Resolve reads snapshot). |
-| BLS / SNARK / 256 MiB / expiry | **Not this phase** — still later. |
+| `slash_appeals_registry.bin` | **Do not clear.** Save V5; load V5 or migrate V4 / V3 / V2 / Phase 14–16 in memory. |
+| Mid-tally at upgrade | Pre-V5 Pending appeals: derive `resolve_deadline` from `slash.appeal_deadline` (may be shorter than submit+1000). **New** Submits always write `tip + 1000`. |
+| Clients | SDK **0.5.24**; no new encode API for 30/31/32 payloads (behavior is node-side). RPC may show `resolveDeadline` / status `Expired`. |
+| Operators | Prefer Resolve before deadline; W=0 / idle committees will **Expired** instead of hanging forever. |
+| Binary upgrade | Roll validators together (new deadline field + housekeeping expire). |
+| BLS / SNARK / 256 MiB | **Not this phase** — still later. |
 
 ---
 
