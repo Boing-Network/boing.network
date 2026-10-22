@@ -312,6 +312,15 @@ impl Transaction {
                 appeal_id,
                 if *approved { "approve" } else { "reject" }
             ),
+            TransactionPayload::ResolveSlashAppealAttested {
+                appeal_id,
+                approved,
+                ..
+            } => format!(
+                "Resolve slash appeal {} attested ({})",
+                appeal_id,
+                if *approved { "approve" } else { "reject" }
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -412,6 +421,7 @@ impl Transaction {
             | TransactionPayload::RespondBlobSampleServe { .. }
             | TransactionPayload::SubmitSlashAppeal { .. }
             | TransactionPayload::ResolveSlashAppeal { .. }
+            | TransactionPayload::ResolveSlashAppealAttested { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -644,9 +654,18 @@ pub enum TransactionPayload {
     },
     /// Resolve a pending consensus slash appeal (index **31**). Sender must be a consensus validator.
     /// Approve restores FailedServe **balance** (or stake for other reasons); not a SNARK verifier.
+    /// Unattested stake-weighted vote (Phase 17); prefer **32** for committee nets.
     ResolveSlashAppeal {
         appeal_id: u64,
         approved: bool,
+    },
+    /// Attested resolve of a pending consensus slash appeal (index **32**, Phase 18).
+    /// Carries a domain-separated Ed25519 ballot verified against `tx.sender`; thin verify-each
+    /// (not BLS). Same stake-weighted ⌈2W/3⌉ finalize as **31**.
+    ResolveSlashAppealAttested {
+        appeal_id: u64,
+        approved: bool,
+        ballot_signature: crate::SlashAppealBallotSignature,
     },
 }
 

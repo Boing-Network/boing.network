@@ -1658,6 +1658,24 @@ async fn dispatch_jsonrpc_request(
                             .fold(0u128, |acc, s| acc.saturating_add(s)),
                         _ => 1u128,
                     };
+                    let votes: Vec<serde_json::Value> = a
+                        .votes
+                        .iter()
+                        .map(|(voter, v)| {
+                            let mut obj = serde_json::json!({
+                                "voter": format!("0x{}", hex::encode(voter.0)),
+                                "approved": v.approved,
+                                "weight": v.weight.to_string(),
+                            });
+                            if let Some(sig) = v.ballot_signature {
+                                obj.as_object_mut().unwrap().insert(
+                                    "ballotSignatureHex".into(),
+                                    serde_json::json!(format!("0x{}", hex::encode(sig.0))),
+                                );
+                            }
+                            obj
+                        })
+                        .collect();
                     serde_json::json!({
                         "id": a.id,
                         "slash_id": a.slash_id,
@@ -1669,6 +1687,7 @@ async fn dispatch_jsonrpc_request(
                         "approveWeight": approve_weight.to_string(),
                         "rejectWeight": reject_weight.to_string(),
                         "electorateWeight": electorate_weight.to_string(),
+                        "votes": votes,
                         "source": "consensus",
                     })
                 })
@@ -1847,7 +1866,7 @@ async fn dispatch_jsonrpc_request(
                         "restored": restored.to_string(),
                         "deprecatedForFailedServe": true,
                         "deprecatedForEquivocationLiveness": true,
-                        "preferTx": "ResolveSlashAppeal (index 31)",
+                        "preferTx": "ResolveSlashAppealAttested (index 32); ResolveSlashAppeal (31) still valid unattested",
                     }),
                 ),
                 Err(e) => rpc_error(id, -32061, e.to_string()),

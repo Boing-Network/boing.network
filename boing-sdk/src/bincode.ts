@@ -54,8 +54,10 @@ export const PayloadVariant = {
   RespondBlobSampleServe: 29,
   /** Submit consensus slash appeal (Phase 14). */
   SubmitSlashAppeal: 30,
-  /** Resolve consensus slash appeal (Phase 14). */
+  /** Resolve consensus slash appeal (Phase 14; unattested). */
   ResolveSlashAppeal: 31,
+  /** Attested resolve with Ed25519 ballot (Phase 18). */
+  ResolveSlashAppealAttested: 32,
 } as const;
 
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
@@ -303,7 +305,14 @@ export type TransactionPayloadInput =
       siblings: Uint8Array[];
     }
   | { kind: 'submitSlashAppeal'; slashId: bigint; evidence: Uint8Array }
-  | { kind: 'resolveSlashAppeal'; appealId: bigint; approved: boolean };
+  | { kind: 'resolveSlashAppeal'; appealId: bigint; approved: boolean }
+  | {
+      kind: 'resolveSlashAppealAttested';
+      appealId: bigint;
+      approved: boolean;
+      /** 64-byte Ed25519 ballot signature (raw `[u8; 64]`, no length prefix). */
+      ballotSignature: Uint8Array;
+    };
 
 function need32(b: Uint8Array, what: string): Uint8Array {
   if (b.length !== 32) throw new Error(`${what} must be 32 bytes`);
@@ -532,6 +541,17 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
         writeU64Le(payload.appealId),
         Uint8Array.of(payload.approved ? 1 : 0),
       );
+    case 'resolveSlashAppealAttested': {
+      if (payload.ballotSignature.length !== 64) {
+        throw new Error('resolveSlashAppealAttested ballotSignature must be 64 bytes');
+      }
+      return concatBytes(
+        writeU32Le(PayloadVariant.ResolveSlashAppealAttested),
+        writeU64Le(payload.appealId),
+        Uint8Array.of(payload.approved ? 1 : 0),
+        payload.ballotSignature,
+      );
+    }
     default: {
       const _x: never = payload;
       return _x;

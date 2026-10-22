@@ -52,8 +52,10 @@ export const PayloadVariant = {
     RespondBlobSampleServe: 29,
     /** Submit consensus slash appeal (Phase 14). */
     SubmitSlashAppeal: 30,
-    /** Resolve consensus slash appeal (Phase 14). */
+    /** Resolve consensus slash appeal (Phase 14; unattested). */
     ResolveSlashAppeal: 31,
+    /** Attested resolve with Ed25519 ballot (Phase 18). */
+    ResolveSlashAppealAttested: 32,
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export const BlobRetentionVariant = {
@@ -303,6 +305,12 @@ export function encodeTransactionPayload(payload) {
             return concatBytes(writeU32Le(PayloadVariant.SubmitSlashAppeal), writeU64Le(payload.slashId), writeU64Le(BigInt(payload.evidence.length)), payload.evidence);
         case 'resolveSlashAppeal':
             return concatBytes(writeU32Le(PayloadVariant.ResolveSlashAppeal), writeU64Le(payload.appealId), Uint8Array.of(payload.approved ? 1 : 0));
+        case 'resolveSlashAppealAttested': {
+            if (payload.ballotSignature.length !== 64) {
+                throw new Error('resolveSlashAppealAttested ballotSignature must be 64 bytes');
+            }
+            return concatBytes(writeU32Le(PayloadVariant.ResolveSlashAppealAttested), writeU64Le(payload.appealId), Uint8Array.of(payload.approved ? 1 : 0), payload.ballotSignature);
+        }
         default: {
             const _x = payload;
             return _x;

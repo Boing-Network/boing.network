@@ -1494,7 +1494,8 @@ impl BoingNode {
                     ));
                 }
             }
-            TransactionPayload::ResolveSlashAppeal { .. } => {
+            TransactionPayload::ResolveSlashAppeal { .. }
+            | TransactionPayload::ResolveSlashAppealAttested { .. } => {
                 if !self.consensus.validators().contains(&signed.tx.sender) {
                     return Err(MempoolError::MediaBlobRejected(
                         "ResolveSlashAppeal requires a consensus validator".into(),

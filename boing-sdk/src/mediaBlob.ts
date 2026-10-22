@@ -937,6 +937,24 @@ export function encodeResolveSlashAppeal(input: {
   };
 }
 
+/** Phase 18: attested resolve (`ResolveSlashAppealAttested`, variant 32). */
+export function encodeResolveSlashAppealAttested(input: {
+  appealId: bigint;
+  approved: boolean;
+  /** 64-byte Ed25519 ballot over `BOING_SLASH_APPEAL_RESOLVE_BALLOT_V1` preimage. */
+  ballotSignature: Uint8Array;
+}): TransactionPayloadInput {
+  if (input.ballotSignature.length !== 64) {
+    throw new Error('ballotSignature must be 64 bytes');
+  }
+  return {
+    kind: 'resolveSlashAppealAttested',
+    appealId: input.appealId,
+    approved: input.approved,
+    ballotSignature: input.ballotSignature,
+  };
+}
+
 /** Honest plan strings for Phase 14 (consensus slash-appeal txs; ReservedRealV1 still rejects). */
 export function phase14DasSuccinctProofPlan(): string[] {
   return [
@@ -1016,6 +1034,35 @@ export function phase17DasSuccinctProofPlan(): string[] {
     'Phase 17: W=0 with a non-empty pinned set never finalizes — pin bonded resolvers or rebond.',
     'Phase 17: slash_appeals_registry.bin is versioned (magic+u32+bincode); legacy Phase 14–16 loads migrate without required clear.',
     'Phase 17: ResolveSlashAppeal remains ops/validator-approved voting — not SNARK/IPA/KZG verification of appeal evidence.',
+    'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+  ];
+}
+
+/** Phase 18 aliases / constants. */
+export const PHASE18_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE17_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE18_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE17_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE18_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE17_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE18_SETTLE_RECEIPT_TTL_BLOCKS = PHASE17_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE18_MAX_APPEAL_EVIDENCE_BYTES = PHASE17_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE18_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE17_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE18_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE17_RESOLVE_SLASH_APPEAL_TX_INDEX;
+/** Attested resolve payload index (`ResolveSlashAppealAttested`). */
+export const PHASE18_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+/** Fixed stake-weighted resolve quorum numerator (⌈2W/3⌉). */
+export const PHASE18_RESOLVE_THRESHOLD_NUM = PHASE17_RESOLVE_THRESHOLD_NUM;
+/** Fixed stake-weighted resolve quorum denominator. */
+export const PHASE18_RESOLVE_THRESHOLD_DEN = PHASE17_RESOLVE_THRESHOLD_DEN;
+
+/** Honest plan strings for Phase 18 (Ed25519 attested resolve + registry V3; still 16 MiB). */
+export function phase18DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase17DasSuccinctProofPlan(),
+    'Phase 18: ResolveSlashAppealAttested (32) carries a domain-separated Ed25519 ballot over appeal_id|slash_id|approved|voter|chain_id.',
+    'Phase 18: ballots accumulate on the stake-weighted vote record and are verified individually (thin attest — not BLS aggregate).',
+    'Phase 18: ResolveSlashAppeal (31) remains for historical replay and unattested solo casts (ballot_signature=None).',
+    'Phase 18: prefer 32 for multi-validator committee nets; stake-weighted ⌈2W/3⌉ finalize math unchanged from Phase 17.',
+    'Phase 18: slash_appeals_registry.bin is V3 (magic+u32+bincode); V2/legacy Phase 14–16 loads migrate without required clear.',
+    'Phase 18: true BLS aggregate of resolve ballots is still later — do not invent BLS crates or fake-BLS naming.',
     'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }

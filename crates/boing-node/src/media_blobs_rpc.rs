@@ -4,8 +4,8 @@ use boing_primitives::{
     build_das_light_client_batch_from_bytes, build_das_light_client_batch_vrf,
     build_das_succinct_proof_stub, build_das_succinct_proof_stub_vrf, chunk_media_blob,
     match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
-    phase17_cap_activation_checklist, phase17_das_succinct_proof_plan, verify_das_succinct_proof,
-    PHASE17_RESOLVE_THRESHOLD_DEN, PHASE17_RESOLVE_THRESHOLD_NUM,
+    phase18_cap_activation_checklist, phase18_das_succinct_proof_plan, verify_das_succinct_proof,
+    PHASE18_RESOLVE_THRESHOLD_DEN, PHASE18_RESOLVE_THRESHOLD_NUM,
     AccountId, BlobRetention, BlobSampleServeChallengeStatus,
     BlobSampleOfferSource, BlobSampleSettleQuote, DasSuccinctProof, DasSuccinctProofKind,
     MediaBlobSampleOffer, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
@@ -375,7 +375,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "capActivationChecklist",
-                json!(phase17_cap_activation_checklist(phase7_from)),
+                json!(phase18_cap_activation_checklist(phase7_from)),
             );
             put(&mut m, "cancelBlobSampleOfferVariant", json!(27));
             put(&mut m, "challengeBlobSampleServeVariant", json!(28));
@@ -390,6 +390,11 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 "resolveSlashAppealVariant",
                 json!(boing_primitives::PHASE14_RESOLVE_SLASH_APPEAL_TX_INDEX),
             );
+            put(
+                &mut m,
+                "resolveSlashAppealAttestedVariant",
+                json!(boing_primitives::PHASE18_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX),
+            );
             put(&mut m, "consensusSlashAppealTxs", json!(true));
             put(&mut m, "consensusEquivocationSlashAppeals", json!(true));
             put(&mut m, "consensusSlashAppealThresholdResolve", json!(true));
@@ -400,13 +405,18 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             );
             put(
                 &mut m,
+                "consensusSlashAppealAttestedResolve",
+                json!(true),
+            );
+            put(
+                &mut m,
                 "slashAppealResolveThresholdNum",
-                json!(PHASE17_RESOLVE_THRESHOLD_NUM),
+                json!(PHASE18_RESOLVE_THRESHOLD_NUM),
             );
             put(
                 &mut m,
                 "slashAppealResolveThresholdDen",
-                json!(PHASE17_RESOLVE_THRESHOLD_DEN),
+                json!(PHASE18_RESOLVE_THRESHOLD_DEN),
             );
             put(
                 &mut m,
@@ -436,7 +446,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "dasSuccinctProofPlan",
-                json!(boing_primitives::phase17_das_succinct_proof_plan()),
+                json!(boing_primitives::phase18_das_succinct_proof_plan()),
             );
             put(
                 &mut m,
@@ -483,7 +493,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "note",
-                json!("Phase 17: ResolveSlashAppeal (31) is stake-weighted ⌈2W/3⌉ over host-pinned slash_appeal_resolvers (weight = bonded stake at cast); finalize restore only at threshold (unpinned W=1 still one-shot; W=0 never finalizes). Versioned slash_appeals_registry.bin (no required clear on upgrade). SubmitSlashAppeal (30) unchanged; FailedServe balance / equivocation-liveness stake restore; always-on admission for 30/31; operator RPC deprecated for consensus-book reasons; ReservedRealV1 verify still rejects; 256 MiB gated via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission height for Put/Announce: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT (do not change once set)."),
+                json!("Phase 18: ResolveSlashAppealAttested (32) carries a domain-separated Ed25519 ballot (verify-each, not BLS); prefer 32 for committee nets. ResolveSlashAppeal (31) kept unattested for historical/solo. Stake-weighted ⌈2W/3⌉ unchanged. Registry V3 (V2/legacy load, no required clear). SubmitSlashAppeal (30) unchanged; FailedServe balance / equivocation-liveness stake restore; always-on admission for 30/31/32; operator RPC deprecated for consensus-book reasons; ReservedRealV1 verify still rejects; 256 MiB gated via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission height for Put/Announce: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT (do not change once set)."),
             );
             Ok(Value::Object(m))
         }
@@ -956,14 +966,14 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                         BlobSampleServeChallengeStatus::FailedServe => "failedServe",
                     },
                 })).collect::<Vec<_>>(),
-                "note": "Phase 17: FailedServe refunds bond, burns penalty, assigns consensus slashId; prefer Submit/Resolve txs (30/31) for unburn / stake restore (31 is stake-weighted ⌈2W/3⌉). RPC clone resolve is display-only.",
+                "note": "Phase 18: FailedServe refunds bond, burns penalty, assigns consensus slashId; prefer Submit (30) / ResolveAttested (32) for committee (or unattested 31 for solo); 31/32 stake-weighted ⌈2W/3⌉. RPC clone resolve is display-only.",
             }))
         }
         "boing_getBlobDasSuccinctProofPlan" => Ok(json!({
             "kinds": ["stubBlake3V0", "reservedRealV1"],
-            "plan": phase17_das_succinct_proof_plan(),
+            "plan": phase18_das_succinct_proof_plan(),
             "maxOpaqueProofBytes": boing_primitives::PHASE10_MAX_OPAQUE_PROOF_BYTES,
-            "note": "ReservedRealV1: envelope structure checks; verify still rejects until a real succinct system is wired. ResolveSlashAppeal is stake-weighted ops/validator vote (⌈2W/3⌉), not SNARK.",
+            "note": "ReservedRealV1: envelope structure checks; verify still rejects until a real succinct system is wired. ResolveSlashAppealAttested (32) is Ed25519 ballot verify-each (not BLS); 31 remains unattested stake-weighted ⌈2W/3⌉ — not SNARK.",
         })),
         _ => Err((-32601, format!("unknown media blob method: {method}"))),
     }

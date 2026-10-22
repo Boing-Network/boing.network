@@ -309,6 +309,13 @@ export declare function encodeResolveSlashAppeal(input: {
     appealId: bigint;
     approved: boolean;
 }): TransactionPayloadInput;
+/** Phase 18: attested resolve (`ResolveSlashAppealAttested`, variant 32). */
+export declare function encodeResolveSlashAppealAttested(input: {
+    appealId: bigint;
+    approved: boolean;
+    /** 64-byte Ed25519 ballot over `BOING_SLASH_APPEAL_RESOLVE_BALLOT_V1` preimage. */
+    ballotSignature: Uint8Array;
+}): TransactionPayloadInput;
 /** Honest plan strings for Phase 14 (consensus slash-appeal txs; ReservedRealV1 still rejects). */
 export declare function phase14DasSuccinctProofPlan(): string[];
 /** Phase 15 aliases / constants. */
@@ -349,4 +356,20 @@ export declare const PHASE17_RESOLVE_THRESHOLD_NUM = 2;
 export declare const PHASE17_RESOLVE_THRESHOLD_DEN = 3;
 /** Honest plan strings for Phase 17 (stake-weighted ResolveSlashAppeal + versioned registry; still 16 MiB). */
 export declare function phase17DasSuccinctProofPlan(): string[];
+/** Phase 18 aliases / constants. */
+export declare const PHASE18_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE18_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE18_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE18_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE18_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE18_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE18_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+/** Attested resolve payload index (`ResolveSlashAppealAttested`). */
+export declare const PHASE18_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+/** Fixed stake-weighted resolve quorum numerator (⌈2W/3⌉). */
+export declare const PHASE18_RESOLVE_THRESHOLD_NUM = 2;
+/** Fixed stake-weighted resolve quorum denominator. */
+export declare const PHASE18_RESOLVE_THRESHOLD_DEN = 3;
+/** Honest plan strings for Phase 18 (Ed25519 attested resolve + registry V3; still 16 MiB). */
+export declare function phase18DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

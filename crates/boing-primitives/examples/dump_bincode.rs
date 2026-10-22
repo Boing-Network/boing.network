@@ -144,6 +144,18 @@ fn main() {
         hex::encode(&p)
     );
 
+    let resolve_attested = TransactionPayload::ResolveSlashAppealAttested {
+        appeal_id: 1,
+        approved: true,
+        ballot_signature: boing_primitives::SlashAppealBallotSignature([0xABu8; 64]),
+    };
+    let p = bincode::serialize(&resolve_attested).unwrap();
+    println!(
+        "ResolveSlashAppealAttested: len={} hex={}",
+        p.len(),
+        hex::encode(&p)
+    );
+
     let qv = TransactionPayload::QaPoolVote {
         subject: boing_primitives::Hash([3u8; 32]),
         vote: boing_primitives::QaPoolVoteKind::Allow,
