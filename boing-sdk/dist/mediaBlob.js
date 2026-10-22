@@ -912,3 +912,37 @@ export function phase19DasSuccinctProofPlan() {
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }
+/** Phase 20 aliases / constants. */
+export const PHASE20_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE19_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE20_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE19_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE20_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE19_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE20_SETTLE_RECEIPT_TTL_BLOCKS = PHASE19_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE20_MAX_APPEAL_EVIDENCE_BYTES = PHASE19_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE20_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE19_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE20_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE19_RESOLVE_SLASH_APPEAL_TX_INDEX;
+/** Attested resolve payload index (`ResolveSlashAppealAttested`). */
+export const PHASE20_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE19_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+/** Fixed stake-weighted resolve quorum numerator (⌈2W/3⌉). */
+export const PHASE20_RESOLVE_THRESHOLD_NUM = PHASE19_RESOLVE_THRESHOLD_NUM;
+/** Fixed stake-weighted resolve quorum denominator. */
+export const PHASE20_RESOLVE_THRESHOLD_DEN = PHASE19_RESOLVE_THRESHOLD_DEN;
+/** Sentinel: pre-V4 Pending appeals use live-W fallback when snapshot is this value + zero pin commit. */
+export const PHASE20_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+/**
+ * True when a multi-pin committee must use attested resolve (32) (Phase 19 alias).
+ */
+export function phase20CommitteeRequiresAttested(pinnedLen) {
+    return phase19CommitteeRequiresAttested(pinnedLen);
+}
+/** Honest plan strings for Phase 20 (electorate W snapshot at Submit; still 16 MiB). */
+export function phase20DasSuccinctProofPlan() {
+    return [
+        ...phase19DasSuccinctProofPlan(),
+        'Phase 20: SubmitSlashAppeal (30) snapshots electorate_w (Σ bonded stake over pinned slash_appeal_resolvers) and a pin-set commitment; Resolve (31/32) uses frozen W for ⌈2W/3⌉.',
+        'Phase 20: voter weight remains bonded stake at cast; denominator is Submit-height W (not live restake mid-tally).',
+        'Phase 20: unpinned / empty pin → snapshot W=1; W=0 with non-empty pin stays Pending (no rewrite); pin-set change vs snapshot commitment rejects Resolve.',
+        'Phase 20: slash_appeals_registry.bin is V4; V3/V2/legacy load migrates without required clear — pre-V4 Pending uses live-W fallback (sentinel 0 + zero pin commit).',
+        'Phase 20: appeal/resolve expiry, true BLS aggregate, SNARK/IPA/KZG, and live 256 MiB remain later — keep Fly-safe 16 MiB; do not clear the registry.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

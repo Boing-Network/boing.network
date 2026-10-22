@@ -1651,12 +1651,21 @@ async fn dispatch_jsonrpc_request(
                         .unwrap_or((0, 0));
                     let pinned: Option<Vec<_>> =
                         n.state.slash_appeal_resolvers().map(|s| s.to_vec());
-                    let electorate_weight = match pinned.as_deref() {
+                    let live_electorate_weight = match pinned.as_deref() {
                         Some(set) if !set.is_empty() => set
                             .iter()
                             .map(|id| n.state.get(id).map(|s| s.stake).unwrap_or(0))
                             .fold(0u128, |acc, s| acc.saturating_add(s)),
                         _ => 1u128,
+                    };
+                    // Phase 20: prefer frozen snapshot for display when present (non-legacy).
+                    let electorate_weight = if boing_primitives::phase20_is_legacy_electorate_snapshot(
+                        a.electorate_w_snapshot,
+                        &a.pin_set_commitment,
+                    ) {
+                        live_electorate_weight
+                    } else {
+                        a.electorate_w_snapshot
                     };
                     let votes: Vec<serde_json::Value> = a
                         .votes
@@ -1687,6 +1696,8 @@ async fn dispatch_jsonrpc_request(
                         "approveWeight": approve_weight.to_string(),
                         "rejectWeight": reject_weight.to_string(),
                         "electorateWeight": electorate_weight.to_string(),
+                        "electorateWSnapshot": a.electorate_w_snapshot.to_string(),
+                        "pinSetCommitment": format!("0x{}", hex::encode(a.pin_set_commitment)),
                         "votes": votes,
                         "source": "consensus",
                     })

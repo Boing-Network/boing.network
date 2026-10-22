@@ -1,4 +1,4 @@
-//! Consensus slash + appeal book (Phase 14/15/16/17/18).
+//! Consensus slash + appeal book (Phase 14/15/16/17/18/19/20).
 //!
 //! FailedServe settle and equivocation/liveness slash-apply insert rows with consensus-allocated
 //! `slash_id`s; `SubmitSlashAppeal` / `ResolveSlashAppeal` / `ResolveSlashAppealAttested` txs
@@ -7,17 +7,19 @@
 //! Phase 16: equal-weight N-of-M vote (⌈2M/3⌉).
 //! Phase 17: stake-weighted ⌈2W/3⌉; vote records carry weight at cast; versioned persistence.
 //! Phase 18: optional Ed25519 ballot on votes; registry commitment domain V3.
+//! Phase 20: electorate W (+ pin-set commitment) snapshotted at Submit; domain V4.
 
 use std::collections::BTreeMap;
 
 use boing_primitives::{
     hasher, phase17_resolve_threshold_met, AccountId, SlashAppealBallotSignature,
-    PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+    PHASE14_MAX_APPEAL_EVIDENCE_BYTES, PHASE20_LEGACY_ELECTORATE_W_SENTINEL,
+    PHASE20_LEGACY_PIN_SET_COMMITMENT,
 };
 use serde::{Deserialize, Serialize};
 
-/// Domain tag for SMT commitment of the slash-appeal registry (Phase 18 attested votes).
-pub const SLASH_APPEAL_REGISTRY_DOMAIN: &[u8] = b"BOING_SLASH_APPEAL_REGISTRY_V3";
+/// Domain tag for SMT commitment of the slash-appeal registry (Phase 20 electorate snapshot).
+pub const SLASH_APPEAL_REGISTRY_DOMAIN: &[u8] = b"BOING_SLASH_APPEAL_REGISTRY_V4";
 
 /// Reason for a consensus slash record.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,6 +85,21 @@ pub struct ConsensusSlashAppeal {
     /// Phase 17: one vote per voter with stake weight recorded at cast.
     #[serde(default)]
     pub votes: BTreeMap<AccountId, ResolveVote>,
+    /// Phase 20: electorate W at Submit (Σ bonded stake over pin set). Sentinel `0` with
+    /// zero [`Self::pin_set_commitment`] means pre-V4 legacy → live-W fallback at Resolve.
+    #[serde(default = "default_legacy_electorate_w")]
+    pub electorate_w_snapshot: u128,
+    /// Phase 20: domain-separated hash of sorted pinned resolvers at Submit.
+    #[serde(default = "default_legacy_pin_set_commitment")]
+    pub pin_set_commitment: [u8; 32],
+}
+
+fn default_legacy_electorate_w() -> u128 {
+    PHASE20_LEGACY_ELECTORATE_W_SENTINEL
+}
+
+fn default_legacy_pin_set_commitment() -> [u8; 32] {
+    PHASE20_LEGACY_PIN_SET_COMMITMENT
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -105,9 +122,11 @@ pub enum SlashAppealError {
     AlreadyReversed,
     #[error("slash id already recorded")]
     SlashIdExists,
+    #[error("slash appeal pin set changed since submit")]
+    PinSetChanged,
 }
 
-/// Consensus registry of slashes and appeals (Phase 14/15/16/17/18).
+/// Consensus registry of slashes and appeals (Phase 14/15/16/17/18/20).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SlashAppealRegistry {
     slashes: BTreeMap<u64, ConsensusSlashRecord>,
@@ -118,6 +137,32 @@ pub struct SlashAppealRegistry {
     /// so Phase 14 `slash_appeals_registry.bin` files remain loadable.
     #[serde(skip)]
     next_slash_id: u64,
+}
+
+/// Phase 18 V3 on-disk vote (weighted + optional ballot; no electorate snapshot).
+#[derive(Clone, Debug, Deserialize)]
+struct LegacyPhase18Vote {
+    approved: bool,
+    weight: u128,
+    #[serde(default)]
+    ballot_signature: Option<SlashAppealBallotSignature>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct LegacyPhase18Appeal {
+    id: u64,
+    slash_id: u64,
+    evidence: Vec<u8>,
+    status: ConsensusAppealStatus,
+    #[serde(default)]
+    votes: BTreeMap<AccountId, LegacyPhase18Vote>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct LegacyPhase18Registry {
+    slashes: BTreeMap<u64, ConsensusSlashRecord>,
+    appeals: BTreeMap<u64, LegacyPhase18Appeal>,
+    next_appeal_id: u64,
 }
 
 /// Phase 17 V2 on-disk vote (weighted, no ballot).
@@ -247,6 +292,57 @@ impl SlashAppealRegistry {
             .collect()
     }
 
+    /// Empty Phase 20 snapshot fields for migrated pre-V4 appeals (live-W fallback).
+    pub fn legacy_electorate_snapshot_fields() -> (u128, [u8; 32]) {
+        (
+            PHASE20_LEGACY_ELECTORATE_W_SENTINEL,
+            PHASE20_LEGACY_PIN_SET_COMMITMENT,
+        )
+    }
+
+    /// Build a registry from a Phase 18 V3 envelope payload (ballots; no electorate snapshot).
+    pub fn from_legacy_phase18_v3(legacy: &[u8]) -> Result<Self, String> {
+        let leg: LegacyPhase18Registry =
+            bincode::deserialize(legacy).map_err(|e| e.to_string())?;
+        let mut reg = Self {
+            slashes: leg.slashes,
+            appeals: BTreeMap::new(),
+            next_appeal_id: leg.next_appeal_id.max(1),
+            next_slash_id: 1,
+        };
+        let (w, pin) = Self::legacy_electorate_snapshot_fields();
+        for (id, a) in leg.appeals {
+            let votes = a
+                .votes
+                .into_iter()
+                .map(|(vid, v)| {
+                    (
+                        vid,
+                        ResolveVote {
+                            approved: v.approved,
+                            weight: v.weight,
+                            ballot_signature: v.ballot_signature,
+                        },
+                    )
+                })
+                .collect();
+            reg.appeals.insert(
+                id,
+                ConsensusSlashAppeal {
+                    id: a.id,
+                    slash_id: a.slash_id,
+                    evidence: a.evidence,
+                    status: a.status,
+                    votes,
+                    electorate_w_snapshot: w,
+                    pin_set_commitment: pin,
+                },
+            );
+        }
+        reg.bump_next_slash_id_past_max();
+        Ok(reg)
+    }
+
     /// Build a registry from a Phase 17 V2 envelope payload (weighted votes, no ballot).
     pub fn from_legacy_phase17_v2(legacy: &[u8]) -> Result<Self, String> {
         let leg: LegacyPhase17Registry =
@@ -257,6 +353,7 @@ impl SlashAppealRegistry {
             next_appeal_id: leg.next_appeal_id.max(1),
             next_slash_id: 1,
         };
+        let (w, pin) = Self::legacy_electorate_snapshot_fields();
         for (id, a) in leg.appeals {
             let votes = a
                 .votes
@@ -271,6 +368,8 @@ impl SlashAppealRegistry {
                     evidence: a.evidence,
                     status: a.status,
                     votes: Self::migrate_v2_votes(votes),
+                    electorate_w_snapshot: w,
+                    pin_set_commitment: pin,
                 },
             );
         }
@@ -288,6 +387,7 @@ impl SlashAppealRegistry {
             next_appeal_id: leg.next_appeal_id.max(1),
             next_slash_id: 1,
         };
+        let (w, pin) = Self::legacy_electorate_snapshot_fields();
         for (id, a) in leg.appeals {
             reg.appeals.insert(
                 id,
@@ -297,6 +397,8 @@ impl SlashAppealRegistry {
                     evidence: a.evidence,
                     status: a.status,
                     votes: Self::migrate_bool_votes(a.votes),
+                    electorate_w_snapshot: w,
+                    pin_set_commitment: pin,
                 },
             );
         }
@@ -314,6 +416,7 @@ impl SlashAppealRegistry {
             next_appeal_id: leg.next_appeal_id.max(1),
             next_slash_id: 1,
         };
+        let (w, pin) = Self::legacy_electorate_snapshot_fields();
         for (id, a) in leg.appeals {
             reg.appeals.insert(
                 id,
@@ -323,6 +426,8 @@ impl SlashAppealRegistry {
                     evidence: a.evidence,
                     status: a.status,
                     votes: BTreeMap::new(),
+                    electorate_w_snapshot: w,
+                    pin_set_commitment: pin,
                 },
             );
         }
@@ -410,12 +515,18 @@ impl SlashAppealRegistry {
 
     /// Submit an appeal at `tip_height`. Evidence must be ≤ `max_evidence` (typically
     /// [`PHASE14_MAX_APPEAL_EVIDENCE_BYTES`]).
+    ///
+    /// Phase 20: `electorate_w_snapshot` and `pin_set_commitment` are frozen at Submit
+    /// (computed by the VM from pinned stakes / pin set). Pass legacy sentinels only when
+    /// migrating pre-V4 rows — new Submits must write a real snapshot.
     pub fn submit_appeal(
         &mut self,
         slash_id: u64,
         evidence: Vec<u8>,
         tip_height: u64,
         max_evidence: usize,
+        electorate_w_snapshot: u128,
+        pin_set_commitment: [u8; 32],
     ) -> Result<u64, SlashAppealError> {
         if evidence.len() > max_evidence {
             return Err(SlashAppealError::EvidenceTooLarge { max: max_evidence });
@@ -443,6 +554,8 @@ impl SlashAppealRegistry {
                 evidence,
                 status: ConsensusAppealStatus::Pending,
                 votes: BTreeMap::new(),
+                electorate_w_snapshot,
+                pin_set_commitment,
             },
         );
         Ok(id)
@@ -621,11 +734,15 @@ mod tests {
             1000,
         )
         .unwrap();
+        // Book-level tests that pass electorate_w into cast_resolve_vote explicitly:
+        // store a real-looking snapshot (not legacy) so serde roundtrips include fields.
         reg.submit_appeal(
             slash_id,
             b"evidence".to_vec(),
             150,
             PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+            300,
+            [0xABu8; 32],
         )
         .unwrap()
     }
@@ -636,7 +753,14 @@ mod tests {
         let aid = seed_appeal(&mut reg, 7);
         assert_eq!(aid, 1);
         assert!(reg
-            .submit_appeal(7, vec![], 150, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
+            .submit_appeal(
+                7,
+                vec![],
+                150,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                1,
+                [0u8; 32],
+            )
             .is_err());
         let slash = reg.resolve_appeal(aid, true).unwrap();
         assert!(slash.reversed);
@@ -660,7 +784,14 @@ mod tests {
         )
         .unwrap();
         let aid = reg
-            .submit_appeal(1, vec![], 10, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
+            .submit_appeal(
+                1,
+                vec![],
+                10,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                1,
+                [0u8; 32],
+            )
             .unwrap();
         reg.resolve_appeal(aid, false).unwrap();
         assert!(!reg.is_reversed(1));
@@ -788,7 +919,14 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(
-            reg.submit_appeal(1, vec![], 16, PHASE14_MAX_APPEAL_EVIDENCE_BYTES),
+            reg.submit_appeal(
+                1,
+                vec![],
+                16,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                1,
+                [0u8; 32],
+            ),
             Err(SlashAppealError::AppealWindowClosed)
         ));
         assert!(matches!(
@@ -796,7 +934,9 @@ mod tests {
                 1,
                 vec![0u8; PHASE14_MAX_APPEAL_EVIDENCE_BYTES + 1],
                 10,
-                PHASE14_MAX_APPEAL_EVIDENCE_BYTES
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                1,
+                [0u8; 32],
             ),
             Err(SlashAppealError::EvidenceTooLarge { .. })
         ));
@@ -815,7 +955,14 @@ mod tests {
         )
         .unwrap();
         let aid = reg
-            .submit_appeal(9, b"x".to_vec(), 1, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
+            .submit_appeal(
+                9,
+                b"x".to_vec(),
+                1,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                300,
+                [0xCDu8; 32],
+            )
             .unwrap();
         reg.cast_resolve_vote(aid, acct(1), true, 50, 300, None).unwrap();
         let bytes = bincode::serialize(&reg).unwrap();
@@ -827,6 +974,8 @@ mod tests {
             back.get_appeal(aid).unwrap().votes.get(&acct(1)).unwrap().weight,
             50
         );
+        assert_eq!(back.get_appeal(aid).unwrap().electorate_w_snapshot, 300);
+        assert_eq!(back.get_appeal(aid).unwrap().pin_set_commitment, [0xCDu8; 32]);
     }
 
     #[test]
@@ -842,12 +991,115 @@ mod tests {
         )
         .unwrap();
         let aid = reg
-            .submit_appeal(1, vec![], 1, PHASE14_MAX_APPEAL_EVIDENCE_BYTES)
+            .submit_appeal(
+                1,
+                vec![],
+                1,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                1,
+                [0u8; 32],
+            )
             .unwrap();
         assert!(reg.get_appeal(aid).unwrap().votes.is_empty());
         let bytes = bincode::serialize(&reg).unwrap();
         let back: SlashAppealRegistry = bincode::deserialize(&bytes).unwrap();
         assert!(back.get_appeal(aid).unwrap().votes.is_empty());
+    }
+
+    #[test]
+    fn phase20_submit_stores_snapshot() {
+        let mut reg = SlashAppealRegistry::new();
+        reg.record_slash_with_id(
+            1,
+            acct(1),
+            100,
+            ConsensusSlashReason::BlobFailedServe,
+            1,
+            100,
+        )
+        .unwrap();
+        let pin = [0x11u8; 32];
+        let aid = reg
+            .submit_appeal(
+                1,
+                b"ev".to_vec(),
+                1,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                300,
+                pin,
+            )
+            .unwrap();
+        let a = reg.get_appeal(aid).unwrap();
+        assert_eq!(a.electorate_w_snapshot, 300);
+        assert_eq!(a.pin_set_commitment, pin);
+    }
+
+    #[test]
+    fn migrate_phase18_v3_sets_legacy_snapshot_sentinel() {
+        #[derive(Serialize)]
+        struct V3Vote {
+            approved: bool,
+            weight: u128,
+            ballot_signature: Option<SlashAppealBallotSignature>,
+        }
+        #[derive(Serialize)]
+        struct V3Appeal {
+            id: u64,
+            slash_id: u64,
+            evidence: Vec<u8>,
+            status: ConsensusAppealStatus,
+            votes: BTreeMap<AccountId, V3Vote>,
+        }
+        #[derive(Serialize)]
+        struct V3Reg {
+            slashes: BTreeMap<u64, ConsensusSlashRecord>,
+            appeals: BTreeMap<u64, V3Appeal>,
+            next_appeal_id: u64,
+        }
+        let mut slashes = BTreeMap::new();
+        slashes.insert(
+            1,
+            ConsensusSlashRecord {
+                id: 1,
+                account: acct(1),
+                amount: 10,
+                reason: ConsensusSlashReason::BlobFailedServe,
+                block_height: 1,
+                appeal_deadline: 100,
+                reversed: false,
+            },
+        );
+        let mut votes = BTreeMap::new();
+        votes.insert(
+            acct(2),
+            V3Vote {
+                approved: true,
+                weight: 50,
+                ballot_signature: None,
+            },
+        );
+        let mut appeals = BTreeMap::new();
+        appeals.insert(
+            1,
+            V3Appeal {
+                id: 1,
+                slash_id: 1,
+                evidence: b"e".to_vec(),
+                status: ConsensusAppealStatus::Pending,
+                votes,
+            },
+        );
+        let bytes = bincode::serialize(&V3Reg {
+            slashes,
+            appeals,
+            next_appeal_id: 2,
+        })
+        .unwrap();
+        let reg = SlashAppealRegistry::from_legacy_phase18_v3(&bytes).unwrap();
+        let a = reg.get_appeal(1).unwrap();
+        assert_eq!(a.electorate_w_snapshot, PHASE20_LEGACY_ELECTORATE_W_SENTINEL);
+        assert_eq!(a.pin_set_commitment, PHASE20_LEGACY_PIN_SET_COMMITMENT);
+        assert_eq!(a.votes.get(&acct(2)).unwrap().weight, 50);
     }
 
     #[test]
