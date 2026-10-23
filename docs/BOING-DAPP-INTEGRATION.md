@@ -1,7 +1,7 @@
 # dApp integration — Boing native path
 
 > 👋 **Everyday users:** install [Boing Express](https://boing.express) and click **Connect** on a Boing dApp. You do not need this file.  
-> 🛠️ **Developers:** 32-byte account ids, `window.boing`, simulate then submit, `boing-sdk`. This is **not** MetaMask + Solidity ABI.  
+> 🛠️ **Developers:** 32-byte account ids, `window.boing`, simulate then submit, `@boing-network/boing-sdk`. This is **not** MetaMask + Solidity ABI.  
 > 🛰️ **Operators:** publish `BOING_CANONICAL_NATIVE_*` on the node so `boing_getNetworkInfo.end_user` is the source of pool/factory ids.
 
 Short checklist for web apps that want **Boing L1** behavior without assuming a foreign L1 wallet stack (20-byte addresses + secp256k1 signing).

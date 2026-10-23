@@ -3,13 +3,13 @@
 Canonical repository: **[github.com/Boing-Network/boing.network](https://github.com/Boing-Network/boing.network)**.
 
 > 👋 **Everyday users:** issues and feedback are welcome, but you do not need this file to use the chain.
-> 🛠️ **Developers:** `cargo test` + `boing-sdk` build/test before a PR. Docs live in [docs/README.md](docs/README.md).
+> 🛠️ **Developers:** `cargo test` + `@boing-network/boing-sdk` (`boing-sdk/`) build/test before a PR. Docs live in [docs/README.md](docs/README.md).
 > 🛰️ **Operators:** optional smoke `npm run verify-native-dex-directory-worker` from repo root.
 
 ```mermaid
 flowchart LR
   Clone[Clone] --> Rust[cargo build / test]
-  Clone --> SDK[boing-sdk npm ci / build / test]
+  Clone --> SDK["boing-sdk/ npm ci / build / test"]
   SDK --> Tutorial[native-boing-tutorial preflight-rpc]
   Rust --> PR[Pull request]
   Tutorial --> PR

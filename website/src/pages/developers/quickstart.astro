@@ -54,7 +54,7 @@ export BOING_SECRET_HEX=&lt;64-hex private key&gt;</code></pre>
       <ul>
         <li><strong>No code:</strong> the deploy wizard on <a href="https://boing.finance" target="_blank" rel="noopener">boing.finance</a> (Boing Testnet, signed with Boing Express).</li>
         <li><strong>CLI:</strong> <code>boing token deploy</code>, shown above.</li>
-        <li><strong>TypeScript:</strong> <code>boing-sdk</code> <code>buildReferenceFungibleDeployMetaTx</code> (see the repository <code>boing-sdk/README.md</code>).</li>
+        <li><strong>TypeScript:</strong> <code>@boing-network/boing-sdk</code> <code>buildReferenceFungibleDeployMetaTx</code> (<code>npm i @boing-network/boing-sdk</code>; see repository <code>boing-sdk/README.md</code>).</li>
       </ul>
       <p>All three use the canonical reference fungible template (QA purpose <code>token</code>). The minimal template allows exactly <strong>one</strong> mint (fixed supply), and the first caller becomes admin. Details: repository <code>docs/BOING-REFERENCE-TOKEN.md</code>.</p>
     </section>
@@ -70,7 +70,7 @@ export BOING_SECRET_HEX=&lt;64-hex private key&gt;</code></pre>
     </section>
     <section class="section-reveal delay-3">
       <h2><Icon name="node" size={22} class="section-icon" /> RPC</h2>
-      <p>Default port: <code>8545</code>. Full method list and error codes: <a href="/docs#rpc-api">Documentation → RPC API</a> (mirrors repository <code>docs/RPC-API-SPEC.md</code>). Use <code>boing_health</code> or <code>boing_getNetworkInfo</code> for chain id, limits, and <code>developer.dex_discovery_methods</code>. TypeScript: in-repo <code>boing-sdk/</code> (see repo <code>boing-sdk/README.md</code>).</p>
+      <p>Default port: <code>8545</code>. Full method list and error codes: <a href="/docs#rpc-api">Documentation → RPC API</a> (mirrors repository <code>docs/RPC-API-SPEC.md</code>). Use <code>boing_health</code> or <code>boing_getNetworkInfo</code> for chain id, limits, and <code>developer.dex_discovery_methods</code>. TypeScript: <code>@boing-network/boing-sdk</code> from npm, or build in-repo <code>boing-sdk/</code> (see repo <code>boing-sdk/README.md</code>).</p>
     </section>
 
     <section class="section-reveal delay-4">
