@@ -1,4 +1,4 @@
-import type { BlockWithReceiptsBundle } from 'boing-sdk';
+import type { BlockWithReceiptsBundle } from '@boing-network/boing-sdk';
 
 /** Normalize block / tx id hex for comparisons and D1 storage. */
 export function normalizeObserverBlockHash(h: string | undefined): string {

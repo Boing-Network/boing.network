@@ -121,7 +121,7 @@ Multi-chain launchers (same steps: **basics → network → review → deploy**)
 import {
   buildAndPreflightReferenceFungibleDeploy,
   createClient,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const client = createClient(rpcUrl);
 const { tx, ui } = await buildAndPreflightReferenceFungibleDeploy(client, {
@@ -164,7 +164,7 @@ Optional **builder signal** for a (collection, token) pair — separate registry
 
 - **Locked wallet:** extension should return a clear error; dApp should prompt “Unlock Boing Express”.
 - **User reject:** treat like any wallet rejection; do not show “wrong network” for a signing refusal.
-- **QA / mempool / pool:** use numeric JSON-RPC `code` and structured `data` as in [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md). In TypeScript, `explainBoingRpcError(e)` from `boing-sdk` gives short user-facing text.
+- **QA / mempool / pool:** use numeric JSON-RPC `code` and structured `data` as in [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md). In TypeScript, `explainBoingRpcError(e)` from `@boing-network/boing-sdk` gives short user-facing text.
 
 ---
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   nextContiguousIndexedHeightAfterOmittedFetch,
   summarizeIndexerFetchGaps,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 import { reconcileGapRangesForWindow } from '../src/gaps.js';
 
 describe('reconcileGapRangesForWindow', () => {

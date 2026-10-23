@@ -1,8 +1,11 @@
-# Publish boing-sdk to the public npm registry (no interactive OTP).
+# Publish @boing-network/boing-sdk to the public npm registry (no interactive OTP).
 #
-# Trigger: push tag matching boing-sdk/v* (e.g. boing-sdk/v0.5.0).
+# Trigger: push tag matching boing-sdk/v* (e.g. boing-sdk/v0.5.24).
 # Secret: NPM_TOKEN — npm Automation or granular publish token for the
-# package owner (boing.network). Automation tokens do not require OTP per publish.
+# @boing-network org (user boing-network). Automation tokens do not require OTP per publish.
+#
+# Unscoped `boing-sdk` remains owned by locked account `boing.network` — this workflow
+# publishes the scoped package only.
 #
 # Operator steps: see boing-sdk/README.md § Publish to npm (CI).
 name: Publish boing-sdk
@@ -33,16 +36,22 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: npm
           cache-dependency-path: boing-sdk/package-lock.json
+          scope: "@boing-network"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify tag matches package.json version
+      - name: Verify package name and tag matches package.json version
         run: |
           set -euo pipefail
+          PKG_NAME="$(node -p "require('./package.json').name")"
           TAG_VERSION="${GITHUB_REF_NAME#boing-sdk/v}"
           PKG_VERSION="$(node -p "require('./package.json').version")"
-          echo "tag=${GITHUB_REF_NAME} tag_version=${TAG_VERSION} package.json=${PKG_VERSION}"
+          echo "package=${PKG_NAME} tag=${GITHUB_REF_NAME} tag_version=${TAG_VERSION} package.json=${PKG_VERSION}"
+          if [ "$PKG_NAME" != "@boing-network/boing-sdk" ]; then
+            echo "::error::Expected package name @boing-network/boing-sdk, got ${PKG_NAME}"
+            exit 1
+          fi
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
             echo "::error::Tag version (${TAG_VERSION}) must match boing-sdk/package.json (${PKG_VERSION})"
             exit 1
@@ -53,9 +62,9 @@ jobs:
         run: |
           set -euo pipefail
           PKG_VERSION="$(node -p "require('./package.json').version")"
-          if npm view "boing-sdk@${PKG_VERSION}" version >/dev/null 2>&1; then
+          if npm view "@boing-network/boing-sdk@${PKG_VERSION}" version >/dev/null 2>&1; then
             echo "already=true" >> "$GITHUB_OUTPUT"
-            echo "boing-sdk@${PKG_VERSION} is already on the registry; skipping publish."
+            echo "@boing-network/boing-sdk@${PKG_VERSION} is already on the registry; skipping publish."
           else
             echo "already=false" >> "$GITHUB_OUTPUT"
           fi

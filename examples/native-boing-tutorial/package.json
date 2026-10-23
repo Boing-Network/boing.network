@@ -37,6 +37,6 @@
     "probe-rpc": "node ../../boing-sdk/scripts/probe-rpc.mjs"
   },
   "dependencies": {
-    "boing-sdk": "file:../../boing-sdk"
+    "@boing-network/boing-sdk": "file:../../boing-sdk"
   }
 }

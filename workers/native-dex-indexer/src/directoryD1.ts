@@ -8,7 +8,7 @@ import type {
   NativeDexIndexerStatsPayload,
   NativeDexIndexedNftOwnerRow,
   NativeDexMaterializedPoolEvent,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const MAX_PAGE = 100;
 const DEFAULT_PAGE = 20;

@@ -9,7 +9,7 @@
  *   BOING_ADDRESS          — optional contract account id (32-byte hex)
  *   BOING_MAX_CONCURRENT   — optional default 1 (parallel getLogs chunks)
  */
-import { createClient, getLogsChunked } from 'boing-sdk';
+import { createClient, getLogsChunked } from '@boing-network/boing-sdk';
 
 const rpc = process.env.BOING_RPC_URL ?? 'http://127.0.0.1:8545';
 const fromStr = process.env.BOING_FROM_BLOCK;

@@ -13,7 +13,7 @@
  * `_error` but the poll still succeeds when chainHeight works — upgrade boing-node or ignore for minimal gateways.
  * On Windows, exiting immediately after fetch can trigger libuv UV_HANDLE_CLOSING; exit is deferred (short timeout).
  */
-import { createClient } from 'boing-sdk';
+import { createClient } from '@boing-network/boing-sdk';
 
 const rpc = (process.env.BOING_RPC_URL ?? 'http://127.0.0.1:8545').replace(/\/$/, '');
 const pollOnce =

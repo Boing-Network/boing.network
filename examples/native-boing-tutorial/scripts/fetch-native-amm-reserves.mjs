@@ -7,7 +7,7 @@
  *   BOING_POOL_HEX   — required, 32-byte pool account id
  *   BOING_SIGNER_HEX — optional 32-byte account id; when set, includes that signer's LP balance in the snapshot
  */
-import { createClient, fetchNativeConstantProductPoolSnapshot } from 'boing-sdk';
+import { createClient, fetchNativeConstantProductPoolSnapshot } from '@boing-network/boing-sdk';
 
 const rpc = process.env.BOING_RPC_URL ?? 'http://127.0.0.1:8545';
 const pool = process.env.BOING_POOL_HEX;

@@ -17,7 +17,7 @@ import {
   createClient,
   extractUniversalContractDeploymentsFromBlock,
   type UniversalContractDeploymentRow,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 type Env = {
   DEPLOY_REGISTRY_DB: D1Database;

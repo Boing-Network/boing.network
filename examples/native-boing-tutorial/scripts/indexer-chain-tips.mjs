@@ -4,7 +4,7 @@
  *
  * Env: BOING_RPC_URL (default http://127.0.0.1:8545)
  */
-import { createClient, clampIndexerHeightRange, getIndexerChainTips } from 'boing-sdk';
+import { createClient, clampIndexerHeightRange, getIndexerChainTips } from '@boing-network/boing-sdk';
 
 const rpc = process.env.BOING_RPC_URL ?? 'http://127.0.0.1:8545';
 const fromStr = process.env.BOING_FROM_HEIGHT;

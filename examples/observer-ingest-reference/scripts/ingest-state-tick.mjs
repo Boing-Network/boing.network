@@ -5,7 +5,7 @@
  * @see README.md in this package
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { createClient, mergeInclusiveHeightRanges, subtractInclusiveRangeFromRanges } from 'boing-sdk';
+import { createClient, mergeInclusiveHeightRanges, subtractInclusiveRangeFromRanges } from '@boing-network/boing-sdk';
 import { runIndexerFetchTick } from './lib/ingest-fetch-tick.mjs';
 
 const rpc = process.env.BOING_RPC_URL ?? 'http://127.0.0.1:8545';

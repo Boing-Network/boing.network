@@ -9,7 +9,7 @@ import {
   createClient,
   createNativeDexDiscovery,
   probeBoingRpcCapabilities,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 function env(name: string): string | undefined {
   const v = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { BoingClient, explainBoingRpcError, formatSupportHint, isBoingRpcPreflightError } from "boing-sdk";
+import { BoingClient, explainBoingRpcError, formatSupportHint, isBoingRpcPreflightError } from "@boing-network/boing-sdk";
 import { useHubRpcConfig } from "../lib/hubRpcConfig";
 
 const LS_VOTER = "boing-hub-qa-voter-hex";

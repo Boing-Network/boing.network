@@ -126,7 +126,7 @@ curl -s -X POST "$RPC" -H "Content-Type: application/json" \
 | 4 | [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) | **Done** — **OPS-1** marked complete in scoped passes + backlog text. |
 | 5 | This file + **`boing-sdk`** | **Done** — § Published below; **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** in [`boing-sdk/src/canonicalTestnet.ts`](../boing-sdk/src/canonicalTestnet.ts) (mirror of spec — bump when the on-chain canonical pool changes). |
 
-**Tutorial / scripts** use **`BOING_POOL_HEX`** or `import { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from 'boing-sdk'` after **`npm run build`** in **`boing-sdk`**.
+**Tutorial / scripts** use **`BOING_POOL_HEX`** or `import { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from '@boing-network/boing-sdk'` after **`npm run build`** in **`boing-sdk`**.
 
 ---
 

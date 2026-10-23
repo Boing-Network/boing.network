@@ -2,7 +2,7 @@
  * Shared helpers for tutorial deploy scripts: deferred process.exit (Windows libuv UV_HANDLE_CLOSING)
  * and consistent JSON-RPC failure messages.
  */
-import { explainBoingRpcError } from 'boing-sdk';
+import { explainBoingRpcError } from '@boing-network/boing-sdk';
 
 export class ScheduledExitError extends Error {
   constructor() {

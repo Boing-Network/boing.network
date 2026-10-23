@@ -28,7 +28,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createClient, hexToBytes, senderHexFromSecretKey } from 'boing-sdk';
+import { createClient, hexToBytes, senderHexFromSecretKey } from '@boing-network/boing-sdk';
 import { parseScriptStdoutJson } from './tutorial-script-json.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));

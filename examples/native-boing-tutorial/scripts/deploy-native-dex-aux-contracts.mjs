@@ -25,7 +25,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createClient, explainBoingRpcError, hexToBytes, senderHexFromSecretKey, validateHex32 } from 'boing-sdk';
+import { createClient, explainBoingRpcError, hexToBytes, senderHexFromSecretKey, validateHex32 } from '@boing-network/boing-sdk';
 import {
   ScheduledExitError,
   exitAfterLog,

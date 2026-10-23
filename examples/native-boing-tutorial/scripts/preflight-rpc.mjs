@@ -13,7 +13,7 @@ import {
   explainBoingRpcError,
   explainBoingRpcProbeGaps,
   probeBoingRpcCapabilities,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const defaultRpc = 'https://testnet-rpc.boing.network';
 const rpc = (process.env.BOING_RPC_URL?.trim() || defaultRpc).replace(/\/$/, '');

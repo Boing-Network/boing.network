@@ -28,7 +28,7 @@ import {
   NATIVE_DEX_DIRECTORY_SCHEMA_VERSION,
   resolveNativeAmmVaultPoolMapping,
   validateHex32,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 import {
   getDirectoryMeta,
   invalidateDirectoryPoolEventsIfTipReorged,

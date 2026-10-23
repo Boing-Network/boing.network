@@ -12,7 +12,7 @@ export default defineConfig({
   base: "./",
   resolve: {
     alias: {
-      "boing-sdk": path.resolve(__dirname, "../boing-sdk/src/index.ts"),
+      "@boing-network/boing-sdk": path.resolve(__dirname, "../boing-sdk/src/index.ts"),
     },
   },
   server: {

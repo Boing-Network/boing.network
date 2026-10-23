@@ -20,7 +20,7 @@ import {
   createClient,
   explainBoingRpcError,
   fetchCpRoutingFromDirectoryLogs,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const rpc = process.env.BOING_RPC_URL ?? 'https://testnet-rpc.boing.network';
 const tokenIn = process.env.TOKEN_IN?.trim();

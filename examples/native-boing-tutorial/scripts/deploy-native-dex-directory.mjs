@@ -40,7 +40,7 @@ import {
   submitContractCallWithSimulationRetry,
   submitDeployWithPurposeFlow,
   validateHex32,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 import { readFileSync } from 'node:fs';
 
 function sleep(ms) {

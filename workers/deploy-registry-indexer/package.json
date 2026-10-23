@@ -10,7 +10,7 @@
     "secret:sync": "wrangler secret put DEPLOY_REGISTRY_SYNC_SECRET"
   },
   "dependencies": {
-    "boing-sdk": "file:../../boing-sdk"
+    "@boing-network/boing-sdk": "file:../../boing-sdk"
   },
   "devDependencies": {
     "wrangler": "^4.147.0"

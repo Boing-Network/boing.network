@@ -3,7 +3,7 @@
  * Uses lightweight **`getBlockByHeight(h, false)`** (no receipts).
  */
 
-import type { BoingClient } from 'boing-sdk';
+import type { BoingClient } from '@boing-network/boing-sdk';
 import {
   deleteBlockAtHeightD1,
   getBlockRowAtHeight,

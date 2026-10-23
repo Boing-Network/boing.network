@@ -69,7 +69,7 @@ batches use the parallel rayon path).
 ## SDK
 
 ```ts
-import { buildBatchTransaction, signTransactionInput } from 'boing-sdk';
+import { buildBatchTransaction, signTransactionInput } from '@boing-network/boing-sdk';
 
 const tx = buildBatchTransaction({
   nonce,

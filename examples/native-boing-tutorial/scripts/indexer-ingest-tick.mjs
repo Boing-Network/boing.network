@@ -16,7 +16,7 @@ import {
   nextContiguousIndexedHeightAfterOmittedFetch,
   planIndexerCatchUp,
   summarizeIndexerFetchGaps,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const rpc = process.env.BOING_RPC_URL ?? 'http://127.0.0.1:8545';
 const lastStr = process.env.BOING_LAST_INDEXED_HEIGHT ?? '-1';

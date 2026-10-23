@@ -11,7 +11,7 @@
     "d1:apply:remote": "wrangler d1 migrations apply boing-observer-indexer --remote"
   },
   "dependencies": {
-    "boing-sdk": "file:../../boing-sdk"
+    "@boing-network/boing-sdk": "file:../../boing-sdk"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260928.1",

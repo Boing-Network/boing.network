@@ -18,7 +18,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "boing-sdk": ["../boing-sdk/src/index.ts"]
+      "@boing-network/boing-sdk": ["../boing-sdk/src/index.ts"]
     }
   },
   "include": ["src"],

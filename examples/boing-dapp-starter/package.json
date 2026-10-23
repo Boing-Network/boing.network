@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "boing-sdk": "file:../../boing-sdk"
+    "@boing-network/boing-sdk": "file:../../boing-sdk"
   },
   "devDependencies": {
     "tsx": "^4.19.0",

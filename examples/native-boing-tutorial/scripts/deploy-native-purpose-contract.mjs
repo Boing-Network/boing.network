@@ -24,7 +24,7 @@ import {
   senderHexFromSecretKey,
   submitDeployWithPurposeFlow,
   validateHex32,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 import { readFileSync } from 'node:fs';
 
 const rpc = process.env.BOING_RPC_URL ?? 'https://testnet-rpc.boing.network';

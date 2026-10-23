@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BoingConnectionMonitor, type BoingClient, type BoingConnectionSnapshot } from "boing-sdk";
+import { BoingConnectionMonitor, type BoingClient, type BoingConnectionSnapshot } from "@boing-network/boing-sdk";
 
 export interface UseBoingHubRpcMonitorOptions {
   /** Default **20_000** ms. */

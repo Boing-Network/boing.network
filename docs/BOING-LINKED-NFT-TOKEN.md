@@ -134,7 +134,7 @@ Prefer the thin pack helper when a wizard should mint a linked collection+token 
 import {
   buildLinkedNftTokenProjectPack,
   CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const pack = buildLinkedNftTokenProjectPack({
   deployerHex: walletAccountId, // CREATE2 deployer + default claimer

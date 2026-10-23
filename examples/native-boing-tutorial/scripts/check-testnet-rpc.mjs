@@ -13,7 +13,7 @@ import {
   explainBoingRpcError,
   explainBoingRpcProbeGaps,
   probeBoingRpcCapabilities,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const rpc = process.env.BOING_RPC_URL ?? 'https://testnet-rpc.boing.network';
 const fullProbe = process.env.BOING_PROBE_FULL === '1' || process.env.BOING_PROBE_FULL === 'true';

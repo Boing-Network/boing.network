@@ -631,7 +631,7 @@ fn network_info_developer_hints() -> serde_json::Value {
         "repository_url": repository_url,
         "rpc_spec_url": rpc_spec_url,
         "dapp_integration_doc_url": dapp_integration_doc_url,
-        "sdk_npm_package": "boing-sdk",
+        "sdk_npm_package": "@boing-network/boing-sdk",
         "websocket": {
             "path": "/ws",
             "handshake": {"type": "subscribe", "channel": "newHeads"},

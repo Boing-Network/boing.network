@@ -4,7 +4,7 @@ import {
   encodeReferenceMintBatchCalldata,
   encodeReferenceTransferNftCalldata,
   referenceNftTokenIdWordFromU64,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 import { extractNftEventsFromBlock } from '../src/extract.js';
 import { compareCanonicalBlockHash } from '../src/reorg.js';
 

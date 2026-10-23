@@ -9,6 +9,6 @@
     "ingest-sqlite-tick": "node scripts/ingest-sqlite-tick.mjs"
   },
   "dependencies": {
-    "boing-sdk": "file:../../boing-sdk"
+    "@boing-network/boing-sdk": "file:../../boing-sdk"
   }
 }

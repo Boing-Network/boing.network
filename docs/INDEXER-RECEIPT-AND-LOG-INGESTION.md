@@ -63,7 +63,7 @@ import {
   getIndexerChainTips,
   clampIndexerHeightRange,
   fetchBlocksWithReceiptsForHeightRange,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 async function indexerTick(rpcUrl: string, db: { getLastIndexedHeight(): Promise<number>; setLastIndexedHeight(h: number): Promise<void> }) {
   const client = createClient(rpcUrl);

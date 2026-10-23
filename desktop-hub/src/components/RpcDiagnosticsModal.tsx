@@ -9,7 +9,7 @@ import {
   formatBoingRpcDoctorReport,
   formatSupportHint,
   isBoingRpcPreflightError,
-} from "boing-sdk";
+} from "@boing-network/boing-sdk";
 import { useBoingHubRpcMonitor } from "../hooks/useBoingHubRpcMonitor";
 import { useHubRpcConfig } from "../lib/hubRpcConfig";
 

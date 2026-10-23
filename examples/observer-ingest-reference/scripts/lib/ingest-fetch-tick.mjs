@@ -7,10 +7,10 @@ import {
   planIndexerCatchUp,
   summarizeIndexerFetchGaps,
   unionInclusiveHeightRanges,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 /**
- * @param {import('boing-sdk').BoingClient} client
+ * @param {import('@boing-network/boing-sdk').BoingClient} client
  * @param {object} input
  * @param {number} input.lastIndexedHeight
  * @param {readonly { fromHeight: number; toHeight: number }[]} input.gapRanges

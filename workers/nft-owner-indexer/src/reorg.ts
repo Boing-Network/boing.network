@@ -2,7 +2,7 @@
  * OBS-1-style tip rewind: compare RPC headers to indexed_blocks, delete mismatched heights.
  */
 
-import type { BoingClient } from 'boing-sdk';
+import type { BoingClient } from '@boing-network/boing-sdk';
 import { normalizeHex64, zeros32 } from './cors.js';
 import {
   deleteHeightAndRebuild,

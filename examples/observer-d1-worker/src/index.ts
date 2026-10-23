@@ -7,7 +7,7 @@ import {
   planIndexerChainTipsWithFallback,
   summarizeIndexerFetchGaps,
   unionInclusiveHeightRanges,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 import {
   blockHashAtHeight,
   maybeArmReadinessLagGuardD1,

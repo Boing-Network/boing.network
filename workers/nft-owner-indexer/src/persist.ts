@@ -2,7 +2,7 @@ import {
   blockHeightGapRowsForInsert,
   mergeInclusiveHeightRanges,
   type InclusiveHeightRange,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 import type { ExtractedNftEvent } from './extract.js';
 import { normalizeHex64, zeros32 } from './cors.js';
 

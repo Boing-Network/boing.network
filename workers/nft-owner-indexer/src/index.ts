@@ -19,7 +19,7 @@ import {
   planIndexerChainTipsWithFallback,
   summarizeIndexerFetchGaps,
   type InclusiveHeightRange,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 import { handleOptions, jsonRes, normalizeHex64, parseCorsOrigins, zeros32 } from './cors.js';
 import { extractNftEventsFromBlock } from './extract.js';
 import { reconcileGapRangesForWindow } from './gaps.js';

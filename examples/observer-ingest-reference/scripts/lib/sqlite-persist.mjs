@@ -13,7 +13,7 @@ function normHash(h) {
 
 /**
  * @param {import('node:sqlite').DatabaseSync} db
- * @param {import('boing-sdk').BlockWithReceiptsBundle} bundle
+ * @param {import('@boing-network/boing-sdk').BlockWithReceiptsBundle} bundle
  */
 export function persistBlockBundle(db, bundle) {
   const { height, block } = bundle;
@@ -144,7 +144,7 @@ export function upsertIngestCursor(db, chainId, lastHeight, lastHash, nowSec) {
 }
 
 /**
- * @param {readonly import('boing-sdk').BlockWithReceiptsBundle[]} bundles
+ * @param {readonly import('@boing-network/boing-sdk').BlockWithReceiptsBundle[]} bundles
  * @param {number} height
  */
 export function blockHashAtHeight(bundles, height) {

@@ -99,7 +99,7 @@ export BOING_SECRET_HEX=0x…   # 32-byte Ed25519 seed
 # optional: fund first
 # npm run fund-deployer-from-env
 export BOING_CREATE2_SALT_HEX=0x424f494e475f4255494c4445525f4154544553545f5245475f56310000000000
-export BOING_NATIVE_BYTECODE_HEX="$(node -e "import('boing-sdk').then(m=>console.log(m.DEFAULT_BUILDER_ATTESTATION_REGISTRY_BYTECODE_HEX))")"
+export BOING_NATIVE_BYTECODE_HEX="$(node -e "import('@boing-network/boing-sdk').then(m=>console.log(m.DEFAULT_BUILDER_ATTESTATION_REGISTRY_BYTECODE_HEX))")"
 export BOING_PURPOSE=dapp
 npm run deploy-native-purpose-contract
 ```
@@ -112,7 +112,7 @@ import {
   DEFAULT_BUILDER_ATTESTATION_REGISTRY_BYTECODE_HEX,
   predictBuilderAttestationRegistryCreate2Address,
   accountIdFromSecretHex, // if available; else pass deployer AccountId
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 "
 ```
 

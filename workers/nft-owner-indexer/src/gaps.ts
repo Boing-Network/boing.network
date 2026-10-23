@@ -7,7 +7,7 @@ import {
   mergeInclusiveHeightRanges,
   subtractInclusiveRangeFromRanges,
   type InclusiveHeightRange,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 /**
  * Replace any stored gap records that fall inside `window` with `stillMissingWithinWindow`,

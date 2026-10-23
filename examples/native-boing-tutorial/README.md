@@ -6,7 +6,7 @@ End-to-end examples for **Boing L1** using only **`boing-sdk`**: transfer, refer
 
 ## Prereqs
 
-1. A running Boing node RPC (e.g. `http://127.0.0.1:8545` or `https://testnet-rpc.boing.network`). For native AMM scripts, set **`BOING_POOL_HEX`** to your pool `AccountId`, or after **`cd ../../boing-sdk && npm run build`** use the exported default: `import { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from 'boing-sdk'` (same value as [RPC-API-SPEC.md](../../docs/RPC-API-SPEC.md) § Native constant-product AMM; [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](../../docs/OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published).
+1. A running Boing node RPC (e.g. `http://127.0.0.1:8545` or `https://testnet-rpc.boing.network`). For native AMM scripts, set **`BOING_POOL_HEX`** to your pool `AccountId`, or after **`cd ../../boing-sdk && npm run build`** use the exported default: `import { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from '@boing-network/boing-sdk'` (same value as [RPC-API-SPEC.md](../../docs/RPC-API-SPEC.md) § Native constant-product AMM; [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](../../docs/OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published).
 2. Funded account: 32-byte Ed25519 **secret** as hex (`0x` + 64 hex chars). Testnet: `boing_faucetRequest` via SDK or site faucet.
 3. Build the SDK:
 

@@ -7,7 +7,7 @@ import {
   SELECTOR_SET_METADATA_HASH,
   SELECTOR_TRANSFER_NFT,
   decodeReferenceNftCalldata,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 import { isZeroHex64, normalizeHex64, zeros32 } from './cors.js';
 
 export type NftEventKind = 'mint_batch' | 'transfer_nft' | 'set_metadata_hash';

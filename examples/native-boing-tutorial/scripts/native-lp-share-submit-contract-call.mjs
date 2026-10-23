@@ -15,7 +15,7 @@ import {
   hexToBytes,
   senderHexFromSecretKey,
   submitContractCallWithSimulationRetry,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 function requireEnv(name) {
   const v = process.env[name];

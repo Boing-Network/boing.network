@@ -20,7 +20,7 @@ npm install
 npm run build
 ```
 
-Or from a parent repo (when published): `npm install boing-sdk`.
+Or from a parent repo (when published): `npm install @boing-network/boing-sdk`.
 
 ### Consuming via `file:` (e.g. [boing.finance](https://github.com/Boing-Network/boing.finance))
 
@@ -32,12 +32,14 @@ When you change SDK **source** (`src/`), run `npm run build` in `boing-sdk` and 
 
 ### Publish to npm (CI)
 
-Do **not** use interactive `npm login` / OTP for routine publishes. Use the **Publish boing-sdk** GitHub Action (`.github/workflows/boing-sdk-publish.yml`), which publishes on tags `boing-sdk/v*` with an npm **Automation** (or granular publish) token.
+Package name on the registry: **`@boing-network/boing-sdk`** (scoped). Unscoped `boing-sdk` is owned by a locked npm account and is **not** updated by this workflow.
 
-**One-time (package owner `boing.network`):**
+Do **not** use interactive `npm login` / OTP for routine publishes. Use the **Publish boing-sdk** GitHub Action (`.github/workflows/boing-sdk-publish.yml`), which publishes on tags `boing-sdk/v*` with an npm **Automation** (or granular publish) token for the **`boing-network`** org.
 
-1. Sign in at [npmjs.com](https://www.npmjs.com/) (auth app / recovery is enough to create a token; you do **not** paste OTP into chat or into CI).
-2. **Access Tokens** → generate an **Automation** token (preferred) or a granular token with **publish** on `boing-sdk`. Automation tokens skip OTP on each `npm publish`.
+**One-time (org `boing-network`):**
+
+1. Sign in at [npmjs.com](https://www.npmjs.com/) as **`boing-network`** (auth app / recovery is enough to create a token; you do **not** paste OTP into chat or into CI).
+2. **Access Tokens** → generate an **Automation** token (preferred) or a granular token with **publish** on `@boing-network/boing-sdk` and **bypass 2FA**. Automation tokens skip OTP on each `npm publish`.
 3. In GitHub → `Boing-Network/boing.network` → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**:
    - Name: `NPM_TOKEN`
    - Value: the token (never commit it)
@@ -47,14 +49,14 @@ Do **not** use interactive `npm login` / OTP for routine publishes. Use the **Pu
 
 ```bash
 git checkout main && git pull origin main
-node -p "require('./boing-sdk/package.json').version"   # e.g. 0.5.0
-git tag -a "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")" -m "boing-sdk $(node -p "require('./boing-sdk/package.json').version")"
+node -p "require('./boing-sdk/package.json').version"   # e.g. 0.5.24
+git tag -a "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")" -m "@boing-network/boing-sdk $(node -p "require('./boing-sdk/package.json').version")"
 git push origin "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")"
 ```
 
-Watch **Actions → Publish boing-sdk**. Then: `npm view boing-sdk version`.
+Watch **Actions → Publish boing-sdk**. Then: `npm view @boing-network/boing-sdk version`.
 
-If you cannot sign in to npm at all (no auth app, no recovery), CI cannot publish either — restore npm account access first. GitHub Packages is not the default path for FreshMint (`npm install boing-sdk`).
+If you cannot sign in to npm at all (no auth app, no recovery), CI cannot publish either — restore npm account access first. GitHub Packages is not the default path for FreshMint (`npm install @boing-network/boing-sdk`).
 
 ## Tests
 
@@ -66,7 +68,7 @@ If you cannot sign in to npm at all (no auth app, no recovery), CI cannot publis
 ## Quick start
 
 ```ts
-import { createClient, BoingRpcError } from 'boing-sdk';
+import { createClient, BoingRpcError } from '@boing-network/boing-sdk';
 
 const client = createClient('http://localhost:8545');
 
@@ -140,7 +142,7 @@ All 32-byte IDs (account, hash) are hex strings with or without `0x` prefix. Inv
 Deploy, mint, transfer and read the canonical reference fungible token. Output is byte-identical to the Rust CLI (see [BOING-REFERENCE-TOKEN.md](../docs/BOING-REFERENCE-TOKEN.md#sdk-token-helpers-boing-sdk-mirrors-boing-token)).
 
 ```ts
-import { createClient, deployBoingToken, transferBoingToken, getBoingTokenBalance, hexToBytes } from 'boing-sdk';
+import { createClient, deployBoingToken, transferBoingToken, getBoingTokenBalance, hexToBytes } from '@boing-network/boing-sdk';
 
 const client = createClient('https://testnet-rpc.boing.network');
 const seed = hexToBytes(process.env.BOING_SECRET_HEX!); // 32-byte Ed25519 seed; never hard-code or commit it
@@ -160,7 +162,7 @@ Pass `dryRun: true` (and `nonce`) to get `{ txId, signedHex }` without submittin
 Create, fund, swap with slippage protection, and read native constant-product pools (templates v1..v7). Byte-identical to the Rust CLI; see [NATIVE-AMM-CLI.md](../docs/NATIVE-AMM-CLI.md), including the **custody caveat** (deposits and swap inputs are ledger-only in v1..v7).
 
 ```ts
-import { createClient, createBoingPool, addBoingPoolLiquidity, swapBoingPool, getBoingPoolState, hexToBytes } from 'boing-sdk';
+import { createClient, createBoingPool, addBoingPoolLiquidity, swapBoingPool, getBoingPoolState, hexToBytes } from '@boing-network/boing-sdk';
 
 const client = createClient('http://127.0.0.1:8545');
 const seed = hexToBytes(process.env.BOING_SECRET_HEX!);
@@ -183,7 +185,7 @@ import {
   fetchNextNonce,
   buildTransferTransaction,
   signTransactionInput,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const client = createClient('http://localhost:8545');
 const senderHex = '0x' + '<64-hex of public key>';
@@ -223,7 +225,7 @@ import {
   explainBoingRpcError,
   senderHexFromSecretKey,
   hexToBytes,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const client = createClient(process.env.BOING_RPC_URL ?? 'http://127.0.0.1:8545');
 const secret = hexToBytes(process.env.BOING_SECRET_HEX!); // 0x + 64 hex

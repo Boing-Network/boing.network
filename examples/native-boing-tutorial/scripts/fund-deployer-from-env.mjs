@@ -20,7 +20,7 @@ import {
   hexToBytes,
   senderHexFromSecretKey,
   validateHex32,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 import { loadDotEnvFile } from './tutorial-dotenv.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));

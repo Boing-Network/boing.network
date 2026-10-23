@@ -20,7 +20,7 @@ import {
   nativeDexLedgerRouterCreate2SaltV3Hex,
   nativeDexMultihopSwapRouterCreate2SaltV1Hex,
   nativeLpShareTokenCreate2SaltV1Hex,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const out = {
   native_dex_factory_v1: nativeDexFactoryCreate2SaltV1Hex(),

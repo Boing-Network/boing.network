@@ -20,7 +20,7 @@ import {
   createClient,
   fetchBlocksWithReceiptsForHeightRange,
   getIndexerChainTips,
-} from 'boing-sdk';
+} from '@boing-network/boing-sdk';
 
 const rpc = process.env.BOING_RPC_URL ?? 'http://127.0.0.1:8545';
 const fromStr = process.env.BOING_FROM_HEIGHT;
