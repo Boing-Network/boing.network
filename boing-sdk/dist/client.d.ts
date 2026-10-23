@@ -1,7 +1,7 @@
 /**
  * Boing JSON-RPC client — typed methods for all node RPCs.
  */
-import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, ContractCode, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, NetworkFeePolicyResult, JsonRpcBatchResponseItem } from './types.js';
+import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsResult, ReverifySlashAppealBallotsParams, ReverifySlashAppealBallotsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, ContractCode, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, NetworkFeePolicyResult, JsonRpcBatchResponseItem } from './types.js';
 /**
  * Default UA for Node/CLI calls to public RPC (some CDN/WAF edges return HTTP 403 for empty/bot UA).
  * Overridable via {@link BoingClientConfig.extraHeaders}.
@@ -293,6 +293,11 @@ export declare class BoingClient {
     qaPoolList(): Promise<QaPoolListResult>;
     /** Read-only: slash/appeal registry (equivocation + liveness). */
     listSlashRecords(): Promise<ListSlashRecordsResult>;
+    /**
+     * Phase 22 read-only audit: dual-verify stored Ed25519 resolve ballots,
+     * pin-set match, and registry commitment (`boing_reverifySlashAppealBallots`).
+     */
+    reverifySlashAppealBallots(filters?: ReverifySlashAppealBallotsParams): Promise<ReverifySlashAppealBallotsResult>;
     /**
      * Submit a slash appeal. Requires operator header when the node sets `BOING_OPERATOR_RPC_TOKEN`.
      * `evidenceHex` is optional hex (with or without `0x`); empty string = empty evidence.

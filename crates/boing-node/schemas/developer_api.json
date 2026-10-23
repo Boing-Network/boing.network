@@ -309,6 +309,12 @@
         "result": { "type": "object" }
       },
       {
+        "name": "boing_reverifySlashAppealBallots",
+        "summary": "Phase 22 read-only audit: dual-verify stored Ed25519 resolve ballots (V2 then V1), pin-set match, and registry commitment. Optional filters: appealId, slashId, includeUnattested, expectedRegistryCommitment.",
+        "params": { "type": "array", "maxItems": 1 },
+        "result": { "type": "object" }
+      },
+      {
         "name": "boing_submitSlashAppeal",
         "summary": "Submit an appeal for a slash (operator auth when BOING_OPERATOR_RPC_TOKEN is set). Params: [slash_id, evidence_hex] or {slash_id, evidence}.",
         "params": { "type": "array", "minItems": 2 },

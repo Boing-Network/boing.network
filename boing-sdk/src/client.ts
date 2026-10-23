@@ -18,6 +18,8 @@ import type {
   QaPoolListResult,
   QaPoolVoteResult,
   ListSlashRecordsResult,
+  ReverifySlashAppealBallotsParams,
+  ReverifySlashAppealBallotsResult,
   SubmitSlashAppealResult,
   ResolveSlashAppealResult,
   RegisterDappResult,
@@ -1102,6 +1104,19 @@ export class BoingClient {
   /** Read-only: slash/appeal registry (equivocation + liveness). */
   async listSlashRecords(): Promise<ListSlashRecordsResult> {
     return this.request<ListSlashRecordsResult>('boing_listSlashRecords', []);
+  }
+
+  /**
+   * Phase 22 read-only audit: dual-verify stored Ed25519 resolve ballots,
+   * pin-set match, and registry commitment (`boing_reverifySlashAppealBallots`).
+   */
+  async reverifySlashAppealBallots(
+    filters: ReverifySlashAppealBallotsParams = {},
+  ): Promise<ReverifySlashAppealBallotsResult> {
+    return this.request<ReverifySlashAppealBallotsResult>(
+      'boing_reverifySlashAppealBallots',
+      [filters],
+    );
   }
 
   /**

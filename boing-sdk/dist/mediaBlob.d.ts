@@ -309,13 +309,28 @@ export declare function encodeResolveSlashAppeal(input: {
     appealId: bigint;
     approved: boolean;
 }): TransactionPayloadInput;
-/** Phase 18: attested resolve (`ResolveSlashAppealAttested`, variant 32). */
+/** Phase 18/22: attested resolve (`ResolveSlashAppealAttested`, variant 32). */
 export declare function encodeResolveSlashAppealAttested(input: {
     appealId: bigint;
     approved: boolean;
-    /** 64-byte Ed25519 ballot over `BOING_SLASH_APPEAL_RESOLVE_BALLOT_V1` preimage. */
+    /**
+     * 64-byte Ed25519 ballot. Prefer Phase 22 **V2** (`signSlashAppealResolveBallotV2`
+     * over `pin_set_commitment`); historical V1 still dual-verifies on-node.
+     */
     ballotSignature: Uint8Array;
 }): TransactionPayloadInput;
+/**
+ * Phase 22: encode attested resolve by signing ballot domain **V2** (binds pin set).
+ * `secretKey32` must match the voter AccountId / tx.sender.
+ */
+export declare function encodeResolveSlashAppealAttestedV2(input: {
+    appealId: bigint;
+    slashId: bigint;
+    approved: boolean;
+    chainId: bigint | number;
+    pinSetCommitment: Uint8Array;
+    secretKey32: Uint8Array;
+}): Promise<TransactionPayloadInput>;
 /** Honest plan strings for Phase 14 (consensus slash-appeal txs; ReservedRealV1 still rejects). */
 export declare function phase14DasSuccinctProofPlan(): string[];
 /** Phase 15 aliases / constants. */
@@ -443,4 +458,74 @@ export declare function phase21ResolveDeadline(submitHeight: bigint): bigint;
 export declare function phase21ResolveExpired(tipHeight: bigint, resolveDeadline: bigint): boolean;
 /** Honest plan strings for Phase 21 (resolve expiry + Pending cleanup; still 16 MiB). */
 export declare function phase21DasSuccinctProofPlan(): string[];
+/** Phase 22 ballot domain tags. */
+export declare const SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V1 = "BOING_SLASH_APPEAL_RESOLVE_BALLOT_V1";
+export declare const SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V2 = "BOING_SLASH_APPEAL_RESOLVE_BALLOT_V2";
+/** Phase 22 aliases / constants. */
+export declare const PHASE22_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE22_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE22_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE22_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE22_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE22_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE22_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE22_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE22_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE22_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE22_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE22_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+/** True when a multi-pin committee must use attested resolve (32) (Phase 19 alias). */
+export declare function phase22CommitteeRequiresAttested(pinnedLen: number): boolean;
+export declare function phase22ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase22ResolveExpired(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/** BLAKE3 preimage for ballot domain V1 (historical). */
+export declare function slashAppealResolveBallotPreimageV1(input: {
+    chainId: bigint | number;
+    appealId: bigint | number;
+    slashId: bigint | number;
+    approved: boolean;
+    voter: Uint8Array;
+}): Uint8Array;
+/** BLAKE3 preimage for ballot domain V2 (binds pin_set_commitment). */
+export declare function slashAppealResolveBallotPreimageV2(input: {
+    chainId: bigint | number;
+    appealId: bigint | number;
+    slashId: bigint | number;
+    approved: boolean;
+    voter: Uint8Array;
+    pinSetCommitment: Uint8Array;
+}): Uint8Array;
+/** Sign a historical V1 resolve ballot. */
+export declare function signSlashAppealResolveBallotV1(input: {
+    chainId: bigint | number;
+    appealId: bigint | number;
+    slashId: bigint | number;
+    approved: boolean;
+    secretKey32: Uint8Array;
+}): Promise<Uint8Array>;
+/** Sign a Phase 22 V2 resolve ballot (binds pin set). Prefer for new 32 casts. */
+export declare function signSlashAppealResolveBallotV2(input: {
+    chainId: bigint | number;
+    appealId: bigint | number;
+    slashId: bigint | number;
+    approved: boolean;
+    pinSetCommitment: Uint8Array;
+    secretKey32: Uint8Array;
+}): Promise<Uint8Array>;
+export type SlashAppealBallotDomain = 'v1' | 'v2';
+/**
+ * Dual-verify a ballot: non-legacy pin tries V2 then V1; legacy all-zero pin is V1-only.
+ * Returns which domain matched, or null if neither verifies.
+ */
+export declare function verifySlashAppealResolveBallotDual(input: {
+    chainId: bigint | number;
+    appealId: bigint | number;
+    slashId: bigint | number;
+    approved: boolean;
+    voter: Uint8Array;
+    pinSetCommitment: Uint8Array;
+    ballotSignature: Uint8Array;
+}): Promise<SlashAppealBallotDomain | null>;
+/** Honest plan strings for Phase 22 (batch re-verify + pin-bound V2 ballots; still 16 MiB). */
+export declare function phase22DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

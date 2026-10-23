@@ -478,6 +478,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_listDexPools",
     "boing_listDexTokens",
     "boing_listSlashRecords",
+    "boing_reverifySlashAppealBallots",
     "boing_namesOwnedBy",
     "boing_operatorApplyFeePolicy",
     "boing_operatorApplyQaPolicy",
@@ -578,6 +579,293 @@ mod json_lossless_tests {
         assert_eq!(w["b"], serde_json::json!(9_007_199_254_740_991u64));
         assert_eq!(v["s"], serde_json::json!("é x\\\"99999999999999999999999"));
     }
+}
+
+#[cfg(test)]
+mod phase22_reverify_tests {
+    use super::build_reverify_slash_appeal_ballots;
+    use boing_primitives::{
+        phase20_pin_set_commitment, sign_slash_appeal_resolve_ballot_v1,
+        sign_slash_appeal_resolve_ballot_v2, AccountId, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+    };
+    use boing_state::{ConsensusSlashReason, SlashAppealRegistry};
+    use ed25519_dalek::SigningKey;
+
+    #[test]
+    fn reverify_reports_ok_invalid_unattested() {
+        let key_ok = SigningKey::from_bytes(&[31u8; 32]);
+        let key_bad = SigningKey::from_bytes(&[32u8; 32]);
+        let key_un = SigningKey::from_bytes(&[33u8; 32]);
+        let v_ok = AccountId(key_ok.verifying_key().to_bytes());
+        let v_bad = AccountId(key_bad.verifying_key().to_bytes());
+        let v_un = AccountId(key_un.verifying_key().to_bytes());
+        let provider = AccountId([40u8; 32]);
+        let chain_id = 6913u64;
+        let pin = phase20_pin_set_commitment(&[v_ok, v_bad, v_un]);
+
+        let mut reg = SlashAppealRegistry::default();
+        reg.record_slash_with_id(
+            7,
+            provider,
+            100,
+            ConsensusSlashReason::BlobFailedServe,
+            1,
+            10_000,
+        )
+        .unwrap();
+        // Large W so three weight-100 votes stay Pending (needed for mixed statuses).
+        let electorate_w = 1000u128;
+        let aid = reg
+            .submit_appeal(
+                7,
+                vec![],
+                2,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                electorate_w,
+                pin,
+            )
+            .unwrap();
+
+        let sig_ok = sign_slash_appeal_resolve_ballot_v2(chain_id, aid, 7, true, &key_ok, &pin);
+        reg.cast_resolve_vote(aid, v_ok, true, 100, electorate_w, Some(sig_ok))
+            .unwrap();
+
+        // Invalid: V2 signed under wrong pin.
+        let wrong = phase20_pin_set_commitment(&[AccountId([9u8; 32])]);
+        let sig_bad =
+            sign_slash_appeal_resolve_ballot_v2(chain_id, aid, 7, true, &key_bad, &wrong);
+        reg.cast_resolve_vote(aid, v_bad, true, 100, electorate_w, Some(sig_bad))
+            .unwrap();
+
+        // Unattested (tx 31 style).
+        reg.cast_resolve_vote(aid, v_un, true, 100, electorate_w, None)
+            .unwrap();
+
+        let out = build_reverify_slash_appeal_ballots(
+            &reg,
+            Some(&[v_ok, v_bad, v_un]),
+            chain_id,
+            Some(aid),
+            None,
+            true,
+            Some(reg.commitment()),
+        );
+        assert_eq!(out["registryCommitmentMatch"], true);
+        assert_eq!(out["appeals"][0]["pinSetMatch"], true);
+        assert_eq!(out["appeals"][0]["okCount"], 1);
+        assert_eq!(out["appeals"][0]["invalidCount"], 1);
+        assert_eq!(out["appeals"][0]["unattestedCount"], 1);
+        assert_eq!(out["appeals"][0]["allAttestedBallotsValid"], false);
+        let votes = out["appeals"][0]["votes"].as_array().unwrap();
+        let statuses: Vec<&str> = votes
+            .iter()
+            .filter_map(|v| v["status"].as_str())
+            .collect();
+        assert!(statuses.contains(&"ok"));
+        assert!(statuses.contains(&"invalid"));
+        assert!(statuses.contains(&"unattested"));
+        // V1 historical also reports ok when dual-verified.
+        let key_v1 = SigningKey::from_bytes(&[34u8; 32]);
+        let v1 = AccountId(key_v1.verifying_key().to_bytes());
+        let mut reg2 = SlashAppealRegistry::default();
+        reg2.record_slash_with_id(
+            8,
+            provider,
+            100,
+            ConsensusSlashReason::BlobFailedServe,
+            1,
+            10_000,
+        )
+        .unwrap();
+        let pin2 = phase20_pin_set_commitment(&[v1]);
+        let aid2 = reg2
+            .submit_appeal(
+                8,
+                vec![],
+                2,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                100,
+                pin2,
+            )
+            .unwrap();
+        let sig_v1 = sign_slash_appeal_resolve_ballot_v1(chain_id, aid2, 8, true, &key_v1);
+        reg2.cast_resolve_vote(aid2, v1, true, 100, 100, Some(sig_v1))
+            .unwrap();
+        let out2 = build_reverify_slash_appeal_ballots(
+            &reg2,
+            Some(&[v1]),
+            chain_id,
+            None,
+            None,
+            true,
+            None,
+        );
+        assert_eq!(out2["appeals"][0]["okCount"], 1);
+        assert_eq!(out2["appeals"][0]["votes"][0]["domain"], "v1");
+        assert_eq!(out2["appeals"][0]["allAttestedBallotsValid"], true);
+    }
+}
+
+/// Parse optional `0x`-prefixed or raw hex into 32 bytes.
+fn parse_hex32_opt(s: &str) -> Option<[u8; 32]> {
+    let s = s.trim();
+    let hex = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).unwrap_or(s);
+    let bytes = hex::decode(hex).ok()?;
+    if bytes.len() != 32 {
+        return None;
+    }
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&bytes);
+    Some(out)
+}
+
+/// Phase 22: read-only batch re-verify of consensus slash-appeal ballots.
+///
+/// Never mutates book state. Dual-verifies stored Ed25519 ballots (V2 then V1),
+/// reports pin-set match vs live pins, and echoes registry commitment.
+pub(crate) fn build_reverify_slash_appeal_ballots(
+    reg: &boing_state::SlashAppealRegistry,
+    live_pinned: Option<&[boing_primitives::AccountId]>,
+    chain_id: u64,
+    filter_appeal_id: Option<u64>,
+    filter_slash_id: Option<u64>,
+    include_unattested: bool,
+    expected_registry_commitment: Option<[u8; 32]>,
+) -> serde_json::Value {
+    use boing_primitives::{
+        phase20_is_legacy_electorate_snapshot, phase20_pin_set_commitment,
+        verify_slash_appeal_resolve_ballot_dual,
+    };
+
+    let registry_commitment = reg.commitment();
+    let registry_commitment_hex = format!("0x{}", hex::encode(registry_commitment));
+    let registry_commitment_match =
+        expected_registry_commitment.map(|exp| exp == registry_commitment);
+
+    let live_pin_commit = match live_pinned {
+        Some(set) => phase20_pin_set_commitment(set),
+        None => phase20_pin_set_commitment(&[]),
+    };
+
+    let mut appeals_out = Vec::new();
+    for a in reg.list_appeals() {
+        if filter_appeal_id.map(|id| a.id == id) == Some(false) {
+            continue;
+        }
+        if filter_slash_id.map(|id| a.slash_id == id) == Some(false) {
+            continue;
+        }
+        let status = match a.status {
+            boing_state::ConsensusAppealStatus::Pending => "pending",
+            boing_state::ConsensusAppealStatus::Approved => "approved",
+            boing_state::ConsensusAppealStatus::Rejected => "rejected",
+            boing_state::ConsensusAppealStatus::Expired => "expired",
+        };
+        let legacy = phase20_is_legacy_electorate_snapshot(
+            a.electorate_w_snapshot,
+            &a.pin_set_commitment,
+        );
+        let (pin_set_match, pin_set_note): (serde_json::Value, Option<&str>) = if legacy {
+            (
+                serde_json::Value::Null,
+                Some("legacy pin sentinel — pinSetMatch not applicable"),
+            )
+        } else {
+            (
+                serde_json::json!(a.pin_set_commitment == live_pin_commit),
+                None,
+            )
+        };
+
+        let mut ok = 0u64;
+        let mut invalid = 0u64;
+        let mut unattested = 0u64;
+        let mut votes_out = Vec::new();
+        for (voter, v) in &a.votes {
+            match v.ballot_signature {
+                None => {
+                    if !include_unattested {
+                        continue;
+                    }
+                    unattested += 1;
+                    votes_out.push(serde_json::json!({
+                        "voter": format!("0x{}", hex::encode(voter.0)),
+                        "approved": v.approved,
+                        "weight": v.weight.to_string(),
+                        "status": "unattested",
+                    }));
+                }
+                Some(sig) => {
+                    match verify_slash_appeal_resolve_ballot_dual(
+                        chain_id,
+                        a.id,
+                        a.slash_id,
+                        v.approved,
+                        voter,
+                        &a.pin_set_commitment,
+                        &sig,
+                    ) {
+                        Ok(domain) => {
+                            ok += 1;
+                            votes_out.push(serde_json::json!({
+                                "voter": format!("0x{}", hex::encode(voter.0)),
+                                "approved": v.approved,
+                                "weight": v.weight.to_string(),
+                                "status": "ok",
+                                "domain": domain.as_str(),
+                            }));
+                        }
+                        Err(_) => {
+                            invalid += 1;
+                            votes_out.push(serde_json::json!({
+                                "voter": format!("0x{}", hex::encode(voter.0)),
+                                "approved": v.approved,
+                                "weight": v.weight.to_string(),
+                                "status": "invalid",
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+        // True when every attested ballot verified and at least one attested vote exists.
+        // Unattested (tx 31 / migrated) votes are ignored for this flag.
+        let all_attested_ballots_valid = invalid == 0 && ok > 0;
+        let mut appeal_obj = serde_json::json!({
+            "appealId": a.id,
+            "slashId": a.slash_id,
+            "status": status,
+            "electorateWSnapshot": a.electorate_w_snapshot.to_string(),
+            "pinSetCommitment": format!("0x{}", hex::encode(a.pin_set_commitment)),
+            "pinSetMatch": pin_set_match,
+            "resolveDeadline": a.resolve_deadline,
+            "okCount": ok,
+            "invalidCount": invalid,
+            "unattestedCount": unattested,
+            "allAttestedBallotsValid": all_attested_ballots_valid,
+            "votes": votes_out,
+        });
+        if let Some(note) = pin_set_note {
+            appeal_obj
+                .as_object_mut()
+                .unwrap()
+                .insert("pinSetNote".into(), serde_json::json!(note));
+        }
+        appeals_out.push(appeal_obj);
+    }
+
+    let mut out = serde_json::json!({
+        "chainId": chain_id,
+        "registryCommitment": registry_commitment_hex,
+        "appeals": appeals_out,
+        "note": "Read-only Phase 22 audit: dual-verifies stored Ed25519 resolve ballots (V2 then V1); does not expire, restore, or mutate state.",
+    });
+    if let Some(m) = registry_commitment_match {
+        out.as_object_mut()
+            .unwrap()
+            .insert("registryCommitmentMatch".into(), serde_json::json!(m));
+    }
+    out
 }
 
 /// Advertised signing rules (security review #2/#3), so wallets know to sign with the chain id.
@@ -1733,9 +2021,63 @@ async fn dispatch_jsonrpc_request(
                     "slashes": slashes,
                     "appeals": appeals,
                     "persisted": persisted,
+                    "registryCommitment": format!(
+                        "0x{}",
+                        hex::encode(n.state.slash_appeals().commitment())
+                    ),
                     "note": "Optional params: { reason, slashId }. Prefer consensus Submit/Resolve txs (30/31) for FailedServe / equivocation / liveness; operator RPC is secondary. source=consensus|localMirror.",
                 }),
             )
+        }
+        "boing_reverifySlashAppealBallots" => {
+            // Phase 22 read-only audit. Params object (optional filters):
+            // { appealId?, slashId?, includeUnattested?, expectedRegistryCommitment? }
+            let filter_obj = req.params.as_ref().and_then(|p| {
+                if let Some(o) = p.as_object() {
+                    Some(o.clone())
+                } else {
+                    p.as_array()
+                        .and_then(|a| a.first())
+                        .and_then(|v| v.as_object())
+                        .cloned()
+                }
+            });
+            let filter_appeal_id = filter_obj.as_ref().and_then(|o| {
+                o.get("appealId")
+                    .or_else(|| o.get("appeal_id"))
+                    .and_then(|v| v.as_u64())
+            });
+            let filter_slash_id = filter_obj.as_ref().and_then(|o| {
+                o.get("slashId")
+                    .or_else(|| o.get("slash_id"))
+                    .and_then(|v| v.as_u64())
+            });
+            let include_unattested = filter_obj
+                .as_ref()
+                .and_then(|o| o.get("includeUnattested").or_else(|| o.get("include_unattested")))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+            let expected_registry_commitment = filter_obj.as_ref().and_then(|o| {
+                o.get("expectedRegistryCommitment")
+                    .or_else(|| o.get("expected_registry_commitment"))
+                    .and_then(|v| v.as_str())
+                    .and_then(parse_hex32_opt)
+            });
+            let n = node.read().await;
+            let chain_id = crate::network_preset::effective_chain_id(n.executor.execution_history())
+                .or_else(crate::network_preset::configured_chain_id)
+                .unwrap_or(0);
+            let pinned: Option<Vec<_>> = n.state.slash_appeal_resolvers().map(|s| s.to_vec());
+            let result = build_reverify_slash_appeal_ballots(
+                n.state.slash_appeals(),
+                pinned.as_deref(),
+                chain_id,
+                filter_appeal_id,
+                filter_slash_id,
+                include_unattested,
+                expected_registry_commitment,
+            );
+            rpc_ok(id, result)
         }
         "boing_submitSlashAppeal" => {
             if !state.operator_authorized(headers) {

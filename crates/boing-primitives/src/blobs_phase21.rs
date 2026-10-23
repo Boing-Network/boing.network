@@ -13,7 +13,7 @@
 //! - ReservedRealV1 verify still rejects; do not flip `is_implemented`.
 //! - Cap env unset → 16 MiB; do not change `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`.
 //! - Phase 19 multi-pin → require **32** unchanged; Phase 20 frozen W unchanged.
-//! - True BLS, SNARK/IPA/KZG, live 256 MiB — still later (22+).
+//! - True BLS, SNARK/IPA/KZG, live 256 MiB — still later (23+); Phase 22 is ballot re-verify + V2 pin bind.
 
 use crate::blobs_phase20::{
     phase20_cap_activation_checklist, phase20_committee_requires_attested,

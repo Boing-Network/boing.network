@@ -632,6 +632,7 @@ async fn rpc_client_version_and_supported_methods() {
     assert!(names.contains(&"boing_getRpcMethodCatalog"));
     assert!(names.contains(&"boing_getRpcOpenApi"));
     assert!(names.contains(&"boing_listSlashRecords"));
+    assert!(names.contains(&"boing_reverifySlashAppealBallots"));
     for m in boing_node::names_rpc::NAME_RPC_METHODS {
         assert!(
             names.contains(m),
