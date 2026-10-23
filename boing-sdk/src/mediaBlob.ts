@@ -1141,3 +1141,52 @@ export function phase20DasSuccinctProofPlan(): string[] {
     'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }
+
+/** Phase 21 aliases / constants. */
+export const PHASE21_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE20_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE21_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE20_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE21_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE20_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+/** Resolve window after SubmitSlashAppeal (tip + this many blocks). */
+export const PHASE21_RESOLVE_WINDOW_BLOCKS = PHASE20_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE21_SETTLE_RECEIPT_TTL_BLOCKS = PHASE20_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE21_MAX_APPEAL_EVIDENCE_BYTES = PHASE20_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE21_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE20_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE21_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE20_RESOLVE_SLASH_APPEAL_TX_INDEX;
+/** Attested resolve payload index (`ResolveSlashAppealAttested`). */
+export const PHASE21_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX =
+  PHASE20_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+/** Fixed stake-weighted resolve quorum numerator (⌈2W/3⌉). */
+export const PHASE21_RESOLVE_THRESHOLD_NUM = PHASE20_RESOLVE_THRESHOLD_NUM;
+/** Fixed stake-weighted resolve quorum denominator. */
+export const PHASE21_RESOLVE_THRESHOLD_DEN = PHASE20_RESOLVE_THRESHOLD_DEN;
+/** Sentinel: pre-V4 Pending appeals use live-W fallback when snapshot is this value + zero pin commit. */
+export const PHASE21_LEGACY_ELECTORATE_W_SENTINEL = PHASE20_LEGACY_ELECTORATE_W_SENTINEL;
+
+/**
+ * True when a multi-pin committee must use attested resolve (32) (Phase 19 alias).
+ */
+export function phase21CommitteeRequiresAttested(pinnedLen: number): boolean {
+  return phase20CommitteeRequiresAttested(pinnedLen);
+}
+
+/** `resolve_deadline` from Submit tip height. */
+export function phase21ResolveDeadline(submitHeight: bigint): bigint {
+  return submitHeight + PHASE21_RESOLVE_WINDOW_BLOCKS;
+}
+
+/** True when tip is strictly past the resolve deadline. */
+export function phase21ResolveExpired(tipHeight: bigint, resolveDeadline: bigint): boolean {
+  return tipHeight > resolveDeadline;
+}
+
+/** Honest plan strings for Phase 21 (resolve expiry + Pending cleanup; still 16 MiB). */
+export function phase21DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase20DasSuccinctProofPlan(),
+    'Phase 21: SubmitSlashAppeal (30) stores resolve_deadline = tip + 1000; Resolve (31/32) after deadline expires Pending → Expired (no vote) and rejects ResolveWindowClosed.',
+    'Phase 21: block housekeeping expire_pending_appeals cleans stuck Pending (W=0 / incomplete ⌈2W/3⌉); Expired never restores balance/stake (economically like Rejected).',
+    'Phase 21: slash_appeals_registry.bin is V5; V4/V3/V2/legacy load migrates without required clear — pre-V5 Pending derives resolve_deadline from slash.appeal_deadline.',
+    'Phase 21: Phase 19 multi-pin → 32 and Phase 20 frozen W unchanged; true BLS aggregate, SNARK/IPA/KZG, and live 256 MiB remain later — keep Fly-safe 16 MiB; do not clear the registry.',
+    'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+  ];
+}

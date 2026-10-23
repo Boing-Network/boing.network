@@ -1,4 +1,4 @@
-//! Consensus slash + appeal book (Phase 14/15/16/17/18/19/20).
+//! Consensus slash + appeal book (Phase 14/15/16/17/18/19/20/21).
 //!
 //! FailedServe settle and equivocation/liveness slash-apply insert rows with consensus-allocated
 //! `slash_id`s; `SubmitSlashAppeal` / `ResolveSlashAppeal` / `ResolveSlashAppealAttested` txs
@@ -8,18 +8,19 @@
 //! Phase 17: stake-weighted ⌈2W/3⌉; vote records carry weight at cast; versioned persistence.
 //! Phase 18: optional Ed25519 ballot on votes; registry commitment domain V3.
 //! Phase 20: electorate W (+ pin-set commitment) snapshotted at Submit; domain V4.
+//! Phase 21: `resolve_deadline` at Submit; Pending → Expired after deadline; domain V5.
 
 use std::collections::BTreeMap;
 
 use boing_primitives::{
-    hasher, phase17_resolve_threshold_met, AccountId, SlashAppealBallotSignature,
-    PHASE14_MAX_APPEAL_EVIDENCE_BYTES, PHASE20_LEGACY_ELECTORATE_W_SENTINEL,
-    PHASE20_LEGACY_PIN_SET_COMMITMENT,
+    hasher, phase17_resolve_threshold_met, phase21_resolve_deadline, phase21_resolve_expired,
+    AccountId, SlashAppealBallotSignature, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+    PHASE20_LEGACY_ELECTORATE_W_SENTINEL, PHASE20_LEGACY_PIN_SET_COMMITMENT,
 };
 use serde::{Deserialize, Serialize};
 
-/// Domain tag for SMT commitment of the slash-appeal registry (Phase 20 electorate snapshot).
-pub const SLASH_APPEAL_REGISTRY_DOMAIN: &[u8] = b"BOING_SLASH_APPEAL_REGISTRY_V4";
+/// Domain tag for SMT commitment of the slash-appeal registry (Phase 21 resolve expiry).
+pub const SLASH_APPEAL_REGISTRY_DOMAIN: &[u8] = b"BOING_SLASH_APPEAL_REGISTRY_V5";
 
 /// Reason for a consensus slash record.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -37,6 +38,8 @@ pub enum ConsensusAppealStatus {
     Pending,
     Approved,
     Rejected,
+    /// Resolve window closed without quorum (no fund restore; distinct from Rejected).
+    Expired,
 }
 
 /// One ResolveSlashAppeal vote (Phase 17/18): approve/reject plus bonded stake at cast.
@@ -92,6 +95,9 @@ pub struct ConsensusSlashAppeal {
     /// Phase 20: domain-separated hash of sorted pinned resolvers at Submit.
     #[serde(default = "default_legacy_pin_set_commitment")]
     pub pin_set_commitment: [u8; 32],
+    /// Phase 21: tip at Submit + resolve window; Resolve after this height → Expired.
+    #[serde(default)]
+    pub resolve_deadline: u64,
 }
 
 fn default_legacy_electorate_w() -> u128 {
@@ -116,6 +122,8 @@ pub enum SlashAppealError {
     AlreadyVoted,
     #[error("appeal window closed")]
     AppealWindowClosed,
+    #[error("resolve window closed")]
+    ResolveWindowClosed,
     #[error("evidence exceeds max ({max} bytes)")]
     EvidenceTooLarge { max: usize },
     #[error("slash already reversed")]
@@ -126,7 +134,7 @@ pub enum SlashAppealError {
     PinSetChanged,
 }
 
-/// Consensus registry of slashes and appeals (Phase 14/15/16/17/18/20).
+/// Consensus registry of slashes and appeals (Phase 14/15/16/17/18/20/21).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SlashAppealRegistry {
     slashes: BTreeMap<u64, ConsensusSlashRecord>,
@@ -137,6 +145,36 @@ pub struct SlashAppealRegistry {
     /// so Phase 14 `slash_appeals_registry.bin` files remain loadable.
     #[serde(skip)]
     next_slash_id: u64,
+}
+
+/// Phase 20 V4 on-disk appeal (electorate snapshot; no resolve_deadline).
+#[derive(Clone, Debug, Deserialize)]
+struct LegacyPhase20Vote {
+    approved: bool,
+    weight: u128,
+    #[serde(default)]
+    ballot_signature: Option<SlashAppealBallotSignature>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct LegacyPhase20Appeal {
+    id: u64,
+    slash_id: u64,
+    evidence: Vec<u8>,
+    status: ConsensusAppealStatus,
+    #[serde(default)]
+    votes: BTreeMap<AccountId, LegacyPhase20Vote>,
+    #[serde(default = "default_legacy_electorate_w")]
+    electorate_w_snapshot: u128,
+    #[serde(default = "default_legacy_pin_set_commitment")]
+    pin_set_commitment: [u8; 32],
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct LegacyPhase20Registry {
+    slashes: BTreeMap<u64, ConsensusSlashRecord>,
+    appeals: BTreeMap<u64, LegacyPhase20Appeal>,
+    next_appeal_id: u64,
 }
 
 /// Phase 18 V3 on-disk vote (weighted + optional ballot; no electorate snapshot).
@@ -300,6 +338,61 @@ impl SlashAppealRegistry {
         )
     }
 
+    /// Derive resolve_deadline for pre-V5 rows from the slash appeal_deadline (best outer bound).
+    fn migrate_resolve_deadline(
+        slashes: &BTreeMap<u64, ConsensusSlashRecord>,
+        slash_id: u64,
+    ) -> u64 {
+        slashes
+            .get(&slash_id)
+            .map(|s| s.appeal_deadline)
+            .unwrap_or(0)
+    }
+
+    /// Build a registry from a Phase 20 V4 envelope payload (no resolve_deadline).
+    pub fn from_legacy_phase20_v4(legacy: &[u8]) -> Result<Self, String> {
+        let leg: LegacyPhase20Registry =
+            bincode::deserialize(legacy).map_err(|e| e.to_string())?;
+        let mut reg = Self {
+            slashes: leg.slashes,
+            appeals: BTreeMap::new(),
+            next_appeal_id: leg.next_appeal_id.max(1),
+            next_slash_id: 1,
+        };
+        for (id, a) in leg.appeals {
+            let resolve_deadline = Self::migrate_resolve_deadline(&reg.slashes, a.slash_id);
+            let votes = a
+                .votes
+                .into_iter()
+                .map(|(vid, v)| {
+                    (
+                        vid,
+                        ResolveVote {
+                            approved: v.approved,
+                            weight: v.weight,
+                            ballot_signature: v.ballot_signature,
+                        },
+                    )
+                })
+                .collect();
+            reg.appeals.insert(
+                id,
+                ConsensusSlashAppeal {
+                    id: a.id,
+                    slash_id: a.slash_id,
+                    evidence: a.evidence,
+                    status: a.status,
+                    votes,
+                    electorate_w_snapshot: a.electorate_w_snapshot,
+                    pin_set_commitment: a.pin_set_commitment,
+                    resolve_deadline,
+                },
+            );
+        }
+        reg.bump_next_slash_id_past_max();
+        Ok(reg)
+    }
+
     /// Build a registry from a Phase 18 V3 envelope payload (ballots; no electorate snapshot).
     pub fn from_legacy_phase18_v3(legacy: &[u8]) -> Result<Self, String> {
         let leg: LegacyPhase18Registry =
@@ -312,6 +405,7 @@ impl SlashAppealRegistry {
         };
         let (w, pin) = Self::legacy_electorate_snapshot_fields();
         for (id, a) in leg.appeals {
+            let resolve_deadline = Self::migrate_resolve_deadline(&reg.slashes, a.slash_id);
             let votes = a
                 .votes
                 .into_iter()
@@ -336,6 +430,7 @@ impl SlashAppealRegistry {
                     votes,
                     electorate_w_snapshot: w,
                     pin_set_commitment: pin,
+                    resolve_deadline,
                 },
             );
         }
@@ -355,6 +450,7 @@ impl SlashAppealRegistry {
         };
         let (w, pin) = Self::legacy_electorate_snapshot_fields();
         for (id, a) in leg.appeals {
+            let resolve_deadline = Self::migrate_resolve_deadline(&reg.slashes, a.slash_id);
             let votes = a
                 .votes
                 .into_iter()
@@ -370,6 +466,7 @@ impl SlashAppealRegistry {
                     votes: Self::migrate_v2_votes(votes),
                     electorate_w_snapshot: w,
                     pin_set_commitment: pin,
+                    resolve_deadline,
                 },
             );
         }
@@ -389,6 +486,7 @@ impl SlashAppealRegistry {
         };
         let (w, pin) = Self::legacy_electorate_snapshot_fields();
         for (id, a) in leg.appeals {
+            let resolve_deadline = Self::migrate_resolve_deadline(&reg.slashes, a.slash_id);
             reg.appeals.insert(
                 id,
                 ConsensusSlashAppeal {
@@ -399,6 +497,7 @@ impl SlashAppealRegistry {
                     votes: Self::migrate_bool_votes(a.votes),
                     electorate_w_snapshot: w,
                     pin_set_commitment: pin,
+                    resolve_deadline,
                 },
             );
         }
@@ -418,6 +517,7 @@ impl SlashAppealRegistry {
         };
         let (w, pin) = Self::legacy_electorate_snapshot_fields();
         for (id, a) in leg.appeals {
+            let resolve_deadline = Self::migrate_resolve_deadline(&reg.slashes, a.slash_id);
             reg.appeals.insert(
                 id,
                 ConsensusSlashAppeal {
@@ -428,6 +528,7 @@ impl SlashAppealRegistry {
                     votes: BTreeMap::new(),
                     electorate_w_snapshot: w,
                     pin_set_commitment: pin,
+                    resolve_deadline,
                 },
             );
         }
@@ -519,6 +620,8 @@ impl SlashAppealRegistry {
     /// Phase 20: `electorate_w_snapshot` and `pin_set_commitment` are frozen at Submit
     /// (computed by the VM from pinned stakes / pin set). Pass legacy sentinels only when
     /// migrating pre-V4 rows — new Submits must write a real snapshot.
+    ///
+    /// Phase 21: stores `resolve_deadline = tip_height + PHASE21_RESOLVE_WINDOW_BLOCKS`.
     pub fn submit_appeal(
         &mut self,
         slash_id: u64,
@@ -546,6 +649,7 @@ impl SlashAppealRegistry {
         }
         let id = self.next_appeal_id;
         self.next_appeal_id = id.saturating_add(1);
+        let resolve_deadline = phase21_resolve_deadline(tip_height);
         self.appeals.insert(
             id,
             ConsensusSlashAppeal {
@@ -556,9 +660,46 @@ impl SlashAppealRegistry {
                 votes: BTreeMap::new(),
                 electorate_w_snapshot,
                 pin_set_commitment,
+                resolve_deadline,
             },
         );
         Ok(id)
+    }
+
+    /// Phase 21: expire all Pending appeals with `tip_height > resolve_deadline`.
+    /// No fund restore. Returns how many appeals flipped to Expired.
+    pub fn expire_pending_appeals(&mut self, tip_height: u64) -> usize {
+        let mut n = 0;
+        for appeal in self.appeals.values_mut() {
+            if appeal.status == ConsensusAppealStatus::Pending
+                && phase21_resolve_expired(tip_height, appeal.resolve_deadline)
+            {
+                appeal.status = ConsensusAppealStatus::Expired;
+                n += 1;
+            }
+        }
+        n
+    }
+
+    /// Phase 21: gate Resolve before cast. If past deadline and still Pending → Expired and
+    /// `ResolveWindowClosed`. Already Expired/Approved/Rejected → `AppealAlreadyResolved`.
+    pub fn gate_resolve_window(
+        &mut self,
+        appeal_id: u64,
+        tip_height: u64,
+    ) -> Result<(), SlashAppealError> {
+        let appeal = self
+            .appeals
+            .get_mut(&appeal_id)
+            .ok_or(SlashAppealError::AppealNotFound)?;
+        if appeal.status != ConsensusAppealStatus::Pending {
+            return Err(SlashAppealError::AppealAlreadyResolved);
+        }
+        if phase21_resolve_expired(tip_height, appeal.resolve_deadline) {
+            appeal.status = ConsensusAppealStatus::Expired;
+            return Err(SlashAppealError::ResolveWindowClosed);
+        }
+        Ok(())
     }
 
     /// Cast a ResolveSlashAppeal vote (Phase 17/18). Finalizes when approve or reject
@@ -976,6 +1117,10 @@ mod tests {
         );
         assert_eq!(back.get_appeal(aid).unwrap().electorate_w_snapshot, 300);
         assert_eq!(back.get_appeal(aid).unwrap().pin_set_commitment, [0xCDu8; 32]);
+        assert_eq!(
+            back.get_appeal(aid).unwrap().resolve_deadline,
+            phase21_resolve_deadline(1)
+        );
     }
 
     #[test]
@@ -1032,6 +1177,152 @@ mod tests {
         let a = reg.get_appeal(aid).unwrap();
         assert_eq!(a.electorate_w_snapshot, 300);
         assert_eq!(a.pin_set_commitment, pin);
+        assert_eq!(a.resolve_deadline, phase21_resolve_deadline(1));
+    }
+
+    #[test]
+    fn phase21_submit_stores_resolve_deadline_h_plus_1000() {
+        let mut reg = SlashAppealRegistry::new();
+        reg.record_slash_with_id(
+            1,
+            acct(1),
+            100,
+            ConsensusSlashReason::BlobFailedServe,
+            50,
+            2000,
+        )
+        .unwrap();
+        let aid = reg
+            .submit_appeal(
+                1,
+                b"ev".to_vec(),
+                100,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                300,
+                [0x22u8; 32],
+            )
+            .unwrap();
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().resolve_deadline,
+            1100
+        );
+    }
+
+    #[test]
+    fn phase21_late_resolve_expires_no_vote() {
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 7);
+        // seed_appeal submits at tip 150 → deadline 1150
+        assert!(matches!(
+            reg.gate_resolve_window(aid, 1151),
+            Err(SlashAppealError::ResolveWindowClosed)
+        ));
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            ConsensusAppealStatus::Expired
+        );
+        assert!(reg.get_appeal(aid).unwrap().votes.is_empty());
+        assert!(!reg.is_reversed(7));
+        // Idempotent: already Expired → AppealAlreadyResolved
+        assert!(matches!(
+            reg.gate_resolve_window(aid, 2000),
+            Err(SlashAppealError::AppealAlreadyResolved)
+        ));
+    }
+
+    #[test]
+    fn phase21_housekeeping_expires_w0_and_incomplete() {
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 8);
+        // Incomplete tally still Pending.
+        reg.cast_resolve_vote(aid, acct(1), true, 100, 300, None)
+            .unwrap();
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            ConsensusAppealStatus::Pending
+        );
+        let n = reg.expire_pending_appeals(1151);
+        assert_eq!(n, 1);
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            ConsensusAppealStatus::Expired
+        );
+        assert!(!reg.is_reversed(8));
+        // Second housekeeping is a no-op.
+        assert_eq!(reg.expire_pending_appeals(2000), 0);
+    }
+
+    #[test]
+    fn phase21_migrate_v4_derives_resolve_deadline_from_slash() {
+        #[derive(Serialize)]
+        struct V4Vote {
+            approved: bool,
+            weight: u128,
+            ballot_signature: Option<SlashAppealBallotSignature>,
+        }
+        #[derive(Serialize)]
+        struct V4Appeal {
+            id: u64,
+            slash_id: u64,
+            evidence: Vec<u8>,
+            status: ConsensusAppealStatus,
+            votes: BTreeMap<AccountId, V4Vote>,
+            electorate_w_snapshot: u128,
+            pin_set_commitment: [u8; 32],
+        }
+        #[derive(Serialize)]
+        struct V4Reg {
+            slashes: BTreeMap<u64, ConsensusSlashRecord>,
+            appeals: BTreeMap<u64, V4Appeal>,
+            next_appeal_id: u64,
+        }
+        let mut slashes = BTreeMap::new();
+        slashes.insert(
+            1,
+            ConsensusSlashRecord {
+                id: 1,
+                account: acct(1),
+                amount: 10,
+                reason: ConsensusSlashReason::BlobFailedServe,
+                block_height: 1,
+                appeal_deadline: 777,
+                reversed: false,
+            },
+        );
+        let mut votes = BTreeMap::new();
+        votes.insert(
+            acct(2),
+            V4Vote {
+                approved: true,
+                weight: 50,
+                ballot_signature: None,
+            },
+        );
+        let mut appeals = BTreeMap::new();
+        appeals.insert(
+            1,
+            V4Appeal {
+                id: 1,
+                slash_id: 1,
+                evidence: b"e".to_vec(),
+                status: ConsensusAppealStatus::Pending,
+                votes,
+                electorate_w_snapshot: 300,
+                pin_set_commitment: [0xABu8; 32],
+            },
+        );
+        let bytes = bincode::serialize(&V4Reg {
+            slashes,
+            appeals,
+            next_appeal_id: 2,
+        })
+        .unwrap();
+        let reg = SlashAppealRegistry::from_legacy_phase20_v4(&bytes).unwrap();
+        let a = reg.get_appeal(1).unwrap();
+        assert_eq!(a.resolve_deadline, 777);
+        assert_eq!(a.electorate_w_snapshot, 300);
+        assert_eq!(a.pin_set_commitment, [0xABu8; 32]);
+        assert_eq!(a.votes.get(&acct(2)).unwrap().weight, 50);
     }
 
     #[test]
@@ -1100,6 +1391,8 @@ mod tests {
         assert_eq!(a.electorate_w_snapshot, PHASE20_LEGACY_ELECTORATE_W_SENTINEL);
         assert_eq!(a.pin_set_commitment, PHASE20_LEGACY_PIN_SET_COMMITMENT);
         assert_eq!(a.votes.get(&acct(2)).unwrap().weight, 50);
+        // Phase 21: pre-V5 migrate derives resolve_deadline from slash.appeal_deadline.
+        assert_eq!(a.resolve_deadline, 100);
     }
 
     #[test]
