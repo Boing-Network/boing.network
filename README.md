@@ -3,7 +3,7 @@
 Authentic, decentralized L1 — built from first principles, with protocol-enforced quality assurance.
 
 > 👋 **Everyday users** start with a wallet, faucet, and explorer.  
-> 🛠️ **Developers** start with JSON-RPC, `boing-sdk`, and the native DEX tutorial.  
+> 🛠️ **Developers** start with JSON-RPC, [`@boing-network/boing-sdk`](https://www.npmjs.com/package/@boing-network/boing-sdk), and the native DEX tutorial.  
 > 🛰️ **Operators** start with a node binary, bootnodes, and the runbook.
 
 ## 🗺️ Where to go
@@ -50,7 +50,7 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 
 **Public testnet RPC:** `https://testnet-rpc.boing.network/` (Cloudflare Worker failover to Fly `boing-testnet-1` / `boing-testnet-2`). Do not point that hostname at a home tunnel.
 
-**TypeScript:** build the in-repo SDK (`boing-sdk/`) then consume it as a workspace / `file:` package. See [boing-sdk/README.md](boing-sdk/README.md).
+**TypeScript:** install **`@boing-network/boing-sdk@^0.5.24`** from npm (`npm i @boing-network/boing-sdk`), or build the in-repo package under `boing-sdk/` for monorepo / `file:` consumers. See [boing-sdk/README.md](boing-sdk/README.md). Do **not** install unscoped `boing-sdk` (abandoned/locked on npm).
 
 **Tutorial CLI from repo root** (after `boing-sdk` build + `examples/native-boing-tutorial` install): `npm run preflight-rpc`, `npm run deploy-native-dex-full-stack`, `npm run fetch-native-amm-reserves`, `npm run print-native-dex-routes`. Full command map: [docs/PRE-VIBEMINER-NODE-COMMANDS.md](docs/PRE-VIBEMINER-NODE-COMMANDS.md).
 
