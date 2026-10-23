@@ -144,7 +144,7 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 
 Current `boing-node` implements these JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
 
-`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractCode`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkFeePolicy`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_resolveSlashAppeal`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`.
+`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractCode`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkFeePolicy`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_resolveSlashAppeal`, `boing_reverifySlashAppealBallots`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`.
 
 **Implementation:** `BOING_RPC_SUPPORTED_METHODS` in `crates/boing-node/src/rpc.rs` — keep this list, the router match arms, and this spec in sync when adding a method.
 
@@ -214,7 +214,19 @@ Read-only view of the node’s in-memory **`SlashRegistry`** (equivocation and l
 }
 ```
 
-**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth when **`BOING_OPERATOR_RPC_TOKEN`** is set). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3.
+**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth when **`BOING_OPERATOR_RPC_TOKEN`** is set). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3. Consensus book also exposes **`registryCommitment`**. For ballot crypto audit use **`boing_reverifySlashAppealBallots`**.
+
+---
+
+### boing_reverifySlashAppealBallots
+
+Phase 22 read-only audit of consensus slash-appeal resolve ballots (Ed25519 dual-verify V2 then V1), pin-set match, and registry commitment. **Never mutates** book state.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[{ appealId?, slashId?, includeUnattested?, expectedRegistryCommitment? }]` or object | All filters optional; `includeUnattested` defaults **true** |
+
+**Result (shape):** `{ chainId, registryCommitment, registryCommitmentMatch?, appeals: [{ appealId, slashId, status, pinSetMatch, okCount, invalidCount, unattestedCount, allAttestedBallotsValid, votes: [{ voter, approved, weight, status: "ok"|"invalid"|"unattested", domain? }] }] }`.
 
 ---
 

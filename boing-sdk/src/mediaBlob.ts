@@ -3,9 +3,27 @@
  * @see docs/BOING-L1-MEDIA-BLOBS.md
  */
 
+import * as ed25519 from '@noble/ed25519';
 import { blake3 } from '@noble/hashes/blake3';
 import type { TransactionPayloadInput } from './bincode.js';
 import { bytesToHex, ensureHex, hexToBytes } from './hex.js';
+
+function u64Le(n: bigint | number): Uint8Array {
+  const b = new Uint8Array(8);
+  new DataView(b.buffer).setBigUint64(0, BigInt(n), true);
+  return b;
+}
+
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const len = parts.reduce((a, p) => a + p.length, 0);
+  const out = new Uint8Array(len);
+  let o = 0;
+  for (const p of parts) {
+    out.set(p, o);
+    o += p.length;
+  }
+  return out;
+}
 
 /** Live consensus hard cap (16 MiB). Still not multi-minute video-scale. */
 export const MAX_MEDIA_BLOB_BYTES = 16 * 1024 * 1024;
@@ -937,11 +955,14 @@ export function encodeResolveSlashAppeal(input: {
   };
 }
 
-/** Phase 18: attested resolve (`ResolveSlashAppealAttested`, variant 32). */
+/** Phase 18/22: attested resolve (`ResolveSlashAppealAttested`, variant 32). */
 export function encodeResolveSlashAppealAttested(input: {
   appealId: bigint;
   approved: boolean;
-  /** 64-byte Ed25519 ballot over `BOING_SLASH_APPEAL_RESOLVE_BALLOT_V1` preimage. */
+  /**
+   * 64-byte Ed25519 ballot. Prefer Phase 22 **V2** (`signSlashAppealResolveBallotV2`
+   * over `pin_set_commitment`); historical V1 still dual-verifies on-node.
+   */
   ballotSignature: Uint8Array;
 }): TransactionPayloadInput {
   if (input.ballotSignature.length !== 64) {
@@ -953,6 +974,33 @@ export function encodeResolveSlashAppealAttested(input: {
     approved: input.approved,
     ballotSignature: input.ballotSignature,
   };
+}
+
+/**
+ * Phase 22: encode attested resolve by signing ballot domain **V2** (binds pin set).
+ * `secretKey32` must match the voter AccountId / tx.sender.
+ */
+export async function encodeResolveSlashAppealAttestedV2(input: {
+  appealId: bigint;
+  slashId: bigint;
+  approved: boolean;
+  chainId: bigint | number;
+  pinSetCommitment: Uint8Array;
+  secretKey32: Uint8Array;
+}): Promise<TransactionPayloadInput> {
+  const ballotSignature = await signSlashAppealResolveBallotV2({
+    chainId: input.chainId,
+    appealId: input.appealId,
+    slashId: input.slashId,
+    approved: input.approved,
+    pinSetCommitment: input.pinSetCommitment,
+    secretKey32: input.secretKey32,
+  });
+  return encodeResolveSlashAppealAttested({
+    appealId: input.appealId,
+    approved: input.approved,
+    ballotSignature,
+  });
 }
 
 /** Honest plan strings for Phase 14 (consensus slash-appeal txs; ReservedRealV1 still rejects). */
@@ -1187,6 +1235,175 @@ export function phase21DasSuccinctProofPlan(): string[] {
     'Phase 21: block housekeeping expire_pending_appeals cleans stuck Pending (W=0 / incomplete ⌈2W/3⌉); Expired never restores balance/stake (economically like Rejected).',
     'Phase 21: slash_appeals_registry.bin is V5; V4/V3/V2/legacy load migrates without required clear — pre-V5 Pending derives resolve_deadline from slash.appeal_deadline.',
     'Phase 21: Phase 19 multi-pin → 32 and Phase 20 frozen W unchanged; true BLS aggregate, SNARK/IPA/KZG, and live 256 MiB remain later — keep Fly-safe 16 MiB; do not clear the registry.',
+    'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+  ];
+}
+
+/** Phase 22 ballot domain tags. */
+export const SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V1 = 'BOING_SLASH_APPEAL_RESOLVE_BALLOT_V1';
+export const SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V2 = 'BOING_SLASH_APPEAL_RESOLVE_BALLOT_V2';
+
+/** Phase 22 aliases / constants. */
+export const PHASE22_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE21_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE22_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE21_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE22_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE21_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE22_RESOLVE_WINDOW_BLOCKS = PHASE21_RESOLVE_WINDOW_BLOCKS;
+export const PHASE22_SETTLE_RECEIPT_TTL_BLOCKS = PHASE21_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE22_MAX_APPEAL_EVIDENCE_BYTES = PHASE21_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE22_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE21_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE22_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE21_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE22_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX =
+  PHASE21_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE22_RESOLVE_THRESHOLD_NUM = PHASE21_RESOLVE_THRESHOLD_NUM;
+export const PHASE22_RESOLVE_THRESHOLD_DEN = PHASE21_RESOLVE_THRESHOLD_DEN;
+export const PHASE22_LEGACY_ELECTORATE_W_SENTINEL = PHASE21_LEGACY_ELECTORATE_W_SENTINEL;
+
+/** True when a multi-pin committee must use attested resolve (32) (Phase 19 alias). */
+export function phase22CommitteeRequiresAttested(pinnedLen: number): boolean {
+  return phase21CommitteeRequiresAttested(pinnedLen);
+}
+
+export function phase22ResolveDeadline(submitHeight: bigint): bigint {
+  return phase21ResolveDeadline(submitHeight);
+}
+
+export function phase22ResolveExpired(tipHeight: bigint, resolveDeadline: bigint): boolean {
+  return phase21ResolveExpired(tipHeight, resolveDeadline);
+}
+
+/** BLAKE3 preimage for ballot domain V1 (historical). */
+export function slashAppealResolveBallotPreimageV1(input: {
+  chainId: bigint | number;
+  appealId: bigint | number;
+  slashId: bigint | number;
+  approved: boolean;
+  voter: Uint8Array;
+}): Uint8Array {
+  if (input.voter.length !== 32) throw new Error('voter must be 32 bytes');
+  const domain = new TextEncoder().encode(SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V1);
+  return blake3(
+    concatBytes(
+      domain,
+      u64Le(input.chainId),
+      u64Le(input.appealId),
+      u64Le(input.slashId),
+      new Uint8Array([input.approved ? 1 : 0]),
+      input.voter,
+    ),
+  );
+}
+
+/** BLAKE3 preimage for ballot domain V2 (binds pin_set_commitment). */
+export function slashAppealResolveBallotPreimageV2(input: {
+  chainId: bigint | number;
+  appealId: bigint | number;
+  slashId: bigint | number;
+  approved: boolean;
+  voter: Uint8Array;
+  pinSetCommitment: Uint8Array;
+}): Uint8Array {
+  if (input.voter.length !== 32) throw new Error('voter must be 32 bytes');
+  if (input.pinSetCommitment.length !== 32) {
+    throw new Error('pinSetCommitment must be 32 bytes');
+  }
+  const domain = new TextEncoder().encode(SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V2);
+  return blake3(
+    concatBytes(
+      domain,
+      u64Le(input.chainId),
+      u64Le(input.appealId),
+      u64Le(input.slashId),
+      new Uint8Array([input.approved ? 1 : 0]),
+      input.voter,
+      input.pinSetCommitment,
+    ),
+  );
+}
+
+/** Sign a historical V1 resolve ballot. */
+export async function signSlashAppealResolveBallotV1(input: {
+  chainId: bigint | number;
+  appealId: bigint | number;
+  slashId: bigint | number;
+  approved: boolean;
+  secretKey32: Uint8Array;
+}): Promise<Uint8Array> {
+  if (input.secretKey32.length !== 32) throw new Error('secret key must be 32 bytes');
+  const voter = await ed25519.getPublicKeyAsync(input.secretKey32);
+  const msg = slashAppealResolveBallotPreimageV1({
+    chainId: input.chainId,
+    appealId: input.appealId,
+    slashId: input.slashId,
+    approved: input.approved,
+    voter,
+  });
+  return ed25519.signAsync(msg, input.secretKey32);
+}
+
+/** Sign a Phase 22 V2 resolve ballot (binds pin set). Prefer for new 32 casts. */
+export async function signSlashAppealResolveBallotV2(input: {
+  chainId: bigint | number;
+  appealId: bigint | number;
+  slashId: bigint | number;
+  approved: boolean;
+  pinSetCommitment: Uint8Array;
+  secretKey32: Uint8Array;
+}): Promise<Uint8Array> {
+  if (input.secretKey32.length !== 32) throw new Error('secret key must be 32 bytes');
+  const voter = await ed25519.getPublicKeyAsync(input.secretKey32);
+  const msg = slashAppealResolveBallotPreimageV2({
+    chainId: input.chainId,
+    appealId: input.appealId,
+    slashId: input.slashId,
+    approved: input.approved,
+    voter,
+    pinSetCommitment: input.pinSetCommitment,
+  });
+  return ed25519.signAsync(msg, input.secretKey32);
+}
+
+export type SlashAppealBallotDomain = 'v1' | 'v2';
+
+/**
+ * Dual-verify a ballot: non-legacy pin tries V2 then V1; legacy all-zero pin is V1-only.
+ * Returns which domain matched, or null if neither verifies.
+ */
+export async function verifySlashAppealResolveBallotDual(input: {
+  chainId: bigint | number;
+  appealId: bigint | number;
+  slashId: bigint | number;
+  approved: boolean;
+  voter: Uint8Array;
+  pinSetCommitment: Uint8Array;
+  ballotSignature: Uint8Array;
+}): Promise<SlashAppealBallotDomain | null> {
+  if (input.voter.length !== 32 || input.ballotSignature.length !== 64) return null;
+  if (input.pinSetCommitment.length !== 32) return null;
+  const legacy = input.pinSetCommitment.every((b) => b === 0);
+  const tryV1 = async (): Promise<boolean> => {
+    const msg = slashAppealResolveBallotPreimageV1(input);
+    return ed25519.verifyAsync(input.ballotSignature, msg, input.voter);
+  };
+  const tryV2 = async (): Promise<boolean> => {
+    const msg = slashAppealResolveBallotPreimageV2(input);
+    return ed25519.verifyAsync(input.ballotSignature, msg, input.voter);
+  };
+  if (legacy) {
+    return (await tryV1()) ? 'v1' : null;
+  }
+  if (await tryV2()) return 'v2';
+  if (await tryV1()) return 'v1';
+  return null;
+}
+
+/** Honest plan strings for Phase 22 (batch re-verify + pin-bound V2 ballots; still 16 MiB). */
+export function phase22DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase21DasSuccinctProofPlan(),
+    'Phase 22: boing_reverifySlashAppealBallots is a read-only audit RPC — batch-checks stored Ed25519 resolve ballots, pin-set match, and registry commitment; never mutates book state.',
+    'Phase 22: ResolveSlashAppealAttested (32) new casts use ballot domain V2 binding pin_set_commitment; dual-verify accepts historical V1 (mid-upgrade / pre-Phase-22).',
+    'Phase 22: registry stays V5 (no schema change, no clear); txs 30/31/32 unchanged; Phase 19 multi-pin→32, Phase 20 frozen W, Phase 21 resolve expiry unchanged.',
+    'Phase 22: true BLS aggregate, SNARK/IPA/KZG, and live 256 MiB remain later — keep Fly-safe 16 MiB; do not clear the registry.',
     'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }

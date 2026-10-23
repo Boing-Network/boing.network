@@ -8,7 +8,7 @@ use boing_primitives::{
     validate_blob_announce_with_cap, validate_challenge_requires_settle, validate_pay_blob_sample,
     validate_pay_blob_sample_with_max_chunks, validate_put_blob_with_cap,
     validate_register_blob_sample_offer, validate_renew_media_blob_pin,
-    validate_settle_blob_sample_match, verify_slash_appeal_resolve_ballot,
+    validate_settle_blob_sample_match, verify_slash_appeal_resolve_ballot_dual,
     phase19_committee_requires_attested, phase20_is_legacy_electorate_snapshot,
     phase20_pin_set_commitment, phase20_snapshot_electorate_w, AccountId, AccountState,
     BatchCall, BlobId, BlobRetention, ExecutionLog, Hash, MediaBlobDasSample, QaPoolVoteKind,
@@ -1273,17 +1273,18 @@ impl Vm {
             .slash_appeals_mut()
             .gate_resolve_window(appeal_id, height)
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
-        // Phase 18 attested path: look up pending appeal slash_id and verify ballot
-        // against tx.sender + chain_id before casting.
+        // Phase 18/22 attested path: look up pending appeal slash_id + pin_set_commitment
+        // and dual-verify ballot (V2 preferred, then V1) against tx.sender + chain_id.
         // Phase 19: when |pinned slash_appeal_resolvers| > 1, unattested 31 is rejected
         // before cast (committee nets must use 32). Historical unattested votes already
         // recorded keep their weight mid-tally — this gate is admission-only.
+        // Phase 22: new casts should sign V2 (pin-bound); mid-upgrade V1 still admitted.
         let ballot_to_store = if let Some(sig) = ballot_signature {
-            let slash_id = state
+            let (slash_id, pin_set_commitment) = state
                 .slash_appeals()
                 .get_appeal(appeal_id)
                 .filter(|a| a.status == boing_state::ConsensusAppealStatus::Pending)
-                .map(|a| a.slash_id)
+                .map(|a| (a.slash_id, a.pin_set_commitment))
                 .ok_or_else(|| {
                     VmError::MediaBlob("appeal not found or not pending for attested resolve".into())
                 })?;
@@ -1291,12 +1292,13 @@ impl Vm {
                 .registration_chain_id
                 .or_else(default_signing_chain_id)
                 .unwrap_or(0);
-            verify_slash_appeal_resolve_ballot(
+            verify_slash_appeal_resolve_ballot_dual(
                 chain_id,
                 appeal_id,
                 slash_id,
                 approved,
                 &tx.sender,
+                &pin_set_commitment,
                 &sig,
             )
             .map_err(|e| VmError::MediaBlob(format!("invalid resolve ballot: {e}")))?;
@@ -4205,5 +4207,133 @@ mod slash_appeal_phase14_tests {
             state.slash_appeals().get_appeal(1).unwrap().status,
             boing_state::ConsensusAppealStatus::Approved
         );
+    }
+
+    #[test]
+    fn phase22_v2_cast_ok_wrong_pin_rejected_v1_dual_ok() {
+        use boing_primitives::{
+            sign_slash_appeal_resolve_ballot_v1, sign_slash_appeal_resolve_ballot_v2,
+        };
+        use ed25519_dalek::SigningKey;
+
+        let provider = AccountId([120u8; 32]);
+        let key1 = SigningKey::from_bytes(&[121u8; 32]);
+        let key2 = SigningKey::from_bytes(&[122u8; 32]);
+        let key3 = SigningKey::from_bytes(&[123u8; 32]);
+        let v1 = AccountId(key1.verifying_key().to_bytes());
+        let v2 = AccountId(key2.verifying_key().to_bytes());
+        let v3 = AccountId(key3.verifying_key().to_bytes());
+        let chain_id = 6913u64;
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, v1, 1_000_000, 100, 0);
+        fund(&mut state, v2, 1_000_000, 100, 0);
+        fund(&mut state, v3, 1_000_000, 100, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                220,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                5_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![v1, v2, v3]));
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.set_registration_proof_rule(Some(chain_id), 0);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 220,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(2),
+        )
+        .unwrap();
+        let pin = state
+            .slash_appeals()
+            .get_appeal(1)
+            .unwrap()
+            .pin_set_commitment;
+
+        // Wrong pin bind (V2 over different commitment) → reject.
+        let wrong_pin = phase20_pin_set_commitment(&[AccountId([9u8; 32])]);
+        assert_ne!(wrong_pin, pin);
+        let bad = sign_slash_appeal_resolve_ballot_v2(chain_id, 1, 220, true, &key1, &wrong_pin);
+        let err = vm
+            .execute_with_context(
+                &Transaction {
+                    nonce: 0,
+                    sender: v1,
+                    payload: TransactionPayload::ResolveSlashAppealAttested {
+                        appeal_id: 1,
+                        approved: true,
+                        ballot_signature: bad,
+                    },
+                    access_list: AccessList::new(vec![v1], vec![v1]),
+                },
+                &mut state,
+                ctx(3),
+            )
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("invalid resolve ballot"),
+            "got {err}"
+        );
+
+        // V2 cast with correct pin → ok.
+        let sig_v2 = sign_slash_appeal_resolve_ballot_v2(chain_id, 1, 220, true, &key1, &pin);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: v1,
+                payload: TransactionPayload::ResolveSlashAppealAttested {
+                    appeal_id: 1,
+                    approved: true,
+                    ballot_signature: sig_v2,
+                },
+                access_list: AccessList::new(vec![v1], vec![v1]),
+            },
+            &mut state,
+            ctx(4),
+        )
+        .unwrap();
+        assert!(state
+            .slash_appeals()
+            .get_appeal(1)
+            .unwrap()
+            .votes
+            .get(&v1)
+            .unwrap()
+            .ballot_signature
+            .is_some());
+
+        // Historical V1 still dual-verifies for mid-upgrade cast.
+        let sig_v1 = sign_slash_appeal_resolve_ballot_v1(chain_id, 1, 220, true, &key2);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: v2,
+                payload: TransactionPayload::ResolveSlashAppealAttested {
+                    appeal_id: 1,
+                    approved: true,
+                    ballot_signature: sig_v1,
+                },
+                access_list: AccessList::new(vec![v2], vec![v2]),
+            },
+            &mut state,
+            ctx(5),
+        )
+        .unwrap();
+        assert!(state.slash_appeals().is_reversed(220));
     }
 }

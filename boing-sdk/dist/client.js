@@ -815,6 +815,13 @@ export class BoingClient {
         return this.request('boing_listSlashRecords', []);
     }
     /**
+     * Phase 22 read-only audit: dual-verify stored Ed25519 resolve ballots,
+     * pin-set match, and registry commitment (`boing_reverifySlashAppealBallots`).
+     */
+    async reverifySlashAppealBallots(filters = {}) {
+        return this.request('boing_reverifySlashAppealBallots', [filters]);
+    }
+    /**
      * Submit a slash appeal. Requires operator header when the node sets `BOING_OPERATOR_RPC_TOKEN`.
      * `evidenceHex` is optional hex (with or without `0x`); empty string = empty evidence.
      */

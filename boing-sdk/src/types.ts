@@ -574,6 +574,53 @@ export interface ListSlashRecordsResult {
   appeals: SlashAppealSummary[];
   /** `true` when the node has a data directory and persists `slash_registry.json`. */
   persisted: boolean;
+  /** Hex commitment of the consensus slash-appeals registry (Phase 22). */
+  registryCommitment?: string;
+}
+
+/** Optional filters for `boing_reverifySlashAppealBallots`. */
+export interface ReverifySlashAppealBallotsParams {
+  appealId?: number;
+  slashId?: number;
+  /** Default true: report `ballot_signature=None` votes as `unattested`. */
+  includeUnattested?: boolean;
+  /** Optional client check against `registryCommitment`. */
+  expectedRegistryCommitment?: string;
+}
+
+/** Per-vote row from `boing_reverifySlashAppealBallots`. */
+export interface ReverifySlashAppealBallotVote {
+  voter: string;
+  approved: boolean;
+  weight: string;
+  status: 'ok' | 'invalid' | 'unattested';
+  domain?: 'v1' | 'v2';
+}
+
+/** Per-appeal row from `boing_reverifySlashAppealBallots`. */
+export interface ReverifySlashAppealBallotAppeal {
+  appealId: number;
+  slashId: number;
+  status: string;
+  electorateWSnapshot: string;
+  pinSetCommitment: string;
+  pinSetMatch: boolean | null;
+  pinSetNote?: string;
+  resolveDeadline: number;
+  okCount: number;
+  invalidCount: number;
+  unattestedCount: number;
+  allAttestedBallotsValid: boolean;
+  votes: ReverifySlashAppealBallotVote[];
+}
+
+/** Result of `boing_reverifySlashAppealBallots`. */
+export interface ReverifySlashAppealBallotsResult {
+  chainId: number;
+  registryCommitment: string;
+  registryCommitmentMatch?: boolean;
+  appeals: ReverifySlashAppealBallotAppeal[];
+  note?: string;
 }
 
 /** Result of `boing_submitSlashAppeal`. */
