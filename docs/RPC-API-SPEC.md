@@ -181,11 +181,11 @@ Submit a signed transaction to the mempool.
 
 ### boing_listSlashRecords
 
-Read-only view of the node’s in-memory **`SlashRegistry`** (equivocation and liveness slashes + appeals).
+Read-only view of the consensus **`SlashAppealRegistry`** joined with the node-local mirror (equivocation / liveness / FailedServe slashes + appeals).
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Params | `[]` | No parameters |
+| Params | `[]` or `[{ reason?, slashId?, appealStatus?, includeExpired? }]` | All filters optional. `appealStatus`: `pending`\|`approved`\|`rejected`\|`expired`. `includeExpired` defaults **true** (back-compat); set **false** to hide Expired consensus appeals. |
 
 **Result:**
 
@@ -214,17 +214,17 @@ Read-only view of the node’s in-memory **`SlashRegistry`** (equivocation and l
 }
 ```
 
-**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth when **`BOING_OPERATOR_RPC_TOKEN`** is set). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3. Consensus book also exposes **`registryCommitment`**. For ballot crypto audit use **`boing_reverifySlashAppealBallots`**.
+**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth when **`BOING_OPERATOR_RPC_TOKEN`** is set). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3. Consensus book also exposes **`registryCommitment`**. For ballot crypto audit use **`boing_reverifySlashAppealBallots`**. Phase 23: Expired appeals are pruned from the book after `resolve_deadline + 4096` via housekeeping; list filters let operators hide or select them while retained.
 
 ---
 
 ### boing_reverifySlashAppealBallots
 
-Phase 22 read-only audit of consensus slash-appeal resolve ballots (Ed25519 dual-verify V2 then V1), pin-set match, and registry commitment. **Never mutates** book state.
+Phase 22/23 read-only audit of consensus slash-appeal resolve ballots (Ed25519 dual-verify V2 then V1), pin-set match, and registry commitment. **Never mutates** book state.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Params | `[{ appealId?, slashId?, includeUnattested?, expectedRegistryCommitment? }]` or object | All filters optional; `includeUnattested` defaults **true** |
+| Params | `[{ appealId?, slashId?, includeUnattested?, includeExpired?, expectedRegistryCommitment? }]` or object | All filters optional; `includeUnattested` defaults **true**; `includeExpired` defaults **false** (skip Expired) |
 
 **Result (shape):** `{ chainId, registryCommitment, registryCommitmentMatch?, appeals: [{ appealId, slashId, status, pinSetMatch, okCount, invalidCount, unattestedCount, allAttestedBallotsValid, votes: [{ voter, approved, weight, status: "ok"|"invalid"|"unattested", domain? }] }] }`.
 

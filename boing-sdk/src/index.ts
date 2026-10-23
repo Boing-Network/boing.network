@@ -118,6 +118,7 @@ export type {
   QaPoolVoteResult,
   NetworkFeePolicyResult,
   NetworkTreasuryInfo,
+  ListSlashRecordsParams,
   ListSlashRecordsResult,
   ReverifySlashAppealBallotsParams,
   ReverifySlashAppealBallotsResult,

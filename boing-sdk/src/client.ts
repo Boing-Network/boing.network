@@ -17,6 +17,7 @@ import type {
   QaPoolConfigResult,
   QaPoolListResult,
   QaPoolVoteResult,
+  ListSlashRecordsParams,
   ListSlashRecordsResult,
   ReverifySlashAppealBallotsParams,
   ReverifySlashAppealBallotsResult,
@@ -1101,9 +1102,18 @@ export class BoingClient {
     return this.request<QaPoolListResult>('boing_qaPoolList', []);
   }
 
-  /** Read-only: slash/appeal registry (equivocation + liveness). */
-  async listSlashRecords(): Promise<ListSlashRecordsResult> {
-    return this.request<ListSlashRecordsResult>('boing_listSlashRecords', []);
+  /**
+   * Read-only: slash/appeal registry (consensus + local mirror).
+   * Phase 23: optional `{ reason, slashId, appealStatus, includeExpired }`.
+   */
+  async listSlashRecords(
+    filters: ListSlashRecordsParams = {},
+  ): Promise<ListSlashRecordsResult> {
+    const hasFilters = Object.keys(filters).length > 0;
+    return this.request<ListSlashRecordsResult>(
+      'boing_listSlashRecords',
+      hasFilters ? [filters] : [],
+    );
   }
 
   /**

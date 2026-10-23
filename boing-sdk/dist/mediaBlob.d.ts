@@ -528,4 +528,30 @@ export declare function verifySlashAppealResolveBallotDual(input: {
 }): Promise<SlashAppealBallotDomain | null>;
 /** Honest plan strings for Phase 22 (batch re-verify + pin-bound V2 ballots; still 16 MiB). */
 export declare function phase22DasSuccinctProofPlan(): string[];
+/** Phase 23 retention for Expired slash appeals (blocks after resolve_deadline). */
+export declare const PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+/** Phase 23 aliases / constants. */
+export declare const PHASE23_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE23_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE23_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE23_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE23_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE23_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE23_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE23_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE23_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE23_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE23_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE23_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+/** True when a multi-pin committee must use attested resolve (32) (Phase 19 alias). */
+export declare function phase23CommitteeRequiresAttested(pinnedLen: number): boolean;
+export declare function phase23ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase23ResolveExpired(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/**
+ * True when an Expired appeal is past retention and may be pruned:
+ * `tipHeight > resolveDeadline + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS`.
+ */
+export declare function phase23ExpiredAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/** Honest plan strings for Phase 23 (Expired retention prune + list filters; still 16 MiB). */
+export declare function phase23DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

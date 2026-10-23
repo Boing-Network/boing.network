@@ -12,7 +12,7 @@
 //! - ReservedRealV1 verify still rejects; do not flip `is_implemented`.
 //! - Cap env unset → 16 MiB; do not change `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`.
 //! - Phase 19 multi-pin → require **32**; Phase 20 frozen W; Phase 21 resolve expiry — unchanged.
-//! - True BLS, SNARK/IPA/KZG, live 256 MiB — still later (23+).
+//! - True BLS, SNARK/IPA/KZG, live 256 MiB — still later (24+); Phase 23 is Expired prune.
 
 use ed25519_dalek::{Signature as Ed25519Signature, Signer, SigningKey, VerifyingKey};
 

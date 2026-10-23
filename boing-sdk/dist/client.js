@@ -810,9 +810,13 @@ export class BoingClient {
     async qaPoolList() {
         return this.request('boing_qaPoolList', []);
     }
-    /** Read-only: slash/appeal registry (equivocation + liveness). */
-    async listSlashRecords() {
-        return this.request('boing_listSlashRecords', []);
+    /**
+     * Read-only: slash/appeal registry (consensus + local mirror).
+     * Phase 23: optional `{ reason, slashId, appealStatus, includeExpired }`.
+     */
+    async listSlashRecords(filters = {}) {
+        const hasFilters = Object.keys(filters).length > 0;
+        return this.request('boing_listSlashRecords', hasFilters ? [filters] : []);
     }
     /**
      * Phase 22 read-only audit: dual-verify stored Ed25519 resolve ballots,
