@@ -24,6 +24,7 @@ pub mod blobs_phase22;
 pub mod blobs_phase23;
 pub mod blobs_phase24;
 pub mod blobs_phase25;
+pub mod blobs_phase26;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -270,6 +271,26 @@ pub use blobs_phase25::{
     PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE25_SERVE_CHALLENGE_WINDOW_BLOCKS,
     PHASE25_SETTLE_RECEIPT_TTL_BLOCKS, PHASE25_SUBMIT_SLASH_APPEAL_TX_INDEX,
     PHASE25_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+};
+pub use blobs_phase26::{
+    phase26_aggregate_bls_signatures, phase26_bls_aggregate_ballot_preimage,
+    phase26_cap_activation_checklist, phase26_committee_requires_attested,
+    phase26_das_succinct_proof_plan, phase26_expired_appeal_prunable,
+    phase26_is_legacy_electorate_snapshot, phase26_pin_set_commitment, phase26_resolve_deadline,
+    phase26_resolve_expired, phase26_resolve_threshold_met, phase26_resolved_appeal_prunable,
+    phase26_snapshot_electorate_w, phase26_terminal_serve_challenge_prunable,
+    phase26_validate_dual_key_set, phase26_verify_bls_aggregate, BlsAggregateError,
+    BlsPublicKeyG1, BlsSignatureG2, DualKeyIdentity, PHASE26_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
+    PHASE26_BLS_AGGREGATE_BALLOT_DOMAIN, PHASE26_BLS_AGGREGATE_WIRED,
+    PHASE26_BLS_PUBLIC_KEY_G1_BYTES, PHASE26_BLS_SIGNATURE_G2_BYTES, PHASE26_CAP_ACTIVATION_ENV,
+    PHASE26_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE26_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
+    PHASE26_LEGACY_ELECTORATE_W_SENTINEL, PHASE26_LEGACY_PIN_SET_COMMITMENT,
+    PHASE26_MAX_APPEAL_EVIDENCE_BYTES, PHASE26_MAX_SETTLE_RECEIPTS, PHASE26_PIN_SET_DOMAIN,
+    PHASE26_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, PHASE26_RESOLVE_SLASH_APPEAL_TX_INDEX,
+    PHASE26_RESOLVE_THRESHOLD_DEN, PHASE26_RESOLVE_THRESHOLD_NUM, PHASE26_RESOLVE_WINDOW_BLOCKS,
+    PHASE26_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE26_SERVE_CHALLENGE_WINDOW_BLOCKS,
+    PHASE26_SETTLE_RECEIPT_TTL_BLOCKS, PHASE26_SUBMIT_SLASH_APPEAL_TX_INDEX,
+    PHASE26_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};
