@@ -4,7 +4,7 @@ use boing_primitives::{
     build_das_light_client_batch_from_bytes, build_das_light_client_batch_vrf,
     build_das_succinct_proof_stub, build_das_succinct_proof_stub_vrf, chunk_media_blob,
     match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
-    phase27_cap_activation_checklist, phase27_das_succinct_proof_plan, verify_das_succinct_proof,
+    phase28_cap_activation_checklist, phase28_das_succinct_proof_plan, verify_das_succinct_proof,
     AccountId, BlobRetention, BlobSampleOfferSource, BlobSampleServeChallengeStatus,
     BlobSampleSettleQuote, BlsSignatureG2, DasSuccinctProof, DasSuccinctProofKind,
     MediaBlobSampleOffer, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
@@ -15,11 +15,11 @@ use boing_primitives::{
     MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS, PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
     PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES, PHASE6_MAX_SAMPLE_OFFERS, PHASE6_MAX_VIDEO_SEGMENTS,
     PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES, PHASE6_VIDEO_SEGMENT_TARGET_BYTES,
-    PHASE27_BLS_AGGREGATE_WIRED, PHASE27_BLS_DUAL_KEY_REGISTRY_FILE,
-    PHASE27_BLS_PUBLIC_KEY_G1_BYTES, PHASE27_BLS_SIGNATURE_G2_BYTES,
-    PHASE27_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE27_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
-    PHASE27_RESOLVE_THRESHOLD_DEN, PHASE27_RESOLVE_THRESHOLD_NUM, PHASE27_RESOLVE_WINDOW_BLOCKS,
-    PHASE27_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE27_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+    PHASE28_BLS_AGGREGATE_WIRED, PHASE28_BLS_DUAL_KEY_REGISTRY_FILE, PHASE28_BLS_POP_REQUIRED,
+    PHASE28_BLS_PUBLIC_KEY_G1_BYTES, PHASE28_BLS_SIGNATURE_G2_BYTES,
+    PHASE28_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
+    PHASE28_RESOLVE_THRESHOLD_DEN, PHASE28_RESOLVE_THRESHOLD_NUM, PHASE28_RESOLVE_WINDOW_BLOCKS,
+    PHASE28_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE28_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 use serde_json::{json, Value};
 
@@ -382,7 +382,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "capActivationChecklist",
-                json!(phase27_cap_activation_checklist(phase7_from)),
+                json!(phase28_cap_activation_checklist(phase7_from)),
             );
             put(&mut m, "cancelBlobSampleOfferVariant", json!(27));
             put(&mut m, "challengeBlobSampleServeVariant", json!(28));
@@ -400,7 +400,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "resolveSlashAppealAttestedVariant",
-                json!(PHASE27_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX),
+                json!(PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX),
             );
             put(&mut m, "consensusSlashAppealTxs", json!(true));
             put(&mut m, "consensusEquivocationSlashAppeals", json!(true));
@@ -443,7 +443,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "consensusSlashAppealExpiredRetentionBlocks",
-                json!(PHASE27_EXPIRED_APPEAL_RETENTION_BLOCKS),
+                json!(PHASE28_EXPIRED_APPEAL_RETENTION_BLOCKS),
             );
             put(
                 &mut m,
@@ -453,7 +453,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "consensusSlashAppealResolvedRetentionBlocks",
-                json!(PHASE27_RESOLVED_APPEAL_RETENTION_BLOCKS),
+                json!(PHASE28_RESOLVED_APPEAL_RETENTION_BLOCKS),
             );
             put(
                 &mut m,
@@ -463,22 +463,22 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "blsAggregateWired",
-                json!(PHASE27_BLS_AGGREGATE_WIRED),
+                json!(PHASE28_BLS_AGGREGATE_WIRED),
             );
             put(
                 &mut m,
                 "blsPublicKeyG1Bytes",
-                json!(PHASE27_BLS_PUBLIC_KEY_G1_BYTES),
+                json!(PHASE28_BLS_PUBLIC_KEY_G1_BYTES),
             );
             put(
                 &mut m,
                 "blsSignatureG2Bytes",
-                json!(PHASE27_BLS_SIGNATURE_G2_BYTES),
+                json!(PHASE28_BLS_SIGNATURE_G2_BYTES),
             );
             put(
                 &mut m,
                 "blsDualKeyRegistryFile",
-                json!(PHASE27_BLS_DUAL_KEY_REGISTRY_FILE),
+                json!(PHASE28_BLS_DUAL_KEY_REGISTRY_FILE),
             );
             put(
                 &mut m,
@@ -496,6 +496,11 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             );
             put(
                 &mut m,
+                "blsPopRequired",
+                json!(PHASE28_BLS_POP_REQUIRED),
+            );
+            put(
+                &mut m,
                 "blsLiveTx32StillEd25519",
                 json!(true),
             );
@@ -507,7 +512,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "serveChallengeTerminalRetentionBlocks",
-                json!(PHASE27_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS),
+                json!(PHASE28_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS),
             );
             put(
                 &mut m,
@@ -517,17 +522,17 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "slashAppealResolveThresholdNum",
-                json!(PHASE27_RESOLVE_THRESHOLD_NUM),
+                json!(PHASE28_RESOLVE_THRESHOLD_NUM),
             );
             put(
                 &mut m,
                 "slashAppealResolveThresholdDen",
-                json!(PHASE27_RESOLVE_THRESHOLD_DEN),
+                json!(PHASE28_RESOLVE_THRESHOLD_DEN),
             );
             put(
                 &mut m,
                 "slashAppealResolveWindowBlocks",
-                json!(PHASE27_RESOLVE_WINDOW_BLOCKS),
+                json!(PHASE28_RESOLVE_WINDOW_BLOCKS),
             );
             put(
                 &mut m,
@@ -557,7 +562,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "dasSuccinctProofPlan",
-                json!(phase27_das_succinct_proof_plan()),
+                json!(phase28_das_succinct_proof_plan()),
             );
             put(
                 &mut m,
@@ -604,7 +609,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "note",
-                json!("Phase 27: blst (min_pk) wired — real sign/aggregate/fast_aggregate_verify; host-local bls_dual_key_registry.bin + list/register/verify RPC (PHASE27_BLS_AGGREGATE_WIRED=true). Live tx 32 stays Ed25519 verify-each (do not flip cast yet). Slash appeals stay V5 (do not clear). Phase 25 resolved prune + Phase 24 serve-challenge prune + Phase 23 Expired prune unchanged. PoP + aggregate submit / flip committee still later. ReservedRealV1 verify still rejects; 256 MiB gated via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission height: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT (do not change once set)."),
+                json!("Phase 28: BLS dual-key PoP required on boing_registerBlsDualKey (PHASE28_BLS_POP_REQUIRED=true); blst aggregate library/RPC still wired. Live tx 32 stays Ed25519 verify-each. Slash appeals stay V5 (do not clear); bls_dual_key_registry.bin stays BDKR v1. Aggregate submit / flip committee still later. ReservedRealV1 verify still rejects; 256 MiB gated via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission height: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT (do not change once set)."),
             );
             Ok(Value::Object(m))
         }
@@ -622,8 +627,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .collect();
             Ok(json!({
                 "count": entries.len(),
-                "file": PHASE27_BLS_DUAL_KEY_REGISTRY_FILE,
-                "wired": PHASE27_BLS_AGGREGATE_WIRED,
+                "file": PHASE28_BLS_DUAL_KEY_REGISTRY_FILE,
+                "wired": PHASE28_BLS_AGGREGATE_WIRED,
+                "popRequired": PHASE28_BLS_POP_REQUIRED,
                 "liveTx32StillEd25519": true,
                 "entries": entries,
             }))
@@ -675,14 +681,14 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             ) {
                 Ok(()) => Ok(json!({
                     "ok": true,
-                    "wired": PHASE27_BLS_AGGREGATE_WIRED,
+                    "wired": PHASE28_BLS_AGGREGATE_WIRED,
                     "liveTx32StillEd25519": true,
                     "signerCount": accounts.len(),
                 })),
                 Err(e) => Ok(json!({
                     "ok": false,
                     "error": e.to_string(),
-                    "wired": PHASE27_BLS_AGGREGATE_WIRED,
+                    "wired": PHASE28_BLS_AGGREGATE_WIRED,
                     "liveTx32StillEd25519": true,
                     "signerCount": accounts.len(),
                 })),
@@ -1293,9 +1299,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
         }
         "boing_getBlobDasSuccinctProofPlan" => Ok(json!({
             "kinds": ["stubBlake3V0", "reservedRealV1"],
-            "plan": phase27_das_succinct_proof_plan(),
+            "plan": phase28_das_succinct_proof_plan(),
             "maxOpaqueProofBytes": boing_primitives::PHASE10_MAX_OPAQUE_PROOF_BYTES,
-            "note": "ReservedRealV1: envelope structure checks; verify still rejects until a real succinct system is wired. ResolveSlashAppealAttested (32) is Ed25519 ballot verify-each — live cast unchanged in Phase 27; library/RPC BLS aggregate is wired via blst + host-local dual-key registry. Committee nets must use 32; 31 remains unattested stake-weighted ⌈2W/3⌉ for solo/unpinned/|pinned|≤1 — not SNARK. Phase 25 ancient Approved/Rejected appeal prune; Phase 24 serve-challenge terminal prune; Phase 23 Expired appeal prune; Phase 22 ballot V2 + re-verify.",
+            "note": "ReservedRealV1: envelope structure checks; verify still rejects until a real succinct system is wired. ResolveSlashAppealAttested (32) is Ed25519 ballot verify-each — live cast unchanged in Phase 28; library/RPC BLS aggregate is wired; dual-key registration requires BLS PoP. Committee nets must use 32; 31 remains unattested stake-weighted ⌈2W/3⌉ for solo/unpinned/|pinned|≤1 — not SNARK. Phase 25 ancient Approved/Rejected appeal prune; Phase 24 serve-challenge terminal prune; Phase 23 Expired appeal prune; Phase 22 ballot V2 + re-verify.",
         })),
         _ => Err((-32601, format!("unknown media blob method: {method}"))),
     }

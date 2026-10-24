@@ -26,6 +26,7 @@ pub mod blobs_phase24;
 pub mod blobs_phase25;
 pub mod blobs_phase26;
 pub mod blobs_phase27;
+pub mod blobs_phase28;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -316,6 +317,28 @@ pub use blobs_phase27::{
     PHASE27_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE27_SERVE_CHALLENGE_WINDOW_BLOCKS,
     PHASE27_SETTLE_RECEIPT_TTL_BLOCKS, PHASE27_SUBMIT_SLASH_APPEAL_TX_INDEX,
     PHASE27_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+};
+pub use blobs_phase28::{
+    phase28_bls_pop_preimage, phase28_bls_sign_pop, phase28_bls_verify_pop,
+    phase28_cap_activation_checklist, phase28_committee_requires_attested,
+    phase28_das_succinct_proof_plan, phase28_expired_appeal_prunable,
+    phase28_is_legacy_electorate_snapshot, phase28_pin_set_commitment, phase28_register_with_pop,
+    phase28_resolve_deadline, phase28_resolve_expired, phase28_resolve_threshold_met,
+    phase28_resolved_appeal_prunable, phase28_snapshot_electorate_w,
+    phase28_terminal_serve_challenge_prunable, phase28_validate_dual_key_set, Phase28BlsError,
+    PHASE28_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE28_BLS_AGGREGATE_BALLOT_DOMAIN,
+    PHASE28_BLS_AGGREGATE_WIRED, PHASE28_BLS_DUAL_KEY_REGISTRY_FILE,
+    PHASE28_BLS_DUAL_KEY_REGISTRY_MAGIC, PHASE28_BLS_DUAL_KEY_REGISTRY_VERSION,
+    PHASE28_BLS_POP_DOMAIN, PHASE28_BLS_POP_REQUIRED, PHASE28_BLS_POP_SIG_DST,
+    PHASE28_BLS_PUBLIC_KEY_G1_BYTES, PHASE28_BLS_SIGNATURE_G2_BYTES, PHASE28_CAP_ACTIVATION_ENV,
+    PHASE28_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE28_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
+    PHASE28_LEGACY_ELECTORATE_W_SENTINEL, PHASE28_LEGACY_PIN_SET_COMMITMENT,
+    PHASE28_MAX_APPEAL_EVIDENCE_BYTES, PHASE28_MAX_SETTLE_RECEIPTS, PHASE28_PIN_SET_DOMAIN,
+    PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, PHASE28_RESOLVE_SLASH_APPEAL_TX_INDEX,
+    PHASE28_RESOLVE_THRESHOLD_DEN, PHASE28_RESOLVE_THRESHOLD_NUM, PHASE28_RESOLVE_WINDOW_BLOCKS,
+    PHASE28_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE28_SERVE_CHALLENGE_WINDOW_BLOCKS,
+    PHASE28_SETTLE_RECEIPT_TTL_BLOCKS, PHASE28_SUBMIT_SLASH_APPEAL_TX_INDEX,
+    PHASE28_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};
