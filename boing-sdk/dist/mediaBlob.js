@@ -1277,3 +1277,78 @@ export function phase25DasSuccinctProofPlan() {
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }
+/** Compressed BLS12-381 G1 public key size (bytes). */
+export const PHASE26_BLS_PUBLIC_KEY_G1_BYTES = 48;
+/** Compressed BLS12-381 G2 signature / aggregate size (bytes). */
+export const PHASE26_BLS_SIGNATURE_G2_BYTES = 96;
+/**
+ * Flip only when a real `blst` (or equivalent) verify path is wired.
+ * Scaffold keeps this **false** — do not treat types as live crypto.
+ */
+export const PHASE26_BLS_AGGREGATE_WIRED = false;
+/** Phase 26 aliases / constants. */
+export const PHASE26_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE25_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE26_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE25_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE26_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE25_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE26_RESOLVE_WINDOW_BLOCKS = PHASE25_RESOLVE_WINDOW_BLOCKS;
+export const PHASE26_SETTLE_RECEIPT_TTL_BLOCKS = PHASE25_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE26_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE25_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE26_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE25_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE26_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE26_MAX_APPEAL_EVIDENCE_BYTES = PHASE25_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE26_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE25_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE26_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE25_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE26_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE25_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE26_RESOLVE_THRESHOLD_NUM = PHASE25_RESOLVE_THRESHOLD_NUM;
+export const PHASE26_RESOLVE_THRESHOLD_DEN = PHASE25_RESOLVE_THRESHOLD_DEN;
+export const PHASE26_LEGACY_ELECTORATE_W_SENTINEL = PHASE25_LEGACY_ELECTORATE_W_SENTINEL;
+/** Length-check a dual-key set (unique accountIds). No curve validation until wired. */
+export function phase26ValidateDualKeySet(identities) {
+    if (identities.length === 0) {
+        throw new Error('empty signer set');
+    }
+    const seen = new Set();
+    for (const id of identities) {
+        if (id.blsPubkey.length !== PHASE26_BLS_PUBLIC_KEY_G1_BYTES) {
+            throw new Error(`invalid BLS public key length: expected ${PHASE26_BLS_PUBLIC_KEY_G1_BYTES}, got ${id.blsPubkey.length}`);
+        }
+        if (id.accountId.length !== 32) {
+            throw new Error(`invalid AccountId length: expected 32, got ${id.accountId.length}`);
+        }
+        const key = bytesToHex(id.accountId);
+        if (seen.has(key))
+            throw new Error('duplicate AccountId in dual-key registration set');
+        seen.add(key);
+    }
+}
+/**
+ * Aggregate / verify stubs — always throw until `PHASE26_BLS_AGGREGATE_WIRED`.
+ * Live resolve path remains Ed25519 verify-each on tx 32.
+ */
+export function phase26AggregateBlsSignatures(_signatures) {
+    throw new Error('BLS aggregate crypto not wired (PHASE26_BLS_AGGREGATE_WIRED=false); Ed25519 verify-each on tx 32 remains live');
+}
+export function phase26VerifyBlsAggregate(_input) {
+    throw new Error('BLS aggregate crypto not wired (PHASE26_BLS_AGGREGATE_WIRED=false); Ed25519 verify-each on tx 32 remains live');
+}
+export function phase26CommitteeRequiresAttested(pinnedLen) {
+    return phase25CommitteeRequiresAttested(pinnedLen);
+}
+export function phase26ResolveDeadline(submitHeight) {
+    return phase25ResolveDeadline(submitHeight);
+}
+export function phase26ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase25ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 26 (BLS dual-key scaffold; still 16 MiB). */
+export function phase26DasSuccinctProofPlan() {
+    return [
+        ...phase25DasSuccinctProofPlan(),
+        'Phase 26: scaffold dual-key BLS aggregate types (BLS12-381 G1 pubkey 48 B + G2 sig 96 B) and NotWired aggregate/verify APIs — do not fake crypto.',
+        'Phase 26: live ResolveSlashAppealAttested (32) stays Ed25519 verify-each; PHASE26_BLS_AGGREGATE_WIRED=false until blst is wired.',
+        'Phase 26: remaining — optional blst feature, dual-key persistence (likely V6), registration tx/host config, aggregate submit path, flip verify when wired.',
+        'Phase 26: registry stays V5 (untouched); do not clear; txs 30/31/32 unchanged; Phase 19–25 policies unchanged.',
+        'Phase 26: SNARK/IPA/KZG and live 256 MiB remain later — keep Fly-safe 16 MiB.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

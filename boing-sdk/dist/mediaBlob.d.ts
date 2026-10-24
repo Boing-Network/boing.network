@@ -621,4 +621,50 @@ export declare function phase25TerminalServeChallengePrunable(input: {
 }): boolean;
 /** Honest plan strings for Phase 25 (ancient Approved/Rejected prune + list filters; still 16 MiB). */
 export declare function phase25DasSuccinctProofPlan(): string[];
+/** Compressed BLS12-381 G1 public key size (bytes). */
+export declare const PHASE26_BLS_PUBLIC_KEY_G1_BYTES = 48;
+/** Compressed BLS12-381 G2 signature / aggregate size (bytes). */
+export declare const PHASE26_BLS_SIGNATURE_G2_BYTES = 96;
+/**
+ * Flip only when a real `blst` (or equivalent) verify path is wired.
+ * Scaffold keeps this **false** — do not treat types as live crypto.
+ */
+export declare const PHASE26_BLS_AGGREGATE_WIRED = false;
+/** Phase 26 aliases / constants. */
+export declare const PHASE26_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE26_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE26_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE26_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE26_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE26_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE26_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+export declare const PHASE26_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE26_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE26_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE26_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE26_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE26_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE26_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE26_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+export type DualKeyIdentity = {
+    accountId: Uint8Array;
+    blsPubkey: Uint8Array;
+};
+/** Length-check a dual-key set (unique accountIds). No curve validation until wired. */
+export declare function phase26ValidateDualKeySet(identities: DualKeyIdentity[]): void;
+/**
+ * Aggregate / verify stubs — always throw until `PHASE26_BLS_AGGREGATE_WIRED`.
+ * Live resolve path remains Ed25519 verify-each on tx 32.
+ */
+export declare function phase26AggregateBlsSignatures(_signatures: Uint8Array[]): never;
+export declare function phase26VerifyBlsAggregate(_input: {
+    message: Uint8Array;
+    aggregate: Uint8Array;
+    identities: DualKeyIdentity[];
+}): never;
+export declare function phase26CommitteeRequiresAttested(pinnedLen: number): boolean;
+export declare function phase26ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase26ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/** Honest plan strings for Phase 26 (BLS dual-key scaffold; still 16 MiB). */
+export declare function phase26DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map
