@@ -133,9 +133,27 @@ async function proxyOnce(
   });
 }
 
-/** Read upstream body up to `maxBytes`; return null if the cap would be exceeded. */
-async function readBodyCapped(res: Response, maxBytes: number): Promise<ArrayBuffer | null> {
-  if (!res.body) return new ArrayBuffer(0);
+/**
+ * Read upstream body up to `maxBytes`; return null if the cap would be exceeded.
+ * Copies each stream chunk immediately — Workers may reuse the underlying buffer across
+ * reads, and holding views until the end intermittently corrupted even small JSON-RPC
+ * bodies (false “invalid JSON” rejects for methods like boing_getSyncState).
+ */
+async function readBodyCapped(res: Response, maxBytes: number): Promise<Uint8Array | null> {
+  const declared = Number(res.headers.get("content-length") ?? "NaN");
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    await res.body?.cancel().catch(() => undefined);
+    return null;
+  }
+
+  // Fast path: known small Content-Length — one-shot arrayBuffer (no stream view reuse).
+  if (Number.isFinite(declared) && declared >= 0 && declared <= maxBytes) {
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.byteLength > maxBytes) return null;
+    return buf;
+  }
+
+  if (!res.body) return new Uint8Array(0);
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -149,7 +167,8 @@ async function readBodyCapped(res: Response, maxBytes: number): Promise<ArrayBuf
         await reader.cancel().catch(() => undefined);
         return null;
       }
-      chunks.push(value);
+      // Must copy: the stream may reuse `value`'s backing memory on the next read.
+      chunks.push(value.slice());
     }
   } catch {
     await reader.cancel().catch(() => undefined);
@@ -161,7 +180,7 @@ async function readBodyCapped(res: Response, maxBytes: number): Promise<ArrayBuf
     out.set(c, offset);
     offset += c.byteLength;
   }
-  return out.buffer;
+  return out;
 }
 
 function jsonRpcMethod(body: ArrayBuffer | null): string | null {
@@ -389,9 +408,9 @@ export default {
           );
         }
 
-        // When Content-Length is missing, Fly/edge drops still look like HTTP 200 with a
-        // mid-array cut — refuse to forward non-JSON bodies for JSON-RPC POSTs.
-        if (req.method === "POST") {
+        // Only reject when the body is non-empty yet not JSON. Empty 502/530 pages from
+        // the edge still failover above; valid small JSON-RPC must never be false-rejected.
+        if (req.method === "POST" && buf.byteLength > 0) {
           const text = new TextDecoder().decode(buf);
           try {
             JSON.parse(text);

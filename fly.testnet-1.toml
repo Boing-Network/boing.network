@@ -69,6 +69,7 @@ primary_region = "iad"
   destination = "/data"
 
 [[vm]]
-  # performance-2x / 8 GiB: shared-cpu-2x maxes at 4 GiB and OOMs under live tip (~3.8 GiB RSS).
+  # performance-2x / 16 GiB: 8 GiB still OOM-killed (exit 137) when tip blocks serialize
+  # multi‑hundred‑MiB getBlockByHeight JSON (deploy bytecode as number arrays).
   size = "performance-2x"
-  memory = "8192mb"
+  memory = "16384mb"
