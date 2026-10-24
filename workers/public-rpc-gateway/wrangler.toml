@@ -10,6 +10,5 @@ pattern = "testnet-rpc.boing.network/*"
 zone_name = "boing.network"
 
 [vars]
-# Option B pin: seed lost → cannot recreate companions/builder on testnet-2.
-# Route public clients only to testnet-1 until t2 registries match or resync lands.
+# Single hosted backend: boing-testnet-2 retired 2026-10-24.
 RPC_BACKENDS = "https://boing-testnet-1.fly.dev"

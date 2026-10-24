@@ -21,8 +21,7 @@ primary_region = "iad"
   BOING_DATA_DIR = "/data"
   # IPv4 (Fly proxy / public TCP service) + IPv6 (6PN private network; IPv6 listeners are v6-only).
   BOING_P2P_LISTEN = "/ip4/0.0.0.0/tcp/4001,/ip6/::/tcp/4001"
-  # Peer over 6PN by name (re-resolved on every redial), in addition to the BOING_BOOTNODES secret.
-  BOING_EXTRA_BOOTNODES = "/dns6/boing-testnet-2.internal/tcp/4001"
+  # boing-testnet-2 retired — no BOING_EXTRA_BOOTNODES (was /dns6/boing-testnet-2.internal/tcp/4001).
   BOING_RPC_PORT = "8545"
   BOING_VALIDATOR = "1"
   BOING_FAUCET_ENABLE = "1"

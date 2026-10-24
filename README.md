@@ -48,7 +48,7 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"boing_health","params":[]}'
 ```
 
-**Public testnet RPC:** `https://testnet-rpc.boing.network/` (Cloudflare Worker failover to Fly `boing-testnet-1` / `boing-testnet-2`). Do not point that hostname at a home tunnel.
+**Public testnet RPC:** `https://testnet-rpc.boing.network/` (Cloudflare Worker → Fly `boing-testnet-1`). Do not point that hostname at a home tunnel.
 
 **TypeScript:** install **`@boing-network/boing-sdk@^0.5.24`** from npm (`npm i @boing-network/boing-sdk`), or build the in-repo package under `boing-sdk/` for monorepo / `file:` consumers. See [boing-sdk/README.md](boing-sdk/README.md). Do **not** install unscoped `boing-sdk` (abandoned/locked on npm).
 
@@ -66,10 +66,9 @@ Browser dApps need CORS: extra origins via **`BOING_RPC_CORS_EXTRA_ORIGINS`**. *
 
 Ops probes on the same port: **`GET /live`**, **`GET /ready`**, JSON-RPC batch on **`POST /`**, optional **`X-Request-Id`**. See the root README historically packed these details — they now live with the rest of the RPC surface in the spec.
 
-Hosted bootnodes:
+Hosted bootnode:
 
-- `/ip4/169.155.48.188/tcp/4001`
-- `/ip4/109.105.220.118/tcp/4001`
+- `/ip4/169.155.48.188/tcp/4001` (`boing-testnet-1`)
 
 Details: [docs/FLY-IO.md](docs/FLY-IO.md), [docs/VIBEMINER-INTEGRATION.md](docs/VIBEMINER-INTEGRATION.md).
 

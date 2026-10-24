@@ -13,14 +13,13 @@ export const TESTNET_RPC_URL =
 /**
  * Official testnet bootnode multiaddrs. Set PUBLIC_BOOTNODES (comma-separated)
  * at build time to override; otherwise this fallback is used.
- * Production: set PUBLIC_BOOTNODES="/ip4/PRIMARY_IP/tcp/4001,/ip4/SECONDARY_IP/tcp/4001"
+ * Production: set PUBLIC_BOOTNODES="/ip4/PRIMARY_IP/tcp/4001" (comma-separated if multiple).
  */
 export const BOOTNODES: string[] =
   env && env.PUBLIC_BOOTNODES
     ? env.PUBLIC_BOOTNODES.split(',').map((s) => s.trim()).filter(Boolean)
     : [
         '/ip4/169.155.48.188/tcp/4001', // Fly validator (boing-testnet-1)
-        '/ip4/109.105.220.118/tcp/4001', // Fly full node (boing-testnet-2)
       ];
 
 /** Whether the testnet is "live" (we have at least one bootnode and a non-local RPC). */

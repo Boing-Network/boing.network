@@ -1,18 +1,17 @@
 # Public RPC gateway
 
-Cloudflare Worker that serves **`https://testnet-rpc.boing.network/`** and proxies JSON-RPC to the hosted Fly cluster with `/live` health checks and failover.
+Cloudflare Worker that serves **`https://testnet-rpc.boing.network/`** and proxies JSON-RPC to the hosted Fly validator with `/live` health checks.
 
 ```
 Clients (observer, website, SDK)
   → testnet-rpc.boing.network
     → this Worker
       → boing-testnet-1.fly.dev (validator + faucet)
-      → boing-testnet-2.fly.dev (full node)
 ```
 
 This replaces a home **Cloudflare Tunnel** connector as the origin. The public hostname stays stable so explorer, wallet, and website env do not need to change.
 
-**Writes:** `boing_submitTransaction` is posted to **every** configured backend in parallel (validator `boing-testnet-1` first in `RPC_BACKENDS`). Sequential read failover to the full node can mempool-accept a deploy that the single validator never includes — finance then shows success while `boing.observer` stays empty. Reads still fail over first-healthy.
+**Writes:** `boing_submitTransaction` is posted to **every** configured backend in parallel (validator `boing-testnet-1` first in `RPC_BACKENDS`). Extra backends are optional; today the Worker is pinned to testnet-1 only. Reads pick the first healthy origin.
 
 ## Deploy
 

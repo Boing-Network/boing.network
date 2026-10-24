@@ -98,11 +98,10 @@ your **AccountId** and node P2P multiaddr (`/ip4/<public-ip>/tcp/4001`):
 
 ## 5. Sync from the testnet bootnodes
 
-Official bootnodes (also on <https://boing.network/bootnodes>):
+Official bootnode (also on <https://boing.network/bootnodes>):
 
 ```
 /ip4/169.155.48.188/tcp/4001
-/ip4/109.105.220.118/tcp/4001
 ```
 
 **Binary:**
@@ -116,7 +115,7 @@ export BOING_CHAIN_ID=6913 BOING_VALIDATOR_SET=open BOING_OPEN_VALIDATOR_ACTIVAT
 ./boing-node \
   --data-dir ./boing-data \
   --p2p-listen /ip4/0.0.0.0/tcp/4001 \
-  --bootnodes /ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001 \
+  --bootnodes /ip4/169.155.48.188/tcp/4001 \
   --rpc-port 8545
 ```
 
@@ -128,7 +127,7 @@ docker run -d --name boing-node --restart unless-stopped \
   -v boing-data:/data \
   -e BOING_CHAIN_ID=6913 -e BOING_VALIDATOR_SET=open -e BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 \
   -e BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640 \
-  -e BOING_BOOTNODES=/ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001 \
+  -e BOING_BOOTNODES=/ip4/169.155.48.188/tcp/4001 \
   boing-node
 ```
 
@@ -162,13 +161,13 @@ BOING_VALIDATOR_KEY=<32-byte node key hex>
 set -a; . ./validator.env; set +a
 ./boing-node --validator --data-dir ./boing-data \
   --p2p-listen /ip4/0.0.0.0/tcp/4001 \
-  --bootnodes /ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001 \
+  --bootnodes /ip4/169.155.48.188/tcp/4001 \
   --rpc-port 8545
 ```
 
 Docker: add `--env-file validator.env -e BOING_VALIDATOR=1`.
 
-**Fly.io:** copy `fly.testnet-2.toml` to your own `fly.toml`, change `app` and remove the public-RPC/CORS
+**Fly.io:** copy `fly.testnet-1.toml` (or the retired `fly.testnet-2.toml` template) to your own `fly.toml`, change `app` and remove the public-RPC/CORS
 extras. Keep the `[env]` consensus values above, add `BOING_VALIDATOR_SET=open`,
 `BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400` and `BOING_BOOTNODES=...`, and put the key in a secret:
 `fly secrets set BOING_VALIDATOR_KEY=...` (type it at the prompt or read it from a file; never commit it). Then run

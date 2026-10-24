@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Create and deploy the two-node Fly.io Boing testnet (validator + peering full node).
+# Create and deploy the hosted Fly.io Boing testnet validator (boing-testnet-1).
+# Optional companion full node: set FLY_APP_2=boing-testnet-2 (uses retired fly.testnet-2.toml).
 # Requires: fly CLI authenticated (`fly auth whoami`), repo root as cwd.
 set -euo pipefail
 # Git Bash on Windows rewrites /ip4/... as a filesystem path unless this is set.
@@ -11,7 +12,8 @@ cd "$ROOT"
 ORG="${FLY_ORG:-personal}"
 REGION="${FLY_REGION:-iad}"
 APP1="${FLY_APP_1:-boing-testnet-1}"
-APP2="${FLY_APP_2:-boing-testnet-2}"
+# Empty by default — companion full node retired 2026-10-24. Set FLY_APP_2 to recreate.
+APP2="${FLY_APP_2:-}"
 VOLUME_NAME="${FLY_VOLUME_NAME:-boing_data}"
 VOLUME_SIZE="${FLY_VOLUME_SIZE:-10}"
 CONFIG1="fly.testnet-1.toml"
@@ -28,7 +30,11 @@ need fly
 need openssl
 
 echo "Fly identity: $(fly auth whoami)"
-echo "Org=${ORG} region=${REGION} apps=${APP1},${APP2}"
+if [ -n "$APP2" ]; then
+  echo "Org=${ORG} region=${REGION} apps=${APP1},${APP2}"
+else
+  echo "Org=${ORG} region=${REGION} app=${APP1} (single-node; set FLY_APP_2 to add a companion)"
+fi
 
 ensure_app() {
   local app="$1"
@@ -68,7 +74,7 @@ ensure_operator_secret() {
   fi
   if [ -z "${BOING_OPERATOR_RPC_TOKEN:-}" ]; then
     BOING_OPERATOR_RPC_TOKEN="$(openssl rand -hex 24)"
-    echo "generated BOING_OPERATOR_RPC_TOKEN (set on both apps; not printed)"
+    echo "generated BOING_OPERATOR_RPC_TOKEN (set on apps; not printed)"
     export BOING_OPERATOR_RPC_TOKEN
   fi
   fly secrets set "BOING_OPERATOR_RPC_TOKEN=${BOING_OPERATOR_RPC_TOKEN}" -a "$app" --stage
@@ -114,27 +120,31 @@ for item in items or []:
 }
 
 ensure_app "$APP1"
-ensure_app "$APP2"
 ensure_volume "$APP1"
-ensure_volume "$APP2"
 ensure_ips "$APP1"
-ensure_ips "$APP2"
 ensure_operator_secret "$APP1"
-ensure_operator_secret "$APP2"
+
+if [ -n "$APP2" ]; then
+  ensure_app "$APP2"
+  ensure_volume "$APP2"
+  ensure_ips "$APP2"
+  ensure_operator_secret "$APP2"
+fi
 
 echo "deploying $APP1 (this builds the Rust node on Fly's remote builder)"
 fly deploy --config "$CONFIG1" --remote-only --ha=false
 
-BOOTNODES="$(public_p2p_multiaddrs "$APP1")"
-if [ -n "$BOOTNODES" ]; then
-  echo "wiring $APP2 bootnodes: $BOOTNODES"
-  fly secrets set "BOING_BOOTNODES=${BOOTNODES}" -a "$APP2" --stage
-else
-  echo "warning: could not discover $APP1 P2P addresses; $APP2 will start without bootnodes"
-fi
+if [ -n "$APP2" ]; then
+  BOOTNODES="$(public_p2p_multiaddrs "$APP1")"
+  if [ -n "$BOOTNODES" ]; then
+    echo "wiring $APP2 bootnodes: $BOOTNODES"
+    fly secrets set "BOING_BOOTNODES=${BOOTNODES}" -a "$APP2" --stage
+  else
+    echo "warning: could not discover $APP1 P2P addresses; $APP2 will start without bootnodes"
+  fi
 
-echo "deploying $APP2 (reuse image from $APP1 when possible)"
-IMAGE="$(fly image show -a "$APP1" --json 2>/dev/null | python -c "
+  echo "deploying $APP2 (reuse image from $APP1 when possible)"
+  IMAGE="$(fly image show -a "$APP1" --json 2>/dev/null | python -c "
 import json,sys
 try:
     data=json.load(sys.stdin)
@@ -146,24 +156,27 @@ elif isinstance(data, dict):
     print(data.get('ref') or '')
 " || true)"
 
-if [ -n "${IMAGE:-}" ]; then
-  fly deploy --config "$CONFIG2" --remote-only --ha=false --image "$IMAGE" || \
+  if [ -n "${IMAGE:-}" ]; then
+    fly deploy --config "$CONFIG2" --remote-only --ha=false --image "$IMAGE" || \
+      fly deploy --config "$CONFIG2" --remote-only --ha=false
+  else
     fly deploy --config "$CONFIG2" --remote-only --ha=false
-else
-  fly deploy --config "$CONFIG2" --remote-only --ha=false
-fi
+  fi
 
-BOOT2="$(public_p2p_multiaddrs "$APP2")"
-if [ -n "$BOOT2" ]; then
-  echo "adding $APP2 as a bootnode on $APP1"
-  COMBINED="${BOOTNODES:+$BOOTNODES,}$BOOT2"
-  fly secrets set "BOING_BOOTNODES=${COMBINED}" -a "$APP1"
+  BOOT2="$(public_p2p_multiaddrs "$APP2")"
+  if [ -n "$BOOT2" ]; then
+    echo "adding $APP2 as a bootnode on $APP1"
+    COMBINED="${BOOTNODES:+$BOOTNODES,}$BOOT2"
+    fly secrets set "BOING_BOOTNODES=${COMBINED}" -a "$APP1"
+  fi
 fi
 
 echo
 echo "Deployed."
 echo "  RPC 1: https://${APP1}.fly.dev/"
-echo "  RPC 2: https://${APP2}.fly.dev/"
+if [ -n "$APP2" ]; then
+  echo "  RPC 2: https://${APP2}.fly.dev/"
+fi
 echo "  Health: curl -fsS https://${APP1}.fly.dev/live"
 echo "  Probe:  curl -fsS -A boing-sdk/json-rpc -X POST https://${APP1}.fly.dev/ -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"boing_health\",\"params\":[]}'"
 echo

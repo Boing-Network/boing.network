@@ -228,7 +228,7 @@ Once both bootnodes and the tunnel are running:
 | Config | Location | Value |
 |--------|----------|-------|
 | `PUBLIC_TESTNET_RPC_URL` | Website env / GitHub Actions / Cloudflare Pages | `https://testnet-rpc.boing.network/` |
-| `PUBLIC_BOOTNODES` | Website env / GitHub Actions / Cloudflare Pages | `/ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001` |
+| `PUBLIC_BOOTNODES` | Website env / GitHub Actions / Cloudflare Pages | `/ip4/169.155.48.188/tcp/4001` |
 
 **TESTNET.md** §6: Bootnode table updated; set env vars for production deploy.
 

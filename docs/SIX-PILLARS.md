@@ -63,10 +63,9 @@ The last pillar is last because it is a *product* of the others working. It is n
 
 **On chain.** There is no validator whitelist: stake in, validate. Governance is phased (proposal → cooling → execution) and time-locked. Protocol QA is the same idea in another layer: automation first, and when the node is unsure, a **community QA pool** decides — not a single operator with a kill switch.
 
-Hosted testnet bootnodes (libp2p multiaddrs):
+Hosted testnet bootnode (libp2p multiaddr):
 
 - `/ip4/169.155.48.188/tcp/4001`
-- `/ip4/109.105.220.118/tcp/4001`
 
 Public JSON-RPC is `https://testnet-rpc.boing.network/`. Those are conveniences for joining, not a chokepoint for consensus.
 

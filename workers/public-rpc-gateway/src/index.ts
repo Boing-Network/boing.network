@@ -1,20 +1,16 @@
 /**
  * Public JSON-RPC edge for `testnet-rpc.boing.network`.
  *
- * Cloudflare Worker in front of the hosted Fly cluster: health-check `/live`,
- * fail over between backends, fan-out `boing_submitTransaction` to every origin
- * (so deploys reach the validator, not only the full node), and keep the stable
- * public hostname independent of a home Cloudflare Tunnel connector.
+ * Cloudflare Worker in front of the hosted Fly validator: health-check `/live`,
+ * proxy JSON-RPC, fan-out `boing_submitTransaction` to every configured origin,
+ * and keep the stable public hostname independent of a home Cloudflare Tunnel.
  */
 
 type Env = {
   RPC_BACKENDS?: string;
 };
 
-const DEFAULT_BACKENDS = [
-  "https://boing-testnet-1.fly.dev",
-  "https://boing-testnet-2.fly.dev",
-];
+const DEFAULT_BACKENDS = ["https://boing-testnet-1.fly.dev"];
 
 const HEALTH_TTL_MS = 8_000;
 const UPSTREAM_TIMEOUT_MS = 25_000;
@@ -172,8 +168,8 @@ function corsJsonResponse(attempt: FanoutAttempt): Response {
 
 /**
  * POST `boing_submitTransaction` to every configured backend (validator first in
- * `RPC_BACKENDS`). Sequential failover to the full node can mempool-accept a deploy
- * that the single validator never sees, so finance reports success and explorer stays empty.
+ * `RPC_BACKENDS`). With multiple backends, sequential read failover alone can
+ * mempool-accept a deploy that the validator never sees.
  *
  * Prefer the validator's JSON-RPC success or application error; only use another
  * backend when the validator times out or returns HTTP 5xx.
