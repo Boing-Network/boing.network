@@ -1178,3 +1178,52 @@ export function phase23DasSuccinctProofPlan() {
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }
+/** Phase 24 retention for terminal serve challenges (blocks after deadline). */
+export const PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+/** Phase 24 aliases / constants. */
+export const PHASE24_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE23_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE24_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE23_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE24_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE23_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE24_RESOLVE_WINDOW_BLOCKS = PHASE23_RESOLVE_WINDOW_BLOCKS;
+export const PHASE24_SETTLE_RECEIPT_TTL_BLOCKS = PHASE23_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE24_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE24_MAX_APPEAL_EVIDENCE_BYTES = PHASE23_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE24_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE23_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE24_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE23_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE24_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE23_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE24_RESOLVE_THRESHOLD_NUM = PHASE23_RESOLVE_THRESHOLD_NUM;
+export const PHASE24_RESOLVE_THRESHOLD_DEN = PHASE23_RESOLVE_THRESHOLD_DEN;
+export const PHASE24_LEGACY_ELECTORATE_W_SENTINEL = PHASE23_LEGACY_ELECTORATE_W_SENTINEL;
+export function phase24CommitteeRequiresAttested(pinnedLen) {
+    return phase23CommitteeRequiresAttested(pinnedLen);
+}
+export function phase24ResolveDeadline(submitHeight) {
+    return phase23ResolveDeadline(submitHeight);
+}
+export function phase24ResolveExpired(tipHeight, resolveDeadline) {
+    return phase23ResolveExpired(tipHeight, resolveDeadline);
+}
+export function phase24ExpiredAppealPrunable(tipHeight, resolveDeadline) {
+    return phase23ExpiredAppealPrunable(tipHeight, resolveDeadline);
+}
+/**
+ * True when a terminal serve challenge is past retention and may be pruned:
+ * settled Responded/FailedServe with `tip > deadline + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS`.
+ */
+export function phase24TerminalServeChallengePrunable(input) {
+    if (!input.bondSettled || input.status === 'open')
+        return false;
+    return (input.tipHeight >
+        input.deadlineHeight + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS);
+}
+/** Honest plan strings for Phase 24 (serve-challenge TTL prune + list/get UX; still 16 MiB). */
+export function phase24DasSuccinctProofPlan() {
+    return [
+        ...phase23DasSuccinctProofPlan(),
+        'Phase 24: block housekeeping prune_terminal_serve_challenges drops Responded / settled FailedServe when tip > deadline + 4096 (frees soft-cap 256); Open and unsettled FailedServe stay.',
+        'Phase 24: boing_listBlobSampleServeChallenges gains status / includeTerminal filters; boing_getBlobSampleServeChallenge looks up by blobId+chunkIndex+provider+challenger.',
+        'Phase 24: slash_appeals_registry.bin untouched (stay V5); do not clear; txs 28/29/30/31/32 unchanged; Phase 19–23 policies unchanged.',
+        'Phase 24: true BLS aggregate, SNARK/IPA/KZG, and live 256 MiB remain later — keep Fly-safe 16 MiB.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

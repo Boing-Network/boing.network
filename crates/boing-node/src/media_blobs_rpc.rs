@@ -4,9 +4,10 @@ use boing_primitives::{
     build_das_light_client_batch_from_bytes, build_das_light_client_batch_vrf,
     build_das_succinct_proof_stub, build_das_succinct_proof_stub_vrf, chunk_media_blob,
     match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
-    phase23_cap_activation_checklist, phase23_das_succinct_proof_plan, verify_das_succinct_proof,
-    PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE23_RESOLVE_THRESHOLD_DEN,
-    PHASE23_RESOLVE_THRESHOLD_NUM, PHASE23_RESOLVE_WINDOW_BLOCKS, AccountId, BlobRetention,
+    phase24_cap_activation_checklist, phase24_das_succinct_proof_plan, verify_das_succinct_proof,
+    PHASE24_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE24_RESOLVE_THRESHOLD_DEN,
+    PHASE24_RESOLVE_THRESHOLD_NUM, PHASE24_RESOLVE_WINDOW_BLOCKS,
+    PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS, AccountId, BlobRetention,
     BlobSampleServeChallengeStatus, BlobSampleOfferSource, BlobSampleSettleQuote, DasSuccinctProof,
     DasSuccinctProofKind, MediaBlobSampleOffer, MAX_MEDIA_BLOB_BYTES,
     MAX_MEDIA_BLOB_CONTENT_TYPE_LEN, MAX_MEDIA_BLOB_INLINE_BYTES,
@@ -37,6 +38,7 @@ pub const MEDIA_BLOB_RPC_METHODS: &[&str] = &[
     "boing_getLeaderVrfOutput",
     "boing_listSmtBlobSampleOffers",
     "boing_listBlobSampleServeChallenges",
+    "boing_getBlobSampleServeChallenge",
     "boing_getBlobDasSuccinctProofPlan",
 ];
 
@@ -376,7 +378,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "capActivationChecklist",
-                json!(phase23_cap_activation_checklist(phase7_from)),
+                json!(phase24_cap_activation_checklist(phase7_from)),
             );
             put(&mut m, "cancelBlobSampleOfferVariant", json!(27));
             put(&mut m, "challengeBlobSampleServeVariant", json!(28));
@@ -394,7 +396,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "resolveSlashAppealAttestedVariant",
-                json!(boing_primitives::PHASE23_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX),
+                json!(boing_primitives::PHASE24_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX),
             );
             put(&mut m, "consensusSlashAppealTxs", json!(true));
             put(&mut m, "consensusEquivocationSlashAppeals", json!(true));
@@ -437,7 +439,17 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "consensusSlashAppealExpiredRetentionBlocks",
-                json!(PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS),
+                json!(PHASE24_EXPIRED_APPEAL_RETENTION_BLOCKS),
+            );
+            put(
+                &mut m,
+                "serveChallengeTerminalPrune",
+                json!(true),
+            );
+            put(
+                &mut m,
+                "serveChallengeTerminalRetentionBlocks",
+                json!(PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS),
             );
             put(
                 &mut m,
@@ -447,17 +459,17 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "slashAppealResolveThresholdNum",
-                json!(PHASE23_RESOLVE_THRESHOLD_NUM),
+                json!(PHASE24_RESOLVE_THRESHOLD_NUM),
             );
             put(
                 &mut m,
                 "slashAppealResolveThresholdDen",
-                json!(PHASE23_RESOLVE_THRESHOLD_DEN),
+                json!(PHASE24_RESOLVE_THRESHOLD_DEN),
             );
             put(
                 &mut m,
                 "slashAppealResolveWindowBlocks",
-                json!(PHASE23_RESOLVE_WINDOW_BLOCKS),
+                json!(PHASE24_RESOLVE_WINDOW_BLOCKS),
             );
             put(
                 &mut m,
@@ -487,7 +499,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "dasSuccinctProofPlan",
-                json!(boing_primitives::phase23_das_succinct_proof_plan()),
+                json!(boing_primitives::phase24_das_succinct_proof_plan()),
             );
             put(
                 &mut m,
@@ -534,7 +546,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "note",
-                json!("Phase 23: prune Expired slash appeals after resolve_deadline + 4096 in block housekeeping; boing_listSlashRecords / boing_reverifySlashAppealBallots gain Expired filters (re-verify defaults includeExpired=false). Registry stays V5 (row deletion only, no clear, no V6). Phase 22 ballot V2 + re-verify, Phase 21 resolve_deadline, Phase 20 frozen W, Phase 19 |pinned|>1 → 32 unchanged. Ed25519 ballot verify-each (not BLS). FailedServe balance / equivocation-liveness stake restore; always-on admission for 30/31/32; operator RPC deprecated for consensus-book reasons; ReservedRealV1 verify still rejects; 256 MiB gated via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission height for Put/Announce: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT (do not change once set). True BLS / SNARK / serve-challenge TTL / 256 MiB still later."),
+                json!("Phase 24: prune terminal serve challenges (Responded / settled FailedServe) after deadline + 4096 in block housekeeping; boing_listBlobSampleServeChallenges gains status / includeTerminal; boing_getBlobSampleServeChallenge get-by-key. Slash appeals stay V5 (Phase 23 Expired prune unchanged). Phase 22 ballot V2 + re-verify, Phase 21 resolve_deadline, Phase 20 frozen W, Phase 19 |pinned|>1 → 32 unchanged. Ed25519 ballot verify-each (not BLS). FailedServe balance / equivocation-liveness stake restore; always-on admission for 30/31/32; operator RPC deprecated for consensus-book reasons; ReservedRealV1 verify still rejects; 256 MiB gated via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission height for Put/Announce: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT (do not change once set). True BLS / SNARK / 256 MiB still later."),
             );
             Ok(Value::Object(m))
         }
@@ -978,43 +990,174 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             }))
         }
         "boing_listBlobSampleServeChallenges" => {
-            let id = parse_id_param(params)?;
+            // Phase 24: [blobId] or { blobId?, status?, includeTerminal? }.
+            // blobId optional when using object form (lists all).
+            let filter_obj = if params.is_object() {
+                Some(params.clone())
+            } else {
+                params.as_array().and_then(|a| a.first()).and_then(|v| {
+                    if v.is_object() {
+                        Some(v.clone())
+                    } else {
+                        None
+                    }
+                })
+            };
+            let blob_id_opt = match filter_obj.as_ref() {
+                Some(o) => o
+                    .get("blobId")
+                    .or_else(|| o.get("id"))
+                    .and_then(|v| v.as_str())
+                    .and_then(parse_media_blob_id),
+                None => parse_id_param(params).ok(),
+            };
+            let status_filter = filter_obj.as_ref().and_then(|o| {
+                o.get("status")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_ascii_lowercase())
+            });
+            // Default true for back-compat (list still shows Responded/FailedServe).
+            let include_terminal = filter_obj
+                .as_ref()
+                .and_then(|o| {
+                    o.get("includeTerminal")
+                        .or_else(|| o.get("include_terminal"))
+                        .and_then(|v| v.as_bool())
+                })
+                .unwrap_or(true);
             let tip = node.chain.height();
-            let _ = node.state.sample_serve().len(); // read path
-            // resolve expired for display: clone + resolve
             let mut reg = node.state.sample_serve().clone();
             let expired = reg.resolve_expired(tip);
-            let list = reg.list_for_blob(&id, tip);
-            Ok(json!({
-                "blobId": hex0x(&id),
-                "tipHeight": tip,
-                "resolvedExpiredThisCall": expired,
-                "challenges": list.iter().map(|c| json!({
-                    "blobId": hex0x(&c.blob_id),
-                    "chunkIndex": c.chunk_index,
-                    "chunkCount": c.chunk_count,
-                    "provider": hex0x(&c.provider.0),
-                    "challenger": hex0x(&c.challenger.0),
-                    "openedAtHeight": c.opened_at_height,
-                    "deadlineHeight": c.deadline_height,
-                    "bondAmount": c.bond_amount.to_string(),
-                    "providerPenalty": c.provider_penalty.to_string(),
-                    "bondSettled": c.bond_settled,
-                    "slashId": c.slash_id,
-                    "status": match c.status {
+            let list: Vec<_> = match blob_id_opt {
+                Some(id) => reg.list_for_blob(&id, tip),
+                None => reg
+                    .list_all()
+                    .into_iter()
+                    .filter(|c| {
+                        !(c.status == BlobSampleServeChallengeStatus::Open
+                            && tip > c.deadline_height)
+                    })
+                    .collect(),
+            };
+            let challenges: Vec<Value> = list
+                .iter()
+                .filter(|c| {
+                    let status = match c.status {
                         BlobSampleServeChallengeStatus::Open => "open",
                         BlobSampleServeChallengeStatus::Responded => "responded",
                         BlobSampleServeChallengeStatus::FailedServe => "failedServe",
-                    },
-                })).collect::<Vec<_>>(),
-                "note": "Phase 19: FailedServe refunds bond, burns penalty, assigns consensus slashId; committee nets (|pinned|>1) must use Submit (30) / ResolveAttested (32); unattested 31 only for solo/unpinned/|pinned|≤1; 31/32 stake-weighted ⌈2W/3⌉. RPC clone resolve is display-only.",
+                    };
+                    if !include_terminal
+                        && matches!(
+                            c.status,
+                            BlobSampleServeChallengeStatus::Responded
+                                | BlobSampleServeChallengeStatus::FailedServe
+                        )
+                    {
+                        return false;
+                    }
+                    if let Some(ref want) = status_filter {
+                        return status == want.as_str();
+                    }
+                    true
+                })
+                .map(|c| {
+                    json!({
+                        "blobId": hex0x(&c.blob_id),
+                        "chunkIndex": c.chunk_index,
+                        "chunkCount": c.chunk_count,
+                        "provider": hex0x(&c.provider.0),
+                        "challenger": hex0x(&c.challenger.0),
+                        "openedAtHeight": c.opened_at_height,
+                        "deadlineHeight": c.deadline_height,
+                        "bondAmount": c.bond_amount.to_string(),
+                        "providerPenalty": c.provider_penalty.to_string(),
+                        "bondSettled": c.bond_settled,
+                        "slashId": c.slash_id,
+                        "status": match c.status {
+                            BlobSampleServeChallengeStatus::Open => "open",
+                            BlobSampleServeChallengeStatus::Responded => "responded",
+                            BlobSampleServeChallengeStatus::FailedServe => "failedServe",
+                        },
+                    })
+                })
+                .collect();
+            Ok(json!({
+                "blobId": blob_id_opt.map(|id| hex0x(&id)),
+                "tipHeight": tip,
+                "resolvedExpiredThisCall": expired,
+                "challenges": challenges,
+                "note": "Phase 24: optional status (open|responded|failedServe) and includeTerminal (default true). Terminal rows prune after deadline+4096 when bondSettled. RPC clone resolve is display-only.",
             }))
+        }
+        "boing_getBlobSampleServeChallenge" => {
+            // Phase 24 get-by-key: { blobId, chunkIndex, provider, challenger }
+            let obj = if params.is_object() {
+                params.clone()
+            } else {
+                params
+                    .as_array()
+                    .and_then(|a| a.first())
+                    .and_then(|v| v.as_object())
+                    .map(|o| Value::Object(o.clone()))
+                    .ok_or((-32602, "expected object { blobId, chunkIndex, provider, challenger }".into()))?
+            };
+            let blob_s = obj
+                .get("blobId")
+                .or_else(|| obj.get("id"))
+                .and_then(|v| v.as_str())
+                .ok_or((-32602, "expected blobId".into()))?;
+            let id = parse_media_blob_id(blob_s)
+                .ok_or((-32602, format!("invalid blob id: {blob_s}")))?;
+            let chunk_index = parse_u32(
+                obj.get("chunkIndex")
+                    .or_else(|| obj.get("chunk_index"))
+                    .ok_or((-32602, "expected chunkIndex".into()))?,
+                "chunkIndex",
+            )?;
+            let provider = parse_account(
+                obj.get("provider")
+                    .and_then(|v| v.as_str())
+                    .ok_or((-32602, "expected provider".into()))?,
+            )?;
+            let challenger = parse_account(
+                obj.get("challenger")
+                    .and_then(|v| v.as_str())
+                    .ok_or((-32602, "expected challenger".into()))?,
+            )?;
+            let tip = node.chain.height();
+            let mut reg = node.state.sample_serve().clone();
+            let _ = reg.resolve_expired(tip);
+            match reg.get(&id, chunk_index, &provider, &challenger) {
+                Some(c) => Ok(json!({
+                    "tipHeight": tip,
+                    "challenge": {
+                        "blobId": hex0x(&c.blob_id),
+                        "chunkIndex": c.chunk_index,
+                        "chunkCount": c.chunk_count,
+                        "provider": hex0x(&c.provider.0),
+                        "challenger": hex0x(&c.challenger.0),
+                        "openedAtHeight": c.opened_at_height,
+                        "deadlineHeight": c.deadline_height,
+                        "bondAmount": c.bond_amount.to_string(),
+                        "providerPenalty": c.provider_penalty.to_string(),
+                        "bondSettled": c.bond_settled,
+                        "slashId": c.slash_id,
+                        "status": match c.status {
+                            BlobSampleServeChallengeStatus::Open => "open",
+                            BlobSampleServeChallengeStatus::Responded => "responded",
+                            BlobSampleServeChallengeStatus::FailedServe => "failedServe",
+                        },
+                    },
+                })),
+                None => Ok(Value::Null),
+            }
         }
         "boing_getBlobDasSuccinctProofPlan" => Ok(json!({
             "kinds": ["stubBlake3V0", "reservedRealV1"],
-            "plan": phase23_das_succinct_proof_plan(),
+            "plan": phase24_das_succinct_proof_plan(),
             "maxOpaqueProofBytes": boing_primitives::PHASE10_MAX_OPAQUE_PROOF_BYTES,
-            "note": "ReservedRealV1: envelope structure checks; verify still rejects until a real succinct system is wired. ResolveSlashAppealAttested (32) is Ed25519 ballot verify-each (not BLS); committee nets must use 32; 31 remains unattested stake-weighted ⌈2W/3⌉ for solo/unpinned/|pinned|≤1 — not SNARK. Phase 23: Expired retention prune + list/re-verify filters; Phase 22 ballot V2 + re-verify; Phase 21 resolve_deadline + Pending→Expired cleanup.",
+            "note": "ReservedRealV1: envelope structure checks; verify still rejects until a real succinct system is wired. ResolveSlashAppealAttested (32) is Ed25519 ballot verify-each (not BLS); committee nets must use 32; 31 remains unattested stake-weighted ⌈2W/3⌉ for solo/unpinned/|pinned|≤1 — not SNARK. Phase 24: serve-challenge terminal prune + list/get UX; Phase 23 Expired appeal prune; Phase 22 ballot V2 + re-verify.",
         })),
         _ => Err((-32601, format!("unknown media blob method: {method}"))),
     }

@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
 
+## [0.5.27] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 24** — `phase24DasSuccinctProofPlan`; `PHASE24_*` aliases including `PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS` (**4096**); prune terminal Responded / settled FailedServe serve challenges after `deadline + 4096` in block housekeeping; `listBlobSampleServeChallenges` gains `status` / `includeTerminal`; client `getBlobSampleServeChallenge` → `boing_getBlobSampleServeChallenge`; slash appeals stay **V5**; txs unchanged; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **true BLS / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
 ## [0.5.26] - 2026-10-23
 
 ### Added

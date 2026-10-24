@@ -856,15 +856,47 @@ export class BoingClient {
     return this.request('boing_listSmtBlobSampleOffers', params);
   }
 
-  /** Sample-serve challenges (`boing_listBlobSampleServeChallenges`). */
+  /**
+   * Sample-serve challenges (`boing_listBlobSampleServeChallenges`).
+   * Phase 24: pass string/bytes blobId, or `{ blobId?, status?, includeTerminal? }`.
+   */
   async listBlobSampleServeChallenges(
-    blobId: string | Uint8Array,
+    blobIdOrFilters:
+      | string
+      | Uint8Array
+      | {
+          blobId?: string;
+          status?: 'open' | 'responded' | 'failedServe';
+          includeTerminal?: boolean;
+        } = {},
   ): Promise<Record<string, unknown>> {
-    const id =
-      typeof blobId === 'string'
-        ? blobId
-        : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
-    return this.request('boing_listBlobSampleServeChallenges', [id]);
+    if (typeof blobIdOrFilters === 'string') {
+      return this.request('boing_listBlobSampleServeChallenges', [blobIdOrFilters]);
+    }
+    if (blobIdOrFilters instanceof Uint8Array) {
+      const id = `0x${Array.from(blobIdOrFilters, (b) =>
+        b.toString(16).padStart(2, '0'),
+      ).join('')}`;
+      return this.request('boing_listBlobSampleServeChallenges', [id]);
+    }
+    const hasFilters = Object.keys(blobIdOrFilters).length > 0;
+    return this.request(
+      'boing_listBlobSampleServeChallenges',
+      hasFilters ? [blobIdOrFilters] : [],
+    );
+  }
+
+  /**
+   * Phase 24 get-by-key (`boing_getBlobSampleServeChallenge`).
+   * Returns null when missing.
+   */
+  async getBlobSampleServeChallenge(params: {
+    blobId: string;
+    chunkIndex: number;
+    provider: string;
+    challenger: string;
+  }): Promise<Record<string, unknown> | null> {
+    return this.request('boing_getBlobSampleServeChallenge', [params]);
   }
 
   /** Succinct DAS proof roadmap (`boing_getBlobDasSuccinctProofPlan`). */

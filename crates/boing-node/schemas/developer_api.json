@@ -6,23 +6,60 @@
       {
         "name": "boing_health",
         "summary": "Liveness, version, optional chain metadata, committed head height, RPC surface hints (batch/body/logs limits, WS cap, rate limit, ready peers), and cumulative rpc_metrics.",
-        "params": { "type": "array", "maxItems": 0 },
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
         "result": {
           "type": "object",
-          "required": ["ok", "client_version", "chain_id", "chain_name", "head_height", "rpc_surface", "rpc_metrics"],
+          "required": [
+            "ok",
+            "client_version",
+            "chain_id",
+            "chain_name",
+            "head_height",
+            "rpc_surface",
+            "rpc_metrics"
+          ],
           "properties": {
-            "ok": { "type": "boolean" },
-            "client_version": { "type": "string" },
-            "chain_id": { "type": ["integer", "null"] },
-            "chain_name": { "type": ["string", "null"] },
-            "head_height": { "type": "integer", "minimum": 0 },
+            "ok": {
+              "type": "boolean"
+            },
+            "client_version": {
+              "type": "string"
+            },
+            "chain_id": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "chain_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "head_height": {
+              "type": "integer",
+              "minimum": 0
+            },
             "p2p": {
               "type": "object",
               "description": "Read-only P2P snapshot: distinct connected peers and configured / connected bootnode addresses (bootnodes are redialed with backoff).",
               "properties": {
-                "peer_count": { "type": "integer", "minimum": 0 },
-                "bootnodes": { "type": "integer", "minimum": 0 },
-                "bootnodes_connected": { "type": "integer", "minimum": 0 }
+                "peer_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "bootnodes": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "bootnodes_connected": {
+                  "type": "integer",
+                  "minimum": 0
+                }
               }
             },
             "rpc_surface": {
@@ -38,14 +75,41 @@
                 "max_log_topic_filters"
               ],
               "properties": {
-                "jsonrpc_batch_max": { "type": "integer", "minimum": 1 },
-                "websocket_max_connections": { "type": "integer", "minimum": 0 },
-                "http_rate_limit_requests_per_sec": { "type": "integer", "minimum": 0 },
-                "ready_min_peers": { "type": ["integer", "null"], "description": "Set when BOING_RPC_READY_MIN_PEERS > 0" },
-                "http_max_body_megabytes": { "type": "integer", "minimum": 1 },
-                "get_logs_max_block_range": { "type": "integer", "minimum": 1 },
-                "get_logs_max_results": { "type": "integer", "minimum": 1 },
-                "max_log_topic_filters": { "type": "integer", "minimum": 1 }
+                "jsonrpc_batch_max": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "websocket_max_connections": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "http_rate_limit_requests_per_sec": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ready_min_peers": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "description": "Set when BOING_RPC_READY_MIN_PEERS > 0"
+                },
+                "http_max_body_megabytes": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "get_logs_max_block_range": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "get_logs_max_results": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "max_log_topic_filters": {
+                  "type": "integer",
+                  "minimum": 1
+                }
               }
             },
             "rpc_metrics": {
@@ -59,11 +123,26 @@
                 "websocket_cap_rejects_total"
               ],
               "properties": {
-                "rate_limited_total": { "type": "integer", "minimum": 0 },
-                "json_parse_errors_total": { "type": "integer", "minimum": 0 },
-                "batch_too_large_total": { "type": "integer", "minimum": 0 },
-                "method_not_found_total": { "type": "integer", "minimum": 0 },
-                "websocket_cap_rejects_total": { "type": "integer", "minimum": 0 }
+                "rate_limited_total": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "json_parse_errors_total": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "batch_too_large_total": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "method_not_found_total": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "websocket_cap_rejects_total": {
+                  "type": "integer",
+                  "minimum": 0
+                }
               }
             }
           }
@@ -72,125 +151,222 @@
       {
         "name": "boing_chainHeight",
         "summary": "Latest committed block height (u64).",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "integer", "minimum": 0 }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "integer",
+          "minimum": 0
+        }
       },
       {
         "name": "boing_clientVersion",
         "summary": "Node build id string.",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "string" }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "string"
+        }
       },
       {
         "name": "boing_resolveName",
         "summary": "Resolve an active name (alice or alice.boing) to {target, owner, expires_at, status}; null if unregistered, in grace or expired.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
         "result": {}
       },
       {
         "name": "boing_reverseName",
         "summary": "Verified primary name of an address (set by that address and resolving back to it), or null.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
         "result": {}
       },
       {
         "name": "boing_getNameInfo",
         "summary": "Name validity, availability, yearly rent (burned), record in any status and registry params.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
         "result": {}
       },
       {
         "name": "boing_getMediaBlobParams",
         "summary": "L1 media blob caps, activation height, and gas knobs (PutBlob; not interface SSTORE).",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_getBlobMeta",
         "summary": "Metadata for a content-addressed media blob id, or null.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
         "result": {}
       },
       {
         "name": "boing_getBlob",
         "summary": "Bytes (dataHex) plus metadata for a media blob, or null.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
         "result": {}
       },
       {
         "name": "boing_checkNames",
         "summary": "Availability and yearly rent for 1-25 names: params [[name, ...]].",
-        "params": { "type": "array", "minItems": 1 },
+        "params": {
+          "type": "array",
+          "minItems": 1
+        },
         "result": {}
       },
       {
         "name": "boing_namesOwnedBy",
         "summary": "Names owned by an address (active or in grace).",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
         "result": {}
       },
       {
         "name": "boing_getSyncState",
         "summary": "Committed tip: head/finalized height and latest block hash.",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_getNetworkInfo",
         "summary": "Chain metadata, tip, consensus, native aggregates, developer hints (includes dex_discovery_methods for L1 DEX directory RPCs).",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_rpcSupportedMethods",
         "summary": "Sorted list of implemented boing_* method names.",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "array", "items": { "type": "string" } }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       {
         "name": "boing_getRpcMethodCatalog",
         "summary": "Embedded JSON Schema method catalog for codegen and docs.",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_getRpcOpenApi",
         "summary": "Minimal OpenAPI 3.1 document for POST / JSON-RPC, GET /ws, GET /live, GET /ready.",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_getBalance",
         "summary": "Native balance for 32-byte account id (hex).",
         "params": {
           "type": "array",
-          "prefixItems": [{ "type": "string", "description": "0x + 64 hex chars" }],
+          "prefixItems": [
+            {
+              "type": "string",
+              "description": "0x + 64 hex chars"
+            }
+          ],
           "minItems": 1,
           "maxItems": 1
         },
-        "result": { "type": "object", "properties": { "balance": { "type": "string" } } }
+        "result": {
+          "type": "object",
+          "properties": {
+            "balance": {
+              "type": "string"
+            }
+          }
+        }
       },
       {
         "name": "boing_getAccount",
         "summary": "Account balance, nonce, stake (u128 as decimal strings).",
         "params": {
           "type": "array",
-          "prefixItems": [{ "type": "string" }],
+          "prefixItems": [
+            {
+              "type": "string"
+            }
+          ],
           "minItems": 1,
           "maxItems": 1
         },
-        "result": { "type": "object" }
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_getBlockByHeight",
         "summary": "Block at height; null if missing. Second arg requests receipts.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 2 },
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2
+        },
         "result": {}
       },
       {
         "name": "boing_getBlockByHash",
         "summary": "Block by 32-byte header hash hex.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 2 },
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2
+        },
         "result": {}
       },
       {
@@ -198,7 +374,11 @@
         "summary": "Receipt by tx id hex; null if unknown.",
         "params": {
           "type": "array",
-          "prefixItems": [{ "type": "string" }],
+          "prefixItems": [
+            {
+              "type": "string"
+            }
+          ],
           "minItems": 1,
           "maxItems": 1
         },
@@ -207,8 +387,14 @@
       {
         "name": "boing_getLogs",
         "summary": "Event logs with block range and optional address/topics filters.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
-        "result": { "type": "array" }
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "result": {
+          "type": "array"
+        }
       },
       {
         "name": "boing_simulateContractCall",
@@ -218,167 +404,345 @@
           "minItems": 2,
           "maxItems": 4,
           "prefixItems": [
-            { "type": "string", "description": "32-byte contract AccountId hex" },
-            { "type": "string", "description": "calldata hex" },
-            { "type": ["string", "null"], "description": "optional sender AccountId hex; omit or null for zero sender" },
-            { "description": "optional at_block: \"latest\", null, or current tip height (integer)" }
+            {
+              "type": "string",
+              "description": "32-byte contract AccountId hex"
+            },
+            {
+              "type": "string",
+              "description": "calldata hex"
+            },
+            {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "optional sender AccountId hex; omit or null for zero sender"
+            },
+            {
+              "description": "optional at_block: \"latest\", null, or current tip height (integer)"
+            }
           ]
         },
-        "result": { "type": "object" }
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_simulateTransaction",
         "summary": "Dry-run execution; returns gas, logs, state diffs.",
         "params": {
           "type": "array",
-          "prefixItems": [{ "type": "string", "description": "hex signed tx" }],
+          "prefixItems": [
+            {
+              "type": "string",
+              "description": "hex signed tx"
+            }
+          ],
           "minItems": 1,
           "maxItems": 1
         },
-        "result": { "type": "object" }
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_submitTransaction",
         "summary": "Submit signed transaction (hex).",
         "params": {
           "type": "array",
-          "prefixItems": [{ "type": "string" }],
+          "prefixItems": [
+            {
+              "type": "string"
+            }
+          ],
           "minItems": 1,
           "maxItems": 1
         },
-        "result": { "type": "object" }
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_submitIntent",
         "summary": "Submit signed intent.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_faucetRequest",
         "summary": "Testnet faucet (when enabled).",
-        "params": { "type": "array" },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array"
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_getAccountProof",
         "summary": "State Merkle proof for an account.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_verifyAccountProof",
         "summary": "Verify an account proof.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_getContractCode",
         "summary": "Deployed bytecode and BLAKE3 code hash for a contract; JSON null when the account has no code.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
-        "result": { "description": "{ bytecode, code_hash, size } or null", "type": ["object", "null"] }
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "result": {
+          "description": "{ bytecode, code_hash, size } or null",
+          "type": [
+            "object",
+            "null"
+          ]
+        }
       },
       {
         "name": "boing_getContractStorage",
         "summary": "Single 32-byte storage slot for a contract.",
-        "params": { "type": "array", "minItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_getDexToken",
         "summary": "Single token row from the DEX-derived discovery universe. Factory: params.factory or BOING_CANONICAL_NATIVE_DEX_FACTORY. Optional light / enrich; includeDiagnostics for scan counters; decimals: BOING_DEX_TOKEN_DECIMALS_JSON, else 0 for reference fungible template code (v2 etc.), else null.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
-        "result": { "description": "Token object or JSON null when unknown", "type": ["object", "null"] }
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "result": {
+          "description": "Token object or JSON null when unknown",
+          "type": [
+            "object",
+            "null"
+          ]
+        }
       },
       {
         "name": "boing_listDexPools",
         "summary": "Cursor-paginated native DEX pools (directory + live reserves). Each row includes tokenADecimals/tokenBDecimals (BOING_DEX_TOKEN_DECIMALS_JSON, else 0 for reference fungible template code, else null). Factory: params.factory or env. Receipt-backed createdAtHeight unless light=true; BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS; includeDiagnostics.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_listDexTokens",
         "summary": "DEX-derived token set with optional minReserveProduct / minLiquidityWei. Enriches from receipts + recent metadata deploys unless light=true. Factory: params.factory or env. includeDiagnostics; BOING_DEX_TOKEN_DECIMALS_JSON.",
-        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_listSlashRecords",
         "summary": "Read-only slash/appeal registry (consensus + local mirror). Optional filters: reason, slashId, appealStatus, includeExpired (default true). persisted=true when the node has a data directory and writes slash_registry.json.",
-        "params": { "type": "array", "maxItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_reverifySlashAppealBallots",
         "summary": "Phase 22/23 read-only audit: dual-verify stored Ed25519 resolve ballots (V2 then V1), pin-set match, and registry commitment. Optional filters: appealId, slashId, includeUnattested, includeExpired (default false), expectedRegistryCommitment.",
-        "params": { "type": "array", "maxItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_submitSlashAppeal",
         "summary": "Submit an appeal for a slash (operator auth when BOING_OPERATOR_RPC_TOKEN is set). Params: [slash_id, evidence_hex] or {slash_id, evidence}.",
-        "params": { "type": "array", "minItems": 2 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 2
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_resolveSlashAppeal",
         "summary": "Resolve a pending slash appeal (operator auth when BOING_OPERATOR_RPC_TOKEN is set). Params: [appeal_id, approved] or {appeal_id, approved}. Approved restores stake from the burn sink.",
-        "params": { "type": "array", "minItems": 2 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 2
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_qaCheck",
         "summary": "Run QA checks on contract bytecode/metadata.",
-        "params": { "type": "array", "minItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_getQaRegistry",
         "summary": "Serialized QA rule registry.",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_qaPoolList",
         "summary": "Pending QA pool items.",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_qaPoolConfig",
         "summary": "QA pool governance config.",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_qaPoolVote",
         "summary": "Vote on a QA pool item. Public membership: 4th param signed QaPoolVote tx; admin-only may require operator header.",
-        "params": { "type": "array", "minItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_getNetworkFeePolicy",
         "summary": "Native fee split and extra levies (treasury-first by default).",
-        "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_operatorApplyFeePolicy",
         "summary": "Replace network_fee_config (operator token).",
-        "params": { "type": "array", "minItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_operatorApplyQaPolicy",
         "summary": "Replace QA registry and pool config (operator token).",
-        "params": { "type": "array", "minItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
       },
       {
         "name": "boing_registerDappMetrics",
         "summary": "Register dApp metrics endpoint.",
-        "params": { "type": "array", "minItems": 1 },
-        "result": { "type": "object" }
+        "params": {
+          "type": "array",
+          "minItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
+      },
+      {
+        "name": "boing_listBlobSampleServeChallenges",
+        "summary": "List sample-serve challenges. Params: [blobId] or { blobId?, status?, includeTerminal? }.",
+        "params": {
+          "type": "array",
+          "maxItems": 1
+        },
+        "result": {
+          "type": "object"
+        }
+      },
+      {
+        "name": "boing_getBlobSampleServeChallenge",
+        "summary": "Phase 24 get-by-key sample-serve challenge.",
+        "params": {
+          "type": "array",
+          "maxItems": 1
+        },
+        "result": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
       }
     ]
   },
@@ -389,7 +753,12 @@
       "version": "1.0.0",
       "description": "JSON-RPC 2.0 over HTTP POST /. Push notifications: WebSocket GET /ws with subscribe handshake (see boing_getNetworkInfo.developer.websocket)."
     },
-    "servers": [{ "url": "http://localhost:8545", "description": "Example; set host and port per node." }],
+    "servers": [
+      {
+        "url": "http://localhost:8545",
+        "description": "Example; set host and port per node."
+      }
+    ],
     "paths": {
       "/": {
         "get": {
@@ -407,7 +776,9 @@
           "summary": "HEAD / (no body)",
           "description": "Same status and **Allow** as **GET /** (**405**).",
           "responses": {
-            "405": { "description": "Same as GET /." }
+            "405": {
+              "description": "Same as GET /."
+            }
           }
         },
         "options": {
@@ -415,8 +786,12 @@
           "summary": "CORS preflight / Allow discovery",
           "description": "Handler returns **204** with **`Allow: GET, HEAD, POST, OPTIONS`**. The **CORS** middleware may answer **OPTIONS** first with **200** (preflight); both include allowed methods.",
           "responses": {
-            "200": { "description": "CORS preflight response (may be empty body)." },
-            "204": { "description": "Direct **OPTIONS** when CORS passes through; **Allow** lists methods." }
+            "200": {
+              "description": "CORS preflight response (may be empty body)."
+            },
+            "204": {
+              "description": "Direct **OPTIONS** when CORS passes through; **Allow** lists methods."
+            }
           }
         },
         "post": {
@@ -429,10 +804,14 @@
               "application/json": {
                 "schema": {
                   "oneOf": [
-                    { "$ref": "#/components/schemas/JsonRpcRequest" },
+                    {
+                      "$ref": "#/components/schemas/JsonRpcRequest"
+                    },
                     {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/JsonRpcRequest" }
+                      "items": {
+                        "$ref": "#/components/schemas/JsonRpcRequest"
+                      }
                     }
                   ]
                 }
@@ -446,17 +825,23 @@
                 "application/json": {
                   "schema": {
                     "oneOf": [
-                      { "$ref": "#/components/schemas/JsonRpcResponse" },
+                      {
+                        "$ref": "#/components/schemas/JsonRpcResponse"
+                      },
                       {
                         "type": "array",
-                        "items": { "$ref": "#/components/schemas/JsonRpcResponse" }
+                        "items": {
+                          "$ref": "#/components/schemas/JsonRpcResponse"
+                        }
                       }
                     ]
                   }
                 }
               }
             },
-            "204": { "description": "No JSON body: single notification, or batch where **every** request is a notification (JSON-RPC 2.0)." },
+            "204": {
+              "description": "No JSON body: single notification, or batch where **every** request is a notification (JSON-RPC 2.0)."
+            },
             "413": {
               "description": "JSON body larger than **BOING_RPC_MAX_BODY_MB** (default 8 MiB). Response is **application/json** with **`code: payload_too_large`**, **`message`**, and **`request_id`** when known."
             },
@@ -469,7 +854,9 @@
               "name": "X-Request-Id",
               "in": "header",
               "required": false,
-              "schema": { "type": "string" },
+              "schema": {
+                "type": "string"
+              },
               "description": "Optional correlation id; echoed on the response when present, otherwise a UUID is assigned."
             }
           ]
@@ -481,8 +868,12 @@
           "summary": "WebSocket (Upgrade) for newHeads",
           "description": "After upgrade: send one text frame `{\"type\":\"subscribe\",\"channel\":\"newHeads\"}`; server replies `subscribed` then streams `newHead` JSON objects on each committed block. Optional cap: **BOING_RPC_WS_MAX_CONNECTIONS** (0 = unlimited); when exceeded, handshake returns **503**.",
           "responses": {
-            "101": { "description": "Switching Protocols" },
-            "503": { "description": "WebSocket connection limit reached; **application/json** with **`code`**, **`message`**, **`request_id`**." }
+            "101": {
+              "description": "Switching Protocols"
+            },
+            "503": {
+              "description": "WebSocket connection limit reached; **application/json** with **`code`**, **`message`**, **`request_id`**."
+            }
           }
         }
       },
@@ -490,14 +881,22 @@
         "get": {
           "operationId": "httpOpenApiJson",
           "summary": "OpenAPI 3.1 JSON (same document as boing_getRpcOpenApi)",
-          "responses": { "200": { "description": "OpenAPI object (**application/json**)" } }
+          "responses": {
+            "200": {
+              "description": "OpenAPI object (**application/json**)"
+            }
+          }
         }
       },
       "/.well-known/boing-rpc": {
         "get": {
           "operationId": "httpWellKnownBoingRpc",
           "summary": "Machine-readable RPC discovery (paths to OpenAPI, probes, JSON-RPC)",
-          "responses": { "200": { "description": "JSON object with **schema_version** and path hints" } }
+          "responses": {
+            "200": {
+              "description": "JSON object with **schema_version** and path hints"
+            }
+          }
         }
       },
       "/live": {
@@ -505,24 +904,40 @@
           "operationId": "httpLive",
           "summary": "Liveness probe (plain text or JSON)",
           "description": "Default **text/plain** `ok\\n`. With **`Accept: application/json`** or **`GET /live.json`**, returns **`{ \"ok\": true }`**.",
-          "responses": { "200": { "description": "`ok` or JSON **ok**" } }
+          "responses": {
+            "200": {
+              "description": "`ok` or JSON **ok**"
+            }
+          }
         },
         "head": {
           "operationId": "httpLiveHead",
           "summary": "HEAD /live",
-          "responses": { "200": { "description": "Empty body" } }
+          "responses": {
+            "200": {
+              "description": "Empty body"
+            }
+          }
         }
       },
       "/live.json": {
         "get": {
           "operationId": "httpLiveJson",
           "summary": "Liveness JSON alias",
-          "responses": { "200": { "description": "**{ \"ok\": true }**" } }
+          "responses": {
+            "200": {
+              "description": "**{ \"ok\": true }**"
+            }
+          }
         },
         "head": {
           "operationId": "httpLiveJsonHead",
           "summary": "HEAD /live.json",
-          "responses": { "200": { "description": "Empty body" } }
+          "responses": {
+            "200": {
+              "description": "Empty body"
+            }
+          }
         }
       },
       "/ready": {
@@ -531,16 +946,24 @@
           "summary": "Readiness probe (plain text or JSON)",
           "description": "Acquires state read lock. If **BOING_RPC_READY_MIN_PEERS** is set (>0), also requires at least that many P2P peers. JSON mode: **Accept: application/json** or **GET /ready.json**; **503** includes **Retry-After: 5** (seconds).",
           "responses": {
-            "200": { "description": "Body contains `ready` or JSON **ready: true**" },
-            "503": { "description": "Peer count below **BOING_RPC_READY_MIN_PEERS** (when configured); JSON body explains **reason**" }
+            "200": {
+              "description": "Body contains `ready` or JSON **ready: true**"
+            },
+            "503": {
+              "description": "Peer count below **BOING_RPC_READY_MIN_PEERS** (when configured); JSON body explains **reason**"
+            }
           }
         },
         "head": {
           "operationId": "httpReadyHead",
           "summary": "HEAD /ready",
           "responses": {
-            "200": { "description": "Empty body when ready" },
-            "503": { "description": "Not ready (peer gate)" }
+            "200": {
+              "description": "Empty body when ready"
+            },
+            "503": {
+              "description": "Not ready (peer gate)"
+            }
           }
         }
       },
@@ -549,16 +972,24 @@
           "operationId": "httpReadyJson",
           "summary": "Readiness JSON alias",
           "responses": {
-            "200": { "description": "**{ \"ready\": true }**" },
-            "503": { "description": "JSON **ready: false** with peer counts" }
+            "200": {
+              "description": "**{ \"ready\": true }**"
+            },
+            "503": {
+              "description": "JSON **ready: false** with peer counts"
+            }
           }
         },
         "head": {
           "operationId": "httpReadyJsonHead",
           "summary": "HEAD /ready.json",
           "responses": {
-            "200": { "description": "Empty body when ready" },
-            "503": { "description": "Not ready" }
+            "200": {
+              "description": "Empty body when ready"
+            },
+            "503": {
+              "description": "Not ready"
+            }
           }
         }
       }
@@ -569,35 +1000,90 @@
           "type": "object",
           "description": "Params object for boing_listDexPools / boing_listDexTokens / boing_getDexToken (single-element JSON-RPC params array).",
           "properties": {
-            "factory": { "type": "string", "description": "Optional 32-byte account id (hex); overrides BOING_CANONICAL_NATIVE_DEX_FACTORY." },
-            "cursor": { "type": ["string", "null"], "description": "Opaque pagination cursor." },
-            "limit": { "type": "integer", "minimum": 1, "maximum": 500, "description": "Page size (default 100)." },
-            "light": { "type": "boolean", "description": "When true, skip receipt + deploy scans (heights null; token metadataSource abbrev-only)." },
-            "enrich": { "type": "boolean", "description": "When false, same as light: true." },
-            "includeDiagnostics": { "type": "boolean", "description": "When true, include diagnostics counters on the result." },
-            "minReserveProduct": { "type": "string", "description": "listDexTokens only: decimal digit string u128 filter." },
-            "minLiquidityWei": { "type": "string", "description": "listDexTokens only: decimal digit string u128 per-leg minimum." },
-            "id": { "type": "string", "description": "getDexToken only: 32-byte token account id hex." }
+            "factory": {
+              "type": "string",
+              "description": "Optional 32-byte account id (hex); overrides BOING_CANONICAL_NATIVE_DEX_FACTORY."
+            },
+            "cursor": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Opaque pagination cursor."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "description": "Page size (default 100)."
+            },
+            "light": {
+              "type": "boolean",
+              "description": "When true, skip receipt + deploy scans (heights null; token metadataSource abbrev-only)."
+            },
+            "enrich": {
+              "type": "boolean",
+              "description": "When false, same as light: true."
+            },
+            "includeDiagnostics": {
+              "type": "boolean",
+              "description": "When true, include diagnostics counters on the result."
+            },
+            "minReserveProduct": {
+              "type": "string",
+              "description": "listDexTokens only: decimal digit string u128 filter."
+            },
+            "minLiquidityWei": {
+              "type": "string",
+              "description": "listDexTokens only: decimal digit string u128 per-leg minimum."
+            },
+            "id": {
+              "type": "string",
+              "description": "getDexToken only: 32-byte token account id hex."
+            }
           }
         },
         "DexDiscoveryPoolDiagnostics": {
           "type": "object",
-          "required": ["receiptScans", "receiptScanCapped"],
+          "required": [
+            "receiptScans",
+            "receiptScanCapped"
+          ],
           "properties": {
-            "receiptScans": { "type": "integer", "minimum": 0 },
-            "receiptScanCapped": { "type": "boolean" }
+            "receiptScans": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "receiptScanCapped": {
+              "type": "boolean"
+            }
           }
         },
         "DexDiscoveryTokenDiagnostics": {
           "allOf": [
-            { "$ref": "#/components/schemas/DexDiscoveryPoolDiagnostics" },
+            {
+              "$ref": "#/components/schemas/DexDiscoveryPoolDiagnostics"
+            },
             {
               "type": "object",
-              "required": ["deployBlocksScanned", "deployMetadataMatched", "deployMetadataUnmatchedWant"],
+              "required": [
+                "deployBlocksScanned",
+                "deployMetadataMatched",
+                "deployMetadataUnmatchedWant"
+              ],
               "properties": {
-                "deployBlocksScanned": { "type": "integer", "minimum": 0 },
-                "deployMetadataMatched": { "type": "integer", "minimum": 0 },
-                "deployMetadataUnmatchedWant": { "type": "integer", "minimum": 0 }
+                "deployBlocksScanned": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "deployMetadataMatched": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "deployMetadataUnmatchedWant": {
+                  "type": "integer",
+                  "minimum": 0
+                }
               }
             }
           ]
@@ -616,72 +1102,202 @@
             "createdAtHeight"
           ],
           "properties": {
-            "poolHex": { "type": "string" },
-            "tokenAHex": { "type": "string" },
-            "tokenBHex": { "type": "string" },
-            "tokenADecimals": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
-            "tokenBDecimals": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
-            "feeBps": { "type": "integer" },
-            "reserveA": { "type": "string" },
-            "reserveB": { "type": "string" },
-            "createdAtHeight": { "type": ["integer", "null"] }
+            "poolHex": {
+              "type": "string"
+            },
+            "tokenAHex": {
+              "type": "string"
+            },
+            "tokenBHex": {
+              "type": "string"
+            },
+            "tokenADecimals": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 255
+            },
+            "tokenBDecimals": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 255
+            },
+            "feeBps": {
+              "type": "integer"
+            },
+            "reserveA": {
+              "type": "string"
+            },
+            "reserveB": {
+              "type": "string"
+            },
+            "createdAtHeight": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
           }
         },
         "DexTokenListRow": {
           "type": "object",
-          "required": ["id", "symbol", "name", "decimals", "poolCount", "firstSeenHeight", "metadataSource"],
+          "required": [
+            "id",
+            "symbol",
+            "name",
+            "decimals",
+            "poolCount",
+            "firstSeenHeight",
+            "metadataSource"
+          ],
           "properties": {
-            "id": { "type": "string" },
-            "symbol": { "type": "string" },
-            "name": { "type": "string" },
-            "decimals": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
-            "decimalsSource": { "type": ["string", "null"], "enum": ["env", "template", null] },
-            "poolCount": { "type": "integer", "minimum": 0 },
-            "firstSeenHeight": { "type": ["integer", "null"] },
-            "metadataSource": { "type": "string", "enum": ["deploy", "abbrev"] },
-            "diagnostics": { "$ref": "#/components/schemas/DexDiscoveryTokenDiagnostics" }
+            "id": {
+              "type": "string"
+            },
+            "symbol": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "decimals": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 255
+            },
+            "decimalsSource": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "env",
+                "template",
+                null
+              ]
+            },
+            "poolCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "firstSeenHeight": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "metadataSource": {
+              "type": "string",
+              "enum": [
+                "deploy",
+                "abbrev"
+              ]
+            },
+            "diagnostics": {
+              "$ref": "#/components/schemas/DexDiscoveryTokenDiagnostics"
+            }
           }
         },
         "DexPoolListPage": {
           "type": "object",
-          "required": ["pools", "nextCursor"],
+          "required": [
+            "pools",
+            "nextCursor"
+          ],
           "properties": {
-            "pools": { "type": "array", "items": { "$ref": "#/components/schemas/DexPoolListRow" } },
-            "nextCursor": { "type": ["string", "null"] },
-            "diagnostics": { "$ref": "#/components/schemas/DexDiscoveryPoolDiagnostics" }
+            "pools": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/DexPoolListRow"
+              }
+            },
+            "nextCursor": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "diagnostics": {
+              "$ref": "#/components/schemas/DexDiscoveryPoolDiagnostics"
+            }
           }
         },
         "DexTokenListPage": {
           "type": "object",
-          "required": ["tokens", "nextCursor"],
+          "required": [
+            "tokens",
+            "nextCursor"
+          ],
           "properties": {
-            "tokens": { "type": "array", "items": { "$ref": "#/components/schemas/DexTokenListRow" } },
-            "nextCursor": { "type": ["string", "null"] },
-            "diagnostics": { "$ref": "#/components/schemas/DexDiscoveryTokenDiagnostics" }
+            "tokens": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/DexTokenListRow"
+              }
+            },
+            "nextCursor": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "diagnostics": {
+              "$ref": "#/components/schemas/DexDiscoveryTokenDiagnostics"
+            }
           }
         },
         "JsonRpcRequest": {
           "type": "object",
-          "required": ["method"],
+          "required": [
+            "method"
+          ],
           "properties": {
-            "jsonrpc": { "type": "string", "const": "2.0" },
-            "method": { "type": "string", "description": "e.g. boing_chainHeight" },
-            "params": { "description": "Method-specific; usually a JSON array" },
-            "id": { "description": "Omitted for notifications (no HTTP JSON body for single notification)." }
+            "jsonrpc": {
+              "type": "string",
+              "const": "2.0"
+            },
+            "method": {
+              "type": "string",
+              "description": "e.g. boing_chainHeight"
+            },
+            "params": {
+              "description": "Method-specific; usually a JSON array"
+            },
+            "id": {
+              "description": "Omitted for notifications (no HTTP JSON body for single notification)."
+            }
           }
         },
         "JsonRpcResponse": {
           "type": "object",
-          "required": ["jsonrpc", "id"],
+          "required": [
+            "jsonrpc",
+            "id"
+          ],
           "properties": {
-            "jsonrpc": { "type": "string", "const": "2.0" },
+            "jsonrpc": {
+              "type": "string",
+              "const": "2.0"
+            },
             "id": {},
             "result": {},
             "error": {
               "type": "object",
               "properties": {
-                "code": { "type": "integer" },
-                "message": { "type": "string" },
+                "code": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                },
                 "data": {}
               }
             },
@@ -689,9 +1305,18 @@
               "description": "Optional HTTP-level envelope (e.g. **429** rate limit correlation).",
               "type": "object",
               "properties": {
-                "code": { "type": "string" },
-                "message": { "type": "string" },
-                "request_id": { "type": ["string", "null"] }
+                "code": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "request_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
               }
             }
           }

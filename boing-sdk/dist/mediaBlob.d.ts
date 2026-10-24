@@ -554,4 +554,37 @@ export declare function phase23ResolveExpired(tipHeight: bigint, resolveDeadline
 export declare function phase23ExpiredAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
 /** Honest plan strings for Phase 23 (Expired retention prune + list filters; still 16 MiB). */
 export declare function phase23DasSuccinctProofPlan(): string[];
+/** Phase 24 retention for terminal serve challenges (blocks after deadline). */
+export declare const PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+/** Phase 24 aliases / constants. */
+export declare const PHASE24_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE24_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE24_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE24_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE24_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE24_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE24_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE24_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE24_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE24_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE24_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE24_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE24_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+export declare function phase24CommitteeRequiresAttested(pinnedLen: number): boolean;
+export declare function phase24ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase24ResolveExpired(tipHeight: bigint, resolveDeadline: bigint): boolean;
+export declare function phase24ExpiredAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+export type BlobSampleServeChallengeStatusName = 'open' | 'responded' | 'failedServe';
+/**
+ * True when a terminal serve challenge is past retention and may be pruned:
+ * settled Responded/FailedServe with `tip > deadline + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS`.
+ */
+export declare function phase24TerminalServeChallengePrunable(input: {
+    tipHeight: bigint;
+    deadlineHeight: bigint;
+    status: BlobSampleServeChallengeStatusName;
+    bondSettled: boolean;
+}): boolean;
+/** Honest plan strings for Phase 24 (serve-challenge TTL prune + list/get UX; still 16 MiB). */
+export declare function phase24DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

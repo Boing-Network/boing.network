@@ -461,6 +461,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getLeaderVrfOutput",
     "boing_listSmtBlobSampleOffers",
     "boing_listBlobSampleServeChallenges",
+    "boing_getBlobSampleServeChallenge",
     "boing_getBlobDasSuccinctProofPlan",
     "boing_getLogs",
     "boing_getMediaBlobParams",
@@ -2736,6 +2737,7 @@ async fn dispatch_jsonrpc_request(
         | "boing_getLeaderVrfOutput"
         | "boing_listSmtBlobSampleOffers"
         | "boing_listBlobSampleServeChallenges"
+        | "boing_getBlobSampleServeChallenge"
         | "boing_getBlobDasSuccinctProofPlan" => {
             let params = req
                 .params
