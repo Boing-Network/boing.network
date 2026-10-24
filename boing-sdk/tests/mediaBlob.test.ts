@@ -52,6 +52,12 @@ import {
   PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
   phase29DasSuccinctProofPlan,
   phase29AdmitBlsAggregateResolveTx,
+  phase30IdentitiesFromSelfContained,
+  PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED,
+  PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+  phase30DasSuccinctProofPlan,
+  phase30AdmitBlsAggregateResolveTx,
+  encodeResolveSlashAppealBlsAggregate,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -309,5 +315,32 @@ describe('mediaBlob', () => {
     expect(PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED).toBe(false);
     expect(phase29DasSuccinctProofPlan().some((s) => s.includes('Phase 29'))).toBe(true);
     expect(() => phase29AdmitBlsAggregateResolveTx()).toThrow(/CONSENSUS_WIRED=false/);
+  });
+
+  it('Phase 30 self-contained identities + encode tx 33', () => {
+    const pinned = [new Uint8Array(32).fill(1), new Uint8Array(32).fill(2)];
+    const bits = phase29EncodeSignerBitset(pinned, [pinned[0]!, pinned[1]!]);
+    const pk1 = new Uint8Array(48).fill(0xaa);
+    const pk2 = new Uint8Array(48).fill(0xbb);
+    const ids = phase30IdentitiesFromSelfContained({
+      pinned,
+      bitset: bits,
+      pubkeys: [pk1, pk2],
+    });
+    expect(ids).toHaveLength(2);
+    expect(PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED).toBe(true);
+    expect(PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED).toBe(false);
+    expect(phase30DasSuccinctProofPlan().some((s) => s.includes('self-contained'))).toBe(true);
+    expect(() => phase30AdmitBlsAggregateResolveTx()).toThrow(/CONSENSUS_WIRED=false/);
+    const enc = encodeTransactionPayload(
+      encodeResolveSlashAppealBlsAggregate({
+        appealId: 1n,
+        approved: true,
+        signerBitset: bits,
+        aggregateSignature: new Uint8Array(96).fill(7),
+        signerBlsPubkeys: [pk1, pk2],
+      }),
+    );
+    expect(enc[0]).toBe(33);
   });
 });

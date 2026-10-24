@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
 
+## [0.5.33] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 30** — `phase30DasSuccinctProofPlan`; `PHASE30_*` including `PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED` (**true**), `PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` (**false**); `phase30IdentitiesFromSelfContained`; `encodeResolveSlashAppealBlsAggregate` (tx **33**); JS self-contained verify / consensus admit throw (use Rust/`blst` + `boing_verifyBlsAggregateResolve` with `signerPubkeys`); live tx **32** stays Ed25519 verify-each; slash registry stays **V5**; dual-key file stays BDKR v1; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **consensus execute tx 33 / flip cast / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
 ## [0.5.32] - 2026-10-24
 
 ### Added

@@ -331,6 +331,15 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "appeal_id":appeal_id,
             "approved":approved,
         }),
+        TransactionPayload::ResolveSlashAppealBlsAggregate {
+            appeal_id,
+            approved,
+            ..
+        } => json!({
+            "kind":"resolve_slash_appeal_bls_aggregate",
+            "appeal_id":appeal_id,
+            "approved":approved,
+        }),
     }
 }
 

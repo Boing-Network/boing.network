@@ -1569,6 +1569,12 @@ impl BoingNode {
                     ));
                 }
             }
+            TransactionPayload::ResolveSlashAppealBlsAggregate { .. } => {
+                return Err(MempoolError::MediaBlobRejected(
+                    "ResolveSlashAppealBlsAggregate (33) consensus admit not wired (PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false); use ResolveSlashAppealAttested (32)"
+                        .into(),
+                ));
+            }
             _ => {}
         }
         Ok(())

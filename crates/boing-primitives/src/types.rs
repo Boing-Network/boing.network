@@ -321,6 +321,15 @@ impl Transaction {
                 appeal_id,
                 if *approved { "approve" } else { "reject" }
             ),
+            TransactionPayload::ResolveSlashAppealBlsAggregate {
+                appeal_id,
+                approved,
+                ..
+            } => format!(
+                "Resolve slash appeal {} BLS aggregate ({})",
+                appeal_id,
+                if *approved { "approve" } else { "reject" }
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -422,6 +431,7 @@ impl Transaction {
             | TransactionPayload::SubmitSlashAppeal { .. }
             | TransactionPayload::ResolveSlashAppeal { .. }
             | TransactionPayload::ResolveSlashAppealAttested { .. }
+            | TransactionPayload::ResolveSlashAppealBlsAggregate { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -666,6 +676,18 @@ pub enum TransactionPayload {
         appeal_id: u64,
         approved: bool,
         ballot_signature: crate::SlashAppealBallotSignature,
+    },
+    /// BLS aggregate resolve of a pending consensus slash appeal (index **33**, Phase 30).
+    /// Self-contained G1 pubkeys + pin-set signer bitset + aggregate G2 signature.
+    /// **Not consensus-admitted** while `PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false`
+    /// (mempool/VM reject); live committee stays on **32**.
+    ResolveSlashAppealBlsAggregate {
+        appeal_id: u64,
+        approved: bool,
+        signer_bitset: Vec<u8>,
+        aggregate_signature: crate::BlsSignatureG2,
+        /// Ordered with decoded bitset (ascending pin index).
+        signer_bls_pubkeys: Vec<crate::BlsPublicKeyG1>,
     },
 }
 

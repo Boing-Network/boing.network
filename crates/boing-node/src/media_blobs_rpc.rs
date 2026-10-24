@@ -4,10 +4,11 @@ use boing_primitives::{
     build_das_light_client_batch_from_bytes, build_das_light_client_batch_vrf,
     build_das_succinct_proof_stub, build_das_succinct_proof_stub_vrf, chunk_media_blob,
     match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
-    phase29_cap_activation_checklist, phase29_das_succinct_proof_plan,
-    phase29_pin_set_commitment, phase29_verify_aggregate_resolve_with_registry,
-    verify_das_succinct_proof, AccountId, BlobRetention, BlobSampleOfferSource,
-    BlobSampleServeChallengeStatus, BlobSampleSettleQuote, BlsAggregateResolvePayload,
+    phase30_cap_activation_checklist, phase30_das_succinct_proof_plan,
+    phase30_pin_set_commitment, phase30_verify_aggregate_resolve_self_contained,
+    phase30_verify_aggregate_resolve_with_registry, verify_das_succinct_proof, AccountId,
+    BlobRetention, BlobSampleOfferSource, BlobSampleServeChallengeStatus, BlobSampleSettleQuote,
+    BlsAggregateResolvePayload, BlsAggregateResolveSelfContainedPayload, BlsPublicKeyG1,
     BlsSignatureG2, DasSuccinctProof, DasSuccinctProofKind, MediaBlobSampleOffer,
     MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN, MAX_MEDIA_BLOB_INLINE_BYTES,
     MAX_MEDIA_BLOB_INLINE_PREFER_BYTES, MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS,
@@ -16,14 +17,14 @@ use boing_primitives::{
     MEDIA_BLOB_RS_PARITY_SHARDS, MEDIA_BLOB_URI_PREFIX, MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS,
     PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES, PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES,
     PHASE6_MAX_SAMPLE_OFFERS, PHASE6_MAX_VIDEO_SEGMENTS, PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES,
-    PHASE6_VIDEO_SEGMENT_TARGET_BYTES, PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
-    PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED, PHASE29_BLS_AGGREGATE_WIRED,
-    PHASE29_BLS_DUAL_KEY_REGISTRY_FILE, PHASE29_BLS_POP_REQUIRED,
-    PHASE29_BLS_PUBLIC_KEY_G1_BYTES, PHASE29_BLS_SIGNATURE_G2_BYTES,
-    PHASE29_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE29_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
-    PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX, PHASE29_RESOLVE_THRESHOLD_DEN,
-    PHASE29_RESOLVE_THRESHOLD_NUM, PHASE29_RESOLVE_WINDOW_BLOCKS,
-    PHASE29_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE29_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+    PHASE6_VIDEO_SEGMENT_TARGET_BYTES, PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED,
+    PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED, PHASE30_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED,
+    PHASE30_BLS_AGGREGATE_WIRED, PHASE30_BLS_DUAL_KEY_REGISTRY_FILE, PHASE30_BLS_POP_REQUIRED,
+    PHASE30_BLS_PUBLIC_KEY_G1_BYTES, PHASE30_BLS_SIGNATURE_G2_BYTES,
+    PHASE30_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE30_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
+    PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX, PHASE30_RESOLVE_THRESHOLD_DEN,
+    PHASE30_RESOLVE_THRESHOLD_NUM, PHASE30_RESOLVE_WINDOW_BLOCKS,
+    PHASE30_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE30_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 use serde_json::{json, Value};
 
@@ -387,7 +388,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "capActivationChecklist",
-                json!(phase29_cap_activation_checklist(phase7_from)),
+                json!(phase30_cap_activation_checklist(phase7_from)),
             );
             put(&mut m, "cancelBlobSampleOfferVariant", json!(27));
             put(&mut m, "challengeBlobSampleServeVariant", json!(28));
@@ -405,7 +406,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "resolveSlashAppealAttestedVariant",
-                json!(PHASE29_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX),
+                json!(PHASE30_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX),
             );
             put(&mut m, "consensusSlashAppealTxs", json!(true));
             put(&mut m, "consensusEquivocationSlashAppeals", json!(true));
@@ -448,7 +449,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "consensusSlashAppealExpiredRetentionBlocks",
-                json!(PHASE29_EXPIRED_APPEAL_RETENTION_BLOCKS),
+                json!(PHASE30_EXPIRED_APPEAL_RETENTION_BLOCKS),
             );
             put(
                 &mut m,
@@ -458,7 +459,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "consensusSlashAppealResolvedRetentionBlocks",
-                json!(PHASE29_RESOLVED_APPEAL_RETENTION_BLOCKS),
+                json!(PHASE30_RESOLVED_APPEAL_RETENTION_BLOCKS),
             );
             put(
                 &mut m,
@@ -468,22 +469,22 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "blsAggregateWired",
-                json!(PHASE29_BLS_AGGREGATE_WIRED),
+                json!(PHASE30_BLS_AGGREGATE_WIRED),
             );
             put(
                 &mut m,
                 "blsPublicKeyG1Bytes",
-                json!(PHASE29_BLS_PUBLIC_KEY_G1_BYTES),
+                json!(PHASE30_BLS_PUBLIC_KEY_G1_BYTES),
             );
             put(
                 &mut m,
                 "blsSignatureG2Bytes",
-                json!(PHASE29_BLS_SIGNATURE_G2_BYTES),
+                json!(PHASE30_BLS_SIGNATURE_G2_BYTES),
             );
             put(
                 &mut m,
                 "blsDualKeyRegistryFile",
-                json!(PHASE29_BLS_DUAL_KEY_REGISTRY_FILE),
+                json!(PHASE30_BLS_DUAL_KEY_REGISTRY_FILE),
             );
             put(
                 &mut m,
@@ -503,22 +504,27 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "blsPopRequired",
-                json!(PHASE29_BLS_POP_REQUIRED),
+                json!(PHASE30_BLS_POP_REQUIRED),
             );
             put(
                 &mut m,
                 "blsAggregateSubmitLibraryWired",
-                json!(PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED),
+                json!(PHASE30_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED),
             );
             put(
                 &mut m,
                 "blsAggregateSubmitConsensusWired",
-                json!(PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED),
+                json!(PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED),
+            );
+            put(
+                &mut m,
+                "blsAggregateSelfContainedWired",
+                json!(PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED),
             );
             put(
                 &mut m,
                 "resolveSlashAppealBlsAggregateVariant",
-                json!(PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX),
+                json!(PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX),
             );
             put(
                 &mut m,
@@ -533,7 +539,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "serveChallengeTerminalRetentionBlocks",
-                json!(PHASE29_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS),
+                json!(PHASE30_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS),
             );
             put(
                 &mut m,
@@ -543,17 +549,17 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "slashAppealResolveThresholdNum",
-                json!(PHASE29_RESOLVE_THRESHOLD_NUM),
+                json!(PHASE30_RESOLVE_THRESHOLD_NUM),
             );
             put(
                 &mut m,
                 "slashAppealResolveThresholdDen",
-                json!(PHASE29_RESOLVE_THRESHOLD_DEN),
+                json!(PHASE30_RESOLVE_THRESHOLD_DEN),
             );
             put(
                 &mut m,
                 "slashAppealResolveWindowBlocks",
-                json!(PHASE29_RESOLVE_WINDOW_BLOCKS),
+                json!(PHASE30_RESOLVE_WINDOW_BLOCKS),
             );
             put(
                 &mut m,
@@ -583,7 +589,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "dasSuccinctProofPlan",
-                json!(phase29_das_succinct_proof_plan()),
+                json!(phase30_das_succinct_proof_plan()),
             );
             put(
                 &mut m,
@@ -630,7 +636,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "note",
-                json!("Phase 29: BLS aggregate resolve payload + pin-set signer bitset (library + boing_verifyBlsAggregateResolve); reserved tx 33 not consensus-admitted (PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false). PoP still required on dual-key register. Live tx 32 stays Ed25519 verify-each. Slash appeals stay V5; bls_dual_key_registry.bin stays BDKR v1. Consensus admit / flip committee still later. ReservedRealV1 verify still rejects; 256 MiB gated via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission height: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT (do not change once set)."),
+                json!("Phase 30: self-contained BLS G1 pubkey list on aggregate-resolve (library + boing_verifyBlsAggregateResolve); TransactionPayload::ResolveSlashAppealBlsAggregate (33) wired but not consensus-admitted (PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false). PoP still required on dual-key register. Live tx 32 stays Ed25519 verify-each. Slash appeals stay V5; bls_dual_key_registry.bin stays BDKR v1. Consensus execute / flip committee still later. ReservedRealV1 verify still rejects; 256 MiB gated via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission height: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT (do not change once set)."),
             );
             Ok(Value::Object(m))
         }
@@ -648,9 +654,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .collect();
             Ok(json!({
                 "count": entries.len(),
-                "file": PHASE29_BLS_DUAL_KEY_REGISTRY_FILE,
-                "wired": PHASE29_BLS_AGGREGATE_WIRED,
-                "popRequired": PHASE29_BLS_POP_REQUIRED,
+                "file": PHASE30_BLS_DUAL_KEY_REGISTRY_FILE,
+                "wired": PHASE30_BLS_AGGREGATE_WIRED,
+                "popRequired": PHASE30_BLS_POP_REQUIRED,
                 "liveTx32StillEd25519": true,
                 "entries": entries,
             }))
@@ -702,21 +708,22 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             ) {
                 Ok(()) => Ok(json!({
                     "ok": true,
-                    "wired": PHASE29_BLS_AGGREGATE_WIRED,
+                    "wired": PHASE30_BLS_AGGREGATE_WIRED,
                     "liveTx32StillEd25519": true,
                     "signerCount": accounts.len(),
                 })),
                 Err(e) => Ok(json!({
                     "ok": false,
                     "error": e.to_string(),
-                    "wired": PHASE29_BLS_AGGREGATE_WIRED,
+                    "wired": PHASE30_BLS_AGGREGATE_WIRED,
                     "liveTx32StillEd25519": true,
                     "signerCount": accounts.len(),
                 })),
             }
         }
         "boing_verifyBlsAggregateResolve" => {
-            // Dry-run only — consensus tx 33 is not admitted in Phase 29.
+            // Dry-run only — consensus tx 33 is wired in the enum but not admitted (Phase 30).
+            // Prefer optional `signerPubkeys` (self-contained); else host dual-key registry.
             let obj = params
                 .as_object()
                 .or_else(|| {
@@ -727,7 +734,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 })
                 .ok_or((
                     -32602,
-                    "expected {appealId, slashId, approved, signerBitset, aggregate, chainId?, pinned?} or appeal lookup"
+                    "expected {appealId, slashId, approved, signerBitset, aggregate, signerPubkeys?, chainId?, pinned?} or appeal lookup"
                         .into(),
                 ))?;
             let appeal_id = obj
@@ -757,12 +764,6 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .map_err(|e| (-32602, format!("aggregate: {e}")))?;
             let aggregate = BlsSignatureG2::try_from_slice(&agg_raw)
                 .map_err(|e| (-32602, e.to_string()))?;
-            let payload = BlsAggregateResolvePayload {
-                appeal_id,
-                approved,
-                signer_bitset: bitset,
-                aggregate_signature: aggregate,
-            };
             let chain_id = obj
                 .get("chainId")
                 .and_then(|v| {
@@ -814,40 +815,90 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                         .ok_or((-32602, "pinned entries must be hex strings".into()))?;
                     pinned.push(parse_account(s)?);
                 }
-                let pin_commit = phase29_pin_set_commitment(&pinned);
+                let pin_commit = phase30_pin_set_commitment(&pinned);
                 (slash_id, pin_commit, pinned)
             };
             if pinned.is_empty() {
                 return Err((-32602, "empty pin set — cannot verify aggregate resolve".into()));
             }
-            match phase29_verify_aggregate_resolve_with_registry(
-                &node.bls_dual_key_registry,
-                chain_id,
-                slash_id,
-                &pin_commit,
-                &pinned,
-                &payload,
-            ) {
-                Ok(()) => Ok(json!({
+            let pubkeys_opt = obj
+                .get("signerPubkeys")
+                .or_else(|| obj.get("signer_bls_pubkeys"))
+                .or_else(|| obj.get("pubkeys"));
+            let verify_result = if let Some(pk_v) = pubkeys_opt {
+                let arr = pk_v
+                    .as_array()
+                    .ok_or((-32602, "signerPubkeys must be a hex array".into()))?;
+                let mut pubkeys = Vec::with_capacity(arr.len());
+                for v in arr {
+                    let s = v
+                        .as_str()
+                        .ok_or((-32602, "signerPubkeys entries must be hex strings".into()))?;
+                    let raw = hex::decode(s.strip_prefix("0x").unwrap_or(s))
+                        .map_err(|e| (-32602, format!("signerPubkey: {e}")))?;
+                    pubkeys.push(
+                        BlsPublicKeyG1::try_from_slice(&raw)
+                            .map_err(|e| (-32602, e.to_string()))?,
+                    );
+                }
+                let sc = BlsAggregateResolveSelfContainedPayload {
+                    appeal_id,
+                    approved,
+                    signer_bitset: bitset,
+                    aggregate_signature: aggregate,
+                    signer_bls_pubkeys: pubkeys,
+                };
+                phase30_verify_aggregate_resolve_self_contained(
+                    chain_id,
+                    slash_id,
+                    &pin_commit,
+                    &pinned,
+                    &sc,
+                )
+                .map_err(|e| e.to_string())
+                .map(|_| "self_contained")
+            } else {
+                let payload = BlsAggregateResolvePayload {
+                    appeal_id,
+                    approved,
+                    signer_bitset: bitset,
+                    aggregate_signature: aggregate,
+                };
+                phase30_verify_aggregate_resolve_with_registry(
+                    &node.bls_dual_key_registry,
+                    chain_id,
+                    slash_id,
+                    &pin_commit,
+                    &pinned,
+                    &payload,
+                )
+                .map_err(|e| e.to_string())
+                .map(|_| "registry")
+            };
+            match verify_result {
+                Ok(mode) => Ok(json!({
                     "ok": true,
                     "appealId": appeal_id,
                     "slashId": slash_id,
                     "chainId": chain_id,
-                    "libraryWired": PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED,
-                    "consensusWired": PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
-                    "reservedTxIndex": PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX,
+                    "mode": mode,
+                    "selfContainedWired": PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED,
+                    "libraryWired": PHASE30_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED,
+                    "consensusWired": PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+                    "reservedTxIndex": PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX,
                     "liveTx32StillEd25519": true,
                     "pinSetCommitment": hex0x(&pin_commit),
                 })),
                 Err(e) => Ok(json!({
                     "ok": false,
-                    "error": e.to_string(),
+                    "error": e,
                     "appealId": appeal_id,
                     "slashId": slash_id,
                     "chainId": chain_id,
-                    "libraryWired": PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED,
-                    "consensusWired": PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
-                    "reservedTxIndex": PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX,
+                    "selfContainedWired": PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED,
+                    "libraryWired": PHASE30_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED,
+                    "consensusWired": PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+                    "reservedTxIndex": PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX,
                     "liveTx32StillEd25519": true,
                 })),
             }
@@ -1457,7 +1508,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
         }
         "boing_getBlobDasSuccinctProofPlan" => Ok(json!({
             "kinds": ["stubBlake3V0", "reservedRealV1"],
-            "plan": phase29_das_succinct_proof_plan(),
+            "plan": phase30_das_succinct_proof_plan(),
             "maxOpaqueProofBytes": boing_primitives::PHASE10_MAX_OPAQUE_PROOF_BYTES,
             "note": "ReservedRealV1: envelope structure checks; verify still rejects until a real succinct system is wired. ResolveSlashAppealAttested (32) is Ed25519 ballot verify-each — live cast unchanged in Phase 28; library/RPC BLS aggregate + aggregate-resolve dry-run wired; dual-key PoP required; tx 33 not consensus-admitted. Committee nets must use 32; 31 remains unattested stake-weighted ⌈2W/3⌉ for solo/unpinned/|pinned|≤1 — not SNARK. Phase 25 ancient Approved/Rejected appeal prune; Phase 24 serve-challenge terminal prune; Phase 23 Expired appeal prune; Phase 22 ballot V2 + re-verify.",
         })),

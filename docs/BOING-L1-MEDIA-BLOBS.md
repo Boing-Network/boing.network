@@ -51,7 +51,8 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 - Phase 27: **Wire `blst` (`min_pk`)** — real sign / aggregate / `fast_aggregate_verify`; host-local **`bls_dual_key_registry.bin`** (BDKR v1; **not** slash V5 / not state-root); RPC `boing_listBlsDualKeys` / `boing_registerBlsDualKey` / `boing_verifyBlsAggregate`; `PHASE27_BLS_AGGREGATE_WIRED=true` for library+RPC. **Live tx 32 stays Ed25519 verify-each** (no committee flip yet).  
 - Phase 28: **BLS dual-key proof-of-possession** — chain-bound PoP required on `boing_registerBlsDualKey` (`blsPop` 96 B + `chainId`); `PHASE28_BLS_POP_REQUIRED=true`. PoP checked at register (BDKR v1 unchanged; signature not persisted). **Live tx 32 stays Ed25519 verify-each**.  
 - Phase 29: **BLS aggregate resolve payload + pin-set signer bitset** — library encode/decode/verify + dry-run RPC `boing_verifyBlsAggregateResolve`; reserved tx index **33**; `PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false` (dual-keys still host-local). **Live tx 32 stays Ed25519 verify-each**.  
-- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22–29 do not bump slash to V6** (dual-keys use a separate host-local file).  
+- Phase 30: **Self-contained BLS G1 pubkey list** on aggregate-resolve + `TransactionPayload::ResolveSlashAppealBlsAggregate` (**33**) wired; library/RPC verify without host registry; `PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false` (mempool/VM reject). **Live tx 32 stays Ed25519 verify-each**.  
+- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22–30 do not bump slash to V6** (dual-keys use a separate host-local file).  
 - Submit/Resolve/Attested (**30**/**31**/**32**) are **always admitted** (not gated on media-blobs activation); mempool may reject **31** early when `|pinned|>1`  
 - Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated** for FailedServe / equivocation / liveness when the consensus book owns the slash (prefer txs 30/32); refuses double credit after consensus reverse  
 - Resolve is **ops/validator stake-weighted voting** (+ Ed25519 ballot when required), not SNARK verification of evidence  
@@ -64,12 +65,12 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 
 | Phase | Status |
 |-------|--------|
-| 1–28 | **Merged** (#94) |
-| 29 BLS aggregate resolve payload + signer bitset | **This PR** |
+| 1–29 | **Merged** (#95) |
+| 30 Self-contained BLS pubkey list + tx 33 wire | **This PR** |
 
-### Remaining after Phase 29
+### Remaining after Phase 30
 
-- Consensus-admit tx **33** (consensus-visible dual-keys or self-contained pubkey list)  
+- Consensus-admit / execute tx **33** (self-contained verify → stake-weighted finalize)  
 - Flip committee verify from Ed25519 verify-each → BLS aggregate when operators opt in  
 - Optional Ed25519 account-side binding (owner consents to BLS key) on a consensus tx  
 - Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
@@ -77,7 +78,7 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 
 ---
 
-## Ops / migration (Phase 29)
+## Ops / migration (Phase 30)
 
 | Item | Guidance |
 |------|----------|
@@ -85,10 +86,11 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 | `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` | **Leave unset** (16 MiB Fly-safe). |
 | `slash_appeals_registry.bin` | **Do not clear.** Stay **V5**. |
 | `bls_dual_key_registry.bin` | Host-local BDKR v1; PoP still required on register. |
-| `PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` | **false** — dry-run RPC only; live cast stays **32**. |
-| Clients | SDK **0.5.32**; bitset helpers + dry-run RPC. |
+| `PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED` | **true** — dry-run / library verify without registry. |
+| `PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` | **false** — tx **33** enum wired but mempool/VM reject; live cast stays **32**. |
+| Clients | SDK **0.5.33**; self-contained helpers + dry-run RPC. |
 | Operators | Committee resolve still Ed25519 verify-each on **32**. |
-| Consensus admit / SNARK / 256 MiB | **Not this phase** — listed under remaining. |
+| Consensus execute / SNARK / 256 MiB | **Not this phase** — listed under remaining. |
 
 ---
 
