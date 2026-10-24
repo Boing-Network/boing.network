@@ -201,6 +201,11 @@ impl BlockExecutor {
         self.vm.set_media_blobs_phase7_cap_from(from);
     }
 
+    /// Phase 32 BLS multi-pin committee flip (`None` = keep Ed25519 tx 32 default).
+    pub fn set_bls_committee_flip_from(&mut self, from: Option<u64>) {
+        self.vm.set_bls_committee_flip_from(from);
+    }
+
     /// Execute all transactions. Returns total gas used and one receipt per tx (in block order).
     /// On error, state may be partially applied (caller should revert if needed).
     /// Transfer-only batches run in parallel; other batches run sequentially.

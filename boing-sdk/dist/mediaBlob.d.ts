@@ -949,4 +949,70 @@ export declare function phase31ResolveDeadline(submitHeight: bigint): bigint;
 export declare function phase31ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
 /** Honest plan strings for Phase 31 (consensus tx 33; default cast still 32). */
 export declare function phase31DasSuccinctProofPlan(): string[];
+/** Phase 32: opt-in flip of multi-pin committee verify from Ed25519 32 → BLS aggregate 33. */
+export declare const PHASE32_BLS_COMMITTEE_FLIP_ENV = "BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT";
+export declare const PHASE32_BLS_PUBLIC_KEY_G1_BYTES = 48;
+export declare const PHASE32_BLS_SIGNATURE_G2_BYTES = 96;
+export declare const PHASE32_BLS_AGGREGATE_WIRED = true;
+export declare const PHASE32_BLS_DUAL_KEY_REGISTRY_FILE = "bls_dual_key_registry.bin";
+export declare const PHASE32_BLS_POP_REQUIRED = true;
+export declare const PHASE32_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = 33;
+export declare const PHASE32_MAX_PIN_SET_LEN = 64;
+export declare const PHASE32_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = true;
+export declare const PHASE32_BLS_AGGREGATE_SELF_CONTAINED_WIRED = true;
+/** Consensus admit/execute of tx 33 remains on. */
+export declare const PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = true;
+/**
+ * Compile-time default: until operators set the flip height, live multi-pin cast stays Ed25519 tx 32.
+ * Prefer dynamic `!phase32BlsCommitteeFlipActive(height, flipFrom)` for live tip checks.
+ */
+export declare const PHASE32_BLS_LIVE_TX32_STILL_ED25519 = true;
+export declare const PHASE32_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE32_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE32_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE32_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE32_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE32_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE32_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+export declare const PHASE32_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE32_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE32_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE32_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE32_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE32_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE32_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE32_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+/** True when flip is configured and `height >= flipFrom`. */
+export declare function phase32BlsCommitteeFlipActive(height: bigint | number, flipFrom: bigint | number | null | undefined): boolean;
+/**
+ * When flip not active: same as Phase 31 (`pinnedLen > 1` ⇒ require Ed25519 32).
+ * When flip active: return false (multi-pin no longer requires Ed25519 32).
+ */
+export declare function phase32CommitteeRequiresAttested(pinnedLen: number, height: bigint | number, flipFrom: bigint | number | null | undefined): boolean;
+/** True when flip is active and `pinnedLen > 1` (multi-pin must use tx 33). */
+export declare function phase32CommitteeRequiresBlsAggregate(pinnedLen: number, height: bigint | number, flipFrom: bigint | number | null | undefined): boolean;
+export declare function phase32EncodeSignerBitset(pinned: Uint8Array[], signers: Uint8Array[]): Uint8Array;
+export declare function phase32DecodeSignerBitset(pinned: Uint8Array[], bitset: Uint8Array): Uint8Array[];
+export declare function phase32IdentitiesFromSelfContained(input: {
+    pinned: Uint8Array[];
+    bitset: Uint8Array;
+    pubkeys: Uint8Array[];
+}): DualKeyIdentity[];
+/** Admit helper — succeeds in Phase 32 (consensus wired). */
+export declare function phase32AdmitBlsAggregateResolveTx(): void;
+/**
+ * JS has no `blst` — do not fake verify. Encode with `encodeResolveSlashAppealBlsAggregate`
+ * and submit; node verifies on execute. Dry-run via `boing_verifyBlsAggregateResolve`.
+ */
+export declare function phase32VerifyBlsAggregateResolveSelfContained(_input: {
+    chainId: bigint | number;
+    slashId: bigint | number;
+    pinSetCommitment: Uint8Array;
+    pinned: Uint8Array[];
+    payload: BlsAggregateResolveSelfContainedPayload;
+}): never;
+export declare function phase32ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase32ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/** Honest plan strings for Phase 32 (opt-in BLS multi-pin committee flip). */
+export declare function phase32DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

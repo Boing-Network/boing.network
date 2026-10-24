@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
 
+## [0.5.35] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 32** — `phase32DasSuccinctProofPlan`; `PHASE32_BLS_COMMITTEE_FLIP_ENV`; `phase32BlsCommitteeFlipActive` / `phase32CommitteeRequiresAttested` / `phase32CommitteeRequiresBlsAggregate`; `PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` (**true**), `PHASE32_BLS_LIVE_TX32_STILL_ED25519` (**true** compile-time default until flip); unset flip ⇒ identical to Phase 31 (multi-pin default Ed25519 **32**); when flip active and `|pinned|>1` require tx **33**; solo keeps Ed25519; slash registry stays **V5**; dual-key file stays BDKR v1; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **account-side binding / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
 ## [0.5.34] - 2026-10-24
 
 ### Added

@@ -2,7 +2,7 @@
 
 Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / BlobAnnounce.
 
-> 🛰️ **Operators:** `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. Optional header: `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`. Optional **gated** 256 MiB raise: `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (**unset = stay 16 MiB — Fly-safe**).
+> 🛰️ **Operators:** `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. Optional header: `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`. Optional **gated** 256 MiB raise: `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (**unset = stay 16 MiB — Fly-safe**). Optional BLS multi-pin committee flip: `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT` (**unset = keep Ed25519 tx 32 — Fly-safe**).
 
 ## Caps
 
@@ -28,7 +28,8 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 | RespondBlobSampleServe | 29 | Provider DAS merkle response (bond+penalty → provider) |
 | SubmitSlashAppeal | 30 | Consensus appeal against a slash (evidence ≤ 4096 B); **snapshots electorate W** + **resolve_deadline** |
 | ResolveSlashAppeal | 31 | Unattested stake-weighted vote (⌈2W/3⌉ vs **frozen W**); solo / unpinned / `|pinned|≤1` only; rejects after resolve_deadline |
-| ResolveSlashAppealAttested | 32 | Ed25519 ballot + same frozen-W ⌈2W/3⌉ (**required** when `|pinned|>1`); same resolve window; **V2** binds pin-set |
+| ResolveSlashAppealAttested | 32 | Ed25519 ballot + same frozen-W ⌈2W/3⌉ (**required** when `|pinned|>1` until BLS flip); same resolve window; **V2** binds pin-set |
+| ResolveSlashAppealBlsAggregate | 33 | Self-contained BLS aggregate resolve; optional until flip; **required** for multi-pin when flip active |
 
 ---
 
@@ -53,9 +54,10 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 - Phase 29: **BLS aggregate resolve payload + pin-set signer bitset** — library encode/decode/verify + dry-run RPC `boing_verifyBlsAggregateResolve`; reserved tx index **33**; `PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false` (dual-keys still host-local). **Live tx 32 stays Ed25519 verify-each**.  
 - Phase 30: **Self-contained BLS G1 pubkey list** on aggregate-resolve + `TransactionPayload::ResolveSlashAppealBlsAggregate` (**33**) wired; library/RPC verify without host registry; `PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false` (mempool/VM reject). **Live tx 32 stays Ed25519 verify-each**.  
 - Phase 31: **Consensus-admit / execute tx 33** — self-contained verify → stake-weighted cast for each bitset signer; `PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=true`. **Multi-pin committee default stays Ed25519 32** (`PHASE31_BLS_LIVE_TX32_STILL_ED25519=true`).  
-- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22–31 do not bump slash to V6** (dual-keys use a separate host-local file).  
-- Submit/Resolve/Attested (**30**/**31**/**32**) are **always admitted** (not gated on media-blobs activation); mempool may reject **31** early when `|pinned|>1`  
-- Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated** for FailedServe / equivocation / liveness when the consensus book owns the slash (prefer txs 30/32); refuses double credit after consensus reverse  
+- Phase 32: **Opt-in BLS multi-pin committee flip** — `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT` / `--media-blobs-bls-committee-flip-height`. **Unset** ⇒ identical to Phase 31. When tip ≥ flip height and `|pinned|>1`, reject **31**/**32** and require **33**; solo (`|pinned|≤1`) keeps Ed25519. Historical tx **32** before flip height still replays. `PHASE32_BLS_LIVE_TX32_STILL_ED25519=true` compile-time default; RPC `blsLiveTx32StillEd25519` is **dynamic** (`!blsCommitteeFlipActiveAtTip`).  
+- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22–32 do not bump slash to V6** (dual-keys use a separate host-local file).  
+- Submit/Resolve/Attested/BlsAggregate (**30**/**31**/**32**/**33**) are **always admitted** when consensus-wired (not gated on media-blobs activation); mempool may reject **31** early when `|pinned|>1` (and **32** when flip active)  
+- Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated** for FailedServe / equivocation / liveness when the consensus book owns the slash (prefer txs 30/32/33); refuses double credit after consensus reverse  
 - Resolve is **ops/validator stake-weighted voting** (+ Ed25519 ballot when required), not SNARK verification of evidence  
 - Succinct DAS: StubBlake3V0; ReservedRealV1 envelope checks; **verify rejects** until a real system is wired  
 - Leader-VRF LC: `boing_getLeaderVrfOutput` / `useLeaderVrf`  
@@ -66,31 +68,31 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 
 | Phase | Status |
 |-------|--------|
-| 1–30 | **Merged** (#96) |
-| 31 Consensus-admit/execute BLS aggregate resolve (tx 33) | **This PR** |
+| 1–31 | **Merged** (#97) |
+| 32 Opt-in BLS multi-pin committee flip (32→33) | **This PR** |
 
-### Remaining after Phase 31
+### Remaining after Phase 32
 
-- Flip committee verify from Ed25519 verify-each → BLS aggregate when operators opt in  
 - Optional Ed25519 account-side binding (owner consents to BLS key) on a consensus tx  
 - Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
 - Coordinated public-testnet 256 MiB activation  
 
 ---
 
-## Ops / migration (Phase 31)
+## Ops / migration (Phase 32)
 
 | Item | Guidance |
 |------|----------|
 | `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` | **Leave at 1200** (both Fly apps). Do not change. |
 | `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` | **Leave unset** (16 MiB Fly-safe). |
+| `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT` | **Leave unset** by default (Phase 31 Ed25519 **32** multi-pin default). |
 | `slash_appeals_registry.bin` | **Do not clear.** Stay **V5**. |
 | `bls_dual_key_registry.bin` | Host-local BDKR v1; PoP still required on register. |
-| `PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` | **true** — tx **33** admitted/executed (optional path). |
-| `PHASE31_BLS_LIVE_TX32_STILL_ED25519` | **true** — multi-pin **default** stays **32**. |
-| Clients | SDK **0.5.34**; encode/submit tx 33 helpers. |
-| Operators | Prefer **32** for committee nets until opt-in flip; **33** is available. |
-| Flip cast / SNARK / 256 MiB | **Not this phase** — listed under remaining. |
+| `PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` | **true** — tx **33** admitted/executed. |
+| `PHASE32_BLS_LIVE_TX32_STILL_ED25519` | **true** compile-time default until flip; RPC field is dynamic. |
+| Clients | SDK **0.5.35**; flip helpers + encode/submit tx 33. |
+| Operators | Prefer **32** until coordinated flip; set identical flip height on all validators when ready. |
+| Account-side binding / SNARK / 256 MiB | **Not this phase** — listed under remaining. |
 
 ---
 
@@ -102,4 +104,7 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 
 # Unset keeps 16 MiB (Fly / public testnet until coordinated):
 # BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT=…
+
+# Unset keeps multi-pin Ed25519 tx 32 (Phase 31); set only after coordinated BLS readiness:
+# BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT=…
 ```

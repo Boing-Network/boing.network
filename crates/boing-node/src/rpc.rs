@@ -2389,7 +2389,7 @@ async fn dispatch_jsonrpc_request(
                         "restored": restored.to_string(),
                         "deprecatedForFailedServe": true,
                         "deprecatedForEquivocationLiveness": true,
-                        "preferTx": "ResolveSlashAppealAttested (index 32); committee nets (|pinned|>1) must use 32; ResolveSlashAppeal (31) only for solo/unpinned/|pinned|≤1",
+                        "preferTx": "ResolveSlashAppealAttested (index 32) until BLS committee flip; when flip active (|pinned|>1) use ResolveSlashAppealBlsAggregate (33); ResolveSlashAppeal (31) only for solo/unpinned/|pinned|≤1",
                     }),
                 ),
                 Err(e) => rpc_error(id, -32061, e.to_string()),
