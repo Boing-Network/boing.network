@@ -2066,3 +2066,154 @@ export function phase29DasSuccinctProofPlan(): string[] {
     'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }
+
+/** Phase 30 sizes / wired flags (self-contained pubkeys; consensus admit still off). */
+export const PHASE30_BLS_PUBLIC_KEY_G1_BYTES = PHASE29_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE30_BLS_SIGNATURE_G2_BYTES = PHASE29_BLS_SIGNATURE_G2_BYTES;
+export const PHASE30_BLS_AGGREGATE_WIRED = PHASE29_BLS_AGGREGATE_WIRED;
+export const PHASE30_BLS_DUAL_KEY_REGISTRY_FILE = PHASE29_BLS_DUAL_KEY_REGISTRY_FILE;
+export const PHASE30_BLS_POP_REQUIRED = PHASE29_BLS_POP_REQUIRED;
+export const PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX =
+  PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX;
+export const PHASE30_MAX_PIN_SET_LEN = PHASE29_MAX_PIN_SET_LEN;
+export const PHASE30_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED =
+  PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED;
+
+/** Self-contained G1 pubkey list verify path (no host registry). */
+export const PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED = true;
+
+/** Consensus admit of tx 33 stays false (mempool/VM reject). */
+export const PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = false;
+
+export const PHASE30_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE29_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE30_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE29_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE30_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE29_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE30_RESOLVE_WINDOW_BLOCKS = PHASE29_RESOLVE_WINDOW_BLOCKS;
+export const PHASE30_SETTLE_RECEIPT_TTL_BLOCKS = PHASE29_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE30_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE29_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE30_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS =
+  PHASE29_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE30_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE29_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE30_MAX_APPEAL_EVIDENCE_BYTES = PHASE29_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE30_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE29_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE30_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE29_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE30_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX =
+  PHASE29_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE30_RESOLVE_THRESHOLD_NUM = PHASE29_RESOLVE_THRESHOLD_NUM;
+export const PHASE30_RESOLVE_THRESHOLD_DEN = PHASE29_RESOLVE_THRESHOLD_DEN;
+export const PHASE30_LEGACY_ELECTORATE_W_SENTINEL = PHASE29_LEGACY_ELECTORATE_W_SENTINEL;
+
+/** Aggregate resolve with self-contained G1 pubkeys (library / future tx 33 body). */
+export type BlsAggregateResolveSelfContainedPayload = BlsAggregateResolvePayload & {
+  /** Ordered with decoded bitset (ascending pin index); each 48 bytes. */
+  signerBlsPubkeys: Uint8Array[];
+};
+
+export function phase30EncodeSignerBitset(
+  pinned: Uint8Array[],
+  signers: Uint8Array[],
+): Uint8Array {
+  return phase29EncodeSignerBitset(pinned, signers);
+}
+
+export function phase30DecodeSignerBitset(
+  pinned: Uint8Array[],
+  bitset: Uint8Array,
+): Uint8Array[] {
+  return phase29DecodeSignerBitset(pinned, bitset);
+}
+
+/** Build dual-key identities from pin-set + bitset + self-contained pubkeys. */
+export function phase30IdentitiesFromSelfContained(input: {
+  pinned: Uint8Array[];
+  bitset: Uint8Array;
+  pubkeys: Uint8Array[];
+}): DualKeyIdentity[] {
+  const signers = phase30DecodeSignerBitset(input.pinned, input.bitset);
+  if (input.pubkeys.length !== signers.length) {
+    throw new Error(
+      `signer pubkey count ${input.pubkeys.length} != bitset signer count ${signers.length}`,
+    );
+  }
+  const identities = signers.map((accountId, i) => {
+    const blsPubkey = input.pubkeys[i]!;
+    if (blsPubkey.length !== PHASE30_BLS_PUBLIC_KEY_G1_BYTES) {
+      throw new Error(
+        `invalid BLS public key length: expected ${PHASE30_BLS_PUBLIC_KEY_G1_BYTES}, got ${blsPubkey.length}`,
+      );
+    }
+    return { accountId, blsPubkey };
+  });
+  phase28ValidateDualKeySet(identities);
+  return identities;
+}
+
+/**
+ * JS has no `blst` — do not fake self-contained aggregate-resolve verify.
+ * Use node RPC `boing_verifyBlsAggregateResolve` with `signerPubkeys`.
+ */
+export function phase30VerifyBlsAggregateResolveSelfContained(_input: {
+  chainId: bigint | number;
+  slashId: bigint | number;
+  pinSetCommitment: Uint8Array;
+  pinned: Uint8Array[];
+  payload: BlsAggregateResolveSelfContainedPayload;
+}): never {
+  throw new Error(
+    'JS SDK has no blst; use node library / boing_verifyBlsAggregateResolve with signerPubkeys (PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED=true, CONSENSUS_WIRED=false). Live tx 32 stays Ed25519 verify-each',
+  );
+}
+
+/** Consensus admit helper — always throws until operators opt in. */
+export function phase30AdmitBlsAggregateResolveTx(): never {
+  throw new Error(
+    'BLS aggregate resolve consensus admit not wired (PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false); use ResolveSlashAppealAttested (32)',
+  );
+}
+
+/** Encode ResolveSlashAppealBlsAggregate (33) — consensus admit still rejects on node. */
+export function encodeResolveSlashAppealBlsAggregate(input: {
+  appealId: bigint;
+  approved: boolean;
+  signerBitset: Uint8Array;
+  aggregateSignature: Uint8Array;
+  signerBlsPubkeys: Uint8Array[];
+}): TransactionPayloadInput {
+  return {
+    kind: 'resolveSlashAppealBlsAggregate',
+    appealId: input.appealId,
+    approved: input.approved,
+    signerBitset: input.signerBitset,
+    aggregateSignature: input.aggregateSignature,
+    signerBlsPubkeys: input.signerBlsPubkeys,
+  };
+}
+
+export function phase30CommitteeRequiresAttested(pinnedLen: number): boolean {
+  return phase29CommitteeRequiresAttested(pinnedLen);
+}
+
+export function phase30ResolveDeadline(submitHeight: bigint): bigint {
+  return phase29ResolveDeadline(submitHeight);
+}
+
+export function phase30ResolvedAppealPrunable(
+  tipHeight: bigint,
+  resolveDeadline: bigint,
+): boolean {
+  return phase29ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+
+/** Honest plan strings for Phase 30 (self-contained pubkeys; still 16 MiB). */
+export function phase30DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase29DasSuccinctProofPlan(),
+    'Phase 30: self-contained BLS G1 pubkey list on aggregate-resolve payload (library + dry-run); TransactionPayload::ResolveSlashAppealBlsAggregate (33) wired but not consensus-admitted.',
+    'Phase 30: PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED=true; PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false — verify without host dual-key registry; do not execute tx 33 yet.',
+    'Phase 30: live ResolveSlashAppealAttested (32) stays Ed25519 verify-each — do not flip committee cast yet.',
+    'Phase 30: JS SDK exposes identities-from-self-contained + encodeResolveSlashAppealBlsAggregate; verify via boing_verifyBlsAggregateResolve with signerPubkeys.',
+    'Phase 30: remaining — consensus-admit/execute tx 33, flip cast when operators opt in, optional Ed25519 account-side binding, SNARK / 256 MiB.',
+    'Phase 30: slash_appeals_registry.bin stays V5; bls_dual_key_registry.bin stays BDKR v1; do not clear.',
+    'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+  ];
+}

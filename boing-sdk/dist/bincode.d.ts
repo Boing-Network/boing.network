@@ -54,6 +54,8 @@ export declare const PayloadVariant: {
     readonly ResolveSlashAppeal: 31;
     /** Attested resolve with Ed25519 ballot (Phase 18). */
     readonly ResolveSlashAppealAttested: 32;
+    /** BLS aggregate resolve with self-contained pubkeys (Phase 30; not consensus-admitted). */
+    readonly ResolveSlashAppealBlsAggregate: 33;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -265,6 +267,15 @@ export type TransactionPayloadInput = {
     approved: boolean;
     /** 64-byte Ed25519 ballot signature (raw `[u8; 64]`, no length prefix). */
     ballotSignature: Uint8Array;
+} | {
+    kind: 'resolveSlashAppealBlsAggregate';
+    appealId: bigint;
+    approved: boolean;
+    signerBitset: Uint8Array;
+    /** 96-byte compressed BLS12-381 G2 aggregate signature. */
+    aggregateSignature: Uint8Array;
+    /** 48-byte compressed G1 pubkeys, ordered with decoded bitset. */
+    signerBlsPubkeys: Uint8Array[];
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

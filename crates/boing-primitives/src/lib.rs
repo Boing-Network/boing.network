@@ -28,6 +28,7 @@ pub mod blobs_phase26;
 pub mod blobs_phase27;
 pub mod blobs_phase28;
 pub mod blobs_phase29;
+pub mod blobs_phase30;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -366,6 +367,32 @@ pub use blobs_phase29::{
     PHASE29_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE29_SERVE_CHALLENGE_WINDOW_BLOCKS,
     PHASE29_SETTLE_RECEIPT_TTL_BLOCKS, PHASE29_SUBMIT_SLASH_APPEAL_TX_INDEX,
     PHASE29_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+};
+pub use blobs_phase30::{
+    phase30_admit_bls_aggregate_resolve_tx, phase30_bls_aggregate_ballot_preimage,
+    phase30_cap_activation_checklist, phase30_committee_requires_attested,
+    phase30_das_succinct_proof_plan, phase30_decode_signer_bitset, phase30_encode_signer_bitset,
+    phase30_expired_appeal_prunable, phase30_identities_from_self_contained,
+    phase30_is_legacy_electorate_snapshot, phase30_pin_set_commitment, phase30_resolve_deadline,
+    phase30_resolve_expired, phase30_resolve_threshold_met, phase30_resolved_appeal_prunable,
+    phase30_snapshot_electorate_w, phase30_terminal_serve_challenge_prunable,
+    phase30_verify_aggregate_resolve_self_contained, phase30_verify_aggregate_resolve_with_registry,
+    BlsAggregateResolveSelfContainedPayload, Phase30BlsError, PHASE30_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
+    PHASE30_BLS_AGGREGATE_BALLOT_DOMAIN, PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED,
+    PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED, PHASE30_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED,
+    PHASE30_BLS_AGGREGATE_WIRED, PHASE30_BLS_DUAL_KEY_REGISTRY_FILE,
+    PHASE30_BLS_DUAL_KEY_REGISTRY_MAGIC, PHASE30_BLS_DUAL_KEY_REGISTRY_VERSION,
+    PHASE30_BLS_POP_REQUIRED, PHASE30_BLS_PUBLIC_KEY_G1_BYTES, PHASE30_BLS_SIGNATURE_G2_BYTES,
+    PHASE30_CAP_ACTIVATION_ENV, PHASE30_EXPIRED_APPEAL_RETENTION_BLOCKS,
+    PHASE30_FAILED_SERVE_APPEAL_WINDOW_BLOCKS, PHASE30_LEGACY_ELECTORATE_W_SENTINEL,
+    PHASE30_LEGACY_PIN_SET_COMMITMENT, PHASE30_MAX_APPEAL_EVIDENCE_BYTES, PHASE30_MAX_PIN_SET_LEN,
+    PHASE30_MAX_SETTLE_RECEIPTS, PHASE30_PIN_SET_DOMAIN,
+    PHASE30_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX,
+    PHASE30_RESOLVE_SLASH_APPEAL_TX_INDEX, PHASE30_RESOLVE_THRESHOLD_DEN,
+    PHASE30_RESOLVE_THRESHOLD_NUM, PHASE30_RESOLVE_WINDOW_BLOCKS,
+    PHASE30_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE30_SERVE_CHALLENGE_WINDOW_BLOCKS,
+    PHASE30_SETTLE_RECEIPT_TTL_BLOCKS, PHASE30_SUBMIT_SLASH_APPEAL_TX_INDEX,
+    PHASE30_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};

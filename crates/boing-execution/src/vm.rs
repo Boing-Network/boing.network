@@ -736,6 +736,14 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::ResolveSlashAppealBlsAggregate { .. } => {
+                // Phase 30: tx 33 wired in the enum with self-contained pubkeys, but
+                // consensus admit/execute stays off (live cast remains Ed25519 32).
+                return Err(VmError::MediaBlob(
+                    "ResolveSlashAppealBlsAggregate (33) consensus admit not wired (PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false); use ResolveSlashAppealAttested (32)"
+                        .into(),
+                ));
+            }
         };
         Ok(VmExecutionResult {
             gas_used,

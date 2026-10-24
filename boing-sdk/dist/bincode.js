@@ -56,6 +56,8 @@ export const PayloadVariant = {
     ResolveSlashAppeal: 31,
     /** Attested resolve with Ed25519 ballot (Phase 18). */
     ResolveSlashAppealAttested: 32,
+    /** BLS aggregate resolve with self-contained pubkeys (Phase 30; not consensus-admitted). */
+    ResolveSlashAppealBlsAggregate: 33,
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export const BlobRetentionVariant = {
@@ -310,6 +312,27 @@ export function encodeTransactionPayload(payload) {
                 throw new Error('resolveSlashAppealAttested ballotSignature must be 64 bytes');
             }
             return concatBytes(writeU32Le(PayloadVariant.ResolveSlashAppealAttested), writeU64Le(payload.appealId), Uint8Array.of(payload.approved ? 1 : 0), payload.ballotSignature);
+        }
+        case 'resolveSlashAppealBlsAggregate': {
+            if (payload.aggregateSignature.length !== 96) {
+                throw new Error('resolveSlashAppealBlsAggregate aggregateSignature must be 96 bytes');
+            }
+            const parts = [
+                writeU32Le(PayloadVariant.ResolveSlashAppealBlsAggregate),
+                writeU64Le(payload.appealId),
+                Uint8Array.of(payload.approved ? 1 : 0),
+                writeU64Le(BigInt(payload.signerBitset.length)),
+                payload.signerBitset,
+                payload.aggregateSignature,
+                writeU64Le(BigInt(payload.signerBlsPubkeys.length)),
+            ];
+            for (const pk of payload.signerBlsPubkeys) {
+                if (pk.length !== 48) {
+                    throw new Error(`resolveSlashAppealBlsAggregate pubkey must be 48 bytes, got ${pk.length}`);
+                }
+                parts.push(pk);
+            }
+            return concatBytes(...parts);
         }
         default: {
             const _x = payload;

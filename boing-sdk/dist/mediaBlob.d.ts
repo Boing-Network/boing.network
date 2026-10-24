@@ -828,4 +828,71 @@ export declare function phase29ResolveDeadline(submitHeight: bigint): bigint;
 export declare function phase29ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
 /** Honest plan strings for Phase 29 (aggregate resolve payload + bitset; still 16 MiB). */
 export declare function phase29DasSuccinctProofPlan(): string[];
+/** Phase 30 sizes / wired flags (self-contained pubkeys; consensus admit still off). */
+export declare const PHASE30_BLS_PUBLIC_KEY_G1_BYTES = 48;
+export declare const PHASE30_BLS_SIGNATURE_G2_BYTES = 96;
+export declare const PHASE30_BLS_AGGREGATE_WIRED = true;
+export declare const PHASE30_BLS_DUAL_KEY_REGISTRY_FILE = "bls_dual_key_registry.bin";
+export declare const PHASE30_BLS_POP_REQUIRED = true;
+export declare const PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = 33;
+export declare const PHASE30_MAX_PIN_SET_LEN = 64;
+export declare const PHASE30_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = true;
+/** Self-contained G1 pubkey list verify path (no host registry). */
+export declare const PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED = true;
+/** Consensus admit of tx 33 stays false (mempool/VM reject). */
+export declare const PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = false;
+export declare const PHASE30_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE30_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE30_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE30_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE30_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE30_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE30_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+export declare const PHASE30_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE30_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE30_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE30_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE30_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE30_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE30_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE30_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+/** Aggregate resolve with self-contained G1 pubkeys (library / future tx 33 body). */
+export type BlsAggregateResolveSelfContainedPayload = BlsAggregateResolvePayload & {
+    /** Ordered with decoded bitset (ascending pin index); each 48 bytes. */
+    signerBlsPubkeys: Uint8Array[];
+};
+export declare function phase30EncodeSignerBitset(pinned: Uint8Array[], signers: Uint8Array[]): Uint8Array;
+export declare function phase30DecodeSignerBitset(pinned: Uint8Array[], bitset: Uint8Array): Uint8Array[];
+/** Build dual-key identities from pin-set + bitset + self-contained pubkeys. */
+export declare function phase30IdentitiesFromSelfContained(input: {
+    pinned: Uint8Array[];
+    bitset: Uint8Array;
+    pubkeys: Uint8Array[];
+}): DualKeyIdentity[];
+/**
+ * JS has no `blst` — do not fake self-contained aggregate-resolve verify.
+ * Use node RPC `boing_verifyBlsAggregateResolve` with `signerPubkeys`.
+ */
+export declare function phase30VerifyBlsAggregateResolveSelfContained(_input: {
+    chainId: bigint | number;
+    slashId: bigint | number;
+    pinSetCommitment: Uint8Array;
+    pinned: Uint8Array[];
+    payload: BlsAggregateResolveSelfContainedPayload;
+}): never;
+/** Consensus admit helper — always throws until operators opt in. */
+export declare function phase30AdmitBlsAggregateResolveTx(): never;
+/** Encode ResolveSlashAppealBlsAggregate (33) — consensus admit still rejects on node. */
+export declare function encodeResolveSlashAppealBlsAggregate(input: {
+    appealId: bigint;
+    approved: boolean;
+    signerBitset: Uint8Array;
+    aggregateSignature: Uint8Array;
+    signerBlsPubkeys: Uint8Array[];
+}): TransactionPayloadInput;
+export declare function phase30CommitteeRequiresAttested(pinnedLen: number): boolean;
+export declare function phase30ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase30ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/** Honest plan strings for Phase 30 (self-contained pubkeys; still 16 MiB). */
+export declare function phase30DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map
