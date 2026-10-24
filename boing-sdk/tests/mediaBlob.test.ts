@@ -45,6 +45,13 @@ import {
   phase13DasSuccinctProofPlan,
   PHASE11_SERVE_CHALLENGE_BOND,
   blobSampleServeChallengeBondEscrowAccount,
+  phase29EncodeSignerBitset,
+  phase29DecodeSignerBitset,
+  PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX,
+  PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED,
+  PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+  phase29DasSuccinctProofPlan,
+  phase29AdmitBlsAggregateResolveTx,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -288,5 +295,19 @@ describe('mediaBlob', () => {
     const urls = metadataHashWordToFetchUrls(hex);
     expect(urls.some((u) => u.startsWith('boing://blob/'))).toBe(true);
     expect(blobIdHexFromBoingUri(imageUri)).toBe(`0x${hex}`);
+  });
+
+  it('Phase 29 signer bitset round-trips (ascending pin index)', () => {
+    const pinned = [new Uint8Array(32).fill(1), new Uint8Array(32).fill(2), new Uint8Array(32).fill(3)];
+    const bits = phase29EncodeSignerBitset(pinned, [pinned[2]!, pinned[0]!]);
+    const decoded = phase29DecodeSignerBitset(pinned, bits);
+    expect(decoded).toHaveLength(2);
+    expect(Array.from(decoded[0]!)).toEqual(Array.from(pinned[0]!));
+    expect(Array.from(decoded[1]!)).toEqual(Array.from(pinned[2]!));
+    expect(PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX).toBe(33);
+    expect(PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED).toBe(true);
+    expect(PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED).toBe(false);
+    expect(phase29DasSuccinctProofPlan().some((s) => s.includes('Phase 29'))).toBe(true);
+    expect(() => phase29AdmitBlsAggregateResolveTx()).toThrow(/CONSENSUS_WIRED=false/);
   });
 });
