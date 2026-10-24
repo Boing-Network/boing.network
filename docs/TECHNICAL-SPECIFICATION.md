@@ -502,8 +502,8 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 | `boing_getRpcOpenApi` | `[]` | OpenAPI 3.1 root for `POST /`, `GET /ws`, probes |
 | `boing_getBalance` | `[hex_account_id]` | `{ balance: string }` |
 | `boing_getAccount` | `[hex_account_id]` | `{ balance, nonce, stake }` |
-| `boing_getBlockByHeight` | `[height]` or `[height, include_receipts]` | Block or `null` |
-| `boing_getBlockByHash` | `[hex_block_hash]` or `[hex_block_hash, include_receipts]` | Block or `null` |
+| `boing_getBlockByHeight` | `[height]` or `[height, include_receipts]` or `[height, include_receipts, include_code]` | Block or `null` (byte fields as `0x` hex; `include_code: false` stubs them) |
+| `boing_getBlockByHash` | `[hex_block_hash]` or `[hex_block_hash, include_receipts]` or `[hex_block_hash, include_receipts, include_code]` | Block or `null` |
 | `boing_getTransactionReceipt` | `[hex_tx_id]` | Receipt or `null` |
 | `boing_getLogs` | `[filter]` | Log entry array (bounded span / cap) |
 | `boing_getAccountProof` | `[hex_account_id]` | `{ proof, root, value_hash }` |

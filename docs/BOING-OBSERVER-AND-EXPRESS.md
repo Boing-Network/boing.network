@@ -112,7 +112,7 @@ Use the **Boing JSON-RPC API** as the source of truth. Key methods:
 | Method | Params | Returns | Use in explorer |
 |--------|--------|--------|------------------|
 | `boing_chainHeight` | `[]` | `u64` | Latest block number, “chain tip” indicator. |
-| `boing_getBlockByHeight` | `[height]` or `[height, include_receipts]` | Block object or `null`; optional **`receipts[]`** when `include_receipts` is `true` | Block list/detail; batch receipt ingest for indexers ([INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md)). |
+| `boing_getBlockByHeight` | `[height]` or `[height, include_receipts]` or `[height, include_receipts, include_code]` | Block object or `null`; optional **`receipts[]`**; **`include_code: false`** stubs large bytecode/calldata as `{omitted,size,hash}` (hex when included) | Block list/detail; explorer home uses receipts + `include_code: false`; indexers that need deploy bytecode keep the default ([INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md)). |
 | `boing_getBlockByHash` | `[hex_block_hash]` (32 bytes hex) | Block object or `null` | Block detail by hash. |
 | `boing_getBalance` | `[hex_account_id]` | `{ balance: string }` (u128 as decimal string) | Account balance. |
 | `boing_getAccount` | `[hex_account_id]` | `{ balance, nonce, stake }` (strings/numbers) | Account page: balance, nonce, stake. |

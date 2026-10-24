@@ -692,9 +692,20 @@ export class BoingClient {
         const hex = validateHex32(hexAccountId);
         return this.request('boing_getAccount', [hex]);
     }
-    /** Get block by height. Returns null if not found. */
-    async getBlockByHeight(height, includeReceipts) {
-        const params = includeReceipts === true ? [height, true] : includeReceipts === false ? [height, false] : [height];
+    /**
+     * Get block by height. Returns null if not found.
+     * @param includeReceipts when true, include per-tx receipts
+     * @param includeCode when false, large byte fields (bytecode/calldata/blob data) are
+     *   `{ omitted, size, hash }` stubs — preferred for explorer tip windows
+     */
+    async getBlockByHeight(height, includeReceipts, includeCode) {
+        const params = [height];
+        if (includeReceipts !== undefined || includeCode !== undefined) {
+            params.push(includeReceipts === true);
+        }
+        if (includeCode !== undefined) {
+            params.push(includeCode === true);
+        }
         return this.request('boing_getBlockByHeight', params);
     }
     /** Receipt for an included tx (`Transaction.id` hex), or `null` if unknown. */
@@ -718,10 +729,16 @@ export class BoingClient {
         }
         return this.request('boing_getLogs', [payload]);
     }
-    /** Get block by hash. Params: 32-byte block hash (hex). */
-    async getBlockByHash(hexBlockHash, includeReceipts) {
+    /** Get block by hash. Params: 32-byte block hash (hex). See {@link getBlockByHeight} for flags. */
+    async getBlockByHash(hexBlockHash, includeReceipts, includeCode) {
         const hex = validateHex32(hexBlockHash);
-        const params = includeReceipts === true ? [hex, true] : includeReceipts === false ? [hex, false] : [hex];
+        const params = [hex];
+        if (includeReceipts !== undefined || includeCode !== undefined) {
+            params.push(includeReceipts === true);
+        }
+        if (includeCode !== undefined) {
+            params.push(includeCode === true);
+        }
         return this.request('boing_getBlockByHash', params);
     }
     /** Get Merkle proof for an account. Params: 32-byte account ID (hex). */

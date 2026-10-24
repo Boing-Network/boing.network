@@ -3652,8 +3652,8 @@ async fn dispatch_jsonrpc_request(
                         rpc_error(
                             id,
                             -32602,
-                            "Invalid params: expected [height] or [height, include_receipts]"
-                                .into(),
+                                "Invalid params: expected [height] or [height, include_receipts] or [height, include_receipts, include_code]"
+                                    .into(),
                         ),
                     );
                 }
@@ -3672,13 +3672,21 @@ async fn dispatch_jsonrpc_request(
                 .and_then(|v| v.get(1))
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
+            // Third param: include_code (default true). When false, large byte fields
+            // (bytecode/calldata/blob data) become {omitted,size,hash} stubs.
+            let include_code = params
+                .as_ref()
+                .and_then(|v| v.get(2))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
             let n = node.read().await;
             match n.chain.get_block_by_height(height) {
                 Some(block) => {
                     let hash = block.hash();
-                    let block_json =
-                        json_value_lossless(&block);
-                    let mut obj = block_json.as_object().cloned().unwrap_or_default();
+                    let mut block_json =
+                        crate::rpc_block_json::block_to_rpc_json(&block, include_code);
+                    let obj = block_json.as_object_mut().expect("block object");
+                    // Historical: `hash` is bare hex (no 0x); tip helpers use 0x-prefixed forms.
                     obj.insert("hash".to_string(), serde_json::json!(hex::encode(hash.0)));
                     if include_receipts {
                         let arr: Vec<serde_json::Value> = block
@@ -3694,7 +3702,7 @@ async fn dispatch_jsonrpc_request(
                             .collect();
                         obj.insert("receipts".to_string(), serde_json::Value::Array(arr));
                     }
-                    rpc_ok(id, serde_json::Value::Object(obj))
+                    rpc_ok(id, block_json)
                 }
                 None => rpc_ok(id, serde_json::Value::Null),
             }
@@ -3850,7 +3858,7 @@ async fn dispatch_jsonrpc_request(
                         return (StatusCode::OK, rpc_error(
                                 id,
                                 -32602,
-                                "Invalid params: expected [hex_block_hash] or [hex_block_hash, include_receipts]"
+                                "Invalid params: expected [hex_block_hash] or [hex_block_hash, include_receipts] or [hex_block_hash, include_receipts, include_code]"
                                     .into(),
                             ),
                         );
@@ -3860,7 +3868,7 @@ async fn dispatch_jsonrpc_request(
                     return (StatusCode::OK, rpc_error(
                             id,
                             -32602,
-                            "Invalid params: expected [hex_block_hash] or [hex_block_hash, include_receipts]"
+                            "Invalid params: expected [hex_block_hash] or [hex_block_hash, include_receipts] or [hex_block_hash, include_receipts, include_code]"
                                 .into(),
                         ),
                     );
@@ -3871,6 +3879,11 @@ async fn dispatch_jsonrpc_request(
                 .and_then(|v| v.get(1))
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
+            let include_code = params
+                .as_ref()
+                .and_then(|v| v.get(2))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
             let bytes = match hex::decode(hex_hash.trim_start_matches("0x")) {
                 Ok(b) if b.len() == 32 => b,
                 Ok(_) => {
@@ -3892,9 +3905,9 @@ async fn dispatch_jsonrpc_request(
             let n = node.read().await;
             match n.chain.get_block_by_hash(&hash) {
                 Some(block) => {
-                    let block_json =
-                        json_value_lossless(&block);
-                    let mut obj = block_json.as_object().cloned().unwrap_or_default();
+                    let mut block_json =
+                        crate::rpc_block_json::block_to_rpc_json(&block, include_code);
+                    let obj = block_json.as_object_mut().expect("block object");
                     obj.insert(
                         "hash".to_string(),
                         serde_json::json!(hex::encode(block.hash().0)),
@@ -3913,7 +3926,7 @@ async fn dispatch_jsonrpc_request(
                             .collect();
                         obj.insert("receipts".to_string(), serde_json::Value::Array(arr_r));
                     }
-                    rpc_ok(id, serde_json::Value::Object(obj))
+                    rpc_ok(id, block_json)
                 }
                 None => rpc_ok(id, serde_json::Value::Null),
             }

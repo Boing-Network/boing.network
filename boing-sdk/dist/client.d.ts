@@ -220,8 +220,13 @@ export declare class BoingClient {
     getBalance(hexAccountId: string): Promise<AccountBalance>;
     /** Get full account state (balance, nonce, stake). Params: 32-byte account ID (hex). */
     getAccount(hexAccountId: string): Promise<AccountState>;
-    /** Get block by height. Returns null if not found. */
-    getBlockByHeight(height: number, includeReceipts?: boolean): Promise<Block | null>;
+    /**
+     * Get block by height. Returns null if not found.
+     * @param includeReceipts when true, include per-tx receipts
+     * @param includeCode when false, large byte fields (bytecode/calldata/blob data) are
+     *   `{ omitted, size, hash }` stubs — preferred for explorer tip windows
+     */
+    getBlockByHeight(height: number, includeReceipts?: boolean, includeCode?: boolean): Promise<Block | null>;
     /** Receipt for an included tx (`Transaction.id` hex), or `null` if unknown. */
     getTransactionReceipt(hexTxId: string): Promise<ExecutionReceipt | null>;
     /**
@@ -229,8 +234,8 @@ export declare class BoingClient {
      * Optional `address` is normalized to 32-byte hex when provided.
      */
     getLogs(filter: GetLogsFilter): Promise<RpcLogEntry[]>;
-    /** Get block by hash. Params: 32-byte block hash (hex). */
-    getBlockByHash(hexBlockHash: string, includeReceipts?: boolean): Promise<Block | null>;
+    /** Get block by hash. Params: 32-byte block hash (hex). See {@link getBlockByHeight} for flags. */
+    getBlockByHash(hexBlockHash: string, includeReceipts?: boolean, includeCode?: boolean): Promise<Block | null>;
     /** Get Merkle proof for an account. Params: 32-byte account ID (hex). */
     getAccountProof(hexAccountId: string): Promise<AccountProof>;
     /** Verify an account Merkle proof. Params: hex proof, hex state root. */

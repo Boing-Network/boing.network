@@ -949,10 +949,24 @@ export class BoingClient {
     return this.request<AccountState>('boing_getAccount', [hex]);
   }
 
-  /** Get block by height. Returns null if not found. */
-  async getBlockByHeight(height: number, includeReceipts?: boolean): Promise<Block | null> {
-    const params =
-      includeReceipts === true ? [height, true] : includeReceipts === false ? [height, false] : [height];
+  /**
+   * Get block by height. Returns null if not found.
+   * @param includeReceipts when true, include per-tx receipts
+   * @param includeCode when false, large byte fields (bytecode/calldata/blob data) are
+   *   `{ omitted, size, hash }` stubs — preferred for explorer tip windows
+   */
+  async getBlockByHeight(
+    height: number,
+    includeReceipts?: boolean,
+    includeCode?: boolean
+  ): Promise<Block | null> {
+    const params: unknown[] = [height];
+    if (includeReceipts !== undefined || includeCode !== undefined) {
+      params.push(includeReceipts === true);
+    }
+    if (includeCode !== undefined) {
+      params.push(includeCode === true);
+    }
     return this.request<Block | null>('boing_getBlockByHeight', params);
   }
 
@@ -979,11 +993,20 @@ export class BoingClient {
     return this.request<RpcLogEntry[]>('boing_getLogs', [payload]);
   }
 
-  /** Get block by hash. Params: 32-byte block hash (hex). */
-  async getBlockByHash(hexBlockHash: string, includeReceipts?: boolean): Promise<Block | null> {
+  /** Get block by hash. Params: 32-byte block hash (hex). See {@link getBlockByHeight} for flags. */
+  async getBlockByHash(
+    hexBlockHash: string,
+    includeReceipts?: boolean,
+    includeCode?: boolean
+  ): Promise<Block | null> {
     const hex = validateHex32(hexBlockHash);
-    const params =
-      includeReceipts === true ? [hex, true] : includeReceipts === false ? [hex, false] : [hex];
+    const params: unknown[] = [hex];
+    if (includeReceipts !== undefined || includeCode !== undefined) {
+      params.push(includeReceipts === true);
+    }
+    if (includeCode !== undefined) {
+      params.push(includeCode === true);
+    }
     return this.request<Block | null>('boing_getBlockByHash', params);
   }
 
