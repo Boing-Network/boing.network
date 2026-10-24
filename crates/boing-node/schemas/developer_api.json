@@ -303,6 +303,18 @@
         "result": { "type": "object" }
       },
       {
+        "name": "boing_listBlobSampleServeChallenges",
+        "summary": "List sample-serve challenges. Params: [blobId] or { blobId?, status?, includeTerminal? }. status=open|responded|failedServe; includeTerminal default true. Phase 24 terminal prune after deadline+4096 when bondSettled.",
+        "params": { "type": "array", "maxItems": 1 },
+        "result": { "type": "object" }
+      },
+      {
+        "name": "boing_getBlobSampleServeChallenge",
+        "summary": "Phase 24 get-by-key sample-serve challenge. Params: { blobId, chunkIndex, provider, challenger }. Returns null if missing.",
+        "params": { "type": "array", "maxItems": 1 },
+        "result": { "type": ["object", "null"] }
+      },
+      {
         "name": "boing_listSlashRecords",
         "summary": "Read-only slash/appeal registry (consensus + local mirror). Optional filters: reason, slashId, appealStatus, includeExpired (default true). persisted=true when the node has a data directory and writes slash_registry.json.",
         "params": { "type": "array", "maxItems": 1 },

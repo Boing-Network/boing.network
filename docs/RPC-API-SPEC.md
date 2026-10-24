@@ -179,6 +179,30 @@ Submit a signed transaction to the mempool.
 
 ---
 
+### boing_listBlobSampleServeChallenges
+
+Read-only list of SMT sample-serve challenges (Phase 10+). Phase 24 adds filters and optional list-all.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[blobId]` or `[{ blobId?, status?, includeTerminal? }]` | `status`: `open`\|`responded`\|`failedServe`. `includeTerminal` defaults **true**. Omit `blobId` to list all. |
+
+Terminal rows (Responded / settled FailedServe) are pruned from consensus state after `deadline + 4096` via housekeeping; this RPC clones + display-expires Open past deadline only.
+
+---
+
+### boing_getBlobSampleServeChallenge
+
+Phase 24 get-by-key lookup for one sample-serve challenge.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[{ blobId, chunkIndex, provider, challenger }]` | All fields required |
+
+**Result:** `{ tipHeight, challenge: { … } }` or **`null`** if missing.
+
+---
+
 ### boing_listSlashRecords
 
 Read-only view of the consensus **`SlashAppealRegistry`** joined with the node-local mirror (equivocation / liveness / FailedServe slashes + appeals).

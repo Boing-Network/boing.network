@@ -176,8 +176,25 @@ export declare class BoingClient {
     getLeaderVrfOutput(round?: number): Promise<Record<string, unknown>>;
     /** SMT-resident sample offers (`boing_listSmtBlobSampleOffers`). */
     listSmtBlobSampleOffers(blobId: string | Uint8Array, chunkIndex?: number): Promise<Record<string, unknown>>;
-    /** Sample-serve challenges (`boing_listBlobSampleServeChallenges`). */
-    listBlobSampleServeChallenges(blobId: string | Uint8Array): Promise<Record<string, unknown>>;
+    /**
+     * Sample-serve challenges (`boing_listBlobSampleServeChallenges`).
+     * Phase 24: pass string/bytes blobId, or `{ blobId?, status?, includeTerminal? }`.
+     */
+    listBlobSampleServeChallenges(blobIdOrFilters?: string | Uint8Array | {
+        blobId?: string;
+        status?: 'open' | 'responded' | 'failedServe';
+        includeTerminal?: boolean;
+    }): Promise<Record<string, unknown>>;
+    /**
+     * Phase 24 get-by-key (`boing_getBlobSampleServeChallenge`).
+     * Returns null when missing.
+     */
+    getBlobSampleServeChallenge(params: {
+        blobId: string;
+        chunkIndex: number;
+        provider: string;
+        challenger: string;
+    }): Promise<Record<string, unknown> | null>;
     /** Succinct DAS proof roadmap (`boing_getBlobDasSuccinctProofPlan`). */
     getBlobDasSuccinctProofPlan(): Promise<Record<string, unknown>>;
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */

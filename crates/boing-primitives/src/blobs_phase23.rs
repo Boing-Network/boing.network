@@ -14,7 +14,7 @@
 //! - ReservedRealV1 verify still rejects; do not flip `is_implemented`.
 //! - Cap env unset → 16 MiB; do not change `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`.
 //! - Phase 19–22 policies unchanged (multi-pin→32, frozen W, resolve expiry, ballot V2).
-//! - True BLS, SNARK/IPA/KZG, live 256 MiB, serve-challenge TTL — still later (24+).
+//! - True BLS, SNARK/IPA/KZG, live 256 MiB — still later; Phase 24 is serve-challenge TTL.
 
 use crate::blobs_phase22::{
     phase22_cap_activation_checklist, phase22_committee_requires_attested,
