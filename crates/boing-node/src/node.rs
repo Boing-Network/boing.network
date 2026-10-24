@@ -1570,10 +1570,23 @@ impl BoingNode {
                 }
             }
             TransactionPayload::ResolveSlashAppealBlsAggregate { .. } => {
-                return Err(MempoolError::MediaBlobRejected(
-                    "ResolveSlashAppealBlsAggregate (33) consensus admit not wired (PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false); use ResolveSlashAppealAttested (32)"
-                        .into(),
-                ));
+                // Phase 31: optional BLS aggregate path is consensus-admitted.
+                // Multi-pin committee *default* remains Ed25519 32 (not flipped here).
+                if !boing_primitives::PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppealBlsAggregate (33) consensus admit not wired; use ResolveSlashAppealAttested (32)"
+                            .into(),
+                    ));
+                }
+                if let Err(e) = boing_primitives::phase31_admit_bls_aggregate_resolve_tx() {
+                    return Err(MempoolError::MediaBlobRejected(e.to_string()));
+                }
+                if !self.consensus.validators().contains(&signed.tx.sender) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppealBlsAggregate requires a consensus validator submitter"
+                            .into(),
+                    ));
+                }
             }
             _ => {}
         }

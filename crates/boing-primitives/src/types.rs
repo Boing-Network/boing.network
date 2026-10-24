@@ -677,10 +677,10 @@ pub enum TransactionPayload {
         approved: bool,
         ballot_signature: crate::SlashAppealBallotSignature,
     },
-    /// BLS aggregate resolve of a pending consensus slash appeal (index **33**, Phase 30).
+    /// BLS aggregate resolve of a pending consensus slash appeal (index **33**, Phase 30/31).
     /// Self-contained G1 pubkeys + pin-set signer bitset + aggregate G2 signature.
-    /// **Not consensus-admitted** while `PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false`
-    /// (mempool/VM reject); live committee stays on **32**.
+    /// Phase 31: consensus-admitted when `PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=true`.
+    /// Multi-pin committee **default** remains Ed25519 **32** until a later opt-in flip.
     ResolveSlashAppealBlsAggregate {
         appeal_id: u64,
         approved: bool,

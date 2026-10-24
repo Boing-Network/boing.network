@@ -752,6 +752,31 @@ impl SlashAppealRegistry {
         electorate_w: u128,
         ballot_signature: Option<SlashAppealBallotSignature>,
     ) -> Result<CastResolveOutcome, SlashAppealError> {
+        self.cast_resolve_votes_batch(
+            appeal_id,
+            &[(voter, approved, voter_weight, ballot_signature)],
+            electorate_w,
+        )
+    }
+
+    /// Cast many resolve votes atomically (Phase 31 BLS aggregate path).
+    ///
+    /// All entries share the same `approved` polarity in practice (one aggregate ballot).
+    /// Inserts every vote first, then evaluates ⌈2W/3⌉ once so mid-batch finalize cannot
+    /// drop later signers from the audit trail. Fails if any voter already voted or appeal
+    /// is not Pending. `ballot_signature` is typically `None` for BLS aggregates (proof is
+    /// on the tx body).
+    pub fn cast_resolve_votes_batch(
+        &mut self,
+        appeal_id: u64,
+        votes: &[(
+            AccountId,
+            bool,
+            u128,
+            Option<SlashAppealBallotSignature>,
+        )],
+        electorate_w: u128,
+    ) -> Result<CastResolveOutcome, SlashAppealError> {
         let slash_id = {
             let appeal = self
                 .appeals
@@ -760,17 +785,19 @@ impl SlashAppealRegistry {
             if appeal.status != ConsensusAppealStatus::Pending {
                 return Err(SlashAppealError::AppealAlreadyResolved);
             }
-            if appeal.votes.contains_key(&voter) {
-                return Err(SlashAppealError::AlreadyVoted);
+            for (voter, approved, voter_weight, ballot_signature) in votes {
+                if appeal.votes.contains_key(voter) {
+                    return Err(SlashAppealError::AlreadyVoted);
+                }
+                appeal.votes.insert(
+                    *voter,
+                    ResolveVote {
+                        approved: *approved,
+                        weight: *voter_weight,
+                        ballot_signature: *ballot_signature,
+                    },
+                );
             }
-            appeal.votes.insert(
-                voter,
-                ResolveVote {
-                    approved,
-                    weight: voter_weight,
-                    ballot_signature,
-                },
-            );
             appeal.slash_id
         };
 
