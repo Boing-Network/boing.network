@@ -58,6 +58,10 @@ import {
   phase30DasSuccinctProofPlan,
   phase30AdmitBlsAggregateResolveTx,
   encodeResolveSlashAppealBlsAggregate,
+  PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+  PHASE31_BLS_LIVE_TX32_STILL_ED25519,
+  phase31AdmitBlsAggregateResolveTx,
+  phase31DasSuccinctProofPlan,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -342,5 +346,14 @@ describe('mediaBlob', () => {
       }),
     );
     expect(enc[0]).toBe(33);
+  });
+
+  it('Phase 31 consensus admit is wired; live default still tx 32', () => {
+    expect(PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED).toBe(true);
+    expect(PHASE31_BLS_LIVE_TX32_STILL_ED25519).toBe(true);
+    expect(() => phase31AdmitBlsAggregateResolveTx()).not.toThrow();
+    expect(phase31DasSuccinctProofPlan().some((s) => s.includes('CONSENSUS_WIRED=true'))).toBe(
+      true,
+    );
   });
 });

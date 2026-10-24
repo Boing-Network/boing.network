@@ -1698,3 +1698,76 @@ export function phase30DasSuccinctProofPlan() {
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }
+/** Phase 31: consensus admit/execute tx 33; multi-pin default still Ed25519 32. */
+export const PHASE31_BLS_PUBLIC_KEY_G1_BYTES = PHASE30_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE31_BLS_SIGNATURE_G2_BYTES = PHASE30_BLS_SIGNATURE_G2_BYTES;
+export const PHASE31_BLS_AGGREGATE_WIRED = PHASE30_BLS_AGGREGATE_WIRED;
+export const PHASE31_BLS_DUAL_KEY_REGISTRY_FILE = PHASE30_BLS_DUAL_KEY_REGISTRY_FILE;
+export const PHASE31_BLS_POP_REQUIRED = PHASE30_BLS_POP_REQUIRED;
+export const PHASE31_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX;
+export const PHASE31_MAX_PIN_SET_LEN = PHASE30_MAX_PIN_SET_LEN;
+export const PHASE31_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = PHASE30_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED;
+export const PHASE31_BLS_AGGREGATE_SELF_CONTAINED_WIRED = PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED;
+/** Consensus admit/execute of tx 33 is on (optional path). */
+export const PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = true;
+/** Multi-pin committee default remains Ed25519 tx 32. */
+export const PHASE31_BLS_LIVE_TX32_STILL_ED25519 = true;
+export const PHASE31_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE30_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE31_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE30_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE31_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE30_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE31_RESOLVE_WINDOW_BLOCKS = PHASE30_RESOLVE_WINDOW_BLOCKS;
+export const PHASE31_SETTLE_RECEIPT_TTL_BLOCKS = PHASE30_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE31_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE30_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE31_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE30_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE31_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE30_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE31_MAX_APPEAL_EVIDENCE_BYTES = PHASE30_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE31_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE30_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE31_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE30_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE31_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE30_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE31_RESOLVE_THRESHOLD_NUM = PHASE30_RESOLVE_THRESHOLD_NUM;
+export const PHASE31_RESOLVE_THRESHOLD_DEN = PHASE30_RESOLVE_THRESHOLD_DEN;
+export const PHASE31_LEGACY_ELECTORATE_W_SENTINEL = PHASE30_LEGACY_ELECTORATE_W_SENTINEL;
+export function phase31EncodeSignerBitset(pinned, signers) {
+    return phase30EncodeSignerBitset(pinned, signers);
+}
+export function phase31DecodeSignerBitset(pinned, bitset) {
+    return phase30DecodeSignerBitset(pinned, bitset);
+}
+export function phase31IdentitiesFromSelfContained(input) {
+    return phase30IdentitiesFromSelfContained(input);
+}
+/** Admit helper — succeeds in Phase 31 (consensus wired). */
+export function phase31AdmitBlsAggregateResolveTx() {
+    if (!PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED) {
+        throw new Error('BLS aggregate resolve consensus admit not wired; use ResolveSlashAppealAttested (32)');
+    }
+}
+/**
+ * JS has no `blst` — do not fake verify. Encode with `encodeResolveSlashAppealBlsAggregate`
+ * and submit; node verifies on execute. Dry-run via `boing_verifyBlsAggregateResolve`.
+ */
+export function phase31VerifyBlsAggregateResolveSelfContained(_input) {
+    throw new Error('JS SDK has no blst; submit encodeResolveSlashAppealBlsAggregate (33) or dry-run boing_verifyBlsAggregateResolve with signerPubkeys. Multi-pin default remains Ed25519 32.');
+}
+export function phase31CommitteeRequiresAttested(pinnedLen) {
+    // Still means "must use attested Ed25519 32" — not flipped to require BLS 33.
+    return phase30CommitteeRequiresAttested(pinnedLen);
+}
+export function phase31ResolveDeadline(submitHeight) {
+    return phase30ResolveDeadline(submitHeight);
+}
+export function phase31ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase30ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 31 (consensus tx 33; default cast still 32). */
+export function phase31DasSuccinctProofPlan() {
+    return [
+        ...phase30DasSuccinctProofPlan(),
+        'Phase 31: consensus-admit / execute ResolveSlashAppealBlsAggregate (33) with self-contained pubkey verify → stake-weighted cast for each bitset signer.',
+        'Phase 31: PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=true; live multi-pin committee default stays ResolveSlashAppealAttested (32) Ed25519 verify-each (PHASE31_BLS_LIVE_TX32_STILL_ED25519=true).',
+        'Phase 31: JS SDK exposes encodeResolveSlashAppealBlsAggregate for submit; verify still via node / dry-run RPC — do not fake browser blst.',
+        'Phase 31: remaining — flip committee default to BLS aggregate when operators opt in, optional Ed25519 account-side binding, SNARK / 256 MiB.',
+        'Phase 31: slash_appeals_registry.bin stays V5; bls_dual_key_registry.bin stays BDKR v1; do not clear.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

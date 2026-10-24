@@ -895,4 +895,58 @@ export declare function phase30ResolveDeadline(submitHeight: bigint): bigint;
 export declare function phase30ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
 /** Honest plan strings for Phase 30 (self-contained pubkeys; still 16 MiB). */
 export declare function phase30DasSuccinctProofPlan(): string[];
+/** Phase 31: consensus admit/execute tx 33; multi-pin default still Ed25519 32. */
+export declare const PHASE31_BLS_PUBLIC_KEY_G1_BYTES = 48;
+export declare const PHASE31_BLS_SIGNATURE_G2_BYTES = 96;
+export declare const PHASE31_BLS_AGGREGATE_WIRED = true;
+export declare const PHASE31_BLS_DUAL_KEY_REGISTRY_FILE = "bls_dual_key_registry.bin";
+export declare const PHASE31_BLS_POP_REQUIRED = true;
+export declare const PHASE31_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = 33;
+export declare const PHASE31_MAX_PIN_SET_LEN = 64;
+export declare const PHASE31_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = true;
+export declare const PHASE31_BLS_AGGREGATE_SELF_CONTAINED_WIRED = true;
+/** Consensus admit/execute of tx 33 is on (optional path). */
+export declare const PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = true;
+/** Multi-pin committee default remains Ed25519 tx 32. */
+export declare const PHASE31_BLS_LIVE_TX32_STILL_ED25519 = true;
+export declare const PHASE31_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE31_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE31_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE31_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE31_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE31_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE31_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+export declare const PHASE31_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE31_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE31_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE31_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE31_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE31_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE31_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE31_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+export declare function phase31EncodeSignerBitset(pinned: Uint8Array[], signers: Uint8Array[]): Uint8Array;
+export declare function phase31DecodeSignerBitset(pinned: Uint8Array[], bitset: Uint8Array): Uint8Array[];
+export declare function phase31IdentitiesFromSelfContained(input: {
+    pinned: Uint8Array[];
+    bitset: Uint8Array;
+    pubkeys: Uint8Array[];
+}): DualKeyIdentity[];
+/** Admit helper — succeeds in Phase 31 (consensus wired). */
+export declare function phase31AdmitBlsAggregateResolveTx(): void;
+/**
+ * JS has no `blst` — do not fake verify. Encode with `encodeResolveSlashAppealBlsAggregate`
+ * and submit; node verifies on execute. Dry-run via `boing_verifyBlsAggregateResolve`.
+ */
+export declare function phase31VerifyBlsAggregateResolveSelfContained(_input: {
+    chainId: bigint | number;
+    slashId: bigint | number;
+    pinSetCommitment: Uint8Array;
+    pinned: Uint8Array[];
+    payload: BlsAggregateResolveSelfContainedPayload;
+}): never;
+export declare function phase31CommitteeRequiresAttested(pinnedLen: number): boolean;
+export declare function phase31ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase31ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/** Honest plan strings for Phase 31 (consensus tx 33; default cast still 32). */
+export declare function phase31DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map
