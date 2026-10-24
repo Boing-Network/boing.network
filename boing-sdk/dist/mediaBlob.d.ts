@@ -52,13 +52,19 @@ export declare function mediaBlobUri(id: Uint8Array): string;
 export declare function parseMediaBlobId(s: string): Uint8Array | null;
 export declare function mediaBlobGasRaw(size: number): bigint;
 export declare function mediaBlobGas(size: number, retention: BlobRetentionInput): bigint;
-export declare function validatePutBlob(retention: BlobRetentionInput, contentType: string, data: Uint8Array): Uint8Array;
-export declare function validateBlobAnnounce(blobId: Uint8Array, size: number, retention: BlobRetentionInput, contentType: string): void;
+/**
+ * Validate PutBlob fields. `maxBytes` defaults to the live consensus floor (`MAX_MEDIA_BLOB_BYTES` = 16 MiB).
+ * Pass `mediaBlobMaxBytesAt(phase7CapActive)` (or RPC `effectiveMaxBytesAtTip`) when Phase 7 cap is live (256 MiB).
+ */
+export declare function validatePutBlob(retention: BlobRetentionInput, contentType: string, data: Uint8Array, maxBytes?: number): Uint8Array;
+export declare function validateBlobAnnounce(blobId: Uint8Array, size: number, retention: BlobRetentionInput, contentType: string, maxBytes?: number): void;
 /** Build a PutBlob payload for `encodeTransaction` / signing. */
 export declare function putBlobPayload(input: {
     retention: BlobRetentionInput;
     contentType?: string;
     data: Uint8Array;
+    /** Override size cap (default 16 MiB). Use `mediaBlobMaxBytesAt(true)` when Phase 7 is active. */
+    maxBytes?: number;
 }): TransactionPayloadInput;
 /** Build a BlobAnnounce payload (commitment; bytes via P2P / sidecar). */
 export declare function blobAnnouncePayload(input: {

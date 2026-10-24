@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **PutBlob / BlobAnnounce `maxBytes`** — `validatePutBlob`, `validateBlobAnnounce`, and `putBlobPayload` accept an optional size cap (default remains **16 MiB**). Pass `mediaBlobMaxBytesAt(true)` / RPC `effectiveMaxBytesAtTip` when Phase 7 **256 MiB** is active so clients can publish larger media without a separate SDK fork.
+- **Public exports** — `extractBoingBlobUri` and `blobIdHexFromBoingUri` from `metadataMedia` are re-exported from the package root (dApps resolving `boing://blob/…`).
+
 - **Optional priority tips** — `TransactionInput.priorityTip`, `withPriorityTip`, `signableTransactionHashWithTip` / `TX_SIGNING_DOMAIN_PRIORITY`. Zero tip keeps historical encode/sign; non-zero tips bind into the signature and wire encoding.
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
