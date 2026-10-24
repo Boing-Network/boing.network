@@ -4,9 +4,9 @@ use boing_primitives::{
     build_das_light_client_batch_from_bytes, build_das_light_client_batch_vrf,
     build_das_succinct_proof_stub, build_das_succinct_proof_stub_vrf, chunk_media_blob,
     match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
-    phase32_bls_committee_flip_active, phase32_cap_activation_checklist,
-    phase32_das_succinct_proof_plan, phase32_pin_set_commitment,
+    phase32_bls_committee_flip_active, phase32_pin_set_commitment,
     phase32_verify_aggregate_resolve_self_contained, phase32_verify_aggregate_resolve_with_registry,
+    phase33_cap_activation_checklist, phase33_das_succinct_proof_plan,
     verify_das_succinct_proof, AccountId, BlobRetention, BlobSampleOfferSource,
     BlobSampleServeChallengeStatus, BlobSampleSettleQuote, BlsAggregateResolvePayload,
     BlsAggregateResolveSelfContainedPayload, BlsPublicKeyG1, BlsSignatureG2, DasSuccinctProof,
@@ -21,6 +21,7 @@ use boing_primitives::{
     PHASE6_VIDEO_SEGMENT_TARGET_BYTES, PHASE32_BLS_AGGREGATE_SELF_CONTAINED_WIRED,
     PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED, PHASE32_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED,
     PHASE32_BLS_AGGREGATE_WIRED, PHASE32_BLS_DUAL_KEY_REGISTRY_FILE, PHASE32_BLS_POP_REQUIRED,
+    PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES, PHASE33_RESERVED_REAL_VERIFIER_WIRED,
     PHASE32_BLS_PUBLIC_KEY_G1_BYTES, PHASE32_BLS_SIGNATURE_G2_BYTES,
     PHASE32_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE32_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
     PHASE32_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX, PHASE32_RESOLVE_THRESHOLD_DEN,
@@ -391,7 +392,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "capActivationChecklist",
-                json!(phase32_cap_activation_checklist(phase7_from)),
+                json!(phase33_cap_activation_checklist(phase7_from)),
             );
             put(&mut m, "cancelBlobSampleOfferVariant", json!(27));
             put(&mut m, "challengeBlobSampleServeVariant", json!(28));
@@ -543,6 +544,21 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             );
             put(
                 &mut m,
+                "reservedRealV1VerifierWired",
+                json!(PHASE33_RESERVED_REAL_VERIFIER_WIRED),
+            );
+            put(
+                &mut m,
+                "reservedRealV1VerifierBackends",
+                json!(PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES),
+            );
+            put(
+                &mut m,
+                "reservedRealV1IsImplemented",
+                json!(DasSuccinctProofKind::ReservedRealV1.is_implemented()),
+            );
+            put(
+                &mut m,
                 "serveChallengeTerminalPrune",
                 json!(true),
             );
@@ -599,7 +615,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "dasSuccinctProofPlan",
-                json!(phase32_das_succinct_proof_plan()),
+                json!(phase33_das_succinct_proof_plan()),
             );
             put(
                 &mut m,
@@ -646,7 +662,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             put(
                 &mut m,
                 "note",
-                json!("Phase 32: opt-in BLS multi-pin committee flip (Ed25519 tx 32 → BLS aggregate tx 33) gated by BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT (unset = Phase 31 behavior). PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=true. Solo (|pinned|≤1) keeps Ed25519. PoP still required on dual-key register. Slash appeals stay V5; bls_dual_key_registry.bin stays BDKR v1. Optional Ed25519 account-side binding / SNARK / 256 MiB still later. ReservedRealV1 verify still rejects; 256 MiB gated via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission height: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT (do not change once set)."),
+                json!("Phase 33: ReservedRealV1 IPA/KZG/SNARK verifier scaffold (PHASE33_RESERVED_REAL_VERIFIER_WIRED=false; backends ipaV1/kzgV1/snarkV1 names only); is_implemented remains false. Builds on Phase 32 opt-in BLS multi-pin flip (BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT unset = Ed25519 tx 32 default; tip≥H + |pinned|>1 requires tx 33). PoP still required on dual-key register. Slash appeals stay V5; bls_dual_key_registry.bin stays BDKR v1. Real SNARK / 256 MiB still later. ReservedRealV1 verify still rejects; 256 MiB gated via BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT (unset = 16 MiB Fly-safe). Admission height: BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT (do not change once set)."),
             );
             Ok(Value::Object(m))
         }
@@ -1518,7 +1534,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
         }
         "boing_getBlobDasSuccinctProofPlan" => Ok(json!({
             "kinds": ["stubBlake3V0", "reservedRealV1"],
-            "plan": phase32_das_succinct_proof_plan(),
+            "plan": phase33_das_succinct_proof_plan(),
             "maxOpaqueProofBytes": boing_primitives::PHASE10_MAX_OPAQUE_PROOF_BYTES,
             "note": "ReservedRealV1: envelope structure checks; verify still rejects until a real succinct system is wired. ResolveSlashAppealAttested (32) is Ed25519 ballot verify-each — live cast unchanged in Phase 28; library/RPC BLS aggregate + aggregate-resolve dry-run wired; dual-key PoP required; tx 33 not consensus-admitted. Committee nets must use 32; 31 remains unattested stake-weighted ⌈2W/3⌉ for solo/unpinned/|pinned|≤1 — not SNARK. Phase 25 ancient Approved/Rejected appeal prune; Phase 24 serve-challenge terminal prune; Phase 23 Expired appeal prune; Phase 22 ballot V2 + re-verify.",
         })),

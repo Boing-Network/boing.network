@@ -2476,3 +2476,138 @@ export function phase32DasSuccinctProofPlan(): string[] {
     'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }
+
+/** Phase 33: ReservedRealV1 IPA/KZG/SNARK verifier scaffolding (honest NotWired). */
+export type DasRealVerifierBackend = 'ipaV1' | 'kzgV1' | 'snarkV1';
+
+export const PHASE33_RESERVED_REAL_VERIFIER_WIRED = false;
+export const PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES: readonly DasRealVerifierBackend[] = [
+  'ipaV1',
+  'kzgV1',
+  'snarkV1',
+] as const;
+
+/** `DasSuccinctProofKind::ReservedRealV1.is_implemented()` — stays false until a real verifier. */
+export const PHASE33_RESERVED_REAL_V1_IS_IMPLEMENTED = false;
+
+export const PHASE33_BLS_PUBLIC_KEY_G1_BYTES = PHASE32_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE33_BLS_SIGNATURE_G2_BYTES = PHASE32_BLS_SIGNATURE_G2_BYTES;
+export const PHASE33_BLS_AGGREGATE_WIRED = PHASE32_BLS_AGGREGATE_WIRED;
+export const PHASE33_BLS_DUAL_KEY_REGISTRY_FILE = PHASE32_BLS_DUAL_KEY_REGISTRY_FILE;
+export const PHASE33_BLS_POP_REQUIRED = PHASE32_BLS_POP_REQUIRED;
+export const PHASE33_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX =
+  PHASE31_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX;
+export const PHASE33_MAX_PIN_SET_LEN = PHASE32_MAX_PIN_SET_LEN;
+export const PHASE33_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED =
+  PHASE31_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED;
+export const PHASE33_BLS_AGGREGATE_SELF_CONTAINED_WIRED =
+  PHASE31_BLS_AGGREGATE_SELF_CONTAINED_WIRED;
+export const PHASE33_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED =
+  PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED;
+export const PHASE33_BLS_LIVE_TX32_STILL_ED25519 = PHASE32_BLS_LIVE_TX32_STILL_ED25519;
+export const PHASE33_BLS_COMMITTEE_FLIP_ENV = PHASE32_BLS_COMMITTEE_FLIP_ENV;
+
+export function phase33BlsCommitteeFlipActive(
+  height: bigint | number,
+  flipFrom: bigint | number | null | undefined,
+): boolean {
+  return phase32BlsCommitteeFlipActive(height, flipFrom);
+}
+
+export function phase33CommitteeRequiresBlsAggregate(
+  pinnedLen: number,
+  height: bigint | number,
+  flipFrom: bigint | number | null | undefined,
+): boolean {
+  return phase32CommitteeRequiresBlsAggregate(pinnedLen, height, flipFrom);
+}
+export const PHASE33_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE32_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE33_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE32_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE33_FAILED_SERVE_APPEAL_WINDOW_BLOCKS =
+  PHASE31_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE33_RESOLVE_WINDOW_BLOCKS = PHASE32_RESOLVE_WINDOW_BLOCKS;
+export const PHASE33_SETTLE_RECEIPT_TTL_BLOCKS = PHASE32_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE33_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE32_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE33_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS =
+  PHASE31_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE33_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE32_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE33_MAX_APPEAL_EVIDENCE_BYTES = PHASE32_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE33_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE32_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE33_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE32_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE33_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX =
+  PHASE31_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE33_RESOLVE_THRESHOLD_NUM = PHASE32_RESOLVE_THRESHOLD_NUM;
+export const PHASE33_RESOLVE_THRESHOLD_DEN = PHASE32_RESOLVE_THRESHOLD_DEN;
+export const PHASE33_LEGACY_ELECTORATE_W_SENTINEL = PHASE32_LEGACY_ELECTORATE_W_SENTINEL;
+
+/** Active backend — always `null` while `PHASE33_RESERVED_REAL_VERIFIER_WIRED` is false. */
+export function phase33ReservedRealVerifierBackend(): DasRealVerifierBackend | null {
+  return null;
+}
+
+/**
+ * Honest NotWired stub — JS has no IPA/KZG/SNARK verifier.
+ * Envelope validation lives on the node; do not fake crypto in the browser.
+ */
+export function phase33VerifyReservedRealV1Ipa(_proof: unknown): never {
+  throw new Error(
+    'ReservedRealV1 ipaV1 verifier not wired (PHASE33_RESERVED_REAL_VERIFIER_WIRED=false); ReservedRealV1.is_implemented() remains false',
+  );
+}
+
+export function phase33VerifyReservedRealV1Kzg(_proof: unknown): never {
+  throw new Error(
+    'ReservedRealV1 kzgV1 verifier not wired (PHASE33_RESERVED_REAL_VERIFIER_WIRED=false); ReservedRealV1.is_implemented() remains false',
+  );
+}
+
+export function phase33VerifyReservedRealV1Snark(_proof: unknown): never {
+  throw new Error(
+    'ReservedRealV1 snarkV1 verifier not wired (PHASE33_RESERVED_REAL_VERIFIER_WIRED=false); ReservedRealV1.is_implemented() remains false',
+  );
+}
+
+export function phase33VerifyDasSuccinctProofReservedReal(
+  _proof: unknown,
+  backend: DasRealVerifierBackend,
+): never {
+  throw new Error(
+    `ReservedRealV1 ${backend} verifier not wired (PHASE33_RESERVED_REAL_VERIFIER_WIRED=false); ReservedRealV1.is_implemented() remains false`,
+  );
+}
+
+export function phase33AdmitBlsAggregateResolveTx(): void {
+  phase32AdmitBlsAggregateResolveTx();
+}
+
+export function phase33CommitteeRequiresAttested(
+  pinnedLen: number,
+  height: bigint | number,
+  flipFrom: bigint | number | null | undefined,
+): boolean {
+  return phase32CommitteeRequiresAttested(pinnedLen, height, flipFrom);
+}
+
+export function phase33ResolveDeadline(submitHeight: bigint): bigint {
+  return phase32ResolveDeadline(submitHeight);
+}
+
+export function phase33ResolvedAppealPrunable(
+  tipHeight: bigint,
+  resolveDeadline: bigint,
+): boolean {
+  return phase32ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+
+/** Honest plan strings for Phase 33 (SNARK scaffold; is_implemented still false). */
+export function phase33DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase32DasSuccinctProofPlan(),
+    'Phase 33: scaffold ReservedRealV1 IPA/KZG/SNARK verifier backends (ipaV1/kzgV1/snarkV1) — PHASE33_RESERVED_REAL_VERIFIER_WIRED=false; stubs return NotWired after envelope checks.',
+    'Phase 33: DasSuccinctProofKind::ReservedRealV1.is_implemented() remains false — do not flip without a real verifier; no arkworks/halo2 deps yet.',
+    'Phase 33: independent of Phase 32 (BLS committee flip) — this branch wraps Phase 31 only.',
+    'Phase 33: JS SDK exposes NotWired helpers only — do not fake IPA/KZG/SNARK in the browser.',
+    'Phase 33: remaining — wire a real IPA/KZG/SNARK verifier and flip is_implemented when production-ready; coordinated 256 MiB still later.',
+    'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+  ];
+}
