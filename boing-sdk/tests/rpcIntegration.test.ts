@@ -116,7 +116,7 @@ describe.skipIf(!run)(
         expect(info.rpc.not_available).not.toContain('chain_wide_total_stake');
         expect(info.rpc.not_available).toContain('staking_apy');
         expect(typeof info.rpc.not_available_note).toBe('string');
-        expect(info.developer.sdk_npm_package).toBe('boing-sdk');
+        expect(info.developer.sdk_npm_package).toBe('@boing-network/boing-sdk');
         expect(info.developer.websocket.path).toBe('/ws');
         expect(info.developer.api_discovery_methods).toContain('boing_getRpcMethodCatalog');
         expect(info.developer.http.live_path).toBe('/live');
