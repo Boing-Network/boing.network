@@ -389,6 +389,28 @@ export default {
           );
         }
 
+        // When Content-Length is missing, Fly/edge drops still look like HTTP 200 with a
+        // mid-array cut — refuse to forward non-JSON bodies for JSON-RPC POSTs.
+        if (req.method === "POST") {
+          const text = new TextDecoder().decode(buf);
+          try {
+            JSON.parse(text);
+          } catch {
+            return json(
+              {
+                jsonrpc: "2.0",
+                id: null,
+                error: {
+                  code: -32000,
+                  message:
+                    "Upstream RPC returned truncated or invalid JSON (not forwarding corrupt body).",
+                },
+              },
+              200
+            );
+          }
+        }
+
         const headers = withCors(upstream.headers);
         headers.delete("content-encoding");
         headers.delete("content-length");
