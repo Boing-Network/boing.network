@@ -199,9 +199,14 @@ export function mediaBlobGas(size, retention) {
     const mult = retention.kind === 'forever' ? MEDIA_BLOB_FOREVER_MULTIPLIER : 1n;
     return mediaBlobGasRaw(size) * mult;
 }
-export function validatePutBlob(retention, contentType, data) {
-    if (data.length > MAX_MEDIA_BLOB_BYTES) {
-        throw new Error(`media blob exceeds MAX_MEDIA_BLOB_BYTES (${MAX_MEDIA_BLOB_BYTES})`);
+/**
+ * Validate PutBlob fields. `maxBytes` defaults to the live consensus floor (`MAX_MEDIA_BLOB_BYTES` = 16 MiB).
+ * Pass `mediaBlobMaxBytesAt(phase7CapActive)` (or RPC `effectiveMaxBytesAtTip`) when Phase 7 cap is live (256 MiB).
+ */
+export function validatePutBlob(retention, contentType, data, maxBytes = MAX_MEDIA_BLOB_BYTES) {
+    const cap = Number.isFinite(maxBytes) && maxBytes > 0 ? Math.trunc(maxBytes) : MAX_MEDIA_BLOB_BYTES;
+    if (data.length > cap) {
+        throw new Error(`media blob exceeds max bytes (${cap})`);
     }
     if (contentType.length > MAX_MEDIA_BLOB_CONTENT_TYPE_LEN) {
         throw new Error(`contentType exceeds ${MAX_MEDIA_BLOB_CONTENT_TYPE_LEN} bytes`);
@@ -215,13 +220,14 @@ export function validatePutBlob(retention, contentType, data) {
     }
     return blobIdOf(data);
 }
-export function validateBlobAnnounce(blobId, size, retention, contentType) {
+export function validateBlobAnnounce(blobId, size, retention, contentType, maxBytes = MAX_MEDIA_BLOB_BYTES) {
+    const cap = Number.isFinite(maxBytes) && maxBytes > 0 ? Math.trunc(maxBytes) : MAX_MEDIA_BLOB_BYTES;
     if (blobId.length !== 32)
         throw new Error('blobId must be 32 bytes');
     if (size <= 0)
         throw new Error('announce size must be > 0');
-    if (size > MAX_MEDIA_BLOB_BYTES) {
-        throw new Error(`announce size exceeds MAX_MEDIA_BLOB_BYTES (${MAX_MEDIA_BLOB_BYTES})`);
+    if (size > cap) {
+        throw new Error(`announce size exceeds max bytes (${cap})`);
     }
     if (contentType.length > MAX_MEDIA_BLOB_CONTENT_TYPE_LEN) {
         throw new Error(`contentType exceeds ${MAX_MEDIA_BLOB_CONTENT_TYPE_LEN} bytes`);
@@ -237,7 +243,7 @@ export function validateBlobAnnounce(blobId, size, retention, contentType) {
 /** Build a PutBlob payload for `encodeTransaction` / signing. */
 export function putBlobPayload(input) {
     const contentType = input.contentType ?? '';
-    validatePutBlob(input.retention, contentType, input.data);
+    validatePutBlob(input.retention, contentType, input.data, input.maxBytes);
     return {
         kind: 'putBlob',
         retention: input.retention,

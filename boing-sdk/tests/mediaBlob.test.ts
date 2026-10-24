@@ -127,7 +127,27 @@ describe('mediaBlob', () => {
     );
     expect(() =>
       validatePutBlob({ kind: 'forever' }, '', new Uint8Array(MAX_MEDIA_BLOB_BYTES + 1)),
-    ).toThrow(/MAX_MEDIA_BLOB_BYTES/);
+    ).toThrow(/max bytes/);
+  });
+
+  it('validatePutBlob accepts Phase 7 cap via maxBytes', () => {
+    const overDefault = new Uint8Array(MAX_MEDIA_BLOB_BYTES + 1);
+    expect(() => validatePutBlob({ kind: 'forever' }, 'image/png', overDefault)).toThrow(/max bytes/);
+    expect(
+      validatePutBlob(
+        { kind: 'forever' },
+        'image/png',
+        overDefault,
+        mediaBlobMaxBytesAt(true),
+      ),
+    ).toHaveLength(32);
+    const payload = putBlobPayload({
+      retention: { kind: 'forever' },
+      contentType: 'image/png',
+      data: overDefault,
+      maxBytes: mediaBlobMaxBytesAt(true),
+    });
+    expect(payload.kind).toBe('putBlob');
   });
 
   it('Phase 6: segments (live-cap), sample match expiry, LC seed', () => {

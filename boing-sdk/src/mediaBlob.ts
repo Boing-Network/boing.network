@@ -221,13 +221,19 @@ export function mediaBlobGas(size: number, retention: BlobRetentionInput): bigin
   return mediaBlobGasRaw(size) * mult;
 }
 
+/**
+ * Validate PutBlob fields. `maxBytes` defaults to the live consensus floor (`MAX_MEDIA_BLOB_BYTES` = 16 MiB).
+ * Pass `mediaBlobMaxBytesAt(phase7CapActive)` (or RPC `effectiveMaxBytesAtTip`) when Phase 7 cap is live (256 MiB).
+ */
 export function validatePutBlob(
   retention: BlobRetentionInput,
   contentType: string,
   data: Uint8Array,
+  maxBytes: number = MAX_MEDIA_BLOB_BYTES,
 ): Uint8Array {
-  if (data.length > MAX_MEDIA_BLOB_BYTES) {
-    throw new Error(`media blob exceeds MAX_MEDIA_BLOB_BYTES (${MAX_MEDIA_BLOB_BYTES})`);
+  const cap = Number.isFinite(maxBytes) && maxBytes > 0 ? Math.trunc(maxBytes) : MAX_MEDIA_BLOB_BYTES;
+  if (data.length > cap) {
+    throw new Error(`media blob exceeds max bytes (${cap})`);
   }
   if (contentType.length > MAX_MEDIA_BLOB_CONTENT_TYPE_LEN) {
     throw new Error(`contentType exceeds ${MAX_MEDIA_BLOB_CONTENT_TYPE_LEN} bytes`);
@@ -246,11 +252,13 @@ export function validateBlobAnnounce(
   size: number,
   retention: BlobRetentionInput,
   contentType: string,
+  maxBytes: number = MAX_MEDIA_BLOB_BYTES,
 ): void {
+  const cap = Number.isFinite(maxBytes) && maxBytes > 0 ? Math.trunc(maxBytes) : MAX_MEDIA_BLOB_BYTES;
   if (blobId.length !== 32) throw new Error('blobId must be 32 bytes');
   if (size <= 0) throw new Error('announce size must be > 0');
-  if (size > MAX_MEDIA_BLOB_BYTES) {
-    throw new Error(`announce size exceeds MAX_MEDIA_BLOB_BYTES (${MAX_MEDIA_BLOB_BYTES})`);
+  if (size > cap) {
+    throw new Error(`announce size exceeds max bytes (${cap})`);
   }
   if (contentType.length > MAX_MEDIA_BLOB_CONTENT_TYPE_LEN) {
     throw new Error(`contentType exceeds ${MAX_MEDIA_BLOB_CONTENT_TYPE_LEN} bytes`);
@@ -268,9 +276,11 @@ export function putBlobPayload(input: {
   retention: BlobRetentionInput;
   contentType?: string;
   data: Uint8Array;
+  /** Override size cap (default 16 MiB). Use `mediaBlobMaxBytesAt(true)` when Phase 7 is active. */
+  maxBytes?: number;
 }): TransactionPayloadInput {
   const contentType = input.contentType ?? '';
-  validatePutBlob(input.retention, contentType, input.data);
+  validatePutBlob(input.retention, contentType, input.data, input.maxBytes);
   return {
     kind: 'putBlob',
     retention: input.retention,
