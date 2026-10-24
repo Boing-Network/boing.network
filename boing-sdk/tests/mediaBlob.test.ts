@@ -62,6 +62,14 @@ import {
   PHASE31_BLS_LIVE_TX32_STILL_ED25519,
   phase31AdmitBlsAggregateResolveTx,
   phase31DasSuccinctProofPlan,
+  PHASE32_BLS_COMMITTEE_FLIP_ENV,
+  PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+  PHASE32_BLS_LIVE_TX32_STILL_ED25519,
+  phase32AdmitBlsAggregateResolveTx,
+  phase32BlsCommitteeFlipActive,
+  phase32CommitteeRequiresAttested,
+  phase32CommitteeRequiresBlsAggregate,
+  phase32DasSuccinctProofPlan,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -355,5 +363,21 @@ describe('mediaBlob', () => {
     expect(phase31DasSuccinctProofPlan().some((s) => s.includes('CONSENSUS_WIRED=true'))).toBe(
       true,
     );
+  });
+
+  it('Phase 32 opt-in BLS committee flip helpers', () => {
+    expect(PHASE32_BLS_COMMITTEE_FLIP_ENV).toBe('BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT');
+    expect(PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED).toBe(true);
+    expect(PHASE32_BLS_LIVE_TX32_STILL_ED25519).toBe(true);
+    expect(() => phase32AdmitBlsAggregateResolveTx()).not.toThrow();
+    expect(phase32BlsCommitteeFlipActive(50, null)).toBe(false);
+    expect(phase32BlsCommitteeFlipActive(99, 100)).toBe(false);
+    expect(phase32BlsCommitteeFlipActive(100, 100)).toBe(true);
+    expect(phase32CommitteeRequiresAttested(2, 50, null)).toBe(true);
+    expect(phase32CommitteeRequiresBlsAggregate(2, 50, null)).toBe(false);
+    expect(phase32CommitteeRequiresAttested(2, 100, 100)).toBe(false);
+    expect(phase32CommitteeRequiresBlsAggregate(2, 100, 100)).toBe(true);
+    expect(phase32CommitteeRequiresBlsAggregate(1, 100, 100)).toBe(false);
+    expect(phase32DasSuccinctProofPlan().some((s) => s.includes('Phase 32'))).toBe(true);
   });
 });

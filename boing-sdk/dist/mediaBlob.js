@@ -1771,3 +1771,96 @@ export function phase31DasSuccinctProofPlan() {
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }
+/** Phase 32: opt-in flip of multi-pin committee verify from Ed25519 32 → BLS aggregate 33. */
+export const PHASE32_BLS_COMMITTEE_FLIP_ENV = 'BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT';
+export const PHASE32_BLS_PUBLIC_KEY_G1_BYTES = PHASE31_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE32_BLS_SIGNATURE_G2_BYTES = PHASE31_BLS_SIGNATURE_G2_BYTES;
+export const PHASE32_BLS_AGGREGATE_WIRED = PHASE31_BLS_AGGREGATE_WIRED;
+export const PHASE32_BLS_DUAL_KEY_REGISTRY_FILE = PHASE31_BLS_DUAL_KEY_REGISTRY_FILE;
+export const PHASE32_BLS_POP_REQUIRED = PHASE31_BLS_POP_REQUIRED;
+export const PHASE32_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = PHASE31_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX;
+export const PHASE32_MAX_PIN_SET_LEN = PHASE31_MAX_PIN_SET_LEN;
+export const PHASE32_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = PHASE31_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED;
+export const PHASE32_BLS_AGGREGATE_SELF_CONTAINED_WIRED = PHASE31_BLS_AGGREGATE_SELF_CONTAINED_WIRED;
+/** Consensus admit/execute of tx 33 remains on. */
+export const PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = true;
+/**
+ * Compile-time default: until operators set the flip height, live multi-pin cast stays Ed25519 tx 32.
+ * Prefer dynamic `!phase32BlsCommitteeFlipActive(height, flipFrom)` for live tip checks.
+ */
+export const PHASE32_BLS_LIVE_TX32_STILL_ED25519 = true;
+export const PHASE32_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE31_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE32_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE31_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE32_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE31_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE32_RESOLVE_WINDOW_BLOCKS = PHASE31_RESOLVE_WINDOW_BLOCKS;
+export const PHASE32_SETTLE_RECEIPT_TTL_BLOCKS = PHASE31_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE32_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE31_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE32_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE31_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE32_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE31_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE32_MAX_APPEAL_EVIDENCE_BYTES = PHASE31_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE32_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE31_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE32_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE31_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE32_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE31_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE32_RESOLVE_THRESHOLD_NUM = PHASE31_RESOLVE_THRESHOLD_NUM;
+export const PHASE32_RESOLVE_THRESHOLD_DEN = PHASE31_RESOLVE_THRESHOLD_DEN;
+export const PHASE32_LEGACY_ELECTORATE_W_SENTINEL = PHASE31_LEGACY_ELECTORATE_W_SENTINEL;
+/** True when flip is configured and `height >= flipFrom`. */
+export function phase32BlsCommitteeFlipActive(height, flipFrom) {
+    if (flipFrom === null || flipFrom === undefined)
+        return false;
+    return BigInt(height) >= BigInt(flipFrom);
+}
+/**
+ * When flip not active: same as Phase 31 (`pinnedLen > 1` ⇒ require Ed25519 32).
+ * When flip active: return false (multi-pin no longer requires Ed25519 32).
+ */
+export function phase32CommitteeRequiresAttested(pinnedLen, height, flipFrom) {
+    if (phase32BlsCommitteeFlipActive(height, flipFrom))
+        return false;
+    return phase31CommitteeRequiresAttested(pinnedLen);
+}
+/** True when flip is active and `pinnedLen > 1` (multi-pin must use tx 33). */
+export function phase32CommitteeRequiresBlsAggregate(pinnedLen, height, flipFrom) {
+    return phase32BlsCommitteeFlipActive(height, flipFrom) && pinnedLen > 1;
+}
+export function phase32EncodeSignerBitset(pinned, signers) {
+    return phase31EncodeSignerBitset(pinned, signers);
+}
+export function phase32DecodeSignerBitset(pinned, bitset) {
+    return phase31DecodeSignerBitset(pinned, bitset);
+}
+export function phase32IdentitiesFromSelfContained(input) {
+    return phase31IdentitiesFromSelfContained(input);
+}
+/** Admit helper — succeeds in Phase 32 (consensus wired). */
+export function phase32AdmitBlsAggregateResolveTx() {
+    if (!PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED) {
+        throw new Error('BLS aggregate resolve consensus admit not wired; use ResolveSlashAppealAttested (32)');
+    }
+}
+/**
+ * JS has no `blst` — do not fake verify. Encode with `encodeResolveSlashAppealBlsAggregate`
+ * and submit; node verifies on execute. Dry-run via `boing_verifyBlsAggregateResolve`.
+ */
+export function phase32VerifyBlsAggregateResolveSelfContained(_input) {
+    throw new Error('JS SDK has no blst; submit encodeResolveSlashAppealBlsAggregate (33) or dry-run boing_verifyBlsAggregateResolve with signerPubkeys. When flip unset, multi-pin default remains Ed25519 32.');
+}
+export function phase32ResolveDeadline(submitHeight) {
+    return phase31ResolveDeadline(submitHeight);
+}
+export function phase32ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase31ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 32 (opt-in BLS multi-pin committee flip). */
+export function phase32DasSuccinctProofPlan() {
+    return [
+        ...phase31DasSuccinctProofPlan(),
+        'Phase 32: opt-in flip of live multi-pin committee verify from Ed25519 ResolveSlashAppealAttested (32) → ResolveSlashAppealBlsAggregate (33), gated by BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT.',
+        'Phase 32: PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=true; PHASE32_BLS_LIVE_TX32_STILL_ED25519=true as compile-time default until flip; unset flip ⇒ identical to Phase 31.',
+        'Phase 32: when flip active and |pinned|>1, reject tx 31/32 and require 33; solo (|pinned|≤1) keeps Ed25519 / unattested policy.',
+        'Phase 32: JS SDK exposes phase32BlsCommitteeFlipActive / phase32CommitteeRequiresBlsAggregate / phase32CommitteeRequiresAttested; verify still via node / dry-run RPC.',
+        'Phase 32: remaining — optional Ed25519 account-side binding, SNARK / 256 MiB.',
+        'Phase 32: slash_appeals_registry.bin stays V5; bls_dual_key_registry.bin stays BDKR v1; do not clear.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

@@ -160,6 +160,12 @@ struct Args {
     #[arg(long)]
     media_blobs_phase7_cap_activation_height: Option<u64>,
 
+    /// Phase 32: flip multi-pin committee verify from Ed25519 tx 32 → BLS aggregate tx 33 from this
+    /// height (all nodes must agree). Overrides **`BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT`**.
+    /// Unset = keep Phase 31 policy (multi-pin default Ed25519 **32**).
+    #[arg(long)]
+    media_blobs_bls_committee_flip_height: Option<u64>,
+
     /// Honor reduced `execution_gas_fee_bps` (micro fee / waive) from this height. Overrides
     /// **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`**. Below it, gas is always the full historical schedule.
     #[arg(long)]
@@ -232,6 +238,17 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!(
             "Media blobs Phase 7: raised Put/Announce cap ({} bytes) from height={} — all validators must agree",
             boing_primitives::PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
+            h
+        );
+    }
+    let bls_committee_flip_from =
+        boing_node::media_blob_config::resolve_media_blobs_bls_committee_flip_activation(
+            args.media_blobs_bls_committee_flip_height,
+        )
+        .map_err(|e| anyhow::anyhow!("media blobs BLS committee flip config: {e}"))?;
+    if let Some(h) = bls_committee_flip_from {
+        tracing::info!(
+            "Media blobs Phase 32: BLS multi-pin committee flip (tx 32→33) from height={} — all validators must agree",
             h
         );
     }
@@ -357,6 +374,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = phase7_cap_from {
                 n.enable_media_blobs_phase7_cap(h);
+            }
+            if let Some(h) = bls_committee_flip_from {
+                n.enable_bls_committee_flip(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -568,6 +588,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = phase7_cap_from {
                 n.enable_media_blobs_phase7_cap(h);
+            }
+            if let Some(h) = bls_committee_flip_from {
+                n.enable_bls_committee_flip(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();

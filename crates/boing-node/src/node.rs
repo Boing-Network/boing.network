@@ -1552,14 +1552,30 @@ impl BoingNode {
                         "ResolveSlashAppeal requires a consensus validator".into(),
                     ));
                 }
-                // Phase 19: reject unattested 31 early when multi-pin committee is configured.
-                if let Some(set) = self.state.slash_appeal_resolvers() {
-                    if boing_primitives::phase19_committee_requires_attested(set.len()) {
-                        return Err(MempoolError::MediaBlobRejected(
-                            "ResolveSlashAppeal (31) rejected when |slash_appeal_resolvers| > 1; use ResolveSlashAppealAttested (32)"
-                                .into(),
-                        ));
-                    }
+                // Phase 19/31/32: reject unattested 31 early when multi-pin requires attested
+                // or BLS aggregate (flip active).
+                let next = self.chain.height().saturating_add(1);
+                let flip_from = self.executor.vm().bls_committee_flip_from();
+                let pinned_len = self
+                    .state
+                    .slash_appeal_resolvers()
+                    .map(|s| s.len())
+                    .unwrap_or(0);
+                if boing_primitives::phase32_committee_requires_bls_aggregate(
+                    pinned_len, next, flip_from,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppeal (31) rejected when BLS committee flip active and |slash_appeal_resolvers| > 1; use ResolveSlashAppealBlsAggregate (33)"
+                            .into(),
+                    ));
+                }
+                if boing_primitives::phase32_committee_requires_attested(
+                    pinned_len, next, flip_from,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppeal (31) rejected when |slash_appeal_resolvers| > 1; use ResolveSlashAppealAttested (32)"
+                            .into(),
+                    ));
                 }
             }
             TransactionPayload::ResolveSlashAppealAttested { .. } => {
@@ -1568,17 +1584,33 @@ impl BoingNode {
                         "ResolveSlashAppeal requires a consensus validator".into(),
                     ));
                 }
+                // Phase 32: when flip active, multi-pin must use BLS aggregate 33 (not Ed25519 32).
+                let next = self.chain.height().saturating_add(1);
+                let flip_from = self.executor.vm().bls_committee_flip_from();
+                let pinned_len = self
+                    .state
+                    .slash_appeal_resolvers()
+                    .map(|s| s.len())
+                    .unwrap_or(0);
+                if boing_primitives::phase32_committee_requires_bls_aggregate(
+                    pinned_len, next, flip_from,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppealAttested (32) rejected when BLS committee flip active and |slash_appeal_resolvers| > 1; use ResolveSlashAppealBlsAggregate (33)"
+                            .into(),
+                    ));
+                }
             }
             TransactionPayload::ResolveSlashAppealBlsAggregate { .. } => {
-                // Phase 31: optional BLS aggregate path is consensus-admitted.
-                // Multi-pin committee *default* remains Ed25519 32 (not flipped here).
-                if !boing_primitives::PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED {
+                // Phase 31/32: BLS aggregate path is consensus-admitted.
+                // Unset flip ⇒ optional; flip active + multi-pin ⇒ required (enforced by rejecting 31/32).
+                if !boing_primitives::PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED {
                     return Err(MempoolError::MediaBlobRejected(
                         "ResolveSlashAppealBlsAggregate (33) consensus admit not wired; use ResolveSlashAppealAttested (32)"
                             .into(),
                     ));
                 }
-                if let Err(e) = boing_primitives::phase31_admit_bls_aggregate_resolve_tx() {
+                if let Err(e) = boing_primitives::phase32_admit_bls_aggregate_resolve_tx() {
                     return Err(MempoolError::MediaBlobRejected(e.to_string()));
                 }
                 if !self.consensus.validators().contains(&signed.tx.sender) {
@@ -1650,6 +1682,18 @@ impl BoingNode {
 
     pub fn media_blobs_phase7_cap_activation_height(&self) -> Option<u64> {
         self.executor.vm().media_blobs_phase7_cap_from()
+    }
+
+    /// Phase 32: flip multi-pin committee verify from Ed25519 tx 32 → BLS aggregate tx 33.
+    /// Unset / unused keeps Phase 31 policy (multi-pin default Ed25519 **32**).
+    pub fn enable_bls_committee_flip(&mut self, activation_height: u64) {
+        self.executor
+            .set_bls_committee_flip_from(Some(activation_height));
+        self.vm.set_bls_committee_flip_from(Some(activation_height));
+    }
+
+    pub fn bls_committee_flip_height(&self) -> Option<u64> {
+        self.executor.vm().bls_committee_flip_from()
     }
 
     /// Phase 3: pin `blobs_root` into produced / validated headers from `activation_height`.
@@ -1755,6 +1799,7 @@ impl BoingNode {
         vm.set_media_blobs_from(self.executor.vm().media_blobs_from());
         vm.set_blobs_root_header_from(self.executor.vm().blobs_root_header_from());
         vm.set_media_blobs_phase7_cap_from(self.executor.vm().media_blobs_phase7_cap_from());
+        vm.set_bls_committee_flip_from(self.executor.vm().bls_committee_flip_from());
         vm
     }
 

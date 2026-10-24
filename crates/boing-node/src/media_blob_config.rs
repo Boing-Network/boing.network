@@ -44,3 +44,13 @@ pub fn resolve_media_blobs_phase7_cap_activation(cli: Option<u64>) -> Result<Opt
     }
     parse_optional_u64_env(boing_primitives::PHASE7_CAP_ACTIVATION_ENV)
 }
+
+/// Resolve Phase 32 BLS multi-pin committee flip. `None` = keep Ed25519 tx **32** (Phase 31).
+pub fn resolve_media_blobs_bls_committee_flip_activation(
+    cli: Option<u64>,
+) -> Result<Option<u64>, String> {
+    if let Some(h) = cli {
+        return Ok(Some(h));
+    }
+    parse_optional_u64_env(boing_primitives::PHASE32_BLS_COMMITTEE_FLIP_ENV)
+}

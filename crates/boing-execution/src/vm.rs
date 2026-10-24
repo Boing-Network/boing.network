@@ -9,15 +9,15 @@ use boing_primitives::{
     validate_pay_blob_sample_with_max_chunks, validate_put_blob_with_cap,
     validate_register_blob_sample_offer, validate_renew_media_blob_pin,
     validate_settle_blob_sample_match, verify_slash_appeal_resolve_ballot_dual,
-    phase19_committee_requires_attested, phase20_is_legacy_electorate_snapshot,
-    phase20_pin_set_commitment, phase20_snapshot_electorate_w,
-    phase31_admit_bls_aggregate_resolve_tx, phase31_decode_signer_bitset,
-    phase31_verify_aggregate_resolve_self_contained, AccountId, AccountState, BatchCall, BlobId,
-    BlobRetention, BlsAggregateResolveSelfContainedPayload, ExecutionLog, Hash,
-    MediaBlobDasSample, QaPoolVoteKind, Transaction, TransactionPayload,
+    phase20_is_legacy_electorate_snapshot, phase20_pin_set_commitment,
+    phase20_snapshot_electorate_w, phase32_admit_bls_aggregate_resolve_tx,
+    phase32_committee_requires_attested, phase32_committee_requires_bls_aggregate,
+    phase32_decode_signer_bitset, phase32_verify_aggregate_resolve_self_contained, AccountId,
+    AccountState, BatchCall, BlobId, BlobRetention, BlsAggregateResolveSelfContainedPayload,
+    ExecutionLog, Hash, MediaBlobDasSample, QaPoolVoteKind, Transaction, TransactionPayload,
     PHASE11_FAILED_SERVE_PENALTY, PHASE11_SERVE_CHALLENGE_BOND,
     PHASE14_FAILED_SERVE_APPEAL_WINDOW_BLOCKS, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
-    PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+    PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
 };
 use boing_state::SettledSampleMatch;
 use boing_qa::{
@@ -121,6 +121,9 @@ pub struct Vm {
     blobs_root_header_from: Option<u64>,
     /// Phase 7: raise Put/Announce max toward 256 MiB from this height. `None` = stay at 16 MiB.
     media_blobs_phase7_cap_from: Option<u64>,
+    /// Phase 32: flip multi-pin committee from Ed25519 tx 32 → BLS aggregate tx 33.
+    /// `None` = Phase 31 policy (multi-pin default stays 32).
+    bls_committee_flip_from: Option<u64>,
 }
 
 impl Vm {
@@ -163,6 +166,15 @@ impl Vm {
 
     pub fn media_blobs_phase7_cap_from(&self) -> Option<u64> {
         self.media_blobs_phase7_cap_from
+    }
+
+    /// Phase 32 BLS multi-pin committee flip (`None` keeps Ed25519 tx 32 default).
+    pub fn set_bls_committee_flip_from(&mut self, from: Option<u64>) {
+        self.bls_committee_flip_from = from;
+    }
+
+    pub fn bls_committee_flip_from(&self) -> Option<u64> {
+        self.bls_committee_flip_from
     }
 
     pub fn media_blob_max_bytes(&self, height: u64) -> usize {
@@ -253,6 +265,7 @@ impl Vm {
             media_blobs_from: None,
             blobs_root_header_from: None,
             media_blobs_phase7_cap_from: None,
+            bls_committee_flip_from: None,
         }
     }
 
@@ -270,6 +283,7 @@ impl Vm {
             media_blobs_from: None,
             blobs_root_header_from: None,
             media_blobs_phase7_cap_from: None,
+            bls_committee_flip_from: None,
         }
     }
 
@@ -290,6 +304,7 @@ impl Vm {
             media_blobs_from: None,
             blobs_root_header_from: None,
             media_blobs_phase7_cap_from: None,
+            bls_committee_flip_from: None,
         }
     }
 
@@ -1297,10 +1312,22 @@ impl Vm {
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
         // Phase 18/22 attested path: look up pending appeal slash_id + pin_set_commitment
         // and dual-verify ballot (V2 preferred, then V1) against tx.sender + chain_id.
-        // Phase 19: when |pinned slash_appeal_resolvers| > 1, unattested 31 is rejected
-        // before cast (committee nets must use 32). Historical unattested votes already
-        // recorded keep their weight mid-tally — this gate is admission-only.
-        // Phase 22: new casts should sign V2 (pin-bound); mid-upgrade V1 still admitted.
+        // Phase 19/31: when |pinned| > 1 and flip unset, unattested 31 is rejected
+        // (committee nets must use 32). Phase 32: when flip active and |pinned| > 1,
+        // reject both 31 and 32 — use ResolveSlashAppealBlsAggregate (33).
+        // Historical unattested votes already recorded keep their weight mid-tally —
+        // this gate is admission-only. Phase 22: new casts should sign V2 (pin-bound).
+        let pinned_len = state.slash_appeal_resolvers().map(|s| s.len()).unwrap_or(0);
+        if phase32_committee_requires_bls_aggregate(
+            pinned_len,
+            height,
+            self.bls_committee_flip_from,
+        ) {
+            return Err(VmError::MediaBlob(
+                "ResolveSlashAppeal / ResolveSlashAppealAttested (31/32) rejected when BLS committee flip active and |slash_appeal_resolvers| > 1; use ResolveSlashAppealBlsAggregate (33)"
+                    .into(),
+            ));
+        }
         let ballot_to_store = if let Some(sig) = ballot_signature {
             let (slash_id, pin_set_commitment) = state
                 .slash_appeals()
@@ -1326,13 +1353,15 @@ impl Vm {
             .map_err(|e| VmError::MediaBlob(format!("invalid resolve ballot: {e}")))?;
             Some(sig)
         } else {
-            if let Some(set) = state.slash_appeal_resolvers() {
-                if phase19_committee_requires_attested(set.len()) {
-                    return Err(VmError::MediaBlob(
-                        "ResolveSlashAppeal (31) rejected when |slash_appeal_resolvers| > 1; use ResolveSlashAppealAttested (32)"
-                            .into(),
-                    ));
-                }
+            if phase32_committee_requires_attested(
+                pinned_len,
+                height,
+                self.bls_committee_flip_from,
+            ) {
+                return Err(VmError::MediaBlob(
+                    "ResolveSlashAppeal (31) rejected when |slash_appeal_resolvers| > 1; use ResolveSlashAppealAttested (32)"
+                        .into(),
+                ));
             }
             None
         };
@@ -1435,9 +1464,9 @@ impl Vm {
         })
     }
 
-    /// Phase 31: optional BLS aggregate resolve (tx 33). Verifies self-contained aggregate,
-    /// then stake-weighted-casts each bitset signer. Does **not** replace the multi-pin
-    /// requirement for Ed25519 attested **32**.
+    /// Phase 31/32: BLS aggregate resolve (tx 33). Verifies self-contained aggregate,
+    /// then stake-weighted-casts each bitset signer. Optional until Phase 32 flip; required
+    /// for multi-pin when `bls_committee_flip_from` is active.
     fn execute_resolve_slash_appeal_bls_aggregate(
         &self,
         state: &mut StateStore,
@@ -1449,8 +1478,8 @@ impl Vm {
         signer_bls_pubkeys: &[boing_primitives::BlsPublicKeyG1],
         height: u64,
     ) -> Result<VmExecutionResult, VmError> {
-        phase31_admit_bls_aggregate_resolve_tx().map_err(|e| VmError::MediaBlob(e.to_string()))?;
-        if !PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED {
+        phase32_admit_bls_aggregate_resolve_tx().map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        if !PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED {
             return Err(VmError::MediaBlob(
                 "ResolveSlashAppealBlsAggregate (33) consensus admit not wired; use ResolveSlashAppealAttested (32)"
                     .into(),
@@ -1499,7 +1528,7 @@ impl Vm {
             aggregate_signature,
             signer_bls_pubkeys: signer_bls_pubkeys.to_vec(),
         };
-        phase31_verify_aggregate_resolve_self_contained(
+        phase32_verify_aggregate_resolve_self_contained(
             chain_id,
             slash_id,
             &pin_set_commitment,
@@ -1508,7 +1537,7 @@ impl Vm {
         )
         .map_err(|e| VmError::MediaBlob(format!("invalid BLS aggregate resolve: {e}")))?;
 
-        let signers = phase31_decode_signer_bitset(&pinned, signer_bitset)
+        let signers = phase32_decode_signer_bitset(&pinned, signer_bitset)
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
 
         let electorate_w = if phase20_is_legacy_electorate_snapshot(
