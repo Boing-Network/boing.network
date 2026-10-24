@@ -42,5 +42,6 @@ Override backends with Worker var **`RPC_BACKENDS`** (comma-separated origins, n
 | HTTP **530** on the public hostname | DNS still CNAMEs to a dead Cloudflare Tunnel, or the Worker route is missing |
 | HTTP **403** + `cf-mitigated: challenge` | Zone **Bot Fight Mode** is challenging non-browser clients — turn `fight_mode` **off** for JSON-RPC |
 | DNS for `testnet-rpc` | Must be a **proxied** CNAME to this Worker (`*.workers.dev`), **not** `*.cfargotunnel.com` |
+| JSON-RPC body **> ~6 MiB** | Worker returns JSON-RPC `-32000` (“response too large / truncated”) instead of forwarding a cut mid-array body. Tip blocks with large deploy bytecode can exceed this until the node hex-encodes bytecode |
 
 Related: [FLY-IO.md](../../docs/FLY-IO.md), [TESTNET-RPC-INFRA.md](../../docs/TESTNET-RPC-INFRA.md).

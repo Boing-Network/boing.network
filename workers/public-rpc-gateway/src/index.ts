@@ -17,6 +17,13 @@ const UPSTREAM_TIMEOUT_MS = 25_000;
 /** Parallel write timeout: stay under the Worker ~30s wall clock when skipping health probes. */
 const SUBMIT_UPSTREAM_TIMEOUT_MS = 20_000;
 const MAX_BODY_BYTES = 8 * 1_048_576;
+/**
+ * Cap JSON-RPC response bodies forwarded to clients. Fly can return 15–300 MiB for tip
+ * blocks whose ContractDeploy bytecode is serde'd as JSON number arrays; streaming those
+ * through the Worker often truncates mid-array (HTTP 200 + invalid JSON), which breaks
+ * explorers (`Expected ',' or ']' after array element…`).
+ */
+const MAX_RESPONSE_BYTES = 6 * 1_048_576;
 const FAILOVER_STATUSES = new Set([502, 503, 504, 521, 522, 523, 524, 525, 526, 530]);
 /** Writes that must reach the validator, not only the first healthy full node. */
 const FANOUT_RPC_METHODS = new Set(["boing_submitTransaction"]);
@@ -124,6 +131,37 @@ async function proxyOnce(
     redirect: "manual",
     signal: AbortSignal.timeout(timeoutMs),
   });
+}
+
+/** Read upstream body up to `maxBytes`; return null if the cap would be exceeded. */
+async function readBodyCapped(res: Response, maxBytes: number): Promise<ArrayBuffer | null> {
+  if (!res.body) return new ArrayBuffer(0);
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value || value.byteLength === 0) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    await reader.cancel().catch(() => undefined);
+    throw new Error("upstream body read failed");
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    out.set(c, offset);
+    offset += c.byteLength;
+  }
+  return out.buffer;
 }
 
 function jsonRpcMethod(body: ArrayBuffer | null): string | null {
@@ -301,10 +339,61 @@ export default {
           healthCache = null;
           continue;
         }
+
+        const declaredLength = Number(upstream.headers.get("content-length") ?? "NaN");
+        if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
+          await upstream.body?.cancel().catch(() => undefined);
+          return json(
+            {
+              jsonrpc: "2.0",
+              id: null,
+              error: {
+                code: -32000,
+                message: `Upstream RPC response too large (${declaredLength} bytes; gateway limit ${MAX_RESPONSE_BYTES}).`,
+              },
+            },
+            200
+          );
+        }
+
+        // Buffer (with cap) so we never forward a mid-stream truncation as HTTP 200 JSON.
+        const buf = await readBodyCapped(upstream, MAX_RESPONSE_BYTES);
+        if (buf === null) {
+          return json(
+            {
+              jsonrpc: "2.0",
+              id: null,
+              error: {
+                code: -32000,
+                message: `Upstream RPC response exceeded gateway limit (${MAX_RESPONSE_BYTES} bytes).`,
+              },
+            },
+            200
+          );
+        }
+        if (
+          Number.isFinite(declaredLength) &&
+          declaredLength > 0 &&
+          buf.byteLength < declaredLength
+        ) {
+          return json(
+            {
+              jsonrpc: "2.0",
+              id: null,
+              error: {
+                code: -32000,
+                message: `Upstream RPC response truncated (${buf.byteLength} of ${declaredLength} bytes).`,
+              },
+            },
+            200
+          );
+        }
+
         const headers = withCors(upstream.headers);
         headers.delete("content-encoding");
         headers.delete("content-length");
-        return new Response(upstream.body, { status: upstream.status, headers });
+        if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+        return new Response(buf, { status: upstream.status, headers });
       } catch (e) {
         lastStatus = 502;
         lastText =
