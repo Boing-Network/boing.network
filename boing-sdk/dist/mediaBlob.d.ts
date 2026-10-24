@@ -768,4 +768,64 @@ export declare function phase28ResolveDeadline(submitHeight: bigint): bigint;
 export declare function phase28ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
 /** Honest plan strings for Phase 28 (BLS dual-key PoP; still 16 MiB). */
 export declare function phase28DasSuccinctProofPlan(): string[];
+/** Phase 29 sizes / wired flags (library + dry-run RPC; consensus admit still off). */
+export declare const PHASE29_BLS_PUBLIC_KEY_G1_BYTES = 48;
+export declare const PHASE29_BLS_SIGNATURE_G2_BYTES = 96;
+export declare const PHASE29_BLS_AGGREGATE_WIRED = true;
+export declare const PHASE29_BLS_DUAL_KEY_REGISTRY_FILE = "bls_dual_key_registry.bin";
+export declare const PHASE29_BLS_POP_REQUIRED = true;
+/** Reserved payload index for future ResolveSlashAppealBlsAggregate (not consensus-admitted). */
+export declare const PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = 33;
+/** Soft cap on pin-set length for bitset helpers. */
+export declare const PHASE29_MAX_PIN_SET_LEN = 64;
+/** Library + RPC dry-run helpers are available. */
+export declare const PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = true;
+/** Consensus admit of tx 33 stays false (dual-keys still host-local). */
+export declare const PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = false;
+export declare const PHASE29_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE29_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE29_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE29_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE29_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE29_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE29_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+export declare const PHASE29_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE29_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE29_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE29_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE29_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE29_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE29_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE29_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+/** Aggregate resolve ballot payload (library / future tx 33 body). */
+export type BlsAggregateResolvePayload = {
+    appealId: bigint;
+    approved: boolean;
+    /** Bitset over Submit-frozen pin-set order (LSB of byte 0 = pinned[0]). */
+    signerBitset: Uint8Array;
+    aggregateSignature: Uint8Array;
+};
+/** Encode a pin-set-relative signer bitset (LSB = pinned[0]). */
+export declare function phase29EncodeSignerBitset(pinned: Uint8Array[], signers: Uint8Array[]): Uint8Array;
+/** Decode bitset → pin-set AccountIds (ascending pin index). */
+export declare function phase29DecodeSignerBitset(pinned: Uint8Array[], bitset: Uint8Array): Uint8Array[];
+/**
+ * JS has no `blst` — do not fake aggregate-resolve verify.
+ * Use node RPC `boing_verifyBlsAggregateResolve` (library wired; consensus admit false).
+ */
+export declare function phase29VerifyBlsAggregateResolve(_input: {
+    chainId: bigint | number;
+    slashId: bigint | number;
+    pinSetCommitment: Uint8Array;
+    pinned: Uint8Array[];
+    payload: BlsAggregateResolvePayload;
+    identities: DualKeyIdentity[];
+}): never;
+/** Consensus admit helper — always throws until dual-keys are consensus-visible. */
+export declare function phase29AdmitBlsAggregateResolveTx(): never;
+export declare function phase29CommitteeRequiresAttested(pinnedLen: number): boolean;
+export declare function phase29ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase29ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/** Honest plan strings for Phase 29 (aggregate resolve payload + bitset; still 16 MiB). */
+export declare function phase29DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

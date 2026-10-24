@@ -1916,3 +1916,153 @@ export function phase28DasSuccinctProofPlan(): string[] {
     'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }
+
+/** Phase 29 sizes / wired flags (library + dry-run RPC; consensus admit still off). */
+export const PHASE29_BLS_PUBLIC_KEY_G1_BYTES = PHASE28_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE29_BLS_SIGNATURE_G2_BYTES = PHASE28_BLS_SIGNATURE_G2_BYTES;
+export const PHASE29_BLS_AGGREGATE_WIRED = PHASE28_BLS_AGGREGATE_WIRED;
+export const PHASE29_BLS_DUAL_KEY_REGISTRY_FILE = PHASE28_BLS_DUAL_KEY_REGISTRY_FILE;
+export const PHASE29_BLS_POP_REQUIRED = PHASE28_BLS_POP_REQUIRED;
+
+/** Reserved payload index for future ResolveSlashAppealBlsAggregate (not consensus-admitted). */
+export const PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = 33;
+
+/** Soft cap on pin-set length for bitset helpers. */
+export const PHASE29_MAX_PIN_SET_LEN = 64;
+
+/** Library + RPC dry-run helpers are available. */
+export const PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = true;
+
+/** Consensus admit of tx 33 stays false (dual-keys still host-local). */
+export const PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = false;
+
+export const PHASE29_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE28_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE29_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE28_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE29_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE28_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE29_RESOLVE_WINDOW_BLOCKS = PHASE28_RESOLVE_WINDOW_BLOCKS;
+export const PHASE29_SETTLE_RECEIPT_TTL_BLOCKS = PHASE28_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE29_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE28_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE29_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS =
+  PHASE28_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE29_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE28_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE29_MAX_APPEAL_EVIDENCE_BYTES = PHASE28_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE29_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE28_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE29_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE28_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE29_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX =
+  PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE29_RESOLVE_THRESHOLD_NUM = PHASE28_RESOLVE_THRESHOLD_NUM;
+export const PHASE29_RESOLVE_THRESHOLD_DEN = PHASE28_RESOLVE_THRESHOLD_DEN;
+export const PHASE29_LEGACY_ELECTORATE_W_SENTINEL = PHASE28_LEGACY_ELECTORATE_W_SENTINEL;
+
+/** Aggregate resolve ballot payload (library / future tx 33 body). */
+export type BlsAggregateResolvePayload = {
+  appealId: bigint;
+  approved: boolean;
+  /** Bitset over Submit-frozen pin-set order (LSB of byte 0 = pinned[0]). */
+  signerBitset: Uint8Array;
+  aggregateSignature: Uint8Array;
+};
+
+/** Encode a pin-set-relative signer bitset (LSB = pinned[0]). */
+export function phase29EncodeSignerBitset(
+  pinned: Uint8Array[],
+  signers: Uint8Array[],
+): Uint8Array {
+  if (pinned.length === 0) throw new Error('pin set empty');
+  if (pinned.length > PHASE29_MAX_PIN_SET_LEN) {
+    throw new Error(`pin set too large: ${pinned.length} > ${PHASE29_MAX_PIN_SET_LEN}`);
+  }
+  if (signers.length === 0) throw new Error('signer bitset empty');
+  const nbytes = Math.ceil(pinned.length / 8);
+  const bits = new Uint8Array(nbytes);
+  const seen = new Set<number>();
+  for (const s of signers) {
+    if (s.length !== 32) {
+      throw new Error(`invalid AccountId length: expected 32, got ${s.length}`);
+    }
+    const idx = pinned.findIndex((p) => bytesEqual(p, s));
+    if (idx < 0) throw new Error('account not in pin set');
+    if (seen.has(idx)) throw new Error('duplicate signer index in bitset encode');
+    seen.add(idx);
+    bits[Math.floor(idx / 8)] |= 1 << idx % 8;
+  }
+  return bits;
+}
+
+/** Decode bitset → pin-set AccountIds (ascending pin index). */
+export function phase29DecodeSignerBitset(
+  pinned: Uint8Array[],
+  bitset: Uint8Array,
+): Uint8Array[] {
+  if (pinned.length === 0) throw new Error('pin set empty');
+  if (pinned.length > PHASE29_MAX_PIN_SET_LEN) {
+    throw new Error(`pin set too large: ${pinned.length} > ${PHASE29_MAX_PIN_SET_LEN}`);
+  }
+  const need = Math.ceil(pinned.length / 8);
+  if (bitset.length > need) throw new Error('signer bitset longer than pin set');
+  const out: Uint8Array[] = [];
+  for (let byteI = 0; byteI < bitset.length; byteI++) {
+    const byte = bitset[byteI]!;
+    for (let bit = 0; bit < 8; bit++) {
+      if ((byte & (1 << bit)) === 0) continue;
+      const idx = byteI * 8 + bit;
+      if (idx >= pinned.length) throw new Error('signer bitset has bits set beyond pin set length');
+      out.push(pinned[idx]!);
+    }
+  }
+  if (out.length === 0) throw new Error('signer bitset empty');
+  return out;
+}
+
+/**
+ * JS has no `blst` — do not fake aggregate-resolve verify.
+ * Use node RPC `boing_verifyBlsAggregateResolve` (library wired; consensus admit false).
+ */
+export function phase29VerifyBlsAggregateResolve(_input: {
+  chainId: bigint | number;
+  slashId: bigint | number;
+  pinSetCommitment: Uint8Array;
+  pinned: Uint8Array[];
+  payload: BlsAggregateResolvePayload;
+  identities: DualKeyIdentity[];
+}): never {
+  throw new Error(
+    'JS SDK has no blst; use node library / boing_verifyBlsAggregateResolve RPC (PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED=true, CONSENSUS_WIRED=false). Live tx 32 stays Ed25519 verify-each',
+  );
+}
+
+/** Consensus admit helper — always throws until dual-keys are consensus-visible. */
+export function phase29AdmitBlsAggregateResolveTx(): never {
+  throw new Error(
+    'BLS aggregate resolve consensus admit not wired (PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false); use ResolveSlashAppealAttested (32)',
+  );
+}
+
+export function phase29CommitteeRequiresAttested(pinnedLen: number): boolean {
+  return phase28CommitteeRequiresAttested(pinnedLen);
+}
+
+export function phase29ResolveDeadline(submitHeight: bigint): bigint {
+  return phase28ResolveDeadline(submitHeight);
+}
+
+export function phase29ResolvedAppealPrunable(
+  tipHeight: bigint,
+  resolveDeadline: bigint,
+): boolean {
+  return phase28ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+
+/** Honest plan strings for Phase 29 (aggregate resolve payload + bitset; still 16 MiB). */
+export function phase29DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase28DasSuccinctProofPlan(),
+    'Phase 29: BLS aggregate resolve payload + pin-set signer bitset (library + dry-run RPC); reserved tx index 33.',
+    'Phase 29: PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED=true; PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false — dual-keys still host-local.',
+    'Phase 29: live ResolveSlashAppealAttested (32) stays Ed25519 verify-each — do not flip committee cast yet.',
+    'Phase 29: JS SDK exposes bitset encode/decode + dry-run RPC tip; verify via boing_verifyBlsAggregateResolve — do not fake browser blst.',
+    'Phase 29: remaining — consensus-admit tx 33 (consensus-visible dual-keys or self-contained pubkeys), flip cast when operators opt in, SNARK / 256 MiB.',
+    'Phase 29: slash_appeals_registry.bin stays V5; bls_dual_key_registry.bin stays BDKR v1; do not clear.',
+    'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+  ];
+}

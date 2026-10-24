@@ -482,6 +482,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_listBlsDualKeys",
     "boing_registerBlsDualKey",
     "boing_verifyBlsAggregate",
+    "boing_verifyBlsAggregateResolve",
     "boing_reverifySlashAppealBallots",
     "boing_namesOwnedBy",
     "boing_operatorApplyFeePolicy",
@@ -2820,7 +2821,8 @@ async fn dispatch_jsonrpc_request(
         | "boing_getBlobSampleServeChallenge"
         | "boing_getBlobDasSuccinctProofPlan"
         | "boing_listBlsDualKeys"
-        | "boing_verifyBlsAggregate" => {
+        | "boing_verifyBlsAggregate"
+        | "boing_verifyBlsAggregateResolve" => {
             let params = req
                 .params
                 .clone()
