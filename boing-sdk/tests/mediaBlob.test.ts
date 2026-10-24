@@ -65,6 +65,16 @@ import {
   PHASE32_BLS_COMMITTEE_FLIP_ENV,
   PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
   PHASE32_BLS_LIVE_TX32_STILL_ED25519,
+  PHASE33_RESERVED_REAL_VERIFIER_WIRED,
+  PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES,
+  PHASE33_RESERVED_REAL_V1_IS_IMPLEMENTED,
+  PHASE33_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+  phase33DasSuccinctProofPlan,
+  phase33ReservedRealVerifierBackend,
+  phase33VerifyReservedRealV1Ipa,
+  phase33VerifyReservedRealV1Kzg,
+  phase33VerifyReservedRealV1Snark,
+  phase33VerifyDasSuccinctProofReservedReal,
   phase32AdmitBlsAggregateResolveTx,
   phase32BlsCommitteeFlipActive,
   phase32CommitteeRequiresAttested,
@@ -379,5 +389,29 @@ describe('mediaBlob', () => {
     expect(phase32CommitteeRequiresBlsAggregate(2, 100, 100)).toBe(true);
     expect(phase32CommitteeRequiresBlsAggregate(1, 100, 100)).toBe(false);
     expect(phase32DasSuccinctProofPlan().some((s) => s.includes('Phase 32'))).toBe(true);
+  });
+  it('Phase 33 ReservedRealV1 stubs are NotWired; is_implemented stays false', () => {
+    expect(PHASE33_RESERVED_REAL_VERIFIER_WIRED).toBe(false);
+    expect(PHASE33_RESERVED_REAL_V1_IS_IMPLEMENTED).toBe(false);
+    expect(phase33ReservedRealVerifierBackend()).toBeNull();
+    expect([...PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES]).toEqual([
+      'ipaV1',
+      'kzgV1',
+      'snarkV1',
+    ]);
+    expect(() => phase33VerifyReservedRealV1Ipa({})).toThrow(/not wired/);
+    expect(() => phase33VerifyReservedRealV1Kzg({})).toThrow(/not wired/);
+    expect(() => phase33VerifyReservedRealV1Snark({})).toThrow(/not wired/);
+    expect(() => phase33VerifyDasSuccinctProofReservedReal({}, 'snarkV1')).toThrow(
+      /is_implemented\(\) remains false/,
+    );
+    expect(
+      phase33DasSuccinctProofPlan().some((s) =>
+        s.includes('PHASE33_RESERVED_REAL_VERIFIER_WIRED=false'),
+      ),
+    ).toBe(true);
+    expect(
+      phase33DasSuccinctProofPlan().some((s) => s.includes('is_implemented() remains false')),
+    ).toBe(true);
   });
 });

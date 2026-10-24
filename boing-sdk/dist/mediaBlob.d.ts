@@ -1015,4 +1015,55 @@ export declare function phase32ResolveDeadline(submitHeight: bigint): bigint;
 export declare function phase32ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
 /** Honest plan strings for Phase 32 (opt-in BLS multi-pin committee flip). */
 export declare function phase32DasSuccinctProofPlan(): string[];
+/** Phase 33: ReservedRealV1 IPA/KZG/SNARK verifier scaffolding (honest NotWired). */
+export type DasRealVerifierBackend = 'ipaV1' | 'kzgV1' | 'snarkV1';
+export declare const PHASE33_RESERVED_REAL_VERIFIER_WIRED = false;
+export declare const PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES: readonly DasRealVerifierBackend[];
+/** `DasSuccinctProofKind::ReservedRealV1.is_implemented()` — stays false until a real verifier. */
+export declare const PHASE33_RESERVED_REAL_V1_IS_IMPLEMENTED = false;
+export declare const PHASE33_BLS_PUBLIC_KEY_G1_BYTES = 48;
+export declare const PHASE33_BLS_SIGNATURE_G2_BYTES = 96;
+export declare const PHASE33_BLS_AGGREGATE_WIRED = true;
+export declare const PHASE33_BLS_DUAL_KEY_REGISTRY_FILE = "bls_dual_key_registry.bin";
+export declare const PHASE33_BLS_POP_REQUIRED = true;
+export declare const PHASE33_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = 33;
+export declare const PHASE33_MAX_PIN_SET_LEN = 64;
+export declare const PHASE33_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = true;
+export declare const PHASE33_BLS_AGGREGATE_SELF_CONTAINED_WIRED = true;
+export declare const PHASE33_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = true;
+export declare const PHASE33_BLS_LIVE_TX32_STILL_ED25519 = true;
+export declare const PHASE33_BLS_COMMITTEE_FLIP_ENV = "BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT";
+export declare function phase33BlsCommitteeFlipActive(height: bigint | number, flipFrom: bigint | number | null | undefined): boolean;
+export declare function phase33CommitteeRequiresBlsAggregate(pinnedLen: number, height: bigint | number, flipFrom: bigint | number | null | undefined): boolean;
+export declare const PHASE33_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE33_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE33_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE33_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE33_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE33_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE33_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+export declare const PHASE33_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE33_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE33_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE33_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE33_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE33_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE33_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE33_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+/** Active backend — always `null` while `PHASE33_RESERVED_REAL_VERIFIER_WIRED` is false. */
+export declare function phase33ReservedRealVerifierBackend(): DasRealVerifierBackend | null;
+/**
+ * Honest NotWired stub — JS has no IPA/KZG/SNARK verifier.
+ * Envelope validation lives on the node; do not fake crypto in the browser.
+ */
+export declare function phase33VerifyReservedRealV1Ipa(_proof: unknown): never;
+export declare function phase33VerifyReservedRealV1Kzg(_proof: unknown): never;
+export declare function phase33VerifyReservedRealV1Snark(_proof: unknown): never;
+export declare function phase33VerifyDasSuccinctProofReservedReal(_proof: unknown, backend: DasRealVerifierBackend): never;
+export declare function phase33AdmitBlsAggregateResolveTx(): void;
+export declare function phase33CommitteeRequiresAttested(pinnedLen: number, height: bigint | number, flipFrom: bigint | number | null | undefined): boolean;
+export declare function phase33ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase33ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/** Honest plan strings for Phase 33 (SNARK scaffold; is_implemented still false). */
+export declare function phase33DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

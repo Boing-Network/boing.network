@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
 
+## [0.5.36] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 33** — `phase33DasSuccinctProofPlan`; `PHASE33_RESERVED_REAL_VERIFIER_WIRED` (**false**), `PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES` (`ipaV1` / `kzgV1` / `snarkV1`), `PHASE33_RESERVED_REAL_V1_IS_IMPLEMENTED` (**false**); honest NotWired stubs `phase33VerifyReservedRealV1Ipa` / `Kzg` / `Snark` / `phase33VerifyDasSuccinctProofReservedReal` (no fake crypto); independent of Phase 32 BLS committee flip; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **real verifier / flip `is_implemented` / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
 ## [0.5.35] - 2026-10-24
 
 ### Added

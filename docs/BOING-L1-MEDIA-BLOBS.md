@@ -55,6 +55,7 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 - Phase 30: **Self-contained BLS G1 pubkey list** on aggregate-resolve + `TransactionPayload::ResolveSlashAppealBlsAggregate` (**33**) wired; library/RPC verify without host registry; `PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false` (mempool/VM reject). **Live tx 32 stays Ed25519 verify-each**.  
 - Phase 31: **Consensus-admit / execute tx 33** — self-contained verify → stake-weighted cast for each bitset signer; `PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=true`. **Multi-pin committee default stays Ed25519 32** (`PHASE31_BLS_LIVE_TX32_STILL_ED25519=true`).  
 - Phase 32: **Opt-in BLS multi-pin committee flip** — `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT` / `--media-blobs-bls-committee-flip-height`. **Unset** ⇒ identical to Phase 31. When tip ≥ flip height and `|pinned|>1`, reject **31**/**32** and require **33**; solo (`|pinned|≤1`) keeps Ed25519. Historical tx **32** before flip height still replays. `PHASE32_BLS_LIVE_TX32_STILL_ED25519=true` compile-time default; RPC `blsLiveTx32StillEd25519` is **dynamic** (`!blsCommitteeFlipActiveAtTip`).  
+- Phase 33: **ReservedRealV1 IPA/KZG/SNARK scaffolding** — `DasRealVerifierBackend` (`ipaV1` / `kzgV1` / `snarkV1`); `PHASE33_RESERVED_REAL_VERIFIER_WIRED=false`; stub verify APIs envelope-check then return honest **`NotWired`**. **`DasSuccinctProofKind::ReservedRealV1.is_implemented()` stays false**. Builds on Phase 32; no arkworks/halo2 deps.
 - Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22–32 do not bump slash to V6** (dual-keys use a separate host-local file).  
 - Submit/Resolve/Attested/BlsAggregate (**30**/**31**/**32**/**33**) are **always admitted** when consensus-wired (not gated on media-blobs activation); mempool may reject **31** early when `|pinned|>1` (and **32** when flip active)  
 - Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated** for FailedServe / equivocation / liveness when the consensus book owns the slash (prefer txs 30/32/33); refuses double credit after consensus reverse  
@@ -71,15 +72,15 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 | 1–31 | **Merged** (#97) |
 | 32 Opt-in BLS multi-pin committee flip (32→33) | **This PR** |
 
-### Remaining after Phase 32
+### Remaining after Phase 33
 
-- Optional Ed25519 account-side binding (owner consents to BLS key) on a consensus tx  
-- Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
-- Coordinated public-testnet 256 MiB activation  
+- Optional Ed25519 account-side binding on a consensus dual-key / identity tx  
+- Wire a real IPA/KZG/SNARK verifier behind `ReservedRealV1` and flip `is_implemented` only when production-ready  
+- Coordinated **256 MiB** activation (`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`) — do not set on Fly until operators agree  
 
 ---
 
-## Ops / migration (Phase 32)
+## Ops / migration (Phase 32–33)
 
 | Item | Guidance |
 |------|----------|
