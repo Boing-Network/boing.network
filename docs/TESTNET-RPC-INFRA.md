@@ -57,13 +57,13 @@ Native token deploys still **meter** ~200k–400k **gas**, but the fee is **`cei
 
 After a chain reset, **`head_height`** may be **0** while prior bootstrap contracts remain readable. Treat **`boing_getNetworkInfo.end_user`** as the live contract hint source.
 
-### Public RPC HTTP 403 (User-Agent / WAF)
+### Public RPC HTTP 403 (Bot Fight / WAF)
 
-Some Cloudflare / WAF edges in front of **`https://testnet-rpc.boing.network/`** return **HTTP 403** for requests with an empty or “bot-like” **`User-Agent`** (e.g. bare `curl` without `-A`). Browser-like or SDK UAs succeed.
+Cloudflare **Bot Fight Mode** (`fight_mode`) on zone `boing.network` returns **HTTP 403** with `cf-mitigated: challenge` (“Just a moment…”) for automated clients (curl, SDKs, explorer `/api/rpc`). That blocks JSON-RPC even when the Worker and Fly backends are healthy.
 
-- **Operators:** Prefer allowing JSON-RPC **`POST /`** without requiring a browser UA (or document the required UA on the join/RPC page).
-- **Integrators:** `boing-sdk` sets **`User-Agent: boing-sdk/json-rpc`** automatically in **Node/CLI** runtimes (not in browsers). Probe scripts in this repo already pass a UA.
-- **Symptom check:** `curl` 403 + browser/`-A Mozilla/5.0` 200 on the same URL ⇒ edge policy, not an downed origin. Still verify **`boing_chainHeight`** — a 200 with tip **0** means the origin is up but not producing/syncing useful blocks (see [HANDOFF_TESTNET_HEIGHT_ZERO_AND_VIBEMINER_PEERING.md](HANDOFF_TESTNET_HEIGHT_ZERO_AND_VIBEMINER_PEERING.md)).
+- **Operators:** Keep **Bot Fight Mode off** for this zone (or skip SBFM for `http.host eq "testnet-rpc.boing.network"`). DNS for `testnet-rpc` must CNAME to the Worker (`boing-public-rpc-gateway.*.workers.dev`), **not** a retired `*.cfargotunnel.com` origin.
+- **Integrators:** `boing-sdk` sets **`User-Agent: boing-sdk/json-rpc`** in Node/CLI; UA alone does **not** bypass Bot Fight Mode.
+- **Symptom check:** 403 + `cf-mitigated: challenge` on every UA ⇒ Bot Fight, not a downed origin. `workers.dev` / `*.fly.dev` still 200 while the custom hostname challenges.
 
 ---
 

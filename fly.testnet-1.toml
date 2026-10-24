@@ -69,5 +69,6 @@ primary_region = "iad"
   destination = "/data"
 
 [[vm]]
-  size = "shared-cpu-2x"
-  memory = "2048mb"
+  # performance-2x / 8 GiB: shared-cpu-2x maxes at 4 GiB and OOMs under live tip (~3.8 GiB RSS).
+  size = "performance-2x"
+  memory = "8192mb"
