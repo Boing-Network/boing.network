@@ -304,13 +304,13 @@
       },
       {
         "name": "boing_listSlashRecords",
-        "summary": "Read-only slash/appeal registry (equivocation + liveness). persisted=true when the node has a data directory and writes slash_registry.json.",
-        "params": { "type": "array", "maxItems": 0 },
+        "summary": "Read-only slash/appeal registry (consensus + local mirror). Optional filters: reason, slashId, appealStatus, includeExpired (default true). persisted=true when the node has a data directory and writes slash_registry.json.",
+        "params": { "type": "array", "maxItems": 1 },
         "result": { "type": "object" }
       },
       {
         "name": "boing_reverifySlashAppealBallots",
-        "summary": "Phase 22 read-only audit: dual-verify stored Ed25519 resolve ballots (V2 then V1), pin-set match, and registry commitment. Optional filters: appealId, slashId, includeUnattested, expectedRegistryCommitment.",
+        "summary": "Phase 22/23 read-only audit: dual-verify stored Ed25519 resolve ballots (V2 then V1), pin-set match, and registry commitment. Optional filters: appealId, slashId, includeUnattested, includeExpired (default false), expectedRegistryCommitment.",
         "params": { "type": "array", "maxItems": 1 },
         "result": { "type": "object" }
       },

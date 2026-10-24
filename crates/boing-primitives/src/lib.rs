@@ -21,6 +21,7 @@ pub mod blobs_phase19;
 pub mod blobs_phase20;
 pub mod blobs_phase21;
 pub mod blobs_phase22;
+pub mod blobs_phase23;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -222,6 +223,20 @@ pub use blobs_phase22::{
     PHASE22_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE22_SETTLE_RECEIPT_TTL_BLOCKS,
     PHASE22_SUBMIT_SLASH_APPEAL_TX_INDEX, SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V1,
     SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V2, SlashAppealBallotDomain,
+};
+pub use blobs_phase23::{
+    phase23_cap_activation_checklist, phase23_committee_requires_attested,
+    phase23_das_succinct_proof_plan, phase23_expired_appeal_prunable,
+    phase23_is_legacy_electorate_snapshot, phase23_pin_set_commitment, phase23_resolve_deadline,
+    phase23_resolve_expired, phase23_resolve_threshold_met, phase23_snapshot_electorate_w,
+    PHASE23_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE23_CAP_ACTIVATION_ENV,
+    PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE23_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
+    PHASE23_LEGACY_ELECTORATE_W_SENTINEL, PHASE23_LEGACY_PIN_SET_COMMITMENT,
+    PHASE23_MAX_APPEAL_EVIDENCE_BYTES, PHASE23_MAX_SETTLE_RECEIPTS, PHASE23_PIN_SET_DOMAIN,
+    PHASE23_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, PHASE23_RESOLVE_SLASH_APPEAL_TX_INDEX,
+    PHASE23_RESOLVE_THRESHOLD_DEN, PHASE23_RESOLVE_THRESHOLD_NUM, PHASE23_RESOLVE_WINDOW_BLOCKS,
+    PHASE23_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE23_SETTLE_RECEIPT_TTL_BLOCKS,
+    PHASE23_SUBMIT_SLASH_APPEAL_TX_INDEX,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};

@@ -648,6 +648,7 @@ mod phase22_reverify_tests {
             Some(aid),
             None,
             true,
+            false,
             Some(reg.commitment()),
         );
         assert_eq!(out["registryCommitmentMatch"], true);
@@ -698,11 +699,52 @@ mod phase22_reverify_tests {
             None,
             None,
             true,
+            false,
             None,
         );
         assert_eq!(out2["appeals"][0]["okCount"], 1);
         assert_eq!(out2["appeals"][0]["votes"][0]["domain"], "v1");
         assert_eq!(out2["appeals"][0]["allAttestedBallotsValid"], true);
+    }
+
+    #[test]
+    fn reverify_skips_expired_by_default() {
+        let mut reg = SlashAppealRegistry::default();
+        let provider = AccountId([40u8; 32]);
+        reg.record_slash_with_id(
+            9,
+            provider,
+            100,
+            ConsensusSlashReason::BlobFailedServe,
+            1,
+            10_000,
+        )
+        .unwrap();
+        let pin = phase20_pin_set_commitment(&[]);
+        let aid = reg
+            .submit_appeal(
+                9,
+                vec![],
+                2,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                1,
+                pin,
+            )
+            .unwrap();
+        assert_eq!(reg.expire_pending_appeals(10_000), 1);
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            boing_state::ConsensusAppealStatus::Expired
+        );
+        let skip = build_reverify_slash_appeal_ballots(
+            &reg, None, 6913, None, None, true, false, None,
+        );
+        assert!(skip["appeals"].as_array().unwrap().is_empty());
+        let keep = build_reverify_slash_appeal_ballots(
+            &reg, None, 6913, None, None, true, true, None,
+        );
+        assert_eq!(keep["appeals"].as_array().unwrap().len(), 1);
+        assert_eq!(keep["appeals"][0]["status"], "expired");
     }
 }
 
@@ -719,10 +761,11 @@ fn parse_hex32_opt(s: &str) -> Option<[u8; 32]> {
     Some(out)
 }
 
-/// Phase 22: read-only batch re-verify of consensus slash-appeal ballots.
+/// Phase 22/23: read-only batch re-verify of consensus slash-appeal ballots.
 ///
 /// Never mutates book state. Dual-verifies stored Ed25519 ballots (V2 then V1),
 /// reports pin-set match vs live pins, and echoes registry commitment.
+/// Phase 23: when `include_expired` is false (default for RPC), skip Expired appeals.
 pub(crate) fn build_reverify_slash_appeal_ballots(
     reg: &boing_state::SlashAppealRegistry,
     live_pinned: Option<&[boing_primitives::AccountId]>,
@@ -730,6 +773,7 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
     filter_appeal_id: Option<u64>,
     filter_slash_id: Option<u64>,
     include_unattested: bool,
+    include_expired: bool,
     expected_registry_commitment: Option<[u8; 32]>,
 ) -> serde_json::Value {
     use boing_primitives::{
@@ -753,6 +797,9 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
             continue;
         }
         if filter_slash_id.map(|id| a.slash_id == id) == Some(false) {
+            continue;
+        }
+        if !include_expired && a.status == boing_state::ConsensusAppealStatus::Expired {
             continue;
         }
         let status = match a.status {
@@ -1824,6 +1871,18 @@ async fn dispatch_jsonrpc_request(
                 .as_ref()
                 .and_then(|o| o.get("slashId").or_else(|| o.get("slash_id")))
                 .and_then(|v| v.as_u64());
+            // Phase 23: optional appealStatus (pending|approved|rejected|expired)
+            // and includeExpired (default true for back-compat).
+            let filter_appeal_status = filter_obj
+                .as_ref()
+                .and_then(|o| o.get("appealStatus").or_else(|| o.get("appeal_status")))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_ascii_lowercase());
+            let include_expired = filter_obj
+                .as_ref()
+                .and_then(|o| o.get("includeExpired").or_else(|| o.get("include_expired")))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
             let n = node.read().await;
             // Prefer consensus slash-appeal book (Phase 14); keep localMirror rows for ids not in consensus.
             let consensus_ids: std::collections::HashSet<u64> = n
@@ -1924,6 +1983,21 @@ async fn dispatch_jsonrpc_request(
                 .list_appeals()
                 .into_iter()
                 .filter(|a| filter_slash_id.map(|id| a.slash_id == id).unwrap_or(true))
+                .filter(|a| {
+                    let status = match a.status {
+                        boing_state::ConsensusAppealStatus::Pending => "pending",
+                        boing_state::ConsensusAppealStatus::Approved => "approved",
+                        boing_state::ConsensusAppealStatus::Rejected => "rejected",
+                        boing_state::ConsensusAppealStatus::Expired => "expired",
+                    };
+                    if a.status == boing_state::ConsensusAppealStatus::Expired && !include_expired {
+                        return false;
+                    }
+                    if let Some(ref want) = filter_appeal_status {
+                        return status == want.as_str();
+                    }
+                    true
+                })
                 .map(|a| {
                     let status = match a.status {
                         boing_state::ConsensusAppealStatus::Pending => "pending",
@@ -2005,6 +2079,11 @@ async fn dispatch_jsonrpc_request(
                     boing_governance::AppealStatus::Approved => "approved",
                     boing_governance::AppealStatus::Rejected => "rejected",
                 };
+                if let Some(ref want) = filter_appeal_status {
+                    if status != want.as_str() {
+                        continue;
+                    }
+                }
                 appeals.push(serde_json::json!({
                     "id": a.id,
                     "slash_id": a.slash_id,
@@ -2025,13 +2104,13 @@ async fn dispatch_jsonrpc_request(
                         "0x{}",
                         hex::encode(n.state.slash_appeals().commitment())
                     ),
-                    "note": "Optional params: { reason, slashId }. Prefer consensus Submit/Resolve txs (30/31) for FailedServe / equivocation / liveness; operator RPC is secondary. source=consensus|localMirror.",
+                    "note": "Optional params: { reason, slashId, appealStatus, includeExpired }. includeExpired defaults true (back-compat); appealStatus filters consensus appeals (pending|approved|rejected|expired). Prefer consensus Submit/Resolve txs (30/31) for FailedServe / equivocation / liveness; operator RPC is secondary. source=consensus|localMirror.",
                 }),
             )
         }
         "boing_reverifySlashAppealBallots" => {
-            // Phase 22 read-only audit. Params object (optional filters):
-            // { appealId?, slashId?, includeUnattested?, expectedRegistryCommitment? }
+            // Phase 22/23 read-only audit. Params object (optional filters):
+            // { appealId?, slashId?, includeUnattested?, includeExpired?, expectedRegistryCommitment? }
             let filter_obj = req.params.as_ref().and_then(|p| {
                 if let Some(o) = p.as_object() {
                     Some(o.clone())
@@ -2057,6 +2136,12 @@ async fn dispatch_jsonrpc_request(
                 .and_then(|o| o.get("includeUnattested").or_else(|| o.get("include_unattested")))
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true);
+            // Phase 23: default false — auditors focus Pending/Approved/Rejected.
+            let include_expired = filter_obj
+                .as_ref()
+                .and_then(|o| o.get("includeExpired").or_else(|| o.get("include_expired")))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let expected_registry_commitment = filter_obj.as_ref().and_then(|o| {
                 o.get("expectedRegistryCommitment")
                     .or_else(|| o.get("expected_registry_commitment"))
@@ -2075,6 +2160,7 @@ async fn dispatch_jsonrpc_request(
                 filter_appeal_id,
                 filter_slash_id,
                 include_unattested,
+                include_expired,
                 expected_registry_commitment,
             );
             rpc_ok(id, result)

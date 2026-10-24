@@ -1134,3 +1134,47 @@ export function phase22DasSuccinctProofPlan() {
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }
+/** Phase 23 retention for Expired slash appeals (blocks after resolve_deadline). */
+export const PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+/** Phase 23 aliases / constants. */
+export const PHASE23_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE22_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE23_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE22_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE23_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE22_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE23_RESOLVE_WINDOW_BLOCKS = PHASE22_RESOLVE_WINDOW_BLOCKS;
+export const PHASE23_SETTLE_RECEIPT_TTL_BLOCKS = PHASE22_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE23_MAX_APPEAL_EVIDENCE_BYTES = PHASE22_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE23_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE22_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE23_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE22_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE23_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE22_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE23_RESOLVE_THRESHOLD_NUM = PHASE22_RESOLVE_THRESHOLD_NUM;
+export const PHASE23_RESOLVE_THRESHOLD_DEN = PHASE22_RESOLVE_THRESHOLD_DEN;
+export const PHASE23_LEGACY_ELECTORATE_W_SENTINEL = PHASE22_LEGACY_ELECTORATE_W_SENTINEL;
+/** True when a multi-pin committee must use attested resolve (32) (Phase 19 alias). */
+export function phase23CommitteeRequiresAttested(pinnedLen) {
+    return phase22CommitteeRequiresAttested(pinnedLen);
+}
+export function phase23ResolveDeadline(submitHeight) {
+    return phase22ResolveDeadline(submitHeight);
+}
+export function phase23ResolveExpired(tipHeight, resolveDeadline) {
+    return phase22ResolveExpired(tipHeight, resolveDeadline);
+}
+/**
+ * True when an Expired appeal is past retention and may be pruned:
+ * `tipHeight > resolveDeadline + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS`.
+ */
+export function phase23ExpiredAppealPrunable(tipHeight, resolveDeadline) {
+    return tipHeight > resolveDeadline + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS;
+}
+/** Honest plan strings for Phase 23 (Expired retention prune + list filters; still 16 MiB). */
+export function phase23DasSuccinctProofPlan() {
+    return [
+        ...phase22DasSuccinctProofPlan(),
+        'Phase 23: block housekeeping prune_expired_appeals drops Expired rows when tip > resolve_deadline + 4096 (mirrors settle-receipt TTL); slash records stay; no fund restore.',
+        'Phase 23: do not prune Pending / Approved / Rejected — keep finalize + ballot audit trail for Phase 22 re-verify.',
+        'Phase 23: boing_listSlashRecords gains appealStatus / includeExpired (default true for back-compat); boing_reverifySlashAppealBallots gains includeExpired (default false).',
+        'Phase 23: registry stays V5 (row deletion only, no schema change, no clear); txs 30/31/32 unchanged; Phase 19–22 policies unchanged.',
+        'Phase 23: true BLS aggregate, SNARK/IPA/KZG, serve-challenge TTL, and live 256 MiB remain later — keep Fly-safe 16 MiB; do not clear the registry.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}

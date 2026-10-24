@@ -1912,7 +1912,8 @@ fn sender_may_resolve_slash_appeal(state: &StateStore, sender: &AccountId) -> bo
     state.get(sender).is_some_and(|s| s.stake > 0)
 }
 
-/// Housekeeping: settle FailedServe + prune stale settle receipts + expire overdue appeals.
+/// Housekeeping: settle FailedServe + prune stale settle receipts + expire overdue
+/// appeals + prune Expired appeals past retention.
 pub fn apply_media_blob_block_housekeeping(
     state: &mut StateStore,
     height: u64,
@@ -1921,6 +1922,8 @@ pub fn apply_media_blob_block_housekeeping(
     let _ = state.sample_offers_mut().prune_settle_receipts(height);
     // Phase 21: stuck Pending (W=0 / incomplete tallies) → Expired; no restore.
     let _ = state.slash_appeals_mut().expire_pending_appeals(height);
+    // Phase 23: drop Expired past resolve_deadline + 4096; slash rows stay.
+    let _ = state.slash_appeals_mut().prune_expired_appeals(height);
     Ok(settled)
 }
 

@@ -44,7 +44,8 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 - Phase 20: **SubmitSlashAppeal (30)** snapshots `electorate_w_snapshot` (Σ bonded stake over pinned resolvers at Submit) and a pin-set commitment; **Resolve (31/32)** uses that frozen W for ⌈2W/3⌉ (voter weight still at cast). Pin-set change vs snapshot rejects Resolve. Unpinned → snapshot W=1. W=0 at Submit stays Pending (no rewrite). Pre-V4 Pending rows use live-W fallback (sentinel).  
 - Phase 21: **Submit** stores `resolve_deadline = tip + 1000`. **Resolve (31/32)** after deadline expires Pending → **Expired** (no vote; no restore) and rejects `ResolveWindowClosed`. Block housekeeping `expire_pending_appeals` cleans stuck Pending (W=0 / incomplete tallies).  
 - Phase 22: new **32** casts sign ballot domain **V2** (`BOING_SLASH_APPEAL_RESOLVE_BALLOT_V2`) binding Submit-frozen `pin_set_commitment`; cast + audit dual-verify historical **V1**. Read-only RPC **`boing_reverifySlashAppealBallots`** batch-checks stored ballots (ok / invalid / unattested), pin-set match, and registry commitment — **no state mutation**.  
-- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22 does not bump to V6** (ballot crypto ≠ registry file version).  
+- Phase 23: block housekeeping **`prune_expired_appeals`** drops **Expired** rows when `tip > resolve_deadline + 4096` (mirrors settle-receipt TTL); slash records stay; Pending/Approved/Rejected untouched. **`boing_listSlashRecords`** gains `appealStatus` / `includeExpired` (default true); re-verify gains `includeExpired` (default **false**).  
+- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22/23 do not bump to V6** (ballot crypto / row prune ≠ registry file version).  
 - Submit/Resolve/Attested (**30**/**31**/**32**) are **always admitted** (not gated on media-blobs activation); mempool may reject **31** early when `|pinned|>1`  
 - Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated** for FailedServe / equivocation / liveness when the consensus book owns the slash (prefer txs 30/32); refuses double credit after consensus reverse  
 - Resolve is **ops/validator stake-weighted voting** (+ Ed25519 ballot when required), not SNARK verification of evidence  
@@ -57,29 +58,30 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 
 | Phase | Status |
 |-------|--------|
-| 1–21 | **Merged** (#84) |
-| 22 Batch ballot re-verify + pin-bound V2 | **This PR** |
+| 1–22 | **Merged** (#85) |
+| 23 Prune Expired appeals + list filters | **This PR** |
 
 ### Still later
 
+- Serve-challenge registry TTL prune + list UX  
 - True **BLS aggregate** of resolve ballots (dual-key registration + `blst`)  
 - Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
 - Coordinated public-testnet 256 MiB activation  
 
 ---
 
-## Ops / migration (Phase 22)
+## Ops / migration (Phase 23)
 
 | Item | Guidance |
 |------|----------|
 | `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` | **Leave at 1200** (both Fly apps). Do not change. |
 | `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` | **Leave unset** (16 MiB Fly-safe). |
-| `slash_appeals_registry.bin` | **Do not clear.** Stay **V5** save/load (no V6). |
-| Mid-tally at upgrade | In-flight **V1** ballots remain valid via dual-verify; new **32** casts must sign **V2** (SDK 0.5.25). |
-| Clients | SDK **0.5.25**; call `boing_reverifySlashAppealBallots` for audits; update attested signing helpers to V2. |
-| Operators | Re-verify is read-only; pin-set mismatch on live pin still rejects **new** Resolve as in Phase 20. |
-| Binary upgrade | Roll validators together (V2 verify on cast). Old nodes would reject V2-signed 32 — coordinate. |
-| BLS / SNARK / 256 MiB | **Not this phase** — still later. |
+| `slash_appeals_registry.bin` | **Do not clear.** Stay **V5** save/load (no V6). Prune shrinks book then next save. |
+| Mid-flight Expired | Rows remain until `resolve_deadline + 4096`; then dropped on housekeeping. |
+| Clients | SDK **0.5.26**; `includeExpired` on list/re-verify; re-verify defaults to skipping Expired. |
+| Operators | Prune is consensus housekeeping, not a wipe. Approved/Rejected remain for Phase 22 audit. |
+| Binary upgrade | Roll validators together (prune must match across nodes). |
+| BLS / SNARK / serve-challenge TTL / 256 MiB | **Not this phase** — still later. |
 
 ---
 

@@ -1,4 +1,4 @@
-//! Consensus slash + appeal book (Phase 14/15/16/17/18/19/20/21).
+//! Consensus slash + appeal book (Phase 14/15/16/17/18/19/20/21/22/23).
 //!
 //! FailedServe settle and equivocation/liveness slash-apply insert rows with consensus-allocated
 //! `slash_id`s; `SubmitSlashAppeal` / `ResolveSlashAppeal` / `ResolveSlashAppealAttested` txs
@@ -9,13 +9,15 @@
 //! Phase 18: optional Ed25519 ballot on votes; registry commitment domain V3.
 //! Phase 20: electorate W (+ pin-set commitment) snapshotted at Submit; domain V4.
 //! Phase 21: `resolve_deadline` at Submit; Pending → Expired after deadline; domain V5.
+//! Phase 23: prune Expired appeals after `resolve_deadline + 4096` (row deletion; stay V5).
 
 use std::collections::BTreeMap;
 
 use boing_primitives::{
     hasher, phase17_resolve_threshold_met, phase21_resolve_deadline, phase21_resolve_expired,
-    AccountId, SlashAppealBallotSignature, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
-    PHASE20_LEGACY_ELECTORATE_W_SENTINEL, PHASE20_LEGACY_PIN_SET_COMMITMENT,
+    phase23_expired_appeal_prunable, AccountId, SlashAppealBallotSignature,
+    PHASE14_MAX_APPEAL_EVIDENCE_BYTES, PHASE20_LEGACY_ELECTORATE_W_SENTINEL,
+    PHASE20_LEGACY_PIN_SET_COMMITMENT,
 };
 use serde::{Deserialize, Serialize};
 
@@ -681,6 +683,22 @@ impl SlashAppealRegistry {
         n
     }
 
+    /// Phase 23: remove Expired appeals past retention
+    /// (`tip > resolve_deadline + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS`).
+    ///
+    /// Does **not** prune Pending / Approved / Rejected. Does **not** delete slash
+    /// records. Idempotent. Registry domain stays **V5** (row deletion only).
+    pub fn prune_expired_appeals(&mut self, tip_height: u64) -> usize {
+        let before = self.appeals.len();
+        self.appeals.retain(|_, a| {
+            if a.status != ConsensusAppealStatus::Expired {
+                return true;
+            }
+            !phase23_expired_appeal_prunable(tip_height, a.resolve_deadline)
+        });
+        before.saturating_sub(self.appeals.len())
+    }
+
     /// Phase 21: gate Resolve before cast. If past deadline and still Pending → Expired and
     /// `ResolveWindowClosed`. Already Expired/Approved/Rejected → `AppealAlreadyResolved`.
     pub fn gate_resolve_window(
@@ -1250,6 +1268,62 @@ mod tests {
         assert!(!reg.is_reversed(8));
         // Second housekeeping is a no-op.
         assert_eq!(reg.expire_pending_appeals(2000), 0);
+    }
+
+    #[test]
+    fn phase23_prune_expired_after_retention_only() {
+        use boing_primitives::PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS;
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 9);
+        // seed_appeal tip 150 → deadline 1150
+        assert_eq!(reg.expire_pending_appeals(1151), 1);
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            ConsensusAppealStatus::Expired
+        );
+        // Still within retention: tip == deadline + retention → keep
+        assert_eq!(
+            reg.prune_expired_appeals(1150 + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS),
+            0
+        );
+        assert!(reg.get_appeal(aid).is_some());
+        // Past retention → remove appeal row; slash stays.
+        assert_eq!(
+            reg.prune_expired_appeals(1150 + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS + 1),
+            1
+        );
+        assert!(reg.get_appeal(aid).is_none());
+        assert!(reg.get_slash(9).is_some());
+        assert_eq!(reg.prune_expired_appeals(u64::MAX), 0);
+    }
+
+    #[test]
+    fn phase23_prune_skips_pending_approved_rejected() {
+        use boing_primitives::PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS;
+        let mut reg = SlashAppealRegistry::new();
+        // Pending
+        let pending = seed_appeal(&mut reg, 10);
+        // Approved
+        let approved = seed_appeal(&mut reg, 11);
+        reg.cast_resolve_vote(approved, acct(1), true, 200, 300, None)
+            .unwrap();
+        assert_eq!(
+            reg.get_appeal(approved).unwrap().status,
+            ConsensusAppealStatus::Approved
+        );
+        // Rejected
+        let rejected = seed_appeal(&mut reg, 12);
+        reg.cast_resolve_vote(rejected, acct(1), false, 200, 300, None)
+            .unwrap();
+        assert_eq!(
+            reg.get_appeal(rejected).unwrap().status,
+            ConsensusAppealStatus::Rejected
+        );
+        let tip = 1150 + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS + 10_000;
+        assert_eq!(reg.prune_expired_appeals(tip), 0);
+        assert!(reg.get_appeal(pending).is_some());
+        assert!(reg.get_appeal(approved).is_some());
+        assert!(reg.get_appeal(rejected).is_some());
     }
 
     #[test]
