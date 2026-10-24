@@ -47,8 +47,9 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 - Phase 23: block housekeeping **`prune_expired_appeals`** drops **Expired** rows when `tip > resolve_deadline + 4096` (mirrors settle-receipt TTL); slash records stay; Pending/Approved/Rejected untouched. **`boing_listSlashRecords`** gains `appealStatus` / `includeExpired` (default true); re-verify gains `includeExpired` (default **false**).  
 - Phase 24: block housekeeping **`prune_terminal_challenges`** drops **Responded** / settled **FailedServe** when `tip > deadline + 4096` (frees soft-cap 256); Open and unsettled FailedServe stay. **`boing_listBlobSampleServeChallenges`** gains `status` / `includeTerminal`; **`boing_getBlobSampleServeChallenge`** looks up by key.  
 - Phase 25: block housekeeping **`prune_resolved_appeals`** drops **Approved** / **Rejected** when `tip > resolve_deadline + 4096`; slash records stay; Pending untouched. **`boing_listSlashRecords`** / **`boing_reverifySlashAppealBallots`** gain `includeResolved` (list default **true**; re-verify default **false**).  
-- Phase 26: **BLS aggregate scaffolding** — dual-key types (`AccountId` + BLS12-381 G1 pubkey 48 B; G2 sig/aggregate 96 B), domain-separated aggregate ballot preimage, `phase26_validate_dual_key_set`, and aggregate/verify APIs that return **`NotWired`** (`PHASE26_BLS_AGGREGATE_WIRED=false`). Live **32** remains Ed25519 verify-each. No `blst` crate yet; no registry V6; no fake verify.  
-- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22–26 do not bump to V6** (dual-key persistence is a later follow-up).  
+- Phase 26: **BLS aggregate scaffolding** — dual-key types (`AccountId` + BLS12-381 G1 pubkey 48 B; G2 sig/aggregate 96 B), domain-separated aggregate ballot preimage, `phase26_validate_dual_key_set`, and aggregate/verify APIs that return **`NotWired`** (`PHASE26_BLS_AGGREGATE_WIRED=false`). Live **32** remains Ed25519 verify-each.  
+- Phase 27: **Wire `blst` (`min_pk`)** — real sign / aggregate / `fast_aggregate_verify`; host-local **`bls_dual_key_registry.bin`** (BDKR v1; **not** slash V5 / not state-root); RPC `boing_listBlsDualKeys` / `boing_registerBlsDualKey` / `boing_verifyBlsAggregate`; `PHASE27_BLS_AGGREGATE_WIRED=true` for library+RPC. **Live tx 32 stays Ed25519 verify-each** (no committee flip yet).  
+- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22–27 do not bump slash to V6** (dual-keys use a separate host-local file).  
 - Submit/Resolve/Attested (**30**/**31**/**32**) are **always admitted** (not gated on media-blobs activation); mempool may reject **31** early when `|pinned|>1`  
 - Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated** for FailedServe / equivocation / liveness when the consensus book owns the slash (prefer txs 30/32); refuses double credit after consensus reverse  
 - Resolve is **ops/validator stake-weighted voting** (+ Ed25519 ballot when required), not SNARK verification of evidence  
@@ -61,31 +62,31 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 
 | Phase | Status |
 |-------|--------|
-| 1–25 | **Merged** (#90) |
-| 26 BLS aggregate dual-key / blst scaffolding | **This PR** |
+| 1–26 | **Merged** (#91) |
+| 27 Wire `blst` + dual-key registry + aggregate verify | **This PR** |
 
-### Remaining after Phase 26 scaffold
+### Remaining after Phase 27
 
-- Optional Cargo feature + real **`blst`** (or equivalent) prove/verify  
-- Dual-key persistence (**V6**) + registration tx / host config  
+- Proof-of-possession for dual-key registration  
 - Aggregate submit path (new payload or extended **32**) + signer bitset  
-- Flip committee verify from verify-each → aggregate when wired  
+- Flip committee verify from Ed25519 verify-each → BLS aggregate when operators opt in  
 - Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
 - Coordinated public-testnet 256 MiB activation  
 
 ---
 
-## Ops / migration (Phase 26)
+## Ops / migration (Phase 27)
 
 | Item | Guidance |
 |------|----------|
 | `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` | **Leave at 1200** (both Fly apps). Do not change. |
 | `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` | **Leave unset** (16 MiB Fly-safe). |
 | `slash_appeals_registry.bin` | **Do not clear.** Stay **V5**. |
-| `PHASE26_BLS_AGGREGATE_WIRED` | **false** — scaffold only; do not treat types as live crypto. |
-| Clients | SDK **0.5.29**; BLS size constants + `NotWired` helpers. |
+| `bls_dual_key_registry.bin` | Host-local BDKR v1; separate from slash appeals. |
+| `PHASE27_BLS_AGGREGATE_WIRED` | **true** — library + RPC verify; **tx 32 still Ed25519**. |
+| Clients | SDK **0.5.30**; node verify via `boing_verifyBlsAggregate` (JS has no blst). |
 | Operators | Committee resolve still Ed25519 verify-each on **32**. |
-| BLS wire / SNARK / 256 MiB | **Not this phase** — listed under remaining. |
+| PoP / aggregate submit / SNARK / 256 MiB | **Not this phase** — listed under remaining. |
 
 ---
 

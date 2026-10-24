@@ -79,6 +79,7 @@ fn node_with_validators(validators: Vec<AccountId>, stakes: &[(AccountId, u128)]
         anchor_fallback_wait: None,
         last_local_vote_round: None,
         media_blob_store: None,
+        bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
     }
 }
 

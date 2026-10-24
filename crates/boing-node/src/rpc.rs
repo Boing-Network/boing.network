@@ -479,6 +479,9 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_listDexPools",
     "boing_listDexTokens",
     "boing_listSlashRecords",
+    "boing_listBlsDualKeys",
+    "boing_registerBlsDualKey",
+    "boing_verifyBlsAggregate",
     "boing_reverifySlashAppealBallots",
     "boing_namesOwnedBy",
     "boing_operatorApplyFeePolicy",
@@ -2815,7 +2818,9 @@ async fn dispatch_jsonrpc_request(
         | "boing_listSmtBlobSampleOffers"
         | "boing_listBlobSampleServeChallenges"
         | "boing_getBlobSampleServeChallenge"
-        | "boing_getBlobDasSuccinctProofPlan" => {
+        | "boing_getBlobDasSuccinctProofPlan"
+        | "boing_listBlsDualKeys"
+        | "boing_verifyBlsAggregate" => {
             let params = req
                 .params
                 .clone()
@@ -2824,6 +2829,96 @@ async fn dispatch_jsonrpc_request(
             match n.media_blobs_rpc(req.method.as_str(), &params) {
                 Ok(v) => rpc_ok(id, v),
                 Err((code, msg)) => rpc_error(id, code, msg),
+            }
+        }
+        "boing_registerBlsDualKey" => {
+            if !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            let params = req.params.unwrap_or(serde_json::Value::Null);
+            let (account_hex, pk_hex) = match &params {
+                serde_json::Value::Array(arr) if arr.len() >= 2 => (
+                    arr[0].as_str().unwrap_or("").to_string(),
+                    arr[1].as_str().unwrap_or("").to_string(),
+                ),
+                serde_json::Value::Object(map) => (
+                    map.get("accountId")
+                        .or_else(|| map.get("account"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    map.get("blsPubkey")
+                        .or_else(|| map.get("blsPublicKey"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                ),
+                _ => (String::new(), String::new()),
+            };
+            if account_hex.is_empty() || pk_hex.is_empty() {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32602,
+                        "Invalid params: expected [accountId, blsPubkey] or {accountId, blsPubkey}"
+                            .into(),
+                    ),
+                );
+            }
+            let acct_bytes = match hex::decode(account_hex.trim_start_matches("0x")) {
+                Ok(b) if b.len() == 32 => {
+                    let mut a = [0u8; 32];
+                    a.copy_from_slice(&b);
+                    a
+                }
+                _ => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "accountId must be 32-byte hex".into()),
+                    );
+                }
+            };
+            let pk_bytes = match hex::decode(pk_hex.trim_start_matches("0x")) {
+                Ok(b) => b,
+                Err(e) => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, format!("blsPubkey hex: {e}")),
+                    );
+                }
+            };
+            let pk = match boing_primitives::phase27_parse_bls_pubkey(&pk_bytes) {
+                Ok(pk) => pk,
+                Err(e) => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, format!("invalid blsPubkey: {e}")),
+                    );
+                }
+            };
+            let mut n = node.write().await;
+            match n.register_bls_dual_key(boing_primitives::AccountId(acct_bytes), pk) {
+                Ok(()) => rpc_ok(
+                    id,
+                    serde_json::json!({
+                        "ok": true,
+                        "accountId": format!("0x{}", hex::encode(acct_bytes)),
+                        "blsPubkey": format!("0x{}", hex::encode(pk.as_bytes())),
+                        "count": n.bls_dual_key_registry.len(),
+                        "file": boing_primitives::PHASE27_BLS_DUAL_KEY_REGISTRY_FILE,
+                        "liveTx32StillEd25519": true,
+                    }),
+                ),
+                Err(e) => rpc_error(id, -32000, e.to_string()),
             }
         }
         "boing_getSyncState" => {
