@@ -10,4 +10,6 @@ pattern = "testnet-rpc.boing.network/*"
 zone_name = "boing.network"
 
 [vars]
-RPC_BACKENDS = "https://boing-testnet-1.fly.dev,https://boing-testnet-2.fly.dev"
+# Option B pin: seed lost → cannot recreate companions/builder on testnet-2.
+# Route public clients only to testnet-1 until t2 registries match or resync lands.
+RPC_BACKENDS = "https://boing-testnet-1.fly.dev"
