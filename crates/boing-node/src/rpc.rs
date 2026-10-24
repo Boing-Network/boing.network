@@ -2844,10 +2844,15 @@ async fn dispatch_jsonrpc_request(
                 );
             }
             let params = req.params.unwrap_or(serde_json::Value::Null);
-            let (account_hex, pk_hex) = match &params {
-                serde_json::Value::Array(arr) if arr.len() >= 2 => (
+            let (account_hex, pk_hex, pop_hex, chain_id_param) = match &params {
+                serde_json::Value::Array(arr) if arr.len() >= 3 => (
                     arr[0].as_str().unwrap_or("").to_string(),
                     arr[1].as_str().unwrap_or("").to_string(),
+                    arr[2].as_str().unwrap_or("").to_string(),
+                    arr.get(3).and_then(|v| {
+                        v.as_u64()
+                            .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                    }),
                 ),
                 serde_json::Value::Object(map) => (
                     map.get("accountId")
@@ -2860,8 +2865,18 @@ async fn dispatch_jsonrpc_request(
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string(),
+                    map.get("blsPop")
+                        .or_else(|| map.get("popSignature"))
+                        .or_else(|| map.get("pop"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    map.get("chainId").and_then(|v| {
+                        v.as_u64()
+                            .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                    }),
                 ),
-                _ => (String::new(), String::new()),
+                _ => (String::new(), String::new(), String::new(), None),
             };
             if account_hex.is_empty() || pk_hex.is_empty() {
                 return (
@@ -2869,8 +2884,18 @@ async fn dispatch_jsonrpc_request(
                     rpc_error(
                         id,
                         -32602,
-                        "Invalid params: expected [accountId, blsPubkey] or {accountId, blsPubkey}"
+                        "Invalid params: expected [accountId, blsPubkey, blsPop, chainId?] or {accountId, blsPubkey, blsPop, chainId?}"
                             .into(),
+                    ),
+                );
+            }
+            if pop_hex.is_empty() && boing_primitives::PHASE28_BLS_POP_REQUIRED {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32602,
+                        "blsPop required (Phase 28 BLS dual-key proof-of-possession)".into(),
                     ),
                 );
             }
@@ -2905,16 +2930,55 @@ async fn dispatch_jsonrpc_request(
                     );
                 }
             };
+            let pop_bytes = match hex::decode(pop_hex.trim_start_matches("0x")) {
+                Ok(b) => b,
+                Err(e) => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, format!("blsPop hex: {e}")),
+                    );
+                }
+            };
+            let pop = match boing_primitives::BlsSignatureG2::try_from_slice(&pop_bytes) {
+                Ok(s) => s,
+                Err(e) => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, format!("invalid blsPop: {e}")),
+                    );
+                }
+            };
             let mut n = node.write().await;
-            match n.register_bls_dual_key(boing_primitives::AccountId(acct_bytes), pk) {
+            let chain_id = chain_id_param.or_else(|| {
+                crate::network_preset::effective_chain_id(n.executor.execution_history())
+            });
+            let Some(chain_id) = chain_id else {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32602,
+                        "chainId required for BLS dual-key PoP (pass chainId or set BOING_CHAIN_ID / network history)"
+                            .into(),
+                    ),
+                );
+            };
+            match n.register_bls_dual_key_with_pop(
+                chain_id,
+                boing_primitives::AccountId(acct_bytes),
+                pk,
+                &pop,
+            ) {
                 Ok(()) => rpc_ok(
                     id,
                     serde_json::json!({
                         "ok": true,
                         "accountId": format!("0x{}", hex::encode(acct_bytes)),
                         "blsPubkey": format!("0x{}", hex::encode(pk.as_bytes())),
+                        "chainId": chain_id,
+                        "popVerified": true,
                         "count": n.bls_dual_key_registry.len(),
-                        "file": boing_primitives::PHASE27_BLS_DUAL_KEY_REGISTRY_FILE,
+                        "file": boing_primitives::PHASE28_BLS_DUAL_KEY_REGISTRY_FILE,
                         "liveTx32StillEd25519": true,
                     }),
                 ),

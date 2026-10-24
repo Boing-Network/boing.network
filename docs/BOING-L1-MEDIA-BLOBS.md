@@ -49,7 +49,8 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 - Phase 25: block housekeeping **`prune_resolved_appeals`** drops **Approved** / **Rejected** when `tip > resolve_deadline + 4096`; slash records stay; Pending untouched. **`boing_listSlashRecords`** / **`boing_reverifySlashAppealBallots`** gain `includeResolved` (list default **true**; re-verify default **false**).  
 - Phase 26: **BLS aggregate scaffolding** — dual-key types (`AccountId` + BLS12-381 G1 pubkey 48 B; G2 sig/aggregate 96 B), domain-separated aggregate ballot preimage, `phase26_validate_dual_key_set`, and aggregate/verify APIs that return **`NotWired`** (`PHASE26_BLS_AGGREGATE_WIRED=false`). Live **32** remains Ed25519 verify-each.  
 - Phase 27: **Wire `blst` (`min_pk`)** — real sign / aggregate / `fast_aggregate_verify`; host-local **`bls_dual_key_registry.bin`** (BDKR v1; **not** slash V5 / not state-root); RPC `boing_listBlsDualKeys` / `boing_registerBlsDualKey` / `boing_verifyBlsAggregate`; `PHASE27_BLS_AGGREGATE_WIRED=true` for library+RPC. **Live tx 32 stays Ed25519 verify-each** (no committee flip yet).  
-- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22–27 do not bump slash to V6** (dual-keys use a separate host-local file).  
+- Phase 28: **BLS dual-key proof-of-possession** — chain-bound PoP required on `boing_registerBlsDualKey` (`blsPop` 96 B + `chainId`); `PHASE28_BLS_POP_REQUIRED=true`. PoP checked at register (BDKR v1 unchanged; signature not persisted). **Live tx 32 stays Ed25519 verify-each**.  
+- Versioned `slash_appeals_registry.bin` (magic + u32 + bincode **V5**); V4 / V3 / V2 / legacy Phase 14–16 loads without required clear. Pre-V5 Pending derives `resolve_deadline` from `slash.appeal_deadline`. **Phase 22–28 do not bump slash to V6** (dual-keys use a separate host-local file).  
 - Submit/Resolve/Attested (**30**/**31**/**32**) are **always admitted** (not gated on media-blobs activation); mempool may reject **31** early when `|pinned|>1`  
 - Operator RPC `boing_submitSlashAppeal` / `boing_resolveSlashAppeal` is **deprecated** for FailedServe / equivocation / liveness when the consensus book owns the slash (prefer txs 30/32); refuses double credit after consensus reverse  
 - Resolve is **ops/validator stake-weighted voting** (+ Ed25519 ballot when required), not SNARK verification of evidence  
@@ -62,31 +63,31 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 
 | Phase | Status |
 |-------|--------|
-| 1–26 | **Merged** (#91) |
-| 27 Wire `blst` + dual-key registry + aggregate verify | **This PR** |
+| 1–27 | **Merged** (#92) |
+| 28 BLS dual-key proof-of-possession | **This PR** |
 
-### Remaining after Phase 27
+### Remaining after Phase 28
 
-- Proof-of-possession for dual-key registration  
 - Aggregate submit path (new payload or extended **32**) + signer bitset  
 - Flip committee verify from Ed25519 verify-each → BLS aggregate when operators opt in  
+- Optional Ed25519 account-side binding (owner consents to BLS key) on a consensus tx  
 - Real IPA/KZG/SNARK verify for ReservedRealV1 (flip `is_implemented`)  
 - Coordinated public-testnet 256 MiB activation  
 
 ---
 
-## Ops / migration (Phase 27)
+## Ops / migration (Phase 28)
 
 | Item | Guidance |
 |------|----------|
 | `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` | **Leave at 1200** (both Fly apps). Do not change. |
 | `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` | **Leave unset** (16 MiB Fly-safe). |
 | `slash_appeals_registry.bin` | **Do not clear.** Stay **V5**. |
-| `bls_dual_key_registry.bin` | Host-local BDKR v1; separate from slash appeals. |
-| `PHASE27_BLS_AGGREGATE_WIRED` | **true** — library + RPC verify; **tx 32 still Ed25519**. |
-| Clients | SDK **0.5.30**; node verify via `boing_verifyBlsAggregate` (JS has no blst). |
+| `bls_dual_key_registry.bin` | Host-local BDKR v1; PoP checked at register (not stored). |
+| `PHASE28_BLS_POP_REQUIRED` | **true** — `boing_registerBlsDualKey` needs `blsPop` + `chainId`. |
+| Clients | SDK **0.5.31**; PoP preimage helper in JS; sign PoP with Rust/`blst` tooling. |
 | Operators | Committee resolve still Ed25519 verify-each on **32**. |
-| PoP / aggregate submit / SNARK / 256 MiB | **Not this phase** — listed under remaining. |
+| Aggregate submit / SNARK / 256 MiB | **Not this phase** — listed under remaining. |
 
 ---
 

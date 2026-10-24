@@ -9,9 +9,10 @@ use boing_execution::{BlockExecutor, TransactionScheduler, Vm};
 use boing_governance::{SlashReason, SlashRegistry, SlashingError};
 use boing_p2p::{P2pEvent, P2pNode};
 use boing_primitives::{
-    Account, AccountId, AccountState, Block, BlsDualKeyRegistry, BlsPublicKeyG1, ConsensusVote,
-    EquivocationEvidence, ExecutionReceipt, Hash, Phase27BlsError, QaPoolVoteKind,
-    SignedTransaction, TransactionPayload, VrfProofGossip,
+    phase28_register_with_pop, Account, AccountId, AccountState, Block, BlsDualKeyRegistry,
+    BlsPublicKeyG1, BlsSignatureG2, ConsensusVote, EquivocationEvidence, ExecutionReceipt, Hash,
+    Phase27BlsError, Phase28BlsError, QaPoolVoteKind, SignedTransaction, TransactionPayload,
+    VrfProofGossip,
 };
 use boing_qa::pool::{PendingQaQueue, PoolError, PoolResolution, QaPoolVote};
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
@@ -522,12 +523,33 @@ impl BoingNode {
     }
 
     /// Register a host-local dual-key binding (curve-validated). Persists when a data dir is set.
+    ///
+    /// Phase 27 helper kept for tests; production RPC uses [`Self::register_bls_dual_key_with_pop`].
     pub fn register_bls_dual_key(
         &mut self,
         account: AccountId,
         bls_pubkey: BlsPublicKeyG1,
     ) -> Result<(), Phase27BlsError> {
         self.bls_dual_key_registry.register(account, bls_pubkey)?;
+        self.persist_bls_dual_key_registry();
+        Ok(())
+    }
+
+    /// Phase 28: register only after a valid chain-bound BLS proof-of-possession.
+    pub fn register_bls_dual_key_with_pop(
+        &mut self,
+        chain_id: u64,
+        account: AccountId,
+        bls_pubkey: BlsPublicKeyG1,
+        pop: &BlsSignatureG2,
+    ) -> Result<(), Phase28BlsError> {
+        phase28_register_with_pop(
+            &mut self.bls_dual_key_registry,
+            chain_id,
+            account,
+            bls_pubkey,
+            pop,
+        )?;
         self.persist_bls_dual_key_registry();
         Ok(())
     }

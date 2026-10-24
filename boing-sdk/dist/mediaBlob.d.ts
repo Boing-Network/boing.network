@@ -710,4 +710,62 @@ export declare function phase27ResolveDeadline(submitHeight: bigint): bigint;
 export declare function phase27ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
 /** Honest plan strings for Phase 27 (blst wire + host-local dual-keys; still 16 MiB). */
 export declare function phase27DasSuccinctProofPlan(): string[];
+/** Phase 28 sizes / wired flags (library+RPC still from Phase 27). */
+export declare const PHASE28_BLS_PUBLIC_KEY_G1_BYTES = 48;
+export declare const PHASE28_BLS_SIGNATURE_G2_BYTES = 96;
+export declare const PHASE28_BLS_AGGREGATE_WIRED = true;
+export declare const PHASE28_BLS_DUAL_KEY_REGISTRY_FILE = "bls_dual_key_registry.bin";
+/** Registration requires a verified BLS proof-of-possession. */
+export declare const PHASE28_BLS_POP_REQUIRED = true;
+/** BLAKE3 domain for the PoP preimage (not the blst DST). */
+export declare const PHASE28_BLS_POP_DOMAIN: Uint8Array<ArrayBuffer>;
+/** CipherSuite DST string for dual-key PoP (Rust/`blst` signers). */
+export declare const PHASE28_BLS_POP_SIG_DST = "BOING_BLS_POP_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
+export declare const PHASE28_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE28_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE28_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE28_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE28_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE28_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE28_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+export declare const PHASE28_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE28_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE28_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE28_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE28_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE28_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE28_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+/**
+ * BLAKE3 PoP preimage: domain || chainId_le8 || accountId || blsPubkey.
+ * Sign this 32-byte message with blst under `PHASE28_BLS_POP_SIG_DST` (Rust tooling).
+ */
+export declare function phase28BlsPopPreimage(input: {
+    chainId: bigint | number;
+    accountId: Uint8Array;
+    blsPubkey: Uint8Array;
+}): Uint8Array;
+/** Length-check a dual-key set (unique accountIds). */
+export declare function phase28ValidateDualKeySet(identities: DualKeyIdentity[]): void;
+/**
+ * JS has no `blst` — do not fake PoP sign/verify. Use Rust/`blst` to sign
+ * `phase28BlsPopPreimage`, then `boing_registerBlsDualKey` with `blsPop`.
+ */
+export declare function phase28SignBlsPop(_input: {
+    ikm: Uint8Array;
+    chainId: bigint | number;
+    accountId: Uint8Array;
+    blsPubkey: Uint8Array;
+}): never;
+export declare function phase28VerifyBlsPop(_input: {
+    chainId: bigint | number;
+    accountId: Uint8Array;
+    blsPubkey: Uint8Array;
+    pop: Uint8Array;
+}): never;
+export declare function phase28CommitteeRequiresAttested(pinnedLen: number): boolean;
+export declare function phase28ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase28ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/** Honest plan strings for Phase 28 (BLS dual-key PoP; still 16 MiB). */
+export declare function phase28DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map

@@ -1795,3 +1795,124 @@ export function phase27DasSuccinctProofPlan(): string[] {
     'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }
+
+/** Phase 28 sizes / wired flags (library+RPC still from Phase 27). */
+export const PHASE28_BLS_PUBLIC_KEY_G1_BYTES = PHASE27_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE28_BLS_SIGNATURE_G2_BYTES = PHASE27_BLS_SIGNATURE_G2_BYTES;
+export const PHASE28_BLS_AGGREGATE_WIRED = PHASE27_BLS_AGGREGATE_WIRED;
+export const PHASE28_BLS_DUAL_KEY_REGISTRY_FILE = PHASE27_BLS_DUAL_KEY_REGISTRY_FILE;
+
+/** Registration requires a verified BLS proof-of-possession. */
+export const PHASE28_BLS_POP_REQUIRED = true;
+
+/** BLAKE3 domain for the PoP preimage (not the blst DST). */
+export const PHASE28_BLS_POP_DOMAIN = new TextEncoder().encode('BOING_BLS_DUAL_KEY_POP_V1');
+
+/** CipherSuite DST string for dual-key PoP (Rust/`blst` signers). */
+export const PHASE28_BLS_POP_SIG_DST =
+  'BOING_BLS_POP_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_';
+
+export const PHASE28_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE27_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE28_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE27_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE28_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE27_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE28_RESOLVE_WINDOW_BLOCKS = PHASE27_RESOLVE_WINDOW_BLOCKS;
+export const PHASE28_SETTLE_RECEIPT_TTL_BLOCKS = PHASE27_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE28_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE27_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE28_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS =
+  PHASE27_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE28_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE27_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE28_MAX_APPEAL_EVIDENCE_BYTES = PHASE27_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE28_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE27_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE28_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE27_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX =
+  PHASE27_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE28_RESOLVE_THRESHOLD_NUM = PHASE27_RESOLVE_THRESHOLD_NUM;
+export const PHASE28_RESOLVE_THRESHOLD_DEN = PHASE27_RESOLVE_THRESHOLD_DEN;
+export const PHASE28_LEGACY_ELECTORATE_W_SENTINEL = PHASE27_LEGACY_ELECTORATE_W_SENTINEL;
+
+/**
+ * BLAKE3 PoP preimage: domain || chainId_le8 || accountId || blsPubkey.
+ * Sign this 32-byte message with blst under `PHASE28_BLS_POP_SIG_DST` (Rust tooling).
+ */
+export function phase28BlsPopPreimage(input: {
+  chainId: bigint | number;
+  accountId: Uint8Array;
+  blsPubkey: Uint8Array;
+}): Uint8Array {
+  if (input.accountId.length !== 32) {
+    throw new Error(`invalid AccountId length: expected 32, got ${input.accountId.length}`);
+  }
+  if (input.blsPubkey.length !== PHASE28_BLS_PUBLIC_KEY_G1_BYTES) {
+    throw new Error(
+      `invalid BLS public key length: expected ${PHASE28_BLS_PUBLIC_KEY_G1_BYTES}, got ${input.blsPubkey.length}`,
+    );
+  }
+  return blake3(
+    concatBytes(
+      PHASE28_BLS_POP_DOMAIN,
+      u64Le(input.chainId),
+      input.accountId,
+      input.blsPubkey,
+    ),
+  );
+}
+
+/** Length-check a dual-key set (unique accountIds). */
+export function phase28ValidateDualKeySet(identities: DualKeyIdentity[]): void {
+  phase27ValidateDualKeySet(identities);
+}
+
+/**
+ * JS has no `blst` — do not fake PoP sign/verify. Use Rust/`blst` to sign
+ * `phase28BlsPopPreimage`, then `boing_registerBlsDualKey` with `blsPop`.
+ */
+export function phase28SignBlsPop(_input: {
+  ikm: Uint8Array;
+  chainId: bigint | number;
+  accountId: Uint8Array;
+  blsPubkey: Uint8Array;
+}): never {
+  throw new Error(
+    'JS SDK has no blst; sign phase28BlsPopPreimage with Rust/blst under PHASE28_BLS_POP_SIG_DST, then call boing_registerBlsDualKey',
+  );
+}
+
+export function phase28VerifyBlsPop(_input: {
+  chainId: bigint | number;
+  accountId: Uint8Array;
+  blsPubkey: Uint8Array;
+  pop: Uint8Array;
+}): never {
+  throw new Error(
+    'JS SDK has no blst; node verifies PoP on boing_registerBlsDualKey (PHASE28_BLS_POP_REQUIRED=true)',
+  );
+}
+
+export function phase28CommitteeRequiresAttested(pinnedLen: number): boolean {
+  return phase27CommitteeRequiresAttested(pinnedLen);
+}
+
+export function phase28ResolveDeadline(submitHeight: bigint): bigint {
+  return phase27ResolveDeadline(submitHeight);
+}
+
+export function phase28ResolvedAppealPrunable(
+  tipHeight: bigint,
+  resolveDeadline: bigint,
+): boolean {
+  return phase27ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+
+/** Honest plan strings for Phase 28 (BLS dual-key PoP; still 16 MiB). */
+export function phase28DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase27DasSuccinctProofPlan(),
+    'Phase 28: BLS dual-key proof-of-possession — chain-bound PoP required on boing_registerBlsDualKey (PHASE28_BLS_POP_REQUIRED=true).',
+    'Phase 28: PoP message = BLAKE3(BOING_BLS_DUAL_KEY_POP_V1 || chain_id || accountId || blsPubkey); signed under BOING_BLS_POP_… DST.',
+    'Phase 28: live ResolveSlashAppealAttested (32) stays Ed25519 verify-each — PoP does not flip committee cast.',
+    'Phase 28: JS SDK exposes phase28BlsPopPreimage only; sign with Rust/blst — do not fake browser PoP.',
+    'Phase 28: remaining — aggregate submit tx / signer bitset, flip verify-each → aggregate, optional Ed25519 account-side binding, SNARK / 256 MiB.',
+    'Phase 28: slash_appeals_registry.bin stays V5; bls_dual_key_registry.bin stays BDKR v1; do not clear.',
+    'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+  ];
+}
