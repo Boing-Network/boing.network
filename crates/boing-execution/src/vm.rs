@@ -10,10 +10,14 @@ use boing_primitives::{
     validate_register_blob_sample_offer, validate_renew_media_blob_pin,
     validate_settle_blob_sample_match, verify_slash_appeal_resolve_ballot_dual,
     phase19_committee_requires_attested, phase20_is_legacy_electorate_snapshot,
-    phase20_pin_set_commitment, phase20_snapshot_electorate_w, AccountId, AccountState,
-    BatchCall, BlobId, BlobRetention, ExecutionLog, Hash, MediaBlobDasSample, QaPoolVoteKind,
-    Transaction, TransactionPayload, PHASE11_FAILED_SERVE_PENALTY, PHASE11_SERVE_CHALLENGE_BOND,
+    phase20_pin_set_commitment, phase20_snapshot_electorate_w,
+    phase31_admit_bls_aggregate_resolve_tx, phase31_decode_signer_bitset,
+    phase31_verify_aggregate_resolve_self_contained, AccountId, AccountState, BatchCall, BlobId,
+    BlobRetention, BlsAggregateResolveSelfContainedPayload, ExecutionLog, Hash,
+    MediaBlobDasSample, QaPoolVoteKind, Transaction, TransactionPayload,
+    PHASE11_FAILED_SERVE_PENALTY, PHASE11_SERVE_CHALLENGE_BOND,
     PHASE14_FAILED_SERVE_APPEAL_WINDOW_BLOCKS, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+    PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
 };
 use boing_state::SettledSampleMatch;
 use boing_qa::{
@@ -736,13 +740,23 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
-            TransactionPayload::ResolveSlashAppealBlsAggregate { .. } => {
-                // Phase 30: tx 33 wired in the enum with self-contained pubkeys, but
-                // consensus admit/execute stays off (live cast remains Ed25519 32).
-                return Err(VmError::MediaBlob(
-                    "ResolveSlashAppealBlsAggregate (33) consensus admit not wired (PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false); use ResolveSlashAppealAttested (32)"
-                        .into(),
-                ));
+            TransactionPayload::ResolveSlashAppealBlsAggregate {
+                appeal_id,
+                approved,
+                signer_bitset,
+                aggregate_signature,
+                signer_bls_pubkeys,
+            } => {
+                return self.execute_resolve_slash_appeal_bls_aggregate(
+                    state,
+                    tx,
+                    *appeal_id,
+                    *approved,
+                    signer_bitset,
+                    *aggregate_signature,
+                    signer_bls_pubkeys,
+                    exec_ctx.block_height,
+                );
             }
         };
         Ok(VmExecutionResult {
@@ -1409,6 +1423,148 @@ impl Vm {
             };
             let _ = restored;
         }
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: appeal_id.to_le_bytes().to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    /// Phase 31: optional BLS aggregate resolve (tx 33). Verifies self-contained aggregate,
+    /// then stake-weighted-casts each bitset signer. Does **not** replace the multi-pin
+    /// requirement for Ed25519 attested **32**.
+    fn execute_resolve_slash_appeal_bls_aggregate(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        appeal_id: u64,
+        approved: bool,
+        signer_bitset: &[u8],
+        aggregate_signature: boing_primitives::BlsSignatureG2,
+        signer_bls_pubkeys: &[boing_primitives::BlsPublicKeyG1],
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        phase31_admit_bls_aggregate_resolve_tx().map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        if !PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED {
+            return Err(VmError::MediaBlob(
+                "ResolveSlashAppealBlsAggregate (33) consensus admit not wired; use ResolveSlashAppealAttested (32)"
+                    .into(),
+            ));
+        }
+        state
+            .slash_appeals_mut()
+            .gate_resolve_window(appeal_id, height)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
+        let (slash_id, pin_set_commitment, electorate_w_snapshot) = state
+            .slash_appeals()
+            .get_appeal(appeal_id)
+            .filter(|a| a.status == boing_state::ConsensusAppealStatus::Pending)
+            .map(|a| (a.slash_id, a.pin_set_commitment, a.electorate_w_snapshot))
+            .ok_or_else(|| {
+                VmError::MediaBlob("appeal not found or not pending for BLS aggregate resolve".into())
+            })?;
+
+        let pinned: Vec<AccountId> = state
+            .slash_appeal_resolvers()
+            .map(|s| s.to_vec())
+            .unwrap_or_default();
+        if pinned.is_empty() {
+            return Err(VmError::MediaBlob(
+                "empty slash_appeal_resolvers pin set — cannot execute BLS aggregate resolve".into(),
+            ));
+        }
+        let current_pin_commit = phase20_pin_set_commitment(&pinned);
+        if !phase20_is_legacy_electorate_snapshot(electorate_w_snapshot, &pin_set_commitment)
+            && current_pin_commit != pin_set_commitment
+        {
+            return Err(VmError::MediaBlob(
+                "slash appeal pin set changed since submit".into(),
+            ));
+        }
+
+        let chain_id = self
+            .registration_chain_id
+            .or_else(default_signing_chain_id)
+            .unwrap_or(0);
+        let payload = BlsAggregateResolveSelfContainedPayload {
+            appeal_id,
+            approved,
+            signer_bitset: signer_bitset.to_vec(),
+            aggregate_signature,
+            signer_bls_pubkeys: signer_bls_pubkeys.to_vec(),
+        };
+        phase31_verify_aggregate_resolve_self_contained(
+            chain_id,
+            slash_id,
+            &pin_set_commitment,
+            &pinned,
+            &payload,
+        )
+        .map_err(|e| VmError::MediaBlob(format!("invalid BLS aggregate resolve: {e}")))?;
+
+        let signers = phase31_decode_signer_bitset(&pinned, signer_bitset)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
+        let electorate_w = if phase20_is_legacy_electorate_snapshot(
+            electorate_w_snapshot,
+            &pin_set_commitment,
+        ) {
+            let mut w = 0u128;
+            for id in &pinned {
+                w = w.saturating_add(state.get(id).map(|a| a.stake).unwrap_or(0));
+            }
+            w
+        } else {
+            electorate_w_snapshot
+        };
+
+        let mut batch: Vec<(
+            AccountId,
+            bool,
+            u128,
+            Option<boing_primitives::SlashAppealBallotSignature>,
+        )> = Vec::with_capacity(signers.len());
+        for voter in &signers {
+            let voter_w = state.get(voter).map(|a| a.stake).unwrap_or(0);
+            batch.push((*voter, approved, voter_w, None));
+        }
+
+        let outcome = state
+            .slash_appeals_mut()
+            .cast_resolve_votes_batch(appeal_id, &batch, electorate_w)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
+        if matches!(
+            outcome,
+            boing_state::CastResolveOutcome::Finalized { approved: true }
+        ) {
+            let slash = state
+                .slash_appeals()
+                .get_slash(slash_id)
+                .cloned()
+                .ok_or_else(|| VmError::MediaBlob("slash not found after finalize".into()))?;
+            let _ = match slash.reason {
+                boing_state::ConsensusSlashReason::BlobFailedServe => {
+                    boing_tokenomics::restore_failed_serve_penalty(
+                        state,
+                        &slash.account,
+                        slash.amount,
+                    )
+                }
+                _ => boing_tokenomics::restore_equivocation_slash(
+                    state,
+                    &slash.account,
+                    slash.amount,
+                ),
+            };
+        }
+
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce
@@ -3278,6 +3434,103 @@ mod slash_appeal_phase14_tests {
         .unwrap();
         assert!(state.slash_appeals().is_reversed(55));
         assert_eq!(state.get(&provider).unwrap().balance, 1_100);
+    }
+
+    #[test]
+    fn phase31_bls_aggregate_33_finalizes_and_keeps_32_path() {
+        use boing_primitives::{
+            phase27_aggregate_bls_signatures, phase27_bls_pubkey_from_ikm, phase27_bls_sign,
+            phase31_bls_aggregate_ballot_preimage, phase31_encode_signer_bitset,
+            phase31_pin_set_commitment, PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+            PHASE31_BLS_LIVE_TX32_STILL_ED25519,
+        };
+
+        assert!(PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED);
+        assert!(PHASE31_BLS_LIVE_TX32_STILL_ED25519);
+
+        let provider = AccountId([0x61; 32]);
+        let a1 = AccountId([0x62; 32]);
+        let a2 = AccountId([0x63; 32]);
+        let a3 = AccountId([0x64; 32]);
+        let chain_id = 6913u64;
+        let ikm1 = [0x71u8; 32];
+        let ikm2 = [0x72u8; 32];
+        let pk1 = phase27_bls_pubkey_from_ikm(&ikm1).unwrap();
+        let pk2 = phase27_bls_pubkey_from_ikm(&ikm2).unwrap();
+
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, a1, 1_000_000, 100, 0);
+        fund(&mut state, a2, 1_000_000, 100, 0);
+        fund(&mut state, a3, 1_000_000, 100, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                610,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                1_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![a1, a2, a3]));
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.set_registration_proof_rule(Some(chain_id), 0);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 610,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(2),
+        )
+        .unwrap();
+
+        let pinned = [a1, a2, a3];
+        let pin_commit = phase31_pin_set_commitment(&pinned);
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().pin_set_commitment,
+            pin_commit
+        );
+        let msg = phase31_bls_aggregate_ballot_preimage(chain_id, 1, 610, true, &pin_commit);
+        let s1 = phase27_bls_sign(&ikm1, &msg).unwrap();
+        let s2 = phase27_bls_sign(&ikm2, &msg).unwrap();
+        let agg = phase27_aggregate_bls_signatures(&[s1, s2]).unwrap();
+        let bits = phase31_encode_signer_bitset(&pinned, &[a1, a2]).unwrap();
+
+        // Submitter a1 (validator committee member) relays the aggregate.
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: a1,
+                payload: TransactionPayload::ResolveSlashAppealBlsAggregate {
+                    appeal_id: 1,
+                    approved: true,
+                    signer_bitset: bits,
+                    aggregate_signature: agg,
+                    signer_bls_pubkeys: vec![pk1, pk2],
+                },
+                access_list: AccessList::new(vec![a1], vec![a1]),
+            },
+            &mut state,
+            ctx(3),
+        )
+        .unwrap();
+        assert!(state.slash_appeals().is_reversed(610));
+        assert_eq!(state.get(&provider).unwrap().balance, 1_100);
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().votes.len(),
+            2,
+            "both bitset signers recorded"
+        );
     }
 
     #[test]
