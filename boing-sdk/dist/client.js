@@ -827,7 +827,7 @@ export class BoingClient {
     }
     /**
      * Read-only: slash/appeal registry (consensus + local mirror).
-     * Phase 23: optional `{ reason, slashId, appealStatus, includeExpired }`.
+     * Phase 23/25: optional `{ reason, slashId, appealStatus, includeExpired, includeResolved }`.
      */
     async listSlashRecords(filters = {}) {
         const hasFilters = Object.keys(filters).length > 0;

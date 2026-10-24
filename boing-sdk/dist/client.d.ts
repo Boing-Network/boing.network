@@ -310,7 +310,7 @@ export declare class BoingClient {
     qaPoolList(): Promise<QaPoolListResult>;
     /**
      * Read-only: slash/appeal registry (consensus + local mirror).
-     * Phase 23: optional `{ reason, slashId, appealStatus, includeExpired }`.
+     * Phase 23/25: optional `{ reason, slashId, appealStatus, includeExpired, includeResolved }`.
      */
     listSlashRecords(filters?: ListSlashRecordsParams): Promise<ListSlashRecordsResult>;
     /**

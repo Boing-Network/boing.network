@@ -209,7 +209,7 @@ Read-only view of the consensus **`SlashAppealRegistry`** joined with the node-l
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Params | `[]` or `[{ reason?, slashId?, appealStatus?, includeExpired? }]` | All filters optional. `appealStatus`: `pending`\|`approved`\|`rejected`\|`expired`. `includeExpired` defaults **true** (back-compat); set **false** to hide Expired consensus appeals. |
+| Params | `[]` or `[{ reason?, slashId?, appealStatus?, includeExpired?, includeResolved? }]` | All filters optional. `appealStatus`: `pending`\|`approved`\|`rejected`\|`expired`. `includeExpired` / `includeResolved` default **true** (back-compat); set **false** to hide Expired or Approved/Rejected consensus appeals. |
 
 **Result:**
 
@@ -238,7 +238,7 @@ Read-only view of the consensus **`SlashAppealRegistry`** joined with the node-l
 }
 ```
 
-**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth when **`BOING_OPERATOR_RPC_TOKEN`** is set). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3. Consensus book also exposes **`registryCommitment`**. For ballot crypto audit use **`boing_reverifySlashAppealBallots`**. Phase 23: Expired appeals are pruned from the book after `resolve_deadline + 4096` via housekeeping; list filters let operators hide or select them while retained.
+**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth when **`BOING_OPERATOR_RPC_TOKEN`** is set). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3. Consensus book also exposes **`registryCommitment`**. For ballot crypto audit use **`boing_reverifySlashAppealBallots`**. Phase 23: Expired appeals are pruned from the book after `resolve_deadline + 4096` via housekeeping. Phase 25: Approved/Rejected prune on the same TTL; `includeResolved` lets operators hide them while retained.
 
 ---
 
@@ -248,7 +248,7 @@ Phase 22/23 read-only audit of consensus slash-appeal resolve ballots (Ed25519 d
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Params | `[{ appealId?, slashId?, includeUnattested?, includeExpired?, expectedRegistryCommitment? }]` or object | All filters optional; `includeUnattested` defaults **true**; `includeExpired` defaults **false** (skip Expired) |
+| Params | `[{ appealId?, slashId?, includeUnattested?, includeExpired?, includeResolved?, expectedRegistryCommitment? }]` or object | All filters optional; `includeUnattested` defaults **true**; `includeExpired` / `includeResolved` default **false** (skip Expired and Approved/Rejected) |
 
 **Result (shape):** `{ chainId, registryCommitment, registryCommitmentMatch?, appeals: [{ appealId, slashId, status, pinSetMatch, okCount, invalidCount, unattestedCount, allAttestedBallotsValid, votes: [{ voter, approved, weight, status: "ok"|"invalid"|"unattested", domain? }] }] }`.
 

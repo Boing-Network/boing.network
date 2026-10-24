@@ -568,7 +568,7 @@ export interface SlashAppealSummary {
   evidence_len: number;
 }
 
-/** Optional filters for `boing_listSlashRecords` (Phase 23). */
+/** Optional filters for `boing_listSlashRecords` (Phase 23/25). */
 export interface ListSlashRecordsParams {
   reason?: string;
   slashId?: number;
@@ -576,6 +576,8 @@ export interface ListSlashRecordsParams {
   appealStatus?: 'pending' | 'approved' | 'rejected' | 'expired';
   /** Default true (back-compat). Set false to hide Expired appeals. */
   includeExpired?: boolean;
+  /** Phase 25: default true (back-compat). Set false to hide Approved/Rejected. */
+  includeResolved?: boolean;
 }
 
 /** Result of `boing_listSlashRecords`. */
@@ -596,6 +598,8 @@ export interface ReverifySlashAppealBallotsParams {
   includeUnattested?: boolean;
   /** Phase 23: default false — skip Expired appeals. */
   includeExpired?: boolean;
+  /** Phase 25: default false — skip Approved/Rejected appeals. */
+  includeResolved?: boolean;
   /** Optional client check against `registryCommitment`. */
   expectedRegistryCommitment?: string;
 }

@@ -1531,3 +1531,75 @@ export function phase24DasSuccinctProofPlan(): string[] {
     'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }
+
+/** Phase 25 retention for Approved/Rejected slash appeals (blocks after resolve_deadline). */
+export const PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+
+/** Phase 25 aliases / constants. */
+export const PHASE25_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE24_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE25_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE24_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE25_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE24_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE25_RESOLVE_WINDOW_BLOCKS = PHASE24_RESOLVE_WINDOW_BLOCKS;
+export const PHASE25_SETTLE_RECEIPT_TTL_BLOCKS = PHASE24_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE25_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE24_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE25_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS =
+  PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE25_MAX_APPEAL_EVIDENCE_BYTES = PHASE24_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE25_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE24_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE25_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE24_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE25_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX =
+  PHASE24_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE25_RESOLVE_THRESHOLD_NUM = PHASE24_RESOLVE_THRESHOLD_NUM;
+export const PHASE25_RESOLVE_THRESHOLD_DEN = PHASE24_RESOLVE_THRESHOLD_DEN;
+export const PHASE25_LEGACY_ELECTORATE_W_SENTINEL = PHASE24_LEGACY_ELECTORATE_W_SENTINEL;
+
+export function phase25CommitteeRequiresAttested(pinnedLen: number): boolean {
+  return phase24CommitteeRequiresAttested(pinnedLen);
+}
+
+export function phase25ResolveDeadline(submitHeight: bigint): bigint {
+  return phase24ResolveDeadline(submitHeight);
+}
+
+export function phase25ResolveExpired(tipHeight: bigint, resolveDeadline: bigint): boolean {
+  return phase24ResolveExpired(tipHeight, resolveDeadline);
+}
+
+export function phase25ExpiredAppealPrunable(
+  tipHeight: bigint,
+  resolveDeadline: bigint,
+): boolean {
+  return phase24ExpiredAppealPrunable(tipHeight, resolveDeadline);
+}
+
+/**
+ * True when an Approved/Rejected appeal is past retention and may be pruned:
+ * `tipHeight > resolveDeadline + PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS`.
+ */
+export function phase25ResolvedAppealPrunable(
+  tipHeight: bigint,
+  resolveDeadline: bigint,
+): boolean {
+  return tipHeight > resolveDeadline + PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS;
+}
+
+export function phase25TerminalServeChallengePrunable(input: {
+  tipHeight: bigint;
+  deadlineHeight: bigint;
+  status: BlobSampleServeChallengeStatusName;
+  bondSettled: boolean;
+}): boolean {
+  return phase24TerminalServeChallengePrunable(input);
+}
+
+/** Honest plan strings for Phase 25 (ancient Approved/Rejected prune + list filters; still 16 MiB). */
+export function phase25DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase24DasSuccinctProofPlan(),
+    'Phase 25: block housekeeping prune_resolved_appeals drops Approved / Rejected rows when tip > resolve_deadline + 4096 (mirrors Expired TTL); slash records stay; Pending untouched.',
+    'Phase 25: boing_listSlashRecords gains includeResolved (default true for back-compat); boing_reverifySlashAppealBallots gains includeResolved (default false).',
+    'Phase 25: registry stays V5 (row deletion only, no schema change, no clear); txs 30/31/32 unchanged; Phase 19–24 policies unchanged.',
+    'Phase 25: true BLS aggregate, SNARK/IPA/KZG, and live 256 MiB remain later — keep Fly-safe 16 MiB; do not clear the registry.',
+    'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+  ];
+}

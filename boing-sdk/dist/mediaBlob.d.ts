@@ -587,4 +587,38 @@ export declare function phase24TerminalServeChallengePrunable(input: {
 }): boolean;
 /** Honest plan strings for Phase 24 (serve-challenge TTL prune + list/get UX; still 16 MiB). */
 export declare function phase24DasSuccinctProofPlan(): string[];
+/** Phase 25 retention for Approved/Rejected slash appeals (blocks after resolve_deadline). */
+export declare const PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+/** Phase 25 aliases / constants. */
+export declare const PHASE25_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE25_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE25_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE25_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE25_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE25_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE25_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+export declare const PHASE25_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE25_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE25_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE25_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE25_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE25_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE25_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+export declare function phase25CommitteeRequiresAttested(pinnedLen: number): boolean;
+export declare function phase25ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase25ResolveExpired(tipHeight: bigint, resolveDeadline: bigint): boolean;
+export declare function phase25ExpiredAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/**
+ * True when an Approved/Rejected appeal is past retention and may be pruned:
+ * `tipHeight > resolveDeadline + PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS`.
+ */
+export declare function phase25ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+export declare function phase25TerminalServeChallengePrunable(input: {
+    tipHeight: bigint;
+    deadlineHeight: bigint;
+    status: BlobSampleServeChallengeStatusName;
+    bondSettled: boolean;
+}): boolean;
+/** Honest plan strings for Phase 25 (ancient Approved/Rejected prune + list filters; still 16 MiB). */
+export declare function phase25DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map
