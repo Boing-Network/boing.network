@@ -6,7 +6,10 @@
 use std::path::{Path, PathBuf};
 
 use boing_governance::SlashRegistry;
-use boing_primitives::{AccountId, AccountState, Block, ExecutionReceipt, Hash};
+use boing_primitives::{
+    decode_bls_dual_key_registry, encode_bls_dual_key_registry, AccountId, AccountState,
+    Block, BlsDualKeyRegistry, ExecutionReceipt, Hash, PHASE27_BLS_DUAL_KEY_REGISTRY_FILE,
+};
 use boing_qa::pool_config::QaPoolGovernanceConfig;
 use boing_qa::RuleRegistry;
 use boing_state::{ContractStorageEntry, QaPendingRecord, StateStore};
@@ -41,6 +44,8 @@ const SLASH_APPEALS_VERSION_V5: u32 = 5;
 /// Node-local jailing snapshots (not committed to the state root).
 const OPEN_VALIDATOR_JAIL_STATS_FILE: &str = "open_validator_jail_stats.bin";
 const SLASH_REGISTRY_FILE: &str = "slash_registry.json";
+/// Phase 27 host-local BLS dual-key registry (not slash V5 / not state-root).
+const BLS_DUAL_KEY_REGISTRY_FILE: &str = PHASE27_BLS_DUAL_KEY_REGISTRY_FILE;
 
 /// Encode `SlashAppealRegistry` as Phase 21 V5 envelope: magic + u32 version + bincode.
 pub fn encode_slash_appeals_v5(
@@ -613,6 +618,35 @@ impl Persistence {
         serde_json::from_slice(&bytes)
             .map(Some)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))
+    }
+
+    fn bls_dual_key_registry_path(&self) -> std::path::PathBuf {
+        self.base.join(BLS_DUAL_KEY_REGISTRY_FILE)
+    }
+
+    /// Save Phase 27 host-local BLS dual-key registry (magic + version + bincode).
+    pub fn save_bls_dual_key_registry(
+        &self,
+        registry: &BlsDualKeyRegistry,
+    ) -> Result<(), PersistenceError> {
+        let path = self.bls_dual_key_registry_path();
+        let bytes = encode_bls_dual_key_registry(registry)
+            .map_err(PersistenceError::Serialization)?;
+        std::fs::write(path, bytes)?;
+        Ok(())
+    }
+
+    pub fn load_bls_dual_key_registry(
+        &self,
+    ) -> Result<Option<BlsDualKeyRegistry>, PersistenceError> {
+        let path = self.bls_dual_key_registry_path();
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = std::fs::read(&path)?;
+        decode_bls_dual_key_registry(&bytes)
+            .map(Some)
+            .map_err(PersistenceError::Serialization)
     }
 }
 

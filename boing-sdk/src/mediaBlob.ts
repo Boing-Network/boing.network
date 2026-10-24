@@ -1708,3 +1708,90 @@ export function phase26DasSuccinctProofPlan(): string[] {
     'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
   ];
 }
+
+/** Compressed BLS12-381 sizes (same as Phase 26). */
+export const PHASE27_BLS_PUBLIC_KEY_G1_BYTES = PHASE26_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE27_BLS_SIGNATURE_G2_BYTES = PHASE26_BLS_SIGNATURE_G2_BYTES;
+
+/**
+ * Node library + RPC aggregate verify is wired (`blst` min_pk).
+ * Live tx **32** remains Ed25519 verify-each. JS SDK has no blst — use
+ * `boing_verifyBlsAggregate` on the node for real verify.
+ */
+export const PHASE27_BLS_AGGREGATE_WIRED = true;
+
+export const PHASE27_BLS_DUAL_KEY_REGISTRY_FILE = 'bls_dual_key_registry.bin';
+
+/** Phase 27 aliases / constants. */
+export const PHASE27_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE26_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE27_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE26_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE27_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE26_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE27_RESOLVE_WINDOW_BLOCKS = PHASE26_RESOLVE_WINDOW_BLOCKS;
+export const PHASE27_SETTLE_RECEIPT_TTL_BLOCKS = PHASE26_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE27_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE26_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE27_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS =
+  PHASE26_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE27_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE26_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE27_MAX_APPEAL_EVIDENCE_BYTES = PHASE26_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE27_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE26_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE27_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE26_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE27_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX =
+  PHASE26_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE27_RESOLVE_THRESHOLD_NUM = PHASE26_RESOLVE_THRESHOLD_NUM;
+export const PHASE27_RESOLVE_THRESHOLD_DEN = PHASE26_RESOLVE_THRESHOLD_DEN;
+export const PHASE27_LEGACY_ELECTORATE_W_SENTINEL = PHASE26_LEGACY_ELECTORATE_W_SENTINEL;
+
+/** Length-check a dual-key set (unique accountIds). */
+export function phase27ValidateDualKeySet(identities: DualKeyIdentity[]): void {
+  phase26ValidateDualKeySet(identities);
+}
+
+/**
+ * JS has no `blst` — do not fake crypto. Use node RPC `boing_verifyBlsAggregate`
+ * (or the Rust library). Live tx 32 remains Ed25519 verify-each.
+ */
+export function phase27AggregateBlsSignatures(_signatures: Uint8Array[]): never {
+  throw new Error(
+    'JS SDK has no blst; use node library / boing_verifyBlsAggregate RPC (PHASE27_BLS_AGGREGATE_WIRED=true). Live tx 32 stays Ed25519 verify-each',
+  );
+}
+
+export function phase27VerifyBlsAggregate(_input: {
+  message: Uint8Array;
+  aggregate: Uint8Array;
+  identities: DualKeyIdentity[];
+}): never {
+  throw new Error(
+    'JS SDK has no blst; use node library / boing_verifyBlsAggregate RPC (PHASE27_BLS_AGGREGATE_WIRED=true). Live tx 32 stays Ed25519 verify-each',
+  );
+}
+
+export function phase27CommitteeRequiresAttested(pinnedLen: number): boolean {
+  return phase26CommitteeRequiresAttested(pinnedLen);
+}
+
+export function phase27ResolveDeadline(submitHeight: bigint): bigint {
+  return phase26ResolveDeadline(submitHeight);
+}
+
+export function phase27ResolvedAppealPrunable(
+  tipHeight: bigint,
+  resolveDeadline: bigint,
+): boolean {
+  return phase26ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+
+/** Honest plan strings for Phase 27 (blst wire + host-local dual-keys; still 16 MiB). */
+export function phase27DasSuccinctProofPlan(): string[] {
+  return [
+    ...phase26DasSuccinctProofPlan(),
+    'Phase 27: wire blst (min_pk) — real sign / aggregate / fast_aggregate_verify; PHASE27_BLS_AGGREGATE_WIRED=true for library + RPC.',
+    'Phase 27: host-local bls_dual_key_registry.bin (BDKR v1) — not slash V5, not state-root; list/register/verify RPC.',
+    'Phase 27: live ResolveSlashAppealAttested (32) stays Ed25519 verify-each — do not flip committee cast until aggregate submit path lands.',
+    'Phase 27: JS SDK has no blst — clients call boing_verifyBlsAggregate; do not fake browser verify.',
+    'Phase 27: remaining — PoP for dual-keys, aggregate submit tx / signer bitset, flip verify-each → aggregate when operators opt in.',
+    'Phase 27: slash_appeals_registry.bin stays V5 (untouched); do not clear; txs 30/31/32 unchanged; Phase 19–26 policies unchanged.',
+    'Phase 27: SNARK/IPA/KZG and live 256 MiB remain later — keep Fly-safe 16 MiB.',
+    'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+  ];
+}

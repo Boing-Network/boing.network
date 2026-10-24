@@ -56,6 +56,7 @@ fn node_with_proposer(signing_key: &SigningKey, balance: u128) -> BoingNode {
         anchor_fallback_wait: None,
         last_local_vote_round: None,
         media_blob_store: None,
+        bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
     }
 }
 

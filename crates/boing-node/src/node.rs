@@ -9,8 +9,9 @@ use boing_execution::{BlockExecutor, TransactionScheduler, Vm};
 use boing_governance::{SlashReason, SlashRegistry, SlashingError};
 use boing_p2p::{P2pEvent, P2pNode};
 use boing_primitives::{
-    Account, AccountId, AccountState, Block, ConsensusVote, EquivocationEvidence, ExecutionReceipt,
-    Hash, QaPoolVoteKind, SignedTransaction, TransactionPayload, VrfProofGossip,
+    Account, AccountId, AccountState, Block, BlsDualKeyRegistry, BlsPublicKeyG1, ConsensusVote,
+    EquivocationEvidence, ExecutionReceipt, Hash, Phase27BlsError, QaPoolVoteKind,
+    SignedTransaction, TransactionPayload, VrfProofGossip,
 };
 use boing_qa::pool::{PendingQaQueue, PoolError, PoolResolution, QaPoolVote};
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
@@ -102,6 +103,8 @@ pub struct BoingNode {
     pub last_local_vote_round: Option<u64>,
     /// Sidecar for L1 media blob bytes (`data/blobs/`). Required for `boing_getBlob` serving.
     pub media_blob_store: Option<MediaBlobStore>,
+    /// Phase 27 host-local BLS dual-key registry (`bls_dual_key_registry.bin`; not slash V5).
+    pub bls_dual_key_registry: BlsDualKeyRegistry,
 }
 
 /// Default wait before an anchor proposes in place of an offline open-validator leader.
@@ -204,6 +207,7 @@ impl BoingNode {
             anchor_fallback_wait: None,
             last_local_vote_round: None,
             media_blob_store: None,
+            bls_dual_key_registry: BlsDualKeyRegistry::new(),
         }
     }
 
@@ -477,6 +481,13 @@ impl BoingNode {
                 node.slash_registry = slash_reg;
                 node.rebuild_slashed_equivocations_from_registry();
             }
+            if let Some(ref p) = node.persistence {
+                match p.load_bls_dual_key_registry() {
+                    Ok(Some(reg)) => node.bls_dual_key_registry = reg,
+                    Ok(None) => {}
+                    Err(e) => logging::log_persistence_warn("load_bls_dual_key_registry", &e),
+                }
+            }
         }
 
         node.refresh_native_aggregates();
@@ -500,6 +511,25 @@ impl BoingNode {
                 logging::log_persistence_warn("save_slash_registry", &e);
             }
         }
+    }
+
+    fn persist_bls_dual_key_registry(&self) {
+        if let Some(ref p) = self.persistence {
+            if let Err(e) = p.save_bls_dual_key_registry(&self.bls_dual_key_registry) {
+                logging::log_persistence_warn("save_bls_dual_key_registry", &e);
+            }
+        }
+    }
+
+    /// Register a host-local dual-key binding (curve-validated). Persists when a data dir is set.
+    pub fn register_bls_dual_key(
+        &mut self,
+        account: AccountId,
+        bls_pubkey: BlsPublicKeyG1,
+    ) -> Result<(), Phase27BlsError> {
+        self.bls_dual_key_registry.register(account, bls_pubkey)?;
+        self.persist_bls_dual_key_registry();
+        Ok(())
     }
 
     /// Apply QA registry + pool config without writing disk (used when loading from persistence).

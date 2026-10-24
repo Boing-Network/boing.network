@@ -667,4 +667,47 @@ export declare function phase26ResolveDeadline(submitHeight: bigint): bigint;
 export declare function phase26ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
 /** Honest plan strings for Phase 26 (BLS dual-key scaffold; still 16 MiB). */
 export declare function phase26DasSuccinctProofPlan(): string[];
+/** Compressed BLS12-381 sizes (same as Phase 26). */
+export declare const PHASE27_BLS_PUBLIC_KEY_G1_BYTES = 48;
+export declare const PHASE27_BLS_SIGNATURE_G2_BYTES = 96;
+/**
+ * Node library + RPC aggregate verify is wired (`blst` min_pk).
+ * Live tx **32** remains Ed25519 verify-each. JS SDK has no blst — use
+ * `boing_verifyBlsAggregate` on the node for real verify.
+ */
+export declare const PHASE27_BLS_AGGREGATE_WIRED = true;
+export declare const PHASE27_BLS_DUAL_KEY_REGISTRY_FILE = "bls_dual_key_registry.bin";
+/** Phase 27 aliases / constants. */
+export declare const PHASE27_SERVE_CHALLENGE_WINDOW_BLOCKS = 256n;
+export declare const PHASE27_ACTIVATED_MAX_MEDIA_BLOB_BYTES: number;
+export declare const PHASE27_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = 1000n;
+export declare const PHASE27_RESOLVE_WINDOW_BLOCKS = 1000n;
+export declare const PHASE27_SETTLE_RECEIPT_TTL_BLOCKS = 4096n;
+export declare const PHASE27_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE27_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+export declare const PHASE27_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+export declare const PHASE27_MAX_APPEAL_EVIDENCE_BYTES = 4096;
+export declare const PHASE27_SUBMIT_SLASH_APPEAL_TX_INDEX = 30;
+export declare const PHASE27_RESOLVE_SLASH_APPEAL_TX_INDEX = 31;
+export declare const PHASE27_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = 32;
+export declare const PHASE27_RESOLVE_THRESHOLD_NUM = 2;
+export declare const PHASE27_RESOLVE_THRESHOLD_DEN = 3;
+export declare const PHASE27_LEGACY_ELECTORATE_W_SENTINEL = 0n;
+/** Length-check a dual-key set (unique accountIds). */
+export declare function phase27ValidateDualKeySet(identities: DualKeyIdentity[]): void;
+/**
+ * JS has no `blst` — do not fake crypto. Use node RPC `boing_verifyBlsAggregate`
+ * (or the Rust library). Live tx 32 remains Ed25519 verify-each.
+ */
+export declare function phase27AggregateBlsSignatures(_signatures: Uint8Array[]): never;
+export declare function phase27VerifyBlsAggregate(_input: {
+    message: Uint8Array;
+    aggregate: Uint8Array;
+    identities: DualKeyIdentity[];
+}): never;
+export declare function phase27CommitteeRequiresAttested(pinnedLen: number): boolean;
+export declare function phase27ResolveDeadline(submitHeight: bigint): bigint;
+export declare function phase27ResolvedAppealPrunable(tipHeight: bigint, resolveDeadline: bigint): boolean;
+/** Honest plan strings for Phase 27 (blst wire + host-local dual-keys; still 16 MiB). */
+export declare function phase27DasSuccinctProofPlan(): string[];
 //# sourceMappingURL=mediaBlob.d.ts.map
