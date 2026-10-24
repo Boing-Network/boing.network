@@ -470,6 +470,8 @@ export {
 export {
   ipfsUriToGatewayUrl,
   extractHttpOrIpfsUrl,
+  extractBoingBlobUri,
+  blobIdHexFromBoingUri,
   resolveImageUrlFromMetadataJson,
   resolveImageUrlFromSources,
   metadataHashWordToFetchUrls,
