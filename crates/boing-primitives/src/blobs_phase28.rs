@@ -17,7 +17,7 @@
 use crate::blobs_phase10::BlobSampleServeChallengeStatus;
 use crate::blobs_phase26::{BlsPublicKeyG1, BlsSignatureG2, DualKeyIdentity};
 use crate::blobs_phase27::{
-    phase27_bls_sign, phase27_cap_activation_checklist, phase27_committee_requires_attested,
+    phase27_cap_activation_checklist, phase27_committee_requires_attested,
     phase27_das_succinct_proof_plan, phase27_expired_appeal_prunable,
     phase27_is_legacy_electorate_snapshot, phase27_parse_bls_pubkey, phase27_pin_set_commitment,
     phase27_resolve_deadline, phase27_resolve_expired, phase27_resolve_threshold_met,
@@ -244,6 +244,7 @@ pub fn phase28_cap_activation_checklist(activation_height: Option<u64>) -> Vec<&
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::blobs_phase27::phase27_bls_sign;
     use crate::blobs_phase27::phase27_bls_pubkey_from_ikm;
 
     #[test]
