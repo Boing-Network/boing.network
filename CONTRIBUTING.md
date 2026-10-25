@@ -19,8 +19,11 @@ flowchart LR
 
 ```bash
 cargo build
-cargo test
+cargo test --workspace --exclude boing-network-hub   # the Tauri hub needs GUI libs; omit the exclude on Linux/macOS with them installed
+cargo clippy --workspace --exclude boing-network-hub
 ```
+
+Hot-path changes (state root, mempool, VM) should include before/after numbers from `cargo bench` ([docs/PERFORMANCE.md](docs/PERFORMANCE.md)). New RPC methods must be added to `BOING_RPC_SUPPORTED_METHODS` **and** [docs/RPC-API-SPEC.md](docs/RPC-API-SPEC.md) (a unit test enforces this).
 
 TypeScript SDK:
 

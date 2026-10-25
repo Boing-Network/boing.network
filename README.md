@@ -50,7 +50,7 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 
 **Public testnet RPC:** `https://testnet-rpc.boing.network/` (Cloudflare Worker → Fly `boing-testnet-1`). Do not point that hostname at a home tunnel.
 
-**TypeScript:** install **`@boing-network/boing-sdk@^0.5.24`** from npm (`npm i @boing-network/boing-sdk`), or build the in-repo package under `boing-sdk/` for monorepo / `file:` consumers. See [boing-sdk/README.md](boing-sdk/README.md). Do **not** install unscoped `boing-sdk` (abandoned/locked on npm).
+**TypeScript:** install **`@boing-network/boing-sdk@^0.5.38`** from npm (`npm i @boing-network/boing-sdk`), or build the in-repo package under `boing-sdk/` for monorepo / `file:` consumers. See [boing-sdk/README.md](boing-sdk/README.md). Do **not** install unscoped `boing-sdk` (abandoned/locked on npm).
 
 **Tutorial CLI from repo root** (after `boing-sdk` build + `examples/native-boing-tutorial` install): `npm run preflight-rpc`, `npm run deploy-native-dex-full-stack`, `npm run fetch-native-amm-reserves`, `npm run print-native-dex-routes`. Full command map: [docs/PRE-VIBEMINER-NODE-COMMANDS.md](docs/PRE-VIBEMINER-NODE-COMMANDS.md).
 
@@ -103,7 +103,9 @@ All project documentation lives in **[docs/](docs/)**. Start at the **[docs inde
 | [SIX-PILLARS.md](docs/SIX-PILLARS.md) | Written six pillars (also PDF on `/about`) |
 | [BOING-NETWORK-ESSENTIALS.md](docs/BOING-NETWORK-ESSENTIALS.md) | Stack, crates, design philosophy |
 | [TECHNICAL-SPECIFICATION.md](docs/TECHNICAL-SPECIFICATION.md) | Crypto, data formats, bytecode, gas, RPC, QA rules |
-| [RPC-API-SPEC.md](docs/RPC-API-SPEC.md) | JSON-RPC reference, including DEX discovery |
+| [RPC-API-SPEC.md](docs/RPC-API-SPEC.md) | JSON-RPC reference (source of truth, all methods) |
+| [BOING-SIGNED-TRANSACTION-ENCODING.md](docs/BOING-SIGNED-TRANSACTION-ENCODING.md) | Tx / block wire format and signing domains (source of truth) |
+| [ENVIRONMENT-VARIABLES.md](docs/ENVIRONMENT-VARIABLES.md) | All `BOING_*` environment variables and default ports |
 | [TESTNET.md](docs/TESTNET.md) | Join testnet, portal, incentivized program |
 | [RUNBOOK.md](docs/RUNBOOK.md) | Operational runbook for node operators |
 | [BOING-DAPP-INTEGRATION.md](docs/BOING-DAPP-INTEGRATION.md) | dApp checklist + SDK patterns |
