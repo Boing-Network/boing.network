@@ -192,7 +192,7 @@ impl Interpreter {
             topics.push(self.pop()?);
         }
         topics.reverse();
-        self.ensure_memory(offset, size);
+        self.ensure_memory(offset, size)?;
         let data = self.memory[offset..offset.saturating_add(size)].to_vec();
         self.append_log(topics, data)
     }
@@ -213,11 +213,17 @@ impl Interpreter {
         self.stack.push(value);
     }
 
-    fn ensure_memory(&mut self, offset: usize, size: usize) {
-        let end = offset.saturating_add(size);
+    fn ensure_memory(&mut self, offset: usize, size: usize) -> Result<(), VmError> {
+        let end = offset
+            .checked_add(size)
+            .ok_or(VmError::MemoryLimitExceeded)?;
         if end > self.memory.len() {
+            if end > crate::vm::MAX_VM_MEMORY_BYTES {
+                return Err(VmError::MemoryLimitExceeded);
+            }
             self.memory.resize(end, 0);
         }
+        Ok(())
     }
 
     fn u256_to_usize(v: &[u8; 32]) -> usize {
@@ -364,7 +370,7 @@ impl Interpreter {
         self.contract_id = contract_id;
         self.exec_ctx = exec_ctx;
         self.logs.clear();
-        self.ensure_memory(0, calldata.len());
+        self.ensure_memory(0, calldata.len())?;
         self.memory[..calldata.len()].copy_from_slice(calldata);
 
         while self.pc < self.code.len() {
@@ -558,7 +564,7 @@ impl Interpreter {
                 Opcode::MLoad => {
                     self.spend_gas(gas::MLOAD)?;
                     let offset = Self::u256_to_usize(&self.pop()?);
-                    self.ensure_memory(offset, 32);
+                    self.ensure_memory(offset, 32)?;
                     let mut val = [0u8; 32];
                     val.copy_from_slice(&self.memory[offset..offset + 32]);
                     self.push(val);
@@ -567,7 +573,7 @@ impl Interpreter {
                     self.spend_gas(gas::MSTORE)?;
                     let offset = Self::u256_to_usize(&self.pop()?);
                     let value = self.pop()?;
-                    self.ensure_memory(offset, 32);
+                    self.ensure_memory(offset, 32)?;
                     self.memory[offset..offset + 32].copy_from_slice(&value);
                 }
                 Opcode::Dup1 => {
@@ -640,8 +646,8 @@ impl Interpreter {
                     {
                         return Err(VmError::CallBufferTooLarge);
                     }
-                    self.ensure_memory(args_offset, args_size);
-                    self.ensure_memory(ret_offset, ret_size);
+                    self.ensure_memory(args_offset, args_size)?;
+                    self.ensure_memory(ret_offset, ret_size)?;
                     let calldata_slice = &self.memory[args_offset..args_offset + args_size];
                     let target = AccountId(target_word);
                     let child_code = match storage.get_contract_code(target) {
@@ -694,7 +700,7 @@ impl Interpreter {
                     }
                     let linear = gas::CREATE2_PER_INIT_BYTE.saturating_mul(size as u64);
                     self.spend_gas(gas::CREATE2.saturating_add(linear))?;
-                    self.ensure_memory(offset, size);
+                    self.ensure_memory(offset, size)?;
                     let bytecode = self.memory[offset..offset + size].to_vec();
                     let deployer = self.contract_id;
                     let remaining = self.gas_limit.saturating_sub(self.gas_used);
@@ -717,7 +723,7 @@ impl Interpreter {
                     self.spend_gas(gas::RETURN)?;
                     let offset = Self::u256_to_usize(&self.pop()?);
                     let size = Self::u256_to_usize(&self.pop()?);
-                    self.ensure_memory(offset, size);
+                    self.ensure_memory(offset, size)?;
                     self.return_data = Some(self.memory[offset..offset + size].to_vec());
                     break;
                 }
@@ -834,6 +840,65 @@ mod tests {
     use super::*;
 
     use crate::vm::VmError;
+
+    /// Run `code` against an empty contract and return the VM result.
+    fn run_code(code: Vec<u8>) -> Result<u64, VmError> {
+        let mut state = StateStore::new();
+        let contract = AccountId([1u8; 32]);
+        state.insert(boing_primitives::Account {
+            id: contract,
+            state: boing_primitives::AccountState::default(),
+        });
+        Interpreter::new(code, 10_000_000).run(contract, contract, &[], &mut state)
+    }
+
+    /// PUSH32 `value`, PUSH32 `offset`, then the given opcode bytes.
+    fn push32_pair(value: u8, offset: u128, tail: &[u8]) -> Vec<u8> {
+        let mut code = vec![0x7f];
+        let mut v = [0u8; 32];
+        v[31] = value;
+        code.extend_from_slice(&v);
+        code.push(0x7f);
+        let mut o = [0u8; 32];
+        o[16..].copy_from_slice(&offset.to_be_bytes());
+        code.extend_from_slice(&o);
+        code.extend_from_slice(tail);
+        code
+    }
+
+    #[test]
+    fn mstore_beyond_memory_cap_fails_instead_of_allocating() {
+        // 2^40 would try to allocate a terabyte before the cap.
+        let r = run_code(push32_pair(1, 1u128 << 40, &[0x52, 0x00]));
+        assert!(matches!(r, Err(VmError::MemoryLimitExceeded)), "{r:?}");
+        // offset near u64::MAX: previously a capacity-overflow panic / wrapped slice index.
+        let r = run_code(push32_pair(1, u64::MAX as u128, &[0x52, 0x00]));
+        assert!(matches!(r, Err(VmError::MemoryLimitExceeded)), "{r:?}");
+    }
+
+    #[test]
+    fn mload_and_return_beyond_cap_fail() {
+        // MLOAD pops the offset (top of stack).
+        let mut code = vec![0x7f];
+        let mut o = [0u8; 32];
+        o[24..].copy_from_slice(&(u64::MAX - 8).to_be_bytes());
+        code.extend_from_slice(&o);
+        code.extend_from_slice(&[0x51, 0x00]);
+        assert!(matches!(run_code(code), Err(VmError::MemoryLimitExceeded)));
+        // RETURN pops offset then size: huge size at offset 0.
+        let mut code = vec![0x7f];
+        let mut size = [0u8; 32];
+        size[24..].copy_from_slice(&(1u64 << 40).to_be_bytes());
+        code.extend_from_slice(&size);
+        code.extend_from_slice(&[0x60, 0x00, 0xf3]);
+        assert!(matches!(run_code(code), Err(VmError::MemoryLimitExceeded)));
+    }
+
+    #[test]
+    fn mstore_within_cap_still_works() {
+        let r = run_code(push32_pair(7, 4096, &[0x52, 0x00]));
+        assert!(r.is_ok(), "{r:?}");
+    }
 
     #[test]
     fn bigint_sar_neg8_two_complement_word() {

@@ -2739,6 +2739,12 @@ fn open_validator_params_at(
     Ok(params)
 }
 
+/// Hard cap on one VM frame's linear memory. Memory growth is not separately metered, so without a
+/// cap a tiny contract (`PUSH <2^40> MSTORE`) makes the node try to allocate terabytes (abort) or hit
+/// `Vec` capacity-overflow panics. Real contracts use kilobytes; calldata/return buffers are already
+/// bounded far below this.
+pub const MAX_VM_MEMORY_BYTES: usize = 8 * 1024 * 1024;
+
 #[derive(Debug, thiserror::Error)]
 pub enum VmError {
     #[error("Account not found")]
@@ -2774,6 +2780,8 @@ pub enum VmError {
     CallDepthExceeded,
     #[error("CALL input or output buffer exceeds protocol limit")]
     CallBufferTooLarge,
+    #[error("VM memory limit exceeded (max {MAX_VM_MEMORY_BYTES} bytes per frame)")]
+    MemoryLimitExceeded,
     #[error("QA rejected: {rule_id} — {message}")]
     QaRejected { rule_id: String, message: String },
     #[error("QA pool vote ineligible: {0}")]
