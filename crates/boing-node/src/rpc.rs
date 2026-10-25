@@ -1628,7 +1628,21 @@ fn end_user_network_hints_from(get: impl Fn(&str) -> Option<String>) -> serde_js
 
 #[cfg(test)]
 mod abuse_limit_tests {
-    use super::*;
+    use super::*;
+
+    /// Keeps `docs/RPC-API-SPEC.md` (the public source of truth for the RPC surface) in sync with the router.
+    #[test]
+    fn spec_lists_every_supported_method() {
+        let spec = include_str!("../../../docs/RPC-API-SPEC.md");
+        let missing: Vec<&&str> = BOING_RPC_SUPPORTED_METHODS
+            .iter()
+            .filter(|m| !spec.contains(&format!("`{m}`")))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "docs/RPC-API-SPEC.md does not document: {missing:?}"
+        );
+    }
 
     #[test]
     fn ws_cap_defaults_to_bounded() {
@@ -2125,6 +2139,7 @@ async fn dispatch_jsonrpc_request(
                                 -32000,
                                 format!("insufficient balance for fee: have {have}, need {need}"),
                                 serde_json::json!({
+                                    "reason": "insufficient_fee",
                                     "have": have.to_string(),
                                     "need": need.to_string(),
                                     "hint": "Request testnet BOING from the faucet and retry. Need = protocol fee (micro base by default) + optional priority_tip.",
@@ -2215,7 +2230,7 @@ async fn dispatch_jsonrpc_request(
                                     "reason": "stale_nonce",
                                     "expected_nonce": expected,
                                     "got_nonce": got,
-                                    "hint": "A transaction with this nonce has already executed. Re-read the account nonce (boing_getAccount / boing_getNonce) and re-sign.",
+                                    "hint": "A transaction with this nonce has already executed. Re-read the account nonce (boing_getAccount returns `nonce`) and re-sign.",
                                 }),
                             ),
                             Err(MempoolError::UnknownSender) => rpc_error_with_data(
@@ -2877,6 +2892,7 @@ async fn dispatch_jsonrpc_request(
                                 -32000,
                                 format!("insufficient balance for fee: have {have}, need {need}"),
                                 serde_json::json!({
+                                    "reason": "insufficient_fee",
                                     "have": have.to_string(),
                                     "need": need.to_string(),
                                 }),
