@@ -477,14 +477,20 @@ async fn main() -> anyhow::Result<()> {
                             }
                         }
                         boing_p2p::P2pEvent::TransactionReceived(signed) => {
-                            node_clone.read().await.refresh_tx_sig_policy();
-                            if let Err(e) = signed.verify() {
-                                logging::log_p2p_event_warn("gossip_tx_bad_signature", &e);
-                                continue;
-                            }
-                            let n = node_clone.write().await;
+                            // `submit_transaction` verifies the signature first (cheapest reject) and
+                            // takes `&self`, so a shared read lock is enough: gossip floods no longer
+                            // block RPC readers or block production behind a write lock.
+                            let n = node_clone.read().await;
+                            n.refresh_tx_sig_policy();
                             match n.submit_transaction(signed) {
                                 Ok(()) => tracing::debug!("P2P: gossip tx admitted to mempool"),
+                                Err(boing_node::mempool::MempoolError::InvalidSignature)
+                                | Err(boing_node::mempool::MempoolError::LegacySignature) => {
+                                    logging::log_p2p_event_warn(
+                                        "gossip_tx_bad_signature",
+                                        &"invalid or legacy-rejected signature",
+                                    )
+                                }
                                 Err(e) => {
                                     logging::log_p2p_event_warn("gossip_tx_mempool_reject", &e)
                                 }

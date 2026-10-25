@@ -2792,7 +2792,7 @@ async fn dispatch_jsonrpc_request(
                     Ok(b) => b,
                     Err(e) => return (StatusCode::OK, rpc_error(id, -32602, e.to_string())),
                 };
-                let signed: SignedTransaction = match bincode::deserialize(&bytes) {
+                let signed: SignedTransaction = match SignedTransaction::from_bincode(&bytes) {
                     Ok(s) => s,
                     Err(e) => {
                         return (
