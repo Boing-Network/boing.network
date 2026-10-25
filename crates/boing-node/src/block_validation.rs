@@ -96,7 +96,7 @@ pub fn validate_and_execute_block(
     }
 
     // 6. State root
-    let computed_root = state.state_root();
+    let computed_root = state.state_root_at_height(block.header.height);
     if block.header.state_root != computed_root {
         return Err(BlockValidationError::InvalidStateRoot {
             expected: block.header.state_root,

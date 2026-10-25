@@ -178,7 +178,7 @@ impl BlockProducer {
 
         state.apply_open_validator_block_hook(height, self.proposer);
 
-        let state_root = state.state_root();
+        let state_root = state.state_root_at_height(height);
         let rr = receipts_root(&receipts);
         let blobs_root = if self
             .blobs_root_header_from

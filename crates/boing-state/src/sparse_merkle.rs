@@ -28,16 +28,28 @@ fn hash_pair(left: &Hash, right: &Hash) -> Hash {
 /// cloning the tree is a flat memcpy of the arena. The committed root is byte-for-byte identical
 /// to the original full-rebuild algorithm ([`SparseMerkleTree::reference_root`]), which is kept as
 /// the oracle for differential tests.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct SparseMerkleTree {
     leaves: HashMap<[u8; 32], [u8; 32]>,
     trie: Trie,
+    max_depth: u32,
 }
 
-/// Maximum trie depth: keys are split on their first 64 bits (consensus-defined; see
+impl Default for SparseMerkleTree {
+    fn default() -> Self {
+        Self::with_max_depth(LEGACY_MAX_DEPTH)
+    }
+}
+
+/// Legacy trie depth: keys are split on their first 64 bits (consensus-defined; see
 /// [`SparseMerkleTree::reference_root`]). Entries that share all 64 bits are bucketed and only the
-/// smallest key of a bucket is committed.
-const MAX_DEPTH: u32 = 64;
+/// smallest key of a bucket is committed. This is the depth of the account tree and, until the
+/// storage-tree v2 activation, of every per-contract storage tree.
+pub const LEGACY_MAX_DEPTH: u32 = 64;
+/// Full-key depth (storage-tree v2): every bit of a 32-byte key routes, so two distinct keys never
+/// share a bucket and every slot is committed. Single-entry subtrees still hash as `H(k||v)`, so
+/// the cost is proportional to the occupied path, not to 256.
+pub const DEEP_MAX_DEPTH: u32 = 256;
 const NIL: u32 = u32::MAX;
 
 fn leaf_hash(key: &[u8; 32], val: &[u8; 32]) -> [u8; 32] {
@@ -67,11 +79,12 @@ struct Trie {
     nodes: Vec<Node>,
     free: Vec<u32>,
     root: u32,
+    max_depth: u32,
 }
 
 impl Default for Trie {
     fn default() -> Self {
-        Self { nodes: Vec::new(), free: Vec::new(), root: NIL }
+        Self { nodes: Vec::new(), free: Vec::new(), root: NIL, max_depth: LEGACY_MAX_DEPTH }
     }
 }
 
@@ -103,6 +116,7 @@ impl Trie {
         if idx == NIL {
             return self.alloc(Node::Leaf { key, val });
         }
+        let max_depth = self.max_depth;
         match &mut self.nodes[idx as usize] {
             Node::Leaf { key: k0, val: v0 } => {
                 if *k0 == key {
@@ -110,7 +124,7 @@ impl Trie {
                     return idx;
                 }
                 let (k0, v0) = (*k0, *v0);
-                if d >= MAX_DEPTH {
+                if d >= max_depth {
                     let mut v = vec![(k0, v0), (key, val)];
                     v.sort_by(|a, b| a.0.cmp(&b.0));
                     self.nodes[idx as usize] = Node::Bucket(v);
@@ -206,6 +220,27 @@ impl Trie {
         }
     }
 
+    /// Sibling hashes from the root down to `key`'s leaf (stops at the first single-entry subtree
+    /// or bucket), reusing cached node hashes: O(depth) after the root has been computed.
+    fn proof_path(&mut self, key: &[u8; 32]) -> Vec<ProofStep> {
+        let mut out = Vec::new();
+        let mut idx = self.root;
+        let mut d = 0u32;
+        while idx != NIL {
+            let (l, r) = match &self.nodes[idx as usize] {
+                Node::Branch { left, right, .. } => (*left, *right),
+                _ => break,
+            };
+            let bit = SparseMerkleTree::path_bit(key, d);
+            let (mine, sibling) = if bit == 0 { (l, r) } else { (r, l) };
+            let sibling_hash = Hash(self.hash_of(sibling));
+            out.push(ProofStep { sibling_hash, path_bit: bit });
+            idx = mine;
+            d += 1;
+        }
+        out
+    }
+
     fn hash_of(&mut self, idx: u32) -> [u8; 32] {
         if idx == NIL {
             return [0u8; 32];
@@ -232,6 +267,19 @@ impl Trie {
 impl SparseMerkleTree {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Empty tree that routes on the first `max_depth` key bits ([`LEGACY_MAX_DEPTH`] or
+    /// [`DEEP_MAX_DEPTH`]).
+    pub fn with_max_depth(max_depth: u32) -> Self {
+        let mut trie = Trie::default();
+        trie.max_depth = max_depth;
+        Self { leaves: HashMap::new(), trie, max_depth }
+    }
+
+    /// Routing depth of this tree.
+    pub fn max_depth(&self) -> u32 {
+        self.max_depth
     }
 
     /// Insert a pre-hashed leaf value under `key`.
@@ -344,7 +392,7 @@ impl SparseMerkleTree {
             return EMPTY_HASH;
         }
         sorted.sort_by(|a, b| a.0.as_ref().cmp(b.0.as_ref()));
-        Self::build_root(&sorted, 0, 64, 0)
+        Self::build_root(&sorted, 0, self.max_depth, 0)
     }
 
     fn build_root(entries: &[([u8; 32], Hash)], depth: u32, max_depth: u32, _bit_prefix: u64) -> Hash {
@@ -391,16 +439,7 @@ impl SparseMerkleTree {
     pub fn prove(&mut self, key: &AccountId) -> Option<MerkleProof> {
         let value_hash = *self.get(key)?;
         let root = self.root();
-        let mut entries: Vec<_> = self
-            .leaves
-            .iter()
-            .map(|(k, v)| (*k, Hash(*v)))
-            .collect();
-        if entries.is_empty() {
-            return None;
-        }
-        entries.sort_by(|a, b| a.0.as_ref().cmp(b.0.as_ref()));
-        let siblings = Self::collect_proof_path(&entries, key.0, 0, 64);
+        let siblings = self.trie.proof_path(&key.0);
         Some(MerkleProof {
             key: key.0,
             value_hash: Hash(value_hash),
@@ -409,7 +448,19 @@ impl SparseMerkleTree {
         })
     }
 
+    /// Original sort-and-partition proof builder (O(n log n) per proof); the oracle for
+    /// [`SparseMerkleTree::prove`] in differential tests.
+    #[cfg(test)]
+    fn prove_reference(&self, key: &AccountId) -> Option<MerkleProof> {
+        let value_hash = *self.get(key)?;
+        let mut entries: Vec<_> = self.leaves.iter().map(|(k, v)| (*k, Hash(*v))).collect();
+        entries.sort_by(|a, b| a.0.as_ref().cmp(b.0.as_ref()));
+        let siblings = Self::collect_proof_path(&entries, key.0, 0, self.max_depth);
+        Some(MerkleProof { key: key.0, value_hash: Hash(value_hash), siblings, root: self.reference_root() })
+    }
+
     /// Collect sibling hashes along path from root to leaf for `key`.
+    #[cfg(test)]
     fn collect_proof_path(
         entries: &[([u8; 32], Hash)],
         key: [u8; 32],
@@ -443,6 +494,7 @@ impl SparseMerkleTree {
         path
     }
 
+    #[cfg(test)]
     fn hash_subtree_impl(
         entries: &[([u8; 32], Hash)],
         depth: u32,
@@ -504,7 +556,8 @@ impl MerkleProof {
         current.copy_from_slice(h.finalize().as_bytes());
         let mut current_hash = Hash(current);
 
-        for step in steps {
+        // `steps` run root -> leaf (the order `prove` emits); fold from the leaf upward.
+        for step in steps.iter().rev() {
             let (left, right) = if step.path_bit == 0 {
                 (current_hash, step.sibling_hash)
             } else {
@@ -664,6 +717,38 @@ mod tests {
     }
 
     #[test]
+    fn trie_proofs_match_reference_and_verify() {
+        for (depth, seed) in [(LEGACY_MAX_DEPTH, 3u64), (DEEP_MAX_DEPTH, 4u64)] {
+            let mut r = Rng(0xABCD_EF01_2345_6789 ^ seed);
+            let mut t = SparseMerkleTree::with_max_depth(depth);
+            let mut keys = Vec::new();
+            for i in 0..300 {
+                let k = gen_key(&mut r);
+                t.insert_leaf_hash(k, Hash([(i % 5) as u8 + 1; 32]));
+                keys.push(k);
+            }
+            for k in keys.iter().take(60) {
+                t.delete_raw(k);
+            }
+            let root = t.reference_root();
+            assert_eq!(t.root(), root);
+            for k in keys.iter().skip(60) {
+                let id = AccountId(*k);
+                if t.get(&id).is_none() {
+                    continue; // duplicate key that an earlier delete removed
+                }
+                let fast = t.prove(&id).expect("present");
+                let slow = t.prove_reference(&id).expect("present");
+                assert_eq!(fast.siblings, slow.siblings, "depth {depth}");
+                assert_eq!(fast.root, root);
+                if depth == DEEP_MAX_DEPTH {
+                    assert!(fast.verify(), "deep proofs always verify");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn insertion_order_does_not_change_root() {
         let mut r = Rng(42);
         let entries: Vec<([u8; 32], Hash)> =
@@ -680,6 +765,58 @@ mod tests {
         // the reference of each tree instead of each other.
         assert_eq!(a.root(), a.reference_root());
         assert_eq!(b.root(), b.reference_root());
+    }
+
+    /// Deep (256-bit) trees commit every key, including ones that share their first 64 bits, and
+    /// match the reference algorithm run at depth 256.
+    #[test]
+    fn deep_tree_commits_keys_sharing_64_bit_prefix() {
+        let mut k1 = [0u8; 32];
+        let mut k2 = [0u8; 32];
+        k1[31] = 1;
+        k2[31] = 2;
+        let mut t = SparseMerkleTree::with_max_depth(DEEP_MAX_DEPTH);
+        t.insert_leaf_hash(k1, Hash([7u8; 32]));
+        t.insert_leaf_hash(k2, Hash([9u8; 32]));
+        let two = t.root();
+        t.insert_leaf_hash(k2, Hash([10u8; 32]));
+        assert_ne!(t.root(), two, "second key's value IS committed at depth 256");
+        assert_eq!(t.root(), t.reference_root());
+        t.delete_raw(&k2);
+        let mut only = SparseMerkleTree::with_max_depth(DEEP_MAX_DEPTH);
+        only.insert_leaf_hash(k1, Hash([7u8; 32]));
+        assert_eq!(t.root(), only.root(), "delete restores the single-leaf root");
+        // A single entry hashes as H(k||v) at any depth, so the legacy and deep roots agree.
+        let mut legacy = SparseMerkleTree::new();
+        legacy.insert_leaf_hash(k1, Hash([7u8; 32]));
+        assert_eq!(legacy.root(), only.root());
+    }
+
+    #[test]
+    fn deep_incremental_root_matches_reference_under_random_ops() {
+        for seed in 1..=20u64 {
+            let mut r = Rng(0x1234_5678_9ABC_DEF1 ^ seed.wrapping_mul(0xD1B5_4A32_D192_ED03));
+            let mut t = SparseMerkleTree::with_max_depth(DEEP_MAX_DEPTH);
+            for step in 0..300 {
+                let k = gen_key(&mut r);
+                if r.next() % 3 == 0 {
+                    t.delete_raw(&k);
+                } else {
+                    let mut v = [0u8; 32];
+                    v[..8].copy_from_slice(&(r.next() % 5).to_le_bytes());
+                    t.insert_leaf_hash(k, Hash(v));
+                }
+                if step < 60 || step % 7 == 0 {
+                    assert_eq!(t.root(), t.reference_root(), "seed {seed} step {step}");
+                }
+            }
+            let keys: Vec<[u8; 32]> = t.leaves.keys().copied().collect();
+            for k in keys {
+                t.delete_raw(&k);
+                assert_eq!(t.root(), t.reference_root());
+            }
+            assert_eq!(t.root(), Hash::ZERO);
+        }
     }
 
     /// Documents a consensus quirk (see docs/audit): keys that share their first 64 bits collapse to

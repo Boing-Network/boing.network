@@ -1800,6 +1800,14 @@ impl BoingNode {
         self.state.set_name_registry_params(Some(params));
     }
 
+    /// Switch every per-contract storage tree to full 256-bit routing from block `height` (storage-tree
+    /// v2: closes the 64-bit-prefix collision). Consensus-critical: all nodes must agree, and on a live
+    /// chain `height` must be in the future. Nothing changes before `height`; see
+    /// `docs/STORAGE-TREE-V2-ACTIVATION.md`. Call after loading persisted state.
+    pub fn enable_storage_tree_v2(&mut self, height: u64) {
+        self.state.set_storage_tree_v2_activation(Some(height));
+    }
+
     /// Enable L1 media blobs (PutBlob) from `activation_height`. All nodes must agree.
     /// Opens / keeps the sidecar when `data_dir` was configured; for in-memory tests call
     /// [`Self::attach_media_blob_store`] first if RPC getBlob is needed.

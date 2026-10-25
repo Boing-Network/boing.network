@@ -16,6 +16,7 @@ Single reference for the `BOING_*` environment variables read by the Rust worksp
 | `BOING_MICRO_FEES_ACTIVATION_HEIGHT` | none | Height from which `execution_gas_fee_bps` from the fee policy applies ([OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md)). |
 | `BOING_NAME_REGISTRY_ACTIVATION_HEIGHT` | disabled | Enables the `.boing` name registry from this height. |
 | `BOING_NAME_BLOCKS_PER_YEAR`, `BOING_NAME_GRACE_BLOCKS`, `BOING_NAME_COMMIT_MIN_AGE`, `BOING_NAME_COMMIT_MAX_AGE` | `NameRegistryParams::default()` | Name registry timing (blocks). Commit max age must be >= min age. |
+| `BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT` (CLI `--storage-tree-v2-activation-height`) | unset = **off** | Consensus gate: from this height per-contract storage trees route on all 256 key bits (closes the 64-bit-prefix collision). **All nodes must agree; set only in the future.** See [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md). |
 | `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`, `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`, `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT`, `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`, `BOING_BLOB_ACL_ACTIVATION_HEIGHT` | see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) | Media-blob phase gates. |
 
 ## Validators and consensus

@@ -31,5 +31,6 @@ pub use slash_appeals::{
 pub use qa_pending::{unpaid_counted_voters, QaPendingRecord};
 pub use sparse_merkle::{
     hash_account_leaf, hash_contract_code, MerkleProof, ProofStep, SparseMerkleTree,
+    DEEP_MAX_DEPTH, LEGACY_MAX_DEPTH,
 };
 pub use store::{ChainNativeAggregates, ContractStorageEntry, StateCheckpoint, StateStore};

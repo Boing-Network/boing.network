@@ -11,7 +11,9 @@ use crate::qa_pending::QaPendingRecord;
 use crate::sample_offers::SampleOfferRegistry;
 use crate::sample_serve::SampleServeChallengeRegistry;
 use crate::slash_appeals::SlashAppealRegistry;
-use crate::sparse_merkle::{hash_account_leaf, hash_contract_code, SparseMerkleTree};
+use crate::sparse_merkle::{
+    hash_account_leaf, hash_contract_code, SparseMerkleTree, DEEP_MAX_DEPTH, LEGACY_MAX_DEPTH,
+};
 
 /// Type alias for persisted contract storage entries: ((contract, key), value).
 pub type ContractStorageEntry = ((AccountId, [u8; 32]), [u8; 32]);
@@ -76,6 +78,14 @@ pub struct StateStore {
     contract_storage: HashMap<(AccountId, [u8; 32]), [u8; 32]>,
     /// Per-contract storage SMTs, kept in sync incrementally once `root_synced`.
     storage_trees: HashMap<AccountId, SparseMerkleTree>,
+    /// Storage-tree v2 activation height (node config, not committed; `None` = never, the default).
+    /// From this block height every per-contract storage tree routes on all 256 key bits instead of
+    /// the first 64, so keys that share an 8-byte prefix are all committed. See
+    /// `docs/STORAGE-TREE-V2-ACTIVATION.md`.
+    storage_tree_v2_from: Option<u64>,
+    /// True while the per-contract storage trees are built at full depth (derived from
+    /// `storage_tree_v2_from` and the height passed to [`StateStore::state_root_at_height`]).
+    storage_tree_deep: bool,
     /// True once `tree`/`storage_trees` mirror the committed state up to the `dirty_*` sets below.
     /// Cleared by bulk replacements (e.g. `load_qa_pending`); the next `state_root` rebuilds fully.
     root_synced: bool,
@@ -231,9 +241,46 @@ impl StateStore {
             .unwrap_or([0u8; 32])
     }
 
+    /// Routing depth of the per-contract storage trees under the current activation mode.
+    fn storage_depth(&self) -> u32 {
+        if self.storage_tree_deep {
+            DEEP_MAX_DEPTH
+        } else {
+            LEGACY_MAX_DEPTH
+        }
+    }
+
+    /// Configure the storage-tree v2 activation height (`None` = off). Consensus-critical: every
+    /// node must use the same value, and it must be in the future when set on a live chain.
+    pub fn set_storage_tree_v2_activation(&mut self, from: Option<u64>) {
+        self.storage_tree_v2_from = from;
+    }
+
+    /// The configured storage-tree v2 activation height, if any.
+    pub fn storage_tree_v2_activation(&self) -> Option<u64> {
+        self.storage_tree_v2_from
+    }
+
+    /// Whether the storage trees are currently built at full (v2) depth.
+    pub fn storage_tree_v2_active(&self) -> bool {
+        self.storage_tree_deep
+    }
+
+    /// [`StateStore::state_root`] for the block at `height`: switches the storage trees to v2 (or
+    /// back, on a rewind below the activation) when `height` crosses the configured activation.
+    /// With no activation configured this is exactly `state_root()`.
+    pub fn state_root_at_height(&mut self, height: u64) -> Hash {
+        let want = self.storage_tree_v2_from.is_some_and(|from| height >= from);
+        if want != self.storage_tree_deep {
+            self.storage_tree_deep = want;
+            self.root_synced = false; // full rebuild at the new depth (one-time, at activation)
+        }
+        self.state_root()
+    }
+
     /// Per-contract storage SMT root (`Hash::ZERO` if the contract has no slots).
     pub fn storage_root_of(&self, contract: &AccountId) -> Hash {
-        let mut tree = SparseMerkleTree::new();
+        let mut tree = SparseMerkleTree::with_max_depth(self.storage_depth());
         let mut any = false;
         for ((c, key), value) in &self.contract_storage {
             if c == contract {
@@ -295,9 +342,13 @@ impl StateStore {
     /// Builds the account SMT and per-contract storage SMTs from scratch.
     fn build_full(&self) -> (SparseMerkleTree, HashMap<AccountId, SparseMerkleTree>) {
         // One pass groups storage by contract (a per-account storage scan would be O(accounts x slots)).
+        let depth = self.storage_depth();
         let mut storage_trees: HashMap<AccountId, SparseMerkleTree> = HashMap::new();
         for ((c, key), value) in &self.contract_storage {
-            storage_trees.entry(*c).or_default().insert_storage_slot(*key, value);
+            storage_trees
+                .entry(*c)
+                .or_insert_with(|| SparseMerkleTree::with_max_depth(depth))
+                .insert_storage_slot(*key, value);
         }
         let mut ids: HashSet<AccountId> = self.accounts.keys().copied().collect();
         ids.extend(self.contract_code.keys().copied());
@@ -351,9 +402,14 @@ impl StateStore {
             self.dirty_slots.clear();
             self.dirty_qa.clear();
         } else {
+            let depth = self.storage_depth();
             for (c, key) in std::mem::take(&mut self.dirty_slots) {
                 match self.contract_storage.get(&(c, key)) {
-                    Some(v) => self.storage_trees.entry(c).or_default().insert_storage_slot(key, v),
+                    Some(v) => self
+                        .storage_trees
+                        .entry(c)
+                        .or_insert_with(|| SparseMerkleTree::with_max_depth(depth))
+                        .insert_storage_slot(key, v),
                     None => {
                         if let Some(t) = self.storage_trees.get_mut(&c) {
                             t.delete_raw(&key);
@@ -418,6 +474,8 @@ impl StateStore {
             contract_code: self.contract_code.clone(),
             contract_storage: self.contract_storage.clone(),
             storage_trees: self.storage_trees.clone(),
+            storage_tree_v2_from: self.storage_tree_v2_from,
+            storage_tree_deep: self.storage_tree_deep,
             root_synced: self.root_synced,
             dirty_accounts: self.dirty_accounts.clone(),
             dirty_slots: self.dirty_slots.clone(),
@@ -544,7 +602,15 @@ impl StateStore {
         if !self.contract_storage.contains_key(&(*contract, *slot)) {
             return None;
         }
-        let mut tree = SparseMerkleTree::new();
+        // Fast path: the incremental per-contract tree is current (no pending slot writes), so clone
+        // just this contract's arena instead of re-inserting every slot of the contract.
+        if self.root_synced && self.dirty_slots.is_empty() {
+            if let Some(t) = self.storage_trees.get(contract) {
+                let mut tree = t.clone();
+                return tree.prove(&AccountId(*slot));
+            }
+        }
+        let mut tree = SparseMerkleTree::with_max_depth(self.storage_depth());
         for ((c, key), value) in &self.contract_storage {
             if c == contract {
                 tree.insert_storage_slot(*key, value);
@@ -788,9 +854,22 @@ impl StateStore {
 
     /// Top N accounts by stake (for validator set derivation).
     pub fn top_stakers(&self, n: usize) -> Vec<AccountId> {
+        // Total order (stake desc, then account id asc) so equal stakes resolve identically on every
+        // node (HashMap iteration order is per-process random), and a partial selection so the cost
+        // is O(accounts + n log n) instead of a full sort.
+        let order = |a: &(&AccountId, &AccountState), b: &(&AccountId, &AccountState)| {
+            b.1.stake.cmp(&a.1.stake).then_with(|| a.0.0.cmp(&b.0.0))
+        };
         let mut accounts: Vec<_> = self.accounts.iter().collect();
-        accounts.sort_by(|a, b| b.1.stake.cmp(&a.1.stake));
-        accounts.into_iter().take(n).map(|(id, _)| *id).collect()
+        if n == 0 {
+            return Vec::new();
+        }
+        if n < accounts.len() {
+            accounts.select_nth_unstable_by(n - 1, order);
+            accounts.truncate(n);
+        }
+        accounts.sort_unstable_by(order);
+        accounts.into_iter().map(|(id, _)| *id).collect()
     }
 
     /// Sum balances and stakes over all accounts (O(n); intended for node cache refresh after commits).

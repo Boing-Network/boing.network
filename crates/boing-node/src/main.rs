@@ -171,6 +171,12 @@ struct Args {
     #[arg(long)]
     micro_fees_activation_height: Option<u64>,
 
+    /// Storage-tree v2: route per-contract storage trees on all 256 key bits from this block height
+    /// (all nodes must agree; set only in the future on a live chain). Overrides
+    /// **`BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT`**. Unset = off (default; roots unchanged).
+    #[arg(long)]
+    storage_tree_v2_activation_height: Option<u64>,
+
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
@@ -216,6 +222,16 @@ async fn main() -> anyhow::Result<()> {
             h,
             boing_primitives::MAX_MEDIA_BLOB_BYTES,
             boing_primitives::MAX_MEDIA_BLOB_INLINE_PREFER_BYTES
+        );
+    }
+    let storage_tree_v2_from = boing_node::media_blob_config::resolve_storage_tree_v2_activation(
+        args.storage_tree_v2_activation_height,
+    )
+    .map_err(|e| anyhow::anyhow!("storage tree v2 config: {e}"))?;
+    if let Some(h) = storage_tree_v2_from {
+        tracing::warn!(
+            "Storage tree v2 (consensus): per-contract storage trees use full-key routing from height={h}. \
+             Every node must run the same value; see docs/STORAGE-TREE-V2-ACTIVATION.md"
         );
     }
     let blobs_root_header_from =
@@ -368,6 +384,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = media_blobs_from {
                 n.enable_media_blobs(h);
+            }
+            if let Some(h) = storage_tree_v2_from {
+                n.enable_storage_tree_v2(h);
             }
             if let Some(h) = blobs_root_header_from {
                 n.enable_blobs_root_header(h);
@@ -588,6 +607,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = media_blobs_from {
                 n.enable_media_blobs(h);
+            }
+            if let Some(h) = storage_tree_v2_from {
+                n.enable_storage_tree_v2(h);
             }
             if let Some(h) = blobs_root_header_from {
                 n.enable_blobs_root_header(h);
