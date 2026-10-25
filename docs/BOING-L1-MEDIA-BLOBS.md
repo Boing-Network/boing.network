@@ -128,3 +128,5 @@ Large `PutBlob` bodies are stubbed in explorer block JSON (`include_code=false`)
 | `boing_getBlob` | `{ meta, dataHex }` — optional auth via `BOING_BLOB_GET_REQUIRE_AUTH` |
 
 Explorer (boing.observer) exposes a same-origin download UI that checks a user-presented download token against server `BOING_BLOB_DOWNLOAD_TOKENS` / `BOING_OPERATOR_RPC_TOKEN`, then streams from the node over Fly-direct (not the public gateway).
+
+**Today those tokens are network-operator secrets** (Fly / Worker), not per-blob deployer credentials. Deployer-owned grant/revoke ACL is designed as **Phase 34** — see [HANDOFF_BLOB_DOWNLOAD_ACL.md](./HANDOFF_BLOB_DOWNLOAD_ACL.md).
