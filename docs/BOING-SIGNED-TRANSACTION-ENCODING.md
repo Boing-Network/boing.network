@@ -52,8 +52,28 @@ Variant discriminant is **`u32` LE**, in this **exact** declaration order (must 
 | 7 | `ClaimUnbond` | (none) |
 | 8 | `QaPoolVote` | `subject` (32 B), `vote` (`u32` LE: 0 allow, 1 reject, 2 abstain) |
 | 9 | `Batch` | `calls: Vec<BatchCall>` (`u64` count, then each: `u32` 0 = Transfer `to`+`amount`, 1 = ContractCall `contract`+`calldata` vec). Max 16 calls; see [NATIVE-BATCH-TRANSACTIONS.md](NATIVE-BATCH-TRANSACTIONS.md). From testnet height 1150 also `u32` 2 = ContractCallWithValue `contract`+`calldata` vec+`value: u128` |
-| 10–19 | validator and name registry variants | see `types.rs` |
+| 10 | `ValidatorRegister` | see `types.rs` (open-validator mode) |
+| 11 | `ValidatorDeregister` | see `types.rs` |
+| 12 | `ValidatorUnjail` | see `types.rs` |
+| 13-19 | `NameCommit`, `NameRegister`, `NameRenew`, `NameTransfer`, `NameSetTarget`, `NameSetPrimary`, `NameRelease` | see [RPC-API-SPEC.md](RPC-API-SPEC.md) (Name registry) and `types.rs` |
 | 20 | `ContractCallWithValue` | `contract` (32 B), `calldata` vec, `value: u128` (16 B LE, base units). Active from testnet height 1150; see [NATIVE-VALUE-AND-WBOING.md](NATIVE-VALUE-AND-WBOING.md) |
+| 21 | `PutBlob` | L1 media blob ([BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)) |
+| 22 | `BlobAnnounce` | media blob |
+| 23 | `RenewMediaBlobPin` | media blob |
+| 24 | `PayBlobSample` | DAS sample market |
+| 25 | `RegisterBlobSampleOffer` | DAS sample market |
+| 26 | `SettleBlobSampleMatch` | DAS sample market |
+| 27 | `CancelBlobSampleOffer` | DAS sample market |
+| 28 | `ChallengeBlobSampleServe` | DAS serve challenge |
+| 29 | `RespondBlobSampleServe` | DAS serve challenge |
+| 30 | `SubmitSlashAppeal` | governance / slashing |
+| 31 | `ResolveSlashAppeal` | governance / slashing (unattested, stake-weighted) |
+| 32 | `ResolveSlashAppealAttested` | governance / slashing (Ed25519 ballot-attested; committee nets use this) |
+| 33 | `ResolveSlashAppealBlsAggregate` | defined but **not consensus-admitted** |
+| 34 | `GrantBlobDownload` | blob download ACL ([HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md)) |
+| 35 | `RevokeBlobDownload` | blob download ACL |
+
+Indices 21-35 follow the `TransactionPayload` declaration order; field layouts for them are in `types.rs` (derive order, same primitive rules as below). **Never reorder or insert variants** - discriminants are consensus-critical.
 
 ### `Vec<u8>`
 
@@ -96,6 +116,9 @@ Serde uses `serialize_bytes` for the inner 64-byte array. In bincode this become
 
 1. Full `Transaction` encoding  
 2. `Signature` encoding (length-prefixed 64 bytes)
+3. `priority_tip: u128` (16 bytes LE) - **present only when non-zero** (`skip_serializing_if`). An untipped tx therefore has the historical byte layout (1 + 2 only), and a tipped tx has exactly 16 extra trailing bytes.
+
+Because the trailing field is conditional, **always decode untrusted bytes with `SignedTransaction::from_bincode`** (Rust), which accepts both layouts. Raw `bincode::deserialize::<SignedTransaction>` rejects the untipped layout. JSON uses the field name `priority_tip` (decimal), omitted when `0`.
 
 ---
 
@@ -150,6 +173,22 @@ checked at admission (`boing_submitTransaction`, P2P gossip, QA votes). Override
 - Golden vector: seed `[7; 32]`, nonce 3, transfer 5 to `[9; 32]`, empty access list, chain 6913 →
   `d88a23702aa0c376d9e0f3b6a2c2948058fecda14b95d26843f5f902ece87899`.
 
+### Priority tips (`BOING_TX_PRIORITY`)
+
+When `priority_tip > 0` the signature must commit to the tip, so a relay cannot add or change it:
+
+```text
+BLAKE3( "BOING_TX_PRIORITY"      (17 ASCII bytes)
+     || chain_id_le_8_bytes
+     || nonce_le_8_bytes
+     || sender_32_bytes
+     || bincode(payload)
+     || bincode(access_list)
+     || priority_tip_le_16_bytes )
+```
+
+With `priority_tip == 0` the v2 hash above is used unchanged, so existing wallets keep working. Tips are **not** supported on the legacy (domain-less) path. Rust: `signable_transaction_hash_with_tip`, `SignedTransaction::new_for_chain_with_tip`. Economics: [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md).
+
 ### Signatures in blocks (security review #16)
 
 `Block` is `{ header, transactions, signatures }`. `signatures[i]` is the sender's `Signature` over
@@ -162,7 +201,9 @@ other-chain signature is rejected. Signatures that appear below the activation h
 Signatures are not part of the header or the block hash, so `tx_root` and block hashes are unchanged.
 When `signatures` is empty the field is omitted, so historical blocks keep their exact bincode, JSON
 and CBOR encodings. Decoders accept both the historical `(header, transactions)` bincode layout and
-the new one (`Block::from_bincode`). JSON (`boing_getBlockByHeight`) shows `signatures` as an array
+the new one (`Block::from_bincode`).
+
+Blocks may also carry `priority_tips: Vec<u128>` (same order as `transactions`; omitted when empty, otherwise its length must equal `transactions.len()`). It is appended after `signatures` and is not part of the header or block hash. Because both trailing fields are conditional, **always decode blocks with `Block::from_bincode`**, never a plain bincode deserialize. JSON (`boing_getBlockByHeight`) shows `signatures` as an array
 of 64-number arrays.
 
 ### Validator registration proof v2 (security review #14)
