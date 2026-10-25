@@ -40,14 +40,23 @@ Trade-off: a **cold** root from scratch (node start / full replay) is slightly s
 
 A transfer submit is now flat at about 66 us regardless of state size (dominated by Ed25519 verification), versus 4.8 ms at 50k accounts before. Stale-nonce / unknown-sender / unfunded submits are rejected by the O(1) gates without a state snapshot or VM run (after the signature check).
 
-### 3. Block building and gossip
+### 3. Contract storage tree, scans, DAS cache, receipts
+
+- **Storage tree v2** (`--storage-tree-v2-activation-height`): fixes the 64-bit key-prefix collision in contract storage. Off by default; roots are bit-identical to legacy until the activation height ([STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md)). `MerkleProof::prove` is O(depth), and `MerkleProof::verify` now folds siblings in the correct order, so valid multi-step proofs verify.
+- **Scans:** storage root and proof construction no longer scan all contract storage for each call.
+- **DAS cache:** `boing_getBlobDasSample` on an 8 MiB blob went from about 5,321 us per call (re-read and re-chunk) to about 16 us when the chunked bundle is cached (disk read excluded). The cache is a byte-budgeted LRU (`BOING_DAS_CACHE_MAX_BYTES`, default 64 MiB) keyed by content hash, so it never serves stale data.
+- **Receipts:** held in a retention window (default 1,000,000 blocks, pruned every 256 blocks) instead of growing without bound.
+- **Persistence:** snapshot and blob files are size-checked before reading and decoded with a byte limit.
+
+### 4. Block building and gossip
 
 - `Mempool::drain_for_block` is a heap-based, nonce-aware selection: highest tip first among each sender's next-ready transaction, never skipping a nonce. (Previously a high-tip tx with a future nonce could be included before its predecessor and fail.)
 - The transaction gossip handler takes a read lock and verifies the signature once.
+- Gossip max frame is configurable (default 17 MiB, was libp2p's 64 KiB), with per-peer token buckets and peer scoring.
 
 ## Known remaining hot spots (not changed)
 
-- `node.receipts` grows without bound and native DEX discovery scans it whole.
-- `top_stakers` sorts all accounts; `prove_storage` / `storage_root_of` scan all contract storage; `prove` re-sorts all leaves.
-- `boing_getBlobDasSample` / `boing_getBlobDasLightClientBatch` re-read and re-chunk the whole blob per call.
-- Gossipsub uses the default 64 KiB transmit limit; large blocks may not propagate (needs a measured change with a testnet soak).
+- Native DEX discovery still scans the receipt window (now bounded by `BOING_RECEIPT_RETENTION_BLOCKS` and `BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS`).
+- Not benchmarked: `MerkleProof` generation (now O(depth) instead of re-sorting all leaves) and `top_stakers`.
+- A cold DAS sample still reads the blob from disk once per cache miss.
+- The 17 MiB gossip frame limit and per-peer rate limits need a testnet soak before mainnet; see [RUNBOOK.md](RUNBOOK.md) for the rollout caveat.

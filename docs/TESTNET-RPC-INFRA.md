@@ -152,6 +152,7 @@ Production-grade explorer backend: [OBSERVER-HOSTED-SERVICE.md](OBSERVER-HOSTED-
 |-------|-----|
 | Disclosure | [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) §5 |
 | Incident steps | [RUNBOOK.md](RUNBOOK.md) §6 |
+| Public RPC WAF / rate limits | [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md) |
 | Public RPC operator token | **`BOING_OPERATOR_RPC_TOKEN`** + header **`X-Boing-Operator`** — [RPC-API-SPEC.md](RPC-API-SPEC.md) |
 
 ---

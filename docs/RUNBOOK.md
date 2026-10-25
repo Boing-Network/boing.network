@@ -123,6 +123,17 @@ Every `BOING_*` variable, its default and the default ports are listed in [ENVIR
 - Keep the rate profile at `mainnet` (default); never use `--dev-rate-limits` on public RPC.
 - Never pass `--faucet-enable` on mainnet; the faucet key is public. **Enforced:** when `BOING_CHAIN_ID=6914` (mainnet) the node exits at startup if `BOING_OPERATOR_RPC_TOKEN` is unset/blank, or if `--faucet-enable` is passed (also checked against the installed network history's chain id). Testnet (6913), devnets and unset chain ids behave as before: the operator token stays optional (but recommended) and the faucet may be enabled.
 - Keep `BOING_VALIDATOR_KEY` in a secret store (Fly secrets), not in `fly.toml` or shell history.
+- Public RPC: the node's HTTP rate limit is one global bucket, so per-IP limits, a method allow-list and origin lock-down belong at the edge. See [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md).
+
+### Gossip limits and rollout (P2P)
+
+- Max gossip frame is configurable and defaults to **17 MiB** (libp2p's own default is 64 KiB). Peers still on the old 64 KiB default drop larger frames, so a block bigger than 64 KiB only reaches upgraded peers. **Upgrade every validator and bootnode to this build before relying on large blocks**; mixed networks keep working for small blocks.
+- Each forwarding peer is limited by token buckets (default **500 msgs/s** and **64 MiB/s**, burst 2 s; `0` = unlimited). Excess messages are ignored (not relayed, logged as `gossip_peer_rate_limited`). Received messages are validated and reported to gossipsub as Accept / Reject / Ignore so peers that relay invalid data lose score.
+- Variables: `BOING_P2P_MAX_GOSSIP_MESSAGE_BYTES`, `BOING_P2P_GOSSIP_MAX_*_PER_PEER`, `BOING_P2P_PEER_SCORING` in [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md).
+
+### Receipt retention
+
+The node keeps transaction receipts for a window of recent blocks (default **1,000,000**, pruned every 256 blocks; `0` = keep everything). `boing_getTransactionReceipt` returns `null` for transactions older than the window; older receipts stay on disk but are not served. Indexers that backfill from genesis should set `BOING_RECEIPT_RETENTION_BLOCKS=0` or backfill from blocks instead.
 
 ### JSON-RPC surface (stale binary or proxy)
 
