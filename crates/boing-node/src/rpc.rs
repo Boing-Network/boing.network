@@ -112,6 +112,20 @@ pub struct RpcHttpMetrics {
     pub websocket_cap_rejects: AtomicU64,
 }
 
+/// Constant-time (for equal lengths) string comparison for shared secrets. The length itself is not
+/// secret (tokens are fixed-size operator-chosen strings), but contents never short-circuit.
+pub(crate) fn secret_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    std::hint::black_box(diff) == 0
+}
+
 impl RpcState {
     fn operator_authorized(&self, headers: &HeaderMap) -> bool {
         match &self.operator_rpc_token {
@@ -119,7 +133,7 @@ impl RpcState {
             Some(expected) => headers
                 .get("x-boing-operator")
                 .and_then(|v| v.to_str().ok())
-                .is_some_and(|v| v == expected.as_ref()),
+                .is_some_and(|v| secret_eq(v, expected.as_ref())),
         }
     }
 
@@ -165,11 +179,13 @@ impl RpcState {
 
     fn secret_matches_download_auth(&self, presented: &str) -> bool {
         if let Some(op) = &self.operator_rpc_token {
-            if presented == op.as_ref() {
+            if secret_eq(presented, op.as_ref()) {
                 return true;
             }
         }
-        self.blob_download_tokens.iter().any(|t| t == presented)
+        self.blob_download_tokens
+            .iter()
+            .fold(false, |acc, t| secret_eq(t, presented) | acc)
     }
 
     /// Break-glass: matching operator / download shared secret.
@@ -1634,6 +1650,20 @@ mod abuse_limit_tests {
         assert!(faucet_window_admit(&mut recent, t0 + Duration::from_secs(60), 3, w), "oldest expired");
         assert!(!faucet_window_admit(&mut recent, t0 + Duration::from_secs(60), 3, w));
         assert!(faucet_window_admit(&mut recent, t0, 0, w), "0 = unlimited");
+    }
+}
+
+#[cfg(test)]
+mod secret_eq_tests {
+    use super::secret_eq;
+
+    #[test]
+    fn compares_exactly() {
+        assert!(secret_eq("", ""));
+        assert!(secret_eq("s3cret-token", "s3cret-token"));
+        assert!(!secret_eq("s3cret-token", "s3cret-tokeN"));
+        assert!(!secret_eq("s3cret-token", "s3cret-toke"));
+        assert!(!secret_eq("a", ""));
     }
 }
 
