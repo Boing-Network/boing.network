@@ -108,4 +108,23 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 
 # Unset keeps multi-pin Ed25519 tx 32 (Phase 31); set only after coordinated BLS readiness:
 # BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT=…
+
+# Permission-gated raw download (recommended for public RPC / explorer operators):
+# GET /v1/media/blob?id=<blobId> returns Content-Type bytes (not JSON hex).
+# Auth when BOING_OPERATOR_RPC_TOKEN and/or BOING_BLOB_DOWNLOAD_TOKENS are set:
+#   X-Boing-Operator | X-Boing-Blob-Download | Authorization: Bearer <token>
+# BOING_BLOB_DOWNLOAD_TOKENS=…
+# Optional: BOING_BLOB_GET_REQUIRE_AUTH=1 also gates JSON-RPC boing_getBlob (default off).
 ```
+
+## Permission-gated download
+
+Large `PutBlob` bodies are stubbed in explorer block JSON (`include_code=false`) so public RPC stays under the ~6 MiB gateway cap. Operators who need the raw bytes use:
+
+| Path | Role |
+|------|------|
+| `GET /v1/media/blob?id={blobId}` | Raw attachment; auth when download/operator tokens are configured |
+| `boing_getBlobMeta` | Public metadata (size, contentType, publisher, …) |
+| `boing_getBlob` | `{ meta, dataHex }` — optional auth via `BOING_BLOB_GET_REQUIRE_AUTH` |
+
+Explorer (boing.observer) exposes a same-origin download UI that checks a user-presented download token against server `BOING_BLOB_DOWNLOAD_TOKENS` / `BOING_OPERATOR_RPC_TOKEN`, then streams from the node over Fly-direct (not the public gateway).

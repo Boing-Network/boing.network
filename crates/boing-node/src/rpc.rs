@@ -12,12 +12,13 @@ use std::time::{Duration, Instant};
 use axum::body::Body;
 use axum::body::Bytes;
 use axum::extract::Request as IncomingRequest;
-use axum::http::header::{ACCEPT, CONTENT_TYPE};
+use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::Method;
 use axum::http::Uri;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Request as HttpRequest, StatusCode};
 use axum::{
     extract::DefaultBodyLimit,
+    extract::Query,
     extract::State,
     middleware::{self, Next},
     response::IntoResponse,
@@ -83,6 +84,13 @@ pub struct RpcState {
     /// **admin-only** `boing_qaPoolVote` require header `X-Boing-Operator: <token>`.
     /// Public-membership QA votes do not use this header.
     pub operator_rpc_token: Option<Arc<str>>,
+    /// Extra shared secrets that authorize media-blob byte download
+    /// (`GET /v1/media/blob?id=…` and optionally `boing_getBlob`). From
+    /// **`BOING_BLOB_DOWNLOAD_TOKENS`** (comma-separated).
+    pub blob_download_tokens: Arc<Vec<String>>,
+    /// When true **and** download auth is configured, `boing_getBlob` requires the same
+    /// credentials as the HTTP download path (`BOING_BLOB_GET_REQUIRE_AUTH=1`).
+    pub blob_get_require_auth: bool,
     /// Broadcast channel for WebSocket **`/ws`** **newHeads** subscribers (clone per connection).
     pub head_broadcast: Option<broadcast::Sender<serde_json::Value>>,
     /// Concurrent **`GET /ws`** connections (increment on accept, decrement on close). `ws_max_connections == 0` = unlimited.
@@ -114,6 +122,182 @@ impl RpcState {
                 .is_some_and(|v| v == expected.as_ref()),
         }
     }
+
+    /// True when operator and/or dedicated download tokens are configured.
+    fn blob_download_auth_configured(&self) -> bool {
+        self.operator_rpc_token.is_some() || !self.blob_download_tokens.is_empty()
+    }
+
+    fn presented_blob_download_secrets<'a>(&self, headers: &'a HeaderMap) -> Vec<&'a str> {
+        let mut out = Vec::with_capacity(3);
+        if let Some(v) = headers
+            .get("x-boing-blob-download")
+            .and_then(|v| v.to_str().ok())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            out.push(v);
+        }
+        if let Some(v) = headers
+            .get("x-boing-operator")
+            .and_then(|v| v.to_str().ok())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            out.push(v);
+        }
+        if let Some(v) = headers
+            .get(AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .map(str::trim)
+        {
+            let bearer = v
+                .strip_prefix("Bearer ")
+                .or_else(|| v.strip_prefix("bearer "))
+                .map(str::trim)
+                .filter(|s| !s.is_empty());
+            if let Some(t) = bearer {
+                out.push(t);
+            }
+        }
+        out
+    }
+
+    fn secret_matches_download_auth(&self, presented: &str) -> bool {
+        if let Some(op) = &self.operator_rpc_token {
+            if presented == op.as_ref() {
+                return true;
+            }
+        }
+        self.blob_download_tokens.iter().any(|t| t == presented)
+    }
+
+    /// Authorize media-blob byte downloads. Open when no download secrets are configured
+    /// (local/dev). When secrets exist, require a matching operator or download token.
+    fn blob_download_authorized(&self, headers: &HeaderMap) -> bool {
+        if !self.blob_download_auth_configured() {
+            return true;
+        }
+        self.presented_blob_download_secrets(headers)
+            .into_iter()
+            .any(|s| self.secret_matches_download_auth(s))
+    }
+}
+
+fn parse_blob_download_tokens_env() -> Arc<Vec<String>> {
+    let raw = std::env::var("BOING_BLOB_DOWNLOAD_TOKENS").unwrap_or_default();
+    let tokens: Vec<String> = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect();
+    Arc::new(tokens)
+}
+
+fn blob_get_require_auth_env() -> bool {
+    matches!(
+        std::env::var("BOING_BLOB_GET_REQUIRE_AUTH")
+            .ok()
+            .as_deref()
+            .map(str::trim),
+        Some("1") | Some("true") | Some("TRUE") | Some("yes") | Some("YES")
+    )
+}
+
+#[derive(Debug, Deserialize)]
+struct MediaBlobDownloadQuery {
+    /// Blob id: `0x…` / hex / `boing://blob/0x…`
+    id: Option<String>,
+}
+
+/// **`GET /v1/media/blob?id=<blobId>`** — raw media bytes (bypasses JSON-RPC hex inflation).
+/// When `BOING_OPERATOR_RPC_TOKEN` and/or `BOING_BLOB_DOWNLOAD_TOKENS` are set, requires a
+/// matching `X-Boing-Operator`, `X-Boing-Blob-Download`, or `Authorization: Bearer` credential.
+async fn http_media_blob_download(
+    State(state): State<RpcState>,
+    Query(query): Query<MediaBlobDownloadQuery>,
+    headers: HeaderMap,
+) -> Response {
+    if !state.blob_download_authorized(&headers) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"blob download authentication required","hint":"set X-Boing-Blob-Download, X-Boing-Operator, or Authorization: Bearer to a configured download/operator token"}"#,
+        )
+            .into_response();
+    }
+
+    let Some(raw_id) = query.id.as_deref().map(str::trim).filter(|s| !s.is_empty()) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"missing id query parameter","hint":"GET /v1/media/blob?id=0x…"}"#,
+        )
+            .into_response();
+    };
+
+    let Some(id) = boing_primitives::parse_media_blob_id(raw_id) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"invalid blob id"}"#,
+        )
+            .into_response();
+    };
+
+    let n = state.node.read().await;
+    let Some(store) = n.media_blob_store() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"media blob store unavailable (no data dir)"}"#,
+        )
+            .into_response();
+    };
+
+    let meta = store.get_meta(&id);
+    let bytes = match store.get_bytes(&id) {
+        Ok(b) => b,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(CONTENT_TYPE, "application/json")],
+                format!(r#"{{"error":"failed to read blob: {}"}}"#, e),
+            )
+                .into_response();
+        }
+    };
+
+    let Some(data) = bytes else {
+        return (
+            StatusCode::NOT_FOUND,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"blob not found"}"#,
+        )
+            .into_response();
+    };
+
+    let content_type = meta
+        .as_ref()
+        .map(|m| m.content_type.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("application/octet-stream");
+    let id_hex = format!("0x{}", hex::encode(id));
+    let filename = format!("boing-blob-{}.bin", &id_hex[2..10]);
+    let disposition = format!("attachment; filename=\"{filename}\"");
+
+    let mut res = Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, content_type)
+        .header(CONTENT_DISPOSITION, disposition)
+        .header("x-boing-blob-id", id_hex)
+        .header("x-boing-blob-size", data.len().to_string());
+    if let Some(m) = &meta {
+        res = res.header("x-boing-blob-publisher", format!("0x{}", hex::encode(m.publisher)));
+    }
+    res.body(Body::from(data))
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
 
 #[derive(Debug, Deserialize)]
@@ -254,6 +438,7 @@ async fn http_root_get() -> impl IntoResponse {
             "Discovery: GET /openapi.json, GET /.well-known/boing-rpc.\n",
             "Probes: GET /live, GET /ready (JSON: /live.json, /ready.json, or Accept: application/json).\n",
             "WebSocket: GET /ws (newHeads).\n",
+            "Media blob download: GET /v1/media/blob?id=<blobId> (auth when download/operator tokens are set).\n",
             "See boing_getNetworkInfo.developer and docs/RPC-API-SPEC.md\n",
         ),
     )
@@ -1274,6 +1459,8 @@ fn well_known_boing_rpc_document() -> serde_json::Value {
         "ready_plain_path": "/ready",
         "ready_json_path": "/ready.json",
         "websocket_path": "/ws",
+        "media_blob_download_path": "/v1/media/blob?id={blobId}",
+        "media_blob_download_auth": "When BOING_OPERATOR_RPC_TOKEN and/or BOING_BLOB_DOWNLOAD_TOKENS are set, require X-Boing-Operator, X-Boing-Blob-Download, or Authorization: Bearer",
     })
 }
 
@@ -2823,6 +3010,21 @@ async fn dispatch_jsonrpc_request(
         | "boing_listBlsDualKeys"
         | "boing_verifyBlsAggregate"
         | "boing_verifyBlsAggregateResolve" => {
+            if req.method == "boing_getBlob"
+                && state.blob_get_require_auth
+                && state.blob_download_auth_configured()
+                && !state.blob_download_authorized(headers)
+            {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Blob download authentication required: set X-Boing-Blob-Download, X-Boing-Operator, or Authorization: Bearer to a configured download/operator token (BOING_BLOB_GET_REQUIRE_AUTH)."
+                            .into(),
+                    ),
+                );
+            }
             let params = req
                 .params
                 .clone()
@@ -4393,7 +4595,9 @@ fn build_rpc_cors_layer() -> CorsLayer {
         .allow_methods([Method::GET, Method::HEAD, Method::POST, Method::OPTIONS])
         .allow_headers([
             CONTENT_TYPE,
+            AUTHORIZATION,
             HeaderName::from_static("x-boing-operator"),
+            HeaderName::from_static("x-boing-blob-download"),
             HeaderName::from_static("x-request-id"),
             HeaderName::from_static("sec-websocket-protocol"),
             HeaderName::from_static("sec-websocket-version"),
@@ -4403,6 +4607,9 @@ fn build_rpc_cors_layer() -> CorsLayer {
         ])
         .expose_headers([
             HeaderName::from_static("x-boing-rpc-version"),
+            HeaderName::from_static("x-boing-blob-id"),
+            HeaderName::from_static("x-boing-blob-size"),
+            HeaderName::from_static("x-boing-blob-publisher"),
             HeaderName::from_static("x-request-id"),
             HeaderName::from_static("retry-after"),
         ])
@@ -4451,6 +4658,19 @@ pub fn rpc_router(
 
     let rate_limit_requests_per_sec = rate_limit.requests_per_sec;
     let rpc_metrics = Arc::new(RpcHttpMetrics::default());
+    let blob_download_tokens = parse_blob_download_tokens_env();
+    let blob_get_require_auth = blob_get_require_auth_env();
+    if !blob_download_tokens.is_empty() {
+        tracing::info!(
+            tokens = blob_download_tokens.len(),
+            "BOING_BLOB_DOWNLOAD_TOKENS is set: GET /v1/media/blob?id=… accepts X-Boing-Blob-Download / Bearer"
+        );
+    }
+    if blob_get_require_auth {
+        tracing::info!(
+            "BOING_BLOB_GET_REQUIRE_AUTH is set: boing_getBlob requires download/operator credentials when configured"
+        );
+    }
 
     Router::new()
         .route(
@@ -4466,6 +4686,7 @@ pub fn rpc_router(
         .route("/live.json", get(http_live).head(http_head_live))
         .route("/ready", get(http_ready).head(http_head_ready))
         .route("/ready.json", get(http_ready).head(http_head_ready))
+        .route("/v1/media/blob", get(http_media_blob_download))
         .route("/ws", get(crate::rpc_ws::ws_new_heads_upgrade))
         .layer(
             ServiceBuilder::new()
@@ -4488,6 +4709,8 @@ pub fn rpc_router(
             faucet_cooldown,
             faucet_submit_lock,
             operator_rpc_token,
+            blob_download_tokens,
+            blob_get_require_auth,
             head_broadcast,
             ws_active,
             ws_max_connections,

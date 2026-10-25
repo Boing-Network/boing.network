@@ -32,7 +32,7 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, Accept, Authorization, X-Boing-Operator, User-Agent",
+    "Content-Type, Accept, Authorization, X-Boing-Operator, X-Boing-Blob-Download, User-Agent",
   "Access-Control-Max-Age": "86400",
 };
 

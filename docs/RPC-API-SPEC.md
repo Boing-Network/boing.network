@@ -991,7 +991,9 @@ Names are normalized: trimmed, lowercased, optional `.boing` suffix stripped; 3-
 | `boing_getNameInfo` | `[name]` | `{ input, name, display, valid, reserved, available, status, rent_per_year, record?, registry, head_height }` |
 | `boing_getMediaBlobParams` | `[]` | Caps / activation / gas knobs for L1 media blobs ([BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)) |
 | `boing_getBlobMeta` | `[blobId]` | Metadata object or `null` (`blobId`: `0x…` / hex / `boing://blob/0x…`) |
-| `boing_getBlob` | `[blobId]` | `{ meta, dataHex }` or `null` |
+| `boing_getBlob` | `[blobId]` | `{ meta, dataHex }` or `null`. Optional auth when **`BOING_BLOB_GET_REQUIRE_AUTH=1`** and operator/download tokens are set (same credentials as HTTP download). Prefer **`GET /v1/media/blob?id={blobId}`** for large raw downloads. |
+
+**HTTP media download (non-JSON-RPC):** **`GET /v1/media/blob?id={blobId}`** returns raw bytes (`Content-Disposition: attachment`). When **`BOING_OPERATOR_RPC_TOKEN`** and/or **`BOING_BLOB_DOWNLOAD_TOKENS`** are set, require **`X-Boing-Operator`**, **`X-Boing-Blob-Download`**, or **`Authorization: Bearer <token>`**. See [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md).
 | `boing_checkNames` | `[[name, ...]]` (1-25) | `{ registry, results: [ <same shape as getNameInfo without record> ] }` |
 | `boing_namesOwnedBy` | `[address]` | array of records (active and grace) owned by `address` |
 

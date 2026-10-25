@@ -679,7 +679,16 @@ async fn main() -> anyhow::Result<()> {
         .map(|s| -> Arc<str> { s.into() });
     if operator_rpc_token.is_some() {
         tracing::info!(
-            "BOING_OPERATOR_RPC_TOKEN is set: boing_operatorApplyQaPolicy / boing_operatorApplyFeePolicy require X-Boing-Operator; boing_qaPoolVote requires it only when public_membership is false"
+            "BOING_OPERATOR_RPC_TOKEN is set: boing_operatorApplyQaPolicy / boing_operatorApplyFeePolicy require X-Boing-Operator; boing_qaPoolVote requires it only when public_membership is false; GET /v1/media/blob?id=… also accepts this token"
+        );
+    }
+    if std::env::var("BOING_BLOB_DOWNLOAD_TOKENS")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .is_some()
+    {
+        tracing::info!(
+            "BOING_BLOB_DOWNLOAD_TOKENS is set: dedicated media-blob download credentials accepted on GET /v1/media/blob?id=…"
         );
     }
 
