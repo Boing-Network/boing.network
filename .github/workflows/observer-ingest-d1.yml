@@ -15,6 +15,9 @@ on:
       - "boing-sdk/**"
       - ".github/workflows/observer-ingest-d1.yml"
 
+permissions:
+  contents: read
+
 jobs:
   d1-worker-bundle:
     runs-on: ubuntu-latest

@@ -13,6 +13,9 @@ on:
       - "examples/native-boing-tutorial/**"
       - ".github/workflows/boing-sdk.yml"
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest

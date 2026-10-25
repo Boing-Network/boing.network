@@ -26,6 +26,9 @@ concurrency:
   group: canonical-pool-public-rpc-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   check-canonical-pool:
     runs-on: ubuntu-latest

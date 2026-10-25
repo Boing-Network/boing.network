@@ -8,6 +8,9 @@ on:
       - crates/boing-node/schemas/developer_api.json
       - .github/workflows/boing-rpc-artifacts.yml
 
+permissions:
+  contents: read
+
 jobs:
   extract:
     runs-on: ubuntu-latest

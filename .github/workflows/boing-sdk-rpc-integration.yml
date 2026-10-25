@@ -33,6 +33,9 @@ on:
       - ".github/workflows/boing-sdk-rpc-integration.yml"
       - "tools/boing-node-public-testnet.env.example"
 
+permissions:
+  contents: read
+
 jobs:
   live-rpc:
     runs-on: ubuntu-latest

@@ -17,6 +17,9 @@ on:
       - "examples/native-boing-tutorial/package.json"
       - ".github/workflows/native-boing-playwright.yml"
 
+permissions:
+  contents: read
+
 jobs:
   harness:
     runs-on: ubuntu-latest

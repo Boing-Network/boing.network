@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
     # Run manually from Actions tab to deploy latest main (e.g. if push didn't trigger)
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

@@ -18,6 +18,9 @@ on:
       - "examples/native-boing-playwright/package-lock.json"
       - ".github/workflows/native-boing-playwright-public-smoke.yml"
 
+permissions:
+  contents: read
+
 jobs:
   public-swap-smoke:
     runs-on: ubuntu-latest
