@@ -370,7 +370,7 @@ impl PendingQaQueue {
 fn deploy_metadata_from_bincode(
     bytes: &[u8],
 ) -> (Option<String>, Option<String>, Option<String>) {
-    let Ok(signed) = bincode::deserialize::<SignedTransaction>(bytes) else {
+    let Ok(signed) = SignedTransaction::from_bincode(bytes) else {
         return (None, None, None);
     };
     match signed.tx.payload.as_contract_deploy() {
@@ -478,7 +478,7 @@ mod tests {
         let r = queue.resolve(tx_hash);
         assert!(matches!(r, PoolResolution::Allow(_)));
         if let PoolResolution::Allow(bytes) = r {
-            let back: SignedTransaction = bincode::deserialize(&bytes).unwrap();
+            let back = SignedTransaction::from_bincode(&bytes).unwrap();
             assert_eq!(back.tx.id(), tx_hash);
         }
     }

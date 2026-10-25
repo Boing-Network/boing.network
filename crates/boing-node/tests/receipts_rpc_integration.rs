@@ -327,7 +327,7 @@ async fn rpc_get_network_info_shape() {
         .expect("developer");
     assert_eq!(
         dev.get("sdk_npm_package"),
-        Some(&serde_json::json!("boing-sdk"))
+        Some(&serde_json::json!("@boing-network/boing-sdk"))
     );
     assert_eq!(
         dev.get("websocket")

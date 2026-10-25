@@ -681,7 +681,7 @@ impl P2pNode {
                                     let _ = event_tx.send(P2pEvent::BlockReceived(block));
                                 }
                             } else if topic == TRANSACTIONS_TOPIC {
-                                if let Ok(signed) = bincode::deserialize::<SignedTransaction>(&message.data)
+                                if let Ok(signed) = SignedTransaction::from_bincode(&message.data)
                                 {
                                     let _ = event_tx.send(P2pEvent::TransactionReceived(signed));
                                 }

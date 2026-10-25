@@ -1931,8 +1931,8 @@ impl BoingNode {
             PoolResolution::Pending => Ok(QaPoolVoteResult::Pending),
             PoolResolution::Reject => Ok(QaPoolVoteResult::Rejected),
             PoolResolution::Allow(bytes) => {
-                let signed: SignedTransaction =
-                    bincode::deserialize(&bytes).map_err(|_| PoolError::Deserialization)?;
+                let signed = SignedTransaction::from_bincode(&bytes)
+                    .map_err(|_| PoolError::Deserialization)?;
                 match self.mempool.insert_after_pool_allow(signed) {
                     Ok(()) => Ok(QaPoolVoteResult::AllowedAdmitted),
                     Err(MempoolError::Duplicate) => Ok(QaPoolVoteResult::AllowedAlreadyInMempool),
@@ -1961,7 +1961,7 @@ impl BoingNode {
     fn apply_qa_pool_expirations(&self) {
         for (_h, res) in self.qa_pool.prune_expired() {
             if let PoolResolution::Allow(bytes) = res {
-                if let Ok(signed) = bincode::deserialize::<SignedTransaction>(&bytes) {
+                if let Ok(signed) = SignedTransaction::from_bincode(&bytes) {
                     let _ = self.mempool.insert_after_pool_allow(signed);
                 }
             }

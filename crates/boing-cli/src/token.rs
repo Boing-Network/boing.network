@@ -535,8 +535,8 @@ mod tests {
         }
         assert!(stx.tx.access_list_covers_parallel_suggestion());
         let hex_tx = encode_signed(&stx).unwrap();
-        let back: SignedTransaction =
-            bincode::deserialize(&hex::decode(&hex_tx[2..]).unwrap()).unwrap();
+        let back =
+            SignedTransaction::from_bincode(&hex::decode(&hex_tx[2..]).unwrap()).unwrap();
         assert_eq!(back, stx);
     }
 

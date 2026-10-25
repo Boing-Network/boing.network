@@ -864,7 +864,7 @@ mod tests {
         assert_eq!(c.tx.access_list.read, c.tx.access_list.write);
         assert!(c.tx.access_list_covers_parallel_suggestion());
         let bytes = bincode::serialize(&c).unwrap();
-        let back: SignedTransaction = bincode::deserialize(&bytes).unwrap();
+        let back = SignedTransaction::from_bincode(&bytes).unwrap();
         assert_eq!(back, c);
     }
 

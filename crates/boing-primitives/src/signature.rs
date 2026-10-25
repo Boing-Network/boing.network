@@ -419,6 +419,29 @@ mod v2_tests {
         assert!(testnet.verify_with(p(6914, true)).is_err());
     }
 
+    /// Regression: `priority_tip` is skipped on the wire when zero, which plain
+    /// `bincode::deserialize::<SignedTransaction>` cannot read back (UnexpectedEof).
+    /// Every decoder of untrusted/stored bytes (RPC, gossip, QA pool, mempool) must use
+    /// `SignedTransaction::from_bincode`.
+    #[test]
+    fn from_bincode_roundtrips_zero_and_nonzero_tip() {
+        let key = SigningKey::from_bytes(&[7u8; 32]);
+        let zero = SignedTransaction::new_for_chain(tx(&key), &key, 6913);
+        let zero_bytes = bincode::serialize(&zero).unwrap();
+        assert_eq!(SignedTransaction::from_bincode(&zero_bytes).unwrap(), zero);
+        // Zero tip keeps the historical (tx, signature) encoding: exactly 16 bytes shorter.
+        let tipped = SignedTransaction::new_for_chain_with_tip(tx(&key), &key, 6913, 42);
+        let tipped_bytes = bincode::serialize(&tipped).unwrap();
+        assert_eq!(tipped_bytes.len(), zero_bytes.len() + 16);
+        let back = SignedTransaction::from_bincode(&tipped_bytes).unwrap();
+        assert_eq!(back, tipped);
+        assert_eq!(back.priority_tip, 42);
+        assert!(back.verify_with(TxSigPolicy { chain_id: Some(6913), require_v2: true }).is_ok());
+        // Truncated / empty input is an error, never a panic.
+        assert!(SignedTransaction::from_bincode(&zero_bytes[..zero_bytes.len() - 1]).is_err());
+        assert!(SignedTransaction::from_bincode(&[]).is_err());
+    }
+
     #[test]
     fn legacy_accepted_only_before_activation() {
         let key = SigningKey::from_bytes(&[8u8; 32]);
