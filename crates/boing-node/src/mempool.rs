@@ -331,29 +331,52 @@ impl Mempool {
 
     /// Remove and return signed transactions up to `max` for block inclusion.
     ///
-    /// Ordering: higher `priority_tip` first, then lower nonce, then sender id (deterministic).
-    /// Untipped txs (tip `0`) keep historical nonce/sender order among themselves.
+    /// Ordering: a k-way merge over per-sender queues. Each sender's txs are always emitted in
+    /// nonce order (a later nonce can never precede an earlier one, so a high tip on nonce 5 cannot
+    /// make it execute before nonce 3 and fail). Among the senders' next-ready txs, higher
+    /// `priority_tip` goes first, then lower nonce, then sender id (deterministic). With all tips `0`
+    /// this is exactly the historical (nonce, sender) order.
+    ///
+    /// Cost is `O(max * log(senders))` rather than sorting every pending tx each block.
     pub fn drain_for_block(&self, max: usize) -> Vec<SignedTransaction> {
+        use std::cmp::Reverse;
+        use std::collections::BinaryHeap;
+
         let mut inner = self.inner.lock().unwrap();
-        let mut candidates: Vec<(u128, AccountId, u64)> = Vec::new();
+        // Max-heap on (tip, Reverse(nonce), Reverse(sender)): highest tip, then lowest nonce, then lowest sender.
+        let mut heap: BinaryHeap<(u128, Reverse<u64>, Reverse<[u8; 32]>)> = BinaryHeap::new();
         for (sender, by_nonce) in inner.by_sender.iter() {
-            for (nonce, signed) in by_nonce.iter() {
-                candidates.push((signed.priority_tip, *sender, *nonce));
+            if let Some((nonce, signed)) = by_nonce.iter().next() {
+                heap.push((signed.priority_tip, Reverse(*nonce), Reverse(sender.0)));
             }
         }
-        candidates.sort_by(|a, b| {
-            b.0.cmp(&a.0)
-                .then_with(|| a.2.cmp(&b.2))
-                .then_with(|| a.1 .0.cmp(&b.1 .0))
-        });
-        let mut out = Vec::with_capacity(max.min(candidates.len()));
-        for (_tip, sender, nonce) in candidates.into_iter().take(max) {
-            if let Some(by_nonce) = inner.by_sender.get_mut(&sender) {
-                if let Some(signed) = by_nonce.remove(&nonce) {
-                    inner.by_id.remove(&signed.tx.id());
-                    inner.len = inner.len.saturating_sub(1);
-                    out.push(signed);
+        let mut out = Vec::with_capacity(max.min(inner.len));
+        while out.len() < max {
+            let Some((_tip, Reverse(nonce), Reverse(sender_bytes))) = heap.pop() else {
+                break;
+            };
+            let sender = AccountId(sender_bytes);
+            let (signed, next) = {
+                let Some(by_nonce) = inner.by_sender.get_mut(&sender) else {
+                    continue;
+                };
+                let Some(signed) = by_nonce.remove(&nonce) else {
+                    continue;
+                };
+                let next = by_nonce
+                    .iter()
+                    .next()
+                    .map(|(n, s)| (s.priority_tip, Reverse(*n), Reverse(sender.0)));
+                if by_nonce.is_empty() {
+                    inner.by_sender.remove(&sender);
                 }
+                (signed, next)
+            };
+            inner.by_id.remove(&signed.tx.id());
+            inner.len = inner.len.saturating_sub(1);
+            out.push(signed);
+            if let Some(n) = next {
+                heap.push(n);
             }
         }
         out
@@ -647,6 +670,32 @@ mod tests {
         );
         pool.insert(replacement).unwrap();
         assert_eq!(pool.len(), 6);
+    }
+
+    #[test]
+    fn drain_untipped_matches_nonce_then_sender_order_and_respects_max() {
+        let pool = Mempool::new();
+        let keys: Vec<SigningKey> = (0..5).map(|_| SigningKey::generate(&mut OsRng)).collect();
+        for k in &keys {
+            for n in 0..3u64 {
+                pool.insert(transfer(k, n)).unwrap();
+            }
+        }
+        let first = pool.drain_for_block(7);
+        assert_eq!(first.len(), 7);
+        let keyed: Vec<(u64, [u8; 32])> = first.iter().map(|s| (s.tx.nonce, s.tx.sender.0)).collect();
+        let mut sorted = keyed.clone();
+        sorted.sort();
+        assert_eq!(keyed, sorted, "untipped order is (nonce, sender)");
+        assert_eq!(pool.len(), 8);
+        let rest = pool.drain_for_block(100);
+        assert_eq!(rest.len(), 8);
+        assert!(pool.is_empty());
+        for k in &keys {
+            let id = AccountId(k.verifying_key().to_bytes());
+            let all: Vec<u64> = first.iter().chain(rest.iter()).filter(|s| s.tx.sender == id).map(|s| s.tx.nonce).collect();
+            assert_eq!(all, vec![0, 1, 2]);
+        }
     }
 
     #[test]
