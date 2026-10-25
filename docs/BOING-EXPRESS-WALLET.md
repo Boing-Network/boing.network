@@ -51,12 +51,12 @@ Create a new project for a crypto wallet with the following specs.
   - **Address / AccountId:** 32 bytes, Ed25519 public key. Display as 64-char hex (optional 0x).
   - **Signing:** Ed25519. Transactions: specific serialization, BLAKE3 hash, then sign. See "Boing signing spec" below.
   - **RPC:** JSON-RPC HTTP. Methods: boing_getBalance([hex_account_id]), boing_getAccount([hex_account_id]); boing_submitTransaction([hex_signed_tx]), boing_chainHeight([]), boing_simulateTransaction([hex_signed_tx]), boing_faucetRequest([hex_account_id]). Reference: docs/RPC-API-SPEC.md.
-- **Transaction format:** nonce, sender, payload (Transfer | Bond | Unbond | ContractCall | ContractDeploy), access_list. Submit hex(bincode(SignedTransaction)); Signature 64-byte Ed25519. bincode layout must match boing-primitives.
+- **Transaction format:** nonce, sender, payload (all 36 `TransactionPayload` variants; the wallet UI supports transfer, bond/unbond, contract call/deploy), access_list, and an optional trailing `priority_tip`. Submit hex(bincode(SignedTransaction)); Signature 64-byte Ed25519. Layout and signing: [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) (source of truth).
 
 **Boing signing spec (must match boing-network)**
-- Signable message = BLAKE3(nonce_le || sender_32 || bincode(payload) || bincode(access_list)).
+- Signable message (v2, required on chain-id-aware networks, testnet 6913 / mainnet 6914): BLAKE3("BOING_TX_V2" || chain_id_le || nonce_le || sender_32 || bincode(payload) || bincode(access_list)); with a non-zero priority tip, the `BOING_TX_PRIORITY` domain that also commits the tip. The legacy domain-less hash (BLAKE3(nonce_le || sender_32 || bincode(payload) || bincode(access_list))) is only accepted below `BOING_TX_V2_FROM` / on dev nodes. Exact byte layout: BOING-SIGNED-TRANSACTION-ENCODING.md.
 - Signature = Ed25519(signable_message). SignedTransaction = { tx, signature }; submit hex(bincode(SignedTransaction)).
-- Payload types: Transfer, Bond, Unbond, ContractCall, ContractDeploy. AccessList: read/write AccountId arrays. Same bincode layout as boing-primitives.
+- Payload types: see the signing doc (variant indices 0-35, never reordered). AccessList: read/write AccountId arrays. Same bincode layout as boing-primitives.
 
 **Multi-chain readiness**
 - Pluggable "networks": e.g. network adapter interface (get balance, build/sign tx, submit, get nonce). Boing first and default. UI: switch networks without full rewrite. Config-driven RPC URLs, chain id, Boing adapter.
@@ -101,7 +101,7 @@ The extension in **[github.com/chiku524/boing.express](https://github.com/chiku5
 - [ ] **Chain height:** Optional boing_chainHeight for sync status.
 - [ ] **Errors:** Map -32600, -32601, -32602, -32000, -32016 to user-friendly messages.
 - [ ] **Address:** 64-char hex, copy, QR. **Keys:** Ed25519; private key never to server; chrome.storage or IndexedDB, encrypted.
-- [ ] **Bincode:** Transaction/payload/AccessList match boing-primitives. Signable message: BLAKE3(nonce_le + sender_32 + bincode(payload) + bincode(access_list)); Ed25519 sign.
+- [ ] **Bincode:** Transaction/payload/AccessList match boing-primitives. Signable hash per BOING-SIGNED-TRANSACTION-ENCODING.md (v2 chain-bound; priority-tip domain when tip > 0); Ed25519 sign. Golden-vector tests in `boing-sdk`.
 
 ### Part 2.2 — Chrome extension (Manifest V3)
 
@@ -440,11 +440,11 @@ The `boing` object is **not** part of the EIP-6963 core schema; it is a document
 | Method | Params | Returns / notes |
 |--------|--------|-------------------|
 | boing_signTransaction | `[txObject]` | `0x` + hex(bincode `SignedTransaction`). Requires connected origin. User approves in extension UI. `txObject.type`: `transfer`, `bond`, `unbond`, `contract_deploy_purpose`, `contract_deploy_meta`, `contract_call` (fields per **boing.express** `src/boing/dappTxRequest.ts`). **`contract_deploy` (bare) is rejected** — use a purpose-bearing deploy so declarations match protocol QA. `purpose_category` must be one of the categories accepted by **boing_qa** (e.g. `dapp`, `token`, `nft`, `meme`, `community`, `entertainment`, `tooling`, `other`). Omit `nonce` to use `boing_getAccount` on the wallet’s selected RPC. |
-| boing_sendTransaction | `[txObject]` | Sign, then `boing_simulateTransaction` when supported, then `boing_submitTransaction`; returns **`{ tx_hash, tx_id }`**. Node mempool ack is typically **`tx_hash: "ok"`**; **`tx_id`** is **`Transaction::id()`** (BLAKE3 of the unsigned tx) for **`boing_getTransactionReceipt`**. Mempool **always** runs QA on contract deploy payloads before acceptance. Reference NFT **`mint_batch` (`0x06`)** approval preview: **“Mint N NFTs to {to}”** (one consensus call — not JSON-RPC HTTP batching). Access lists are **AccountIds**. |
+| boing_sendTransaction | `[txObject]` | Sign, then `boing_simulateTransaction` when supported, then `boing_submitTransaction`; returns **`{ tx_hash, tx_id }`**. Current nodes return the real transaction id in both **`tx_hash`** and **`tx_id`** (nodes before 2026-10-16 returned `"ok"`; fall back to the SDK `submittedTxHash` derivation); **`tx_id`** is **`Transaction::id()`** (BLAKE3 of the unsigned tx) for **`boing_getTransactionReceipt`**. Mempool **always** runs QA on contract deploy payloads before acceptance. Reference NFT **`mint_batch` (`0x06`)** approval preview: **“Mint N NFTs to {to}”** (one consensus call — not JSON-RPC HTTP batching). Access lists are **AccountIds**. |
 
 **Node JSON-RPC errors (W2):** When simulation or submit fails with a Boing node JSON-RPC error, the rejected promise from `window.boing.request` includes **`code`** and **`message`** from the node, and **`data.boingCode === 'BOING_NODE_JSONRPC'`** with **`data.rpc`** `{ code, message, data }` so dApps can read structured fields (e.g. QA **`rule_id`** / **`doc_url`** in `data.rpc.data`). Wallet-native failures still use other `data.boingCode` values. See [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md).
 
-**Bincode note:** Wallet encoding must match **Rust** `boing-primitives` (serde/bincode 1.3): `TransactionPayload` enum uses **u32 LE** variant indices in this order: Transfer(0), ContractCall(1), ContractDeploy(2), ContractDeployWithPurpose(3), ContractDeployWithPurposeAndMetadata(4), Bond(5), Unbond(6). All three deploy variants include a trailing `create2_salt: Option<[u8; 32]>` (`None` for legacy nonce-based addresses; `Some(salt)` for salt-derived deploy — see `TECHNICAL-SPECIFICATION.md` §4.4). Full field layout and signable-hash rule: [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) (and `boing-sdk` golden tests).
+**Bincode note:** Wallet encoding must match **Rust** `boing-primitives` (serde/bincode 1.3): `TransactionPayload` enum uses **u32 LE** variant indices in this order: Transfer(0), ContractCall(1), ContractDeploy(2), ContractDeployWithPurpose(3), ContractDeployWithPurposeAndMetadata(4), Bond(5), Unbond(6), then ClaimUnbond(7) through ResolveSlashAppealBlsAggregate(33), GrantBlobDownload(34), RevokeBlobDownload(35) - see the signing doc for the full table. All three deploy variants include a trailing `create2_salt: Option<[u8; 32]>` (`None` for legacy nonce-based addresses; `Some(salt)` for salt-derived deploy — see `TECHNICAL-SPECIFICATION.md` §4.4). Full field layout and signable-hash rule: [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) (and `boing-sdk` golden tests).
 
 ---
 
