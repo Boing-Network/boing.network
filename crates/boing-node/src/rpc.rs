@@ -1271,6 +1271,33 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
     out
 }
 
+/// Wallet / SDK version hints for `boing_health.client_hints` and `boing_getNetworkInfo.client_hints`.
+///
+/// Purely advisory and additive: clients compare their own version and may show an upgrade prompt;
+/// nothing is enforced by the node. Operators can override every value with env vars so a hint can
+/// follow a wallet or SDK release without rebuilding the node.
+const DEFAULT_MIN_WALLET_VERSION: &str = "0.1.15";
+const DEFAULT_RECOMMENDED_WALLET_VERSION: &str = "0.1.22";
+const DEFAULT_RECOMMENDED_SDK_VERSION: &str = "0.5.38";
+
+fn env_or_default(var: &str, default: &str) -> String {
+    std::env::var(var)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| default.to_string())
+}
+
+fn client_version_hints() -> serde_json::Value {
+    serde_json::json!({
+        "min_wallet_version": env_or_default("BOING_MIN_WALLET_VERSION", DEFAULT_MIN_WALLET_VERSION),
+        "recommended_wallet_version": env_or_default("BOING_RECOMMENDED_WALLET_VERSION", DEFAULT_RECOMMENDED_WALLET_VERSION),
+        "recommended_sdk": env_or_default("BOING_RECOMMENDED_SDK_VERSION", DEFAULT_RECOMMENDED_SDK_VERSION),
+        "sdk_npm_package": "@boing-network/boing-sdk",
+        "note": "Advisory only (never enforced by the node). min_wallet_version is the oldest Boing Express release that signs with the chain-bound v2 domain; recommended_* are the latest tested releases. Compare as semver.",
+    })
+}
+
 /// Advertised signing rules (security review #2/#3), so wallets know to sign with the chain id.
 fn tx_signing_info(n: &crate::node::BoingNode) -> serde_json::Value {
     let history = n.executor.execution_history();
@@ -1279,6 +1306,8 @@ fn tx_signing_info(n: &crate::node::BoingNode) -> serde_json::Value {
     serde_json::json!({
         "v2_supported": chain_id.is_some(),
         "domain": "BOING_TX_V2",
+        "priority_tips_supported": true,
+        "priority_tip_domain": "BOING_TX_PRIORITY",
         "chain_id": chain_id,
         "v2_from_height": chain_id.map(|_| crate::network_preset::tx_v2_from(history)),
         "v2_required": policy.require_v2,
@@ -1322,6 +1351,7 @@ fn network_info_developer_hints() -> serde_json::Value {
         "repository_url": repository_url,
         "rpc_spec_url": rpc_spec_url,
         "dapp_integration_doc_url": dapp_integration_doc_url,
+        "chain_metadata_url": format!("{}/blob/main/docs/chain-metadata.json", base),
         "sdk_npm_package": "@boing-network/boing-sdk",
         "websocket": {
             "path": "/ws",
@@ -1641,6 +1671,73 @@ mod abuse_limit_tests {
         assert!(
             missing.is_empty(),
             "docs/RPC-API-SPEC.md does not document: {missing:?}"
+        );
+    }
+
+    fn is_semver(s: &str) -> bool {
+        let parts: Vec<&str> = s.split('.').collect();
+        parts.len() == 3 && parts.iter().all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+    }
+
+    #[test]
+    fn client_hints_are_semver_and_documented() {
+        let hints = client_version_hints();
+        for key in ["min_wallet_version", "recommended_wallet_version", "recommended_sdk"] {
+            let v = hints[key].as_str().unwrap_or_default();
+            assert!(is_semver(v), "{key} must be semver, got {v:?}");
+        }
+        let spec = include_str!("../../../docs/RPC-API-SPEC.md");
+        for needle in [
+            "client_hints",
+            "min_wallet_version",
+            "recommended_sdk",
+            "priority_tip_domain",
+            "Priority tips and block signatures",
+        ] {
+            assert!(spec.contains(needle), "RPC-API-SPEC.md must mention {needle}");
+        }
+    }
+
+    #[test]
+    fn developer_api_publishes_protocol_specs() {
+        let specs = &developer_api_document()["method_catalog"]["protocol_specs"];
+        assert!(specs["priority_tips"]["signing_digest"]["tip_nonzero"]
+            .as_str()
+            .unwrap()
+            .contains("BOING_TX_PRIORITY"));
+        assert!(specs["block_signatures"]["signatures"]["required_from_height"].is_string());
+    }
+
+    #[test]
+    fn chain_metadata_matches_node_constants() {
+        let meta: serde_json::Value =
+            serde_json::from_str(include_str!("../../../docs/chain-metadata.json"))
+                .expect("docs/chain-metadata.json must parse");
+        assert_eq!(meta["native_currency"]["symbol"], "BOING");
+        assert_eq!(
+            meta["native_currency"]["decimals"].as_u64(),
+            Some(boing_primitives::BOING_DECIMALS as u64)
+        );
+        let ids: Vec<u64> = meta["networks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["chain_id"].as_u64().unwrap())
+            .collect();
+        assert_eq!(
+            ids,
+            vec![
+                crate::network_preset::BOING_TESTNET_CHAIN_ID,
+                crate::network_preset::BOING_MAINNET_CHAIN_ID
+            ]
+        );
+        assert_eq!(
+            meta["signing"]["priority_tip_signing_domain"].as_str().unwrap().as_bytes(),
+            boing_primitives::TX_SIGNING_DOMAIN_PRIORITY
+        );
+        assert_eq!(
+            meta["signing"]["tx_signing_domain"].as_str().unwrap().as_bytes(),
+            boing_primitives::TX_SIGNING_DOMAIN_V2
         );
     }
 
@@ -3067,6 +3164,7 @@ async fn dispatch_jsonrpc_request(
                     },
                     "tx_signing": tx_signing_info(&n),
                     "native_currency": native_currency_json(&n),
+                    "client_hints": client_version_hints(),
                     "rpc_surface": rpc_surface_capabilities(state),
                     "rpc_metrics": rpc_metrics_snapshot(state),
                 }),
@@ -3442,6 +3540,7 @@ async fn dispatch_jsonrpc_request(
                         "fee_policy": fee_policy_json(n.executor.fee_policy()),
                     },
                     "developer": network_info_developer_hints(),
+                    "client_hints": client_version_hints(),
                     "rpc_surface": rpc_surface_capabilities(state),
                     "end_user": end_user_network_hints(),
                     "rpc": {

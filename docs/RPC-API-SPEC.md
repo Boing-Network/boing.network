@@ -446,7 +446,16 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
     "failed_tx_fee_from_height": 900,
     "block_signatures_from_height": 920,
     "registration_proof_domain": "BOING_OPEN_VALIDATOR_REGISTER_V2",
-    "registration_proof_v2_from_height": 920
+    "registration_proof_v2_from_height": 920,
+    "priority_tips_supported": true,
+    "priority_tip_domain": "BOING_TX_PRIORITY"
+  },
+  "client_hints": {
+    "min_wallet_version": "0.1.15",
+    "recommended_wallet_version": "0.1.22",
+    "recommended_sdk": "0.5.38",
+    "sdk_npm_package": "@boing-network/boing-sdk",
+    "note": "Advisory only ..."
   },
   "rpc_surface": {
     "jsonrpc_batch_max": 32,
@@ -474,6 +483,8 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
 - **`chain_id` / `chain_name`:** **`null`** when the corresponding env var is unset or invalid (same as **`boing_getNetworkInfo`**).
 - **`rpc_surface`:** Operator-facing snapshot of limits (same sources as env vars **`BOING_RPC_MAX_BATCH`**, **`BOING_RPC_WS_MAX_CONNECTIONS`**, **`BOING_RPC_MAX_BODY_MB`**, node **`RateLimitConfig.requests_per_sec`**, **`BOING_RPC_READY_MIN_PEERS`**, plus fixed **`boing_getLogs`** bounds). **`ready_min_peers`** is **`null`** when no minimum is configured.
 - **`rpc_metrics`:** Cumulative counters since process start (best-effort diagnostics).
+- **`client_hints`:** Advisory version hints, also returned by **`boing_getNetworkInfo`**. **`min_wallet_version`** is the oldest Boing Express release that signs correctly for the network (the chain-bound v2 domain shipped in extension 0.1.15); **`recommended_wallet_version`** and **`recommended_sdk`** are the latest tested releases of Boing Express and `@boing-network/boing-sdk`. Compare as semver and show an upgrade prompt; the node never enforces them. Operators can override with **`BOING_MIN_WALLET_VERSION`**, **`BOING_RECOMMENDED_WALLET_VERSION`** and **`BOING_RECOMMENDED_SDK_VERSION`** so hints follow a release without rebuilding the node. Added in an additive, backwards-compatible way: clients that ignore unknown fields are unaffected.
+- **`tx_signing.priority_tips_supported` / `priority_tip_domain`:** Wallets can discover that a non-zero `priority_tip` is signed under the **`BOING_TX_PRIORITY`** domain (see [Priority tips and block signatures](#priority-tips-and-block-signatures-stable-spec)).
 
 ---
 
@@ -523,6 +534,12 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
   "consensus": {
     "validator_count": 4,
     "model": "hotstuff_bft"
+  },
+  "client_hints": {
+    "min_wallet_version": "0.1.15",
+    "recommended_wallet_version": "0.1.22",
+    "recommended_sdk": "0.5.38",
+    "sdk_npm_package": "@boing-network/boing-sdk"
   },
   "native_currency": {
     "symbol": "BOING",
@@ -1018,6 +1035,32 @@ After `expires_at` a name has a grace period (`grace_blocks`) during which only 
 CLI: `boing name resolve|reverse|info|check|owned|claim|renew|transfer|set-target|set-primary|release`
 (`claim` runs commit → register, optionally `--primary`; signing commands take `--secret-hex` or `BOING_SECRET_HEX`, and `--dry-run`).
 SDK: `boing-sdk` `boingNames` helpers (`resolveBoingRecipient`, `commitBoingName`, `registerBoingName`, ...) and `BoingClient.resolveName` / `reverseName` / `getNameInfo` / `checkNames` / `namesOwnedBy`.
+## Priority tips and block signatures (stable spec)
+
+Machine-readable copy: `boing_getRpcMethodCatalog` -> `protocol_specs` (source `crates/boing-node/schemas/developer_api.json`). These rules are stable and additive-only.
+
+### Priority tips
+
+- **Units:** `priority_tip` is a `u128` in ledger units (base units; 1 BOING = 10^18). In JSON it is a decimal string.
+- **Wire:** `SignedTransaction.priority_tip` is appended after the signature as 16 bytes little-endian and is **omitted entirely when `0`**, so untipped transactions keep their historical bytes. Always decode with `SignedTransaction::from_bincode`, never a plain bincode deserialize.
+- **Signing digest:** `priority_tip == 0` uses the v2 digest (`BOING_TX_V2`). Otherwise `BLAKE3("BOING_TX_PRIORITY" || chain_id_le8 || nonce_le8 || sender32 || bincode(payload) || bincode(access_list) || tip_le16)`. The tip is signed, so a relay cannot add or change it. Golden vectors: [`fixtures/tx-signing-golden-vectors.json`](fixtures/tx-signing-golden-vectors.json).
+- **Admission:** balance must cover the failed-tx fee plus the tip (`insufficient_fee`).
+- **Settlement:** split by the fee policy (`tip_proposer_bps`, `tip_treasury_bps`, `tip_burn_bps` in `boing_getNetworkInfo.treasury.fee_policy`); default 100% to the block proposer.
+- **Ordering:** block building drains nonce-contiguous runs per sender, highest effective tip first; the lowest tip is evicted first when the pool is full. See [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md).
+
+### Block signatures
+
+`Block` is `{ header, transactions, signatures?, priority_tips? }` (bincode); `signatures` and `priority_tips` are each omitted when empty and are **not** part of the header or block hash.
+
+- **`signatures[i]`** is the sender's Ed25519 signature over `transactions[i]`, in the format required at that height (v2 chain-bound after the v2 activation).
+- **Required from** `boing_health.tx_signing.block_signatures_from_height` (testnet 920; genesis on new chains): exactly one signature per transaction, verified by every importing node. A missing, forged, legacy-format or other-chain signature rejects the block.
+- **`priority_tips[i]`** is the tip committed by `signatures[i]`; empty means every tip is `0`, otherwise its length must equal `transactions.len()`.
+- Decode with `Block::from_bincode`; layouts differ across eras.
+
+### Chain metadata file
+
+[`chain-metadata.json`](chain-metadata.json) lists chain ids (testnet 6913, mainnet 6914 planned), native currency, explorer, faucet and RPC URLs, signing-domain pointers and where to read the live fee policy. `boing_getNetworkInfo.developer.chain_metadata_url` points at it. Live values (heights, fee policy) always come from the node.
+
 ## Error Codes
 
 | Code | Meaning |

@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "description": "Machine-readable Boing chain metadata for wallets, explorers and indexers. Live values (head height, fee policy, denomination heights) always come from boing_getNetworkInfo / boing_health on the node; this file only carries static identity and pointers.",
+  "native_currency": {
+    "name": "Boing",
+    "symbol": "BOING",
+    "decimals": 18,
+    "base_unit_decimals": 18,
+    "base_units_per_boing": "1000000000000000000",
+    "note": "Testnet chain 6913 switched from whole-BOING to 18-decimal base units at native_currency.base_units_from_height (see boing_getNetworkInfo). Always read that height from the node."
+  },
+  "signing": {
+    "address_format": "0x + 64 hex (32-byte Ed25519 public key)",
+    "tx_signing_domain": "BOING_TX_V2",
+    "priority_tip_signing_domain": "BOING_TX_PRIORITY",
+    "golden_vectors": "docs/fixtures/tx-signing-golden-vectors.json",
+    "encoding_spec": "docs/BOING-SIGNED-TRANSACTION-ENCODING.md"
+  },
+  "fee_policy": {
+    "live_source": "boing_getNetworkInfo.treasury.fee_policy",
+    "doc": "docs/OPTIONAL-PRIORITY-FEES.md"
+  },
+  "discovery": {
+    "rpc_spec": "docs/RPC-API-SPEC.md",
+    "rpc_openapi_path": "/openapi.json",
+    "well_known_path": "/.well-known/boing-rpc",
+    "client_hints": "boing_getNetworkInfo.client_hints (min_wallet_version, recommended_sdk)"
+  },
+  "networks": [
+    {
+      "key": "testnet",
+      "status": "live",
+      "chain_id": 6913,
+      "chain_id_hex": "0x1b01",
+      "chain_name": "Boing Testnet",
+      "rpc_urls": ["https://testnet-rpc.boing.network"],
+      "explorer_url": "https://boing.observer",
+      "faucet_url": "https://boing.network/faucet",
+      "wallet_url": "https://boing.express",
+      "is_testnet": true
+    },
+    {
+      "key": "mainnet",
+      "status": "planned",
+      "chain_id": 6914,
+      "chain_id_hex": "0x1b02",
+      "chain_name": "Boing Mainnet",
+      "rpc_urls": [],
+      "explorer_url": "https://boing.observer",
+      "faucet_url": null,
+      "wallet_url": "https://boing.express",
+      "is_testnet": false,
+      "operator_requirements": "Nodes on chain 6914 refuse to start without BOING_OPERATOR_RPC_TOKEN and refuse --faucet-enable (docs/RUNBOOK.md)."
+    }
+  ]
+}

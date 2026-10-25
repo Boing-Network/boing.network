@@ -2,6 +2,44 @@
   "schema_version": 1,
   "method_catalog": {
     "description": "Per-method JSON Schema hints for params (JSON-RPC params array) and result. Use boing_getRpcMethodCatalog / boing_getRpcOpenApi for machine-readable discovery.",
+    "protocol_specs": {
+      "version": 1,
+      "note": "Stable protocol facts for signers and indexers. Additive only: existing keys keep their meaning. Full prose: docs/BOING-SIGNED-TRANSACTION-ENCODING.md and docs/OPTIONAL-PRIORITY-FEES.md.",
+      "priority_tips": {
+        "units": "ledger units (base units; 1 BOING = 10^18) as u128",
+        "signed_transaction": {
+          "field": "SignedTransaction.priority_tip",
+          "wire": "u128 little-endian (16 bytes) appended after the Ed25519 signature; omitted entirely when 0 so untipped transactions keep their historical encoding",
+          "decode_with": "SignedTransaction::from_bincode (Rust); never a plain bincode deserialize (the tip field is conditional). The SDK encodes via encodeSignedTransaction."
+        },
+        "signing_digest": {
+          "tip_zero": "BLAKE3('BOING_TX_V2' || chain_id_le8 || nonce_le8 || sender32 || bincode(payload) || bincode(access_list))",
+          "tip_nonzero": "BLAKE3('BOING_TX_PRIORITY'(17 ASCII) || chain_id_le8 || nonce_le8 || sender32 || bincode(payload) || bincode(access_list) || tip_le16)",
+          "legacy_domainless_path_supports_tips": false,
+          "golden_vectors": "docs/fixtures/tx-signing-golden-vectors.json"
+        },
+        "admission": "Sender balance must cover the failed-tx fee plus the tip (rejection code insufficient_fee). The tip is signed, so a relay cannot add or change it.",
+        "settlement": "Paid on inclusion and split by fee policy tip_proposer_bps / tip_treasury_bps / tip_burn_bps (boing_getNetworkInfo.treasury.fee_policy); default 100% to the block proposer.",
+        "ordering": "Block building drains nonce-contiguous runs per sender, highest effective tip first, so a sender's transactions always execute in nonce order; when the pool is full the lowest tip is evicted first.",
+        "discovery": ["boing_health.tx_signing.priority_tips_supported", "boing_health.tx_signing.priority_tip_domain", "boing_getNetworkInfo.treasury.fee_policy.optional_priority_tips"]
+      },
+      "block_signatures": {
+        "block_layout": "Block = { header, transactions, signatures?, priority_tips? } (bincode); signatures and priority_tips are each omitted when empty",
+        "signatures": {
+          "meaning": "signatures[i] is the sender's Ed25519 Signature over transactions[i] in the signing format required at that height (v2 chain-bound after the v2 activation)",
+          "required_from_height": "boing_health.tx_signing.block_signatures_from_height (testnet 920; genesis on new chains)",
+          "rule": "From that height a block must carry exactly one signature per transaction; every importing node verifies them. A missing, forged, legacy-format or other-chain signature rejects the block.",
+          "not_in_block_hash": true
+        },
+        "priority_tips": {
+          "meaning": "priority_tips[i] is the tip (u128) committed by signatures[i]; empty means every tip is 0; otherwise its length must equal transactions.len()",
+          "not_in_block_hash": true,
+          "verified_with_signatures": true
+        },
+        "decode_with": "Block::from_bincode (Rust); bincode layouts differ across eras and the optional fields are conditional",
+        "rpc_visibility": "boing_getBlockByHeight / boing_getBlockByHash JSON expose transaction fields; verify signatures from the bincode block (or trust the node that imported it)"
+      }
+    },
     "methods": [
       {
         "name": "boing_health",
@@ -16,6 +54,17 @@
             "chain_id": { "type": ["integer", "null"] },
             "chain_name": { "type": ["string", "null"] },
             "head_height": { "type": "integer", "minimum": 0 },
+            "client_hints": {
+              "type": "object",
+              "description": "Advisory wallet/SDK version hints (never enforced). Overridable with BOING_MIN_WALLET_VERSION, BOING_RECOMMENDED_WALLET_VERSION, BOING_RECOMMENDED_SDK_VERSION.",
+              "properties": {
+                "min_wallet_version": { "type": "string", "description": "Oldest Boing Express release that signs correctly for this network (semver)." },
+                "recommended_wallet_version": { "type": "string" },
+                "recommended_sdk": { "type": "string", "description": "Recommended @boing-network/boing-sdk version (semver)." },
+                "sdk_npm_package": { "type": "string" },
+                "note": { "type": "string" }
+              }
+            },
             "p2p": {
               "type": "object",
               "description": "Read-only P2P snapshot: distinct connected peers and configured / connected bootnode addresses (bootnodes are redialed with backoff).",
