@@ -115,6 +115,15 @@ Use **`BOING_RATE_PROFILE=mainnet`** to force the strict profile even if **`--de
 
 You can still override only the mempool cap: `--dev-rate-limits --pending-txs-per-sender 128`. **Do not** use the dev profile on public mainnet RPC endpoints.
 
+### Environment variables and hardening checklist
+
+Every `BOING_*` variable, its default and the default ports are listed in [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md). For any node whose RPC port is reachable beyond localhost:
+
+- Set **`BOING_OPERATOR_RPC_TOKEN`**. Without it, operator-only methods (`boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_submitSlashAppeal`, `boing_resolveSlashAppeal`, `boing_registerBlsDualKey`, `boing_putBlobSampleOffer`, and `boing_qaPoolVote` unless the QA pool has public membership) accept any caller.
+- Keep the rate profile at `mainnet` (default); never use `--dev-rate-limits` on public RPC.
+- Never pass `--faucet-enable` on mainnet; the faucet key is public.
+- Keep `BOING_VALIDATOR_KEY` in a secret store (Fly secrets), not in `fly.toml` or shell history.
+
 ### JSON-RPC surface (stale binary or proxy)
 
 If **`boing_chainHeight`** works but other **`boing_*`** calls return **`-32601` Method not found**, the process on the RPC port is almost certainly an **older `boing-node` build** or a **proxy that drops unknown methods**. Rebuild from the current repository (`cargo build -p boing-node --release`) and restart. To see which read-only methods the URL exposes, run **`npm run build`** then **`npm run probe-rpc`** in **`boing-sdk`**, or **`npm run probe-rpc`** from the repository root (prints a **`diagnosis`** when methods are missing). **No SDK build:** from the repo root run **`npm run rpc-endpoint-check`** for a raw JSON-RPC table. **Windows — who owns port 8545:** `netstat -ano | findstr :8545`, then `tasklist /FI "PID eq <pid>" /V` (ensure the image is the **`boing-node`** you just built, not an old `cargo install` path). The tutorial package also exposes **`npm run probe-rpc`**. See [RPC-API-SPEC.md](RPC-API-SPEC.md) § Diagnosing `-32601`.
@@ -126,6 +135,8 @@ If **`boing_chainHeight`** works but other **`boing_*`** calls return **`-32601`
 ---
 
 ## 3. RPC Endpoints
+
+Common methods only; the complete list (66 methods, params, errors, rejection reasons) is [RPC-API-SPEC.md](RPC-API-SPEC.md).
 
 | Method | Params | Description |
 |--------|--------|-------------|
