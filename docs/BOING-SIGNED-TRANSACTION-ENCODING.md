@@ -229,6 +229,14 @@ cargo run -p boing-primitives --example dump_bincode
 
 The example uses a **fixed** `SigningKey::from_bytes` test seed so `SignableHash` and full `SignedTransaction` hex stay stable for CI. Update `boing-sdk/tests/bincode.test.ts` if the seed or payload fixtures change.
 
+### Tipped-digest golden vectors (`docs/fixtures/tx-signing-golden-vectors.json`)
+
+A machine-readable fixture covers the v2 digest (tip 0), the tipped `BOING_TX_PRIORITY` digest (tip 1, tip 1e12, tip `u128::MAX`), chain-id separation (6913 vs 6914) and a non-empty access list. Each vector lists the full `preimage_hex`, `signing_digest_hex`, the deterministic Ed25519 `signature_hex` (seed `signer_seed_hex`) and the complete `signed_tx_bincode_hex`. `u64`/`u128` values are decimal strings.
+
+- Generated and enforced by `crates/boing-primitives/tests/tx_signing_golden.rs` (fails if the fixture is stale; regenerate intentionally with `BOING_UPDATE_GOLDEN=1 cargo test -p boing-primitives --test tx_signing_golden`).
+- Consumed by `boing-sdk/tests/txSigningGolden.test.ts`.
+- **Wallets (boing.express) and other signers**: reproduce every field from the fixture in your own tests. Raw URL: `https://raw.githubusercontent.com/Boing-Network/boing.network/main/docs/fixtures/tx-signing-golden-vectors.json`.
+
 ---
 
 ## References
