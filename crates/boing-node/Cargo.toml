@@ -48,3 +48,7 @@ thiserror = "1"
 
 [dev-dependencies]
 http-body-util = "0.1"
+
+[[bench]]
+name = "admission"
+harness = false

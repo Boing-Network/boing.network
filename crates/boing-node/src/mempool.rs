@@ -138,6 +138,17 @@ impl Mempool {
         self.qa_registry = registry;
     }
 
+    /// Ed25519 signature check under the current tx-verify policy (see `set_tx_verify_policy`).
+    /// Cheap relative to state-dependent admission checks, so callers run it first.
+    pub fn verify_signature(signed: &SignedTransaction) -> Result<(), MempoolError> {
+        signed.verify().map_err(|e| match e {
+            boing_primitives::SignatureError::LegacySignatureRejected => {
+                MempoolError::LegacySignature
+            }
+            _ => MempoolError::InvalidSignature,
+        })
+    }
+
     /// Insert a signed transaction. Rejects duplicates, invalid nonces, per-sender cap, and ContractDeploy that fail QA.
     pub fn insert(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
         self.insert_inner(signed, false)
@@ -187,12 +198,7 @@ impl Mempool {
         qa_mode: DeployQaMode,
         restoring: bool,
     ) -> Result<(), MempoolError> {
-        signed.verify().map_err(|e| match e {
-            boing_primitives::SignatureError::LegacySignatureRejected => {
-                MempoolError::LegacySignature
-            }
-            _ => MempoolError::InvalidSignature,
-        })?;
+        Self::verify_signature(&signed)?;
         signed
             .tx
             .payload
@@ -418,6 +424,12 @@ pub enum MempoolError {
     MempoolFull { limit: usize },
     #[error("insufficient balance for fee: have {have}, need {need}")]
     InsufficientFee { have: u128, need: u128 },
+    /// The tx nonce is below the sender's committed nonce, so it can never execute.
+    #[error("stale nonce: account nonce is {expected}, tx nonce is {got}")]
+    StaleNonce { expected: u64, got: u64 },
+    /// The sender has no account on chain (nothing to charge, nothing that could execute).
+    #[error("unknown sender: account has no on-chain balance; fund it before sending")]
+    UnknownSender,
     #[error("free tx rejected: sender balance {have} below free_tx_min_balance {need}")]
     FreeTxBalanceGate { have: u128, need: u128 },
     /// Protocol QA rejected this deployment; rule_id and message give user feedback.

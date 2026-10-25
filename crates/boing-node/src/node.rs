@@ -1204,12 +1204,108 @@ impl BoingNode {
         self.intent_pool.submit(signed)
     }
 
+    /// State-free-of-clone admission gates, run before any snapshot-based dry run so that spam from
+    /// throwaway keys costs a hash lookup instead of an O(state) clone + VM execution:
+    ///
+    /// * the sender must have an account (the VM answers `AccountNotFound` otherwise: such a tx
+    ///   occupies a mempool / block slot and can neither pay a fee nor consume its nonce);
+    /// * the tx nonce must not be below the account nonce (it can never execute; future nonces stay
+    ///   admitted and queue behind earlier txs);
+    /// * once the failed-tx fee is active, the balance must cover that fee (otherwise the tx cannot
+    ///   pay for a failed execution either).
+    ///
+    /// Skipped at the redenomination height (balances change unit there; the full dry run handles it).
+    fn precheck_sender_viable(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
+        let next = self.chain.height().saturating_add(1);
+        let Some(acct) = self.state.get(&signed.tx.sender) else {
+            return Err(MempoolError::UnknownSender);
+        };
+        if signed.tx.nonce < acct.nonce {
+            return Err(MempoolError::StaleNonce {
+                expected: acct.nonce,
+                got: signed.tx.nonce,
+            });
+        }
+        if self.executor.redenomination_height() != Some(next)
+            && self.executor.failed_tx_fee_active(next)
+        {
+            let (policy, _) = self.executor.fee_rule_at(next);
+            let need = boing_execution::failed_tx_fee_amount_in(
+                &policy,
+                self.executor.denomination_at(next),
+            );
+            if acct.balance < need {
+                return Err(MempoolError::InsufficientFee {
+                    have: acct.balance,
+                    need,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// Transfer admission without a state clone. Same decision as
+    /// [`Self::precheck_sender_can_pay_fee_full`] (covered by a differential test): a transfer the VM
+    /// would reject for nonce / amount is admitted (it fails in-block and pays the failed-tx fee);
+    /// one that would execute must leave the sender able to pay the fee + tip.
+    #[doc(hidden)] // public only so the differential test in tests/admission_gates.rs can call it
+    pub fn precheck_transfer_fast(
+        &self,
+        signed: &SignedTransaction,
+        to: &AccountId,
+        amount: u128,
+    ) -> Result<(), MempoolError> {
+        let next = self.chain.height().saturating_add(1);
+        let (nonce, have) = self
+            .state
+            .get(&signed.tx.sender)
+            .map(|s| (Some(s.nonce), s.balance))
+            .unwrap_or((None, 0));
+        let policy = self.executor.fee_policy();
+        if signed.priority_tip == 0 && policy.execution_gas_waived() && policy.free_tx_min_balance > 0
+            && have < policy.free_tx_min_balance
+        {
+            return Err(MempoolError::FreeTxBalanceGate {
+                have,
+                need: policy.free_tx_min_balance,
+            });
+        }
+        if nonce != Some(signed.tx.nonce) || have < amount {
+            return Ok(()); // the VM rejects it: admitted, fails in-block
+        }
+        let need = self
+            .executor
+            .network_fee_at(boing_execution::GAS_PER_TRANSFER, &signed.tx.payload, next)
+            .saturating_add(signed.priority_tip);
+        let remaining = if *to == signed.tx.sender { have } else { have - amount };
+        if remaining < need {
+            return Err(MempoolError::InsufficientFee { have, need });
+        }
+        Ok(())
+    }
+
     /// Dry-run execution fee vs committed balance so underfunded deploys are rejected at submit
     /// instead of stalling block production.
     fn precheck_sender_can_pay_fee(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
         if self.mempool.contains_tx_id(&signed.tx.id()) {
             return Err(MempoolError::Duplicate);
         }
+        if let TransactionPayload::Transfer { to, amount } = &signed.tx.payload {
+            if self.executor.redenomination_height()
+                != Some(self.chain.height().saturating_add(1))
+            {
+                return self.precheck_transfer_fast(signed, to, *amount);
+            }
+        }
+        self.precheck_sender_can_pay_fee_full(signed)
+    }
+
+    /// Reference (snapshot + VM dry run) form of [`Self::precheck_sender_can_pay_fee`].
+    #[doc(hidden)]
+    pub fn precheck_sender_can_pay_fee_full(
+        &self,
+        signed: &SignedTransaction,
+    ) -> Result<(), MempoolError> {
         let mut state_copy = self.state.snapshot();
         let height = self.chain.height();
         self.executor.prepare_state_for_height(height.saturating_add(1), &mut state_copy);
@@ -1877,6 +1973,13 @@ impl BoingNode {
 
     pub fn submit_transaction(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
         self.refresh_tx_sig_policy();
+        // Cheapest checks first: signature, duplicate, then account-level gates; the snapshot-based
+        // dry runs below only ever run for authenticated txs from funded, non-stale senders.
+        Mempool::verify_signature(&signed)?;
+        if self.mempool.contains_tx_id(&signed.tx.id()) {
+            return Err(MempoolError::Duplicate);
+        }
+        self.precheck_sender_viable(&signed)?;
         self.precheck_native_value_tx(&signed)?;
         self.precheck_open_validator_tx(&signed)?;
         self.precheck_name_tx(&signed)?;

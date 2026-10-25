@@ -2177,6 +2177,26 @@ async fn dispatch_jsonrpc_request(
                                 "QA pool deployer pending limit exceeded.".into(),
                                 serde_json::json!({ "reason": "deployer_cap" }),
                             ),
+                            Err(MempoolError::StaleNonce { expected, got }) => rpc_error_with_data(
+                                id,
+                                -32000,
+                                format!("stale nonce: account nonce is {expected}, tx nonce is {got}"),
+                                serde_json::json!({
+                                    "reason": "stale_nonce",
+                                    "expected_nonce": expected,
+                                    "got_nonce": got,
+                                    "hint": "A transaction with this nonce has already executed. Re-read the account nonce (boing_getAccount / boing_getNonce) and re-sign.",
+                                }),
+                            ),
+                            Err(MempoolError::UnknownSender) => rpc_error_with_data(
+                                id,
+                                -32000,
+                                "unknown sender: account has no on-chain balance; fund it before sending".into(),
+                                serde_json::json!({
+                                    "reason": "unknown_sender",
+                                    "hint": "The sender account does not exist on chain yet. Fund it (faucet or transfer) and retry.",
+                                }),
+                            ),
                             Err(e) => rpc_error(id, -32000, format!("{}", e)),
                         }
                     }
