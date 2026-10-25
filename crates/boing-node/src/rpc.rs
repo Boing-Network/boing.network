@@ -3155,6 +3155,20 @@ async fn dispatch_jsonrpc_request(
         | "boing_listBlsDualKeys"
         | "boing_verifyBlsAggregate"
         | "boing_verifyBlsAggregateResolve" => {
+            // The node-local sample-offer book is an unauthenticated disk write otherwise (each call
+            // rewrites `sample_offers.bin`; 1,024 slots can be squatted). Gate it like other operator
+            // writes. With no `BOING_OPERATOR_RPC_TOKEN` configured behavior is unchanged (open).
+            if req.method == "boing_putBlobSampleOffer" && !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
             if req.method == "boing_getBlob" && state.blob_get_require_auth {
                 let params = req
                     .params
