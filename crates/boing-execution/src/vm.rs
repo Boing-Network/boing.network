@@ -773,6 +773,12 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::GrantBlobDownload { blob_id, .. } => {
+                return self.execute_blob_download_acl_tx(state, tx, blob_id, exec_ctx.block_height);
+            }
+            TransactionPayload::RevokeBlobDownload { blob_id, .. } => {
+                return self.execute_blob_download_acl_tx(state, tx, blob_id, exec_ctx.block_height);
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -840,6 +846,31 @@ impl Vm {
         let gas_used = media_blob_gas(size as usize, retention);
         Ok(VmExecutionResult {
             gas_used,
+            return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    /// Phase 34: Grant/RevokeBlobDownload — meter + nonce; ACL lives in the node sidecar.
+    fn execute_blob_download_acl_tx(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        blob_id: &BlobId,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
             return_data: blob_id.to_vec(),
             logs: Vec::new(),
         })

@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
 
+## [0.5.38] - 2026-10-25
+
+### Added
+
+- **Phase 34 blob download ACL** — `PayloadVariant.GrantBlobDownload` (**34**) / `RevokeBlobDownload` (**35**); `grantBlobDownloadPayload` / `revokeBlobDownloadPayload`; `blobDownloadProofPreimage` / `signBlobDownloadProof` / `blobDownloadProofHeaders` for wallet-signed HTTP download. Docs: [HANDOFF_BLOB_DOWNLOAD_ACL.md](../docs/HANDOFF_BLOB_DOWNLOAD_ACL.md).
+
 ## [0.5.36] - 2026-10-24
 
 ### Added

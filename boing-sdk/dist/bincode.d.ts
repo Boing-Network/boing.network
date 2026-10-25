@@ -56,6 +56,10 @@ export declare const PayloadVariant: {
     readonly ResolveSlashAppealAttested: 32;
     /** BLS aggregate resolve with self-contained pubkeys (Phase 30; not consensus-admitted). */
     readonly ResolveSlashAppealBlsAggregate: 33;
+    /** Grant media-blob download ACL (Phase 34; publisher-only). */
+    readonly GrantBlobDownload: 34;
+    /** Revoke media-blob download ACL (Phase 34; publisher-only). */
+    readonly RevokeBlobDownload: 35;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -276,6 +280,14 @@ export type TransactionPayloadInput = {
     aggregateSignature: Uint8Array;
     /** 48-byte compressed G1 pubkeys, ordered with decoded bitset. */
     signerBlsPubkeys: Uint8Array[];
+} | {
+    kind: 'grantBlobDownload';
+    blobId: Uint8Array;
+    grantee: Uint8Array;
+} | {
+    kind: 'revokeBlobDownload';
+    blobId: Uint8Array;
+    grantee: Uint8Array;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

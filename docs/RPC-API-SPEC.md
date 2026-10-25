@@ -993,7 +993,7 @@ Names are normalized: trimmed, lowercased, optional `.boing` suffix stripped; 3-
 | `boing_getBlobMeta` | `[blobId]` | Metadata object or `null` (`blobId`: `0x…` / hex / `boing://blob/0x…`) |
 | `boing_getBlob` | `[blobId]` | `{ meta, dataHex }` or `null`. Optional auth when **`BOING_BLOB_GET_REQUIRE_AUTH=1`** and operator/download tokens are set (same credentials as HTTP download). Prefer **`GET /v1/media/blob?id={blobId}`** for large raw downloads. |
 
-**HTTP media download (non-JSON-RPC):** **`GET /v1/media/blob?id={blobId}`** returns raw bytes (`Content-Disposition: attachment`). When **`BOING_OPERATOR_RPC_TOKEN`** and/or **`BOING_BLOB_DOWNLOAD_TOKENS`** are set, require **`X-Boing-Operator`**, **`X-Boing-Blob-Download`**, or **`Authorization: Bearer <token>`**. See [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md).
+**HTTP media download (non-JSON-RPC):** **`GET /v1/media/blob?id={blobId}`** returns raw bytes (`Content-Disposition: attachment`). Auth: operator/download shared secrets (**`X-Boing-Operator`** / **`X-Boing-Blob-Download`** / **`Authorization: Bearer`**) and/or Phase 34 publisher/grantee proof headers (**`X-Boing-Blob-Downloader`**, **`Expires`**, **`Nonce`**, **`Signature`**). **`BOING_BLOB_ACL_ACTIVATION_HEIGHT`** makes download private-by-default. Read ACL via **`boing_getBlobAccess`**. See [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) and [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md).
 | `boing_checkNames` | `[[name, ...]]` (1-25) | `{ registry, results: [ <same shape as getNameInfo without record> ] }` |
 | `boing_namesOwnedBy` | `[address]` | array of records (active and grace) owned by `address` |
 

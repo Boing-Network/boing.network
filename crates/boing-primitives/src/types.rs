@@ -330,6 +330,16 @@ impl Transaction {
                 appeal_id,
                 if *approved { "approve" } else { "reject" }
             ),
+            TransactionPayload::GrantBlobDownload { blob_id, grantee } => format!(
+                "Grant blob download {} → {}",
+                hex::encode(&blob_id[..8]),
+                hex::encode(&grantee.0[..8])
+            ),
+            TransactionPayload::RevokeBlobDownload { blob_id, grantee } => format!(
+                "Revoke blob download {} → {}",
+                hex::encode(&blob_id[..8]),
+                hex::encode(&grantee.0[..8])
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -432,6 +442,8 @@ impl Transaction {
             | TransactionPayload::ResolveSlashAppeal { .. }
             | TransactionPayload::ResolveSlashAppealAttested { .. }
             | TransactionPayload::ResolveSlashAppealBlsAggregate { .. }
+            | TransactionPayload::GrantBlobDownload { .. }
+            | TransactionPayload::RevokeBlobDownload { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -688,6 +700,16 @@ pub enum TransactionPayload {
         aggregate_signature: crate::BlsSignatureG2,
         /// Ordered with decoded bitset (ascending pin index).
         signer_bls_pubkeys: Vec<crate::BlsPublicKeyG1>,
+    },
+    /// Grant download access for a media blob (index **34**, Phase 34). Sender must be publisher.
+    GrantBlobDownload {
+        blob_id: crate::BlobId,
+        grantee: AccountId,
+    },
+    /// Revoke download access for a media blob (index **35**, Phase 34). Sender must be publisher.
+    RevokeBlobDownload {
+        blob_id: crate::BlobId,
+        grantee: AccountId,
     },
 }
 

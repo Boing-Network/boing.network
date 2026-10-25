@@ -6,8 +6,9 @@ use boing_primitives::{
     match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
     phase32_bls_committee_flip_active, phase32_pin_set_commitment,
     phase32_verify_aggregate_resolve_self_contained, phase32_verify_aggregate_resolve_with_registry,
-    phase33_cap_activation_checklist, phase33_das_succinct_proof_plan,
-    verify_das_succinct_proof, AccountId, BlobRetention, BlobSampleOfferSource,
+    phase33_cap_activation_checklist, phase33_das_succinct_proof_plan, phase34_notes,
+    phase34_blob_acl_activation_height, phase34_blob_acl_active_at_tip, verify_das_succinct_proof,
+    AccountId, BlobRetention, BlobSampleOfferSource,
     BlobSampleServeChallengeStatus, BlobSampleSettleQuote, BlsAggregateResolvePayload,
     BlsAggregateResolveSelfContainedPayload, BlsPublicKeyG1, BlsSignatureG2, DasSuccinctProof,
     DasSuccinctProofKind, MediaBlobSampleOffer, MAX_MEDIA_BLOB_BYTES,
@@ -36,6 +37,7 @@ use crate::node::BoingNode;
 pub const MEDIA_BLOB_RPC_METHODS: &[&str] = &[
     "boing_getBlob",
     "boing_getBlobMeta",
+    "boing_getBlobAccess",
     "boing_getMediaBlobParams",
     "boing_getBlobDasSample",
     "boing_getBlobDasLightClientBatch",
@@ -939,6 +941,27 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 Some(m) => Ok(meta_json(&m)),
                 None => Ok(Value::Null),
             }
+        }
+        "boing_getBlobAccess" => {
+            let id = parse_id_param(params)?;
+            let store = node.media_blob_store().ok_or((
+                -32000,
+                "media blob store unavailable (no data dir)".into(),
+            ))?;
+            let Some(meta) = store.get_meta(&id) else {
+                return Ok(Value::Null);
+            };
+            let acl = store.get_access(&id);
+            let tip = node.chain.height();
+            Ok(json!({
+                "blobId": hex0x(&id),
+                "publisher": hex0x(&meta.publisher),
+                "grantees": acl.grantees.iter().map(|g| hex0x(&g.0)).collect::<Vec<_>>(),
+                "epoch": acl.epoch,
+                "aclActive": phase34_blob_acl_active_at_tip(tip),
+                "aclActivationHeight": phase34_blob_acl_activation_height(),
+                "note": phase34_notes(),
+            }))
         }
         "boing_getBlob" => {
             let id = parse_id_param(params)?;

@@ -32,6 +32,7 @@ pub mod blobs_phase30;
 pub mod blobs_phase31;
 pub mod blobs_phase32;
 pub mod blobs_phase33;
+pub mod blobs_phase34;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -485,6 +486,14 @@ pub use blobs_phase33::{
     PHASE33_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE33_SERVE_CHALLENGE_WINDOW_BLOCKS,
     PHASE33_SETTLE_RECEIPT_TTL_BLOCKS, PHASE33_SUBMIT_SLASH_APPEAL_TX_INDEX,
     PHASE33_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+};
+pub use blobs_phase34::{
+    blob_capability_preimage, blob_download_proof_preimage, phase34_blob_acl_activation_height,
+    phase34_blob_acl_active_at_tip, phase34_notes, verify_blob_capability,
+    verify_blob_download_proof, BlobDownloadAcl, BLOB_CAPABILITY_DOMAIN, BLOB_DOWNLOAD_PROOF_DOMAIN,
+    PHASE34_BLOB_ACL_ACTIVATION_ENV, PHASE34_DOWNLOAD_PROOF_MAX_TTL_SECS,
+    PHASE34_GRANT_BLOB_DOWNLOAD_TX_INDEX, PHASE34_MAX_BLOB_DOWNLOAD_GRANTEES,
+    PHASE34_REVOKE_BLOB_DOWNLOAD_TX_INDEX,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use equivocation::{EquivocationError, EquivocationEvidence};

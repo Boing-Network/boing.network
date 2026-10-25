@@ -1620,6 +1620,47 @@ impl BoingNode {
                     ));
                 }
             }
+            TransactionPayload::GrantBlobDownload { blob_id, grantee } => {
+                require_active()?;
+                let Some(store) = self.media_blob_store() else {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "media blob store unavailable".into(),
+                    ));
+                };
+                let Some(meta) = store.get_meta(blob_id) else {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "grant target blob not in sidecar".into(),
+                    ));
+                };
+                if meta.publisher != signed.tx.sender.0 {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "only the blob publisher may grant download access".into(),
+                    ));
+                }
+                if grantee.0 == meta.publisher {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "publisher already has download access".into(),
+                    ));
+                }
+            }
+            TransactionPayload::RevokeBlobDownload { blob_id, .. } => {
+                require_active()?;
+                let Some(store) = self.media_blob_store() else {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "media blob store unavailable".into(),
+                    ));
+                };
+                let Some(meta) = store.get_meta(blob_id) else {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "revoke target blob not in sidecar".into(),
+                    ));
+                };
+                if meta.publisher != signed.tx.sender.0 {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "only the blob publisher may revoke download access".into(),
+                    ));
+                }
+            }
             _ => {}
         }
         Ok(())

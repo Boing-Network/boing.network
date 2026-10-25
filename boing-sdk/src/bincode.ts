@@ -60,6 +60,10 @@ export const PayloadVariant = {
   ResolveSlashAppealAttested: 32,
   /** BLS aggregate resolve with self-contained pubkeys (Phase 30; not consensus-admitted). */
   ResolveSlashAppealBlsAggregate: 33,
+  /** Grant media-blob download ACL (Phase 34; publisher-only). */
+  GrantBlobDownload: 34,
+  /** Revoke media-blob download ACL (Phase 34; publisher-only). */
+  RevokeBlobDownload: 35,
 } as const;
 
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
@@ -324,7 +328,9 @@ export type TransactionPayloadInput =
       aggregateSignature: Uint8Array;
       /** 48-byte compressed G1 pubkeys, ordered with decoded bitset. */
       signerBlsPubkeys: Uint8Array[];
-    };
+    }
+  | { kind: 'grantBlobDownload'; blobId: Uint8Array; grantee: Uint8Array }
+  | { kind: 'revokeBlobDownload'; blobId: Uint8Array; grantee: Uint8Array };
 
 function need32(b: Uint8Array, what: string): Uint8Array {
   if (b.length !== 32) throw new Error(`${what} must be 32 bytes`);
@@ -585,6 +591,18 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
       }
       return concatBytes(...parts);
     }
+    case 'grantBlobDownload':
+      return concatBytes(
+        writeU32Le(PayloadVariant.GrantBlobDownload),
+        need32(payload.blobId, 'blobId'),
+        need32(payload.grantee, 'grantee'),
+      );
+    case 'revokeBlobDownload':
+      return concatBytes(
+        writeU32Le(PayloadVariant.RevokeBlobDownload),
+        need32(payload.blobId, 'blobId'),
+        need32(payload.grantee, 'grantee'),
+      );
     default: {
       const _x: never = payload;
       return _x;

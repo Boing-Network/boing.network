@@ -406,7 +406,9 @@ fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u12
         | TransactionPayload::SubmitSlashAppeal { .. }
         | TransactionPayload::ResolveSlashAppeal { .. }
         | TransactionPayload::ResolveSlashAppealAttested { .. }
-        | TransactionPayload::ResolveSlashAppealBlsAggregate { .. } => 0,
+        | TransactionPayload::ResolveSlashAppealBlsAggregate { .. }
+        | TransactionPayload::GrantBlobDownload { .. }
+        | TransactionPayload::RevokeBlobDownload { .. } => 0,
         _ => 0,
     }
 }

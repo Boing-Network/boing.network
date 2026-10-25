@@ -21,6 +21,8 @@ import {
   mediaBlobMaxBytesAt,
   payBlobSamplePayload,
   putBlobPayload,
+  grantBlobDownloadPayload,
+  revokeBlobDownloadPayload,
   quoteBlobSampleSettle,
   recoverMediaBlobXor,
   registerBlobSampleOfferPayload,
@@ -329,6 +331,15 @@ describe('mediaBlob', () => {
       }),
     );
     expect(ann[0]).toBe(22);
+  });
+
+  it('encodes GrantBlobDownload (34) and RevokeBlobDownload (35)', () => {
+    const blobId = new Uint8Array(32).fill(9);
+    const grantee = new Uint8Array(32).fill(7);
+    const grant = encodeTransactionPayload(grantBlobDownloadPayload({ blobId, grantee }));
+    expect(grant[0]).toBe(34);
+    const revoke = encodeTransactionPayload(revokeBlobDownloadPayload({ blobId, grantee }));
+    expect(revoke[0]).toBe(35);
   });
 
   it('NFT binding helpers expose boing://blob URIs', () => {

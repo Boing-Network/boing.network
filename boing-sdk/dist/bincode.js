@@ -58,6 +58,10 @@ export const PayloadVariant = {
     ResolveSlashAppealAttested: 32,
     /** BLS aggregate resolve with self-contained pubkeys (Phase 30; not consensus-admitted). */
     ResolveSlashAppealBlsAggregate: 33,
+    /** Grant media-blob download ACL (Phase 34; publisher-only). */
+    GrantBlobDownload: 34,
+    /** Revoke media-blob download ACL (Phase 34; publisher-only). */
+    RevokeBlobDownload: 35,
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export const BlobRetentionVariant = {
@@ -334,6 +338,10 @@ export function encodeTransactionPayload(payload) {
             }
             return concatBytes(...parts);
         }
+        case 'grantBlobDownload':
+            return concatBytes(writeU32Le(PayloadVariant.GrantBlobDownload), need32(payload.blobId, 'blobId'), need32(payload.grantee, 'grantee'));
+        case 'revokeBlobDownload':
+            return concatBytes(writeU32Le(PayloadVariant.RevokeBlobDownload), need32(payload.blobId, 'blobId'), need32(payload.grantee, 'grantee'));
         default: {
             const _x = payload;
             return _x;
