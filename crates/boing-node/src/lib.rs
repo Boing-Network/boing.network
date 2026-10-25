@@ -8,6 +8,7 @@ pub mod block_validation;
 pub mod chain;
 pub mod faucet;
 pub mod persistence;
+pub mod receipt_retention;
 pub use node::ChainBlockProvider;
 pub mod dapp_registry;
 pub mod intent_pool;

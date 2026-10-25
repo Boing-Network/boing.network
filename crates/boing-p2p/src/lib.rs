@@ -4,11 +4,13 @@
 
 mod block_sync;
 mod discovery;
+pub mod gossip_limits;
 mod node;
 pub mod redial;
 mod webrtc;
 
 pub use block_sync::{BlockRequest, BlockResponse};
+pub use gossip_limits::{GossipConfig, PeerRateLimiter};
 pub use discovery::{BootnodeEntry, PeerDiscoveryConfig, PeerScore};
 pub use webrtc::{
     ContentPointer, SignalingContract, SignalingDepositConfig, SignalingMessage,

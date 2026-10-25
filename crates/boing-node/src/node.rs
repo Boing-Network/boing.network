@@ -441,7 +441,12 @@ impl BoingNode {
                 }
                 let height = node.chain.height();
                 node.consensus.sync_round(height.saturating_add(1));
-                for h in 0..=height {
+                // Only the retention window is kept resident (older receipts stay on disk).
+                let first_receipt_height = crate::receipt_retention::first_retained_height(
+                    height,
+                    crate::receipt_retention::retention_blocks(),
+                );
+                for h in first_receipt_height..=height {
                     if let Some(list) = persistence.load_receipts_for_height(h)? {
                         for r in list {
                             node.receipts.insert(r.tx_id, r);
@@ -670,6 +675,20 @@ impl BoingNode {
         }
     }
 
+    /// Drop in-memory receipts older than the retention window (see [`crate::receipt_retention`]).
+    fn prune_receipts_if_due(&mut self, height: u64) {
+        if crate::receipt_retention::prune_due(height) {
+            let removed = crate::receipt_retention::prune(
+                &mut self.receipts,
+                height,
+                crate::receipt_retention::retention_blocks(),
+            );
+            if removed > 0 {
+                tracing::debug!(removed, kept = self.receipts.len(), height, "pruned in-memory receipts");
+            }
+        }
+    }
+
     /// Append a quorum-committed block: update tip state, receipts, persistence, and round.
     fn commit_pending(&mut self, pending: PendingCommit) -> Hash {
         let hash = pending.block.hash();
@@ -682,6 +701,7 @@ impl BoingNode {
             self.receipts.insert(r.tx_id, r.clone());
         }
         self.persist_block_and_state(&pending.block, &pending.receipts);
+        self.prune_receipts_if_due(height);
         self.pending_commit = None;
         self.early_votes
             .retain(|(r, _), _| *r >= height.saturating_add(1));
@@ -1179,6 +1199,7 @@ impl BoingNode {
             self.receipts.insert(r.tx_id, r.clone());
         }
         self.persist_block_and_state(block, &receipts);
+        self.prune_receipts_if_due(block.header.height);
         self.refresh_native_aggregates();
         self.emit_head_subscriber_event();
         self.maybe_refresh_stake_validators(block.header.height);

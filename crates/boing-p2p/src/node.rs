@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 
 use libp2p::futures::StreamExt;
 use libp2p::multiaddr::Protocol;
-use libp2p::gossipsub::{IdentTopic, MessageAuthenticity, ValidationMode};
+use libp2p::gossipsub::{IdentTopic, MessageAcceptance, MessageAuthenticity, ValidationMode};
 #[cfg(feature = "mdns")]
 use libp2p::mdns::tokio::Behaviour as Mdns;
 use libp2p::request_response::{self, ProtocolSupport};
@@ -27,6 +27,7 @@ use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, warn};
 
 use crate::block_sync::{BlockRequest, BlockResponse};
+use crate::gossip_limits::{GossipConfig, PeerRateLimiter};
 use crate::redial::BootnodeRedial;
 use boing_primitives::{
     Block, ConsensusVote, EquivocationEvidence, Hash, MediaBlobGossip, SignedTransaction,
@@ -148,6 +149,39 @@ struct BoingBehaviour {
     ping: libp2p::ping::Behaviour,
 }
 
+/// Gossipsub peer-score parameters.
+///
+/// Only *invalid* messages (undecodable / bad signature) are penalised: the mesh-delivery and
+/// mesh-failure penalties are disabled so quiet topics on a small testnet do not score honest peers
+/// down, and IP-colocation is disabled because operators legitimately run several nodes per host.
+/// Thresholds are the libp2p defaults (gossip -10, publish -50, graylist -80), so a peer that sends a
+/// few bad messages is graylisted and stops being relayed.
+pub(crate) fn peer_score_params() -> (gossipsub::PeerScoreParams, gossipsub::PeerScoreThresholds) {
+    let topic_params = gossipsub::TopicScoreParams {
+        topic_weight: 1.0,
+        mesh_message_deliveries_weight: 0.0,
+        mesh_failure_penalty_weight: 0.0,
+        invalid_message_deliveries_weight: -10.0,
+        invalid_message_deliveries_decay: 0.3,
+        ..Default::default()
+    };
+    let mut params = gossipsub::PeerScoreParams {
+        ip_colocation_factor_weight: 0.0,
+        ..Default::default()
+    };
+    for t in [
+        BLOCKS_TOPIC,
+        TRANSACTIONS_TOPIC,
+        VOTES_TOPIC,
+        EQUIVOCATION_TOPIC,
+        VRF_PROOFS_TOPIC,
+        MEDIA_BLOBS_TOPIC,
+    ] {
+        params.topics.insert(IdentTopic::new(t).hash(), topic_params.clone());
+    }
+    (params, gossipsub::PeerScoreThresholds::default())
+}
+
 /// P2P node handle. Broadcasts blocks/txs; emits P2pEvent for incoming data.
 /// Use `inert()` for tests when no Tokio runtime is available.
 #[derive(Clone)]
@@ -169,6 +203,18 @@ impl P2pNode {
         block_provider: Option<Arc<dyn BlockProvider>>,
         max_connections_per_ip: u32,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>), P2pError> {
+        Self::new_with_gossip(listen_addr, block_provider, max_connections_per_ip, GossipConfig::from_env())
+    }
+
+    /// Like [`new`](Self::new) with explicit gossip limits (max frame size, per-peer rate limits, peer scoring).
+    /// `new` reads them from the `BOING_P2P_*` environment ([`GossipConfig::from_env`]).
+    pub fn new_with_gossip(
+        listen_addr: &str,
+        block_provider: Option<Arc<dyn BlockProvider>>,
+        max_connections_per_ip: u32,
+        gossip: GossipConfig,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>), P2pError> {
+        let gossip_for_behaviour = gossip.clone();
         let (broadcast_tx, mut broadcast_rx) = mpsc::channel(64);
         let (cmd_tx, mut cmd_rx) = mpsc::channel(32);
         // Unbounded so the swarm task never awaits on backpressure when forwarding gossip / blocks
@@ -187,14 +233,28 @@ impl P2pNode {
             .with_dns()
             .map_err(|e| P2pError::Network(e.to_string()))?
             .with_behaviour(|key| {
-                let gossipsub_config = gossipsub::ConfigBuilder::default()
+                let mut cfg_builder = gossipsub::ConfigBuilder::default();
+                cfg_builder
                     .heartbeat_interval(Duration::from_secs(1))
                     .validation_mode(ValidationMode::Permissive)
+                    .max_transmit_size(gossip_for_behaviour.max_message_bytes);
+                if gossip_for_behaviour.peer_scoring {
+                    // Hold forwarding until the application reports Accept/Reject/Ignore so invalid
+                    // messages are never relayed and feed the sender's score.
+                    cfg_builder.validate_messages();
+                }
+                let gossipsub_config = cfg_builder
                     .build()
                     .map_err(|e| Box::new(std::io::Error::other(e.to_string())))?;
-                let gossipsub =
+                let mut gossipsub =
                     gossipsub::Behaviour::new(MessageAuthenticity::Signed(key.clone()), gossipsub_config)
                         .map_err(|e| Box::new(std::io::Error::other(e.to_string())))?;
+                if gossip_for_behaviour.peer_scoring {
+                    let (params, thresholds) = peer_score_params();
+                    gossipsub
+                        .with_peer_score(params, thresholds)
+                        .map_err(|e| Box::new(std::io::Error::other(e)))?;
+                }
                 let block_sync = BlockSyncBehaviour::new(
                     [(StreamProtocol::new("/boing/block-sync/1"), ProtocolSupport::Full)],
                     request_response::Config::default(),
@@ -241,6 +301,8 @@ impl P2pNode {
             let mut peer_ips: HashMap<libp2p::PeerId, IpAddr> = HashMap::new();
             let mut ip_connection_count: HashMap<IpAddr, u32> = HashMap::new();
             let mut redial = BootnodeRedial::new(Vec::new(), Instant::now());
+            let mut gossip_limiter = PeerRateLimiter::new(&gossip);
+            let report_validation = gossip.peer_scoring;
             let mut redial_tick = tokio::time::interval(REDIAL_TICK);
             redial_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             // Comma-separated: e.g. `/ip4/0.0.0.0/tcp/4001,/ip6/::/tcp/4001` (IPv6 listeners are
@@ -673,22 +735,39 @@ impl P2pNode {
                             _ => {}
                         }
                         if let SwarmEvent::Behaviour(BoingBehaviourEvent::Gossipsub(gossipsub::Event::Message {
-                                message, ..
+                                propagation_source, message_id, message,
                             })) = ev {
                             let topic = message.topic.as_str();
-                            if topic == BLOCKS_TOPIC {
+                            // Default Accept; decode / verify failures below flip it to Reject, and a
+                            // peer over its rate budget is Ignore (dropped, not relayed, mild score effect).
+                            let mut acceptance = MessageAcceptance::Accept;
+                            if !gossip_limiter.allow(&propagation_source, message.data.len(), Instant::now()) {
+                                acceptance = MessageAcceptance::Ignore;
+                                boing_telemetry::component_warn(
+                                    "boing_p2p::swarm",
+                                    "p2p",
+                                    "gossip_peer_rate_limited",
+                                    format!("peer={propagation_source:?} topic={topic} bytes={}", message.data.len()),
+                                );
+                            } else if topic == BLOCKS_TOPIC {
                                 if let Ok(block) = boing_primitives::Block::from_bincode(&message.data) {
                                     let _ = event_tx.send(P2pEvent::BlockReceived(block));
+                                } else {
+                                    acceptance = MessageAcceptance::Reject;
                                 }
                             } else if topic == TRANSACTIONS_TOPIC {
                                 if let Ok(signed) = SignedTransaction::from_bincode(&message.data)
                                 {
                                     let _ = event_tx.send(P2pEvent::TransactionReceived(signed));
+                                } else {
+                                    acceptance = MessageAcceptance::Reject;
                                 }
                             } else if topic == VOTES_TOPIC {
+                            acceptance = MessageAcceptance::Reject;
                                 if let Ok(vote) = bincode::deserialize::<ConsensusVote>(&message.data) {
                                     if vote.verify().is_ok() {
                                         let _ = event_tx.send(P2pEvent::VoteReceived(vote));
+                                        acceptance = MessageAcceptance::Accept;
                                     } else {
                                         boing_telemetry::component_warn(
                                             "boing_p2p::swarm",
@@ -699,11 +778,13 @@ impl P2pNode {
                                     }
                                 }
                             } else if topic == EQUIVOCATION_TOPIC {
+                            acceptance = MessageAcceptance::Reject;
                                 if let Ok(ev) =
                                     bincode::deserialize::<EquivocationEvidence>(&message.data)
                                 {
                                     if ev.verify().is_ok() {
                                         let _ = event_tx.send(P2pEvent::EquivocationReceived(ev));
+                                        acceptance = MessageAcceptance::Accept;
                                     } else {
                                         boing_telemetry::component_warn(
                                             "boing_p2p::swarm",
@@ -718,11 +799,13 @@ impl P2pNode {
                                     }
                                 }
                             } else if topic == VRF_PROOFS_TOPIC {
+                            acceptance = MessageAcceptance::Reject;
                                 if let Ok(proof) =
                                     bincode::deserialize::<VrfProofGossip>(&message.data)
                                 {
                                     if proof.verify() {
                                         let _ = event_tx.send(P2pEvent::VrfProofReceived(proof));
+                                        acceptance = MessageAcceptance::Accept;
                                     } else {
                                         boing_telemetry::component_warn(
                                             "boing_p2p::swarm",
@@ -736,11 +819,13 @@ impl P2pNode {
                                     }
                                 }
                             } else if topic == MEDIA_BLOBS_TOPIC {
+                            acceptance = MessageAcceptance::Reject;
                                 if let Ok(blob) =
                                     bincode::deserialize::<MediaBlobGossip>(&message.data)
                                 {
                                     if blob.validate().is_ok() {
                                         let _ = event_tx.send(P2pEvent::MediaBlobReceived(blob));
+                                        acceptance = MessageAcceptance::Accept;
                                     } else {
                                         boing_telemetry::component_warn(
                                             "boing_p2p::swarm",
@@ -750,6 +835,15 @@ impl P2pNode {
                                         );
                                     }
                                 }
+                            } else {
+                                acceptance = MessageAcceptance::Ignore;
+                            }
+                            if report_validation {
+                                let _ = swarm.behaviour_mut().gossipsub.report_message_validation_result(
+                                    &message_id,
+                                    &propagation_source,
+                                    acceptance,
+                                );
                             }
                         } else if let SwarmEvent::ConnectionEstablished {
                             peer_id,
@@ -779,7 +873,10 @@ impl P2pNode {
                                     }
                                 }
                             }
-                        } else if let SwarmEvent::ConnectionClosed { peer_id, .. } = &ev {
+                        } else if let SwarmEvent::ConnectionClosed { peer_id, num_established, .. } = &ev {
+                            if *num_established == 0 {
+                                gossip_limiter.forget(peer_id);
+                            }
                             if max_connections_per_ip > 0 {
                                 if let Some(ip) = peer_ips.remove(peer_id) {
                                     if let Some(c) = ip_connection_count.get_mut(&ip) {
