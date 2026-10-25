@@ -1,7 +1,7 @@
 //! JSON-RPC helpers for L1 media blobs.
 
 use boing_primitives::{
-    build_das_light_client_batch_from_bytes, build_das_light_client_batch_vrf,
+    build_das_light_client_batch, build_das_light_client_batch_vrf,
     build_das_succinct_proof_stub, build_das_succinct_proof_stub_vrf, chunk_media_blob,
     match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
     phase32_bls_committee_flip_active, phase32_pin_set_commitment,
@@ -31,8 +31,29 @@ use boing_primitives::{
 };
 use serde_json::{json, Value};
 
-use crate::media_blob_store::BlobMetaRecord;
+use crate::media_blob_store::{BlobMetaRecord, MediaBlobStore};
 use crate::node::BoingNode;
+
+/// Chunked DAS bundle for `id`, from the bounded cache when possible (see [`crate::das_cache`]).
+/// `Ok(None)` when the blob is not stored (expired / unknown). Content-addressed, so never stale.
+fn cached_das_bundle(
+    store: &MediaBlobStore,
+    id: &boing_primitives::BlobId,
+) -> Result<Option<std::sync::Arc<boing_primitives::MediaBlobErasureBundle>>, (i32, String)> {
+    if !store.has_bytes(id) {
+        return Ok(None);
+    }
+    crate::das_cache::get_or_build(id, || {
+        let Some(data) = store.get_bytes(id).map_err(|e| (-32000, e.to_string()))? else {
+            return Ok(None);
+        };
+        let bundle = chunk_media_blob(&data).map_err(|e| (-32000, e.to_string()))?;
+        if bundle.blob_id != *id {
+            return Err((-32000, "stored bytes do not match blob id".to_string()));
+        }
+        Ok(Some(bundle))
+    })
+}
 
 pub const MEDIA_BLOB_RPC_METHODS: &[&str] = &[
     "boing_getBlob",
@@ -988,16 +1009,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 -32000,
                 "media blob store unavailable (no data dir)".into(),
             ))?;
-            let bytes = store
-                .get_bytes(&id)
-                .map_err(|e| (-32000, e.to_string()))?;
-            let Some(data) = bytes else {
+            let Some(bundle) = cached_das_bundle(store, &id)? else {
                 return Ok(Value::Null);
             };
-            let bundle = chunk_media_blob(&data).map_err(|e| (-32000, e.to_string()))?;
-            if bundle.blob_id != id {
-                return Err((-32000, "stored bytes do not match blob id".into()));
-            }
             let sample =
                 media_blob_das_sample(&bundle, chunk_index).map_err(|e| (-32000, e.to_string()))?;
             Ok(json!({
@@ -1035,10 +1049,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 -32000,
                 "media blob store unavailable (no data dir)".into(),
             ))?;
-            let bytes = store
-                .get_bytes(&id)
-                .map_err(|e| (-32000, e.to_string()))?;
-            let Some(data) = bytes else {
+            let Some(bundle) = cached_das_bundle(store, &id)? else {
                 return Ok(Value::Null);
             };
             let leader_vrf = if use_leader_vrf {
@@ -1048,21 +1059,18 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             };
             let (batch, proof, seed_mode) = if let Some(vrf_s) = vrf_hex {
                 let vrf = parse_hex32(vrf_s, "vrfOutput")?;
-                let bundle = chunk_media_blob(&data).map_err(|e| (-32000, e.to_string()))?;
                 let batch = build_das_light_client_batch_vrf(&bundle, &vrf, sample_count as usize)
                     .map_err(|e| (-32000, e.to_string()))?;
                 let proof = build_das_succinct_proof_stub_vrf(&batch, &vrf);
                 (batch, proof, "vrf")
             } else if let Some(vrf) = leader_vrf {
-                let bundle = chunk_media_blob(&data).map_err(|e| (-32000, e.to_string()))?;
                 let batch = build_das_light_client_batch_vrf(&bundle, &vrf, sample_count as usize)
                     .map_err(|e| (-32000, e.to_string()))?;
                 let proof = build_das_succinct_proof_stub_vrf(&batch, &vrf);
                 (batch, proof, "leaderVrf")
             } else {
-                let batch =
-                    build_das_light_client_batch_from_bytes(&data, tip, sample_count as usize)
-                        .map_err(|e| (-32000, e.to_string()))?;
+                let batch = build_das_light_client_batch(&bundle, tip, sample_count as usize)
+                    .map_err(|e| (-32000, e.to_string()))?;
                 let proof = build_das_succinct_proof_stub(&batch);
                 (batch, proof, "height")
             };
@@ -1303,24 +1311,19 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 -32000,
                 "media blob store unavailable (no data dir)".into(),
             ))?;
-            let bytes = store
-                .get_bytes(&id)
-                .map_err(|e| (-32000, e.to_string()))?;
-            let Some(data) = bytes else {
+            let Some(bundle) = cached_das_bundle(store, &id)? else {
                 return Ok(json!({"ok": false, "reason": "blob not found"}));
             };
             let vrf_hex = params.get("vrfOutput").and_then(|v| v.as_str());
             let (batch, built) = if let Some(vrf_s) = vrf_hex {
                 let vrf = parse_hex32(vrf_s, "vrfOutput")?;
-                let bundle = chunk_media_blob(&data).map_err(|e| (-32000, e.to_string()))?;
                 let batch = build_das_light_client_batch_vrf(&bundle, &vrf, sample_count as usize)
                     .map_err(|e| (-32000, e.to_string()))?;
                 let built = build_das_succinct_proof_stub_vrf(&batch, &vrf);
                 (batch, built)
             } else {
-                let batch =
-                    build_das_light_client_batch_from_bytes(&data, tip, sample_count as usize)
-                        .map_err(|e| (-32000, e.to_string()))?;
+                let batch = build_das_light_client_batch(&bundle, tip, sample_count as usize)
+                    .map_err(|e| (-32000, e.to_string()))?;
                 let built = build_das_succinct_proof_stub(&batch);
                 (batch, built)
             };

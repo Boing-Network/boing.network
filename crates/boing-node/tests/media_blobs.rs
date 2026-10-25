@@ -213,3 +213,61 @@ fn put_blob_round_trip_rpc() {
 
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn das_sample_uses_cache_and_respects_blob_removal() {
+    let dir = tmp_dir("das-cache");
+    let (mut n, sk) = funded_node(Some(0), &dir);
+    // Multi-chunk blob (unique content so the global cache entry is ours alone).
+    let data: Vec<u8> = (0..600_000u32).map(|i| (i * 7 + 13) as u8).collect();
+    let id = blob_id_of(&data);
+    n.submit_transaction(put_tx(&sk, 0, data.clone(), BlobRetention::Forever))
+        .unwrap();
+    n.produce_block_if_ready().expect("block");
+    let idhex = format!("0x{}", hex::encode(id));
+
+    let (h0, m0, _, _) = boing_node::das_cache::global_stats();
+    let first = n
+        .media_blobs_rpc("boing_getBlobDasSample", &json!([idhex, 1]))
+        .unwrap();
+    let second = n
+        .media_blobs_rpc("boing_getBlobDasSample", &json!([idhex, 1]))
+        .unwrap();
+    assert_eq!(first, second);
+    assert_eq!(first["chunkIndex"], 1);
+    let batch = n
+        .media_blobs_rpc("boing_getBlobDasLightClientBatch", &json!([idhex, 3]))
+        .unwrap();
+    assert_eq!(batch["blobId"], idhex);
+    let (h1, m1, _, _) = boing_node::das_cache::global_stats();
+    assert!(m1 >= m0 + 1, "first call must miss");
+    assert!(h1 >= h0 + 2, "later calls must hit the cache ({h0}->{h1})");
+
+    // Removing the stored bytes must still yield null even though the bundle is cached.
+    let want = format!("{}.bin", hex::encode(id));
+    let file = walk(&dir)
+        .into_iter()
+        .find(|p| p.file_name().map(|f| f.to_string_lossy() == want).unwrap_or(false))
+        .expect("blob data file on disk");
+    std::fs::remove_file(file).unwrap();
+    let after = n
+        .media_blobs_rpc("boing_getBlobDasSample", &json!([idhex, 1]))
+        .unwrap();
+    assert!(after.is_null(), "removed blob must not be served from cache");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+fn walk(p: &PathBuf) -> Vec<PathBuf> {
+    let mut v = vec![];
+    if let Ok(rd) = std::fs::read_dir(p) {
+        for e in rd.flatten() {
+            let pb = e.path();
+            if pb.is_dir() {
+                v.extend(walk(&pb));
+            } else {
+                v.push(pb);
+            }
+        }
+    }
+    v
+}

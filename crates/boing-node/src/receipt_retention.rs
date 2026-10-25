@@ -1,4 +1,4 @@
-﻿//! Bounded retention of in-memory execution receipts (`BoingNode::receipts`).
+//! Bounded retention of in-memory execution receipts (`BoingNode::receipts`).
 //!
 //! Receipts used to be kept forever, so RAM grew with every transaction ever executed. Receipts are
 //! also persisted per height, so only a recent window needs to be resident. Lookups inside the window

@@ -1,4 +1,4 @@
-﻿//! Gossip hardening knobs: max message size, per-peer rate limiting, peer scoring.
+//! Gossip hardening knobs: max message size, per-peer rate limiting, peer scoring.
 //!
 //! Defaults are safe for the live networks: the size limit only ever *raises* what this node accepts
 //! (peers still on the old 64 KiB default drop larger frames on their side), rate limits are generous,

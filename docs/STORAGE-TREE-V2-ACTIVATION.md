@@ -1,4 +1,4 @@
-﻿# Storage-tree v2 (full-key routing) — activation and migration notes
+# Storage-tree v2 (full-key routing) — activation and migration notes
 
 **Status:** implemented, **OFF by default**. Nothing changes on any chain until every node is started
 with the same `BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT` (or `--storage-tree-v2-activation-height`).

@@ -1,4 +1,4 @@
-﻿//! Gossip hardening: frames larger than libp2p's 64 KiB default are delivered with the default
+//! Gossip hardening: frames larger than libp2p's 64 KiB default are delivered with the default
 //! `GossipConfig`, with peer scoring + application-level validation reporting turned on.
 
 use std::time::Duration;

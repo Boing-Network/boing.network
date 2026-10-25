@@ -1,4 +1,4 @@
-﻿//! Storage-tree v2 (full-key routing) vs the legacy 64-bit routing.
+//! Storage-tree v2 (full-key routing) vs the legacy 64-bit routing.
 //!
 //! `legacy_state_root_is_pinned` uses only the long-stable public API, so the identical file runs
 //! against the pre-v2 code base and pins the roots every existing chain already committed to. The

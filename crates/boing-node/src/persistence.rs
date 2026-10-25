@@ -17,6 +17,61 @@ use boing_tokenomics::NetworkFeePolicy;
 
 use crate::chain::ChainState;
 
+// --- Bounded deserialization of local persistence -------------------------------------------------
+// A corrupt, truncated or tampered data dir must not make the node allocate unbounded memory at
+// startup. Files are size-checked *before* being read, and bincode decoding runs with a byte limit
+// (same fixint / trailing-bytes semantics as `bincode::serialize`/`deserialize`, so existing files
+// load unchanged).
+
+/// Cap for small per-height / metadata files (`receipts_<h>.bin`, `meta.bin`, `qa_pending.bin`).
+pub const MAX_PERSIST_SMALL_FILE_BYTES: u64 = 64 * 1024 * 1024;
+/// Cap for one persisted block file.
+pub const MAX_PERSIST_BLOCK_FILE_BYTES: u64 = 256 * 1024 * 1024;
+/// Cap for registry sidecars (names, open validators, sample offers, slash appeals, ...).
+pub const MAX_PERSIST_REGISTRY_FILE_BYTES: u64 = 512 * 1024 * 1024;
+/// Default cap for the full state snapshot `accounts.bin` (override: `BOING_PERSIST_MAX_STATE_BYTES`).
+pub const DEFAULT_MAX_PERSIST_STATE_BYTES: u64 = 32 * 1024 * 1024 * 1024;
+
+fn max_state_file_bytes() -> u64 {
+    std::env::var("BOING_PERSIST_MAX_STATE_BYTES")
+        .ok()
+        .and_then(|s| s.trim().parse::<u64>().ok())
+        .filter(|n| *n > 0)
+        .unwrap_or(DEFAULT_MAX_PERSIST_STATE_BYTES)
+}
+
+/// Read `path`, refusing files larger than `max` bytes (checked via metadata before reading).
+pub fn read_file_limited(path: &Path, max: u64) -> Result<Vec<u8>, PersistenceError> {
+    let len = std::fs::metadata(path)?.len();
+    if len > max {
+        return Err(PersistenceError::Serialization(format!(
+            "{} is {len} bytes, over the {max}-byte persistence limit",
+            path.display()
+        )));
+    }
+    Ok(std::fs::read(path)?)
+}
+
+/// Decode bincode with a hard byte limit (see module note above).
+pub fn decode_bincode_limited<T: serde::de::DeserializeOwned>(
+    bytes: &[u8],
+    max: u64,
+) -> Result<T, PersistenceError> {
+    use bincode::Options;
+    if bytes.len() as u64 > max {
+        return Err(PersistenceError::Serialization(format!(
+            "payload is {} bytes, over the {max}-byte persistence limit",
+            bytes.len()
+        )));
+    }
+    bincode::DefaultOptions::new()
+        .with_fixint_encoding()
+        .allow_trailing_bytes()
+        .with_limit(max)
+        .deserialize(bytes)
+        .map_err(|e| PersistenceError::Serialization(e.to_string()))
+}
+
 const CHAIN_DIR: &str = "chain";
 const BLOCKS_DIR: &str = "blocks";
 const CHAIN_META_FILE: &str = "meta.bin";
@@ -237,9 +292,9 @@ impl Persistence {
         if !path.exists() {
             return Ok(None);
         }
-        let bytes = std::fs::read(path)?;
-        let receipts: Vec<ExecutionReceipt> = bincode::deserialize(&bytes)
-            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let bytes = read_file_limited(&path, MAX_PERSIST_SMALL_FILE_BYTES)?;
+        let receipts: Vec<ExecutionReceipt> =
+            decode_bincode_limited(&bytes, MAX_PERSIST_SMALL_FILE_BYTES)?;
         Ok(Some(receipts))
     }
 
@@ -354,9 +409,8 @@ impl Persistence {
         if !meta_path.exists() {
             return Ok(None);
         }
-        let meta_bytes = std::fs::read(&meta_path)?;
-        let meta: ChainMeta = bincode::deserialize(&meta_bytes)
-            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let meta_bytes = read_file_limited(&meta_path, MAX_PERSIST_SMALL_FILE_BYTES)?;
+        let meta: ChainMeta = decode_bincode_limited(&meta_bytes, MAX_PERSIST_SMALL_FILE_BYTES)?;
 
         let blocks_dir = self.blocks_dir();
         if !blocks_dir.exists() {
@@ -368,7 +422,7 @@ impl Persistence {
             return Ok(None);
         }
 
-        let genesis_bytes = std::fs::read(&genesis_path)?;
+        let genesis_bytes = read_file_limited(&genesis_path, MAX_PERSIST_BLOCK_FILE_BYTES)?;
         let genesis: Block = Block::from_bincode(&genesis_bytes)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
 
@@ -381,7 +435,7 @@ impl Persistence {
                     "Missing block {h}"
                 )));
             }
-            let block_bytes = std::fs::read(&block_path)?;
+            let block_bytes = read_file_limited(&block_path, MAX_PERSIST_BLOCK_FILE_BYTES)?;
             let block: Block = Block::from_bincode(&block_bytes)
                 .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
             chain
@@ -398,9 +452,9 @@ impl Persistence {
         if !path.exists() {
             return Ok(None);
         }
-        let bytes = std::fs::read(&path)?;
-        let persisted: PersistedState = bincode::deserialize(&bytes)
-            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let max_state = max_state_file_bytes();
+        let bytes = read_file_limited(&path, max_state)?;
+        let persisted: PersistedState = decode_bincode_limited(&bytes, max_state)?;
 
         let mut state = StateStore::load_from_persistence(
             persisted.accounts,
@@ -409,42 +463,43 @@ impl Persistence {
         );
         let ov_path = self.state_dir().join(OPEN_VALIDATORS_FILE);
         if ov_path.exists() {
-            let ov_bytes = std::fs::read(&ov_path)?;
-            let mut reg: boing_state::OpenValidatorRegistry = bincode::deserialize(&ov_bytes)
-                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let ov_bytes = read_file_limited(&ov_path, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
+            let mut reg: boing_state::OpenValidatorRegistry =
+                decode_bincode_limited(&ov_bytes, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
             let js_path = self.state_dir().join(OPEN_VALIDATOR_JAIL_STATS_FILE);
             if js_path.exists() {
                 // Optional, node-local: a missing/corrupt file only loses the display snapshot.
-                if let Ok(m) = std::fs::read(&js_path).map(|b| bincode::deserialize(&b)) {
-                    reg.last_jail = m.unwrap_or_default();
+                if let Ok(b) = read_file_limited(&js_path, MAX_PERSIST_SMALL_FILE_BYTES) {
+                    reg.last_jail =
+                        decode_bincode_limited(&b, MAX_PERSIST_SMALL_FILE_BYTES).unwrap_or_default();
                 }
             }
             state.load_open_validators(reg);
         }
         let names_path = self.state_dir().join(NAMES_FILE);
         if names_path.exists() {
-            let bytes = std::fs::read(&names_path)?;
-            let reg: boing_state::NameRegistry = bincode::deserialize(&bytes)
-                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let bytes = read_file_limited(&names_path, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
+            let reg: boing_state::NameRegistry =
+                decode_bincode_limited(&bytes, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
             state.load_names(reg);
         }
         let sample_offers_path = self.state_dir().join(SAMPLE_OFFERS_FILE);
         if sample_offers_path.exists() {
-            let bytes = std::fs::read(&sample_offers_path)?;
-            let reg: boing_state::SampleOfferRegistry = bincode::deserialize(&bytes)
-                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let bytes = read_file_limited(&sample_offers_path, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
+            let reg: boing_state::SampleOfferRegistry =
+                decode_bincode_limited(&bytes, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
             state.load_sample_offers(reg);
         }
         let sample_serve_path = self.state_dir().join(SAMPLE_SERVE_FILE);
         if sample_serve_path.exists() {
-            let bytes = std::fs::read(&sample_serve_path)?;
-            let reg: boing_state::SampleServeChallengeRegistry = bincode::deserialize(&bytes)
-                .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+            let bytes = read_file_limited(&sample_serve_path, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
+            let reg: boing_state::SampleServeChallengeRegistry =
+                decode_bincode_limited(&bytes, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
             state.load_sample_serve(reg);
         }
         let slash_appeals_path = self.state_dir().join(SLASH_APPEALS_FILE);
         if slash_appeals_path.exists() {
-            let bytes = std::fs::read(&slash_appeals_path)?;
+            let bytes = read_file_limited(&slash_appeals_path, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
             let reg = decode_slash_appeals(&bytes)?;
             state.load_slash_appeals(reg);
         }
@@ -590,9 +645,9 @@ impl Persistence {
         if !path.exists() {
             return Ok(None);
         }
-        let bytes = std::fs::read(path)?;
-        let items: Vec<(Hash, QaPendingRecord)> = bincode::deserialize(&bytes)
-            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let bytes = read_file_limited(&path, MAX_PERSIST_SMALL_FILE_BYTES)?;
+        let items: Vec<(Hash, QaPendingRecord)> =
+            decode_bincode_limited(&bytes, MAX_PERSIST_SMALL_FILE_BYTES)?;
         Ok(Some(items))
     }
 
@@ -1031,5 +1086,43 @@ mod slash_appeals_envelope_tests {
     fn corrupt_file_errors_no_wipe() {
         let err = decode_slash_appeals(b"not-a-registry").unwrap_err();
         assert!(matches!(err, PersistenceError::Serialization(_)));
+    }
+}
+
+#[cfg(test)]
+mod bounded_decode_tests {
+    use super::*;
+
+    #[test]
+    fn limited_decode_matches_plain_bincode_and_rejects_oversize() {
+        let v: Vec<(u64, String)> = vec![(1, "a".into()), (2, "bb".into())];
+        let bytes = bincode::serialize(&v).unwrap();
+        let plain: Vec<(u64, String)> = bincode::deserialize(&bytes).unwrap();
+        let lim: Vec<(u64, String)> = decode_bincode_limited(&bytes, 1024).unwrap();
+        assert_eq!(plain, lim);
+        // trailing bytes still tolerated like plain bincode
+        let mut with_tail = bytes.clone();
+        with_tail.extend_from_slice(&[0, 1, 2]);
+        assert!(decode_bincode_limited::<Vec<(u64, String)>>(&with_tail, 1024).is_ok());
+        // over the cap
+        assert!(decode_bincode_limited::<Vec<(u64, String)>>(&bytes, 4).is_err());
+    }
+
+    #[test]
+    fn lying_length_prefix_is_rejected_without_huge_allocation() {
+        // Vec<u8> claiming 4 GiB of payload but only a few bytes present.
+        let mut bytes = (4u64 * 1024 * 1024 * 1024).to_le_bytes().to_vec();
+        bytes.extend_from_slice(&[1, 2, 3]);
+        assert!(decode_bincode_limited::<Vec<u8>>(&bytes, 1024 * 1024).is_err());
+    }
+
+    #[test]
+    fn read_file_limited_checks_size_first() {
+        let p = std::env::temp_dir().join(format!("boing-persist-limit-{}.bin", std::process::id()));
+        std::fs::write(&p, vec![7u8; 2048]).unwrap();
+        assert_eq!(read_file_limited(&p, 4096).unwrap().len(), 2048);
+        let err = read_file_limited(&p, 1024).unwrap_err();
+        assert!(err.to_string().contains("persistence limit"), "{err}");
+        let _ = std::fs::remove_file(p);
     }
 }

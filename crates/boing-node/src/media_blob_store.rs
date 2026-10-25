@@ -322,6 +322,11 @@ impl MediaBlobStore {
         idx.entries.get(&blob_id_hex(id)).cloned()
     }
 
+    /// Cheap existence check for the blob's data file (no read).
+    pub fn has_bytes(&self, id: &BlobId) -> bool {
+        self.data_path(id).exists()
+    }
+
     pub fn get_bytes(&self, id: &BlobId) -> std::io::Result<Option<Vec<u8>>> {
         let path = self.data_path(id);
         if !path.exists() {

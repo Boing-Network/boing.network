@@ -7,6 +7,7 @@ pub mod block_producer;
 pub mod block_validation;
 pub mod chain;
 pub mod faucet;
+pub mod das_cache;
 pub mod persistence;
 pub mod receipt_retention;
 pub use node::ChainBlockProvider;
