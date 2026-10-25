@@ -111,20 +111,25 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 
 # Permission-gated raw download (recommended for public RPC / explorer operators):
 # GET /v1/media/blob?id=<blobId> returns Content-Type bytes (not JSON hex).
-# Auth when BOING_OPERATOR_RPC_TOKEN and/or BOING_BLOB_DOWNLOAD_TOKENS are set:
-#   X-Boing-Operator | X-Boing-Blob-Download | Authorization: Bearer <token>
+# Auth:
+#   - Operator break-glass: X-Boing-Operator | X-Boing-Blob-Download | Authorization: Bearer
+#   - Phase 34 publisher/grantee proof: X-Boing-Blob-Downloader | Expires | Nonce | Signature
 # BOING_BLOB_DOWNLOAD_TOKENS=…
 # Optional: BOING_BLOB_GET_REQUIRE_AUTH=1 also gates JSON-RPC boing_getBlob (default off).
+# Phase 34 private-by-default HTTP download when tip ≥ height:
+# BOING_BLOB_ACL_ACTIVATION_HEIGHT=…
 ```
 
 ## Permission-gated download
 
-Large `PutBlob` bodies are stubbed in explorer block JSON (`include_code=false`) so public RPC stays under the ~6 MiB gateway cap. Operators who need the raw bytes use:
+Large `PutBlob` bodies are stubbed in explorer block JSON (`include_code=false`) so public RPC stays under the ~6 MiB gateway cap. Publishers, ACL grantees, and operators fetch raw bytes via:
 
 | Path | Role |
 |------|------|
-| `GET /v1/media/blob?id={blobId}` | Raw attachment; auth when download/operator tokens are configured |
+| `GET /v1/media/blob?id={blobId}` | Raw attachment; operator token **or** Phase 34 signed proof |
 | `boing_getBlobMeta` | Public metadata (size, contentType, publisher, …) |
+| `boing_getBlobAccess` | Public ACL metadata (publisher, grantees, epoch) |
 | `boing_getBlob` | `{ meta, dataHex }` — optional auth via `BOING_BLOB_GET_REQUIRE_AUTH` |
+| Tx **34** / **35** | `GrantBlobDownload` / `RevokeBlobDownload` (publisher-only) |
 
-Explorer (boing.observer) exposes a same-origin download UI that checks a user-presented download token against server `BOING_BLOB_DOWNLOAD_TOKENS` / `BOING_OPERATOR_RPC_TOKEN`, then streams from the node over Fly-direct (not the public gateway).
+See [HANDOFF_BLOB_DOWNLOAD_ACL.md](./HANDOFF_BLOB_DOWNLOAD_ACL.md). Explorer (boing.observer) supports wallet-signed download proofs plus the operator-token break-glass path, proxying over Fly-direct (not the public gateway).

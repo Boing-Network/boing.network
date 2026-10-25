@@ -354,6 +354,94 @@ export function payBlobSamplePayload(input: {
   };
 }
 
+/** Domain separator for Phase 34 download proofs (`BOING_BLOB_DOWNLOAD_V1`). */
+export const BLOB_DOWNLOAD_PROOF_DOMAIN = new TextEncoder().encode('BOING_BLOB_DOWNLOAD_V1');
+/** Soft max TTL for download proofs (seconds); matches node. */
+export const PHASE34_DOWNLOAD_PROOF_MAX_TTL_SECS = 3600;
+
+/** Phase 34: grant download ACL (`GrantBlobDownload`, variant 34). Publisher-only. */
+export function grantBlobDownloadPayload(input: {
+  blobId: Uint8Array;
+  grantee: Uint8Array;
+}): TransactionPayloadInput {
+  if (input.blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (input.grantee.length !== 32) throw new Error('grantee must be 32 bytes');
+  return { kind: 'grantBlobDownload', blobId: input.blobId, grantee: input.grantee };
+}
+
+/** Phase 34: revoke download ACL (`RevokeBlobDownload`, variant 35). Publisher-only. */
+export function revokeBlobDownloadPayload(input: {
+  blobId: Uint8Array;
+  grantee: Uint8Array;
+}): TransactionPayloadInput {
+  if (input.blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (input.grantee.length !== 32) throw new Error('grantee must be 32 bytes');
+  return { kind: 'revokeBlobDownload', blobId: input.blobId, grantee: input.grantee };
+}
+
+/** BLAKE3 preimage for a Phase 34 download authorization signature. */
+export function blobDownloadProofPreimage(input: {
+  chainId: number | bigint;
+  blobId: Uint8Array;
+  expiresAtUnix: number | bigint;
+  nonce: Uint8Array;
+}): Uint8Array {
+  if (input.blobId.length !== 32) throw new Error('blobId must be 32 bytes');
+  if (input.nonce.length !== 32) throw new Error('nonce must be 32 bytes');
+  return blake3(
+    concatBytes(
+      BLOB_DOWNLOAD_PROOF_DOMAIN,
+      u64Le(input.chainId),
+      input.blobId,
+      u64Le(input.expiresAtUnix),
+      input.nonce,
+    ),
+  );
+}
+
+/** Headers accepted by `GET /v1/media/blob` for a Phase 34 signed download proof. */
+export type BlobDownloadProofHeaders = {
+  'X-Boing-Blob-Downloader': string;
+  'X-Boing-Blob-Expires': string;
+  'X-Boing-Blob-Nonce': string;
+  'X-Boing-Blob-Signature': string;
+};
+
+/**
+ * Build download-proof headers. `signature64` is the Ed25519 signature over
+ * [`blobDownloadProofPreimage`] (pass the preimage hex to `boing_signMessage`).
+ */
+export function blobDownloadProofHeaders(input: {
+  downloader: Uint8Array;
+  expiresAtUnix: number | bigint;
+  nonce: Uint8Array;
+  signature64: Uint8Array;
+}): BlobDownloadProofHeaders {
+  if (input.downloader.length !== 32) throw new Error('downloader must be 32 bytes');
+  if (input.nonce.length !== 32) throw new Error('nonce must be 32 bytes');
+  if (input.signature64.length !== 64) throw new Error('signature must be 64 bytes');
+  return {
+    'X-Boing-Blob-Downloader': `0x${bytesToHex(input.downloader)}`,
+    'X-Boing-Blob-Expires': String(input.expiresAtUnix),
+    'X-Boing-Blob-Nonce': `0x${bytesToHex(input.nonce)}`,
+    'X-Boing-Blob-Signature': `0x${bytesToHex(input.signature64)}`,
+  };
+}
+
+/** Sign a download proof with a 32-byte Ed25519 secret key (tests / Node tooling). */
+export async function signBlobDownloadProof(input: {
+  secretKey32: Uint8Array;
+  chainId: number | bigint;
+  blobId: Uint8Array;
+  expiresAtUnix: number | bigint;
+  nonce: Uint8Array;
+}): Promise<{ downloader: Uint8Array; preimage: Uint8Array; signature: Uint8Array }> {
+  const preimage = blobDownloadProofPreimage(input);
+  const downloader = await ed25519.getPublicKeyAsync(input.secretKey32);
+  const signature = await ed25519.signAsync(preimage, input.secretKey32);
+  return { downloader, preimage, signature };
+}
+
 /**
  * NFT binding: store BlobId as `metadata_hash`, or put `boing://blob/0x{id}` in off-chain JSON
  * and hash that JSON. Prefer JSON + URI for marketplaces (name / attributes alongside media).

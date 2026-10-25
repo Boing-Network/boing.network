@@ -340,6 +340,16 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "appeal_id":appeal_id,
             "approved":approved,
         }),
+        TransactionPayload::GrantBlobDownload { blob_id, grantee } => json!({
+            "kind":"grant_blob_download",
+            "blob_id":hex0x(blob_id),
+            "grantee":hex0x(&grantee.0),
+        }),
+        TransactionPayload::RevokeBlobDownload { blob_id, grantee } => json!({
+            "kind":"revoke_blob_download",
+            "blob_id":hex0x(blob_id),
+            "grantee":hex0x(&grantee.0),
+        }),
     }
 }
 

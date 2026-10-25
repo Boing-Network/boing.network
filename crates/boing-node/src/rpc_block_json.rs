@@ -382,6 +382,18 @@ fn payload_json(payload: &TransactionPayload, include_code: bool) -> Value {
                 "signer_bls_pubkeys": serde_json::to_value(signer_bls_pubkeys).unwrap_or(Value::Null),
             }
         }),
+        TransactionPayload::GrantBlobDownload { blob_id, grantee } => json!({
+            "GrantBlobDownload": {
+                "blob_id": hex0x(blob_id),
+                "grantee": account_json(grantee),
+            }
+        }),
+        TransactionPayload::RevokeBlobDownload { blob_id, grantee } => json!({
+            "RevokeBlobDownload": {
+                "blob_id": hex0x(blob_id),
+                "grantee": account_json(grantee),
+            }
+        }),
     }
 }
 

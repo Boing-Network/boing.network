@@ -172,16 +172,107 @@ impl RpcState {
         self.blob_download_tokens.iter().any(|t| t == presented)
     }
 
-    /// Authorize media-blob byte downloads. Open when no download secrets are configured
-    /// (local/dev). When secrets exist, require a matching operator or download token.
-    fn blob_download_authorized(&self, headers: &HeaderMap) -> bool {
-        if !self.blob_download_auth_configured() {
-            return true;
-        }
+    /// Break-glass: matching operator / download shared secret.
+    fn blob_download_secret_authorized(&self, headers: &HeaderMap) -> bool {
         self.presented_blob_download_secrets(headers)
             .into_iter()
             .any(|s| self.secret_matches_download_auth(s))
     }
+
+    /// Authorize media-blob byte downloads for a specific blob.
+    /// - Operator / download shared secrets (break-glass) always allow when configured.
+    /// - Publisher / ACL grantee may present a short-lived Ed25519 download proof.
+    /// - Open (no auth) only when secrets are unset **and** Phase 34 ACL is not active at tip.
+    fn blob_download_authorized_for(
+        &self,
+        headers: &HeaderMap,
+        blob_id: &boing_primitives::BlobId,
+        tip: u64,
+        store: &crate::media_blob_store::MediaBlobStore,
+    ) -> bool {
+        if self.blob_download_auth_configured() && self.blob_download_secret_authorized(headers) {
+            return true;
+        }
+        if blob_download_proof_authorized(headers, blob_id, tip, store) {
+            return true;
+        }
+        if !self.blob_download_auth_configured()
+            && !boing_primitives::phase34_blob_acl_active_at_tip(tip)
+        {
+            return true;
+        }
+        false
+    }
+
+}
+
+fn parse_hex_header_bytes(headers: &HeaderMap, name: &str, expected_len: usize) -> Option<Vec<u8>> {
+    let raw = headers.get(name).and_then(|v| v.to_str().ok())?.trim();
+    let hex = raw.strip_prefix("0x").unwrap_or(raw);
+    let bytes = hex::decode(hex).ok()?;
+    if bytes.len() != expected_len {
+        return None;
+    }
+    Some(bytes)
+}
+
+/// Phase 34 signed download proof headers:
+/// `X-Boing-Blob-Downloader`, `X-Boing-Blob-Expires`, `X-Boing-Blob-Nonce`, `X-Boing-Blob-Signature`.
+fn blob_download_proof_authorized(
+    headers: &HeaderMap,
+    blob_id: &boing_primitives::BlobId,
+    _tip: u64,
+    store: &crate::media_blob_store::MediaBlobStore,
+) -> bool {
+    let Some(downloader_bytes) = parse_hex_header_bytes(headers, "x-boing-blob-downloader", 32) else {
+        return false;
+    };
+    let mut downloader = [0u8; 32];
+    downloader.copy_from_slice(&downloader_bytes);
+    let signer = boing_primitives::AccountId(downloader);
+
+    let expires = headers
+        .get("x-boing-blob-expires")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.trim().parse::<u64>().ok());
+    let Some(expires_at_unix) = expires else {
+        return false;
+    };
+    let Some(nonce_bytes) = parse_hex_header_bytes(headers, "x-boing-blob-nonce", 32) else {
+        return false;
+    };
+    let mut nonce = [0u8; 32];
+    nonce.copy_from_slice(&nonce_bytes);
+    let Some(sig) = parse_hex_header_bytes(headers, "x-boing-blob-signature", 64) else {
+        return false;
+    };
+
+    let chain_id = crate::network_preset::configured_chain_id()
+        .or_else(|| {
+            std::env::var("BOING_CHAIN_ID")
+                .ok()
+                .and_then(|s| s.trim().parse().ok())
+        })
+        .or_else(boing_primitives::default_signing_chain_id)
+        .unwrap_or(6913);
+
+    let now_unix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    if !boing_primitives::verify_blob_download_proof(
+        &signer,
+        chain_id,
+        blob_id,
+        expires_at_unix,
+        &nonce,
+        &sig,
+        now_unix,
+    ) {
+        return false;
+    }
+    store.may_download(blob_id, &signer)
 }
 
 fn parse_blob_download_tokens_env() -> Arc<Vec<String>> {
@@ -212,22 +303,14 @@ struct MediaBlobDownloadQuery {
 }
 
 /// **`GET /v1/media/blob?id=<blobId>`** — raw media bytes (bypasses JSON-RPC hex inflation).
-/// When `BOING_OPERATOR_RPC_TOKEN` and/or `BOING_BLOB_DOWNLOAD_TOKENS` are set, requires a
-/// matching `X-Boing-Operator`, `X-Boing-Blob-Download`, or `Authorization: Bearer` credential.
+/// Auth: operator/download shared secrets (break-glass), or Phase 34 publisher/grantee
+/// Ed25519 download proof headers. When `BOING_BLOB_ACL_ACTIVATION_HEIGHT` is reached,
+/// download is private-by-default (proof or operator secret required).
 async fn http_media_blob_download(
     State(state): State<RpcState>,
     Query(query): Query<MediaBlobDownloadQuery>,
     headers: HeaderMap,
 ) -> Response {
-    if !state.blob_download_authorized(&headers) {
-        return (
-            StatusCode::UNAUTHORIZED,
-            [(CONTENT_TYPE, "application/json")],
-            r#"{"error":"blob download authentication required","hint":"set X-Boing-Blob-Download, X-Boing-Operator, or Authorization: Bearer to a configured download/operator token"}"#,
-        )
-            .into_response();
-    }
-
     let Some(raw_id) = query.id.as_deref().map(str::trim).filter(|s| !s.is_empty()) else {
         return (
             StatusCode::BAD_REQUEST,
@@ -247,6 +330,7 @@ async fn http_media_blob_download(
     };
 
     let n = state.node.read().await;
+    let tip = n.chain.height();
     let Some(store) = n.media_blob_store() else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -255,6 +339,15 @@ async fn http_media_blob_download(
         )
             .into_response();
     };
+
+    if !state.blob_download_authorized_for(&headers, &id, tip, store) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"blob download authentication required","hint":"operator/download token, or Phase 34 proof headers X-Boing-Blob-Downloader / Expires / Nonce / Signature (publisher or ACL grantee)"}"#,
+        )
+            .into_response();
+    }
 
     let meta = store.get_meta(&id);
     let bytes = match store.get_bytes(&id) {
@@ -635,6 +728,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getContractStorage",
     "boing_getDexToken",
     "boing_getBlob",
+    "boing_getBlobAccess",
     "boing_getBlobDasLightClientBatch",
     "boing_getBlobDasSample",
     "boing_getBlobMeta",
@@ -1460,7 +1554,7 @@ fn well_known_boing_rpc_document() -> serde_json::Value {
         "ready_json_path": "/ready.json",
         "websocket_path": "/ws",
         "media_blob_download_path": "/v1/media/blob?id={blobId}",
-        "media_blob_download_auth": "When BOING_OPERATOR_RPC_TOKEN and/or BOING_BLOB_DOWNLOAD_TOKENS are set, require X-Boing-Operator, X-Boing-Blob-Download, or Authorization: Bearer",
+        "media_blob_download_auth": "Operator/download tokens (break-glass) and/or Phase 34 proof headers X-Boing-Blob-Downloader|Expires|Nonce|Signature. BOING_BLOB_ACL_ACTIVATION_HEIGHT makes HTTP download private-by-default.",
     })
 }
 
@@ -2994,6 +3088,7 @@ async fn dispatch_jsonrpc_request(
         }
         "boing_getBlob"
         | "boing_getBlobMeta"
+        | "boing_getBlobAccess"
         | "boing_getMediaBlobParams"
         | "boing_getBlobDasSample"
         | "boing_getBlobDasLightClientBatch"
@@ -3010,20 +3105,45 @@ async fn dispatch_jsonrpc_request(
         | "boing_listBlsDualKeys"
         | "boing_verifyBlsAggregate"
         | "boing_verifyBlsAggregateResolve" => {
-            if req.method == "boing_getBlob"
-                && state.blob_get_require_auth
-                && state.blob_download_auth_configured()
-                && !state.blob_download_authorized(headers)
-            {
-                return (
-                    StatusCode::OK,
-                    rpc_error(
-                        id,
-                        -32057,
-                        "Blob download authentication required: set X-Boing-Blob-Download, X-Boing-Operator, or Authorization: Bearer to a configured download/operator token (BOING_BLOB_GET_REQUIRE_AUTH)."
-                            .into(),
-                    ),
-                );
+            if req.method == "boing_getBlob" && state.blob_get_require_auth {
+                let params = req
+                    .params
+                    .clone()
+                    .unwrap_or(serde_json::Value::Array(vec![]));
+                let n = node.read().await;
+                let tip = n.chain.height();
+                let blob_id = params
+                    .get(0)
+                    .and_then(|v| v.as_str())
+                    .or_else(|| params.get("blobId").and_then(|v| v.as_str()))
+                    .or_else(|| params.get("id").and_then(|v| v.as_str()))
+                    .and_then(boing_primitives::parse_media_blob_id);
+                let denied = match (blob_id, n.media_blob_store()) {
+                    (Some(bid), Some(store)) => {
+                        !state.blob_download_authorized_for(headers, &bid, tip, store)
+                    }
+                    _ => {
+                        state.blob_download_auth_configured()
+                            && !state.blob_download_secret_authorized(headers)
+                            || boing_primitives::phase34_blob_acl_active_at_tip(tip)
+                                && !state.blob_download_secret_authorized(headers)
+                    }
+                };
+                if denied {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(
+                            id,
+                            -32057,
+                            "Blob download authentication required: operator/download token or Phase 34 proof headers (BOING_BLOB_GET_REQUIRE_AUTH)."
+                                .into(),
+                        ),
+                    );
+                }
+                match n.media_blobs_rpc(req.method.as_str(), &params) {
+                    Ok(v) => return (StatusCode::OK, rpc_ok(id, v)),
+                    Err((code, msg)) => return (StatusCode::OK, rpc_error(id, code, msg)),
+                }
             }
             let params = req
                 .params

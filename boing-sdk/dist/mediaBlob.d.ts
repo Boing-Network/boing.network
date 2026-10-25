@@ -91,6 +91,56 @@ export declare function payBlobSamplePayload(input: {
     chunkIndex: number;
     chunkCount: number;
 }): TransactionPayloadInput;
+/** Domain separator for Phase 34 download proofs (`BOING_BLOB_DOWNLOAD_V1`). */
+export declare const BLOB_DOWNLOAD_PROOF_DOMAIN: Uint8Array<ArrayBuffer>;
+/** Soft max TTL for download proofs (seconds); matches node. */
+export declare const PHASE34_DOWNLOAD_PROOF_MAX_TTL_SECS = 3600;
+/** Phase 34: grant download ACL (`GrantBlobDownload`, variant 34). Publisher-only. */
+export declare function grantBlobDownloadPayload(input: {
+    blobId: Uint8Array;
+    grantee: Uint8Array;
+}): TransactionPayloadInput;
+/** Phase 34: revoke download ACL (`RevokeBlobDownload`, variant 35). Publisher-only. */
+export declare function revokeBlobDownloadPayload(input: {
+    blobId: Uint8Array;
+    grantee: Uint8Array;
+}): TransactionPayloadInput;
+/** BLAKE3 preimage for a Phase 34 download authorization signature. */
+export declare function blobDownloadProofPreimage(input: {
+    chainId: number | bigint;
+    blobId: Uint8Array;
+    expiresAtUnix: number | bigint;
+    nonce: Uint8Array;
+}): Uint8Array;
+/** Headers accepted by `GET /v1/media/blob` for a Phase 34 signed download proof. */
+export type BlobDownloadProofHeaders = {
+    'X-Boing-Blob-Downloader': string;
+    'X-Boing-Blob-Expires': string;
+    'X-Boing-Blob-Nonce': string;
+    'X-Boing-Blob-Signature': string;
+};
+/**
+ * Build download-proof headers. `signature64` is the Ed25519 signature over
+ * [`blobDownloadProofPreimage`] (pass the preimage hex to `boing_signMessage`).
+ */
+export declare function blobDownloadProofHeaders(input: {
+    downloader: Uint8Array;
+    expiresAtUnix: number | bigint;
+    nonce: Uint8Array;
+    signature64: Uint8Array;
+}): BlobDownloadProofHeaders;
+/** Sign a download proof with a 32-byte Ed25519 secret key (tests / Node tooling). */
+export declare function signBlobDownloadProof(input: {
+    secretKey32: Uint8Array;
+    chainId: number | bigint;
+    blobId: Uint8Array;
+    expiresAtUnix: number | bigint;
+    nonce: Uint8Array;
+}): Promise<{
+    downloader: Uint8Array;
+    preimage: Uint8Array;
+    signature: Uint8Array;
+}>;
 /**
  * NFT binding: store BlobId as `metadata_hash`, or put `boing://blob/0x{id}` in off-chain JSON
  * and hash that JSON. Prefer JSON + URI for marketplaces (name / attributes alongside media).
