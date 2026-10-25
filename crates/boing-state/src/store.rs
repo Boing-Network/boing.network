@@ -1,6 +1,6 @@
 //! State store — Sparse Merkle tree for compact proofs.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use boing_primitives::{Account, AccountId, AccountState, Hash};
@@ -71,9 +71,20 @@ pub struct StateStore {
     accounts: HashMap<AccountId, AccountState>,
     tree: SparseMerkleTree,
     /// Contract bytecode by account.
-    pub contract_code: HashMap<AccountId, Vec<u8>>,
+    contract_code: HashMap<AccountId, Vec<u8>>,
     /// Contract storage: (contract, key) -> value.
-    pub contract_storage: HashMap<(AccountId, [u8; 32]), [u8; 32]>,
+    contract_storage: HashMap<(AccountId, [u8; 32]), [u8; 32]>,
+    /// Per-contract storage SMTs, kept in sync incrementally once `root_synced`.
+    storage_trees: HashMap<AccountId, SparseMerkleTree>,
+    /// True once `tree`/`storage_trees` mirror the committed state up to the `dirty_*` sets below.
+    /// Cleared by bulk replacements (e.g. `load_qa_pending`); the next `state_root` rebuilds fully.
+    root_synced: bool,
+    /// Accounts whose leaf must be recomputed at the next `state_root` (only tracked when synced).
+    dirty_accounts: HashSet<AccountId>,
+    /// Contract storage slots changed since the last `state_root`.
+    dirty_slots: HashSet<(AccountId, [u8; 32])>,
+    /// QA-pending subjects changed since the last `state_root`.
+    dirty_qa: HashSet<Hash>,
     /// On-chain Unsure QA items (public-membership path).
     qa_pending: HashMap<Hash, QaPendingRecord>,
     /// Open validator registry (committed once non-empty).
@@ -133,7 +144,27 @@ impl StateStore {
         false
     }
 
+    fn mark_account(&mut self, id: &AccountId) {
+        if self.root_synced {
+            self.dirty_accounts.insert(*id);
+        }
+    }
+
+    fn mark_slot(&mut self, contract: AccountId, key: [u8; 32]) {
+        if self.root_synced {
+            self.dirty_slots.insert((contract, key));
+            self.dirty_accounts.insert(contract);
+        }
+    }
+
+    fn mark_qa(&mut self, subject: &Hash) {
+        if self.root_synced {
+            self.dirty_qa.insert(*subject);
+        }
+    }
+
     fn record_account(&mut self, id: &AccountId) {
+        self.mark_account(id);
         if self.journaling() {
             let prev = self.accounts.get(id).cloned();
             self.journal.push(Undo::Account(*id, prev));
@@ -141,6 +172,7 @@ impl StateStore {
     }
 
     fn record_storage(&mut self, contract: AccountId, key: [u8; 32]) {
+        self.mark_slot(contract, key);
         if self.journaling() {
             let prev = self.contract_storage.get(&(contract, key)).copied();
             self.journal.push(Undo::Storage((contract, key), prev));
@@ -148,6 +180,7 @@ impl StateStore {
     }
 
     fn record_qa(&mut self, subject: &Hash) {
+        self.mark_qa(subject);
         if self.journaling() {
             let prev = self.qa_pending.get(subject).cloned();
             self.journal.push(Undo::QaPending(*subject, prev));
@@ -174,10 +207,11 @@ impl StateStore {
     pub fn insert(&mut self, account: Account) {
         self.record_account(&account.id);
         self.accounts.insert(account.id, account.state);
-        // Tree is rebuilt on `state_root()` so code/storage commitments stay consistent.
+        // The leaf is refreshed by the next `state_root()` (dirty tracking in `record_account`).
     }
 
     pub fn set_contract_code(&mut self, account: AccountId, bytecode: Vec<u8>) {
+        self.mark_account(&account);
         if self.journaling() {
             let prev = self.contract_code.get(&account).cloned();
             self.journal.push(Undo::Code(account, prev));
@@ -222,73 +256,140 @@ impl StateStore {
         }
     }
 
-    /// Compute state root from Sparse Merkle tree. Rebuilds tree from current
-    /// accounts; each leaf commits to balance/nonce/stake **and** code_hash + storage_root.
-    /// Also includes accounts that have code or storage but no balance entry yet.
-    pub fn state_root(&mut self) -> Hash {
-        self.tree = SparseMerkleTree::new();
-        let mut ids: std::collections::HashSet<AccountId> = self.accounts.keys().copied().collect();
-        for id in self.contract_code.keys() {
-            ids.insert(*id);
-        }
-        // Group storage by contract in one pass (was a full storage scan per account: O(accounts x slots)).
-        let mut slots_by_contract: BTreeMap<AccountId, Vec<([u8; 32], [u8; 32])>> = BTreeMap::new();
+    fn account_leaf(&self, id: &AccountId, storage_root: &Hash) -> Hash {
+        let state = self.accounts.get(id).cloned().unwrap_or(AccountState {
+            balance: 0,
+            nonce: 0,
+            stake: 0,
+            ..Default::default()
+        });
+        hash_account_leaf(&state, &self.code_hash_of(id), storage_root)
+    }
+
+    /// Commitments of the singleton registries (`None` = registry empty, so no leaf).
+    fn registry_leaves(&self) -> [([u8; 32], Option<Hash>); 5] {
+        [
+            (
+                OpenValidatorRegistry::smt_key(),
+                (!self.open_validators.is_empty()).then(|| Hash(self.open_validators.commitment())),
+            ),
+            (
+                NameRegistry::smt_key(),
+                (!self.names.is_empty()).then(|| Hash(self.names.commitment())),
+            ),
+            (
+                SampleOfferRegistry::smt_key(),
+                (!self.sample_offers.is_empty()).then(|| Hash(self.sample_offers.commitment())),
+            ),
+            (
+                SampleServeChallengeRegistry::smt_key(),
+                (!self.sample_serve.is_empty()).then(|| Hash(self.sample_serve.commitment())),
+            ),
+            (
+                SlashAppealRegistry::smt_key(),
+                (!self.slash_appeals.is_empty()).then(|| Hash(self.slash_appeals.commitment())),
+            ),
+        ]
+    }
+
+    /// Builds the account SMT and per-contract storage SMTs from scratch.
+    fn build_full(&self) -> (SparseMerkleTree, HashMap<AccountId, SparseMerkleTree>) {
+        // One pass groups storage by contract (a per-account storage scan would be O(accounts x slots)).
+        let mut storage_trees: HashMap<AccountId, SparseMerkleTree> = HashMap::new();
         for ((c, key), value) in &self.contract_storage {
-            ids.insert(*c);
-            slots_by_contract.entry(*c).or_default().push((*key, *value));
+            storage_trees.entry(*c).or_default().insert_storage_slot(*key, value);
         }
+        let mut ids: HashSet<AccountId> = self.accounts.keys().copied().collect();
+        ids.extend(self.contract_code.keys().copied());
+        ids.extend(storage_trees.keys().copied());
+        let mut tree = SparseMerkleTree::new();
         for id in ids {
-            let state = self.accounts.get(&id).cloned().unwrap_or(AccountState {
-                balance: 0,
-                nonce: 0,
-                stake: 0,
-                ..Default::default()
-            });
-            let code_hash = self.code_hash_of(&id);
-            let storage_root = match slots_by_contract.get(&id) {
-                Some(slots) => {
-                    let mut tree = SparseMerkleTree::new();
-                    for (key, value) in slots {
-                        tree.insert_storage_slot(*key, value);
-                    }
-                    tree.root()
-                }
-                None => Hash::ZERO,
-            };
-            let leaf = hash_account_leaf(&state, &code_hash, &storage_root);
-            self.tree.insert_leaf_hash(id.0, leaf);
+            let storage_root = storage_trees
+                .get_mut(&id)
+                .map(|t| t.root())
+                .unwrap_or(Hash::ZERO);
+            tree.insert_leaf_hash(id.0, self.account_leaf(&id, &storage_root));
         }
         for (subject, rec) in &self.qa_pending {
-            self.tree
-                .insert_leaf_hash(QaPendingRecord::smt_key(subject), rec.commitment_hash());
+            tree.insert_leaf_hash(QaPendingRecord::smt_key(subject), rec.commitment_hash());
         }
-        if !self.open_validators.is_empty() {
-            self.tree.insert_leaf_hash(
-                OpenValidatorRegistry::smt_key(),
-                Hash(self.open_validators.commitment()),
-            );
+        for (key, leaf) in self.registry_leaves() {
+            if let Some(h) = leaf {
+                tree.insert_leaf_hash(key, h);
+            }
         }
-        if !self.names.is_empty() {
-            self.tree
-                .insert_leaf_hash(NameRegistry::smt_key(), Hash(self.names.commitment()));
+        (tree, storage_trees)
+    }
+
+    /// State root computed from scratch with the original full-rebuild algorithm, without touching
+    /// the incremental caches. Slow (O(state)); the oracle for tests and audit tooling.
+    pub fn state_root_full_rebuild(&self) -> Hash {
+        let (mut tree, mut storage_trees) = self.build_full();
+        // Re-derive the account leaves with reference storage roots so the oracle shares no cached
+        // hashing with the incremental path.
+        for (id, st) in storage_trees.iter_mut() {
+            let reference = st.reference_root();
+            tree.insert_leaf_hash(id.0, self.account_leaf(id, &reference));
         }
-        if !self.sample_offers.is_empty() {
-            self.tree.insert_leaf_hash(
-                SampleOfferRegistry::smt_key(),
-                Hash(self.sample_offers.commitment()),
-            );
-        }
-        if !self.sample_serve.is_empty() {
-            self.tree.insert_leaf_hash(
-                SampleServeChallengeRegistry::smt_key(),
-                Hash(self.sample_serve.commitment()),
-            );
-        }
-        if !self.slash_appeals.is_empty() {
-            self.tree.insert_leaf_hash(
-                SlashAppealRegistry::smt_key(),
-                Hash(self.slash_appeals.commitment()),
-            );
+        tree.reference_root()
+    }
+
+    /// Compute the state root from the Sparse Merkle tree. Each leaf commits to
+    /// balance/nonce/stake/unbond **and** code_hash + storage_root; accounts that only have code or
+    /// storage (no balance entry yet) are included.
+    ///
+    /// Incremental: after the first call only accounts / storage slots / QA records written since the
+    /// previous call are re-hashed (O(changed x depth)); the root is identical to a full rebuild
+    /// ([`StateStore::state_root_full_rebuild`]).
+    pub fn state_root(&mut self) -> Hash {
+        if !self.root_synced {
+            let (tree, storage_trees) = self.build_full();
+            self.tree = tree;
+            self.storage_trees = storage_trees;
+            self.root_synced = true;
+            self.dirty_accounts.clear();
+            self.dirty_slots.clear();
+            self.dirty_qa.clear();
+        } else {
+            for (c, key) in std::mem::take(&mut self.dirty_slots) {
+                match self.contract_storage.get(&(c, key)) {
+                    Some(v) => self.storage_trees.entry(c).or_default().insert_storage_slot(key, v),
+                    None => {
+                        if let Some(t) = self.storage_trees.get_mut(&c) {
+                            t.delete_raw(&key);
+                            if t.is_empty() {
+                                self.storage_trees.remove(&c);
+                            }
+                        }
+                    }
+                }
+            }
+            for id in std::mem::take(&mut self.dirty_accounts) {
+                let storage_root = self.storage_trees.get_mut(&id).map(|t| t.root());
+                let exists = self.accounts.contains_key(&id)
+                    || self.contract_code.contains_key(&id)
+                    || storage_root.is_some();
+                if exists {
+                    let leaf = self.account_leaf(&id, &storage_root.unwrap_or(Hash::ZERO));
+                    self.tree.insert_leaf_hash(id.0, leaf);
+                } else {
+                    self.tree.delete_raw(&id.0);
+                }
+            }
+            for subject in std::mem::take(&mut self.dirty_qa) {
+                let key = QaPendingRecord::smt_key(&subject);
+                match self.qa_pending.get(&subject) {
+                    Some(rec) => self.tree.insert_leaf_hash(key, rec.commitment_hash()),
+                    None => self.tree.delete_raw(&key),
+                }
+            }
+            // Registries are small and mutated through `*_mut()` borrows: refresh their leaves always.
+            for (key, leaf) in self.registry_leaves() {
+                match leaf {
+                    Some(h) => self.tree.insert_leaf_hash(key, h),
+                    None => self.tree.delete_raw(&key),
+                }
+            }
         }
         self.tree.root()
     }
@@ -305,31 +406,40 @@ impl StateStore {
         self.contract_storage.insert((contract, key), value);
     }
 
-    /// Snapshot current state for simulation (includes contract code and storage).
+    /// Snapshot current state for simulation / block import (includes contract code and storage).
+    ///
+    /// A flat clone: the incremental SMT caches are carried over, so a snapshot of a store whose
+    /// root was already computed produces its next `state_root` in O(changed x depth). The journal
+    /// and live checkpoints are not shared with the snapshot.
     pub fn snapshot(&self) -> StateStore {
-        let mut out = StateStore::new();
-        for (id, st) in &self.accounts {
-            out.insert(boing_primitives::Account {
-                id: *id,
-                state: st.clone(),
-            });
+        StateStore {
+            accounts: self.accounts.clone(),
+            tree: self.tree.clone(),
+            contract_code: self.contract_code.clone(),
+            contract_storage: self.contract_storage.clone(),
+            storage_trees: self.storage_trees.clone(),
+            root_synced: self.root_synced,
+            dirty_accounts: self.dirty_accounts.clone(),
+            dirty_slots: self.dirty_slots.clone(),
+            dirty_qa: self.dirty_qa.clone(),
+            qa_pending: self.qa_pending.clone(),
+            open_validators: self.open_validators.clone(),
+            open_validator_params: self.open_validator_params.clone(),
+            names: self.names.clone(),
+            name_registry_params: self.name_registry_params.clone(),
+            sample_offers: self.sample_offers.clone(),
+            sample_serve: self.sample_serve.clone(),
+            slash_appeals: self.slash_appeals.clone(),
+            slash_appeal_resolvers: self.slash_appeal_resolvers.clone(),
+            journal: Vec::new(),
+            cp_token: Arc::new(()),
+            last_cp_pos: 0,
+            ov_snap_pos: None,
+            names_snap_pos: None,
+            sample_offers_snap_pos: None,
+            sample_serve_snap_pos: None,
+            slash_appeals_snap_pos: None,
         }
-        for (id, code) in &self.contract_code {
-            out.set_contract_code(*id, code.clone());
-        }
-        for ((contract, key), value) in &self.contract_storage {
-            out.merge_contract_storage(*contract, *key, *value);
-        }
-        out.qa_pending = self.qa_pending.clone();
-        out.open_validators = self.open_validators.clone();
-        out.open_validator_params = self.open_validator_params.clone();
-        out.names = self.names.clone();
-        out.name_registry_params = self.name_registry_params.clone();
-        out.sample_offers = self.sample_offers.clone();
-        out.sample_serve = self.sample_serve.clone();
-        out.slash_appeals = self.slash_appeals.clone();
-        out.slash_appeal_resolvers = self.slash_appeal_resolvers.clone();
-        out
     }
 
     /// Create a checkpoint for revert. O(1): it marks the current journal position.
@@ -361,27 +471,35 @@ impl StateStore {
         while self.journal.len() > cp.pos {
             match self.journal.pop().expect("len > pos") {
                 Undo::Account(id, Some(st)) => {
+                    self.mark_account(&id);
                     self.accounts.insert(id, st);
                 }
                 Undo::Account(id, None) => {
+                    self.mark_account(&id);
                     self.accounts.remove(&id);
                 }
                 Undo::Code(id, Some(code)) => {
+                    self.mark_account(&id);
                     self.contract_code.insert(id, code);
                 }
                 Undo::Code(id, None) => {
+                    self.mark_account(&id);
                     self.contract_code.remove(&id);
                 }
                 Undo::Storage(k, Some(v)) => {
+                    self.mark_slot(k.0, k.1);
                     self.contract_storage.insert(k, v);
                 }
                 Undo::Storage(k, None) => {
+                    self.mark_slot(k.0, k.1);
                     self.contract_storage.remove(&k);
                 }
                 Undo::QaPending(k, Some(r)) => {
+                    self.mark_qa(&k);
                     self.qa_pending.insert(k, r);
                 }
                 Undo::QaPending(k, None) => {
+                    self.mark_qa(&k);
                     self.qa_pending.remove(&k);
                 }
                 Undo::OpenValidators(reg) => self.open_validators = *reg,
@@ -511,6 +629,8 @@ impl StateStore {
             }
         }
         self.qa_pending = items.into_iter().collect();
+        // Bulk replacement: let the next `state_root` rebuild from scratch.
+        self.root_synced = false;
     }
 
     /// Open validator registry (read).
@@ -1077,5 +1197,100 @@ mod tests {
         assert_eq!(st.get(&a).unwrap().balance, 20, "journaled: revert undoes it");
         assert_eq!(st.open_validators().records[&AccountId([9; 32])].bond, 100);
         assert_eq!(st.state_root(), root_before);
+    }
+
+    /// Differential: the incremental `state_root` (dirty tracking + persistent trees, carried through
+    /// nested checkpoints / reverts / snapshots) must equal the from-scratch reference at every step.
+    #[test]
+    fn incremental_state_root_matches_full_rebuild_under_random_ops() {
+        struct Rng(u64);
+        impl Rng {
+            fn next(&mut self) -> u64 {
+                self.0 ^= self.0 >> 12;
+                self.0 ^= self.0 << 25;
+                self.0 ^= self.0 >> 27;
+                self.0.wrapping_mul(0x2545_F491_4F6C_DD1D)
+            }
+        }
+        let qa_rec = |n: u8| QaPendingRecord {
+            deployer: AccountId([n; 32]),
+            deploy_nonce: n as u64,
+            tx: boing_primitives::Transaction {
+                nonce: n as u64,
+                sender: AccountId([n; 32]),
+                payload: boing_primitives::TransactionPayload::Transfer {
+                    to: AccountId([2; 32]),
+                    amount: n as u128,
+                },
+                access_list: boing_primitives::AccessList { read: vec![], write: vec![] },
+            },
+            votes: Default::default(),
+            rewarded: Default::default(),
+            entered_height: n as u64,
+        };
+        for seed in 1..=25u64 {
+            let mut r = Rng(0xA076_1D64_78BD_642F ^ seed.wrapping_mul(0xE703_7ED1_A0B4_28DB));
+            let mut st = StateStore::new();
+            let mut cps: Vec<StateCheckpoint> = Vec::new();
+            for step in 0..300 {
+                let id = AccountId([(r.next() % 8) as u8 + 1; 32]);
+                match r.next() % 14 {
+                    0 | 1 => st.insert(acct(id.0[0], (r.next() % 1000) as u128)),
+                    2 => {
+                        if let Some(a) = st.get_mut(&id) {
+                            a.nonce += 1;
+                            a.balance = a.balance.wrapping_add(7);
+                        }
+                    }
+                    3 => st.set_contract_code(id, vec![(r.next() % 4) as u8; (r.next() % 5) as usize]),
+                    4 | 5 | 6 => {
+                        // small-integer style slots (shared 64-bit prefix) and random slots
+                        let mut key = [0u8; 32];
+                        if r.next() % 2 == 0 {
+                            key[31] = (r.next() % 6) as u8;
+                        } else {
+                            key[..8].copy_from_slice(&r.next().to_le_bytes());
+                        }
+                        st.merge_contract_storage(id, key, [(r.next() % 3) as u8; 32]);
+                    }
+                    7 => st.insert_qa_pending(Hash([(r.next() % 4) as u8; 32]), qa_rec((r.next() % 5) as u8)),
+                    8 => {
+                        st.remove_qa_pending(&Hash([(r.next() % 4) as u8; 32]));
+                    }
+                    9 => {
+                        let params = NameRegistryParams::default();
+                        let _ = st.names_mut().commit(&params, step, id, [(r.next() % 3) as u8; 32]);
+                    }
+                    10 => cps.push(st.checkpoint()),
+                    11 => {
+                        if let Some(cp) = cps.pop() {
+                            st.revert(cp);
+                        }
+                    }
+                    12 => {
+                        // a snapshot must carry the incremental caches and then evolve independently
+                        let mut snap = st.snapshot();
+                        snap.insert(acct(200, 5));
+                        assert_eq!(snap.state_root(), snap.state_root_full_rebuild(), "seed {seed} step {step} snap");
+                        assert_eq!(st.state_root(), st.state_root_full_rebuild(), "seed {seed} step {step} orig");
+                    }
+                    _ => {
+                        assert_eq!(st.state_root(), st.state_root_full_rebuild(), "seed {seed} step {step}");
+                    }
+                }
+            }
+            assert_eq!(st.state_root(), st.state_root_full_rebuild(), "seed {seed} final");
+            // Unwind every open checkpoint (innermost first), checking after each.
+            while let Some(cp) = cps.pop() {
+                st.revert(cp);
+                assert_eq!(st.state_root(), st.state_root_full_rebuild(), "seed {seed} unwind");
+            }
+            // Persistence round trip lands on the same root.
+            let (a, c, s) = st.export_for_persistence();
+            let mut loaded = StateStore::load_from_persistence(a, c, s);
+            loaded.load_qa_pending(st.export_qa_pending());
+            *loaded.names_mut() = st.names().clone();
+            assert_eq!(loaded.state_root(), st.state_root(), "seed {seed} persistence");
+        }
     }
 }

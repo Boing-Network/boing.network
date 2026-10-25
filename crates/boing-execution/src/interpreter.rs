@@ -784,10 +784,7 @@ impl Interpreter {
 
 impl StorageAccess for StateStore {
     fn sload(&self, contract: AccountId, key: [u8; 32]) -> [u8; 32] {
-        self.contract_storage
-            .get(&(contract, key))
-            .copied()
-            .unwrap_or([0u8; 32])
+        self.get_contract_storage(&contract, &key)
     }
 
     fn sstore(&mut self, contract: AccountId, key: [u8; 32], value: [u8; 32]) {
