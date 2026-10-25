@@ -16,6 +16,8 @@ use crate::node::BoingNode;
 
 /// Public Boing testnet chain id.
 pub const BOING_TESTNET_CHAIN_ID: u64 = 6913;
+/// Boing mainnet chain id (no preset ships for it; operators configure it via `BOING_CHAIN_ID`).
+pub const BOING_MAINNET_CHAIN_ID: u64 = 6914;
 /// Genesis proposer / bootstrap anchor of the public testnet.
 pub const BOING_TESTNET_GENESIS_ACCOUNT: AccountId = AccountId([1u8; 32]);
 /// Genesis balance of [`BOING_TESTNET_GENESIS_ACCOUNT`].
@@ -118,6 +120,36 @@ pub fn block_sigs_from(history: Option<&ExecutionHistory>) -> u64 {
         return h;
     }
     history.map(|h| h.block_sigs_from).unwrap_or(0)
+}
+
+/// Startup guards for mainnet mode (chain id [`BOING_MAINNET_CHAIN_ID`]).
+///
+/// * `BOING_OPERATOR_RPC_TOKEN` must be set (non-blank): without it every operator-gated method is open
+///   to anyone who can reach the RPC port.
+/// * The testnet faucet must be off: its signing key is derived from a public constant, so anyone can
+///   spend the faucet account's funds.
+///
+/// Non-mainnet chain ids (testnet, devnets, unset) are unchanged. Returns a human-readable error.
+pub fn check_mainnet_guards(
+    chain_id: Option<u64>,
+    operator_token_set: bool,
+    faucet_enabled: bool,
+) -> Result<(), String> {
+    if chain_id != Some(BOING_MAINNET_CHAIN_ID) {
+        return Ok(());
+    }
+    if !operator_token_set {
+        return Err(format!(
+            "refusing to start in mainnet mode (chain id {BOING_MAINNET_CHAIN_ID}) without BOING_OPERATOR_RPC_TOKEN: \
+             operator RPC methods would be unauthenticated. Set a long random token, or use a different BOING_CHAIN_ID for non-mainnet networks"
+        ));
+    }
+    if faucet_enabled {
+        return Err(format!(
+            "refusing to start with --faucet-enable on mainnet (chain id {BOING_MAINNET_CHAIN_ID}): the faucet signing key is a public constant"
+        ));
+    }
+    Ok(())
 }
 
 /// Chain id used for signature checks: the installed network history's, else `BOING_CHAIN_ID`.
@@ -233,6 +265,20 @@ mod sign_for_chain_tests {
     use super::*;
 
     /// Node-signed txs (faucet) must pass the node's own admission policy after the v2 activation.
+    #[test]
+    fn mainnet_guards() {
+        // mainnet: token required, faucet forbidden
+        assert!(check_mainnet_guards(Some(6914), false, false).unwrap_err().contains("BOING_OPERATOR_RPC_TOKEN"));
+        assert!(check_mainnet_guards(Some(6914), true, true).unwrap_err().contains("faucet"));
+        assert!(check_mainnet_guards(Some(6914), false, true).is_err());
+        assert!(check_mainnet_guards(Some(6914), true, false).is_ok());
+        // testnet / devnet / unset behave as before (open operator RPC, faucet allowed)
+        for id in [Some(BOING_TESTNET_CHAIN_ID), Some(1), Some(0), None] {
+            assert!(check_mainnet_guards(id, false, true).is_ok());
+            assert!(check_mainnet_guards(id, false, false).is_ok());
+        }
+    }
+
     #[test]
     fn faucet_signature_passes_policy_after_activation() {
         let key = ed25519_dalek::SigningKey::from_bytes(&[3u8; 32]);

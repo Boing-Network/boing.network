@@ -43,10 +43,10 @@ Single reference for the `BOING_*` environment variables read by the Rust worksp
 | `BOING_RPC_READY_MIN_PEERS` | unset | `GET /ready` returns 503 below this many connected peers. |
 | `BOING_RPC_CORS_EXTRA_ORIGINS` | unset | Extra comma-separated browser origins allowed by CORS. |
 | `BOING_MEMPOOL_MAX_TXS` | `10000` | Global pending-tx cap (per-sender cap: 16 on the `mainnet` rate profile, 64 on `dev`; override with `--pending-txs-per-sender`; free-tx cap 4 per sender). |
-| `BOING_OPERATOR_RPC_TOKEN` | unset | Shared secret for operator-only RPC methods (header `X-Boing-Operator`). **When unset, operator methods are open to anyone who can reach the RPC port - always set it on any node whose RPC is reachable beyond localhost.** |
+| `BOING_OPERATOR_RPC_TOKEN` | unset | Shared secret for operator-only RPC methods (header `X-Boing-Operator`). **When unset, operator methods are open to anyone who can reach the RPC port - always set it on any node whose RPC is reachable beyond localhost.** **Mainnet (`BOING_CHAIN_ID=6914`): the node refuses to start without it** (testnet / devnet behaviour is unchanged: unset = open). |
 | `BOING_BLOB_GET_REQUIRE_AUTH` | off (`1`/`true` enables) | Require operator/download credentials for `boing_getBlob`. |
 | `BOING_BLOB_DOWNLOAD_TOKENS` | unset | Comma-separated shared secrets accepted by `GET /v1/media/blob`. |
-| `BOING_FAUCET_MAX_PER_MINUTE` | `30` (`0` = unlimited) | Testnet faucet rate limit (faucet itself needs `--faucet-enable`; **never on mainnet** - the faucet key is public). |
+| `BOING_FAUCET_MAX_PER_MINUTE` | `30` (`0` = unlimited) | Testnet faucet rate limit (faucet itself needs `--faucet-enable`; **never on mainnet** - the faucet key is public; with chain id 6914 `--faucet-enable` makes the node refuse to start). |
 | `BOING_DEX_TOKEN_METADATA_SCAN_BLOCKS`, `BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS` (`0` = unlimited), `BOING_DEX_TOKEN_DECIMALS_JSON`, `BOING_CANONICAL_NATIVE_CP_POOL`, `_DEX_FACTORY`, `_AMM_LP_VAULT`, `_LP_SHARE_TOKEN`, `_DEX_LEDGER_ROUTER_V2`, `_DEX_LEDGER_ROUTER_V3`, `_DEX_MULTIHOP_SWAP_ROUTER` (all `BOING_CANONICAL_NATIVE_*`; 32-byte hex AccountIds) | see `native_dex_discovery.rs` | Native DEX discovery RPC tuning / overrides. |
 | `BOING_DEVELOPER_REPOSITORY_URL`, `BOING_DEVELOPER_RPC_SPEC_URL`, `BOING_DEVELOPER_DAPP_DOC_URL`, `BOING_EXPLORER_URL`, `BOING_FAUCET_URL`, `BOING_CHAIN_DISPLAY_NAME` | repo / boing.network defaults | Hints returned in `boing_getNetworkInfo.end_user` / `.developer`. |
 

@@ -121,7 +121,7 @@ Every `BOING_*` variable, its default and the default ports are listed in [ENVIR
 
 - Set **`BOING_OPERATOR_RPC_TOKEN`**. Without it, operator-only methods (`boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_submitSlashAppeal`, `boing_resolveSlashAppeal`, `boing_registerBlsDualKey`, `boing_putBlobSampleOffer`, and `boing_qaPoolVote` unless the QA pool has public membership) accept any caller.
 - Keep the rate profile at `mainnet` (default); never use `--dev-rate-limits` on public RPC.
-- Never pass `--faucet-enable` on mainnet; the faucet key is public.
+- Never pass `--faucet-enable` on mainnet; the faucet key is public. **Enforced:** when `BOING_CHAIN_ID=6914` (mainnet) the node exits at startup if `BOING_OPERATOR_RPC_TOKEN` is unset/blank, or if `--faucet-enable` is passed (also checked against the installed network history's chain id). Testnet (6913), devnets and unset chain ids behave as before: the operator token stays optional (but recommended) and the faucet may be enabled.
 - Keep `BOING_VALIDATOR_KEY` in a secret store (Fly secrets), not in `fly.toml` or shell history.
 
 ### JSON-RPC surface (stale binary or proxy)

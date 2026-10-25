@@ -199,6 +199,15 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let args = Args::parse();
+    {
+        // Fail fast, before opening any data dir or socket.
+        let operator_token_set = std::env::var("BOING_OPERATOR_RPC_TOKEN")
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+        let chain_id = boing_node::network_preset::configured_chain_id();
+        boing_node::network_preset::check_mainnet_guards(chain_id, operator_token_set, args.faucet_enable)
+            .map_err(|e| anyhow::anyhow!(e))?;
+    }
     let name_params =
         boing_node::name_config::resolve_name_registry_params(args.name_registry_activation_height)
             .map_err(|e| anyhow::anyhow!("name registry config: {e}"))?;
@@ -676,6 +685,13 @@ async fn main() -> anyhow::Result<()> {
         let faucet_id = faucet::testnet_faucet_account_id();
         let key = faucet::testnet_faucet_signing_key();
         let mut n = node.write().await;
+        // Second check against the chain id of the installed network history (not only BOING_CHAIN_ID).
+        boing_node::network_preset::check_mainnet_guards(
+            boing_node::network_preset::effective_chain_id(n.executor.execution_history()),
+            true,
+            true,
+        )
+        .map_err(|e| anyhow::anyhow!(e))?;
         if n.state.get(&faucet_id).is_none() {
             // Whole BOING scaled to the ledger unit at the tip (base units on chains without history).
             let tip = n.chain.height();
