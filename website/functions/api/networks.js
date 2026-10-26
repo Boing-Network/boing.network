@@ -120,6 +120,7 @@ function buildNetworksMeta() {
       wallet_url: 'https://boing.express',
       explorer_url: 'https://boing.observer',
       website_url: DEVNET_BASE.website,
+      discord_url: 'https://discord.gg/K3w9nbUw4N',
       wallet_docs: githubBlobMain('docs/BOING-EXPRESS-WALLET.md'),
       explorer_and_wallet_spec: githubBlobMain('docs/BOING-OBSERVER-AND-EXPRESS.md'),
       three_codebase_alignment: githubBlobMain('docs/THREE-CODEBASE-ALIGNMENT.md'),

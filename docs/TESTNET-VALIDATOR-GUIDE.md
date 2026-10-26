@@ -93,7 +93,7 @@ The faucet sends 20 BOING per request (once a minute), so a few requests cover t
 your **AccountId** and node P2P multiaddr (`/ip4/<public-ip>/tcp/4001`):
 
 - Email: [nico.builds@boing.network](mailto:nico.builds@boing.network?subject=Boing%20testnet%20validator%20stake%20request)
-- Discord: <https://discord.gg/boing> (operators channel)
+- Discord: <https://discord.gg/K3w9nbUw4N> (operators channel)
 - Also register your node on the [operator registration](https://boing.network/testnet/register/operator) page.
 
 ## 5. Sync from the testnet bootnodes

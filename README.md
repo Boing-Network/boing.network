@@ -125,6 +125,10 @@ The [boing.network](https://boing.network) website lives in `website/` (Astro �
 | **Wallet** | [boing.express](https://boing.express) | Non-custodial Boing wallet (web + extension) |
 | **DeFi** | [boing.finance](https://boing.finance) | Cross-chain app with a native Boing L1 path |
 
+## 💬 Community
+
+Join the conversation on [Discord](https://discord.gg/K3w9nbUw4N) or open an issue on [GitHub](https://github.com/Boing-Network/boing.network).
+
 ---
 
 ## 🧭 Priorities
