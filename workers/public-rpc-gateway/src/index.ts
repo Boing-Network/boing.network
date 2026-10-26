@@ -344,7 +344,7 @@ async function edgeGate(req: Request, env: Env, body: ArrayBuffer | null, note: 
   }
   if (!first) return null;
   const d: Denial = denial(first, inspection.batch);
-  console.warn(JSON.stringify({ edge_policy: mode, denial: d.note, ip: req.headers.get("cf-connecting-ip") }));
+  console.warn(JSON.stringify({ edge_policy: mode, reason: first.reason, class: first.class ?? null, method: first.method ?? null, denial: d.note, ip: req.headers.get("cf-connecting-ip") }));
   if (mode === "log") {
     note.value = d.note;
     return null;

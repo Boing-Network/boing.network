@@ -16,6 +16,11 @@ RPC_BACKENDS = "https://boing-testnet-1.fly.dev"
 # Start in log, check `wrangler tail` for "edge_policy" lines, then switch to enforce. Optional secret: EDGE_TRUSTED_TOKEN.
 EDGE_POLICY_MODE = "log"
 
+# Workers Logs: persisted, queryable in the dashboard (Workers & Pages > boing-public-rpc-gateway > Logs) and via the telemetry API.
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 # BEGIN GENERATED public-rpc-policy (scripts/public-rpc-edge.mjs generate; do not edit)
 [[ratelimits]]
 name = "RL_READ"
