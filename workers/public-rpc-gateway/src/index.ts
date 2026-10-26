@@ -6,8 +6,24 @@
  * and keep the stable public hostname independent of a home Cloudflare Tunnel.
  */
 
+import {
+  checkRates,
+  denial,
+  inspectBody,
+  parseMode,
+  planRequest,
+  sameToken,
+  type Denial,
+  type Violation,
+} from "./edgePolicy";
+
 type Env = {
   RPC_BACKENDS?: string;
+  /** "log" (default) | "enforce" | "off": see edgePolicy.ts and docs/PUBLIC-RPC-WAF-GUIDANCE.md. */
+  EDGE_POLICY_MODE?: string;
+  /** Optional secret: callers presenting it in `X-Boing-Edge-Trusted` skip rate limits (never the blocklist). */
+  EDGE_TRUSTED_TOKEN?: string;
+  [binding: string]: unknown;
 };
 
 const DEFAULT_BACKENDS = ["https://boing-testnet-1.fly.dev"];
@@ -32,7 +48,8 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, Accept, Authorization, X-Boing-Operator, X-Boing-Blob-Download, User-Agent",
+    "Content-Type, Accept, Authorization, X-Boing-Operator, X-Boing-Blob-Download, X-Boing-Edge-Trusted, User-Agent",
+  "Access-Control-Expose-Headers": "X-Boing-Edge-Policy, Retry-After",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -304,8 +321,52 @@ async function proxySubmitFanout(origins: string[], req: Request, body: ArrayBuf
   });
 }
 
+type Note = { value: string | null };
+
+/**
+ * Method allow-list and per-IP class limits. Returns a Response only in enforce mode; in log mode it
+ * records what would have been denied in `note` and lets the request through.
+ */
+async function edgeGate(req: Request, env: Env, body: ArrayBuffer | null, note: Note): Promise<Response | null> {
+  const mode = parseMode(env.EDGE_POLICY_MODE);
+  if (mode === "off" || req.method !== "POST" || !body) return null;
+  const inspection = inspectBody(new TextDecoder().decode(body));
+  if (!inspection) return null;
+  const plan = planRequest(inspection);
+  let first: Violation | undefined = plan.violations[0];
+  if (!first) {
+    const trusted = env.EDGE_TRUSTED_TOKEN ? sameToken(req.headers.get("x-boing-edge-trusted") ?? "", env.EDGE_TRUSTED_TOKEN) : false;
+    if (!trusted) {
+      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
+      const over = await checkRates(env, ip, plan.counts);
+      if (over) first = { reason: "rate_limited", class: over, id: inspection.calls[0]?.id ?? null };
+    }
+  }
+  if (!first) return null;
+  const d: Denial = denial(first, inspection.batch);
+  console.warn(JSON.stringify({ edge_policy: mode, denial: d.note, ip: req.headers.get("cf-connecting-ip") }));
+  if (mode === "log") {
+    note.value = d.note;
+    return null;
+  }
+  const headers = withCors(new Headers({ "Content-Type": "application/json", "X-Boing-Edge-Policy": d.note.replace("would-deny", "denied") }));
+  if (d.retryAfter) headers.set("Retry-After", String(d.retryAfter));
+  return new Response(JSON.stringify(d.body), { status: d.status, headers });
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
+    const note: Note = { value: null };
+    const res = await handle(req, env, note);
+    if (!note.value) return res;
+    const headers = new Headers(res.headers);
+    headers.set("X-Boing-Edge-Policy", note.value);
+    return new Response(res.body, { status: res.status, headers });
+  },
+};
+
+async function handle(req: Request, env: Env, note: Note): Promise<Response> {
+  {
     if (req.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: withCors(new Headers()) });
     }
@@ -338,6 +399,9 @@ export default {
         return json({ error: "Request body too large" }, 413);
       }
     }
+
+    const denied = await edgeGate(req, env, body, note);
+    if (denied) return denied;
 
     if (req.method === "POST" && FANOUT_RPC_METHODS.has(jsonRpcMethod(body) ?? "")) {
       return proxySubmitFanout(origins, req, body);
@@ -455,5 +519,5 @@ export default {
       },
       lastStatus >= 400 ? lastStatus : 502
     );
-  },
-};
+  }
+}

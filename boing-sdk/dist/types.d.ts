@@ -43,12 +43,39 @@ export interface BoingHealth {
     /** From `BOING_CHAIN_NAME` when set; otherwise `null`. */
     chain_name: string | null;
     head_height: number;
+    /** See {@link BoingChainParameters.storage_tree_v2_activation_height}. Omitted by older nodes. */
+    storage_tree_v2_activation_height?: number | null;
+    /** See {@link BoingChainParameters.receipt_retention_blocks}. Omitted by older nodes. */
+    receipt_retention_blocks?: number | null;
+    /** Advisory wallet/SDK version hints; omitted by older nodes. */
+    client_hints?: BoingClientHints;
     /** Present on current `boing-node`; omit on older binaries. */
     rpc_surface?: BoingHealthRpcSurface;
     /** Present on current `boing-node`; omit on older binaries. */
     rpc_metrics?: BoingRpcMetrics;
     /** Signing rules (security fixes #2/#3); omitted by older nodes (legacy signing only). */
     tx_signing?: BoingTxSigningInfo;
+}
+/**
+ * Additive protocol parameters returned identically by `boing_health` and `boing_getNetworkInfo`.
+ * Both keys are absent on older nodes (treat as unknown) and never affect consensus.
+ */
+export interface BoingChainParameters {
+    /**
+     * `null`: not configured on the node (legacy 64-bit contract-storage key routing, roots unchanged).
+     * Integer H: blocks at height >= H use 256-bit routing for contract-storage roots.
+     */
+    storage_tree_v2_activation_height?: number | null;
+    /** Receipts served for the most recent N blocks; `null` = unbounded. */
+    receipt_retention_blocks?: number | null;
+}
+/** Advisory version hints (`client_hints`); never enforced by the node. */
+export interface BoingClientHints {
+    min_wallet_version: string;
+    recommended_wallet_version: string;
+    recommended_sdk: string;
+    sdk_npm_package: string;
+    note?: string;
 }
 export interface BoingTxSigningInfo {
     /** Node knows its chain id and verifies v2 (chain-bound) signatures. */
@@ -290,7 +317,9 @@ export interface RpcMethodCatalog {
 /** Result of `boing_getRpcOpenApi` — minimal OpenAPI 3.1 for `POST /`, `GET /ws`, `GET /live`, `GET /ready`. */
 export type RpcOpenApiDocument = Record<string, unknown>;
 /** Result of `boing_getNetworkInfo` — dApp discovery; see RPC-API-SPEC.md. */
-export interface NetworkInfo {
+export interface NetworkInfo extends BoingChainParameters {
+    /** Advisory wallet/SDK version hints; omitted by older nodes. */
+    client_hints?: BoingClientHints;
     /** Present when the node process sets `BOING_CHAIN_ID` (decimal). */
     chain_id: number | null;
     /** Present when `BOING_CHAIN_NAME` is set. */

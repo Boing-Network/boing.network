@@ -25,6 +25,13 @@
     "rpc_openapi_path": "/openapi.json",
     "well_known_path": "/.well-known/boing-rpc",
     "client_hints": "boing_getNetworkInfo.client_hints (min_wallet_version, recommended_sdk)",
+    "client_hints_defaults": {
+      "note": "Defaults compiled into the node (advisory, never enforced; operators may override with BOING_MIN_WALLET_VERSION / BOING_RECOMMENDED_WALLET_VERSION / BOING_RECOMMENDED_SDK_VERSION). The live values always come from boing_getNetworkInfo.client_hints. A test keeps this block equal to rpc.rs, RPC-API-SPEC.md and boing-sdk/package.json.",
+      "min_wallet_version": "0.1.18",
+      "recommended_wallet_version": "0.1.22",
+      "recommended_sdk": "0.5.38",
+      "sdk_npm_package": "@boing-network/boing-sdk"
+    },
     "chain_parameters": "boing_getNetworkInfo / boing_health: storage_tree_v2_activation_height (integer or null), receipt_retention_blocks (integer or null = unbounded); see method_catalog.protocol_specs.chain_parameters"
   },
   "networks": [

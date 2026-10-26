@@ -1288,7 +1288,10 @@ pub(crate) fn protocol_params_json(n: &crate::node::BoingNode) -> (serde_json::V
 /// Purely advisory and additive: clients compare their own version and may show an upgrade prompt;
 /// nothing is enforced by the node. Operators can override every value with env vars so a hint can
 /// follow a wallet or SDK release without rebuilding the node.
-const DEFAULT_MIN_WALLET_VERSION: &str = "0.1.15";
+/// 0.1.18 is the first release that shows height-aware 18-decimal BOING amounts (the base_units_from_height
+/// cut-over) and 0.1.16 the first that signs the chain-bound validator-registration proof; 0.1.15 only
+/// had the v2 transaction domain, so it would mis-display amounts on testnet from that height.
+const DEFAULT_MIN_WALLET_VERSION: &str = "0.1.18";
 const DEFAULT_RECOMMENDED_WALLET_VERSION: &str = "0.1.22";
 const DEFAULT_RECOMMENDED_SDK_VERSION: &str = "0.5.38";
 
@@ -1306,7 +1309,7 @@ fn client_version_hints() -> serde_json::Value {
         "recommended_wallet_version": env_or_default("BOING_RECOMMENDED_WALLET_VERSION", DEFAULT_RECOMMENDED_WALLET_VERSION),
         "recommended_sdk": env_or_default("BOING_RECOMMENDED_SDK_VERSION", DEFAULT_RECOMMENDED_SDK_VERSION),
         "sdk_npm_package": "@boing-network/boing-sdk",
-        "note": "Advisory only (never enforced by the node). min_wallet_version is the oldest Boing Express release that signs with the chain-bound v2 domain; recommended_* are the latest tested releases. Compare as semver.",
+        "note": "Advisory only (never enforced by the node). min_wallet_version is the oldest Boing Express release that signs with the chain-bound v2 domain and shows height-aware 18-decimal BOING amounts; recommended_* are the latest tested releases. Compare as semver.",
     })
 }
 
@@ -1694,11 +1697,35 @@ mod abuse_limit_tests {
     #[test]
     fn client_hints_are_semver_and_documented() {
         let hints = client_version_hints();
-        for key in ["min_wallet_version", "recommended_wallet_version", "recommended_sdk"] {
+        for key in [
+            "min_wallet_version",
+            "recommended_wallet_version",
+            "recommended_sdk",
+        ] {
             let v = hints[key].as_str().unwrap_or_default();
             assert!(is_semver(v), "{key} must be semver, got {v:?}");
         }
         let spec = include_str!("../../../docs/RPC-API-SPEC.md");
+        // The documented examples must carry the real defaults, so docs cannot drift from the node.
+        let meta = include_str!("../../../docs/chain-metadata.json");
+        for (key, value) in [
+            ("min_wallet_version", DEFAULT_MIN_WALLET_VERSION),
+            (
+                "recommended_wallet_version",
+                DEFAULT_RECOMMENDED_WALLET_VERSION,
+            ),
+            ("recommended_sdk", DEFAULT_RECOMMENDED_SDK_VERSION),
+        ] {
+            let line = format!("\"{key}\": \"{value}\"");
+            assert!(
+                spec.matches(&line).count() >= 2,
+                "RPC-API-SPEC.md must show {line} in both client_hints examples"
+            );
+            assert!(
+                meta.contains(&line),
+                "docs/chain-metadata.json client_hints_defaults must carry {line}"
+            );
+        }
         for needle in [
             "client_hints",
             "min_wallet_version",

@@ -7,11 +7,31 @@ on:
       - "boing-sdk/**"
       - "examples/native-boing-tutorial/**"
       - ".github/workflows/boing-sdk.yml"
+      - "scripts/public-rpc-edge.mjs"
+      - "scripts/compute-activation-height.mjs"
+      - "scripts/lib/**"
+      - "ops/cloudflare/**"
+      - "workers/public-rpc-gateway/**"
+      - "crates/boing-node/src/rpc.rs"
+      - "crates/boing-node/schemas/developer_api.json"
+      - "docs/chain-metadata.json"
+      - "docs/RPC-API-SPEC.md"
+      - "docs/ENVIRONMENT-VARIABLES.md"
   pull_request:
     paths:
       - "boing-sdk/**"
       - "examples/native-boing-tutorial/**"
       - ".github/workflows/boing-sdk.yml"
+      - "scripts/public-rpc-edge.mjs"
+      - "scripts/compute-activation-height.mjs"
+      - "scripts/lib/**"
+      - "ops/cloudflare/**"
+      - "workers/public-rpc-gateway/**"
+      - "crates/boing-node/src/rpc.rs"
+      - "crates/boing-node/schemas/developer_api.json"
+      - "docs/chain-metadata.json"
+      - "docs/RPC-API-SPEC.md"
+      - "docs/ENVIRONMENT-VARIABLES.md"
 
 permissions:
   contents: read

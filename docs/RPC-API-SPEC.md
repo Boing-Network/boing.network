@@ -453,7 +453,7 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
     "priority_tip_domain": "BOING_TX_PRIORITY"
   },
   "client_hints": {
-    "min_wallet_version": "0.1.15",
+    "min_wallet_version": "0.1.18",
     "recommended_wallet_version": "0.1.22",
     "recommended_sdk": "0.5.38",
     "sdk_npm_package": "@boing-network/boing-sdk",
@@ -485,7 +485,7 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
 - **`chain_id` / `chain_name`:** **`null`** when the corresponding env var is unset or invalid (same as **`boing_getNetworkInfo`**).
 - **`rpc_surface`:** Operator-facing snapshot of limits (same sources as env vars **`BOING_RPC_MAX_BATCH`**, **`BOING_RPC_WS_MAX_CONNECTIONS`**, **`BOING_RPC_MAX_BODY_MB`**, node **`RateLimitConfig.requests_per_sec`**, **`BOING_RPC_READY_MIN_PEERS`**, plus fixed **`boing_getLogs`** bounds). **`ready_min_peers`** is **`null`** when no minimum is configured.
 - **`rpc_metrics`:** Cumulative counters since process start (best-effort diagnostics).
-- **`client_hints`:** Advisory version hints, also returned by **`boing_getNetworkInfo`**. **`min_wallet_version`** is the oldest Boing Express release that signs correctly for the network (the chain-bound v2 domain shipped in extension 0.1.15); **`recommended_wallet_version`** and **`recommended_sdk`** are the latest tested releases of Boing Express and `@boing-network/boing-sdk`. Compare as semver and show an upgrade prompt; the node never enforces them. Operators can override with **`BOING_MIN_WALLET_VERSION`**, **`BOING_RECOMMENDED_WALLET_VERSION`** and **`BOING_RECOMMENDED_SDK_VERSION`** so hints follow a release without rebuilding the node. Added in an additive, backwards-compatible way: clients that ignore unknown fields are unaffected.
+- **`client_hints`:** Advisory version hints, also returned by **`boing_getNetworkInfo`**. **`min_wallet_version`** is the oldest Boing Express release that signs correctly for the network and displays amounts correctly (chain-bound v2 signing domain: 0.1.15; chain-bound validator-registration proof: 0.1.16; height-aware 18-decimal BOING amounts at `native_currency.base_units_from_height`: 0.1.18); **`recommended_wallet_version`** and **`recommended_sdk`** are the latest tested releases of Boing Express and `@boing-network/boing-sdk`. Compare as semver and show an upgrade prompt; the node never enforces them. Operators can override with **`BOING_MIN_WALLET_VERSION`**, **`BOING_RECOMMENDED_WALLET_VERSION`** and **`BOING_RECOMMENDED_SDK_VERSION`** so hints follow a release without rebuilding the node. Added in an additive, backwards-compatible way: clients that ignore unknown fields are unaffected.
 - **`storage_tree_v2_activation_height` / `receipt_retention_blocks`:** Additive protocol parameters, returned identically by **`boing_health`** and **`boing_getNetworkInfo`** (older nodes omit them; treat a missing key as unknown). Explorers and indexers should read them instead of hardcoding.
   - **`storage_tree_v2_activation_height`** - JSON integer or **`null`**. **`null`** = not configured on this node: contract-storage trees use legacy 64-bit key routing and all state roots are unchanged (the default). An integer **H** means blocks at height **>= H** compute contract-storage roots with full 256-bit key routing ([STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md)). It comes from **`BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT`** / **`--storage-tree-v2-activation-height`**, is not persisted, and must be identical on every node of a network; it reflects this node's configuration, not on-chain consensus state. A client that recomputes roots uses 256-bit routing exactly when `height >= storage_tree_v2_activation_height`.
   - **`receipt_retention_blocks`** - JSON integer or **`null`**. The number of most recent blocks whose receipts this node serves from **`boing_getTransactionReceipt`**, **`includeReceipts`**, **`boing_getLogs`** and the account tx index (`BOING_RECEIPT_RETENTION_BLOCKS`, default **1000000**). **`null`** = unbounded (the env value **`0`**). For a transaction older than `head_height - receipt_retention_blocks + 1`, **`boing_getTransactionReceipt`** returns **`null`**; backfill from blocks instead. Pruning runs every 256 blocks, so the cut-off is approximate by up to that many blocks.
@@ -543,7 +543,7 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
     "model": "hotstuff_bft"
   },
   "client_hints": {
-    "min_wallet_version": "0.1.15",
+    "min_wallet_version": "0.1.18",
     "recommended_wallet_version": "0.1.22",
     "recommended_sdk": "0.5.38",
     "sdk_npm_package": "@boing-network/boing-sdk"

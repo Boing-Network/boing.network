@@ -20,6 +20,7 @@ export { probeBoingRpcCapabilities, countAvailableBoingRpcMethods, explainBoingR
 export { doctorBoingRpcEnvironment, formatBoingRpcDoctorReport, doctorErrorMessage, } from './rpcDoctor.js';
 export { BoingRpcPreflightError, assertBoingRpcEnvironment, isBoingRpcPreflightError, } from './preflightGate.js';
 export { displayChainTitle, explorerBaseUrl, faucetUrl, explorerTxUrl, explorerAccountUrl, formatSupportHint, } from './dappUiHelpers.js';
+export { storageTreeV2ActiveAt, firstServedReceiptHeight, } from './chainParameters.js';
 export { mergeRpcSurface, clampGetLogsBlockSpan, suggestedReadSpacingMs, describeGetLogsLimits, websocketHasConnectionCap, } from './rpcSurfaceUi.js';
 export { BoingConnectionMonitor, } from './connectionMonitor.js';
 export { boingRpcWebSocketUrl, BoingNewHeadsWs, } from './newHeadsWs.js';

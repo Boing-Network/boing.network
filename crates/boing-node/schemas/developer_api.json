@@ -76,7 +76,7 @@
               "type": "object",
               "description": "Advisory wallet/SDK version hints (never enforced). Overridable with BOING_MIN_WALLET_VERSION, BOING_RECOMMENDED_WALLET_VERSION, BOING_RECOMMENDED_SDK_VERSION.",
               "properties": {
-                "min_wallet_version": { "type": "string", "description": "Oldest Boing Express release that signs correctly for this network (semver)." },
+                "min_wallet_version": { "type": "string", "description": "Oldest Boing Express release that signs correctly and shows height-aware 18-decimal BOING amounts for this network (semver; default 0.1.18)." },
                 "recommended_wallet_version": { "type": "string" },
                 "recommended_sdk": { "type": "string", "description": "Recommended @boing-network/boing-sdk version (semver)." },
                 "sdk_npm_package": { "type": "string" },

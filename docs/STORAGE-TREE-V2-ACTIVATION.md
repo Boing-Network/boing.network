@@ -75,6 +75,83 @@ The first `state_root_at_height(H)` rebuilds every contract storage tree at dept
 cost as a cold `state_root`; see `docs/PERFORMANCE.md`). It happens once per node at `H` (or at
 startup if the node boots at/after `H`).
 
+## Testnet rollout (chain 6913 only)
+
+Decision: **soak on testnet first; mainnet stays unset** in code, config and docs until the gate below is met. The
+code default remains OFF.
+
+| Chain | `BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT` |
+|---|---|
+| Mainnet (6914) | **unset** (not scheduled) |
+| Testnet (6913) | **proposed `H = 4400`** (see below; recompute on the day) |
+
+**Basis for 4400.** Computed by `node scripts/compute-activation-height.mjs` against the live testnet: *head 1321, block
+time 2026-10-26T00:46:53Z, computed 2026-10-26T04:34Z (00:34 EDT). Recompute on the day of rollout; do not reuse this number
+if the head has moved.* The testnet is bursty (average about 1572 s/block over the sampled window, bursts of about
+2.4 s/block), so "48 hours ahead" cannot be one fixed number of blocks. The script uses
+`H = ceil((head + max(48 h at the average rate, 2 h at the fastest recent burst rate)) / 100) * 100`: at least 48 h away
+when blocks arrive at the long-run average, and never closer than 2 h of burst-rate blocks (so a sudden burst cannot
+race past `H` while operators are still restarting nodes).
+
+**Reachability caveat (read before announcing).** With the chain this quiet, 4400 is about 3,079 blocks past the
+head: reached within hours if testnet traffic bursts, but roughly 56 days away at the long-run average rate. That is
+acceptable for a safety-first rollout (the env var must simply be on every node before the head gets there), but it
+means the soak clock only starts when the chain actually crosses `H`. If you want the soak to start sooner, choose a
+lower `H` with `--hours`, accepting a smaller operator window; the script prints the estimated crossing time for
+each assumption (`etaUnix`).
+
+### Compute `H` (read-only)
+
+```bash
+node scripts/compute-activation-height.mjs                 # default RPC from docs/chain-metadata.json
+node scripts/compute-activation-height.mjs --json          # machine-readable, includes the head/time basis
+node scripts/compute-activation-height.mjs --hours 48 --min-burst-hours 2 --round 100
+```
+
+It only calls `boing_health`, `boing_getNetworkInfo` and `boing_getBlockByHeight`, refuses chain 6914, and never
+touches a node's configuration.
+
+### Procedure (testnet)
+
+1. **Ship the binary first, env var unset.** The binary currently serving testnet predates this feature (it does not
+   publish `storage_tree_v2_activation_height`). Deploy the build to every validator and RPC node, then confirm each
+   one reports the field as `null`:
+   `curl -s -X POST <rpc> -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"boing_getNetworkInfo","params":[]}'`
+   and read `result.storage_tree_v2_activation_height` (`null` = new binary, nothing scheduled).
+2. **Recompute `H`** on the day with the script above and announce it to every operator.
+3. **Set the variable on EVERY node before the head reaches `H`**
+   (`BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT=<H>` or `--storage-tree-v2-activation-height <H>`), then restart them
+   one at a time. A node left without it computes the legacy root at `H` and rejects the first v2 block with
+   `InvalidStateRoot`; it forks off until restarted with the value.
+4. **Verify before `H`.** Every node must report the same number from `boing_getNetworkInfo` (and `boing_health`):
+   `result.storage_tree_v2_activation_height == H`. Do not walk away while any node reports `null` or a different value,
+   and check the current `head_height` while you do it.
+5. **Watch the crossing.** At `H`, every validator should keep voting; no `InvalidStateRoot` in logs. Compare
+   `result.header.state_root` from `boing_getBlockByHeight` for `H-1`, `H` and the next blocks across all nodes (and the
+   observer's recomputation): they must be identical.
+6. **Never lower or remove `H`** afterwards; every restart keeps the same value.
+
+### Rollback
+
+- **Before `H`** (head still below it): unset the variable on all nodes, restart, confirm
+  `storage_tree_v2_activation_height` is `null` everywhere. No state was changed.
+- **After `H`**: not supported (one-way). A node that rejects blocks with `InvalidStateRoot` is fixed by restarting it
+  with the same `H`, not by removing `H` elsewhere.
+
+### Mainnet gate
+
+Mainnet gets a height only when **all** of these hold, recorded in the change that schedules it:
+
+1. Testnet has run past `H` for at least **14 days and at least 1,000 post-`H` blocks** (extend if the chain stays quiet),
+   including blocks that write contract storage.
+2. **Zero state-root divergence**: at least two independent nodes (and the observer's recomputation) agreed on
+   `state_root` for every sampled post-`H` height, and no `InvalidStateRoot` rejection happened on a correctly
+   configured node.
+3. Storage proofs for a previously colliding slot verify after `H`.
+4. boing.observer and any indexers recompute storage roots with 256-bit routing for heights at or above `H`.
+5. Every mainnet validator runs the binary with the variable unset first, and the mainnet `H` is announced at least
+   72 hours of blocks ahead with each operator confirming in writing.
+
 ## Migration notes for tooling
 
 - **Discovery:** `boing_getNetworkInfo` and `boing_health` publish `storage_tree_v2_activation_height` (integer, or `null` when this node has no activation configured, which is the default). Tooling that recomputes storage roots should use 256-bit routing exactly when `height >= storage_tree_v2_activation_height`. The value is the node's configuration (not persisted), so check that all nodes report the same number before and after rollout.

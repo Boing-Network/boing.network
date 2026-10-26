@@ -12,3 +12,33 @@ zone_name = "boing.network"
 [vars]
 # Single hosted backend: boing-testnet-2 retired 2026-10-24.
 RPC_BACKENDS = "https://boing-testnet-1.fly.dev"
+# Method allow-list + per-IP class limits (src/edgePolicy.ts): "log" = observe only, "enforce" = reject, "off".
+# Start in log, check `wrangler tail` for "edge_policy" lines, then switch to enforce. Optional secret: EDGE_TRUSTED_TOKEN.
+EDGE_POLICY_MODE = "log"
+
+# BEGIN GENERATED public-rpc-policy (scripts/public-rpc-edge.mjs generate; do not edit)
+[[ratelimits]]
+name = "RL_READ"
+namespace_id = "691301"
+simple = { limit = 600, period = 60 }
+
+[[ratelimits]]
+name = "RL_HEAVY"
+namespace_id = "691302"
+simple = { limit = 30, period = 60 }
+
+[[ratelimits]]
+name = "RL_SUBMIT"
+namespace_id = "691303"
+simple = { limit = 30, period = 60 }
+
+[[ratelimits]]
+name = "RL_WRITE"
+namespace_id = "691304"
+simple = { limit = 10, period = 60 }
+
+[[ratelimits]]
+name = "RL_FAUCET"
+namespace_id = "691305"
+simple = { limit = 3, period = 60 }
+# END GENERATED public-rpc-policy
