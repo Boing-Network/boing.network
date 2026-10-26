@@ -4,15 +4,51 @@
   "host": "testnet-rpc.boing.network",
   "zone_name": "boing.network",
   "rollout": {
-    "$comment": "Start in log mode on both layers, read the Security Events / wrangler tail for a few days, then flip to block / enforce.",
+    "$comment": "Start in log mode on both layers, read the Security Events / wrangler tail for a few days, then flip to block / enforce. A plan profile with its own \"action\" (Free) overrides zone_rule_action.",
     "zone_rule_action": "log",
     "worker_mode_default": "log"
   },
   "zone_rules": {
-    "$comment": "Zone rate-limit rules are per client IP and per Cloudflare data centre (cf.colo.id is implicit) and cannot see the JSON-RPC method on non-Enterprise plans. They bound request volume only; per-method limits live in the Worker. Free plan: period 10 and mitigation_timeout 10 only, and 1 rate-limit rule - drop the sustained rule or raise your plan.",
-    "burst": { "requests_per_period": 60, "period": 10, "mitigation_timeout": 60 },
-    "sustained": { "requests_per_period": 300, "period": 60, "mitigation_timeout": 120 },
-    "exempt_expression": ""
+    "$comment": "Zone rate-limit rules are per client IP (counted per Cloudflare data centre) and cannot see the JSON-RPC method, so they only bound raw POST volume; the per-method-class limits live in the gateway Worker and do not depend on the Cloudflare plan. The rule set depends on the Cloudflare plan: pick it with 'plan' here or '--plan <name>' on apply. Cloudflare limits per plan (https://developers.cloudflare.com/waf/rate-limiting-rules/): Free = 1 rule, period 10 s, mitigation 10 s; Pro = 2 rules; Business = 5; Enterprise = by contract. 'action' on a profile overrides rollout.zone_rule_action. 'match' selects the rate-limit expression the plan supports: path | host_path | host_method.",
+    "plan": "free",
+    "exempt_expression": "",
+    "plans": {
+      "free": {
+        "$comment": "ONE rule: a generous per-IP guard that only trips on abuse. Free-plan rate-limit expressions may only use Path and Verified Bot (no host, no method; verified live: a host+method expression is accepted by the API but never matches), so this rule matches requests to path / on every proxied hostname of the zone. JSON-RPC is POSTed to / on the public RPC host; 100 hits to / per 10 s from one IP is also far above any human use of the website homepage. A wallet or explorer page makes a handful of POSTs per second; 100 per 10 s (10/s) from one IP is far above that. Blocks for 10 s (the Free minimum and maximum), so a false positive self-heals almost at once. Enforced (block) from the start because log-only gives no protection and the threshold is deliberately loose.",
+        "max_rate_limit_rules": 1,
+        "match": "path",
+        "action": "block",
+        "rate_limit_rules": {
+          "guard": { "requests_per_period": 100, "period": 10, "mitigation_timeout": 10 }
+        }
+      },
+      "pro": {
+        "$comment": "Pro rate-limit expressions can use Host and Path but not Method, so the rules match host + path / instead of POST.",
+        "max_rate_limit_rules": 2,
+        "match": "host_path",
+        "rate_limit_rules": {
+          "burst": { "requests_per_period": 60, "period": 10, "mitigation_timeout": 60 },
+          "sustained": { "requests_per_period": 300, "period": 60, "mitigation_timeout": 120 }
+        }
+      },
+      "business": {
+        "$comment": "Business can match on Host and Method.",
+        "max_rate_limit_rules": 5,
+        "match": "host_method",
+        "rate_limit_rules": {
+          "burst": { "requests_per_period": 60, "period": 10, "mitigation_timeout": 60 },
+          "sustained": { "requests_per_period": 300, "period": 60, "mitigation_timeout": 120 }
+        }
+      },
+      "enterprise": {
+        "max_rate_limit_rules": 100,
+        "match": "host_method",
+        "rate_limit_rules": {
+          "burst": { "requests_per_period": 60, "period": 10, "mitigation_timeout": 60 },
+          "sustained": { "requests_per_period": 300, "period": 60, "mitigation_timeout": 120 }
+        }
+      }
+    }
   },
   "worker": {
     "$comment": "Per-IP, per-method-class limits enforced by workers/public-rpc-gateway through the Workers Rate Limiting binding (period must be 10 or 60). Counted per JSON-RPC call, so batches cannot dodge them.",

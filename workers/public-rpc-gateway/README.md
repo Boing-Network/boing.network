@@ -39,7 +39,7 @@ Override backends with Worker var **`RPC_BACKENDS`** (comma-separated origins, n
 
 - `EDGE_POLICY_MODE`: `log` (default: never blocks, logs `edge_policy` lines and sets `X-Boing-Edge-Policy`), `enforce`, or `off`.
 - Optional secret `EDGE_TRUSTED_TOKEN`: callers sending it as `X-Boing-Edge-Trusted` skip the rate limits (never the blocklist).
-- Merging does not deploy the Worker; run `npm run deploy` yourself. Rollout order and numbers: [PUBLIC-RPC-WAF-GUIDANCE.md](../../docs/PUBLIC-RPC-WAF-GUIDANCE.md#implemented-edge-policy-config-as-code).
+- Merging does not deploy the Worker; run `npm run deploy` yourself. The Cloudflare zone rate-limit rule depends on the plan (Free: one coarse per-IP guard; the per-class limits here do not depend on the plan). Rollout order and numbers: [PUBLIC-RPC-WAF-GUIDANCE.md](../../docs/PUBLIC-RPC-WAF-GUIDANCE.md#implemented-edge-policy-config-as-code).
 
 ## Ops
 

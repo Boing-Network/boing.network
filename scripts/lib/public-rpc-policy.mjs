@@ -18,6 +18,8 @@ export const DEVELOPER_API_PATH = path.join(REPO_ROOT, 'crates/boing-node/schema
 export const WRANGLER_BEGIN = '# BEGIN GENERATED public-rpc-policy (scripts/public-rpc-edge.mjs generate; do not edit)';
 export const WRANGLER_END = '# END GENERATED public-rpc-policy';
 export const RULE_REF_PREFIX = 'boing_public_rpc_';
+export const PLANS = ['free', 'pro', 'business', 'enterprise'];
+export const MATCH_MODES = ['path', 'host_path', 'host_method'];
 export const ALLOWED_CLASSES = ['read', 'heavy_read', 'submit', 'write', 'faucet'];
 const ALL_CLASSES = [...ALLOWED_CLASSES, 'blocked'];
 
@@ -59,6 +61,27 @@ export function validatePolicy(policy, methods = catalogMethods().all) {
     if (!l) problems.push(`worker.limits.${cls} missing`);
     else if (![10, 60].includes(l.period)) problems.push(`worker.limits.${cls}.period must be 10 or 60 (Workers Rate Limiting binding)`);
   }
+  const zr = policy.zone_rules ?? {};
+  if (!PLANS.includes(zr.plan)) problems.push(`zone_rules.plan must be one of ${PLANS.join(', ')}`);
+  for (const plan of PLANS) {
+    const prof = zr.plans?.[plan];
+    if (!prof) {
+      problems.push(`zone_rules.plans.${plan} missing`);
+      continue;
+    }
+    if (!MATCH_MODES.includes(prof.match)) problems.push(`zone_rules.plans.${plan}.match must be one of ${MATCH_MODES.join(', ')}`);
+    if (plan === 'free' && prof.match !== 'path') problems.push('zone_rules.plans.free.match must be "path": Free rate-limit expressions cannot use host or method');
+    if (plan === 'pro' && prof.match === 'host_method') problems.push('zone_rules.plans.pro.match cannot use method (Pro has Host and Path only)');
+    const rules = Object.entries(prof.rate_limit_rules ?? {});
+    if (rules.length === 0) problems.push(`zone_rules.plans.${plan} has no rate_limit_rules`);
+    if (rules.length > prof.max_rate_limit_rules) {
+      problems.push(`zone_rules.plans.${plan} defines ${rules.length} rate-limit rules but the plan allows ${prof.max_rate_limit_rules}`);
+    }
+    for (const [name, r] of rules) {
+      if (!(r.requests_per_period > 0 && r.period > 0 && r.mitigation_timeout > 0)) problems.push(`zone_rules.plans.${plan}.${name} needs positive requests_per_period, period, mitigation_timeout`);
+      if (plan === 'free' && (r.period !== 10 || r.mitigation_timeout !== 10)) problems.push(`zone_rules.plans.free.${name}: Free allows only period 10 and mitigation_timeout 10`);
+    }
+  }
   const submit = policy.worker.limits.submit?.limit;
   const read = policy.worker.limits.read?.limit;
   if (submit !== undefined && read !== undefined && !(submit < read)) problems.push('submit limit must be tighter than the read limit');
@@ -77,19 +100,38 @@ export function methodTable(policy) {
 const RL_BODY = JSON.stringify({
   jsonrpc: '2.0',
   id: null,
-  error: { code: -32016, message: 'Rate limit exceeded at the public RPC edge. Retry shortly.' },
+  error: { code: -32016, message: 'Rate limit exceeded at the edge. Retry shortly.' },
 });
 
-/** Cloudflare Rulesets API payloads, one object per phase. */
-export function buildRulesets(policy) {
+/** The plan profile selected by name (defaults to policy.zone_rules.plan). Throws on an unknown plan. */
+export function planProfile(policy, plan = policy.zone_rules.plan) {
+  const prof = policy.zone_rules.plans?.[plan];
+  if (!prof) throw new Error(`unknown plan "${plan}" (expected one of ${PLANS.join(', ')})`);
+  return prof;
+}
+
+/**
+ * Cloudflare Rulesets API payloads, one object per phase, for one plan profile.
+ * The rate-limit rule count always fits the plan (validatePolicy + assertFitsPlan).
+ */
+export function buildRulesets(policy, plan = policy.zone_rules.plan) {
+  const prof = planProfile(policy, plan);
   const host = `http.host eq "${policy.host}"`;
   const exempt = policy.zone_rules.exempt_expression?.trim();
   const base = (extra) => `(${host} and ${extra})${exempt ? ` and not (${exempt})` : ''}`;
-  const action = policy.rollout.zone_rule_action;
+  const action = prof.action ?? policy.rollout.zone_rule_action;
+  // Rate-limit expressions can only use the fields the plan offers (Free: path; Pro: host + path; Business+: host + method).
+  const rlExpression = () => {
+    const tail = exempt ? ` and not (${exempt})` : '';
+    if (prof.match === 'path') return `(http.request.uri.path eq "/")${tail}`;
+    if (prof.match === 'host_path') return `(${host} and http.request.uri.path eq "/")${tail}`;
+    return base('http.request.method eq "POST"');
+  };
+  const scope = { path: 'requests to /', host_path: 'requests to /', host_method: 'POST' }[prof.match];
   const rl = (suffix, desc, cfg) => ({
     ref: `${RULE_REF_PREFIX}${suffix}`,
     description: desc,
-    expression: base('http.request.method eq "POST"'),
+    expression: rlExpression(),
     action,
     ...(action === 'block'
       ? { action_parameters: { response: { status_code: 429, content_type: 'application/json', content: RL_BODY } } }
@@ -103,10 +145,9 @@ export function buildRulesets(policy) {
     enabled: true,
   });
   return {
-    http_ratelimit: [
-      rl('rl_burst', `Public RPC: per-IP burst limit (${policy.zone_rules.burst.requests_per_period} POST / ${policy.zone_rules.burst.period}s)`, policy.zone_rules.burst),
-      rl('rl_sustained', `Public RPC: per-IP sustained limit (${policy.zone_rules.sustained.requests_per_period} POST / ${policy.zone_rules.sustained.period}s)`, policy.zone_rules.sustained),
-    ],
+    http_ratelimit: Object.entries(prof.rate_limit_rules).map(([name, cfg]) =>
+      rl(`rl_${name}`, `Public RPC: per-IP ${name} limit (${cfg.requests_per_period} ${scope} per ${cfg.period}s, ${plan} plan)`, cfg),
+    ),
     http_request_firewall_custom: [
       {
         ref: `${RULE_REF_PREFIX}block_http_methods`,
@@ -126,12 +167,29 @@ export function buildRulesets(policy) {
   };
 }
 
+/**
+ * Throws when the rate-limit rules that would exist after the apply (ours plus any other rules already in the
+ * phase) exceed the plan's rule budget. Called before any API write.
+ */
+export function assertFitsPlan(policy, plan, otherRateLimitRules = 0) {
+  const prof = planProfile(policy, plan);
+  const ours = buildRulesets(policy, plan).http_ratelimit.length;
+  const total = ours + otherRateLimitRules;
+  if (total > prof.max_rate_limit_rules) {
+    throw new Error(
+      `plan "${plan}" allows ${prof.max_rate_limit_rules} rate-limit rule(s) but this would create ${total} (${ours} ours + ${otherRateLimitRules} existing). Nothing was changed.`,
+    );
+  }
+  return { ours, total, max: prof.max_rate_limit_rules };
+}
+
 export function renderRulesetFile(policy) {
   return `${JSON.stringify(
     {
       $comment: 'GENERATED by scripts/public-rpc-edge.mjs from ops/cloudflare/public-rpc/policy.json. Do not edit. Apply with: node scripts/public-rpc-edge.mjs apply (dry-run unless --apply).',
       host: policy.host,
       zone_name: policy.zone_name,
+      plan: policy.zone_rules.plan,
       phases: buildRulesets(policy),
     },
     null,

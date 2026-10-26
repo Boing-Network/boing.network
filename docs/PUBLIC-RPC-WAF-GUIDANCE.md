@@ -40,7 +40,7 @@ Everything below is generated from one file, [`ops/cloudflare/public-rpc/policy.
 | Artefact | Purpose |
 |---|---|
 | `ops/cloudflare/public-rpc/policy.json` | Source of truth: the class of every RPC method, the limits, the host |
-| `ops/cloudflare/public-rpc/rulesets.generated.json` | Cloudflare zone rules (rate limits + two custom WAF rules) |
+| `ops/cloudflare/public-rpc/rulesets.generated.json` | Cloudflare zone rules for the selected plan profile (default `free`): the plan's rate-limit rule(s) + two custom WAF rules |
 | `workers/public-rpc-gateway/src/methodPolicy.generated.ts` | Method table and limits compiled into the gateway Worker |
 | `workers/public-rpc-gateway/wrangler.toml` | Generated `[[ratelimits]]` bindings between the BEGIN/END markers; `EDGE_POLICY_MODE` var |
 | `scripts/public-rpc-edge.mjs` | `generate`, `check`, `apply` (dry run unless `--apply`) |
@@ -61,12 +61,36 @@ Everything below is generated from one file, [`ops/cloudflare/public-rpc/policy.
 
 Batches are counted **per call**, so a 32-call batch cannot dodge a limit, and batches above **32** calls are rejected (the node's own cap is also 32).
 
-Zone-level rules (they see the HTTP request, not the JSON-RPC method, on non-Enterprise plans):
+#### Who enforces what (division of labour)
+
+| Layer | Enforces | Plan-dependent? |
+|---|---|---|
+| **Gateway Worker** (`workers/public-rpc-gateway`) | Per-IP **per-method-class** limits from the table above, the method allow-list, the batch cap | No. Works on any Cloudflare plan, and is the only layer that can see the JSON-RPC method. **Active only once the Worker is deployed** (`npx wrangler deploy`; not done by merging) |
+| **Cloudflare zone rate limit** (`http_ratelimit`) | A coarse per-IP request-volume guard, before the Worker runs | Yes: the number of rules, the usable fields and the periods depend on the plan (below) |
+| **Cloudflare custom WAF rules** (`http_request_firewall_custom`) | Block unusual HTTP methods and the `X-Boing-Operator` header on the public host | Available on Free (host and method fields are allowed in custom rules) |
+
+#### Zone rate-limit rule per Cloudflare plan
+
+Pick the profile with `zone_rules.plan` in `policy.json` (default `free`) or `--plan free|pro|business|enterprise` on `apply`. `apply` refuses to call the API when the plan's rule budget would be exceeded (existing non-Boing rate-limit rules count too).
+
+| Plan | Rules | Expression fields allowed (Cloudflare docs) | Boing rule(s) |
+|---|---|---|---|
+| **Free** (live today) | 1; period 10 s and mitigation 10 s only; `log` action is Enterprise-only | Path only (no host, no method) | **1 rule `boing_public_rpc_rl_guard`**: **100 requests / 10 s per IP** to path `/`, **block**, 10 s, HTTP 429 with a JSON-RPC `-32016` body |
+| **Pro** | 2 | Host and Path (no method) | burst **60 / 10 s** (mitigate 60 s) + sustained **300 / 60 s** (mitigate 120 s) on host + path `/`, action from `rollout.zone_rule_action` (`log` first) |
+| **Business** | 5 | Host, Path, Method | same two rules, matching `POST` on the host |
+| **Enterprise** | per contract | everything | same two rules, matching `POST` on the host |
+
+Why the Free guard looks the way it does:
+
+- **100 / 10 s (10 requests/s)** is roughly 3-5x a heavy page load (20-40 calls at once) and far above polling dashboards or a wallet. It is an abuse guard only; the fine-grained limits stay in the Worker. A false positive self-heals after 10 s (the Free minimum and maximum).
+- **`block` from the start**: `log` is not offered on Free, and a log-only rule gives no protection. The loose threshold is what keeps blocking low-risk.
+- **Path `/` and no host**: on Free the expression can only use the path. A rule that also named the host and `POST` was accepted by the API but never matched (verified: large POST bursts against the host were never limited), so the Free profile deliberately uses only supported fields. JSON-RPC is POSTed to `/` on the public host, so it is covered. The rule also covers `/` on the other proxied hostnames of the zone (`boing.network`, `www`, `pudgymon-api`): 100 homepage requests in 10 s from one IP is not human use, and the 10 s block is harmless.
+- **Verified on the live zone:** with a deliberately low test threshold the rule returned 429 after the threshold and recovered after 10 s. The final rule (100 / 10 s) was burst-tested on `https://boing.network/`: 105 of 220 parallel requests returned 200, 115 returned 429, and normal requests recovered within about 10 s.
+
+Rules that do not depend on the plan:
 
 | Rule | Value | Reasoning |
 |---|---|---|
-| Burst | **60 POST / 10 s** per IP, mitigate 60 s | A page load fires 20-40 calls at once; 60 in 10 s is not a human or a normal client |
-| Sustained | **300 POST / 60 s** per IP, mitigate 120 s | 5 requests/s sustained; far above polling dashboards |
 | Non-RPC HTTP methods | block everything except POST, GET, HEAD, OPTIONS | The Worker would answer 405 anyway; this drops them before the Worker runs |
 | `X-Boing-Operator` header | block on the public host | Operator RPC must use the origin; the header cannot even be tried against the public hostname |
 
@@ -74,7 +98,7 @@ Limits and responses: a rate-limited call gets HTTP 429 with `Retry-After` and J
 
 Caveats to know before applying:
 
-- **Cloudflare plan limits.** Rate-limit rules per zone: Free 1, Pro 2, Business 5 (more on Enterprise); on Free the period is fixed at 10 s and mitigation at 10 s. Drop the sustained rule (or raise the plan) if the API rejects the second rule. Check the current limits on Cloudflare's rate-limiting page. The per-method limits live in the Worker precisely so they do not depend on the plan.
+- **Cloudflare plan limits.** See the plan table above (source: <https://developers.cloudflare.com/waf/rate-limiting-rules/>). Free allows one rate-limit rule, so the Free profile ships a single generous guard. **If you upgrade the plan:** set `zone_rules.plan` in `policy.json` to `pro` (or `business` / `enterprise`), run `node scripts/public-rpc-edge.mjs generate`, then `apply` and `apply --apply`. The tool removes `boing_public_rpc_rl_guard` and creates the burst and sustained rules; the other rules in the zone are untouched. The per-method limits live in the Worker precisely so they do not depend on the plan.
 - **Counters are per Cloudflare data centre** (zone rules) and per location (Workers binding), so a client spread across regions gets proportionally more. This is a protective ceiling, not a billing meter.
 - **Shared egress IPs.** If the observer's server-side routes (Vercel) call the public RPC, many users share a few IPs. Watch log mode first. `zone_rules.exempt_expression` exempts matching traffic from the zone rate limits (never from the blocklist), and the Worker skips its rate limits for requests presenting `X-Boing-Edge-Trusted: <EDGE_TRUSTED_TOKEN>` (set the secret with `wrangler secret put EDGE_TRUSTED_TOKEN`). Wiring the observer to send that header is not done yet.
 - **Bot Fight Mode** must stay off (next section).
@@ -83,12 +107,12 @@ Caveats to know before applying:
 
 1. `node scripts/public-rpc-edge.mjs check` (must say ok), then `node scripts/public-rpc-edge.mjs apply`: a **dry run**, offline unless `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID` are set, in which case it also reads (never writes) the zone's current rules and shows what would be created or updated. Other rules in the zone are always kept.
 2. Deploy the Worker in **log mode** (`EDGE_POLICY_MODE = "log"` is the committed default): `cd workers/public-rpc-gateway; npx wrangler deploy`. Denials are only logged (`wrangler tail`, lines with `edge_policy`) and tagged with an `X-Boing-Edge-Policy: would-deny:...` response header.
-3. Apply the zone rules (also in **log** action, the committed default): `CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ZONE_ID=... node scripts/public-rpc-edge.mjs apply --apply`. The token needs Zone WAF edit permission on `boing.network`.
+3. Apply the zone rules for your plan (the Free profile blocks from the start because Free has no `log`; paid-plan profiles start in **log** action): `CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ZONE_ID=... node scripts/public-rpc-edge.mjs apply --apply`. The token needs Zone WAF edit permission on `boing.network`.
 4. Watch Security Events and `wrangler tail` for a few days. Confirm that no legitimate wallet, explorer or SDK traffic would have been denied.
-5. Enforce: set `rollout.zone_rule_action` to `"block"` in `policy.json` and `EDGE_POLICY_MODE` to `"enforce"` in `wrangler.toml`, run `node scripts/public-rpc-edge.mjs generate`, commit, re-run step 2's deploy and step 3's apply.
+5. Enforce (paid plans): set `rollout.zone_rule_action` to `"block"` in `policy.json` and `EDGE_POLICY_MODE` to `"enforce"` in `wrangler.toml`, run `node scripts/public-rpc-edge.mjs generate`, commit, re-run step 2's deploy and step 3's apply.
 6. **Rollback:** `node scripts/public-rpc-edge.mjs apply --remove --apply` removes only the rules this tool owns (refs starting `boing_public_rpc_`); set `EDGE_POLICY_MODE = "off"` and redeploy (or `wrangler rollback`) for the Worker.
 
-Cloudflare validates the generated expressions only when they are applied; the first apply (log action) is the safe way to find out.
+Cloudflare validates only the syntax of the generated expressions when they are applied; it does not reject fields the plan cannot use (a Free rule using host and method was accepted but never matched). After every apply, burst-test from one IP and confirm a 429 (the explorer's and gateway's own egress IPs may behave differently, so test from an ordinary client).
 
 ### Bot Fight Mode
 

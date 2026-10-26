@@ -66,15 +66,66 @@ describe('generated artefacts are up to date', () => {
     });
   }
 
-  it('ruleset only touches our own refs and scopes every rule to the public host', () => {
+  it('ruleset only touches our own refs and scopes block rules to the public host', () => {
     const phases = lib.buildRulesets(policy) as Record<string, Array<{ ref: string; expression: string; action: string }>>;
     expect(Object.keys(phases).sort()).toEqual(['http_ratelimit', 'http_request_firewall_custom']);
-    for (const rules of Object.values(phases)) {
-      for (const r of rules) {
-        expect(r.ref.startsWith(lib.RULE_REF_PREFIX)).toBe(true);
-        expect(r.expression).toContain(`http.host eq "${policy.host}"`);
-      }
+    for (const rules of Object.values(phases)) for (const r of rules) expect(r.ref.startsWith(lib.RULE_REF_PREFIX)).toBe(true);
+    for (const r of phases.http_request_firewall_custom) expect(r.expression).toContain(`http.host eq "${policy.host}"`);
+  });
+});
+
+describe('zone rate limits are plan-aware (Cloudflare plan limits)', () => {
+  type Rule = { ref: string; expression: string; action: string; ratelimit: { period: number; mitigation_timeout: number; requests_per_period: number; characteristics: string[] } };
+  const rl = (plan: string) => (lib.buildRulesets(policy, plan) as { http_ratelimit: Rule[] }).http_ratelimit;
+
+  it('defaults to the free plan and every profile fits its own rule budget', () => {
+    expect(policy.zone_rules.plan).toBe('free');
+    for (const plan of lib.PLANS as string[]) {
+      expect(rl(plan).length).toBeLessThanOrEqual(policy.zone_rules.plans[plan].max_rate_limit_rules);
+      expect(() => lib.assertFitsPlan(policy, plan)).not.toThrow();
     }
+  });
+
+  it('free: exactly one rule, 10 s period and mitigation, block action, path-only expression (no host or method)', () => {
+    const rules = rl('free');
+    expect(rules).toHaveLength(1);
+    const [r] = rules;
+    expect(r.ref).toBe('boing_public_rpc_rl_guard');
+    expect(r.action).toBe('block');
+    expect(r.ratelimit.period).toBe(10);
+    expect(r.ratelimit.mitigation_timeout).toBe(10);
+    expect(r.ratelimit.requests_per_period).toBe(100);
+    expect(r.ratelimit.characteristics).toContain('ip.src');
+    expect(r.expression).not.toMatch(/http\.host|http\.request\.method/);
+    expect(r.expression).toContain('http.request.uri.path');
+  });
+
+  it('pro and above keep the burst plus sustained pair; pro cannot use the method field', () => {
+    for (const plan of ['pro', 'business', 'enterprise']) {
+      expect(rl(plan).map((r) => r.ref)).toEqual(['boing_public_rpc_rl_burst', 'boing_public_rpc_rl_sustained']);
+      expect(rl(plan)[0].expression).toContain(`http.host eq "${policy.host}"`);
+    }
+    expect(rl('pro')[0].expression).not.toContain('http.request.method');
+    expect(rl('business')[0].expression).toContain('http.request.method eq "POST"');
+  });
+
+  it('assertFitsPlan rejects exceeding the rule budget before any API call, counting existing rules', () => {
+    expect(() => lib.assertFitsPlan(policy, 'free', 1)).toThrow(/allows 1 rate-limit rule/);
+    expect(() => lib.assertFitsPlan(policy, 'pro', 1)).toThrow(/allows 2/);
+    expect(lib.assertFitsPlan(policy, 'business', 3)).toMatchObject({ total: 5, max: 5 });
+    expect(() => lib.planProfile(policy, 'platinum')).toThrow(/unknown plan/);
+  });
+
+  it('validatePolicy rejects a free profile that cannot work on Free', () => {
+    const bad = structuredClone(policy);
+    bad.zone_rules.plans.free.rate_limit_rules.extra = { requests_per_period: 5, period: 10, mitigation_timeout: 10 };
+    expect(lib.validatePolicy(bad, catalog).join('\n')).toContain('allows 1');
+    const bad2 = structuredClone(policy);
+    bad2.zone_rules.plans.free.match = 'host_method';
+    expect(lib.validatePolicy(bad2, catalog).join('\n')).toContain('cannot use host or method');
+    const bad3 = structuredClone(policy);
+    bad3.zone_rules.plans.free.rate_limit_rules.guard.period = 60;
+    expect(lib.validatePolicy(bad3, catalog).join('\n')).toContain('Free allows only period 10');
   });
 });
 
