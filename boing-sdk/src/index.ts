@@ -70,6 +70,11 @@ export {
   formatSupportHint,
 } from './dappUiHelpers.js';
 export {
+  storageTreeV2ActiveAt,
+  firstServedReceiptHeight,
+  type ChainParametersSource,
+} from './chainParameters.js';
+export {
   mergeRpcSurface,
   clampGetLogsBlockSpan,
   suggestedReadSpacingMs,
@@ -135,6 +140,8 @@ export type {
   SyncState,
   NetworkInfo,
   BoingHealth,
+  BoingChainParameters,
+  BoingClientHints,
   BoingTxSigningInfo,
   BoingHealthRpcSurface,
   BoingRpcMetrics,

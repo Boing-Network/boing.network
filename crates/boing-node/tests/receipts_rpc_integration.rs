@@ -704,6 +704,40 @@ async fn rpc_catalog_and_openapi_embedded() {
 }
 
 #[tokio::test]
+async fn protocol_params_are_published_additively() {
+    let expected_retention = serde_json::json!(boing_node::receipt_retention::window_for_rpc(
+        boing_node::receipt_retention::retention_blocks()
+    ));
+
+    // Default: storage-tree v2 is not configured -> null (legacy routing, roots unchanged).
+    let signing_key = SigningKey::generate(&mut OsRng);
+    let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 1_000_000)));
+    let mut app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
+    for method in ["boing_getNetworkInfo", "boing_health"] {
+        let v = rpc_call(&mut app, method, serde_json::json!([])).await;
+        let r = v.get("result").expect("result").as_object().unwrap();
+        assert_eq!(
+            r.get("storage_tree_v2_activation_height"),
+            Some(&serde_json::Value::Null),
+            "{method}: unset activation must be null"
+        );
+        assert_eq!(r.get("receipt_retention_blocks"), Some(&expected_retention), "{method}");
+    }
+
+    // Configured: the same height the state tree uses is published as a JSON integer.
+    node.write().await.enable_storage_tree_v2(123_456);
+    for method in ["boing_getNetworkInfo", "boing_health"] {
+        let v = rpc_call(&mut app, method, serde_json::json!([])).await;
+        let r = v.get("result").expect("result").as_object().unwrap();
+        assert_eq!(
+            r.get("storage_tree_v2_activation_height"),
+            Some(&serde_json::json!(123_456)),
+            "{method}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn rpc_health_shape() {
     let signing_key = SigningKey::generate(&mut OsRng);
     let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 1_000_000)));

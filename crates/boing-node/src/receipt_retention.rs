@@ -29,6 +29,15 @@ pub fn retention_blocks() -> u64 {
     *CFG.get_or_init(|| parse_retention(std::env::var(ENV_RECEIPT_RETENTION_BLOCKS).ok().as_deref()))
 }
 
+/// Window as published over RPC (`receipt_retention_blocks`): `None` (JSON `null`) when unbounded.
+pub fn window_for_rpc(window: u64) -> Option<u64> {
+    if window == 0 {
+        None
+    } else {
+        Some(window)
+    }
+}
+
 /// First height whose receipts are kept when the tip is `tip` (0 when unbounded or the chain is shorter).
 pub fn first_retained_height(tip: u64, window: u64) -> u64 {
     if window == 0 {
@@ -69,6 +78,13 @@ mod tests {
             logs: vec![],
             error: None,
         }
+    }
+
+    #[test]
+    fn window_for_rpc_maps_zero_to_null() {
+        assert_eq!(window_for_rpc(0), None);
+        assert_eq!(window_for_rpc(1), Some(1));
+        assert_eq!(window_for_rpc(DEFAULT_RECEIPT_RETENTION_BLOCKS), Some(1_000_000));
     }
 
     #[test]

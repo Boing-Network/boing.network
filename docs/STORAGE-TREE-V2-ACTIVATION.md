@@ -77,6 +77,8 @@ startup if the node boots at/after `H`).
 
 ## Migration notes for tooling
 
+- **Discovery:** `boing_getNetworkInfo` and `boing_health` publish `storage_tree_v2_activation_height` (integer, or `null` when this node has no activation configured, which is the default). Tooling that recomputes storage roots should use 256-bit routing exactly when `height >= storage_tree_v2_activation_height`. The value is the node's configuration (not persisted), so check that all nodes report the same number before and after rollout.
+
 - **boing.observer / indexers** that recompute storage roots must switch to 256-bit routing for
   heights `>= H`. Roots before `H` keep the 64-bit rule.
 - **Light clients** that verify `prove_storage` proofs: the proof format is unchanged (list of

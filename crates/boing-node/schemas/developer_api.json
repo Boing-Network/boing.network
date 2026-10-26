@@ -38,6 +38,22 @@
         },
         "decode_with": "Block::from_bincode (Rust); bincode layouts differ across eras and the optional fields are conditional",
         "rpc_visibility": "boing_getBlockByHeight / boing_getBlockByHash JSON expose transaction fields; verify signatures from the bincode block (or trust the node that imported it)"
+      },
+      "chain_parameters": {
+        "note": "Live, additive protocol parameters published identically by boing_health and boing_getNetworkInfo. Older nodes omit them (treat missing as unknown).",
+        "storage_tree_v2_activation_height": {
+          "type": ["integer", "null"],
+          "null_means": "not configured on this node: legacy 64-bit contract-storage key routing, state roots unchanged (default)",
+          "integer_means": "blocks at height >= value compute contract-storage roots with full 256-bit key routing; account tree stays at depth 64",
+          "source": "BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT / --storage-tree-v2-activation-height; node configuration, not persisted; must match on every node",
+          "doc": "docs/STORAGE-TREE-V2-ACTIVATION.md"
+        },
+        "receipt_retention_blocks": {
+          "type": ["integer", "null"],
+          "null_means": "unbounded (BOING_RECEIPT_RETENTION_BLOCKS=0)",
+          "integer_means": "this node serves receipts for the most recent N blocks; boing_getTransactionReceipt returns null for older transactions (pruned every 256 blocks, so approximate)",
+          "default": 1000000
+        }
       }
     },
     "methods": [
@@ -54,6 +70,8 @@
             "chain_id": { "type": ["integer", "null"] },
             "chain_name": { "type": ["string", "null"] },
             "head_height": { "type": "integer", "minimum": 0 },
+            "storage_tree_v2_activation_height": { "type": ["integer", "null"], "minimum": 0, "description": "null = not configured (legacy 64-bit contract-storage routing, roots unchanged). Integer H = 256-bit routing at height >= H." },
+            "receipt_retention_blocks": { "type": ["integer", "null"], "minimum": 1, "description": "Receipt window in blocks; null = unbounded." },
             "client_hints": {
               "type": "object",
               "description": "Advisory wallet/SDK version hints (never enforced). Overridable with BOING_MIN_WALLET_VERSION, BOING_RECOMMENDED_WALLET_VERSION, BOING_RECOMMENDED_SDK_VERSION.",
@@ -188,7 +206,13 @@
         "name": "boing_getNetworkInfo",
         "summary": "Chain metadata, tip, consensus, native aggregates, developer hints (includes dex_discovery_methods for L1 DEX directory RPCs).",
         "params": { "type": "array", "maxItems": 0 },
-        "result": { "type": "object" }
+        "result": {
+          "type": "object",
+          "properties": {
+            "storage_tree_v2_activation_height": { "type": ["integer", "null"], "minimum": 0, "description": "null = not configured (legacy 64-bit contract-storage routing, roots unchanged). Integer H = 256-bit routing at height >= H." },
+            "receipt_retention_blocks": { "type": ["integer", "null"], "minimum": 1, "description": "Receipt window in blocks; null = unbounded." }
+          }
+        }
       },
       {
         "name": "boing_rpcSupportedMethods",

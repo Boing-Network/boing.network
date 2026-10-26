@@ -1271,6 +1271,18 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
     out
 }
 
+/// Additive protocol parameters shared by `boing_health` and `boing_getNetworkInfo`:
+/// `storage_tree_v2_activation_height` (`null` = not configured, legacy 64-bit routing) and
+/// `receipt_retention_blocks` (`null` = unbounded). Read-only; never affects consensus.
+pub(crate) fn protocol_params_json(n: &crate::node::BoingNode) -> (serde_json::Value, serde_json::Value) {
+    (
+        serde_json::json!(n.state.storage_tree_v2_activation()),
+        serde_json::json!(crate::receipt_retention::window_for_rpc(
+            crate::receipt_retention::retention_blocks()
+        )),
+    )
+}
+
 /// Wallet / SDK version hints for `boing_health.client_hints` and `boing_getNetworkInfo.client_hints`.
 ///
 /// Purely advisory and additive: clients compare their own version and may show an upgrade prompt;
@@ -1693,6 +1705,8 @@ mod abuse_limit_tests {
             "recommended_sdk",
             "priority_tip_domain",
             "Priority tips and block signatures",
+            "storage_tree_v2_activation_height",
+            "receipt_retention_blocks",
         ] {
             assert!(spec.contains(needle), "RPC-API-SPEC.md must mention {needle}");
         }
@@ -1706,6 +1720,11 @@ mod abuse_limit_tests {
             .unwrap()
             .contains("BOING_TX_PRIORITY"));
         assert!(specs["block_signatures"]["signatures"]["required_from_height"].is_string());
+        let cp = &specs["chain_parameters"];
+        assert!(cp["storage_tree_v2_activation_height"]["null_means"].is_string());
+        assert!(cp["receipt_retention_blocks"]["null_means"].is_string());
+        let meta = include_str!("../../../docs/chain-metadata.json");
+        assert!(meta.contains("storage_tree_v2_activation_height") && meta.contains("receipt_retention_blocks"));
     }
 
     #[test]
@@ -3142,6 +3161,7 @@ async fn dispatch_jsonrpc_request(
             let p2p_handle = node.read().await.p2p.clone();
             let p2p_status = p2p_handle.status().await;
             let n = node.read().await;
+            let (storage_tree_v2_activation_height, receipt_retention_blocks) = protocol_params_json(&n);
             let chain_id = std::env::var("BOING_CHAIN_ID")
                 .ok()
                 .and_then(|s| s.trim().parse::<u64>().ok());
@@ -3153,6 +3173,8 @@ async fn dispatch_jsonrpc_request(
                 id,
                 serde_json::json!({
                     "ok": true,
+                    "storage_tree_v2_activation_height": storage_tree_v2_activation_height,
+                    "receipt_retention_blocks": receipt_retention_blocks,
                     "client_version": format!("boing-node/{}", env!("CARGO_PKG_VERSION")),
                     "chain_id": chain_id,
                     "chain_name": chain_name,
@@ -3512,9 +3534,12 @@ async fn dispatch_jsonrpc_request(
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty());
             let agg = &n.native_aggregates;
+            let (storage_tree_v2_activation_height, receipt_retention_blocks) = protocol_params_json(&n);
             rpc_ok(
                 id,
                 serde_json::json!({
+                    "storage_tree_v2_activation_height": storage_tree_v2_activation_height,
+                    "receipt_retention_blocks": receipt_retention_blocks,
                     "chain_id": chain_id,
                     "chain_name": chain_name,
                     "head_height": head_height,

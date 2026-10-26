@@ -437,6 +437,8 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
   "chain_id": 6913,
   "chain_name": "Boing Testnet",
   "head_height": 42,
+  "storage_tree_v2_activation_height": null,
+  "receipt_retention_blocks": 1000000,
   "tx_signing": {
     "v2_supported": true,
     "domain": "BOING_TX_V2",
@@ -484,6 +486,9 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
 - **`rpc_surface`:** Operator-facing snapshot of limits (same sources as env vars **`BOING_RPC_MAX_BATCH`**, **`BOING_RPC_WS_MAX_CONNECTIONS`**, **`BOING_RPC_MAX_BODY_MB`**, node **`RateLimitConfig.requests_per_sec`**, **`BOING_RPC_READY_MIN_PEERS`**, plus fixed **`boing_getLogs`** bounds). **`ready_min_peers`** is **`null`** when no minimum is configured.
 - **`rpc_metrics`:** Cumulative counters since process start (best-effort diagnostics).
 - **`client_hints`:** Advisory version hints, also returned by **`boing_getNetworkInfo`**. **`min_wallet_version`** is the oldest Boing Express release that signs correctly for the network (the chain-bound v2 domain shipped in extension 0.1.15); **`recommended_wallet_version`** and **`recommended_sdk`** are the latest tested releases of Boing Express and `@boing-network/boing-sdk`. Compare as semver and show an upgrade prompt; the node never enforces them. Operators can override with **`BOING_MIN_WALLET_VERSION`**, **`BOING_RECOMMENDED_WALLET_VERSION`** and **`BOING_RECOMMENDED_SDK_VERSION`** so hints follow a release without rebuilding the node. Added in an additive, backwards-compatible way: clients that ignore unknown fields are unaffected.
+- **`storage_tree_v2_activation_height` / `receipt_retention_blocks`:** Additive protocol parameters, returned identically by **`boing_health`** and **`boing_getNetworkInfo`** (older nodes omit them; treat a missing key as unknown). Explorers and indexers should read them instead of hardcoding.
+  - **`storage_tree_v2_activation_height`** - JSON integer or **`null`**. **`null`** = not configured on this node: contract-storage trees use legacy 64-bit key routing and all state roots are unchanged (the default). An integer **H** means blocks at height **>= H** compute contract-storage roots with full 256-bit key routing ([STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md)). It comes from **`BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT`** / **`--storage-tree-v2-activation-height`**, is not persisted, and must be identical on every node of a network; it reflects this node's configuration, not on-chain consensus state. A client that recomputes roots uses 256-bit routing exactly when `height >= storage_tree_v2_activation_height`.
+  - **`receipt_retention_blocks`** - JSON integer or **`null`**. The number of most recent blocks whose receipts this node serves from **`boing_getTransactionReceipt`**, **`includeReceipts`**, **`boing_getLogs`** and the account tx index (`BOING_RECEIPT_RETENTION_BLOCKS`, default **1000000**). **`null`** = unbounded (the env value **`0`**). For a transaction older than `head_height - receipt_retention_blocks + 1`, **`boing_getTransactionReceipt`** returns **`null`**; backfill from blocks instead. Pruning runs every 256 blocks, so the cut-off is approximate by up to that many blocks.
 - **`tx_signing.priority_tips_supported` / `priority_tip_domain`:** Wallets can discover that a non-zero `priority_tip` is signed under the **`BOING_TX_PRIORITY`** domain (see [Priority tips and block signatures](#priority-tips-and-block-signatures-stable-spec)).
 
 ---
@@ -526,6 +531,8 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
 {
   "chain_id": 6913,
   "chain_name": "Boing Testnet",
+  "storage_tree_v2_activation_height": null,
+  "receipt_retention_blocks": 1000000,
   "head_height": 42,
   "finalized_height": 42,
   "latest_block_hash": "0x...",
@@ -605,6 +612,7 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
 
 - **`developer.dex_discovery_methods`:** Stable list of L1 native DEX discovery JSON-RPC method names (same triple as `docs/HANDOFF_Boing_Network_Global_Token_Discovery.md`). Clients may merge this with `boing_rpcSupportedMethods` / `boing_getRpcMethodCatalog` for capability detection.
 - **`end_user`:** Wallet-facing strings and optional **32-byte hex** hints when operators set the matching **`BOING_CANONICAL_NATIVE_*`** env vars on the node: **`canonical_native_cp_pool`**, **`canonical_native_dex_factory`**, **`canonical_native_dex_multihop_swap_router`**, **`canonical_native_dex_ledger_router_v2`**, **`canonical_native_dex_ledger_router_v3`**, **`canonical_native_amm_lp_vault`**, **`canonical_native_lp_share_token`**. Omitted keys are JSON **`null`**. **`boing-sdk`** **`mergeNativeDexIntegrationDefaults`** merges these with app overrides; historical embedded **6913** constants apply **only** when network info is omitted (offline). A live snapshot with null canonical fields means the hosted chain has not published those contracts ([BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md), [dApp network discovery](#dapp-network-discovery)).
+- **`storage_tree_v2_activation_height` / `receipt_retention_blocks`:** Same fields and semantics as on **`boing_health`** (see the bullet there).
 - **`chain_id` / `chain_name`:** From **`BOING_CHAIN_ID`** / **`BOING_CHAIN_NAME`** when set on the node process; **`chain_id`** is **`null`** when not configured.
 - **`validator_count`:** Size of this node’s in-process validator set (HotStuff BFT); not a network-wide discovery endpoint for all operators.
 - **`native_currency`:** Native BOING has **18 decimals** (1 BOING = 10^18 base units; [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md)). **`decimals`** is the unit of the amounts this node returns *now*: **18** (base units) on chains without history and on testnet from **`base_units_from_height`** (1050), **0** (whole BOING) on testnet before it. **`base_units_from_height`** is **`null`** when the chain is in base units from genesis. Blocks below **`base_units_from_height`** carry whole-BOING amounts; format historical blocks with the unit of their height. **`gas_price_base_units`**: fee per gas in base units from the switch. Same object in **`boing_health`**.
