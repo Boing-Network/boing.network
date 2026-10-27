@@ -40,6 +40,13 @@ const MAX_BODY_BYTES = 8 * 1_048_576;
  * explorers (`Expected ',' or ']' after array element…`).
  */
 const MAX_RESPONSE_BYTES = 6 * 1_048_576;
+/**
+ * CPU budget (Workers Free = 10 ms): full `JSON.parse` + `TextDecoder` validation of a response is only
+ * worth its cost for small bodies. Above this size, when the node declared a Content-Length and we received
+ * exactly that many bytes (so the body cannot have been cut short), we only check the JSON envelope
+ * (first/last byte). Large bodies without a declared length still get the full parse.
+ */
+const FULL_VALIDATE_MAX_BYTES = 256 * 1024;
 const FAILOVER_STATUSES = new Set([502, 503, 504, 521, 522, 523, 524, 525, 526, 530]);
 /** Writes that must reach the validator, not only the first healthy full node. */
 const FANOUT_RPC_METHODS = new Set(["boing_submitTransaction"]);
@@ -122,8 +129,18 @@ function shouldFailover(status: number): boolean {
   return FAILOVER_STATUSES.has(status);
 }
 
+/**
+ * Ask the node for an uncompressed body. The node only sets `Content-Length` for identity responses
+ * (compressed ones are chunked), and the gateway needs that length to reject oversized responses
+ * (e.g. 8-160 MiB `boing_getBlockByHeight` for ContractDeploy blocks) before reading a single byte.
+ * Without it every such request streams and decompresses up to MAX_RESPONSE_BYTES first, which
+ * exceeds the Free-plan CPU limit (Cloudflare error 1102 / HTTP 503).
+ */
+const UPSTREAM_ACCEPT_ENCODING = "identity";
+
 function hopHeaders(req: Request): Headers {
   const headers = new Headers();
+  headers.set("Accept-Encoding", UPSTREAM_ACCEPT_ENCODING);
   const pass = ["content-type", "accept", "authorization", "x-boing-operator", "user-agent"];
   for (const name of pass) {
     const v = req.headers.get(name);
@@ -198,6 +215,19 @@ async function readBodyCapped(res: Response, maxBytes: number): Promise<Uint8Arr
     offset += c.byteLength;
   }
   return out;
+}
+
+/** True when `buf` starts with `{`/`[` and ends with the matching `}`/`]` (ignoring JSON whitespace). */
+export function hasJsonEnvelope(buf: Uint8Array): boolean {
+  const isWs = (c: number) => c === 0x20 || c === 0x0a || c === 0x0d || c === 0x09;
+  let a = 0;
+  let b = buf.byteLength - 1;
+  while (a <= b && isWs(buf[a])) a += 1;
+  while (b >= a && isWs(buf[b])) b -= 1;
+  if (b <= a) return false;
+  const first = buf[a];
+  const last = buf[b];
+  return (first === 0x7b && last === 0x7d) || (first === 0x5b && last === 0x5d);
 }
 
 function jsonRpcMethod(body: ArrayBuffer | null): string | null {
@@ -475,10 +505,22 @@ async function handle(req: Request, env: Env, note: Note): Promise<Response> {
         // Only reject when the body is non-empty yet not JSON. Empty 502/530 pages from
         // the edge still failover above; valid small JSON-RPC must never be false-rejected.
         if (req.method === "POST" && buf.byteLength > 0) {
-          const text = new TextDecoder().decode(buf);
-          try {
-            JSON.parse(text);
-          } catch {
+          let valid: boolean;
+          if (
+            buf.byteLength > FULL_VALIDATE_MAX_BYTES &&
+            Number.isFinite(declaredLength) &&
+            declaredLength === buf.byteLength
+          ) {
+            valid = hasJsonEnvelope(buf);
+          } else {
+            try {
+              JSON.parse(new TextDecoder().decode(buf));
+              valid = true;
+            } catch {
+              valid = false;
+            }
+          }
+          if (!valid) {
             return json(
               {
                 jsonrpc: "2.0",
