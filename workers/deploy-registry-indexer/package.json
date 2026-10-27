@@ -7,12 +7,14 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "secret:sync": "wrangler secret put DEPLOY_REGISTRY_SYNC_SECRET"
+    "secret:sync": "wrangler secret put DEPLOY_REGISTRY_SYNC_SECRET",
+    "test": "vitest run"
   },
   "dependencies": {
     "@boing-network/boing-sdk": "file:../../boing-sdk"
   },
   "devDependencies": {
+    "vitest": "^5.0.5",
     "wrangler": "^4.147.0"
   }
 }
