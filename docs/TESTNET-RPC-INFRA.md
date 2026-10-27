@@ -163,4 +163,4 @@ Repo **`.gitattributes`** enforces **`eol=lf`** for `*.js` / `*.mjs`. Re-clone o
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

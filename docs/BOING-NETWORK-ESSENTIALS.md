@@ -149,4 +149,4 @@ We commit to 100% transparency in:
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable. Quality-assured.*
+*Boing Network — Quality, enforced by the protocol.*

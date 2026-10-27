@@ -623,4 +623,4 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

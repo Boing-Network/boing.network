@@ -152,4 +152,4 @@ Testnet live • SDK & CLI ready
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable. Quality-assured.*
+*Boing Network — Quality, enforced by the protocol.*

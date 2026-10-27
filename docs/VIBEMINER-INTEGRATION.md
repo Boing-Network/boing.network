@@ -284,4 +284,4 @@ See also [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), [PRE-VIBEMINER-NODE-COMMA
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

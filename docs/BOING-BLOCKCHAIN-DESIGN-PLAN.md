@@ -1077,4 +1077,4 @@ Boing commits to pushing beyond baseline decentralization and amplifying authent
 ---
 
 *Document Version: 1.5*  
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

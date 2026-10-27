@@ -1120,4 +1120,4 @@ L1 media blobs (see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) for seman
 **HTTP media download (non-JSON-RPC):** **`GET /v1/media/blob?id={blobId}`** returns raw bytes (`Content-Disposition: attachment`). Auth: operator/download shared secrets (**`X-Boing-Operator`** / **`X-Boing-Blob-Download`** / **`Authorization: Bearer`**) and/or Phase 34 publisher/grantee proof headers (**`X-Boing-Blob-Downloader`**, **`Expires`**, **`Nonce`**, **`Signature`**). **`BOING_BLOB_ACL_ACTIVATION_HEIGHT`** makes download private-by-default. See [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) and [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md).
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

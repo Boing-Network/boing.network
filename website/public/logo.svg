@@ -1,34 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Boing Network">
-  <defs>
-    <linearGradient id="boingMarkFrame" x1="8" y1="10" x2="56" y2="54" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#7c3aed"/>
-      <stop offset="0.5" stop-color="#06b6d4"/>
-      <stop offset="1" stop-color="#22d3ee"/>
-    </linearGradient>
-    <linearGradient id="boingMarkOrb" x1="36" y1="14" x2="52" y2="30" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#c4b5fd"/>
-      <stop offset="0.55" stop-color="#22d3ee"/>
-      <stop offset="1" stop-color="#67e8f9"/>
-    </linearGradient>
-  </defs>
-  <!-- Network shell: resilient mesh / coordination -->
-  <path
-    d="M32 6 L54 18 L54 46 L32 58 L10 46 L10 18 Z"
-    fill="none"
-    stroke="url(#boingMarkFrame)"
-    stroke-width="2.25"
-    stroke-linejoin="round"
-  />
-  <!-- Recovery arc: dip then spring upward (“always bounces back”) -->
-  <path
-    d="M13 45 C 19 45 21 40 25 33 C 29 26 33 21 38 19 C 43 17 47 20 49 24"
-    fill="none"
-    stroke="url(#boingMarkFrame)"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    opacity="0.5"
-  />
-  <circle cx="49" cy="24" r="7.25" fill="url(#boingMarkOrb)"/>
-  <circle cx="49" cy="24" r="7.25" fill="none" stroke="url(#boingMarkFrame)" stroke-width="1.2" opacity="0.45"/>
+  <title>Boing Network</title>
+  <!-- Interim Boing mark: a gate (protected passage) with a bounce passing through. Final logo pending. -->
+  <path d="M15 53 V31 C15 19.4 22.7 11 32 11 C41.3 11 49 19.4 49 31 V53" stroke="#F0F4F8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="32" cy="38" r="8" fill="#3B8CFF"/>
+  <path d="M19 59 C26 63 38 63 45 59" stroke="#3B8CFF" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
 </svg>

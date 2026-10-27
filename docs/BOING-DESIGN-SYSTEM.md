@@ -7,6 +7,8 @@
 
 **Version:** 1.0 · **Date:** February 2026
 
+> **2026 rebrand update:** the shared palette is now a deep-navy foundation (`--boing-navy-950` `#050A1A`, `--boing-navy-900` `#0A1128`, `--boing-navy-800` `#101A38`) with one accent, electric blue `--boing-accent` `#3B8CFF`, in all four repositories. Naming, tone and approved phrases live in [../BRAND.md](../BRAND.md); where this document describes the older per-site accent palettes or neon/glass styling, BRAND.md takes precedence.
+
 This document is the single source of truth for the Boing design system across **boing.express**, **boing.finance**, and **boing.network**. It defines a shared visual language and three tailored variants so each site expresses its own personality while staying recognizably Boing.
 
 ---
@@ -179,7 +181,7 @@ All sites use a layered background:
    - All sites reference: Security, Scalability, Decentralization, Authenticity, Transparency, Quality Assurance.
 
 5. **Footer**
-   - Tagline: “Authentic. Decentralized. Optimal. Quality-Assured.”
+   - Tagline: “Quality, enforced by the protocol.”
    - Links to other Boing properties.
    - `border-top: 1px solid` with accent at 8–10% opacity.
 
@@ -295,4 +297,4 @@ Hardcoded colors should use `var(--…)`; meta theme-color remains hex.
 
 ---
 
-*Boing Design System · Authentic. Decentralized. Optimal. Quality-Assured.*
+*Boing Design System · Quality, enforced by the protocol.*
