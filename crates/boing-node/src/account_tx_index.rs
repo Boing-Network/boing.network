@@ -52,7 +52,7 @@ pub fn touched_accounts(tx: &Transaction, log_topics: &[[u8; 32]]) -> Vec<Accoun
     for t in log_topics {
         out.push(AccountId(*t));
     }
-    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out.sort_by_key(|a| a.0);
     out.dedup();
     out
 }

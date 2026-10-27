@@ -399,7 +399,7 @@ mod tests {
             v.extend_from_slice(&id);
             v.extend_from_slice(&word_u64(start));
             v.extend_from_slice(&word_u64(count));
-            v.extend(std::iter::repeat(7u8).take(32 * n));
+            v.extend(std::iter::repeat_n(7u8, 32 * n));
             v
         };
         assert!(put(&mut state, store, alice, &mk(word_u64(1), 0, 1, 1)));
@@ -444,6 +444,6 @@ mod tests {
         let mut it = Interpreter::new(interface_blob_store_bytecode(), 8_000_000);
         it.run(aid(1), store, cd, &mut state).unwrap();
         let used = it.gas_used;
-        assert!(used >= 64 * 20_000 && used < 2_000_000, "gas used {used}");
+        assert!((64 * 20_000..2_000_000).contains(&used), "gas used {used}");
     }
 }

@@ -315,7 +315,7 @@ fn abbrev_token_label(id: &AccountId) -> (String, String) {
 }
 
 fn reserve_product(a: u128, b: u128) -> u128 {
-    a.checked_mul(b).unwrap_or(u128::MAX)
+    a.saturating_mul(b)
 }
 
 fn pool_passes_filters(
@@ -695,7 +695,7 @@ pub fn list_dex_tokens(
 
     let map = collect_dex_tokens(state, &factory, min_product, min_liq);
     let mut rows: Vec<(AccountId, TokenAgg)> = map.into_iter().collect();
-    rows.sort_by(|(a, _), (b, _)| a.0.cmp(&b.0));
+    rows.sort_by_key(|(a, _)| a.0);
 
     if let Some(after_id) = after {
         rows.retain(|(id, _)| id.0 > after_id.0);

@@ -1371,13 +1371,12 @@ impl BoingNode {
         if signed.priority_tip == 0
             && policy.execution_gas_waived()
             && policy.free_tx_min_balance > 0
+            && have < policy.free_tx_min_balance
         {
-            if have < policy.free_tx_min_balance {
-                return Err(MempoolError::FreeTxBalanceGate {
-                    have,
-                    need: policy.free_tx_min_balance,
-                });
-            }
+            return Err(MempoolError::FreeTxBalanceGate {
+                have,
+                need: policy.free_tx_min_balance,
+            });
         }
         if let Ok(out) = vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
             let need = self

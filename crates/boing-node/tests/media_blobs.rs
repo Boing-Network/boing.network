@@ -127,7 +127,7 @@ fn put_blob_round_trip_rpc() {
             &json!([format!("0x{}", hex::encode(id)), 4]),
         )
         .unwrap();
-    assert!(lc["samples"].as_array().unwrap().len() >= 1);
+    assert!(!lc["samples"].as_array().unwrap().is_empty());
     assert_eq!(lc["blobId"], format!("0x{}", hex::encode(id)));
 
     let provider = format!("0x{}", hex::encode([9u8; 32]));
@@ -239,7 +239,7 @@ fn das_sample_uses_cache_and_respects_blob_removal() {
         .unwrap();
     assert_eq!(batch["blobId"], idhex);
     let (h1, m1, _, _) = boing_node::das_cache::global_stats();
-    assert!(m1 >= m0 + 1, "first call must miss");
+    assert!(m1 > m0, "first call must miss");
     assert!(h1 >= h0 + 2, "later calls must hit the cache ({h0}->{h1})");
 
     // Removing the stored bytes must still yield null even though the bundle is cached.

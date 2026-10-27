@@ -1128,7 +1128,7 @@ mod tests {
             }
             // Revert everything back to a checkpoint taken first.
             let mut state2 = state;
-            let all: Vec<_> = cps.drain(..).collect();
+            let all: Vec<_> = std::mem::take(&mut cps);
             drop(all);
             let cp0 = state2.checkpoint();
             state2.insert(acct(200, 1));
@@ -1383,10 +1383,10 @@ mod tests {
                     }
                     3 => st
                         .set_contract_code(id, vec![(r.next() % 4) as u8; (r.next() % 5) as usize]),
-                    4 | 5 | 6 => {
+                    4..=6 => {
                         // small-integer style slots (shared 64-bit prefix) and random slots
                         let mut key = [0u8; 32];
-                        if r.next() % 2 == 0 {
+                        if r.next().is_multiple_of(2) {
                             key[31] = (r.next() % 6) as u8;
                         } else {
                             key[..8].copy_from_slice(&r.next().to_le_bytes());

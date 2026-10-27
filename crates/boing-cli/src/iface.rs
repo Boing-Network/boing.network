@@ -72,7 +72,7 @@ pub fn check_interface_json(bytes: &[u8]) -> anyhow::Result<[u8; 32]> {
         }
         if f.get("name")
             .and_then(Value::as_str)
-            .map_or(true, str::is_empty)
+            .is_none_or(str::is_empty)
         {
             anyhow::bail!("functions[{i}].name is required");
         }

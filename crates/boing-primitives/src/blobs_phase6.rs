@@ -289,7 +289,7 @@ impl MediaBlobSegmentManifest {
             return 0;
         }
         let seg = PHASE6_VIDEO_SEGMENT_TARGET_BYTES as u64;
-        ((total_bytes + seg - 1) / seg) as usize
+        total_bytes.div_ceil(seg) as usize
     }
 
     /// Content-addressed id of the ordered manifest (not a live blob id of concatenated bytes).

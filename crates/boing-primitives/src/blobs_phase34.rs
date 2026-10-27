@@ -216,7 +216,7 @@ mod tests {
     fn acl_grant_revoke_bumps_epoch() {
         let mut acl = BlobDownloadAcl::default();
         let g = AccountId([1u8; 32]);
-        assert_eq!(acl.grant(g).unwrap(), true);
+        assert!(acl.grant(g).unwrap());
         assert_eq!(acl.epoch, 0);
         assert!(acl.revoke(&g));
         assert_eq!(acl.epoch, 1);

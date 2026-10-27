@@ -559,7 +559,11 @@ pub fn media_blob_chunk_merkle_proof(
     let mut layer: Vec<[u8; 32]> = leaves.to_vec();
     let mut idx = index;
     while layer.len() > 1 {
-        let sibling_idx = if idx % 2 == 0 { idx + 1 } else { idx - 1 };
+        let sibling_idx = if idx.is_multiple_of(2) {
+            idx + 1
+        } else {
+            idx - 1
+        };
         let sib = if sibling_idx < layer.len() {
             layer[sibling_idx]
         } else {
@@ -588,7 +592,7 @@ pub fn verify_media_blob_das_sample(sample: &MediaBlobDasSample) -> Result<(), B
     let mut hash = sample.chunk_hash;
     let mut idx = sample.chunk_index as usize;
     for sib in &sample.siblings {
-        hash = if idx % 2 == 0 {
+        hash = if idx.is_multiple_of(2) {
             hash_pair(&hash, sib)
         } else {
             hash_pair(sib, &hash)

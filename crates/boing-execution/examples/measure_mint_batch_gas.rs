@@ -73,7 +73,7 @@ fn main() {
     for n in [1usize, 10, 50, 100, 200, 500] {
         let (g, us) = measure(n, true).unwrap();
         let (g0, _) = measure(n, false).unwrap();
-        let fee = (g + 20_999) / 21_000;
+        let fee = g.div_ceil(21_000);
         let cd = 96 + 64 * n;
         println!("{n}\t{g}\t{fee}\t{cd}\t{:.1}\t{g0}", us as f64 / 1000.0);
     }

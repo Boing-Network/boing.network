@@ -98,7 +98,7 @@ pub const FLAG_NO_MINT: u32 = 0x20;
 pub const FLAG_TRANSFER_UNLOCK: u32 = 0x40;
 
 /// Baked into init bytecode; see flag constants.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct ReferenceFungibleSecuredConfig {
     pub flags: u32,
     pub max_tx: u128,
@@ -108,21 +108,6 @@ pub struct ReferenceFungibleSecuredConfig {
     pub cooldown_secs: u64,
     pub transfer_unlock_height: u64,
     pub initial_paused: bool,
-}
-
-impl Default for ReferenceFungibleSecuredConfig {
-    fn default() -> Self {
-        Self {
-            flags: 0,
-            max_tx: 0,
-            max_wallet: 0,
-            anti_bot_extra_blocks: 0,
-            anti_bot_max_amount: 0,
-            cooldown_secs: 0,
-            transfer_unlock_height: 0,
-            initial_paused: false,
-        }
-    }
 }
 
 impl ReferenceFungibleSecuredConfig {
@@ -763,11 +748,11 @@ fn secured_runtime(self_transfer_guard: bool) -> Vec<u8> {
 
 fn emit_runtime_to_memory(code: &mut Vec<u8>, runtime: &[u8]) {
     let mut rt = runtime.to_vec();
-    while rt.len() % 32 != 0 {
+    while !rt.len().is_multiple_of(32) {
         rt.push(0);
     }
     let mut off = 0usize;
-    for ch in rt.chunks_exact(32) {
+    for ch in rt.as_chunks::<32>().0 {
         let mut w = [0u8; 32];
         w.copy_from_slice(ch);
         push32(code, &w);

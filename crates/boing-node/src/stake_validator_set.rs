@@ -50,7 +50,7 @@ impl StakeValidatorSetConfig {
             && self.top_n > 0
             && height > 0
             && height >= self.activation_height
-            && height % self.epoch_len == 0
+            && height.is_multiple_of(self.epoch_len)
     }
 
     /// The most recent refresh height `<= height`, if any (used to restore after a restart).
@@ -79,7 +79,7 @@ pub fn eligible_stake_validators(
         .collect();
     all.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0 .0.cmp(&b.0 .0)));
     let mut out: Vec<AccountId> = all.into_iter().take(top_n).map(|(id, _)| id).collect();
-    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out.sort_by_key(|a| a.0);
     out
 }
 

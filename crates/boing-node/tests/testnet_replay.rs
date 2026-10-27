@@ -59,7 +59,7 @@ fn load_blocks() -> Vec<(Block, String)> {
 }
 
 fn load_blocks_from(path: &std::path::Path) -> Vec<(Block, String)> {
-    let f = std::fs::File::open(&path).unwrap_or_else(|e| panic!("open {}: {e}", path.display()));
+    let f = std::fs::File::open(path).unwrap_or_else(|e| panic!("open {}: {e}", path.display()));
     BufReader::new(f)
         .lines()
         .map(|l| l.unwrap())

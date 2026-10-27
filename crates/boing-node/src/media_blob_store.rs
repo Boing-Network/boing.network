@@ -526,10 +526,7 @@ mod tests {
         store.put(meta, data).unwrap();
         assert!(store.may_download(&id, &publisher));
         assert!(!store.may_download(&id, &grantee));
-        assert_eq!(
-            store.grant_download(&id, &publisher, grantee).unwrap(),
-            true
-        );
+        assert!(store.grant_download(&id, &publisher, grantee).unwrap());
         assert!(store.may_download(&id, &grantee));
         assert_eq!(store.get_access(&id).epoch, 0);
         assert!(store.revoke_download(&id, &publisher, &grantee).unwrap());

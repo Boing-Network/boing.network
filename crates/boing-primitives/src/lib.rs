@@ -617,7 +617,7 @@ mod tests {
         let a = create2_contract_address(&d, &salt, &code);
         let b = create2_contract_address(&d, &salt, &code);
         assert_eq!(a, b);
-        assert_ne!(create2_contract_address(&d, &salt, &vec![0x61]), a);
+        assert_ne!(create2_contract_address(&d, &salt, &[0x61]), a);
     }
 
     #[test]

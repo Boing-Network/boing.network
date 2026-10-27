@@ -122,7 +122,7 @@ fn stake_validator_set_refreshes_at_epoch() {
     // made every node compute a different set).
     let want: Vec<AccountId> = {
         let mut v = vec![rich, mid];
-        v.sort_by(|a, b| a.0.cmp(&b.0));
+        v.sort_by_key(|a| a.0);
         v
     };
     assert_eq!(node.consensus.validators(), want.as_slice());
@@ -302,7 +302,7 @@ fn bonded_single_validator_continues_then_others_join_and_leave() {
     node.produce_block_if_ready().expect("block 4 (boundary)");
     let want: Vec<AccountId> = {
         let mut v = vec![proposer, other];
-        v.sort_by(|a, b| a.0.cmp(&b.0));
+        v.sort_by_key(|a| a.0);
         v
     };
     assert_eq!(node.consensus.validators(), want.as_slice());
@@ -325,7 +325,7 @@ fn stake_set_survives_restart() {
     let cfg = stake_cfg(21, 1, 10_000, 0, vec![proposer]);
     let want: Vec<AccountId> = {
         let mut v = vec![proposer, other];
-        v.sort_by(|a, b| a.0.cmp(&b.0));
+        v.sort_by_key(|a| a.0);
         v
     };
     {

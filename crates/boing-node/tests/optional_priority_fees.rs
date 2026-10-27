@@ -57,7 +57,7 @@ fn micro_fee_charges_small_base_not_zero() {
     let tx = transfer(sender, 0, to, 10);
     let before = state.get(&sender).unwrap().balance;
     let (gas, receipts) = exec
-        .execute_block(1, 0, &[tx.clone()], &mut state, proposer)
+        .execute_block(1, 0, std::slice::from_ref(&tx), &mut state, proposer)
         .unwrap();
     assert!(receipts[0].success);
     assert_eq!(gas, 21_000);

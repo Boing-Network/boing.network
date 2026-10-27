@@ -242,7 +242,13 @@ fn successful_batch_charges_fee_once_in_block() {
     let batch = tx(alice, 2, TransactionPayload::Batch { calls });
     let exec = BlockExecutor::new();
     let (gas, receipts) = exec
-        .execute_block(11, 1_700_000_001, &[batch.clone()], &mut state, acct(0xfe))
+        .execute_block(
+            11,
+            1_700_000_001,
+            std::slice::from_ref(&batch),
+            &mut state,
+            acct(0xfe),
+        )
         .unwrap();
     assert!(receipts[0].success, "{:?}", receipts[0].error);
     assert_eq!(

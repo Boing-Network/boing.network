@@ -138,7 +138,7 @@ impl Trie {
                 let (k0, v0) = (*k0, *v0);
                 if d >= max_depth {
                     let mut v = vec![(k0, v0), (key, val)];
-                    v.sort_by(|a, b| a.0.cmp(&b.0));
+                    v.sort_by_key(|a| a.0);
                     self.nodes[idx as usize] = Node::Bucket(v);
                 } else {
                     self.nodes[idx as usize] = Node::Branch {
@@ -779,7 +779,7 @@ mod tests {
             let mut t = SparseMerkleTree::new();
             for step in 0..400 {
                 let k = gen_key(&mut r);
-                if r.next() % 3 == 0 {
+                if r.next().is_multiple_of(3) {
                     t.delete_raw(&k);
                 } else {
                     let mut v = [0u8; 32];
@@ -901,7 +901,7 @@ mod tests {
             let mut t = SparseMerkleTree::with_max_depth(DEEP_MAX_DEPTH);
             for step in 0..300 {
                 let k = gen_key(&mut r);
-                if r.next() % 3 == 0 {
+                if r.next().is_multiple_of(3) {
                     t.delete_raw(&k);
                 } else {
                     let mut v = [0u8; 32];

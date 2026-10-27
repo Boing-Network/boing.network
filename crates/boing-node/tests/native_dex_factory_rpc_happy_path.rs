@@ -472,7 +472,7 @@ async fn native_dex_factory_deploy_register_and_query_via_rpc() {
         .expect("tokenBDecimals")
         .is_null());
 
-    let _ = std::env::remove_var("BOING_DEX_TOKEN_DECIMALS_JSON");
+    std::env::remove_var("BOING_DEX_TOKEN_DECIMALS_JSON");
 
     let gt = rpc_call(
         &mut app,
@@ -492,7 +492,7 @@ async fn native_dex_factory_deploy_register_and_query_via_rpc() {
         Some(register_block_height)
     );
 
-    let _ = std::env::remove_var("BOING_CANONICAL_NATIVE_DEX_FACTORY");
+    std::env::remove_var("BOING_CANONICAL_NATIVE_DEX_FACTORY");
     let lp2 = rpc_call(
         &mut app,
         "boing_listDexPools",

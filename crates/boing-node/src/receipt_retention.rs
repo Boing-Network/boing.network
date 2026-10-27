@@ -62,7 +62,7 @@ pub fn prune(receipts: &mut HashMap<Hash, ExecutionReceipt>, tip: u64, window: u
 
 /// True when pruning should run after committing `height`.
 pub fn prune_due(height: u64) -> bool {
-    height > 0 && height % PRUNE_INTERVAL == 0
+    height > 0 && height.is_multiple_of(PRUNE_INTERVAL)
 }
 
 #[cfg(test)]
