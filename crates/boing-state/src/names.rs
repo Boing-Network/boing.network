@@ -712,9 +712,16 @@ mod tests {
             r.register_keyed(&p(), 12, B, "alice", &SALT, B, 1, true),
             Err(NameRegistryError::CommitNotFound)
         );
-        assert_eq!(r.register_keyed(&p(), 12, A, "alice", &SALT, A, 1, true), Ok(2));
+        assert_eq!(
+            r.register_keyed(&p(), 12, A, "alice", &SALT, A, 1, true),
+            Ok(2)
+        );
         assert_eq!(r.names.get("alice").unwrap().owner, A);
-        assert_eq!(r.commits.len(), 1, "only B's dead commitment remains (pruned at max age)");
+        assert_eq!(
+            r.commits.len(),
+            1,
+            "only B's dead commitment remains (pruned at max age)"
+        );
     }
 
     #[test]
@@ -722,7 +729,10 @@ mod tests {
         let mut r = NameRegistry::default();
         let c = name_commitment("alice", &A, &SALT);
         r.commit_keyed(&p(), 10, A, c, false).unwrap();
-        assert_eq!(r.register_keyed(&p(), 12, A, "alice", &SALT, A, 1, true), Ok(2));
+        assert_eq!(
+            r.register_keyed(&p(), 12, A, "alice", &SALT, A, 1, true),
+            Ok(2)
+        );
         assert!(r.commits.is_empty());
         // a legacy entry made by someone else is not usable by the reveal of A
         let mut r2 = NameRegistry::default();

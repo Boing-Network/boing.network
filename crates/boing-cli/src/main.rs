@@ -925,17 +925,28 @@ async fn main() -> anyhow::Result<()> {
                     iface::print_bytecode();
                     Ok(())
                 }
-                IfaceCommands::DeployBlobStore { signer } => iface::deploy_blob_store(rpc, sg(signer)).await,
+                IfaceCommands::DeployBlobStore { signer } => {
+                    iface::deploy_blob_store(rpc, sg(signer)).await
+                }
                 IfaceCommands::BlobStoreBytecode => {
                     iface::print_blob_store_bytecode();
                     Ok(())
                 }
                 IfaceCommands::Hash { file } => iface::hash_file(&file),
-                IfaceCommands::Get { contract, registry, json } => {
-                    iface::get(rpc, registry.as_deref(), &contract, json).await
-                }
-                IfaceCommands::Publish { contract, file, uri, registry, signer } => {
-                    iface::publish(rpc, sg(signer), registry.as_deref(), &contract, &file, &uri).await
+                IfaceCommands::Get {
+                    contract,
+                    registry,
+                    json,
+                } => iface::get(rpc, registry.as_deref(), &contract, json).await,
+                IfaceCommands::Publish {
+                    contract,
+                    file,
+                    uri,
+                    registry,
+                    signer,
+                } => {
+                    iface::publish(rpc, sg(signer), registry.as_deref(), &contract, &file, &uri)
+                        .await
                 }
             }
         }

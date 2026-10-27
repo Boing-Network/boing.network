@@ -45,8 +45,10 @@ pub const WBOING_SELECTOR_DECIMALS: u8 = 0x26;
 /// wBOING decimals (= native BOING base units).
 pub const WBOING_DECIMALS: u8 = 18;
 
-pub const WBOING_TOPIC_DEPOSIT: [u8; 32] = *b"BOING_WBOING_DEPOSIT\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-pub const WBOING_TOPIC_WITHDRAW: [u8; 32] = *b"BOING_WBOING_WITHDRAW\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+pub const WBOING_TOPIC_DEPOSIT: [u8; 32] =
+    *b"BOING_WBOING_DEPOSIT\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+pub const WBOING_TOPIC_WITHDRAW: [u8; 32] =
+    *b"BOING_WBOING_WITHDRAW\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
 /// Storage key of the total supply.
 #[must_use]
@@ -112,7 +114,9 @@ fn allowance_key_to(a: &mut Asm, owner_mem: Option<u64>, spender_mem: Option<u64
         None => a.op(Opcode::Caller),
     };
     a.push_u(128).op(Opcode::Shr).op(Opcode::Or);
-    a.push(&REF_FUNGIBLE_ALLOWANCE_XOR).op(Opcode::Xor).mstore(dst);
+    a.push(&REF_FUNGIBLE_ALLOWANCE_XOR)
+        .op(Opcode::Xor)
+        .mstore(dst);
 }
 
 /// `mem[dst] = holder ^ BALANCE_XOR`.
@@ -121,7 +125,9 @@ fn balance_key_to(a: &mut Asm, holder_mem: Option<u64>, dst: u64) {
         Some(m) => a.mload(m),
         None => a.op(Opcode::Caller),
     };
-    a.push(&REF_FUNGIBLE_BALANCE_XOR).op(Opcode::Xor).mstore(dst);
+    a.push(&REF_FUNGIBLE_BALANCE_XOR)
+        .op(Opcode::Xor)
+        .mstore(dst);
 }
 
 /// Move `mem[M_AMT]` from `from` to `mem[to_mem]` (precondition `from != to`); jumps to `fail` before
@@ -134,7 +140,11 @@ fn move_balance(a: &mut Asm, from_mem: Option<u64>, to_mem: u64, fail: Label) {
     a.mload(M_KT).op(Opcode::SLoad).mstore(M_BALTO);
     a.mload(M_BALTO).mload(M_AMT).op(Opcode::Add).mstore(M_NEW);
     a.mload(M_NEW).mload(M_BALTO).op(Opcode::Lt).jumpi(fail);
-    a.mload(M_OLD).mload(M_AMT).op(Opcode::Sub).mload(M_KC).op(Opcode::SStore);
+    a.mload(M_OLD)
+        .mload(M_AMT)
+        .op(Opcode::Sub)
+        .mload(M_KC)
+        .op(Opcode::SStore);
     a.mload(M_NEW).mload(M_KT).op(Opcode::SStore);
 }
 
@@ -146,8 +156,15 @@ fn burn_and_pay(a: &mut Asm, fail: Label) {
     a.mload(M_OLD).mload(M_AMT).op(Opcode::Lt).jumpi(fail);
     a.sload_key(&wboing_total_supply_key()).mstore(M_SUP);
     a.mload(M_SUP).mload(M_AMT).op(Opcode::Lt).jumpi(fail);
-    a.mload(M_OLD).mload(M_AMT).op(Opcode::Sub).mload(M_KC).op(Opcode::SStore);
-    a.mload(M_SUP).mload(M_AMT).op(Opcode::Sub).sstore_key(&wboing_total_supply_key());
+    a.mload(M_OLD)
+        .mload(M_AMT)
+        .op(Opcode::Sub)
+        .mload(M_KC)
+        .op(Opcode::SStore);
+    a.mload(M_SUP)
+        .mload(M_AMT)
+        .op(Opcode::Sub)
+        .sstore_key(&wboing_total_supply_key());
     // Effects done; pay out (pure ledger move, never runs code at the recipient).
     a.mload(M_AMT).mload(M_TO).op(Opcode::NativeTransfer);
     a.mcopy(M_AMT, M_LOG);
@@ -168,14 +185,18 @@ pub fn wrapped_boing_bytecode() -> Vec<u8> {
     let fail = a.label();
     let stop = a.label();
     let (xfer, approve, xfrom, allowance) = (a.label(), a.label(), a.label(), a.label());
-    let (deposit, withdraw, withdraw_to, withdraw_all) = (a.label(), a.label(), a.label(), a.label());
+    let (deposit, withdraw, withdraw_to, withdraw_all) =
+        (a.label(), a.label(), a.label(), a.label());
     let (supply, balance_of, decimals) = (a.label(), a.label(), a.label());
 
     a.mload(0).push(&w_u64(0xff)).op(Opcode::And).mstore(M_SEL);
     // Only `deposit` accepts value: any other selector with value attached faults (value refunded).
     let no_value = a.label();
     a.op(Opcode::CallValue).op(Opcode::IsZero).jumpi(no_value);
-    a.mload(M_SEL).push(&w_sel(WBOING_SELECTOR_DEPOSIT)).op(Opcode::Eq).jumpi(deposit);
+    a.mload(M_SEL)
+        .push(&w_sel(WBOING_SELECTOR_DEPOSIT))
+        .op(Opcode::Eq)
+        .jumpi(deposit);
     a.jump(fail);
     a.mark(no_value);
     for (s, l) in [
@@ -200,10 +221,21 @@ pub fn wrapped_boing_bytecode() -> Vec<u8> {
     a.op(Opcode::CallValue).mstore(M_AMT);
     a.mload(M_AMT).op(Opcode::IsZero).jumpi(fail);
     balance_key_to(&mut a, None, M_KC);
-    a.mload(M_KC).op(Opcode::SLoad).mload(M_AMT).op(Opcode::Add).mload(M_KC).op(Opcode::SStore);
-    a.sload_key(&wboing_total_supply_key()).mload(M_AMT).op(Opcode::Add).mstore(M_SUP);
+    a.mload(M_KC)
+        .op(Opcode::SLoad)
+        .mload(M_AMT)
+        .op(Opcode::Add)
+        .mload(M_KC)
+        .op(Opcode::SStore);
+    a.sload_key(&wboing_total_supply_key())
+        .mload(M_AMT)
+        .op(Opcode::Add)
+        .mstore(M_SUP);
     // Invariant: supply never exceeds the native balance backing it.
-    a.mload(M_SUP).op(Opcode::SelfBalance).op(Opcode::Gt).jumpi(fail);
+    a.mload(M_SUP)
+        .op(Opcode::SelfBalance)
+        .op(Opcode::Gt)
+        .jumpi(fail);
     a.mload(M_SUP).sstore_key(&wboing_total_supply_key());
     a.mcopy(M_AMT, M_LOG);
     a.push(&WBOING_TOPIC_DEPOSIT)
@@ -252,23 +284,37 @@ pub fn wrapped_boing_bytecode() -> Vec<u8> {
     a.mload(M_AKEY).op(Opcode::SLoad).mstore(M_ALW);
     a.mload(M_ALW).mload(M_AMT).op(Opcode::Lt).jumpi(stop);
     move_balance(&mut a, Some(M_FROM), M_TO, stop);
-    a.mload(M_ALW).mload(M_AMT).op(Opcode::Sub).mload(M_AKEY).op(Opcode::SStore);
+    a.mload(M_ALW)
+        .mload(M_AMT)
+        .op(Opcode::Sub)
+        .mload(M_AKEY)
+        .op(Opcode::SStore);
     a.push(&w_u64(1)).mstore(M_RET).return_word(M_RET);
 
     // allowance(owner, spender).
     a.mark(allowance);
     a.mcopy(32, M_FROM).mcopy(64, M_TO);
     allowance_key_to(&mut a, Some(M_FROM), Some(M_TO), M_AKEY);
-    a.mload(M_AKEY).op(Opcode::SLoad).mstore(M_RET).return_word(M_RET);
+    a.mload(M_AKEY)
+        .op(Opcode::SLoad)
+        .mstore(M_RET)
+        .return_word(M_RET);
 
     // total_supply() / balance_of(holder) / decimals().
     a.mark(supply);
-    a.sload_key(&wboing_total_supply_key()).mstore(M_RET).return_word(M_RET);
+    a.sload_key(&wboing_total_supply_key())
+        .mstore(M_RET)
+        .return_word(M_RET);
     a.mark(balance_of);
     balance_key_to(&mut a, Some(32), M_KC);
-    a.mload(M_KC).op(Opcode::SLoad).mstore(M_RET).return_word(M_RET);
+    a.mload(M_KC)
+        .op(Opcode::SLoad)
+        .mstore(M_RET)
+        .return_word(M_RET);
     a.mark(decimals);
-    a.push_u(u64::from(WBOING_DECIMALS)).mstore(M_RET).return_word(M_RET);
+    a.push_u(u64::from(WBOING_DECIMALS))
+        .mstore(M_RET)
+        .return_word(M_RET);
 
     a.mark(stop);
     a.op(Opcode::Stop);

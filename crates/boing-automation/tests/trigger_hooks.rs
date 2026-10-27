@@ -53,8 +53,7 @@ fn test_balance_exceeds_trigger() {
         proposer: AccountId([1u8; 32]),
         tx_count: 1,
     };
-    let ctx = EvalContext::new(5, 100)
-        .with_balance(account, 1500);
+    let ctx = EvalContext::new(5, 100).with_balance(account, 1500);
     let fired = reg.on_event(&event, &ctx);
     assert_eq!(fired, vec![200]);
 }

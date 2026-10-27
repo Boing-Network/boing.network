@@ -13,12 +13,6 @@ fn test_executor_attestation_sign_verify() {
     h.update(b"result");
     let result_hash = Hash(*h.finalize().as_bytes());
 
-    let att = ExecutorAttestation::new(
-        executor,
-        1,
-        result_hash,
-        1000,
-        &key,
-    );
+    let att = ExecutorAttestation::new(executor, 1, result_hash, 1000, &key);
     assert!(att.verify().is_ok());
 }

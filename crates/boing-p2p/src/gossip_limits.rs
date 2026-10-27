@@ -76,7 +76,10 @@ impl GossipConfig {
             c.peer_bytes_per_sec = v;
         }
         if let Some(v) = get(ENV_PEER_SCORING) {
-            c.peer_scoring = !matches!(v.trim().to_ascii_lowercase().as_str(), "0" | "false" | "off" | "no");
+            c.peer_scoring = !matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "0" | "false" | "off" | "no"
+            );
         }
         c
     }
@@ -117,7 +120,11 @@ impl PeerRateLimiter {
         }
         let msg_cap = self.msgs_per_sec as f64 * BURST_SECONDS as f64;
         let byte_cap = self.bytes_per_sec as f64 * BURST_SECONDS as f64;
-        let b = self.buckets.entry(*peer).or_insert(Bucket { msgs: msg_cap, bytes: byte_cap, last: now });
+        let b = self.buckets.entry(*peer).or_insert(Bucket {
+            msgs: msg_cap,
+            bytes: byte_cap,
+            last: now,
+        });
         let dt = now.saturating_duration_since(b.last).as_secs_f64();
         b.last = now;
         if self.msgs_per_sec > 0 {
@@ -127,7 +134,11 @@ impl PeerRateLimiter {
             b.bytes = (b.bytes + dt * self.bytes_per_sec as f64).min(byte_cap);
         }
         let need_msg = if self.msgs_per_sec > 0 { 1.0 } else { 0.0 };
-        let need_bytes = if self.bytes_per_sec > 0 { bytes as f64 } else { 0.0 };
+        let need_bytes = if self.bytes_per_sec > 0 {
+            bytes as f64
+        } else {
+            0.0
+        };
         // A single frame bigger than the whole byte bucket can never pass; the size cap handles that.
         if b.msgs < need_msg || b.bytes < need_bytes.min(byte_cap) {
             return false;
@@ -149,7 +160,8 @@ impl PeerRateLimiter {
 
     /// Drop peers idle for longer than `idle` (defence in depth).
     pub fn prune_idle(&mut self, now: Instant, idle: Duration) {
-        self.buckets.retain(|_, b| now.saturating_duration_since(b.last) < idle);
+        self.buckets
+            .retain(|_, b| now.saturating_duration_since(b.last) < idle);
     }
 }
 
@@ -158,7 +170,11 @@ mod tests {
     use super::*;
 
     fn cfg(msgs: u32, bytes: u64) -> GossipConfig {
-        GossipConfig { peer_msgs_per_sec: msgs, peer_bytes_per_sec: bytes, ..GossipConfig::default() }
+        GossipConfig {
+            peer_msgs_per_sec: msgs,
+            peer_bytes_per_sec: bytes,
+            ..GossipConfig::default()
+        }
     }
 
     #[test]
@@ -172,16 +188,30 @@ mod tests {
     #[test]
     fn env_parsing_clamps_and_falls_back() {
         let env = |pairs: Vec<(&'static str, &'static str)>| {
-            GossipConfig::from_lookup(move |k| pairs.iter().find(|(n, _)| *n == k).map(|(_, v)| v.to_string()))
+            GossipConfig::from_lookup(move |k| {
+                pairs
+                    .iter()
+                    .find(|(n, _)| *n == k)
+                    .map(|(_, v)| v.to_string())
+            })
         };
         assert_eq!(env(vec![]), GossipConfig::default());
-        assert_eq!(env(vec![(ENV_MAX_MESSAGE_BYTES, "1")]).max_message_bytes, MIN_MAX_GOSSIP_MESSAGE_BYTES);
+        assert_eq!(
+            env(vec![(ENV_MAX_MESSAGE_BYTES, "1")]).max_message_bytes,
+            MIN_MAX_GOSSIP_MESSAGE_BYTES
+        );
         assert_eq!(
             env(vec![(ENV_MAX_MESSAGE_BYTES, "99999999999")]).max_message_bytes,
             MAX_MAX_GOSSIP_MESSAGE_BYTES
         );
-        assert_eq!(env(vec![(ENV_MAX_MESSAGE_BYTES, "2097152")]).max_message_bytes, 2 * 1024 * 1024);
-        assert_eq!(env(vec![(ENV_MAX_MESSAGE_BYTES, "garbage")]).max_message_bytes, DEFAULT_MAX_GOSSIP_MESSAGE_BYTES);
+        assert_eq!(
+            env(vec![(ENV_MAX_MESSAGE_BYTES, "2097152")]).max_message_bytes,
+            2 * 1024 * 1024
+        );
+        assert_eq!(
+            env(vec![(ENV_MAX_MESSAGE_BYTES, "garbage")]).max_message_bytes,
+            DEFAULT_MAX_GOSSIP_MESSAGE_BYTES
+        );
         assert_eq!(env(vec![(ENV_PEER_MSGS_PER_SEC, "0")]).peer_msgs_per_sec, 0);
         assert_eq!(env(vec![(ENV_PEER_MSGS_PER_SEC, "7")]).peer_msgs_per_sec, 7);
         assert!(!env(vec![(ENV_PEER_SCORING, "off")]).peer_scoring);

@@ -15,7 +15,10 @@ fn tipped(key: &SigningKey, nonce: u64, tip: u128) -> SignedTransaction {
     let tx = Transaction {
         nonce,
         sender,
-        payload: TransactionPayload::Transfer { to: AccountId([7u8; 32]), amount: 1 },
+        payload: TransactionPayload::Transfer {
+            to: AccountId([7u8; 32]),
+            amount: 1,
+        },
         access_list: AccessList::default(),
     };
     SignedTransaction::new_for_chain_with_tip(tx, key, CHAIN, tip)
@@ -23,7 +26,10 @@ fn tipped(key: &SigningKey, nonce: u64, tip: u128) -> SignedTransaction {
 
 #[test]
 fn drain_keeps_per_sender_nonce_order_even_with_a_higher_later_tip() {
-    set_tx_verify_policy(TxSigPolicy { chain_id: Some(CHAIN), require_v2: false });
+    set_tx_verify_policy(TxSigPolicy {
+        chain_id: Some(CHAIN),
+        require_v2: false,
+    });
     let pool = Mempool::new();
     let a = SigningKey::generate(&mut OsRng);
     let b = SigningKey::generate(&mut OsRng);
@@ -34,7 +40,11 @@ fn drain_keeps_per_sender_nonce_order_even_with_a_higher_later_tip() {
     let out = pool.drain_for_block(10);
     assert_eq!(out.len(), 3);
     let a_id = AccountId(a.verifying_key().to_bytes());
-    let a_nonces: Vec<u64> = out.iter().filter(|s| s.tx.sender == a_id).map(|s| s.tx.nonce).collect();
+    let a_nonces: Vec<u64> = out
+        .iter()
+        .filter(|s| s.tx.sender == a_id)
+        .map(|s| s.tx.nonce)
+        .collect();
     assert_eq!(a_nonces, vec![0, 1]);
     // b (tip 50) outranks a's head (tip 0), so it goes first; then a:0, then a:1.
     assert_eq!(out[0].priority_tip, 50);
@@ -45,7 +55,10 @@ fn drain_keeps_per_sender_nonce_order_even_with_a_higher_later_tip() {
 
 #[test]
 fn higher_tip_senders_go_first_across_senders() {
-    set_tx_verify_policy(TxSigPolicy { chain_id: Some(CHAIN), require_v2: false });
+    set_tx_verify_policy(TxSigPolicy {
+        chain_id: Some(CHAIN),
+        require_v2: false,
+    });
     let pool = Mempool::new();
     let keys: Vec<SigningKey> = (0..4).map(|_| SigningKey::generate(&mut OsRng)).collect();
     for (i, k) in keys.iter().enumerate() {

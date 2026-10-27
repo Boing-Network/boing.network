@@ -219,7 +219,6 @@ impl RpcState {
         }
         false
     }
-
 }
 
 fn parse_hex_header_bytes(headers: &HeaderMap, name: &str, expected_len: usize) -> Option<Vec<u8>> {
@@ -240,7 +239,8 @@ fn blob_download_proof_authorized(
     _tip: u64,
     store: &crate::media_blob_store::MediaBlobStore,
 ) -> bool {
-    let Some(downloader_bytes) = parse_hex_header_bytes(headers, "x-boing-blob-downloader", 32) else {
+    let Some(downloader_bytes) = parse_hex_header_bytes(headers, "x-boing-blob-downloader", 32)
+    else {
         return false;
     };
     let mut downloader = [0u8; 32];
@@ -403,7 +403,10 @@ async fn http_media_blob_download(
         .header("x-boing-blob-id", id_hex)
         .header("x-boing-blob-size", data.len().to_string());
     if let Some(m) = &meta {
-        res = res.header("x-boing-blob-publisher", format!("0x{}", hex::encode(m.publisher)));
+        res = res.header(
+            "x-boing-blob-publisher",
+            format!("0x{}", hex::encode(m.publisher)),
+        );
     }
     res.body(Body::from(data))
         .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
@@ -871,11 +874,23 @@ mod json_lossless_tests {
             b: u64,
             s: &'static str,
         }
-        let v = super::json_value_lossless(&T { a: 10u128.pow(30), b: 7, s: "é x\\\"99999999999999999999999" });
+        let v = super::json_value_lossless(&T {
+            a: 10u128.pow(30),
+            b: 7,
+            s: "é x\\\"99999999999999999999999",
+        });
         assert_eq!(v["a"], serde_json::json!("1000000000000000000000000000000"));
         assert_eq!(v["b"], serde_json::json!(7));
-        let w = super::json_value_lossless(&T { a: 9_007_199_254_740_992, b: 9_007_199_254_740_991, s: "" });
-        assert_eq!(w["a"], serde_json::json!("9007199254740992"), "above 2^53 - 1 is quoted");
+        let w = super::json_value_lossless(&T {
+            a: 9_007_199_254_740_992,
+            b: 9_007_199_254_740_991,
+            s: "",
+        });
+        assert_eq!(
+            w["a"],
+            serde_json::json!("9007199254740992"),
+            "above 2^53 - 1 is quoted"
+        );
         assert_eq!(w["b"], serde_json::json!(9_007_199_254_740_991u64));
         assert_eq!(v["s"], serde_json::json!("é x\\\"99999999999999999999999"));
     }
@@ -932,8 +947,7 @@ mod phase22_reverify_tests {
 
         // Invalid: V2 signed under wrong pin.
         let wrong = phase20_pin_set_commitment(&[AccountId([9u8; 32])]);
-        let sig_bad =
-            sign_slash_appeal_resolve_ballot_v2(chain_id, aid, 7, true, &key_bad, &wrong);
+        let sig_bad = sign_slash_appeal_resolve_ballot_v2(chain_id, aid, 7, true, &key_bad, &wrong);
         reg.cast_resolve_vote(aid, v_bad, true, 100, electorate_w, Some(sig_bad))
             .unwrap();
 
@@ -959,10 +973,7 @@ mod phase22_reverify_tests {
         assert_eq!(out["appeals"][0]["unattestedCount"], 1);
         assert_eq!(out["appeals"][0]["allAttestedBallotsValid"], false);
         let votes = out["appeals"][0]["votes"].as_array().unwrap();
-        let statuses: Vec<&str> = votes
-            .iter()
-            .filter_map(|v| v["status"].as_str())
-            .collect();
+        let statuses: Vec<&str> = votes.iter().filter_map(|v| v["status"].as_str()).collect();
         assert!(statuses.contains(&"ok"));
         assert!(statuses.contains(&"invalid"));
         assert!(statuses.contains(&"unattested"));
@@ -981,14 +992,7 @@ mod phase22_reverify_tests {
         .unwrap();
         let pin2 = phase20_pin_set_commitment(&[v1]);
         let aid2 = reg2
-            .submit_appeal(
-                8,
-                vec![],
-                2,
-                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
-                100,
-                pin2,
-            )
+            .submit_appeal(8, vec![], 2, PHASE14_MAX_APPEAL_EVIDENCE_BYTES, 100, pin2)
             .unwrap();
         let sig_v1 = sign_slash_appeal_resolve_ballot_v1(chain_id, aid2, 8, true, &key_v1);
         reg2.cast_resolve_vote(aid2, v1, true, 100, 100, Some(sig_v1))
@@ -1024,14 +1028,7 @@ mod phase22_reverify_tests {
         .unwrap();
         let pin = phase20_pin_set_commitment(&[]);
         let aid = reg
-            .submit_appeal(
-                9,
-                vec![],
-                2,
-                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
-                1,
-                pin,
-            )
+            .submit_appeal(9, vec![], 2, PHASE14_MAX_APPEAL_EVIDENCE_BYTES, 1, pin)
             .unwrap();
         assert_eq!(reg.expire_pending_appeals(10_000), 1);
         assert_eq!(
@@ -1066,14 +1063,7 @@ mod phase22_reverify_tests {
         .unwrap();
         let pin = phase20_pin_set_commitment(&[voter]);
         let aid = reg
-            .submit_appeal(
-                10,
-                vec![],
-                2,
-                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
-                100,
-                pin,
-            )
+            .submit_appeal(10, vec![], 2, PHASE14_MAX_APPEAL_EVIDENCE_BYTES, 100, pin)
             .unwrap();
         reg.cast_resolve_vote(aid, voter, true, 100, 100, None)
             .unwrap();
@@ -1096,7 +1086,10 @@ mod phase22_reverify_tests {
 /// Parse optional `0x`-prefixed or raw hex into 32 bytes.
 fn parse_hex32_opt(s: &str) -> Option<[u8; 32]> {
     let s = s.trim();
-    let hex = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).unwrap_or(s);
+    let hex = s
+        .strip_prefix("0x")
+        .or_else(|| s.strip_prefix("0X"))
+        .unwrap_or(s);
     let bytes = hex::decode(hex).ok()?;
     if bytes.len() != 32 {
         return None;
@@ -1164,10 +1157,8 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
             boing_state::ConsensusAppealStatus::Rejected => "rejected",
             boing_state::ConsensusAppealStatus::Expired => "expired",
         };
-        let legacy = phase20_is_legacy_electorate_snapshot(
-            a.electorate_w_snapshot,
-            &a.pin_set_commitment,
-        );
+        let legacy =
+            phase20_is_legacy_electorate_snapshot(a.electorate_w_snapshot, &a.pin_set_commitment);
         let (pin_set_match, pin_set_note): (serde_json::Value, Option<&str>) = if legacy {
             (
                 serde_json::Value::Null,
@@ -1274,7 +1265,9 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
 /// Additive protocol parameters shared by `boing_health` and `boing_getNetworkInfo`:
 /// `storage_tree_v2_activation_height` (`null` = not configured, legacy 64-bit routing) and
 /// `receipt_retention_blocks` (`null` = unbounded). Read-only; never affects consensus.
-pub(crate) fn protocol_params_json(n: &crate::node::BoingNode) -> (serde_json::Value, serde_json::Value) {
+pub(crate) fn protocol_params_json(
+    n: &crate::node::BoingNode,
+) -> (serde_json::Value, serde_json::Value) {
     (
         serde_json::json!(n.state.storage_tree_v2_activation()),
         serde_json::json!(crate::receipt_retention::window_for_rpc(
@@ -1460,7 +1453,11 @@ const DEFAULT_WS_MAX_CONNECTIONS: usize = 512;
 /// Max concurrent **`GET /ws`** connections: **`BOING_RPC_WS_MAX_CONNECTIONS`**, default
 /// [`DEFAULT_WS_MAX_CONNECTIONS`]; an explicit **0** means unlimited.
 fn max_ws_connections() -> usize {
-    parse_ws_max_connections(std::env::var("BOING_RPC_WS_MAX_CONNECTIONS").ok().as_deref())
+    parse_ws_max_connections(
+        std::env::var("BOING_RPC_WS_MAX_CONNECTIONS")
+            .ok()
+            .as_deref(),
+    )
 }
 
 fn parse_ws_max_connections(raw: Option<&str>) -> usize {
@@ -1509,7 +1506,10 @@ fn faucet_window_admit(
     if max == 0 {
         return true;
     }
-    while recent.front().is_some_and(|t| now.duration_since(*t) >= window) {
+    while recent
+        .front()
+        .is_some_and(|t| now.duration_since(*t) >= window)
+    {
         recent.pop_front();
     }
     if recent.len() >= max {
@@ -1673,7 +1673,7 @@ fn end_user_network_hints_from(get: impl Fn(&str) -> Option<String>) -> serde_js
 
 #[cfg(test)]
 mod abuse_limit_tests {
-    use super::*;
+    use super::*;
 
     /// Keeps `docs/RPC-API-SPEC.md` (the public source of truth for the RPC surface) in sync with the router.
     #[test]
@@ -1691,7 +1691,10 @@ mod abuse_limit_tests {
 
     fn is_semver(s: &str) -> bool {
         let parts: Vec<&str> = s.split('.').collect();
-        parts.len() == 3 && parts.iter().all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+        parts.len() == 3
+            && parts
+                .iter()
+                .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
     }
 
     #[test]
@@ -1735,7 +1738,10 @@ mod abuse_limit_tests {
             "storage_tree_v2_activation_height",
             "receipt_retention_blocks",
         ] {
-            assert!(spec.contains(needle), "RPC-API-SPEC.md must mention {needle}");
+            assert!(
+                spec.contains(needle),
+                "RPC-API-SPEC.md must mention {needle}"
+            );
         }
     }
 
@@ -1751,7 +1757,10 @@ mod abuse_limit_tests {
         assert!(cp["storage_tree_v2_activation_height"]["null_means"].is_string());
         assert!(cp["receipt_retention_blocks"]["null_means"].is_string());
         let meta = include_str!("../../../docs/chain-metadata.json");
-        assert!(meta.contains("storage_tree_v2_activation_height") && meta.contains("receipt_retention_blocks"));
+        assert!(
+            meta.contains("storage_tree_v2_activation_height")
+                && meta.contains("receipt_retention_blocks")
+        );
     }
 
     #[test]
@@ -1778,11 +1787,17 @@ mod abuse_limit_tests {
             ]
         );
         assert_eq!(
-            meta["signing"]["priority_tip_signing_domain"].as_str().unwrap().as_bytes(),
+            meta["signing"]["priority_tip_signing_domain"]
+                .as_str()
+                .unwrap()
+                .as_bytes(),
             boing_primitives::TX_SIGNING_DOMAIN_PRIORITY
         );
         assert_eq!(
-            meta["signing"]["tx_signing_domain"].as_str().unwrap().as_bytes(),
+            meta["signing"]["tx_signing_domain"]
+                .as_str()
+                .unwrap()
+                .as_bytes(),
             boing_primitives::TX_SIGNING_DOMAIN_V2
         );
     }
@@ -1791,8 +1806,15 @@ mod abuse_limit_tests {
     fn ws_cap_defaults_to_bounded() {
         assert_eq!(parse_ws_max_connections(None), DEFAULT_WS_MAX_CONNECTIONS);
         assert_eq!(parse_ws_max_connections(Some("64")), 64);
-        assert_eq!(parse_ws_max_connections(Some("0")), 0, "explicit 0 = unlimited");
-        assert_eq!(parse_ws_max_connections(Some("junk")), DEFAULT_WS_MAX_CONNECTIONS);
+        assert_eq!(
+            parse_ws_max_connections(Some("0")),
+            0,
+            "explicit 0 = unlimited"
+        );
+        assert_eq!(
+            parse_ws_max_connections(Some("junk")),
+            DEFAULT_WS_MAX_CONNECTIONS
+        );
     }
 
     #[test]
@@ -1801,11 +1823,29 @@ mod abuse_limit_tests {
         let t0 = Instant::now();
         let w = Duration::from_secs(60);
         for i in 0..3 {
-            assert!(faucet_window_admit(&mut recent, t0 + Duration::from_secs(i), 3, w));
+            assert!(faucet_window_admit(
+                &mut recent,
+                t0 + Duration::from_secs(i),
+                3,
+                w
+            ));
         }
-        assert!(!faucet_window_admit(&mut recent, t0 + Duration::from_secs(30), 3, w));
-        assert!(faucet_window_admit(&mut recent, t0 + Duration::from_secs(60), 3, w), "oldest expired");
-        assert!(!faucet_window_admit(&mut recent, t0 + Duration::from_secs(60), 3, w));
+        assert!(!faucet_window_admit(
+            &mut recent,
+            t0 + Duration::from_secs(30),
+            3,
+            w
+        ));
+        assert!(
+            faucet_window_admit(&mut recent, t0 + Duration::from_secs(60), 3, w),
+            "oldest expired"
+        );
+        assert!(!faucet_window_admit(
+            &mut recent,
+            t0 + Duration::from_secs(60),
+            3,
+            w
+        ));
         assert!(faucet_window_admit(&mut recent, t0, 0, w), "0 = unlimited");
     }
 }
@@ -2435,7 +2475,10 @@ async fn dispatch_jsonrpc_request(
                 .unwrap_or(true);
             let include_resolved = filter_obj
                 .as_ref()
-                .and_then(|o| o.get("includeResolved").or_else(|| o.get("include_resolved")))
+                .and_then(|o| {
+                    o.get("includeResolved")
+                        .or_else(|| o.get("include_resolved"))
+                })
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true);
             let n = node.read().await;
@@ -2498,9 +2541,7 @@ async fn dispatch_jsonrpc_request(
                     boing_governance::SlashReason::Equivocation => "equivocation".to_string(),
                     boing_governance::SlashReason::Liveness => "liveness".to_string(),
                     boing_governance::SlashReason::Fraud => "fraud".to_string(),
-                    boing_governance::SlashReason::BlobFailedServe => {
-                        "blobFailedServe".to_string()
-                    }
+                    boing_governance::SlashReason::BlobFailedServe => "blobFailedServe".to_string(),
                     boing_governance::SlashReason::Other(x) => format!("other:{x}"),
                 };
                 if let Some(ref want) = filter_reason {
@@ -2586,14 +2627,15 @@ async fn dispatch_jsonrpc_request(
                         _ => 1u128,
                     };
                     // Phase 20: prefer frozen snapshot for display when present (non-legacy).
-                    let electorate_weight = if boing_primitives::phase20_is_legacy_electorate_snapshot(
-                        a.electorate_w_snapshot,
-                        &a.pin_set_commitment,
-                    ) {
-                        live_electorate_weight
-                    } else {
-                        a.electorate_w_snapshot
-                    };
+                    let electorate_weight =
+                        if boing_primitives::phase20_is_legacy_electorate_snapshot(
+                            a.electorate_w_snapshot,
+                            &a.pin_set_commitment,
+                        ) {
+                            live_electorate_weight
+                        } else {
+                            a.electorate_w_snapshot
+                        };
                     let votes: Vec<serde_json::Value> = a
                         .votes
                         .iter()
@@ -2697,7 +2739,10 @@ async fn dispatch_jsonrpc_request(
             });
             let include_unattested = filter_obj
                 .as_ref()
-                .and_then(|o| o.get("includeUnattested").or_else(|| o.get("include_unattested")))
+                .and_then(|o| {
+                    o.get("includeUnattested")
+                        .or_else(|| o.get("include_unattested"))
+                })
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true);
             // Phase 23: default false — skip Expired.
@@ -2709,7 +2754,10 @@ async fn dispatch_jsonrpc_request(
             // Phase 25: default false — auditors focus Pending (and optional Expired).
             let include_resolved = filter_obj
                 .as_ref()
-                .and_then(|o| o.get("includeResolved").or_else(|| o.get("include_resolved")))
+                .and_then(|o| {
+                    o.get("includeResolved")
+                        .or_else(|| o.get("include_resolved"))
+                })
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
             let expected_registry_commitment = filter_obj.as_ref().and_then(|o| {
@@ -2719,9 +2767,10 @@ async fn dispatch_jsonrpc_request(
                     .and_then(parse_hex32_opt)
             });
             let n = node.read().await;
-            let chain_id = crate::network_preset::effective_chain_id(n.executor.execution_history())
-                .or_else(crate::network_preset::configured_chain_id)
-                .unwrap_or(0);
+            let chain_id =
+                crate::network_preset::effective_chain_id(n.executor.execution_history())
+                    .or_else(crate::network_preset::configured_chain_id)
+                    .unwrap_or(0);
             let pinned: Option<Vec<_>> = n.state.slash_appeal_resolvers().map(|s| s.to_vec());
             let result = build_reverify_slash_appeal_ballots(
                 n.state.slash_appeals(),
@@ -3188,7 +3237,8 @@ async fn dispatch_jsonrpc_request(
             let p2p_handle = node.read().await.p2p.clone();
             let p2p_status = p2p_handle.status().await;
             let n = node.read().await;
-            let (storage_tree_v2_activation_height, receipt_retention_blocks) = protocol_params_json(&n);
+            let (storage_tree_v2_activation_height, receipt_retention_blocks) =
+                protocol_params_json(&n);
             let chain_id = std::env::var("BOING_CHAIN_ID")
                 .ok()
                 .and_then(|s| s.trim().parse::<u64>().ok());
@@ -3561,7 +3611,8 @@ async fn dispatch_jsonrpc_request(
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty());
             let agg = &n.native_aggregates;
-            let (storage_tree_v2_activation_height, receipt_retention_blocks) = protocol_params_json(&n);
+            let (storage_tree_v2_activation_height, receipt_retention_blocks) =
+                protocol_params_json(&n);
             rpc_ok(
                 id,
                 serde_json::json!({
@@ -3716,7 +3767,11 @@ async fn dispatch_jsonrpc_request(
                 None => {
                     return (
                         StatusCode::OK,
-                        rpc_error(id, -32602, "Invalid params: expected [hex_contract_id]".into()),
+                        rpc_error(
+                            id,
+                            -32602,
+                            "Invalid params: expected [hex_contract_id]".into(),
+                        ),
                     );
                 }
             };
@@ -3725,7 +3780,11 @@ async fn dispatch_jsonrpc_request(
                 _ => {
                     return (
                         StatusCode::OK,
-                        rpc_error(id, -32602, "Invalid contract id: expected 32 bytes hex".into()),
+                        rpc_error(
+                            id,
+                            -32602,
+                            "Invalid contract id: expected 32 bytes hex".into(),
+                        ),
                     )
                 }
             };
@@ -4736,7 +4795,8 @@ async fn dispatch_jsonrpc_request(
                         rpc_error(
                             id,
                             -32016,
-                            "Faucet is busy (node-wide limit reached); try again in a minute.".into(),
+                            "Faucet is busy (node-wide limit reached); try again in a minute."
+                                .into(),
                         ),
                     );
                 }

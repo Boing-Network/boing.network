@@ -22,7 +22,9 @@ fn node_with_proposer(signing_key: &SigningKey, balance: u128) -> BoingNode {
         state: AccountState {
             balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
     let native_aggregates = state.compute_native_aggregates();
     BoingNode {
@@ -42,8 +44,8 @@ fn node_with_proposer(signing_key: &SigningKey, balance: u128) -> BoingNode {
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
-    validator_signing_key: None,
-    pending_commit: None,
+        validator_signing_key: None,
+        pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
         slashed_equivocations: HashMap::new(),
@@ -71,7 +73,9 @@ fn test_simulate_success() {
         state: AccountState {
             balance: 0,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let tx = Transaction {
@@ -86,7 +90,13 @@ fn test_simulate_success() {
     let result = vm.execute(&signed.tx, &mut state_copy);
     assert!(result.is_ok());
     assert_eq!(result.unwrap().gas_used, 21_000);
-    assert_eq!(state_copy.get(&proposer).unwrap().balance, 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING - 100);
+    assert_eq!(
+        state_copy.get(&proposer).unwrap().balance,
+        1_000_000 * boing_primitives::BASE_UNITS_PER_BOING - 100
+    );
     assert_eq!(state_copy.get(&to).unwrap().balance, 100);
-    assert_eq!(node.state.get(&proposer).unwrap().balance, 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING); // original unchanged
+    assert_eq!(
+        node.state.get(&proposer).unwrap().balance,
+        1_000_000 * boing_primitives::BASE_UNITS_PER_BOING
+    ); // original unchanged
 }

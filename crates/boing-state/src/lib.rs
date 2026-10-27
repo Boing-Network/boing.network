@@ -4,10 +4,10 @@
 
 pub mod names;
 pub mod open_validators;
+mod qa_pending;
 pub mod sample_offers;
 pub mod sample_serve;
 pub mod slash_appeals;
-mod qa_pending;
 mod sparse_merkle;
 mod store;
 
@@ -19,6 +19,7 @@ pub use open_validators::{
     LivenessEntry, LivenessStats, OpenValidatorError, OpenValidatorParams, OpenValidatorRegistry,
     ValidatorRecord, ValidatorStatus,
 };
+pub use qa_pending::{unpaid_counted_voters, QaPendingRecord};
 pub use sample_offers::{
     EscrowedSampleOffer, SampleOfferRegistry, SampleOfferRegistryError, SettledSampleMatch,
 };
@@ -28,7 +29,6 @@ pub use slash_appeals::{
     ConsensusSlashRecord, ResolveVote, SlashAppealError, SlashAppealRegistry,
     SLASH_APPEAL_REGISTRY_DOMAIN,
 };
-pub use qa_pending::{unpaid_counted_voters, QaPendingRecord};
 pub use sparse_merkle::{
     hash_account_leaf, hash_contract_code, MerkleProof, ProofStep, SparseMerkleTree,
     DEEP_MAX_DEPTH, LEGACY_MAX_DEPTH,

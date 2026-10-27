@@ -205,8 +205,12 @@ async fn main() -> anyhow::Result<()> {
             .map(|s| !s.trim().is_empty())
             .unwrap_or(false);
         let chain_id = boing_node::network_preset::configured_chain_id();
-        boing_node::network_preset::check_mainnet_guards(chain_id, operator_token_set, args.faucet_enable)
-            .map_err(|e| anyhow::anyhow!(e))?;
+        boing_node::network_preset::check_mainnet_guards(
+            chain_id,
+            operator_token_set,
+            args.faucet_enable,
+        )
+        .map_err(|e| anyhow::anyhow!(e))?;
     }
     let name_params =
         boing_node::name_config::resolve_name_registry_params(args.name_registry_activation_height)
@@ -254,11 +258,10 @@ async fn main() -> anyhow::Result<()> {
             h
         );
     }
-    let phase7_cap_from =
-        boing_node::media_blob_config::resolve_media_blobs_phase7_cap_activation(
-            args.media_blobs_phase7_cap_activation_height,
-        )
-        .map_err(|e| anyhow::anyhow!("media blobs phase7 cap config: {e}"))?;
+    let phase7_cap_from = boing_node::media_blob_config::resolve_media_blobs_phase7_cap_activation(
+        args.media_blobs_phase7_cap_activation_height,
+    )
+    .map_err(|e| anyhow::anyhow!("media blobs phase7 cap config: {e}"))?;
     if let Some(h) = phase7_cap_from {
         tracing::info!(
             "Media blobs Phase 7: raised Put/Announce cap ({} bytes) from height={} — all validators must agree",
@@ -480,7 +483,9 @@ async fn main() -> anyhow::Result<()> {
                                 let peers = p2p_fetch.connected_peers().await;
                                 if let Some(peer) = peers.choose(&mut rand::rngs::OsRng) {
                                     let next = block.header.height.saturating_add(1);
-                                    if let Err(e) = p2p_fetch.request_block(*peer, BlockRequest::ByHeight(next)) {
+                                    if let Err(e) =
+                                        p2p_fetch.request_block(*peer, BlockRequest::ByHeight(next))
+                                    {
                                         logging::log_p2p_event_warn("sync_block_request", &e);
                                     }
                                 }
@@ -695,7 +700,10 @@ async fn main() -> anyhow::Result<()> {
         if n.state.get(&faucet_id).is_none() {
             // Whole BOING scaled to the ledger unit at the tip (base units on chains without history).
             let tip = n.chain.height();
-            let initial = n.executor.denomination_at(tip).scale(faucet::FAUCET_INITIAL_BALANCE);
+            let initial = n
+                .executor
+                .denomination_at(tip)
+                .scale(faucet::FAUCET_INITIAL_BALANCE);
             n.state.insert(Account {
                 id: faucet_id,
                 state: AccountState {

@@ -17,7 +17,8 @@ const SEED_HEX: &str = "9d61b19deffd5a60ba844af492ec2cc44449c5697b326091a2b8c730
 const FIXTURE_REL: &str = "../../docs/fixtures/tx-signing-golden-vectors.json";
 
 /// Pinned independently of the fixture file: tipped transfer on testnet.
-const PINNED_TIPPED_TRANSFER_TESTNET_DIGEST: &str = "ecce575ea959a0ffd15a858e1f8be2d2a1395179d298ff8e117a413992770208";
+const PINNED_TIPPED_TRANSFER_TESTNET_DIGEST: &str =
+    "ecce575ea959a0ffd15a858e1f8be2d2a1395179d298ff8e117a413992770208";
 
 fn signing_key() -> SigningKey {
     SigningKey::from_bytes(&hex::decode(SEED_HEX).unwrap().try_into().unwrap())
@@ -38,9 +39,7 @@ fn cases(sender: AccountId) -> Vec<Case> {
     let to = AccountId::from_bytes([1u8; 32]);
     let other = AccountId::from_bytes([2u8; 32]);
     let transfer = |amount: u128| TransactionPayload::Transfer { to, amount };
-    let transfer_json = |amount: &str| {
-        json!({"kind": "transfer", "to": format!("0x{}", hex::encode([1u8; 32])), "amount": amount})
-    };
+    let transfer_json = |amount: &str| json!({"kind": "transfer", "to": format!("0x{}", hex::encode([1u8; 32])), "amount": amount});
     vec![
         Case {
             name: "transfer_untipped_testnet_is_v2",
@@ -177,7 +176,10 @@ fn golden_vectors_match_published_fixture() {
         &std::fs::read_to_string(&path).expect("fixture missing; run with BOING_UPDATE_GOLDEN=1"),
     )
     .expect("fixture is valid JSON");
-    assert_eq!(on_disk, fresh, "docs/fixtures/tx-signing-golden-vectors.json is stale");
+    assert_eq!(
+        on_disk, fresh,
+        "docs/fixtures/tx-signing-golden-vectors.json is stale"
+    );
 }
 
 #[test]
@@ -188,7 +190,10 @@ fn pinned_tipped_digest_never_changes() {
         .iter()
         .find(|v| v["name"] == "transfer_tip_1_testnet")
         .unwrap();
-    assert_eq!(v["signing_digest_hex"], PINNED_TIPPED_TRANSFER_TESTNET_DIGEST);
+    assert_eq!(
+        v["signing_digest_hex"],
+        PINNED_TIPPED_TRANSFER_TESTNET_DIGEST
+    );
     // Tip, chain and domain each change the digest.
     let digests: std::collections::HashSet<_> = vs
         .iter()

@@ -265,7 +265,10 @@ impl SampleOfferRegistry {
         payer: &AccountId,
     ) -> bool {
         self.settled_receipts.contains_key(&settle_receipt_key(
-            blob_id, chunk_index, provider, payer,
+            blob_id,
+            chunk_index,
+            provider,
+            payer,
         ))
     }
 
@@ -276,9 +279,8 @@ impl SampleOfferRegistry {
         provider: &AccountId,
         payer: &AccountId,
     ) -> Option<&SettledSampleMatch> {
-        self.settled_receipts.get(&settle_receipt_key(
-            blob_id, chunk_index, provider, payer,
-        ))
+        self.settled_receipts
+            .get(&settle_receipt_key(blob_id, chunk_index, provider, payer))
     }
 
     /// Remove a settle receipt (consumed when a serve challenge closes).
@@ -362,8 +364,14 @@ mod tests {
         })
         .unwrap();
         assert!(r.has_settle_receipt(&blob, 0, &provider, &payer));
-        assert_eq!(r.prune_settle_receipts(10 + PHASE13_SETTLE_RECEIPT_TTL_BLOCKS), 0);
-        assert_eq!(r.prune_settle_receipts(10 + PHASE13_SETTLE_RECEIPT_TTL_BLOCKS + 1), 1);
+        assert_eq!(
+            r.prune_settle_receipts(10 + PHASE13_SETTLE_RECEIPT_TTL_BLOCKS),
+            0
+        );
+        assert_eq!(
+            r.prune_settle_receipts(10 + PHASE13_SETTLE_RECEIPT_TTL_BLOCKS + 1),
+            1
+        );
         assert!(!r.has_settle_receipt(&blob, 0, &provider, &payer));
         r.record_settle_receipt(SettledSampleMatch {
             blob_id: blob,

@@ -7,10 +7,10 @@
 //! a full set of per-validator ECVRF proofs is not yet available.
 
 use serde::{Deserialize, Serialize};
-use vrf_rfc9381::{Proof, Prover, Verifier};
 use vrf_rfc9381::ec::edwards25519::tai::{
     EdVrfEdwards25519TaiPublicKey, EdVrfEdwards25519TaiSecretKey,
 };
+use vrf_rfc9381::{Proof, Prover, Verifier};
 
 use crate::{AccountId, Hash};
 
@@ -125,7 +125,8 @@ pub fn verify_ecvrf_output(public_key: &AccountId, round: u64, vrf: &VrfOutput) 
     let Ok(verifier) = EdVrfEdwards25519TaiPublicKey::from_slice(&public_key.0) else {
         return false;
     };
-    let Ok(proof) = <EdVrfEdwards25519TaiSecretKey as Prover<_>>::Proof::decode_pi(&vrf.proof) else {
+    let Ok(proof) = <EdVrfEdwards25519TaiSecretKey as Prover<_>>::Proof::decode_pi(&vrf.proof)
+    else {
         return false;
     };
     let alpha = vrf_round_alpha(round);
@@ -207,7 +208,11 @@ mod tests {
         assert!(verify_ecvrf_output(&pk, 42, &vrf));
         assert!(verify_vrf_output(42, &vrf, Some(&pk)));
         assert!(!verify_ecvrf_output(&pk, 43, &vrf));
-        let other = AccountId(SigningKey::from_bytes(&[8u8; 32]).verifying_key().to_bytes());
+        let other = AccountId(
+            SigningKey::from_bytes(&[8u8; 32])
+                .verifying_key()
+                .to_bytes(),
+        );
         assert!(!verify_ecvrf_output(&other, 42, &vrf));
     }
 

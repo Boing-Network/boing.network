@@ -117,7 +117,10 @@ fn equivocation_slash_burns_half_active_stake() {
     let bad = Hash([0xABu8; 32]);
     let err = node.consensus.vote(bad, v2).unwrap_err();
     match err {
-        boing_consensus::ConsensusError::Equivocation { validator: v, round } => {
+        boing_consensus::ConsensusError::Equivocation {
+            validator: v,
+            round,
+        } => {
             assert_eq!(v, v2);
             let burned = boing_tokenomics::slash_equivocation_stake(&mut node.state, &v);
             assert_eq!(burned, 5_000);
@@ -152,7 +155,11 @@ fn gossiped_equivocation_evidence_slashes_once() {
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
     // Phase 15: consensus book seeded at slash-apply time.
     let slash_id = *node.slashed_equivocations.get(&(offender, 9)).unwrap();
-    let cons = node.state.slash_appeals().get_slash(slash_id).expect("consensus row");
+    let cons = node
+        .state
+        .slash_appeals()
+        .get_slash(slash_id)
+        .expect("consensus row");
     assert!(matches!(
         cons.reason,
         boing_state::ConsensusSlashReason::Equivocation
@@ -176,9 +183,7 @@ fn conflicting_observed_votes_slash_via_on_consensus_vote() {
     assert!(node.on_consensus_vote(a).is_none());
     assert!(node.on_consensus_vote(b).is_none());
     assert_eq!(node.state.get(&offender).unwrap().stake, 4_000);
-    assert!(node
-        .slashed_equivocations
-        .contains_key(&(offender, 3)));
+    assert!(node.slashed_equivocations.contains_key(&(offender, 3)));
 }
 
 #[test]
@@ -424,12 +429,12 @@ fn failed_serve_and_equivocation_slash_ids_do_not_collide() {
 
 #[tokio::test]
 async fn list_slash_records_rpc_returns_equivocation_entry() {
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
+    use axum::body::Body;
     use boing_node::rpc::rpc_router;
     use boing_node::security::RateLimitConfig;
-    use axum::body::Body;
     use http_body_util::BodyExt;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
     use tower::ServiceExt;
 
     let v1 = AccountId([1u8; 32]);

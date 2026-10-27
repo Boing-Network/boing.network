@@ -369,10 +369,7 @@ pub fn manifest_from_segment_bytes(
 impl MediaBlobDasLightClientBatch {
     pub fn validate_structure(&self) -> Result<(), BlobError> {
         if self.samples.is_empty() {
-            return Err(BlobError::ChunkIndexOutOfRange {
-                index: 0,
-                count: 0,
-            });
+            return Err(BlobError::ChunkIndexOutOfRange { index: 0, count: 0 });
         }
         if self.samples.len() > PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES {
             return Err(BlobError::DasProofInvalid);
@@ -459,10 +456,7 @@ pub fn build_das_light_client_batch(
     let seed = das_light_client_seed(&bundle.blob_id, tip_height);
     let idxs = das_light_client_sample_indices(bundle.original_len as usize, sample_count, seed);
     if idxs.is_empty() {
-        return Err(BlobError::ChunkIndexOutOfRange {
-            index: 0,
-            count: 0,
-        });
+        return Err(BlobError::ChunkIndexOutOfRange { index: 0, count: 0 });
     }
     let mut samples = Vec::with_capacity(idxs.len());
     for i in idxs {

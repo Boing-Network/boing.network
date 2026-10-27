@@ -21,11 +21,7 @@ fn test_cron_every_blocks() {
 
 #[test]
 fn test_trigger_condition() {
-    let t = Trigger::new(
-        1,
-        TriggerCondition::BlockHeight(5),
-        10,
-    );
+    let t = Trigger::new(1, TriggerCondition::BlockHeight(5), 10);
     assert!(!t.is_satisfied(4, None, 0));
     assert!(t.is_satisfied(5, None, 0));
     assert!(t.is_satisfied(10, None, 0));

@@ -73,7 +73,9 @@ pub fn validate_and_execute_block(
                     state: AccountState {
                         balance: reward,
                         nonce: 0,
-                        stake: 0, ..Default::default() },
+                        stake: 0,
+                        ..Default::default()
+                    },
                 });
             }
         }
@@ -121,7 +123,10 @@ pub fn validate_and_execute_block(
 }
 
 /// Verify the block's tx signatures against the rules in force at its height.
-pub fn verify_block_tx_signatures(block: &Block, executor: &BlockExecutor) -> Result<(), BlockValidationError> {
+pub fn verify_block_tx_signatures(
+    block: &Block,
+    executor: &BlockExecutor,
+) -> Result<(), BlockValidationError> {
     let history = executor.execution_history();
     let height = block.header.height;
     let required = height >= crate::network_preset::block_sigs_from(history);

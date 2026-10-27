@@ -45,12 +45,7 @@ const TEMPLATE_CONFIG: &str = r#"{
 /// Project name must be a valid directory/crate name: alphanumeric, hyphen, underscore.
 fn validate_project_name(name: &str) -> anyhow::Result<()> {
     if name.is_empty() {
-        boing_telemetry::component_warn(
-            "boing_cli::init",
-            "cli",
-            "invalid_project_name",
-            "empty",
-        );
+        boing_telemetry::component_warn("boing_cli::init", "cli", "invalid_project_name", "empty");
         anyhow::bail!("Project name cannot be empty");
     }
     if name.len() > 64 {
@@ -100,7 +95,12 @@ pub fn run(name: Option<String>, output: Option<String>) -> anyhow::Result<()> {
         && out
             .read_dir()
             .map_err(|e| {
-                boing_telemetry::component_warn("boing_cli::init", "cli", "read_output_dir_failed", &e);
+                boing_telemetry::component_warn(
+                    "boing_cli::init",
+                    "cli",
+                    "read_output_dir_failed",
+                    &e,
+                );
                 e
             })?
             .next()

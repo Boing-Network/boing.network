@@ -123,12 +123,16 @@ pub fn resolve_open_validator_set_config(
         activation_height,
         anchors: Vec::new(),
         bond: env_parse("BOING_OPEN_VALIDATOR_BOND").unwrap_or(d.bond),
-        deregister_delay: env_parse("BOING_OPEN_VALIDATOR_DEREGISTER_DELAY").unwrap_or(d.deregister_delay),
+        deregister_delay: env_parse("BOING_OPEN_VALIDATOR_DEREGISTER_DELAY")
+            .unwrap_or(d.deregister_delay),
         epoch_len: env_parse("BOING_OPEN_VALIDATOR_EPOCH_LEN").unwrap_or(d.epoch_len),
         max_open_validators: env_parse("BOING_OPEN_VALIDATOR_MAX").unwrap_or(d.max_open_validators),
-        liveness_window: env_parse("BOING_OPEN_VALIDATOR_LIVENESS_WINDOW").unwrap_or(d.liveness_window),
-        miss_threshold_bps: env_parse("BOING_OPEN_VALIDATOR_MISS_THRESHOLD_BPS").unwrap_or(d.miss_threshold_bps),
-        min_liveness_samples: env_parse("BOING_OPEN_VALIDATOR_MIN_SAMPLES").unwrap_or(d.min_liveness_samples),
+        liveness_window: env_parse("BOING_OPEN_VALIDATOR_LIVENESS_WINDOW")
+            .unwrap_or(d.liveness_window),
+        miss_threshold_bps: env_parse("BOING_OPEN_VALIDATOR_MISS_THRESHOLD_BPS")
+            .unwrap_or(d.miss_threshold_bps),
+        min_liveness_samples: env_parse("BOING_OPEN_VALIDATOR_MIN_SAMPLES")
+            .unwrap_or(d.min_liveness_samples),
         jail_cooldown: env_parse("BOING_OPEN_VALIDATOR_JAIL_COOLDOWN").unwrap_or(d.jail_cooldown),
     };
     if params.epoch_len == 0 {
@@ -138,7 +142,9 @@ pub fn resolve_open_validator_set_config(
         return Err("open validator bond must be >= 1".into());
     }
     if params.liveness_window == 0 || params.miss_threshold_bps > 10_000 {
-        return Err("open validator liveness window must be >= 1 and threshold <= 10000 bps".into());
+        return Err(
+            "open validator liveness window must be >= 1 and threshold <= 10000 bps".into(),
+        );
     }
     Ok(Some(OpenValidatorSetCli {
         params,
@@ -294,30 +300,33 @@ mod tests {
     fn parse_account_and_csv() {
         let a = parse_account_id_hex(&"11".repeat(32)).unwrap();
         assert_eq!(a.0[0], 0x11);
-        let list = parse_validators_csv(&format!(
-            "{},{}",
-            "11".repeat(32),
-            "22".repeat(32)
-        ))
-        .unwrap();
+        let list =
+            parse_validators_csv(&format!("{},{}", "11".repeat(32), "22".repeat(32))).unwrap();
         assert_eq!(list.len(), 2);
     }
 
     #[test]
     fn stake_mode_defaults() {
-        assert!(resolve_stake_validator_set_config(Some("static"), None, None, None, None)
-            .unwrap()
-            .is_none());
+        assert!(
+            resolve_stake_validator_set_config(Some("static"), None, None, None, None)
+                .unwrap()
+                .is_none()
+        );
         let cfg = resolve_stake_validator_set_config(Some("stake"), None, None, None, None)
             .unwrap()
             .expect("stake mode");
         assert_eq!(cfg.top_n, 21);
         assert_eq!(cfg.epoch_len, 100);
         assert_eq!(cfg.min_stake, boing_tokenomics::MIN_VALIDATOR_STAKE);
-        let cfg2 =
-            resolve_stake_validator_set_config(Some("stake"), Some(5), Some(10), Some(1_000), Some(500))
-                .unwrap()
-                .unwrap();
+        let cfg2 = resolve_stake_validator_set_config(
+            Some("stake"),
+            Some(5),
+            Some(10),
+            Some(1_000),
+            Some(500),
+        )
+        .unwrap()
+        .unwrap();
         assert_eq!(cfg2.top_n, 5);
         assert_eq!(cfg2.epoch_len, 10);
         assert_eq!(cfg2.min_stake, 1_000);
@@ -327,18 +336,28 @@ mod tests {
 
     #[test]
     fn open_mode_requires_activation_and_defaults() {
-        assert!(resolve_open_validator_set_config(Some("static"), None).unwrap().is_none());
-        assert!(resolve_open_validator_set_config(Some("stake"), None).unwrap().is_none());
+        assert!(resolve_open_validator_set_config(Some("static"), None)
+            .unwrap()
+            .is_none());
+        assert!(resolve_open_validator_set_config(Some("stake"), None)
+            .unwrap()
+            .is_none());
         if std::env::var("BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT").is_err() {
             assert!(resolve_open_validator_set_config(Some("open"), None).is_err());
         }
-        let cfg = resolve_open_validator_set_config(Some("open"), Some(5_000)).unwrap().unwrap();
+        let cfg = resolve_open_validator_set_config(Some("open"), Some(5_000))
+            .unwrap()
+            .unwrap();
         assert_eq!(cfg.params.activation_height, 5_000);
         assert_eq!(cfg.params.bond, 100);
         assert_eq!(cfg.params.epoch_len, 100);
         assert_eq!(cfg.params.liveness_window, 1_000);
         assert_eq!(cfg.params.miss_threshold_bps, 1_000);
-        assert!(resolve_stake_validator_set_config(Some("open"), None, None, None, None).unwrap().is_none());
+        assert!(
+            resolve_stake_validator_set_config(Some("open"), None, None, None, None)
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -346,7 +365,8 @@ mod tests {
         let key = "07".repeat(32);
         let anchors = "11".repeat(32);
         assert!(resolve_validator_config(Some(&anchors), Some(&key)).is_err());
-        let (v, local, k) = resolve_validator_config_with(Some(&anchors), Some(&key), true).unwrap();
+        let (v, local, k) =
+            resolve_validator_config_with(Some(&anchors), Some(&key), true).unwrap();
         assert_eq!(v.len(), 1);
         assert!(!v.contains(&local));
         assert!(k.is_some());

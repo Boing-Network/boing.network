@@ -61,7 +61,8 @@ fn micro_fee_charges_small_base_not_zero() {
         .unwrap();
     assert!(receipts[0].success);
     assert_eq!(gas, 21_000);
-    let expected_fee = 21_000 * GAS_PRICE_BASE_UNITS * (MICRO_FEE_EXECUTION_GAS_BPS as u128) / 10_000;
+    let expected_fee =
+        21_000 * GAS_PRICE_BASE_UNITS * (MICRO_FEE_EXECUTION_GAS_BPS as u128) / 10_000;
     assert_eq!(expected_fee, 21_000 * GAS_PRICE_BASE_UNITS / 100);
     assert_eq!(
         state.get(&sender).unwrap().balance,
@@ -87,18 +88,10 @@ fn tip_credits_proposer_and_orders_mempool() {
     // Tip ordering works without enabling the legacy free-gas path.
     assert!(!pool.optional_fees_active());
 
-    let tx_free = SignedTransaction::new_for_chain_with_tip(
-        transfer(a, 0, to, 1),
-        &sk_a,
-        chain_id,
-        0,
-    );
-    let tx_tip = SignedTransaction::new_for_chain_with_tip(
-        transfer(b, 0, to, 1),
-        &sk_b,
-        chain_id,
-        50,
-    );
+    let tx_free =
+        SignedTransaction::new_for_chain_with_tip(transfer(a, 0, to, 1), &sk_a, chain_id, 0);
+    let tx_tip =
+        SignedTransaction::new_for_chain_with_tip(transfer(b, 0, to, 1), &sk_b, chain_id, 50);
     pool.insert(tx_free).unwrap();
     pool.insert(tx_tip).unwrap();
     let drained = pool.drain_for_block(2);
@@ -150,8 +143,7 @@ fn legacy_free_pending_cap_only_when_gas_waived() {
         chain_id: Some(chain_id),
         require_v2: true,
     });
-    let pool = Mempool::new()
-        .with_max_free_pending_per_sender(DEFAULT_MAX_FREE_PENDING_PER_SENDER);
+    let pool = Mempool::new().with_max_free_pending_per_sender(DEFAULT_MAX_FREE_PENDING_PER_SENDER);
     pool.set_optional_fees_active(true);
 
     for nonce in 0..DEFAULT_MAX_FREE_PENDING_PER_SENDER as u64 {
@@ -189,12 +181,8 @@ fn tipped_signature_rejects_wrong_tip() {
     let sender = id(&sk);
     let to = AccountId([2u8; 32]);
     let chain_id = 6913u64;
-    let signed = SignedTransaction::new_for_chain_with_tip(
-        transfer(sender, 0, to, 1),
-        &sk,
-        chain_id,
-        7,
-    );
+    let signed =
+        SignedTransaction::new_for_chain_with_tip(transfer(sender, 0, to, 1), &sk, chain_id, 7);
     assert!(signed
         .verify_with(TxSigPolicy {
             chain_id: Some(chain_id),

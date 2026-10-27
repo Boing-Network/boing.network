@@ -11,8 +11,8 @@ pub use fee_policy::{
     MICRO_FEE_EXECUTION_GAS_BPS,
 };
 
-pub use boing_primitives::{Denomination, BASE_UNITS_PER_BOING, BOING_DECIMALS};
 use boing_primitives::{Account, AccountId, AccountState, TransactionPayload};
+pub use boing_primitives::{Denomination, BASE_UNITS_PER_BOING, BOING_DECIMALS};
 use boing_state::StateStore;
 
 /// Max supply (1 billion BOING). Hard cap; no infinite inflation.
@@ -54,15 +54,15 @@ pub const GAS_UNITS_PER_BOING: u64 = 21_000;
 /// Protocol treasury AccountId (receives the treasury share of tx fees and pays QA voter rewards).
 /// Distinct from the all-zero burn sink.
 pub const PROTOCOL_TREASURY: AccountId = AccountId([
-    0x54, 0x52, 0x45, 0x41, 0x53, 0x55, 0x52, 0x59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 1,
+    0x54, 0x52, 0x45, 0x41, 0x53, 0x55, 0x52, 0x59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 1,
 ]);
 
 /// Burn sink AccountId (FEE_BURN_BPS of fees are sent here and never spent by protocol logic).
 /// Distinct from the all-zero id so it does not collide with common test/dev accounts.
 pub const FEE_BURN_SINK: AccountId = AccountId([
-    b'B', b'U', b'R', b'N', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 1,
+    b'B', b'U', b'R', b'N', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1,
 ]);
 
 /// Emission decay factor per year. Year N emission = Year 1 * DECAY^(N-1).
@@ -111,10 +111,7 @@ pub fn slash_equivocation_stake(state: &mut StateStore, validator: &AccountId) -
         if st.stake == 0 {
             return 0;
         }
-        let mut amount = st
-            .stake
-            .saturating_mul(EQUIVOCATION_SLASH_BPS as u128)
-            / 10_000;
+        let mut amount = st.stake.saturating_mul(EQUIVOCATION_SLASH_BPS as u128) / 10_000;
         if amount == 0 {
             amount = 1u128.min(st.stake);
         }
@@ -134,10 +131,7 @@ pub fn slash_liveness_stake(state: &mut StateStore, validator: &AccountId) -> u1
         if st.stake == 0 {
             return 0;
         }
-        let mut amount = st
-            .stake
-            .saturating_mul(LIVENESS_SLASH_BPS as u128)
-            / 10_000;
+        let mut amount = st.stake.saturating_mul(LIVENESS_SLASH_BPS as u128) / 10_000;
         if amount == 0 {
             amount = 1u128.min(st.stake);
         }
@@ -532,7 +526,10 @@ pub fn pay_qa_counted_voters(
     }
     let n = voters.len() as u128;
     let want = reward_each.saturating_mul(n);
-    let available = state.get(&PROTOCOL_TREASURY).map(|s| s.balance).unwrap_or(0);
+    let available = state
+        .get(&PROTOCOL_TREASURY)
+        .map(|s| s.balance)
+        .unwrap_or(0);
     if available == 0 {
         return 0;
     }
@@ -654,12 +651,26 @@ mod tests {
     fn base_unit_fees_are_exact_and_fractional() {
         let d = Denomination::BaseUnits;
         assert_eq!(fee_for_gas_in(0, d), 0);
-        assert_eq!(fee_for_gas_in(21_000, d), 21_000_000_000_000_000, "transfer = 0.021 BOING");
+        assert_eq!(
+            fee_for_gas_in(21_000, d),
+            21_000_000_000_000_000,
+            "transfer = 0.021 BOING"
+        );
         assert_eq!(fee_for_gas_in(381_612, d), 381_612 * GAS_PRICE_BASE_UNITS);
-        assert_eq!(fee_for_gas_in(21_000, Denomination::WholeBoing), 1, "historical rule kept");
+        assert_eq!(
+            fee_for_gas_in(21_000, Denomination::WholeBoing),
+            1,
+            "historical rule kept"
+        );
         let p = NetworkFeePolicy::treasury_default();
-        let tx = TransactionPayload::Transfer { to: AccountId([2; 32]), amount: 5 };
-        assert_eq!(network_fee_amount_in(21_000, &tx, &p, d), 21_000 * GAS_PRICE_BASE_UNITS);
+        let tx = TransactionPayload::Transfer {
+            to: AccountId([2; 32]),
+            amount: 5,
+        };
+        assert_eq!(
+            network_fee_amount_in(21_000, &tx, &p, d),
+            21_000 * GAS_PRICE_BASE_UNITS
+        );
         assert_eq!(network_fee_amount(21_000, &tx, &p), 1);
     }
 
@@ -675,7 +686,10 @@ mod tests {
         let micro = network_fee_amount_in(21_000, &tx, &p, d);
         assert_eq!(micro, full / 100, "100 bps → 0.00021 BOING per transfer");
         assert_eq!(execution_gas_fee_in(21_000, &p, d), micro);
-        assert_eq!(total_fee_with_tip_in(21_000, &tx, &p, d, 1_000), micro + 1_000);
+        assert_eq!(
+            total_fee_with_tip_in(21_000, &tx, &p, d, 1_000),
+            micro + 1_000
+        );
     }
 
     #[test]
@@ -745,15 +759,26 @@ mod tests {
         assert_eq!(block_emission_validators_in(0, d), 0);
         let y1 = block_emission_validators_in(1, d);
         // 1e27 × 8% / 15,768,000 blocks × 70% ≈ 3.55 BOING per block
-        assert_eq!(y1, 1_000_000_000u128 * BASE_UNITS_PER_BOING * 800 / 10_000 / BLOCKS_PER_YEAR as u128 * 7_000 / 10_000);
+        assert_eq!(
+            y1,
+            1_000_000_000u128 * BASE_UNITS_PER_BOING * 800 / 10_000 / BLOCKS_PER_YEAR as u128
+                * 7_000
+                / 10_000
+        );
         assert!(y1 > 3 * BASE_UNITS_PER_BOING && y1 < 4 * BASE_UNITS_PER_BOING);
         let y2 = block_emission_validators_in(BLOCKS_PER_YEAR + 1, d);
         assert!(y2 < y1);
         let far = block_emission_validators_in(BLOCKS_PER_YEAR * 200 + 1, d);
-        let floor = 1_000_000_000u128 * BASE_UNITS_PER_BOING * 100 / 10_000 / BLOCKS_PER_YEAR as u128 * 7_000 / 10_000;
+        let floor =
+            1_000_000_000u128 * BASE_UNITS_PER_BOING * 100 / 10_000 / BLOCKS_PER_YEAR as u128
+                * 7_000
+                / 10_000;
         assert_eq!(far, floor, "floor is not zero in base units");
         assert!(far > 0);
-        assert_eq!(block_emission_validators_in(5, Denomination::WholeBoing), block_emission_validators(5));
+        assert_eq!(
+            block_emission_validators_in(5, Denomination::WholeBoing),
+            block_emission_validators(5)
+        );
     }
 
     #[test]

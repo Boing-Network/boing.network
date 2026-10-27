@@ -164,7 +164,9 @@ impl Transaction {
             TransactionPayload::ContractCall { contract, .. } => {
                 format!("Call contract {}", hex::encode(&contract.0[..8]))
             }
-            TransactionPayload::ContractCallWithValue { contract, value, .. } => {
+            TransactionPayload::ContractCallWithValue {
+                contract, value, ..
+            } => {
                 format!(
                     "Call contract {} with {} BOING",
                     hex::encode(&contract.0[..8]),
@@ -362,7 +364,9 @@ impl Transaction {
                         BatchCall::ContractCall { contract, .. } => {
                             format!("Call contract {}", hex::encode(&contract.0[..8]))
                         }
-                        BatchCall::ContractCallWithValue { contract, value, .. } => format!(
+                        BatchCall::ContractCallWithValue {
+                            contract, value, ..
+                        } => format!(
                             "Call contract {} with {} BOING",
                             hex::encode(&contract.0[..8]),
                             crate::format_boing(*value)
@@ -1431,15 +1435,31 @@ mod block_encoding_tests {
         let tx = Transaction {
             nonce: 0,
             sender: AccountId([2; 32]),
-            payload: TransactionPayload::Transfer { to: AccountId([3; 32]), amount: 1 },
+            payload: TransactionPayload::Transfer {
+                to: AccountId([3; 32]),
+                amount: 1,
+            },
             access_list: AccessList::default(),
         };
-        let b = Block { header: header(), transactions: vec![tx], signatures: vec![Signature([5; 64])], priority_tips: vec![] };
+        let b = Block {
+            header: header(),
+            transactions: vec![tx],
+            signatures: vec![Signature([5; 64])],
+            priority_tips: vec![],
+        };
         let enc = bincode::serialize(&b).unwrap();
         assert_eq!(Block::from_bincode(&enc).unwrap(), b);
         let back: Block = serde_json::from_str(&serde_json::to_string(&b).unwrap()).unwrap();
         assert_eq!(back, b);
-        assert_eq!(b.hash(), Block { signatures: vec![], ..b.clone() }.hash(), "signatures are not in the hash");
+        assert_eq!(
+            b.hash(),
+            Block {
+                signatures: vec![],
+                ..b.clone()
+            }
+            .hash(),
+            "signatures are not in the hash"
+        );
     }
 }
 

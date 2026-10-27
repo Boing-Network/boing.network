@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::hash::{Hash, hasher};
+use crate::hash::{hasher, Hash};
 use crate::AccountId;
 
 /// High-level intent kind — what the user wants to achieve.
@@ -18,10 +18,7 @@ pub enum IntentKind {
         min_out: Option<u128>,
     },
     /// Transfer amount to recipient.
-    Transfer {
-        to: AccountId,
-        amount: u128,
-    },
+    Transfer { to: AccountId, amount: u128 },
     /// Custom intent (opaque payload for solver interpretation).
     Custom(Vec<u8>),
 }
@@ -89,7 +86,8 @@ impl SignedIntent {
 
     /// Verify the signature over the intent. Uses signer from intent.
     pub fn verify(&self) -> Result<(), crate::signature::SignatureError> {
-        let msg = bincode::serialize(&self.intent).map_err(|_| crate::signature::SignatureError::InvalidSignature)?;
+        let msg = bincode::serialize(&self.intent)
+            .map_err(|_| crate::signature::SignatureError::InvalidSignature)?;
         let msg_hash = {
             let mut h = hasher();
             h.update(&msg);

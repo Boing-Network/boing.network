@@ -35,11 +35,11 @@ use crate::blobs_phase28::{
     PHASE28_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE28_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
     PHASE28_LEGACY_ELECTORATE_W_SENTINEL, PHASE28_LEGACY_PIN_SET_COMMITMENT,
     PHASE28_MAX_APPEAL_EVIDENCE_BYTES, PHASE28_MAX_SETTLE_RECEIPTS, PHASE28_PIN_SET_DOMAIN,
-    PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, PHASE28_RESOLVE_SLASH_APPEAL_TX_INDEX,
-    PHASE28_RESOLVE_THRESHOLD_DEN, PHASE28_RESOLVE_THRESHOLD_NUM, PHASE28_RESOLVE_WINDOW_BLOCKS,
-    PHASE28_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE28_SERVE_CHALLENGE_WINDOW_BLOCKS,
-    PHASE28_SETTLE_RECEIPT_TTL_BLOCKS, PHASE28_SUBMIT_SLASH_APPEAL_TX_INDEX,
-    PHASE28_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+    PHASE28_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
+    PHASE28_RESOLVE_SLASH_APPEAL_TX_INDEX, PHASE28_RESOLVE_THRESHOLD_DEN,
+    PHASE28_RESOLVE_THRESHOLD_NUM, PHASE28_RESOLVE_WINDOW_BLOCKS,
+    PHASE28_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE28_SETTLE_RECEIPT_TTL_BLOCKS,
+    PHASE28_SUBMIT_SLASH_APPEAL_TX_INDEX, PHASE28_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 use crate::types::AccountId;
 use serde::{Deserialize, Serialize};
@@ -406,7 +406,12 @@ mod tests {
             aggregate_signature: agg,
         };
         assert!(phase29_verify_aggregate_resolve_with_registry(
-            &reg, 6913, 7, &pin_commit, &pinned, &payload
+            &reg,
+            6913,
+            7,
+            &pin_commit,
+            &pinned,
+            &payload
         )
         .is_ok());
         assert_eq!(
@@ -421,7 +426,9 @@ mod tests {
     #[test]
     fn plan_mentions_bitset_and_tx32() {
         let plan = phase29_das_succinct_proof_plan();
-        assert!(plan.iter().any(|s| s.contains("bitset") || s.contains("33")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("bitset") || s.contains("33")));
         assert!(plan.iter().any(|s| s.contains("verify-each")));
         assert!(plan
             .iter()

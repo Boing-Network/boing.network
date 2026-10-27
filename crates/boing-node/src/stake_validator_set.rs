@@ -66,7 +66,11 @@ impl StakeValidatorSetConfig {
 
 /// Eligible validators: `stake >= min_stake`, top `top_n` by (stake desc, id asc), returned sorted by id.
 #[must_use]
-pub fn eligible_stake_validators(state: &StateStore, top_n: usize, min_stake: u128) -> Vec<AccountId> {
+pub fn eligible_stake_validators(
+    state: &StateStore,
+    top_n: usize,
+    min_stake: u128,
+) -> Vec<AccountId> {
     let mut all: Vec<(AccountId, u128)> = state
         .top_stakers(usize::MAX)
         .into_iter()
@@ -81,7 +85,11 @@ pub fn eligible_stake_validators(state: &StateStore, top_n: usize, min_stake: u1
 
 /// The set to use after an epoch boundary: eligible stakers, else the bootstrap list, else `current`.
 #[must_use]
-pub fn next_validator_set(state: &StateStore, cfg: &StakeValidatorSetConfig, current: &[AccountId]) -> Vec<AccountId> {
+pub fn next_validator_set(
+    state: &StateStore,
+    cfg: &StakeValidatorSetConfig,
+    current: &[AccountId],
+) -> Vec<AccountId> {
     let eligible = eligible_stake_validators(state, cfg.top_n, cfg.min_stake);
     if !eligible.is_empty() {
         return eligible;
@@ -103,18 +111,40 @@ mod tests {
     fn state(stakes: &[(u8, u128)]) -> StateStore {
         let mut st = StateStore::new();
         for (b, s) in stakes {
-            st.insert(Account { id: id(*b), state: AccountState { balance: 1, stake: *s, ..Default::default() } });
+            st.insert(Account {
+                id: id(*b),
+                state: AccountState {
+                    balance: 1,
+                    stake: *s,
+                    ..Default::default()
+                },
+            });
         }
         st
     }
-    fn cfg(top_n: usize, epoch_len: u64, min_stake: u128, activation_height: u64, bootstrap: Vec<AccountId>) -> StakeValidatorSetConfig {
-        StakeValidatorSetConfig { top_n, epoch_len, min_stake, activation_height, bootstrap }
+    fn cfg(
+        top_n: usize,
+        epoch_len: u64,
+        min_stake: u128,
+        activation_height: u64,
+        bootstrap: Vec<AccountId>,
+    ) -> StakeValidatorSetConfig {
+        StakeValidatorSetConfig {
+            top_n,
+            epoch_len,
+            min_stake,
+            activation_height,
+            bootstrap,
+        }
     }
 
     #[test]
     fn eligibility_is_min_stake_inclusive_and_excludes_below_and_zero() {
         let st = state(&[(1, 9_999), (2, 10_000), (3, 50_000), (4, 0)]);
-        assert_eq!(eligible_stake_validators(&st, 21, 10_000), vec![id(2), id(3)]);
+        assert_eq!(
+            eligible_stake_validators(&st, 21, 10_000),
+            vec![id(2), id(3)]
+        );
         assert!(eligible_stake_validators(&st, 21, 60_000).is_empty());
     }
 
@@ -122,12 +152,21 @@ mod tests {
     fn top_n_truncates_by_stake_with_deterministic_ties_and_sorted_output() {
         // 0x09 and 0x05 tie at 20k; id ascending wins the last seat.
         let st = state(&[(7, 30_000), (9, 20_000), (5, 20_000), (3, 10_000)]);
-        assert_eq!(eligible_stake_validators(&st, 2, 10_000), vec![id(5), id(7)]);
-        assert_eq!(eligible_stake_validators(&st, 3, 10_000), vec![id(5), id(7), id(9)]);
+        assert_eq!(
+            eligible_stake_validators(&st, 2, 10_000),
+            vec![id(5), id(7)]
+        );
+        assert_eq!(
+            eligible_stake_validators(&st, 3, 10_000),
+            vec![id(5), id(7), id(9)]
+        );
         // Same answer regardless of insertion order (HashMap iteration).
         let st2 = state(&[(3, 10_000), (5, 20_000), (9, 20_000), (7, 30_000)]);
         for n in 1..=4 {
-            assert_eq!(eligible_stake_validators(&st, n, 1), eligible_stake_validators(&st2, n, 1));
+            assert_eq!(
+                eligible_stake_validators(&st, n, 1),
+                eligible_stake_validators(&st2, n, 1)
+            );
         }
     }
 
@@ -161,7 +200,10 @@ mod tests {
         assert_eq!(next_validator_set(&st, &c, &boot), boot);
         // Legacy (no bootstrap configured): keep the current set.
         let legacy = cfg(21, 100, 10_000, 0, vec![]);
-        assert_eq!(next_validator_set(&state(&[]), &legacy, &[id(9)]), vec![id(9)]);
+        assert_eq!(
+            next_validator_set(&state(&[]), &legacy, &[id(9)]),
+            vec![id(9)]
+        );
     }
 
     #[test]
@@ -171,7 +213,13 @@ mod tests {
         let mut st = state(&[(0xb0, 10_000)]);
         assert_eq!(next_validator_set(&st, &c, &boot), vec![id(0xb0)]);
         // A bonds 10k -> joins.
-        st.insert(Account { id: id(0xa1), state: AccountState { stake: 10_000, ..Default::default() } });
+        st.insert(Account {
+            id: id(0xa1),
+            state: AccountState {
+                stake: 10_000,
+                ..Default::default()
+            },
+        });
         assert_eq!(next_validator_set(&st, &c, &boot), vec![id(0xa1), id(0xb0)]);
         // A unbonds 1 (stake drops immediately) -> leaves at the next boundary.
         st.get_mut(&id(0xa1)).unwrap().stake = 9_999;

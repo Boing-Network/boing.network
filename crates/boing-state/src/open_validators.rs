@@ -168,7 +168,10 @@ pub struct JailSnapshot {
 
 impl JailSnapshot {
     pub fn stats(&self) -> LivenessStats {
-        LivenessStats { scheduled: self.scheduled, missed: self.missed }
+        LivenessStats {
+            scheduled: self.scheduled,
+            missed: self.missed,
+        }
     }
 }
 
@@ -262,7 +265,9 @@ impl OpenValidatorRegistry {
             return Err(OpenValidatorError::OwnerAlreadyRegistered);
         }
         if capped && self.records.len() >= Self::max_records(params) {
-            return Err(OpenValidatorError::RegistryFull { max: Self::max_records(params) });
+            return Err(OpenValidatorError::RegistryFull {
+                max: Self::max_records(params),
+            });
         }
         self.records.insert(
             node_id,
@@ -278,7 +283,11 @@ impl OpenValidatorRegistry {
     }
 
     /// Legacy deregistration (a jailed validator could leave and reclaim its bond at once).
-    pub fn deregister(&mut self, owner: AccountId, node_id: AccountId) -> Result<u128, OpenValidatorError> {
+    pub fn deregister(
+        &mut self,
+        owner: AccountId,
+        node_id: AccountId,
+    ) -> Result<u128, OpenValidatorError> {
         self.deregister_at(owner, node_id, 0, false)
     }
 
@@ -292,7 +301,10 @@ impl OpenValidatorRegistry {
         height: u64,
         jail_locks_bond: bool,
     ) -> Result<u128, OpenValidatorError> {
-        let rec = self.records.get_mut(&node_id).ok_or(OpenValidatorError::NotRegistered)?;
+        let rec = self
+            .records
+            .get_mut(&node_id)
+            .ok_or(OpenValidatorError::NotRegistered)?;
         if rec.owner != owner {
             return Err(OpenValidatorError::NotOwner);
         }
@@ -314,8 +326,16 @@ impl OpenValidatorRegistry {
         Ok(bond)
     }
 
-    pub fn unjail(&mut self, owner: AccountId, node_id: AccountId, height: u64) -> Result<(), OpenValidatorError> {
-        let rec = self.records.get_mut(&node_id).ok_or(OpenValidatorError::NotRegistered)?;
+    pub fn unjail(
+        &mut self,
+        owner: AccountId,
+        node_id: AccountId,
+        height: u64,
+    ) -> Result<(), OpenValidatorError> {
+        let rec = self
+            .records
+            .get_mut(&node_id)
+            .ok_or(OpenValidatorError::NotRegistered)?;
         if rec.owner != owner {
             return Err(OpenValidatorError::NotOwner);
         }
@@ -351,7 +371,11 @@ impl OpenValidatorRegistry {
         if let Some(set) = self.consensus_set(params) {
             if !set.is_empty() {
                 let expected = set[(height as usize) % set.len()];
-                self.liveness.push_back(LivenessEntry { height, expected, proposer });
+                self.liveness.push_back(LivenessEntry {
+                    height,
+                    expected,
+                    proposer,
+                });
                 while self.liveness.len() > params.liveness_window.max(1) {
                     self.liveness.pop_front();
                 }
@@ -371,14 +395,22 @@ impl OpenValidatorRegistry {
         for id in &self.active {
             let s = self.stats(id);
             if s.scheduled >= params.min_liveness_samples.max(1)
-                && (s.missed as u64) * 10_000 > (params.miss_threshold_bps as u64) * (s.scheduled as u64)
+                && (s.missed as u64) * 10_000
+                    > (params.miss_threshold_bps as u64) * (s.scheduled as u64)
             {
                 jailed.push(*id);
             }
         }
         for id in &jailed {
             let s = self.stats(id);
-            self.last_jail.insert(*id, JailSnapshot { jailed_at: height, scheduled: s.scheduled, missed: s.missed });
+            self.last_jail.insert(
+                *id,
+                JailSnapshot {
+                    jailed_at: height,
+                    scheduled: s.scheduled,
+                    missed: s.missed,
+                },
+            );
             if let Some(rec) = self.records.get_mut(id) {
                 if rec.status == ValidatorStatus::Active {
                     rec.status = ValidatorStatus::Jailed {
@@ -391,7 +423,8 @@ impl OpenValidatorRegistry {
             self.liveness.retain(|e| e.expected != *id);
         }
         // 2. Exiting validators leave now.
-        self.records.retain(|_, r| r.status != ValidatorStatus::Exiting);
+        self.records
+            .retain(|_, r| r.status != ValidatorStatus::Exiting);
         let records = &self.records;
         self.last_jail.retain(|id, _| records.contains_key(id));
         // 3. Select the next open set: earliest registration first, then node id; capped.
@@ -408,7 +441,10 @@ impl OpenValidatorRegistry {
             .map(|(_, id)| id)
             .collect();
         for (id, rec) in self.records.iter_mut() {
-            if matches!(rec.status, ValidatorStatus::Pending | ValidatorStatus::Active) {
+            if matches!(
+                rec.status,
+                ValidatorStatus::Pending | ValidatorStatus::Active
+            ) {
                 rec.status = if chosen.contains(id) {
                     ValidatorStatus::Active
                 } else {
@@ -447,12 +483,29 @@ mod tests {
     fn register_rules() {
         let p = params();
         let mut r = OpenValidatorRegistry::default();
-        assert_eq!(r.register(&p, 5, id(9), id(2)), Err(OpenValidatorError::NotYetActive { activation_height: 10 }));
-        assert_eq!(r.register(&p, 10, id(9), id(1)), Err(OpenValidatorError::AnchorNotRegistrable));
+        assert_eq!(
+            r.register(&p, 5, id(9), id(2)),
+            Err(OpenValidatorError::NotYetActive {
+                activation_height: 10
+            })
+        );
+        assert_eq!(
+            r.register(&p, 10, id(9), id(1)),
+            Err(OpenValidatorError::AnchorNotRegistrable)
+        );
         r.register(&p, 10, id(9), id(2)).unwrap();
-        assert_eq!(r.register(&p, 11, id(8), id(2)), Err(OpenValidatorError::AlreadyRegistered));
-        assert_eq!(r.register(&p, 11, id(9), id(3)), Err(OpenValidatorError::OwnerAlreadyRegistered));
-        assert_eq!(r.deregister(id(8), id(2)), Err(OpenValidatorError::NotOwner));
+        assert_eq!(
+            r.register(&p, 11, id(8), id(2)),
+            Err(OpenValidatorError::AlreadyRegistered)
+        );
+        assert_eq!(
+            r.register(&p, 11, id(9), id(3)),
+            Err(OpenValidatorError::OwnerAlreadyRegistered)
+        );
+        assert_eq!(
+            r.deregister(id(8), id(2)),
+            Err(OpenValidatorError::NotOwner)
+        );
         assert_eq!(r.deregister(id(9), id(2)), Ok(100));
         assert!(r.records.is_empty());
     }
@@ -484,9 +537,15 @@ mod tests {
         for h in 11..=20 {
             r.on_block(&p, h, id(1));
         }
-        assert!(matches!(r.records[&id(5)].status, ValidatorStatus::Jailed { until: 40 }));
+        assert!(matches!(
+            r.records[&id(5)].status,
+            ValidatorStatus::Jailed { until: 40 }
+        ));
         assert!(r.active.is_empty());
-        assert_eq!(r.unjail(id(90), id(5), 30), Err(OpenValidatorError::JailCooldown { until: 40 }));
+        assert_eq!(
+            r.unjail(id(90), id(5), 30),
+            Err(OpenValidatorError::JailCooldown { until: 40 })
+        );
         r.unjail(id(90), id(5), 40).unwrap();
         assert_eq!(r.records[&id(5)].status, ValidatorStatus::Pending);
         assert_eq!(r.records[&id(5)].bond, 100, "bond kept while jailed");
@@ -517,7 +576,10 @@ mod tests {
         assert_eq!(r.deregister(id(90), id(5)), Ok(100));
         assert_eq!(r.records[&id(5)].status, ValidatorStatus::Exiting);
         assert_eq!(r.active, vec![id(5)], "stays until boundary");
-        assert_eq!(r.deregister(id(90), id(5)), Err(OpenValidatorError::AlreadyExiting));
+        assert_eq!(
+            r.deregister(id(90), id(5)),
+            Err(OpenValidatorError::AlreadyExiting)
+        );
         for h in 11..=20 {
             let set = r.consensus_set(&p).unwrap();
             r.on_block(&p, h, set[(h as usize) % set.len()]);
@@ -537,12 +599,16 @@ mod security_v4_tests {
 
     #[test]
     fn registry_cap_only_when_capped() {
-        let p = OpenValidatorParams { max_open_validators: 2, ..Default::default() };
+        let p = OpenValidatorParams {
+            max_open_validators: 2,
+            ..Default::default()
+        };
         let max = OpenValidatorRegistry::max_records(&p);
         assert_eq!(max, 16);
         let mut r = OpenValidatorRegistry::default();
         for n in 0..max as u8 {
-            r.register_with_cap(&p, 1, id(100 + n), id(n + 1), true).unwrap();
+            r.register_with_cap(&p, 1, id(100 + n), id(n + 1), true)
+                .unwrap();
         }
         assert_eq!(
             r.register_with_cap(&p, 1, id(250), id(200), true),
@@ -550,7 +616,9 @@ mod security_v4_tests {
         );
         // legacy rule (replay below the activation height) is unchanged
         let mut legacy = r.clone();
-        assert!(legacy.register_with_cap(&p, 1, id(250), id(200), false).is_ok());
+        assert!(legacy
+            .register_with_cap(&p, 1, id(250), id(200), false)
+            .is_ok());
         // freeing a slot lets the next registration through
         r.deregister_at(id(100), id(1), 1, true).unwrap();
         assert!(r.register_with_cap(&p, 1, id(250), id(200), true).is_ok());
@@ -563,7 +631,11 @@ mod security_v4_tests {
         r.register(&p, 1, id(90), id(5)).unwrap();
         r.records.get_mut(&id(5)).unwrap().status = ValidatorStatus::Jailed { until: 600 };
         let mut legacy = r.clone();
-        assert_eq!(legacy.deregister_at(id(90), id(5), 100, false), Ok(100), "legacy: immediate exit");
+        assert_eq!(
+            legacy.deregister_at(id(90), id(5), 100, false),
+            Ok(100),
+            "legacy: immediate exit"
+        );
         assert_eq!(
             r.deregister_at(id(90), id(5), 599, true),
             Err(OpenValidatorError::JailCooldown { until: 600 })
@@ -582,12 +654,26 @@ mod jail_snapshot_compat_tests {
     /// upgraded after block 400 stay on the same chain.
     #[test]
     fn last_jail_is_not_committed_or_encoded() {
-        let mut a = OpenValidatorRegistry { activated_at: Some(400), ..Default::default() };
+        let mut a = OpenValidatorRegistry {
+            activated_at: Some(400),
+            ..Default::default()
+        };
         let b = a.clone();
-        a.last_jail.insert(AccountId([7u8; 32]), JailSnapshot { jailed_at: 600, scheduled: 50, missed: 50 });
+        a.last_jail.insert(
+            AccountId([7u8; 32]),
+            JailSnapshot {
+                jailed_at: 600,
+                scheduled: 50,
+                missed: 50,
+            },
+        );
         assert_eq!(a.commitment(), b.commitment());
-        assert_eq!(bincode::serialize(&a).unwrap(), bincode::serialize(&b).unwrap());
-        let back: OpenValidatorRegistry = bincode::deserialize(&bincode::serialize(&a).unwrap()).unwrap();
+        assert_eq!(
+            bincode::serialize(&a).unwrap(),
+            bincode::serialize(&b).unwrap()
+        );
+        let back: OpenValidatorRegistry =
+            bincode::deserialize(&bincode::serialize(&a).unwrap()).unwrap();
         assert!(back.last_jail.is_empty());
     }
 }

@@ -272,8 +272,14 @@ mod tests {
         assert!(plan
             .iter()
             .any(|s| s.contains("ReservedRealV1 verify still rejects")));
-        assert!(plan.iter().any(|s| s.contains("ResolveSlashAppealAttested") || s.contains("(32)")));
-        assert!(plan.iter().any(|s| s.contains("not BLS") || s.contains("still later")));
-        assert!(plan.iter().any(|s| s.contains("V3") || s.contains("slash_appeals_registry")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("ResolveSlashAppealAttested") || s.contains("(32)")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("not BLS") || s.contains("still later")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("V3") || s.contains("slash_appeals_registry")));
     }
 }

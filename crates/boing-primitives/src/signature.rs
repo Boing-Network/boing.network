@@ -30,7 +30,10 @@ impl<'de> Deserialize<'de> for Signature {
             fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Signature, E> {
                 Signature::from_slice(v).ok_or_else(|| E::invalid_length(v.len(), &"64"))
             }
-            fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Signature, A::Error> {
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<Signature, A::Error> {
                 let mut bytes = Vec::with_capacity(64);
                 while let Some(b) = seq.next_element::<u8>()? {
                     if bytes.len() == 64 {
@@ -38,7 +41,8 @@ impl<'de> Deserialize<'de> for Signature {
                     }
                     bytes.push(b);
                 }
-                Signature::from_slice(&bytes).ok_or_else(|| serde::de::Error::invalid_length(bytes.len(), &"64"))
+                Signature::from_slice(&bytes)
+                    .ok_or_else(|| serde::de::Error::invalid_length(bytes.len(), &"64"))
             }
         }
         d.deserialize_bytes(V)
@@ -130,7 +134,11 @@ pub fn signable_transaction_hash_with_tip(
 
 /// Sign with the v2 (chain-bound) domain.
 pub fn sign_transaction_v2(tx: &Transaction, signing_key: &SigningKey, chain_id: u64) -> Signature {
-    Signature(signing_key.sign(&signable_transaction_hash_v2(tx, chain_id)).to_bytes())
+    Signature(
+        signing_key
+            .sign(&signable_transaction_hash_v2(tx, chain_id))
+            .to_bytes(),
+    )
 }
 
 /// Sign binding a priority tip (uses v2 when tip is 0).
@@ -142,7 +150,11 @@ pub fn sign_transaction_with_tip(
 ) -> Signature {
     Signature(
         signing_key
-            .sign(&signable_transaction_hash_with_tip(tx, chain_id, priority_tip))
+            .sign(&signable_transaction_hash_with_tip(
+                tx,
+                chain_id,
+                priority_tip,
+            ))
             .to_bytes(),
     )
 }
@@ -249,11 +261,16 @@ pub fn sign_transaction(tx: &Transaction, signing_key: &SigningKey) -> Signature
 }
 
 /// Verify a transaction signature. `sender` must be the 32-byte public key (AccountId).
-pub fn verify_signature(tx: &Transaction, sig: &Signature, sender: &AccountId) -> Result<(), SignatureError> {
+pub fn verify_signature(
+    tx: &Transaction,
+    sig: &Signature,
+    sender: &AccountId,
+) -> Result<(), SignatureError> {
     let pk = VerifyingKey::from_bytes(&sender.0).map_err(|_| SignatureError::InvalidPublicKey)?;
     let msg = signable_hash(tx);
     let ed_sig = Ed25519Signature::from_bytes(&sig.0);
-    pk.verify_strict(&msg, &ed_sig).map_err(|_| SignatureError::InvalidSignature)?;
+    pk.verify_strict(&msg, &ed_sig)
+        .map_err(|_| SignatureError::InvalidSignature)?;
     Ok(())
 }
 
@@ -401,7 +418,10 @@ mod v2_tests {
         Transaction {
             nonce: 3,
             sender: AccountId(key.verifying_key().to_bytes()),
-            payload: TransactionPayload::Transfer { to: AccountId([9u8; 32]), amount: 5 },
+            payload: TransactionPayload::Transfer {
+                to: AccountId([9u8; 32]),
+                amount: 5,
+            },
             access_list: AccessList::default(),
         }
     }
@@ -411,7 +431,10 @@ mod v2_tests {
         let key = SigningKey::from_bytes(&[7u8; 32]);
         let t = tx(&key);
         let testnet = SignedTransaction::new_for_chain(t.clone(), &key, 6913);
-        let p = |c, r| TxSigPolicy { chain_id: Some(c), require_v2: r };
+        let p = |c, r| TxSigPolicy {
+            chain_id: Some(c),
+            require_v2: r,
+        };
         assert!(testnet.verify_with(p(6913, true)).is_ok());
         assert!(testnet.verify_with(p(6913, false)).is_ok());
         // same bytes submitted to mainnet (6914): rejected before and after activation
@@ -436,7 +459,12 @@ mod v2_tests {
         let back = SignedTransaction::from_bincode(&tipped_bytes).unwrap();
         assert_eq!(back, tipped);
         assert_eq!(back.priority_tip, 42);
-        assert!(back.verify_with(TxSigPolicy { chain_id: Some(6913), require_v2: true }).is_ok());
+        assert!(back
+            .verify_with(TxSigPolicy {
+                chain_id: Some(6913),
+                require_v2: true
+            })
+            .is_ok());
         // Truncated / empty input is an error, never a panic.
         assert!(SignedTransaction::from_bincode(&zero_bytes[..zero_bytes.len() - 1]).is_err());
         assert!(SignedTransaction::from_bincode(&[]).is_err());
@@ -446,9 +474,17 @@ mod v2_tests {
     fn legacy_accepted_only_before_activation() {
         let key = SigningKey::from_bytes(&[8u8; 32]);
         let legacy = SignedTransaction::new_legacy(tx(&key), &key);
-        assert!(legacy.verify_with(TxSigPolicy { chain_id: Some(6913), require_v2: false }).is_ok());
+        assert!(legacy
+            .verify_with(TxSigPolicy {
+                chain_id: Some(6913),
+                require_v2: false
+            })
+            .is_ok());
         assert!(matches!(
-            legacy.verify_with(TxSigPolicy { chain_id: Some(6913), require_v2: true }),
+            legacy.verify_with(TxSigPolicy {
+                chain_id: Some(6913),
+                require_v2: true
+            }),
             Err(SignatureError::LegacySignatureRejected)
         ));
         assert!(legacy.verify_with(TxSigPolicy::default()).is_ok());
@@ -468,7 +504,13 @@ mod v2_tests {
     fn v2_digest_differs_from_legacy_and_by_chain() {
         let key = SigningKey::from_bytes(&[1u8; 32]);
         let t = tx(&key);
-        assert_ne!(signable_transaction_hash(&t), signable_transaction_hash_v2(&t, 6913));
-        assert_ne!(signable_transaction_hash_v2(&t, 6913), signable_transaction_hash_v2(&t, 6914));
+        assert_ne!(
+            signable_transaction_hash(&t),
+            signable_transaction_hash_v2(&t, 6913)
+        );
+        assert_ne!(
+            signable_transaction_hash_v2(&t, 6913),
+            signable_transaction_hash_v2(&t, 6914)
+        );
     }
 }

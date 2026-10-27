@@ -331,7 +331,11 @@ pub fn constant_product_pool_bytecode_v10() -> Vec<u8> {
 fn pool_v8_family(swap_returns_out: bool, u128_bound: bool) -> Vec<u8> {
     let mut a = Asm::new();
     let fail = a.label();
-    let bound = if u128_bound { w_two_pow_128() } else { w_two_pow_64() };
+    let bound = if u128_bound {
+        w_two_pow_128()
+    } else {
+        w_two_pow_64()
+    };
     let mut p = P { a, fail, bound };
     let (swap, swap_to, swap_common) = (p.a.label(), p.a.label(), p.a.label());
     let add = p.a.label();

@@ -1,10 +1,10 @@
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, WindowEvent,
 };
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 #[cfg(target_os = "windows")]
 mod single_instance_windows;
@@ -13,12 +13,22 @@ mod single_instance_windows;
 async fn close_splash_and_show_main(app: tauri::AppHandle) -> Result<(), String> {
     let splash = app.get_webview_window("splashscreen").ok_or_else(|| {
         let msg = "splash window not found";
-        boing_telemetry::component_warn("boing_network_hub::commands", "hub", "splash_not_found", msg);
+        boing_telemetry::component_warn(
+            "boing_network_hub::commands",
+            "hub",
+            "splash_not_found",
+            msg,
+        );
         msg.to_string()
     })?;
     let main_win = app.get_webview_window("main").ok_or_else(|| {
         let msg = "main window not found";
-        boing_telemetry::component_warn("boing_network_hub::commands", "hub", "main_window_not_found", msg);
+        boing_telemetry::component_warn(
+            "boing_network_hub::commands",
+            "hub",
+            "main_window_not_found",
+            msg,
+        );
         msg.to_string()
     })?;
     splash.close().map_err(|e| {
@@ -33,7 +43,12 @@ async fn close_splash_and_show_main(app: tauri::AppHandle) -> Result<(), String>
     })?;
     main_win.show().map_err(|e| {
         let s = e.to_string();
-        boing_telemetry::component_warn("boing_network_hub::commands", "hub", "main_show_failed", &s);
+        boing_telemetry::component_warn(
+            "boing_network_hub::commands",
+            "hub",
+            "main_show_failed",
+            &s,
+        );
         s
     })?;
     main_win.set_focus().map_err(|e| {

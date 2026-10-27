@@ -60,9 +60,7 @@ pub fn settle_receipt_key(
 }
 
 /// Challenge requires a prior settle receipt for `(blob, chunk, provider)` paid by `challenger`.
-pub fn validate_challenge_requires_settle(
-    has_settle_receipt: bool,
-) -> Result<(), BlobError> {
+pub fn validate_challenge_requires_settle(has_settle_receipt: bool) -> Result<(), BlobError> {
     if !has_settle_receipt {
         return Err(BlobError::SampleOfferNotFound);
     }

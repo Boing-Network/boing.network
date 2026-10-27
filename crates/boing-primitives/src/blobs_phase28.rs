@@ -30,11 +30,11 @@ use crate::blobs_phase27::{
     PHASE27_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE27_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
     PHASE27_LEGACY_ELECTORATE_W_SENTINEL, PHASE27_LEGACY_PIN_SET_COMMITMENT,
     PHASE27_MAX_APPEAL_EVIDENCE_BYTES, PHASE27_MAX_SETTLE_RECEIPTS, PHASE27_PIN_SET_DOMAIN,
-    PHASE27_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, PHASE27_RESOLVE_SLASH_APPEAL_TX_INDEX,
-    PHASE27_RESOLVE_THRESHOLD_DEN, PHASE27_RESOLVE_THRESHOLD_NUM, PHASE27_RESOLVE_WINDOW_BLOCKS,
-    PHASE27_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE27_SERVE_CHALLENGE_WINDOW_BLOCKS,
-    PHASE27_SETTLE_RECEIPT_TTL_BLOCKS, PHASE27_SUBMIT_SLASH_APPEAL_TX_INDEX,
-    PHASE27_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+    PHASE27_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE27_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
+    PHASE27_RESOLVE_SLASH_APPEAL_TX_INDEX, PHASE27_RESOLVE_THRESHOLD_DEN,
+    PHASE27_RESOLVE_THRESHOLD_NUM, PHASE27_RESOLVE_WINDOW_BLOCKS,
+    PHASE27_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE27_SETTLE_RECEIPT_TTL_BLOCKS,
+    PHASE27_SUBMIT_SLASH_APPEAL_TX_INDEX, PHASE27_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 use crate::hash::hasher;
 use crate::types::AccountId;
@@ -138,7 +138,8 @@ pub fn phase28_bls_verify_pop(
     if pk.validate().is_err() {
         return Err(Phase27BlsError::InvalidPublicKey.into());
     }
-    let sig = Signature::from_bytes(pop.as_bytes()).map_err(|_| Phase27BlsError::InvalidSignature)?;
+    let sig =
+        Signature::from_bytes(pop.as_bytes()).map_err(|_| Phase27BlsError::InvalidSignature)?;
     let err = sig.verify(true, &msg, PHASE28_BLS_POP_SIG_DST, &[], &pk, true);
     if err == BLST_ERROR::BLST_SUCCESS {
         Ok(())
@@ -244,8 +245,8 @@ pub fn phase28_cap_activation_checklist(activation_height: Option<u64>) -> Vec<&
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::blobs_phase27::phase27_bls_sign;
     use crate::blobs_phase27::phase27_bls_pubkey_from_ikm;
+    use crate::blobs_phase27::phase27_bls_sign;
 
     #[test]
     fn pop_roundtrip_and_binding() {
@@ -291,7 +292,9 @@ mod tests {
         assert!(PHASE28_BLS_AGGREGATE_WIRED);
         assert_eq!(PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, 32);
         let plan = phase28_das_succinct_proof_plan();
-        assert!(plan.iter().any(|s| s.contains("proof-of-possession") || s.contains("PoP")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("proof-of-possession") || s.contains("PoP")));
         assert!(plan.iter().any(|s| s.contains("verify-each")));
         let checklist = phase28_cap_activation_checklist(Some(1200));
         assert!(checklist.iter().any(|s| s.contains("blsPop")));

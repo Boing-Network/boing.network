@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::blobs::{
     blob_id_of, media_blob_chunks_merkle_root, media_blob_das_chunk_count, BlobError, BlobId,
-    MediaBlobChunkRef, MEDIA_BLOB_DAS_CHUNK_BYTES, MAX_MEDIA_BLOB_BYTES,
+    MediaBlobChunkRef, MAX_MEDIA_BLOB_BYTES, MEDIA_BLOB_DAS_CHUNK_BYTES,
 };
 use crate::Hash;
 
@@ -153,9 +153,7 @@ pub fn recover_media_blob_rs(
         .map_err(|_| BlobError::RsReconstructFailed)?;
     let mut out = Vec::with_capacity(original_len);
     for i in 0..data_count {
-        let shard = working[i]
-            .as_ref()
-            .ok_or(BlobError::RsReconstructFailed)?;
+        let shard = working[i].as_ref().ok_or(BlobError::RsReconstructFailed)?;
         out.extend_from_slice(shard);
     }
     out.truncate(original_len);
@@ -202,7 +200,10 @@ mod tests {
             .collect();
         let bundle = chunk_media_blob_rs(&data).unwrap();
         assert_eq!(bundle.data_shard_count, 4);
-        assert_eq!(bundle.parity_shard_count as usize, MEDIA_BLOB_RS_PARITY_SHARDS);
+        assert_eq!(
+            bundle.parity_shard_count as usize,
+            MEDIA_BLOB_RS_PARITY_SHARDS
+        );
 
         let mut shards: Vec<Option<Vec<u8>>> = bundle
             .data_shards

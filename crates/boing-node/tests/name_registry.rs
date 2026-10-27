@@ -277,7 +277,10 @@ fn register_resolve_reverse_and_rent_burn() {
     net.claim(0, "Alice.boing", a, 2, 3).unwrap();
     // 5 chars → 2 BOING/year → 4 burned; two txs → two network fees.
     let fees = net.fee_paid(0, before, 4);
-    assert!(fees > 0 && fees <= boing_primitives::BASE_UNITS_PER_BOING, "fees {fees}");
+    assert!(
+        fees > 0 && fees <= boing_primitives::BASE_UNITS_PER_BOING,
+        "fees {fees}"
+    );
 
     let r = net.rpc("boing_resolveName", json!(["alice.boing"]));
     assert_eq!(r["target"], format!("0x{}", hex::encode(a.0)));
@@ -342,7 +345,10 @@ fn register_resolve_reverse_and_rent_burn() {
         let before = net.balance(1);
         net.claim(1, label, b, 1, 9).unwrap();
         let fees = net.fee_paid(1, before, rent);
-        assert!(fees <= boing_primitives::BASE_UNITS_PER_BOING, "{label}: rent {rent} fees {fees}");
+        assert!(
+            fees <= boing_primitives::BASE_UNITS_PER_BOING,
+            "{label}: rent {rent} fees {fees}"
+        );
     }
 }
 
@@ -510,20 +516,31 @@ fn front_running_a_commitment_does_not_block_the_owner() {
     let (a, b) = (net.id(0), net.id(1));
     let salt = [5u8; 32];
     let c = name_commitment("alice", &a, &salt);
-    net.send(1, TransactionPayload::NameCommit { commitment: c }).unwrap();
+    net.send(1, TransactionPayload::NameCommit { commitment: c })
+        .unwrap();
     net.send(0, TransactionPayload::NameCommit { commitment: c })
         .expect("victim's commit is accepted despite the copy");
     let err = net
         .send(
             1,
-            TransactionPayload::NameRegister { name: "alice".into(), salt, target: b, years: 1 },
+            TransactionPayload::NameRegister {
+                name: "alice".into(),
+                salt,
+                target: b,
+                years: 1,
+            },
         )
         .unwrap_err();
     assert!(err.contains("commitment"), "{err}");
     net.nonces.insert(b, 1);
     net.send(
         0,
-        TransactionPayload::NameRegister { name: "alice".into(), salt, target: a, years: 1 },
+        TransactionPayload::NameRegister {
+            name: "alice".into(),
+            salt,
+            target: a,
+            years: 1,
+        },
     )
     .unwrap();
     let r = net.rpc("boing_resolveName", json!(["alice"]));

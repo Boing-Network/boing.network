@@ -188,13 +188,13 @@ mod tests {
         assert!(plan.iter().any(|s| s.contains("resolve_deadline")
             || s.contains("ResolveWindowClosed")
             || s.contains("Expired")));
+        assert!(plan.iter().any(|s| s.contains("V5")
+            && (s.contains("do not clear")
+                || s.contains("without required clear")
+                || s.contains("migrates"))));
         assert!(plan
             .iter()
-            .any(|s| s.contains("V5")
-                && (s.contains("do not clear")
-                    || s.contains("without required clear")
-                    || s.contains("migrates"))));
-        assert!(plan.iter().any(|s| s.contains("still later") || s.contains("BLS")));
+            .any(|s| s.contains("still later") || s.contains("BLS")));
         assert!(phase21_committee_requires_attested(3));
         assert!(!phase21_committee_requires_attested(1));
     }

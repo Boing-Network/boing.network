@@ -152,7 +152,10 @@ impl SlashRegistry {
         current_height: u64,
     ) -> Result<u64, SlashingError> {
         let result = (|| {
-            let slash = self.slashes.get(&slash_id).ok_or(SlashingError::SlashNotFound)?;
+            let slash = self
+                .slashes
+                .get(&slash_id)
+                .ok_or(SlashingError::SlashNotFound)?;
             if current_height > slash.appeal_deadline {
                 return Err(SlashingError::AppealWindowClosed);
             }
@@ -251,13 +254,7 @@ mod tests {
     fn test_slash_and_appeal() {
         let mut reg = SlashRegistry::new();
         let validator = [1u8; 32];
-        let slash_id = reg.record_slash(
-            validator,
-            1000,
-            SlashReason::Equivocation,
-            100,
-            1000,
-        );
+        let slash_id = reg.record_slash(validator, 1000, SlashReason::Equivocation, 100, 1000);
         assert_eq!(slash_id, 1);
         assert!(!reg.is_slash_reversed(slash_id));
 
@@ -265,9 +262,7 @@ mod tests {
             .submit_appeal(slash_id, b"evidence".to_vec(), 150)
             .unwrap();
         assert_eq!(appeal_id, 1);
-        assert!(reg
-            .submit_appeal(slash_id, vec![], 150)
-            .is_err()); // duplicate
+        assert!(reg.submit_appeal(slash_id, vec![], 150).is_err()); // duplicate
 
         reg.resolve_appeal(appeal_id, true).unwrap();
         assert!(reg.is_slash_reversed(slash_id));

@@ -18,7 +18,11 @@ pub async fn run(rpc_url: &str, contract: &str, owner: &str) -> anyhow::Result<(
             "rpc_connect_failed",
             format!("{rpc_url}: {e}"),
         );
-        anyhow::anyhow!("Cannot connect to {}: {}. Run `boing dev` first.", rpc_url, e)
+        anyhow::anyhow!(
+            "Cannot connect to {}: {}. Run `boing dev` first.",
+            rpc_url,
+            e
+        )
     })?;
 
     if !resp.status().is_success() {

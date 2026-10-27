@@ -19,11 +19,22 @@ fn key() -> (SigningKey, AccountId) {
 fn fund(node: &mut BoingNode, id: AccountId, balance: u128, nonce: u64) {
     node.state.insert(Account {
         id,
-        state: AccountState { balance, nonce, ..Default::default() },
+        state: AccountState {
+            balance,
+            nonce,
+            ..Default::default()
+        },
     });
 }
 
-fn transfer(sk: &SigningKey, sender: AccountId, nonce: u64, to: AccountId, amount: u128, tip: u128) -> SignedTransaction {
+fn transfer(
+    sk: &SigningKey,
+    sender: AccountId,
+    nonce: u64,
+    to: AccountId,
+    amount: u128,
+    tip: u128,
+) -> SignedTransaction {
     let tx = Transaction {
         nonce,
         sender,
@@ -61,9 +72,20 @@ fn stale_nonce_rejected_current_and_future_admitted() {
     let (_, to) = key();
     fund(&mut n, id, 1_000_000_000_000_000_000_000, 5);
     let r = n.submit_transaction(transfer(&sk, id, 4, to, 1, 0));
-    assert!(matches!(r, Err(MempoolError::StaleNonce { expected: 5, got: 4 })), "{r:?}");
-    n.submit_transaction(transfer(&sk, id, 5, to, 1, 0)).expect("current nonce admitted");
-    n.submit_transaction(transfer(&sk, id, 7, to, 1, 0)).expect("future nonce admitted (queues)");
+    assert!(
+        matches!(
+            r,
+            Err(MempoolError::StaleNonce {
+                expected: 5,
+                got: 4
+            })
+        ),
+        "{r:?}"
+    );
+    n.submit_transaction(transfer(&sk, id, 5, to, 1, 0))
+        .expect("current nonce admitted");
+    n.submit_transaction(transfer(&sk, id, 7, to, 1, 0))
+        .expect("future nonce admitted (queues)");
     assert_eq!(n.mempool.len(), 2);
 }
 
@@ -74,7 +96,10 @@ fn balance_below_failed_tx_fee_is_rejected() {
     let (_, to) = key();
     fund(&mut n, id, 1, 0); // 1 base unit: cannot pay even a failed tx
     let r = n.submit_transaction(transfer(&sk, id, 0, to, 1_000, 0));
-    assert!(matches!(r, Err(MempoolError::InsufficientFee { have: 1, .. })), "{r:?}");
+    assert!(
+        matches!(r, Err(MempoolError::InsufficientFee { have: 1, .. })),
+        "{r:?}"
+    );
     assert_eq!(n.mempool.len(), 0);
 }
 
@@ -93,10 +118,26 @@ fn bad_signature_rejected_before_state_checks() {
 /// The clone-free Transfer path and the snapshot + VM dry run must agree on every input.
 #[test]
 fn transfer_fast_path_matches_vm_dry_run() {
-    let fee_21k = boing_tokenomics::fee_for_gas_in(21_000, boing_tokenomics::Denomination::BaseUnits);
+    let fee_21k =
+        boing_tokenomics::fee_for_gas_in(21_000, boing_tokenomics::Denomination::BaseUnits);
     assert!(fee_21k > 0);
-    let balances = [0u128, 1, fee_21k - 1, fee_21k, fee_21k + 1, 10 * fee_21k, 1_000 * fee_21k];
-    let amounts = [0u128, 1, fee_21k, 5 * fee_21k, 10 * fee_21k, 2_000 * fee_21k];
+    let balances = [
+        0u128,
+        1,
+        fee_21k - 1,
+        fee_21k,
+        fee_21k + 1,
+        10 * fee_21k,
+        1_000 * fee_21k,
+    ];
+    let amounts = [
+        0u128,
+        1,
+        fee_21k,
+        5 * fee_21k,
+        10 * fee_21k,
+        2_000 * fee_21k,
+    ];
     let tips = [0u128, 1, fee_21k];
     let nonces = [(0u64, 0u64), (0, 1), (3, 3), (3, 2), (3, 4)]; // (account nonce, tx nonce)
     let mut checked = 0;

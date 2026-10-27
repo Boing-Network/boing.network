@@ -107,7 +107,10 @@ pub fn configured_chain_id() -> Option<u64> {
 /// network history (testnet: [`BOING_TESTNET_SECURITY_V2_FROM`]), else 0 (new chains / mainnet:
 /// from genesis).
 pub fn tx_v2_from(history: Option<&ExecutionHistory>) -> u64 {
-    if let Some(h) = std::env::var("BOING_TX_V2_FROM").ok().and_then(|s| s.trim().parse().ok()) {
+    if let Some(h) = std::env::var("BOING_TX_V2_FROM")
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+    {
         return h;
     }
     history.map(|h| h.tx_v2_from).unwrap_or(0)
@@ -116,7 +119,10 @@ pub fn tx_v2_from(history: Option<&ExecutionHistory>) -> u64 {
 /// First height whose blocks must carry verified tx signatures: `BOING_BLOCK_SIGS_FROM`, else the
 /// network history (testnet: [`BOING_TESTNET_SECURITY_V3_FROM`]), else 0 (new chains: genesis).
 pub fn block_sigs_from(history: Option<&ExecutionHistory>) -> u64 {
-    if let Some(h) = std::env::var("BOING_BLOCK_SIGS_FROM").ok().and_then(|s| s.trim().parse().ok()) {
+    if let Some(h) = std::env::var("BOING_BLOCK_SIGS_FROM")
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+    {
         return h;
     }
     history.map(|h| h.block_sigs_from).unwrap_or(0)
@@ -154,7 +160,10 @@ pub fn check_mainnet_guards(
 
 /// Chain id used for signature checks: the installed network history's, else `BOING_CHAIN_ID`.
 pub fn effective_chain_id(history: Option<&ExecutionHistory>) -> Option<u64> {
-    history.map(|h| h.chain_id).filter(|c| *c != 0).or_else(configured_chain_id)
+    history
+        .map(|h| h.chain_id)
+        .filter(|c| *c != 0)
+        .or_else(configured_chain_id)
 }
 
 /// Sign a node-originated tx (faucet): v2 for `chain_id` when known (accepted before and after the v2
@@ -192,7 +201,10 @@ pub fn boing_testnet_genesis() -> GenesisSpec {
         proposer: BOING_TESTNET_GENESIS_ACCOUNT,
         allocations: vec![
             (BOING_TESTNET_GENESIS_ACCOUNT, BOING_TESTNET_GENESIS_BALANCE),
-            (faucet::testnet_faucet_account_id(), faucet::FAUCET_INITIAL_BALANCE),
+            (
+                faucet::testnet_faucet_account_id(),
+                faucet::FAUCET_INITIAL_BALANCE,
+            ),
         ],
     }
 }
@@ -215,7 +227,10 @@ pub fn preset_for_chain(chain_id: u64) -> Option<NetworkPreset> {
 /// (e.g. a private chain that reuses chain id 6913).
 pub fn preset_from_env() -> Option<NetworkPreset> {
     if matches!(
-        std::env::var("BOING_NETWORK_PRESET").ok().as_deref().map(str::trim),
+        std::env::var("BOING_NETWORK_PRESET")
+            .ok()
+            .as_deref()
+            .map(str::trim),
         Some("none") | Some("off") | Some("0")
     ) {
         return None;
@@ -256,7 +271,8 @@ pub fn resolve_micro_fees_from(
 /// already has blocks beyond genesis except for the (replay-only) execution eras.
 /// Returns true when the genesis was (re)written.
 pub fn apply_preset(node: &mut BoingNode, preset: &NetworkPreset) -> bool {
-    node.executor.set_execution_history(Some(preset.history.clone()));
+    node.executor
+        .set_execution_history(Some(preset.history.clone()));
     node.apply_genesis_spec(&preset.genesis)
 }
 
@@ -268,8 +284,12 @@ mod sign_for_chain_tests {
     #[test]
     fn mainnet_guards() {
         // mainnet: token required, faucet forbidden
-        assert!(check_mainnet_guards(Some(6914), false, false).unwrap_err().contains("BOING_OPERATOR_RPC_TOKEN"));
-        assert!(check_mainnet_guards(Some(6914), true, true).unwrap_err().contains("faucet"));
+        assert!(check_mainnet_guards(Some(6914), false, false)
+            .unwrap_err()
+            .contains("BOING_OPERATOR_RPC_TOKEN"));
+        assert!(check_mainnet_guards(Some(6914), true, true)
+            .unwrap_err()
+            .contains("faucet"));
         assert!(check_mainnet_guards(Some(6914), false, true).is_err());
         assert!(check_mainnet_guards(Some(6914), true, false).is_ok());
         // testnet / devnet / unset behave as before (open operator RPC, faucet allowed)
@@ -286,13 +306,25 @@ mod sign_for_chain_tests {
         let tx = boing_primitives::Transaction {
             nonce: 0,
             sender: me,
-            payload: boing_primitives::TransactionPayload::Transfer { to: AccountId([4; 32]), amount: 1 },
+            payload: boing_primitives::TransactionPayload::Transfer {
+                to: AccountId([4; 32]),
+                amount: 1,
+            },
             access_list: boing_primitives::AccessList::default(),
         };
-        let required = boing_primitives::TxSigPolicy { chain_id: Some(6913), require_v2: true };
-        assert!(sign_for_chain(tx.clone(), &key, Some(6913)).verify_with(required).is_ok());
-        assert!(sign_for_chain(tx.clone(), &key, None).verify_with(required).is_err());
-        assert!(sign_for_chain(tx, &key, None).verify_with(boing_primitives::TxSigPolicy::default()).is_ok());
+        let required = boing_primitives::TxSigPolicy {
+            chain_id: Some(6913),
+            require_v2: true,
+        };
+        assert!(sign_for_chain(tx.clone(), &key, Some(6913))
+            .verify_with(required)
+            .is_ok());
+        assert!(sign_for_chain(tx.clone(), &key, None)
+            .verify_with(required)
+            .is_err());
+        assert!(sign_for_chain(tx, &key, None)
+            .verify_with(boing_primitives::TxSigPolicy::default())
+            .is_ok());
     }
 }
 
@@ -307,7 +339,10 @@ mod preset_scope_tests {
     fn preset_only_for_testnet_chain_id() {
         assert!(preset_for_chain(BOING_TESTNET_CHAIN_ID).is_some());
         for other in [0u64, 1, 6912, 6914, 69_130, u64::MAX] {
-            assert!(preset_for_chain(other).is_none(), "chain {other} must not get the testnet preset");
+            assert!(
+                preset_for_chain(other).is_none(),
+                "chain {other} must not get the testnet preset"
+            );
         }
     }
 

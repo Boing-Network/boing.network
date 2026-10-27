@@ -421,8 +421,7 @@ mod tests {
     fn reference_fungible_bytecode_contains_balance_xor_constant() {
         let code = reference_fungible_template_bytecode();
         assert!(
-            code
-                .windows(REF_FUNGIBLE_BALANCE_XOR.len())
+            code.windows(REF_FUNGIBLE_BALANCE_XOR.len())
                 .any(|w| w == REF_FUNGIBLE_BALANCE_XOR),
             "template bytecode should embed REF_FUNGIBLE_BALANCE_XOR for SLoad keys"
         );

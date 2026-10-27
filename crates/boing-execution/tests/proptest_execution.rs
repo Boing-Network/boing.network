@@ -1,24 +1,43 @@
 //! Property-based tests for execution (proptest).
 
-use proptest::prelude::*;
 use boing_execution::BlockExecutor;
-use boing_primitives::{AccessList, Account, AccountId, AccountState, Transaction, TransactionPayload};
+use boing_primitives::{
+    AccessList, Account, AccountId, AccountState, Transaction, TransactionPayload,
+};
 use boing_state::StateStore;
+use proptest::prelude::*;
 
 /// Generate independent transfers (disjoint access lists) so parallel execution applies.
 fn mk_parallel_transfers(n: usize, amt: u128) -> (Vec<Transaction>, StateStore) {
     let mut state = StateStore::new();
     for i in 0..=n * 2 {
-        let id = AccountId({ let mut a = [0u8; 32]; a[0] = i as u8; a });
+        let id = AccountId({
+            let mut a = [0u8; 32];
+            a[0] = i as u8;
+            a
+        });
         state.insert(Account {
             id,
-            state: AccountState { balance: 1_000_000, nonce: 0, stake: 0, ..Default::default() },
+            state: AccountState {
+                balance: 1_000_000,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
         });
     }
     let txs: Vec<Transaction> = (0..n)
         .map(|i| {
-            let from = AccountId({ let mut a = [0u8; 32]; a[0] = (i * 2) as u8; a });
-            let to = AccountId({ let mut a = [0u8; 32]; a[0] = (i * 2 + 1) as u8; a });
+            let from = AccountId({
+                let mut a = [0u8; 32];
+                a[0] = (i * 2) as u8;
+                a
+            });
+            let to = AccountId({
+                let mut a = [0u8; 32];
+                a[0] = (i * 2 + 1) as u8;
+                a
+            });
             Transaction {
                 nonce: 0,
                 sender: from,
@@ -33,7 +52,11 @@ fn mk_parallel_transfers(n: usize, amt: u128) -> (Vec<Transaction>, StateStore) 
 fn total_balance(state: &StateStore, max_id: u8) -> u128 {
     (0..=max_id)
         .filter_map(|i| {
-            let id = AccountId({ let mut a = [0u8; 32]; a[0] = i; a });
+            let id = AccountId({
+                let mut a = [0u8; 32];
+                a[0] = i;
+                a
+            });
             state.get(&id)
         })
         .map(|s| s.balance)

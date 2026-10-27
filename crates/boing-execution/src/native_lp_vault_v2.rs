@@ -93,7 +93,11 @@ pub fn lp_vault_v2_share_key(holder: &AccountId) -> [u8; 32] {
 }
 
 #[must_use]
-pub fn encode_lp_vault_v2_configure_calldata(pool: &AccountId, token_a: &AccountId, token_b: &AccountId) -> Vec<u8> {
+pub fn encode_lp_vault_v2_configure_calldata(
+    pool: &AccountId,
+    token_a: &AccountId,
+    token_b: &AccountId,
+) -> Vec<u8> {
     let mut v = w_sel(SELECTOR_LP_VAULT_V2_CONFIGURE).to_vec();
     for a in [pool, token_a, token_b] {
         v.extend_from_slice(&a.0);
@@ -102,7 +106,12 @@ pub fn encode_lp_vault_v2_configure_calldata(pool: &AccountId, token_a: &Account
 }
 
 #[must_use]
-pub fn encode_lp_vault_v2_deposit_calldata(amount_a: u128, amount_b: u128, min_shares: u128, deadline: u64) -> Vec<u8> {
+pub fn encode_lp_vault_v2_deposit_calldata(
+    amount_a: u128,
+    amount_b: u128,
+    min_shares: u128,
+    deadline: u64,
+) -> Vec<u8> {
     let mut v = w_sel(SELECTOR_LP_VAULT_V2_DEPOSIT).to_vec();
     for w in [amount_a, amount_b, min_shares, u128::from(deadline)] {
         v.extend_from_slice(&amount_word(w));
@@ -111,7 +120,12 @@ pub fn encode_lp_vault_v2_deposit_calldata(amount_a: u128, amount_b: u128, min_s
 }
 
 #[must_use]
-pub fn encode_lp_vault_v2_withdraw_calldata(shares: u128, min_a: u128, min_b: u128, deadline: u64) -> Vec<u8> {
+pub fn encode_lp_vault_v2_withdraw_calldata(
+    shares: u128,
+    min_a: u128,
+    min_b: u128,
+    deadline: u64,
+) -> Vec<u8> {
     let mut v = w_sel(SELECTOR_LP_VAULT_V2_WITHDRAW).to_vec();
     for w in [shares, min_a, min_b, u128::from(deadline)] {
         v.extend_from_slice(&amount_word(w));
@@ -173,7 +187,12 @@ impl V {
     }
     fn ret_is_one(&mut self) {
         let f = self.fail;
-        self.a.mload(RET).push_u(1).op(Opcode::Eq).op(Opcode::IsZero).jumpi(f);
+        self.a
+            .mload(RET)
+            .push_u(1)
+            .op(Opcode::Eq)
+            .op(Opcode::IsZero)
+            .jumpi(f);
     }
     /// `transfer_from(CALLER -> vault, mem[amount])` on token `mem[token]`; must return 1.
     fn pull(&mut self, token: u64, amount: u64) {
@@ -193,19 +212,29 @@ impl V {
     }
     /// `mem[KEY] = holder ^ XOR` for the holder word on the stack.
     fn share_key(&mut self, dst: u64) {
-        self.a.push(&LP_VAULT_V2_SHARE_XOR).op(Opcode::Xor).mstore(dst);
+        self.a
+            .push(&LP_VAULT_V2_SHARE_XOR)
+            .op(Opcode::Xor)
+            .mstore(dst);
     }
     fn log(&mut self, topic: &[u8; 32], x: u64, y: u64, z: u64) {
         let a = &mut self.a;
         a.mcopy(x, LOGB).mcopy(y, LOGB + 32).mcopy(z, LOGB + 64);
-        a.push(topic).op(Opcode::Caller).push_u(96).push_u(LOGB).op(Opcode::Log2);
+        a.push(topic)
+            .op(Opcode::Caller)
+            .push_u(96)
+            .push_u(LOGB)
+            .op(Opcode::Log2);
     }
     fn unlock(&mut self) {
         self.a.push_u(0).sstore_key(&lp_vault_v2_lock_key());
     }
     fn require_configured(&mut self) {
         let f = self.fail;
-        self.a.sload_key(&lp_vault_v2_configured_key()).op(Opcode::IsZero).jumpi(f);
+        self.a
+            .sload_key(&lp_vault_v2_configured_key())
+            .op(Opcode::IsZero)
+            .jumpi(f);
     }
 }
 
@@ -215,7 +244,8 @@ pub fn native_lp_vault_v2_bytecode() -> Vec<u8> {
     let mut a = Asm::new();
     let fail = a.label();
     let mut v = V { a, fail };
-    let (configure, deposit, withdraw, transfer) = (v.a.label(), v.a.label(), v.a.label(), v.a.label());
+    let (configure, deposit, withdraw, transfer) =
+        (v.a.label(), v.a.label(), v.a.label(), v.a.label());
 
     v.a.sload_key(&lp_vault_v2_lock_key()).jumpi(fail);
     v.a.push_u(1).sstore_key(&lp_vault_v2_lock_key());
@@ -257,15 +287,26 @@ pub fn native_lp_vault_v2_bytecode() -> Vec<u8> {
     v.approve(TA, POOL, A);
     v.approve(TB, POOL, B);
     v.a.push(&w_sel(SELECTOR_ADD_LIQUIDITY)).mstore(CB);
-    v.a.mcopy(A, CB + 32).mcopy(B, CB + 64).mcopy(MIN, CB + 96).mcopy(DL, CB + 128);
+    v.a.mcopy(A, CB + 32)
+        .mcopy(B, CB + 64)
+        .mcopy(MIN, CB + 96)
+        .mcopy(DL, CB + 128);
     v.call(POOL, 160);
     v.a.mcopy(RET, S);
     v.nonzero(S);
     v.ge(S, MIN);
     v.a.op(Opcode::Caller);
     v.share_key(KEY);
-    v.a.mload(KEY).op(Opcode::SLoad).mload(S).op(Opcode::Add).mload(KEY).op(Opcode::SStore);
-    v.a.sload_key(&lp_vault_v2_total_shares_key()).mload(S).op(Opcode::Add).sstore_key(&lp_vault_v2_total_shares_key());
+    v.a.mload(KEY)
+        .op(Opcode::SLoad)
+        .mload(S)
+        .op(Opcode::Add)
+        .mload(KEY)
+        .op(Opcode::SStore);
+    v.a.sload_key(&lp_vault_v2_total_shares_key())
+        .mload(S)
+        .op(Opcode::Add)
+        .sstore_key(&lp_vault_v2_total_shares_key());
     v.log(&LP_VAULT_V2_TOPIC_DEPOSIT, A, B, S);
     v.unlock();
     v.a.return_word(S);
@@ -279,8 +320,15 @@ pub fn native_lp_vault_v2_bytecode() -> Vec<u8> {
     v.share_key(KEY);
     v.a.mload(KEY).op(Opcode::SLoad).mstore(BAL);
     v.ge(BAL, S);
-    v.a.mload(BAL).mload(S).op(Opcode::Sub).mload(KEY).op(Opcode::SStore);
-    v.a.sload_key(&lp_vault_v2_total_shares_key()).mload(S).op(Opcode::Sub).sstore_key(&lp_vault_v2_total_shares_key());
+    v.a.mload(BAL)
+        .mload(S)
+        .op(Opcode::Sub)
+        .mload(KEY)
+        .op(Opcode::SStore);
+    v.a.sload_key(&lp_vault_v2_total_shares_key())
+        .mload(S)
+        .op(Opcode::Sub)
+        .sstore_key(&lp_vault_v2_total_shares_key());
     v.a.sload_key(&lp_vault_v2_pool_key()).mstore(POOL);
     v.a.push(&w_sel(SELECTOR_REMOVE_LIQUIDITY_TO)).mstore(CB);
     v.a.mcopy(S, CB + 32).mcopy(A, CB + 64).mcopy(B, CB + 96);
@@ -303,10 +351,19 @@ pub fn native_lp_vault_v2_bytecode() -> Vec<u8> {
     v.a.mload(KEY).op(Opcode::SLoad).mstore(BAL);
     v.ge(BAL, S);
     v.a.mload(TO).op(Opcode::Caller).op(Opcode::Eq).jumpi(done);
-    v.a.mload(BAL).mload(S).op(Opcode::Sub).mload(KEY).op(Opcode::SStore);
+    v.a.mload(BAL)
+        .mload(S)
+        .op(Opcode::Sub)
+        .mload(KEY)
+        .op(Opcode::SStore);
     v.a.mload(TO);
     v.share_key(KEY2);
-    v.a.mload(KEY2).op(Opcode::SLoad).mload(S).op(Opcode::Add).mload(KEY2).op(Opcode::SStore);
+    v.a.mload(KEY2)
+        .op(Opcode::SLoad)
+        .mload(S)
+        .op(Opcode::Add)
+        .mload(KEY2)
+        .op(Opcode::SStore);
     v.log(&LP_VAULT_V2_TOPIC_TRANSFER, TO, S, S);
     v.a.mark(done);
     v.unlock();
@@ -320,10 +377,21 @@ pub fn native_lp_vault_v2_bytecode() -> Vec<u8> {
 mod tests {
     use super::*;
     use crate::interpreter::{Interpreter, VmExecutionContext};
-    use crate::native_amm::{encode_set_tokens_calldata, lp_balance_storage_key, reserve_a_key, reserve_b_key, total_lp_supply_key};
-    use crate::native_amm_v8::{constant_product_pool_bytecode_v8, constant_product_pool_bytecode_v9, encode_v8_add_liquidity_calldata, encode_v8_swap_calldata};
-    use crate::reference_token::{encode_mint_first_calldata, encode_transfer_calldata, REF_FUNGIBLE_BALANCE_XOR};
-    use crate::reference_token_v2::{encode_approve_calldata, ref_fungible_allowance_key, reference_fungible_template_v2_bytecode};
+    use crate::native_amm::{
+        encode_set_tokens_calldata, lp_balance_storage_key, reserve_a_key, reserve_b_key,
+        total_lp_supply_key,
+    };
+    use crate::native_amm_v8::{
+        constant_product_pool_bytecode_v8, constant_product_pool_bytecode_v9,
+        encode_v8_add_liquidity_calldata, encode_v8_swap_calldata,
+    };
+    use crate::reference_token::{
+        encode_mint_first_calldata, encode_transfer_calldata, REF_FUNGIBLE_BALANCE_XOR,
+    };
+    use crate::reference_token_v2::{
+        encode_approve_calldata, ref_fungible_allowance_key,
+        reference_fungible_template_v2_bytecode,
+    };
     use boing_primitives::Account;
     use boing_qa::RuleRegistry;
     use boing_state::StateStore;
@@ -353,7 +421,11 @@ mod tests {
             let cp = self.st.checkpoint();
             let code = self.st.get_contract_code(&to).unwrap().clone();
             let mut it = Interpreter::new(code, 40_000_000);
-            let ctx = VmExecutionContext { block_height: self.height, block_timestamp: 0, native_value: false };
+            let ctx = VmExecutionContext {
+                block_height: self.height,
+                block_timestamp: 0,
+                native_value: false,
+            };
             match it.run_with_qa(who, to, cd, &mut self.st, &RuleRegistry::new(), ctx) {
                 Ok(_) => Some(it.return_data.clone().unwrap_or_default()),
                 Err(_) => {
@@ -373,13 +445,25 @@ mod tests {
             tail(&self.st.get_contract_storage(&t, &k))
         }
         fn shares(&self, vault: AccountId, who: AccountId) -> u128 {
-            tail(&self.st.get_contract_storage(&vault, &lp_vault_v2_share_key(&who)))
+            tail(
+                &self
+                    .st
+                    .get_contract_storage(&vault, &lp_vault_v2_share_key(&who)),
+            )
         }
         fn total_shares(&self, vault: AccountId) -> u128 {
-            tail(&self.st.get_contract_storage(&vault, &lp_vault_v2_total_shares_key()))
+            tail(
+                &self
+                    .st
+                    .get_contract_storage(&vault, &lp_vault_v2_total_shares_key()),
+            )
         }
         fn pool_lp(&self, pool: AccountId, who: AccountId) -> u128 {
-            tail(&self.st.get_contract_storage(&pool, &lp_balance_storage_key(&who.0)))
+            tail(
+                &self
+                    .st
+                    .get_contract_storage(&pool, &lp_balance_storage_key(&who.0)),
+            )
         }
         fn reserves(&self, p: AccountId) -> (u128, u128) {
             (
@@ -391,28 +475,43 @@ mod tests {
         fn vault_custody_ok(&self, vault: AccountId, pool: AccountId) {
             for t in [TA, TB, TC] {
                 assert_eq!(self.bal(t, vault), 0, "vault keeps no tokens");
-                let w = self.st.get_contract_storage(&t, &ref_fungible_allowance_key(&vault, &pool));
+                let w = self
+                    .st
+                    .get_contract_storage(&t, &ref_fungible_allowance_key(&vault, &pool));
                 assert_eq!(tail(&w), 0, "no leftover vault allowance");
             }
             assert_eq!(self.pool_lp(pool, vault), self.total_shares(vault));
-            assert_eq!(self.st.get_contract_storage(&vault, &lp_vault_v2_lock_key()), [0u8; 32]);
+            assert_eq!(
+                self.st
+                    .get_contract_storage(&vault, &lp_vault_v2_lock_key()),
+                [0u8; 32]
+            );
         }
     }
 
     fn env() -> Env {
         let mut st = StateStore::new();
         let tok = reference_fungible_template_v2_bytecode();
-        let mut code = vec![(VAULT, native_lp_vault_v2_bytecode()), (VAULT8, native_lp_vault_v2_bytecode())];
+        let mut code = vec![
+            (VAULT, native_lp_vault_v2_bytecode()),
+            (VAULT8, native_lp_vault_v2_bytecode()),
+        ];
         for t in [TA, TB, TC] {
             code.push((t, tok.clone()));
         }
         code.push((P9, constant_product_pool_bytecode_v9()));
         code.push((P8, constant_product_pool_bytecode_v8()));
         for id in [ALICE, BOB, CAROL] {
-            st.insert(Account { id, state: Default::default() });
+            st.insert(Account {
+                id,
+                state: Default::default(),
+            });
         }
         for (id, c) in code {
-            st.insert(Account { id, state: Default::default() });
+            st.insert(Account {
+                id,
+                state: Default::default(),
+            });
             st.set_contract_code(id, c);
         }
         let mut e = Env { st, height: 100 };
@@ -423,13 +522,25 @@ mod tests {
             e.ok(ALICE, p, &encode_set_tokens_calldata(&TA, &TB));
             e.ok(ALICE, TA, &encode_approve_calldata(&p, 1_000_000));
             e.ok(ALICE, TB, &encode_approve_calldata(&p, 2_000_000));
-            e.ok(ALICE, p, &encode_v8_add_liquidity_calldata(1_000_000, 2_000_000, 1, 0));
+            e.ok(
+                ALICE,
+                p,
+                &encode_v8_add_liquidity_calldata(1_000_000, 2_000_000, 1, 0),
+            );
         }
         for t in [TA, TB, TC] {
             e.ok(ALICE, t, &encode_transfer_calldata(&BOB, 100_000));
         }
-        e.ok(ALICE, VAULT, &encode_lp_vault_v2_configure_calldata(&P9, &TA, &TB));
-        e.ok(ALICE, VAULT8, &encode_lp_vault_v2_configure_calldata(&P8, &TA, &TB));
+        e.ok(
+            ALICE,
+            VAULT,
+            &encode_lp_vault_v2_configure_calldata(&P9, &TA, &TB),
+        );
+        e.ok(
+            ALICE,
+            VAULT8,
+            &encode_lp_vault_v2_configure_calldata(&P8, &TA, &TB),
+        );
         e
     }
 
@@ -444,14 +555,22 @@ mod tests {
             let mut e = env();
             // Pool LP supply = min(1e6, 2e6) = 1e6; balanced 10k:20k mints 10k LP.
             approve_vault(&mut e, BOB, vault, 10_000, 20_000);
-            let r = e.ok(BOB, vault, &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 10_000, 0));
+            let r = e.ok(
+                BOB,
+                vault,
+                &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 10_000, 0),
+            );
             assert_eq!(r, amount_word(10_000).to_vec());
             assert_eq!(e.shares(vault, BOB), 10_000);
             assert_eq!(e.total_shares(vault), 10_000);
             assert_eq!((e.bal(TA, BOB), e.bal(TB, BOB)), (90_000, 80_000));
             assert_eq!(e.reserves(pool), (1_010_000, 2_020_000));
             assert_eq!((e.bal(TA, pool), e.bal(TB, pool)), e.reserves(pool));
-            assert_eq!(e.pool_lp(pool, BOB), 0, "LP is held by the vault, not the user");
+            assert_eq!(
+                e.pool_lp(pool, BOB),
+                0,
+                "LP is held by the vault, not the user"
+            );
             e.vault_custody_ok(vault, pool);
         }
     }
@@ -460,20 +579,32 @@ mod tests {
     fn withdraw_burns_shares_and_pool_pays_the_user_directly() {
         let mut e = env();
         approve_vault(&mut e, BOB, VAULT, 10_000, 20_000);
-        e.ok(BOB, VAULT, &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0));
+        e.ok(
+            BOB,
+            VAULT,
+            &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0),
+        );
         // A swap accrues a fee to the pool; shares capture it.
         e.ok(ALICE, TA, &encode_approve_calldata(&P9, 50_000));
         e.ok(ALICE, P9, &encode_v8_swap_calldata(0, 50_000, 1, 0));
         let (ra, rb) = e.reserves(P9);
         let t = tail(&e.st.get_contract_storage(&P9, &total_lp_supply_key()));
         let (oa, ob) = (4_000 * ra / t, 4_000 * rb / t);
-        e.ok(BOB, VAULT, &encode_lp_vault_v2_withdraw_calldata(4_000, oa, ob, 0));
+        e.ok(
+            BOB,
+            VAULT,
+            &encode_lp_vault_v2_withdraw_calldata(4_000, oa, ob, 0),
+        );
         assert_eq!(e.shares(VAULT, BOB), 6_000);
         assert_eq!(e.total_shares(VAULT), 6_000);
         assert_eq!((e.bal(TA, BOB), e.bal(TB, BOB)), (90_000 + oa, 80_000 + ob));
         e.vault_custody_ok(VAULT, P9);
         // Withdraw the rest; vault ends empty.
-        e.ok(BOB, VAULT, &encode_lp_vault_v2_withdraw_calldata(6_000, 1, 1, 0));
+        e.ok(
+            BOB,
+            VAULT,
+            &encode_lp_vault_v2_withdraw_calldata(6_000, 1, 1, 0),
+        );
         assert_eq!(e.total_shares(VAULT), 0);
         e.vault_custody_ok(VAULT, P9);
     }
@@ -482,19 +613,62 @@ mod tests {
     fn share_transfers_and_self_transfer_does_not_mint() {
         let mut e = env();
         approve_vault(&mut e, BOB, VAULT, 10_000, 20_000);
-        e.ok(BOB, VAULT, &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0));
-        e.ok(BOB, VAULT, &encode_lp_vault_v2_transfer_shares_calldata(&BOB, 10_000));
+        e.ok(
+            BOB,
+            VAULT,
+            &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0),
+        );
+        e.ok(
+            BOB,
+            VAULT,
+            &encode_lp_vault_v2_transfer_shares_calldata(&BOB, 10_000),
+        );
         assert_eq!(e.shares(VAULT, BOB), 10_000, "self-transfer is a no-op");
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_transfer_shares_calldata(&BOB, 10_001)).is_none());
-        e.ok(BOB, VAULT, &encode_lp_vault_v2_transfer_shares_calldata(&CAROL, 3_000));
-        assert_eq!((e.shares(VAULT, BOB), e.shares(VAULT, CAROL)), (7_000, 3_000));
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_transfer_shares_calldata(&BOB, 10_001)
+            )
+            .is_none());
+        e.ok(
+            BOB,
+            VAULT,
+            &encode_lp_vault_v2_transfer_shares_calldata(&CAROL, 3_000),
+        );
+        assert_eq!(
+            (e.shares(VAULT, BOB), e.shares(VAULT, CAROL)),
+            (7_000, 3_000)
+        );
         assert_eq!(e.total_shares(VAULT), 10_000);
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_transfer_shares_calldata(&CAROL, 7_001)).is_none());
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_transfer_shares_calldata(&AccountId([0; 32]), 1)).is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_transfer_shares_calldata(&CAROL, 7_001)
+            )
+            .is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_transfer_shares_calldata(&AccountId([0; 32]), 1)
+            )
+            .is_none());
         // CAROL can withdraw her shares; BOB can't withdraw more than he has.
-        e.ok(CAROL, VAULT, &encode_lp_vault_v2_withdraw_calldata(3_000, 1, 1, 0));
+        e.ok(
+            CAROL,
+            VAULT,
+            &encode_lp_vault_v2_withdraw_calldata(3_000, 1, 1, 0),
+        );
         assert!(e.bal(TA, CAROL) > 0 && e.bal(TB, CAROL) > 0);
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_withdraw_calldata(7_001, 1, 1, 0)).is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_withdraw_calldata(7_001, 1, 1, 0)
+            )
+            .is_none());
         assert_eq!(e.shares(VAULT, BOB), 7_000);
         e.vault_custody_ok(VAULT, P9);
     }
@@ -502,27 +676,87 @@ mod tests {
     #[test]
     fn rejections_fault_and_revert_everything() {
         let mut e = env();
-        let snap = |e: &Env| (e.bal(TA, BOB), e.bal(TB, BOB), e.reserves(P9), e.shares(VAULT, BOB), e.total_shares(VAULT));
+        let snap = |e: &Env| {
+            (
+                e.bal(TA, BOB),
+                e.bal(TB, BOB),
+                e.reserves(P9),
+                e.shares(VAULT, BOB),
+                e.total_shares(VAULT),
+            )
+        };
         let before = snap(&e);
         // No approval to the vault.
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0)).is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0)
+            )
+            .is_none());
         // Only token A approved: the A pull is undone too.
         e.ok(BOB, TA, &encode_approve_calldata(&VAULT, 10_000));
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0)).is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0)
+            )
+            .is_none());
         approve_vault(&mut e, BOB, VAULT, 10_000, 20_000);
         // min_shares too high, deadline passed, zero amount.
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 10_001, 0)).is_none());
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 99)).is_none());
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_deposit_calldata(0, 20_000, 1, 0)).is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 10_001, 0)
+            )
+            .is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 99)
+            )
+            .is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_deposit_calldata(0, 20_000, 1, 0)
+            )
+            .is_none());
         // Withdraw without shares; unknown selector; reconfigure.
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_withdraw_calldata(1, 0, 0, 0)).is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_withdraw_calldata(1, 0, 0, 0)
+            )
+            .is_none());
         assert!(e.call(BOB, VAULT, &w_sel(0xC9)).is_none());
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_configure_calldata(&P8, &TA, &TB)).is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_configure_calldata(&P8, &TA, &TB)
+            )
+            .is_none());
         assert_eq!(snap(&e), before);
         // Still works afterwards (lock released by every revert).
-        e.ok(BOB, VAULT, &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 10_000, 100));
+        e.ok(
+            BOB,
+            VAULT,
+            &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 10_000, 100),
+        );
         // Withdraw slippage too high reverts the share burn.
-        assert!(e.call(BOB, VAULT, &encode_lp_vault_v2_withdraw_calldata(10_000, 1_000_000, 1, 0)).is_none());
+        assert!(e
+            .call(
+                BOB,
+                VAULT,
+                &encode_lp_vault_v2_withdraw_calldata(10_000, 1_000_000, 1, 0)
+            )
+            .is_none());
         assert_eq!(e.shares(VAULT, BOB), 10_000);
         e.vault_custody_ok(VAULT, P9);
     }
@@ -531,16 +765,47 @@ mod tests {
     fn unconfigured_or_misconfigured_vault_cannot_take_funds() {
         let mut e = env();
         let fresh = AccountId([0xd1; 32]);
-        e.st.insert(Account { id: fresh, state: Default::default() });
+        e.st.insert(Account {
+            id: fresh,
+            state: Default::default(),
+        });
         e.st.set_contract_code(fresh, native_lp_vault_v2_bytecode());
         approve_vault(&mut e, BOB, fresh, 10_000, 20_000);
-        assert!(e.call(BOB, fresh, &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0)).is_none());
-        assert!(e.call(ALICE, fresh, &encode_lp_vault_v2_configure_calldata(&P9, &TA, &TA)).is_none());
-        assert!(e.call(ALICE, fresh, &encode_lp_vault_v2_configure_calldata(&AccountId([0; 32]), &TA, &TB)).is_none());
+        assert!(e
+            .call(
+                BOB,
+                fresh,
+                &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0)
+            )
+            .is_none());
+        assert!(e
+            .call(
+                ALICE,
+                fresh,
+                &encode_lp_vault_v2_configure_calldata(&P9, &TA, &TA)
+            )
+            .is_none());
+        assert!(e
+            .call(
+                ALICE,
+                fresh,
+                &encode_lp_vault_v2_configure_calldata(&AccountId([0; 32]), &TA, &TB)
+            )
+            .is_none());
         // Wrong pair (A/C) for a TA/TB pool: the pool pulls TB from the vault, which has none -> fault.
-        e.ok(ALICE, fresh, &encode_lp_vault_v2_configure_calldata(&P9, &TA, &TC));
+        e.ok(
+            ALICE,
+            fresh,
+            &encode_lp_vault_v2_configure_calldata(&P9, &TA, &TC),
+        );
         e.ok(BOB, TC, &encode_approve_calldata(&fresh, 20_000));
-        assert!(e.call(BOB, fresh, &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0)).is_none());
+        assert!(e
+            .call(
+                BOB,
+                fresh,
+                &encode_lp_vault_v2_deposit_calldata(10_000, 20_000, 1, 0)
+            )
+            .is_none());
         assert_eq!((e.bal(TA, BOB), e.bal(TC, BOB)), (100_000, 100_000));
         assert_eq!(e.reserves(P9), (1_000_000, 2_000_000));
     }
@@ -548,7 +813,12 @@ mod tests {
     #[test]
     fn vault_bytecode_passes_protocol_qa() {
         use boing_qa::{check_contract_deploy_full, QaResult};
-        let r = check_contract_deploy_full(&native_lp_vault_v2_bytecode(), Some("dapp"), None, &RuleRegistry::new());
+        let r = check_contract_deploy_full(
+            &native_lp_vault_v2_bytecode(),
+            Some("dapp"),
+            None,
+            &RuleRegistry::new(),
+        );
         assert!(matches!(r, QaResult::Allow), "{r:?}");
     }
 }

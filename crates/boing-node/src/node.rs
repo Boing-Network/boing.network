@@ -568,7 +568,11 @@ impl BoingNode {
         self.mempool.set_qa_registry(registry.clone());
         let fee = self.executor.fee_policy().clone();
         let history = self.executor.execution_history().cloned();
-        self.executor = with_chain_id_rules(BlockExecutor::with_policies(registry.clone(), pool_config.clone(), fee));
+        self.executor = with_chain_id_rules(BlockExecutor::with_policies(
+            registry.clone(),
+            pool_config.clone(),
+            fee,
+        ));
         self.executor.set_execution_history(history);
         self.vm = Vm::with_qa_policies(registry, pool_config.clone());
         self.qa_pool.set_governance_config(pool_config);
@@ -654,7 +658,10 @@ impl BoingNode {
     ) {
         if let Some(ref store) = self.media_blob_store {
             if let Err(e) = store.ingest_block_txs(block.header.height, &block.transactions) {
-                tracing::warn!("media blob store: ingest height {}: {e}", block.header.height);
+                tracing::warn!(
+                    "media blob store: ingest height {}: {e}",
+                    block.header.height
+                );
             } else {
                 let _ = store.prune_expired(block.header.height);
             }
@@ -684,7 +691,12 @@ impl BoingNode {
                 crate::receipt_retention::retention_blocks(),
             );
             if removed > 0 {
-                tracing::debug!(removed, kept = self.receipts.len(), height, "pruned in-memory receipts");
+                tracing::debug!(
+                    removed,
+                    kept = self.receipts.len(),
+                    height,
+                    "pruned in-memory receipts"
+                );
             }
         }
     }
@@ -788,7 +800,10 @@ impl BoingNode {
         }
         // `min_stake` is configured in whole BOING; compare in ledger units.
         let mut cfg = cfg;
-        cfg.min_stake = self.executor.denomination_at(committed_height).scale(cfg.min_stake);
+        cfg.min_stake = self
+            .executor
+            .denomination_at(committed_height)
+            .scale(cfg.min_stake);
         let next = crate::stake_validator_set::next_validator_set(
             &self.state,
             &cfg,
@@ -1283,7 +1298,9 @@ impl BoingNode {
             .map(|s| (Some(s.nonce), s.balance))
             .unwrap_or((None, 0));
         let policy = self.executor.fee_policy();
-        if signed.priority_tip == 0 && policy.execution_gas_waived() && policy.free_tx_min_balance > 0
+        if signed.priority_tip == 0
+            && policy.execution_gas_waived()
+            && policy.free_tx_min_balance > 0
             && have < policy.free_tx_min_balance
         {
             return Err(MempoolError::FreeTxBalanceGate {
@@ -1298,7 +1315,11 @@ impl BoingNode {
             .executor
             .network_fee_at(boing_execution::GAS_PER_TRANSFER, &signed.tx.payload, next)
             .saturating_add(signed.priority_tip);
-        let remaining = if *to == signed.tx.sender { have } else { have - amount };
+        let remaining = if *to == signed.tx.sender {
+            have
+        } else {
+            have - amount
+        };
         if remaining < need {
             return Err(MempoolError::InsufficientFee { have, need });
         }
@@ -1312,8 +1333,7 @@ impl BoingNode {
             return Err(MempoolError::Duplicate);
         }
         if let TransactionPayload::Transfer { to, amount } = &signed.tx.payload {
-            if self.executor.redenomination_height()
-                != Some(self.chain.height().saturating_add(1))
+            if self.executor.redenomination_height() != Some(self.chain.height().saturating_add(1))
             {
                 return self.precheck_transfer_fast(signed, to, *amount);
             }
@@ -1329,7 +1349,8 @@ impl BoingNode {
     ) -> Result<(), MempoolError> {
         let mut state_copy = self.state.snapshot();
         let height = self.chain.height();
-        self.executor.prepare_state_for_height(height.saturating_add(1), &mut state_copy);
+        self.executor
+            .prepare_state_for_height(height.saturating_add(1), &mut state_copy);
         let have = state_copy
             .get(&signed.tx.sender)
             .map(|s| s.balance)
@@ -1347,7 +1368,9 @@ impl BoingNode {
         };
         let policy = self.executor.fee_policy();
         // Free-path balance gate (anti-spam): zero-tip txs when execution gas is waived.
-        if signed.priority_tip == 0 && policy.execution_gas_waived() && policy.free_tx_min_balance > 0
+        if signed.priority_tip == 0
+            && policy.execution_gas_waived()
+            && policy.free_tx_min_balance > 0
         {
             if have < policy.free_tx_min_balance {
                 return Err(MempoolError::FreeTxBalanceGate {
@@ -1359,11 +1382,7 @@ impl BoingNode {
         if let Ok(out) = vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
             let need = self
                 .executor
-                .network_fee_at(
-                    out.gas_used,
-                    &signed.tx.payload,
-                    height.saturating_add(1),
-                )
+                .network_fee_at(out.gas_used, &signed.tx.payload, height.saturating_add(1))
                 .saturating_add(signed.priority_tip);
             let remaining = state_copy
                 .get(&signed.tx.sender)
@@ -1539,7 +1558,11 @@ impl BoingNode {
                 }
                 let tip = self.chain.height();
                 // Prefer SMT-resident book (Phase 9); soft-fallback to sidecar replay book.
-                if let Some(o) = self.state.sample_offers().get(blob_id, *chunk_index, provider) {
+                if let Some(o) = self
+                    .state
+                    .sample_offers()
+                    .get(blob_id, *chunk_index, provider)
+                {
                     if o.chunk_count != *chunk_count {
                         return Err(MempoolError::MediaBlobRejected(
                             "settle chunk_count does not match registered offer".into(),
@@ -1928,7 +1951,10 @@ impl BoingNode {
         self.state = state;
         if let Some(p) = &self.persistence {
             if changed {
-                if let Err(e) = p.save_block(&genesis).and_then(|_| p.save_chain_meta(0, genesis.hash())) {
+                if let Err(e) = p
+                    .save_block(&genesis)
+                    .and_then(|_| p.save_chain_meta(0, genesis.hash()))
+                {
                     tracing::warn!("Persistence: could not rewrite genesis: {e}");
                 }
             }

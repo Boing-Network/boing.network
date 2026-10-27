@@ -168,8 +168,7 @@ impl MediaBlobStore {
         let entry = access.entries.entry(key).or_default();
         let changed = entry.grant(grantee).map_err(|e| e.to_string())?;
         if changed {
-            self.persist_access(&access)
-                .map_err(|e| e.to_string())?;
+            self.persist_access(&access).map_err(|e| e.to_string())?;
         }
         Ok(changed)
     }
@@ -196,8 +195,7 @@ impl MediaBlobStore {
             if entry.grantees.is_empty() && entry.epoch == 0 {
                 access.entries.remove(&key);
             }
-            self.persist_access(&access)
-                .map_err(|e| e.to_string())?;
+            self.persist_access(&access).map_err(|e| e.to_string())?;
         }
         Ok(changed)
     }
@@ -500,7 +498,8 @@ mod tests {
     use boing_primitives::{AccessList, AccountId, Transaction};
 
     fn tmp_dir(name: &str) -> PathBuf {
-        let p = std::env::temp_dir().join(format!("boing-media-blob-{name}-{}", std::process::id()));
+        let p =
+            std::env::temp_dir().join(format!("boing-media-blob-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&p);
         fs::create_dir_all(&p).unwrap();
         p
@@ -527,7 +526,10 @@ mod tests {
         store.put(meta, data).unwrap();
         assert!(store.may_download(&id, &publisher));
         assert!(!store.may_download(&id, &grantee));
-        assert_eq!(store.grant_download(&id, &publisher, grantee).unwrap(), true);
+        assert_eq!(
+            store.grant_download(&id, &publisher, grantee).unwrap(),
+            true
+        );
         assert!(store.may_download(&id, &grantee));
         assert_eq!(store.get_access(&id).epoch, 0);
         assert!(store.revoke_download(&id, &publisher, &grantee).unwrap());

@@ -77,8 +77,12 @@ impl SampleServeChallengeRegistry {
         provider: &AccountId,
         challenger: &AccountId,
     ) -> Option<&BlobSampleServeChallenge> {
-        self.challenges
-            .get(&serve_challenge_key(blob_id, chunk_index, provider, challenger))
+        self.challenges.get(&serve_challenge_key(
+            blob_id,
+            chunk_index,
+            provider,
+            challenger,
+        ))
     }
 
     pub fn get_mut(
@@ -88,8 +92,12 @@ impl SampleServeChallengeRegistry {
         provider: &AccountId,
         challenger: &AccountId,
     ) -> Option<&mut BlobSampleServeChallenge> {
-        self.challenges
-            .get_mut(&serve_challenge_key(blob_id, chunk_index, provider, challenger))
+        self.challenges.get_mut(&serve_challenge_key(
+            blob_id,
+            chunk_index,
+            provider,
+            challenger,
+        ))
     }
 
     pub fn list_for_blob(
@@ -304,18 +312,9 @@ mod tests {
             0,
         )
         .unwrap();
-        r.respond(
-            &bundle.blob_id,
-            0,
-            &provider,
-            &challenger,
-            2,
-            &sample,
-        )
-        .unwrap();
-        let c = r
-            .get(&bundle.blob_id, 0, &provider, &challenger)
+        r.respond(&bundle.blob_id, 0, &provider, &challenger, 2, &sample)
             .unwrap();
+        let c = r.get(&bundle.blob_id, 0, &provider, &challenger).unwrap();
         assert_eq!(c.status, BlobSampleServeChallengeStatus::Responded);
     }
 
@@ -357,9 +356,14 @@ mod tests {
         // Fail + settle
         let _ = r.take_newly_failed(10_000);
         r.mark_bond_settled(&blob, 0, &provider, &challenger);
-        let deadline = r.get(&blob, 0, &provider, &challenger).unwrap().deadline_height;
+        let deadline = r
+            .get(&blob, 0, &provider, &challenger)
+            .unwrap()
+            .deadline_height;
         assert_eq!(
-            r.prune_terminal_challenges(deadline + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS),
+            r.prune_terminal_challenges(
+                deadline + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS
+            ),
             0
         );
         assert!(r.get(&blob, 0, &provider, &challenger).is_some());
@@ -387,7 +391,8 @@ mod tests {
         assert!(!r.get(&fail_blob, 0, &p, &c_fail).unwrap().bond_settled);
         // Fresh Open at a high tip so it remains Open past retention of the FailedServe.
         let tip = 1 + 256 + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS + 100;
-        r.challenge(open_blob, 0, 1, p, c_open, tip, 10, 20).unwrap();
+        r.challenge(open_blob, 0, 1, p, c_open, tip, 10, 20)
+            .unwrap();
         assert_eq!(r.prune_terminal_challenges(tip), 0);
         assert_eq!(r.len(), 2);
         assert_eq!(

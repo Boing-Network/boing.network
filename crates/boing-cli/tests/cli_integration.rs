@@ -16,7 +16,10 @@ fn test_boing_version() {
         .expect("failed to run boing --version");
     assert!(out.status.success(), "boing --version should succeed");
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("boing"), "version output should contain 'boing'");
+    assert!(
+        stdout.contains("boing"),
+        "version output should contain 'boing'"
+    );
 }
 
 #[test]
@@ -41,7 +44,11 @@ fn test_boing_init_creates_project() {
         .args(["init", "test-dapp", "--output", dir.to_str().unwrap()])
         .output()
         .expect("failed to run boing init");
-    assert!(out.status.success(), "boing init should succeed: {:?}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "boing init should succeed: {:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert!(dir.join("Cargo.toml").exists());
     assert!(dir.join("README.md").exists());
     assert!(dir.join("boing.json").exists());
@@ -55,12 +62,23 @@ fn test_boing_init_rejects_invalid_name() {
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     let out = Command::new(boing_bin())
-        .args(["init", "bad name", "--output", dir.join("x").to_str().unwrap()])
+        .args([
+            "init",
+            "bad name",
+            "--output",
+            dir.join("x").to_str().unwrap(),
+        ])
         .output()
         .expect("failed to run boing init");
     assert!(!out.status.success());
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("Project name") || stderr.contains("only contain") || stderr.contains("invalid"), "expected validation error: {}", stderr);
+    assert!(
+        stderr.contains("Project name")
+            || stderr.contains("only contain")
+            || stderr.contains("invalid"),
+        "expected validation error: {}",
+        stderr
+    );
     let _ = fs::remove_dir_all(&dir);
 }
 

@@ -218,10 +218,13 @@ mod tests {
         assert!(plan.iter().any(|s| s.contains("snapshots electorate")
             || s.contains("electorate_w")
             || s.contains("frozen W")));
+        assert!(plan.iter().any(|s| s.contains("V4")
+            && (s.contains("do not clear")
+                || s.contains("without required clear")
+                || s.contains("migrates"))));
         assert!(plan
             .iter()
-            .any(|s| s.contains("V4") && (s.contains("do not clear") || s.contains("without required clear") || s.contains("migrates"))));
-        assert!(plan.iter().any(|s| s.contains("still later") || s.contains("BLS")));
+            .any(|s| s.contains("still later") || s.contains("BLS")));
         assert!(phase20_committee_requires_attested(3));
         assert!(!phase20_committee_requires_attested(1));
     }

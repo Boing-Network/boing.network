@@ -177,7 +177,9 @@ pub enum BlobError {
     AnnounceSizeZero,
     #[error("chunk index {index} out of range (count={count})")]
     ChunkIndexOutOfRange { index: u32, count: u32 },
-    #[error("cannot recover blob: need all-but-one data chunks plus XOR parity (or all data chunks)")]
+    #[error(
+        "cannot recover blob: need all-but-one data chunks plus XOR parity (or all data chunks)"
+    )]
     RecoveryInsufficient,
     #[error("recovered bytes do not match blob id")]
     RecoveryIdMismatch,
@@ -810,12 +812,8 @@ mod tests {
         assert_eq!(bundle.data_chunks.len(), 2);
         assert_eq!(bundle.original_len as usize, data.len());
 
-        let mut parts: Vec<Option<Vec<u8>>> = bundle
-            .data_chunks
-            .iter()
-            .cloned()
-            .map(Some)
-            .collect();
+        let mut parts: Vec<Option<Vec<u8>>> =
+            bundle.data_chunks.iter().cloned().map(Some).collect();
         parts[1] = None;
         let recovered =
             recover_media_blob_xor(&bundle.blob_id, data.len(), &parts, &bundle.parity_chunk)

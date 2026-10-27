@@ -376,9 +376,7 @@ mod tests {
                 .is_err()
         );
         // V2 sig is not a valid V1 ballot.
-        assert!(
-            verify_slash_appeal_resolve_ballot_v1(6913, 1, 7, true, &voter, &sig).is_err()
-        );
+        assert!(verify_slash_appeal_resolve_ballot_v1(6913, 1, 7, true, &voter, &sig).is_err());
     }
 
     #[test]
@@ -419,10 +417,10 @@ mod tests {
         );
         // V2 over legacy pin would not be preferred path; legacy forces V1-only.
         let sig_v2 = sign_slash_appeal_resolve_ballot_v2(6913, 3, 9, false, &key, &legacy);
-        assert!(
-            verify_slash_appeal_resolve_ballot_dual(6913, 3, 9, false, &voter, &legacy, &sig_v2)
-                .is_err()
-        );
+        assert!(verify_slash_appeal_resolve_ballot_dual(
+            6913, 3, 9, false, &voter, &legacy, &sig_v2
+        )
+        .is_err());
     }
 
     #[test]
@@ -436,15 +434,17 @@ mod tests {
         assert!(plan
             .iter()
             .any(|s| s.contains("boing_reverifySlashAppealBallots") || s.contains("re-verify")));
-        assert!(plan.iter().any(|s| s.contains("V2") && s.contains("pin_set")));
         assert!(plan
             .iter()
-            .any(|s| s.contains("V5")
-                && (s.contains("no clear")
-                    || s.contains("no schema")
-                    || s.contains("stays V5")
-                    || s.contains("do not clear"))));
-        assert!(plan.iter().any(|s| s.contains("still later") || s.contains("BLS")));
+            .any(|s| s.contains("V2") && s.contains("pin_set")));
+        assert!(plan.iter().any(|s| s.contains("V5")
+            && (s.contains("no clear")
+                || s.contains("no schema")
+                || s.contains("stays V5")
+                || s.contains("do not clear"))));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("still later") || s.contains("BLS")));
         assert!(phase22_committee_requires_attested(3));
         assert!(!phase22_committee_requires_attested(1));
     }

@@ -872,7 +872,10 @@ mod tests {
         let mut st = StateStore::new();
         let id = AccountId([0x5e; 32]);
         st.set_contract_code(id, boing_execution::wrapped_boing_bytecode());
-        assert_eq!(resolve_token_decimals(&st, &HashMap::new(), &id), (Some(18), Some("template")));
+        assert_eq!(
+            resolve_token_decimals(&st, &HashMap::new(), &id),
+            (Some(18), Some("template"))
+        );
     }
 
     #[test]

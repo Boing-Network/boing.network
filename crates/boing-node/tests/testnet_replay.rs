@@ -16,17 +16,20 @@ use std::io::{BufRead, BufReader};
 use boing_node::network_preset::{self, BOING_TESTNET_GENESIS_ACCOUNT};
 use boing_node::node::BoingNode;
 use boing_primitives::{
-    receipts_root, tx_root, AccessList, AccountId, Block, BlockHeader, SignedTransaction, Transaction,
-    TransactionPayload, BASE_UNITS_PER_BOING,
+    receipts_root, tx_root, AccessList, AccountId, Block, BlockHeader, SignedTransaction,
+    Transaction, TransactionPayload, BASE_UNITS_PER_BOING,
 };
 
 const TESTNET_OPEN_ACTIVATION: u64 = 400;
 const TESTNET_NAME_ACTIVATION: u64 = 640;
 
 fn fixture_path() -> std::path::PathBuf {
-    std::env::var("BOING_REPLAY_BLOCKS").map(Into::into).unwrap_or_else(|_| {
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/testnet_blocks.jsonl")
-    })
+    std::env::var("BOING_REPLAY_BLOCKS")
+        .map(Into::into)
+        .unwrap_or_else(|_| {
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/testnet_blocks.jsonl")
+        })
 }
 
 /// `"amount":"123"` -> `"amount":123` (only all-digit strings), so `u128` fields decode.
@@ -72,8 +75,12 @@ fn load_blocks_from(path: &std::path::Path) -> Vec<(Block, String)> {
             }
             // The RPC prints u128 amounts above u64 as decimal strings; decode them as numbers.
             let block: Block = serde_json::from_str(&unquote_amounts(&enc.to_string()))
-            .unwrap_or_else(|e| panic!("line {i}: decode block: {e}"));
-            let hash = v["hash"].as_str().unwrap().trim_start_matches("0x").to_string();
+                .unwrap_or_else(|e| panic!("line {i}: decode block: {e}"));
+            let hash = v["hash"]
+                .as_str()
+                .unwrap()
+                .trim_start_matches("0x")
+                .to_string();
             (block, hash)
         })
         .collect()
@@ -102,14 +109,19 @@ fn replay(node: &mut BoingNode, blocks: &[(Block, String)]) -> Result<u64, (u64,
     let mut imported = 0;
     for (block, want_hash) in blocks {
         let h = block.header.height;
-        assert_eq!(&hex::encode(block.hash().0), want_hash, "height {h}: block hash round-trip");
+        assert_eq!(
+            &hex::encode(block.hash().0),
+            want_hash,
+            "height {h}: block hash round-trip"
+        );
         if h == 0 {
             if node.chain.latest_hash() != block.hash() {
                 return Err((0, "genesis hash differs".into()));
             }
             continue;
         }
-        node.import_network_block_catchup(block).map_err(|e| (h, e.to_string()))?;
+        node.import_network_block_catchup(block)
+            .map_err(|e| (h, e.to_string()))?;
         imported += 1;
     }
     Ok(imported)
@@ -142,7 +154,11 @@ fn replay_without_preset_fails_in_legacy_fee_era() {
     let blocks = load_blocks();
     let mut node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, false);
     let err = replay(&mut node, &blocks).expect_err("current rules must not match legacy blocks");
-    assert!(err.0 < network_preset::BOING_TESTNET_TREASURY_FEES_FROM, "failed at {}", err.0);
+    assert!(
+        err.0 < network_preset::BOING_TESTNET_TREASURY_FEES_FROM,
+        "failed at {}",
+        err.0
+    );
 }
 
 /// Security fixes #2/#3 activate at a fixed testnet height. Every recorded block below it must still
@@ -155,7 +171,10 @@ fn security_v2_gates_follow_the_activation_height() {
     assert!(!node.executor.failed_tx_fee_active(h - 1));
     assert!(node.executor.failed_tx_fee_active(h));
     let p = |next| network_preset::tx_sig_policy(Some(6913), Some(&hist), next);
-    assert!(!p(h - 1).require_v2, "either signature format before activation");
+    assert!(
+        !p(h - 1).require_v2,
+        "either signature format before activation"
+    );
     assert!(p(h).require_v2, "v2 required from activation");
     assert_eq!(p(h).chain_id, Some(6913));
     // Without a chain id (local dev) nothing is required.
@@ -176,17 +195,30 @@ fn security_v3_gates_follow_the_activation_height() {
     // Admission/simulation use the same registration proof rule as block execution.
     let node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
     assert_eq!(node.executor.registration_proof_rule(), (Some(6913), h));
-    assert_eq!(node.admission_vm().registration_proof_rule(), (Some(6913), h));
+    assert_eq!(
+        node.admission_vm().registration_proof_rule(),
+        (Some(6913), h)
+    );
     let blocks = load_blocks();
-    assert!(blocks.last().unwrap().0.header.height >= h, "fixture covers the activation");
+    assert!(
+        blocks.last().unwrap().0.header.height >= h,
+        "fixture covers the activation"
+    );
     // Producers running the #16 binary attach signatures from 905; they are optional below the gate
     // (verified when present) and mandatory from it.
     for (b, _) in &blocks {
         if b.header.height >= h || !b.signatures.is_empty() {
-            assert_eq!(b.signatures.len(), b.transactions.len(), "height {}", b.header.height);
+            assert_eq!(
+                b.signatures.len(),
+                b.transactions.len(),
+                "height {}",
+                b.header.height
+            );
         }
     }
-    assert!(blocks.iter().any(|(b, _)| b.header.height < h && b.signatures.is_empty() && !b.transactions.is_empty()));
+    assert!(blocks.iter().any(|(b, _)| b.header.height < h
+        && b.signatures.is_empty()
+        && !b.transactions.is_empty()));
 }
 
 /// The 2026-10-17 fixes (#6 name commitments, #9 parallel fee accounting, #10 registry cap, #11 jail
@@ -201,7 +233,10 @@ fn security_v4_gates_follow_the_activation_height() {
     assert_eq!(node.executor.vm().security_v4_from(), h);
     assert_eq!(node.admission_vm().security_v4_from(), h);
     let blocks = load_blocks();
-    assert!(blocks.last().unwrap().0.header.height < h, "fixture predates v4");
+    assert!(
+        blocks.last().unwrap().0.header.height < h,
+        "fixture predates v4"
+    );
 }
 
 /// A recorded block given a bogus signature list must
@@ -221,7 +256,8 @@ fn bogus_signatures_on_recorded_blocks_are_rejected() {
     let mut bogus = blocks[idx].0.clone();
     bogus.signatures = vec![boing_primitives::Signature([0u8; 64]); bogus.transactions.len()];
     assert!(node.import_network_block_catchup(&bogus).is_err());
-    node.import_network_block_catchup(&blocks[idx].0).expect("recorded block imports");
+    node.import_network_block_catchup(&blocks[idx].0)
+        .expect("recorded block imports");
 }
 
 /// Replays the recorded blocks twice in independent nodes and compares every state root along the
@@ -245,7 +281,10 @@ fn replay_is_deterministic_across_nodes() {
 #[test]
 fn base_units_gate_follows_the_activation_height() {
     let h = network_preset::BOING_TESTNET_BASE_UNITS_FROM;
-    assert!(h > network_preset::BOING_TESTNET_SECURITY_V4_FROM, "after the v4 gate");
+    assert!(
+        h > network_preset::BOING_TESTNET_SECURITY_V4_FROM,
+        "after the v4 gate"
+    );
     let node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
     use boing_primitives::Denomination::*;
     assert_eq!(node.executor.denomination_at(h - 1), WholeBoing);
@@ -254,7 +293,10 @@ fn base_units_gate_follows_the_activation_height() {
     assert_eq!(node.executor.vm().base_units_from(), h);
     assert_eq!(node.admission_vm().base_units_from(), h);
     let blocks = load_blocks();
-    assert!(blocks.last().unwrap().0.header.height < h || blocks.iter().any(|(b, _)| b.header.height == h));
+    assert!(
+        blocks.last().unwrap().0.header.height < h
+            || blocks.iter().any(|(b, _)| b.header.height == h)
+    );
 }
 
 /// Builds the next block on `leader` with the leader's own executor (same rules as an importer).
@@ -266,7 +308,13 @@ fn craft_next(leader: &BoingNode, txs: Vec<SignedTransaction>) -> Block {
 fn craft_next_with(leader: &BoingNode, txs: Vec<SignedTransaction>, all_succeed: bool) -> Block {
     let height = leader.chain.height() + 1;
     let proposer = leader.consensus.leader(height);
-    let ts = leader.chain.get_block_by_height(height - 1).unwrap().header.timestamp + 1;
+    let ts = leader
+        .chain
+        .get_block_by_height(height - 1)
+        .unwrap()
+        .header
+        .timestamp
+        + 1;
     let mut state = leader.state.snapshot();
     let plain: Vec<Transaction> = txs.iter().map(|s| s.tx.clone()).collect();
     let (_g, receipts) = leader
@@ -282,7 +330,10 @@ fn craft_next_with(leader: &BoingNode, txs: Vec<SignedTransaction>, all_succeed:
             Some(a) => a.balance += reward,
             None => state.insert(boing_primitives::Account {
                 id: proposer,
-                state: boing_primitives::AccountState { balance: reward, ..Default::default() },
+                state: boing_primitives::AccountState {
+                    balance: reward,
+                    ..Default::default()
+                },
             }),
         }
     }
@@ -348,8 +399,10 @@ fn replay_then_cross_redenomination_locally() {
     };
     let step = |a: &mut BoingNode, b: &mut BoingNode, amount: u128| {
         let blk = craft_next(a, vec![send(a, amount)]);
-        a.import_network_block_catchup(&blk).expect("leader imports");
-        b.import_network_block_catchup(&blk).expect("follower imports");
+        a.import_network_block_catchup(&blk)
+            .expect("leader imports");
+        b.import_network_block_catchup(&blk)
+            .expect("follower imports");
         assert_eq!(a.chain.latest_hash(), b.chain.latest_hash());
         assert_eq!(a.state.state_root(), b.state.state_root());
     };
@@ -377,7 +430,9 @@ fn replay_then_cross_redenomination_locally() {
     );
     assert_eq!(after.total_stake, before.total_stake * BASE_UNITS_PER_BOING);
     assert_eq!(a.state.get(&to).unwrap().balance, 40 * BASE_UNITS_PER_BOING);
-    let fee_h = a.executor.network_fee_at(21_000, &TransactionPayload::Transfer { to, amount: 1 }, h);
+    let fee_h =
+        a.executor
+            .network_fee_at(21_000, &TransactionPayload::Transfer { to, amount: 1 }, h);
     assert_eq!(
         a.state.get(&faucet).unwrap().balance,
         faucet_before * BASE_UNITS_PER_BOING - 20 * BASE_UNITS_PER_BOING - fee_h
@@ -391,8 +446,14 @@ fn replay_then_cross_redenomination_locally() {
     let mid = a.state.compute_native_aggregates();
     step(&mut a, &mut b, 1);
     let end = a.state.compute_native_aggregates();
-    assert_eq!(end.total_balance, mid.total_balance + a.executor.block_emission(h + 1));
-    assert_eq!(a.state.get(&to).unwrap().balance, 40 * BASE_UNITS_PER_BOING + 1);
+    assert_eq!(
+        end.total_balance,
+        mid.total_balance + a.executor.block_emission(h + 1)
+    );
+    assert_eq!(
+        a.state.get(&to).unwrap().balance,
+        40 * BASE_UNITS_PER_BOING + 1
+    );
 }
 
 /// The recorded public chain past the main fixture: the v4 gate (1000) and the live 18-decimals
@@ -404,10 +465,15 @@ fn replay_live_chain_across_v4_and_redenomination() {
     std::env::set_var("BOING_CHAIN_ID", "6913");
     let main = load_blocks();
     let ext = load_blocks_from(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/testnet_blocks_after_942.jsonl"),
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/testnet_blocks_after_942.jsonl"),
     );
     let h = network_preset::BOING_TESTNET_BASE_UNITS_FROM;
-    assert_eq!(ext[0].0.header.height, main.last().unwrap().0.header.height + 1, "contiguous");
+    assert_eq!(
+        ext[0].0.header.height,
+        main.last().unwrap().0.header.height + 1,
+        "contiguous"
+    );
     assert!(ext.last().unwrap().0.header.height > h, "covers the switch");
     let split = ext.iter().position(|(b, _)| b.header.height == h).unwrap();
     let mut node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
@@ -415,9 +481,15 @@ fn replay_live_chain_across_v4_and_redenomination() {
     replay(&mut node, &ext[..split]).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
     assert_eq!(node.chain.height(), h - 1);
     let mut id = [0u8; 32];
-    id.copy_from_slice(&hex::decode("9bd09b6daa581894b7319af1de1dce5e874cc19d9e07bda462e99471cd828332").unwrap());
+    id.copy_from_slice(
+        &hex::decode("9bd09b6daa581894b7319af1de1dce5e874cc19d9e07bda462e99471cd828332").unwrap(),
+    );
     let recipient = AccountId(id);
-    assert_eq!(node.state.get(&recipient).unwrap().balance, 20, "whole BOING before the switch");
+    assert_eq!(
+        node.state.get(&recipient).unwrap().balance,
+        20,
+        "whole BOING before the switch"
+    );
     let before = node.state.compute_native_aggregates();
     replay(&mut node, &ext[split..split + 1]).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
     let after = node.state.compute_native_aggregates();
@@ -428,7 +500,10 @@ fn replay_live_chain_across_v4_and_redenomination() {
     );
     assert_eq!(after.total_stake, before.total_stake * BASE_UNITS_PER_BOING);
     replay(&mut node, &ext[split + 1..]).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
-    assert_eq!(node.state.get(&recipient).unwrap().balance, 20 * BASE_UNITS_PER_BOING);
+    assert_eq!(
+        node.state.get(&recipient).unwrap().balance,
+        20 * BASE_UNITS_PER_BOING
+    );
     assert_eq!(node.chain.latest_hash(), ext.last().unwrap().0.hash());
 }
 
@@ -460,7 +535,8 @@ fn replay_live_chain_then_cross_native_value_locally() {
     std::env::set_var("BOING_CHAIN_ID", "6913");
     let main = load_blocks();
     let ext = load_blocks_from(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/testnet_blocks_after_942.jsonl"),
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/testnet_blocks_after_942.jsonl"),
     );
     let mut a = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
     let mut b = testnet_node(AccountId([7u8; 32]), true);
@@ -472,7 +548,10 @@ fn replay_live_chain_then_cross_native_value_locally() {
     let tip = a.chain.height();
     let h = tip + 2;
     let mut hist = network_preset::boing_testnet_history();
-    assert!(h < hist.native_value_from, "the recorded chain is below the live gate");
+    assert!(
+        h < hist.native_value_from,
+        "the recorded chain is below the live gate"
+    );
     hist.native_value_from = h;
     a.executor.set_execution_history(Some(hist.clone()));
     b.executor.set_execution_history(Some(hist));
@@ -481,7 +560,12 @@ fn replay_live_chain_then_cross_native_value_locally() {
     let faucet = boing_node::faucet::testnet_faucet_account_id();
     let sign = |n: &BoingNode, payload: TransactionPayload, offset: u64| {
         let nonce = n.state.get(&faucet).unwrap().nonce + offset;
-        let mut tx = Transaction { nonce, sender: faucet, payload, access_list: AccessList::default() };
+        let mut tx = Transaction {
+            nonce,
+            sender: faucet,
+            payload,
+            access_list: AccessList::default(),
+        };
         tx.access_list = tx.suggested_parallel_access_list();
         SignedTransaction::new_for_chain(tx, &key, 6913)
     };
@@ -494,7 +578,10 @@ fn replay_live_chain_then_cross_native_value_locally() {
         create2_salt: None,
     };
     let some_contract = boing_primitives::AccountId(
-        hex::decode("6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93").unwrap().try_into().unwrap(),
+        hex::decode("6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93")
+            .unwrap()
+            .try_into()
+            .unwrap(),
     ); // testnet USDC (a contract)
     let value_call = |to: AccountId| TransactionPayload::ContractCallWithValue {
         contract: to,
@@ -503,16 +590,21 @@ fn replay_live_chain_then_cross_native_value_locally() {
     };
     let import = |a: &mut BoingNode, b: &mut BoingNode, blk: &Block| {
         a.import_network_block_catchup(blk).expect("leader imports");
-        b.import_network_block_catchup(blk).expect("follower imports");
+        b.import_network_block_catchup(blk)
+            .expect("follower imports");
         assert_eq!(a.chain.latest_hash(), b.chain.latest_hash());
         assert_eq!(a.state.state_root(), b.state.state_root());
     };
 
     // H - 1: admission rejects value calls and the new opcodes; a proposer that includes a value
     // call anyway gets a failed receipt on every node and nothing moves but the failed-tx fee.
-    let e = a.submit_transaction(sign(&a, value_call(some_contract), 0)).unwrap_err();
+    let e = a
+        .submit_transaction(sign(&a, value_call(some_contract), 0))
+        .unwrap_err();
     assert!(e.to_string().contains("not active"), "{e}");
-    let e = a.submit_transaction(sign(&a, deploy.clone(), 0)).unwrap_err();
+    let e = a
+        .submit_transaction(sign(&a, deploy.clone(), 0))
+        .unwrap_err();
     assert!(e.to_string().contains("INVALID_OPCODE"), "{e}");
     let usdc_before = a.state.get(&some_contract).map(|s| s.balance).unwrap_or(0);
     let blk = craft_next_with(&a, vec![sign(&a, value_call(some_contract), 0)], false);
@@ -520,10 +612,16 @@ fn replay_live_chain_then_cross_native_value_locally() {
     assert_eq!(a.chain.height(), h - 1);
     let r = a.chain.get_block_by_height(h - 1).unwrap();
     assert_eq!(r.transactions.len(), 1);
-    assert_eq!(a.state.get(&some_contract).map(|s| s.balance).unwrap_or(0), usdc_before);
+    assert_eq!(
+        a.state.get(&some_contract).map(|s| s.balance).unwrap_or(0),
+        usdc_before
+    );
 
     // H: wBOING deploys (new opcodes pass QA), admission now takes value calls.
-    let wboing = boing_primitives::nonce_derived_contract_address(&faucet, a.state.get(&faucet).unwrap().nonce);
+    let wboing = boing_primitives::nonce_derived_contract_address(
+        &faucet,
+        a.state.get(&faucet).unwrap().nonce,
+    );
     let blk = craft_next(&a, vec![sign(&a, deploy, 0)]);
     import(&mut a, &mut b, &blk);
     assert!(a.state.get_contract_code(&wboing).is_some());
@@ -532,7 +630,8 @@ fn replay_live_chain_then_cross_native_value_locally() {
         calldata: encode_wboing_deposit_calldata(),
         value: BASE_UNITS_PER_BOING,
     };
-    a.submit_transaction(sign(&a, wrap.clone(), 0)).expect("admission from H");
+    a.submit_transaction(sign(&a, wrap.clone(), 0))
+        .expect("admission from H");
 
     // H + 1: wrap 1 BOING; H + 2: unwrap it (contract payout).
     let f0 = a.state.get(&faucet).unwrap().balance;
@@ -549,5 +648,8 @@ fn replay_live_chain_then_cross_native_value_locally() {
     import(&mut a, &mut b, &blk);
     assert_eq!(a.state.get(&wboing).unwrap().balance, 0);
     let f2 = a.state.get(&faucet).unwrap().balance;
-    assert!(f2 > f1 && f2 - f1 < BASE_UNITS_PER_BOING, "1 BOING back minus the fee");
+    assert!(
+        f2 > f1 && f2 - f1 < BASE_UNITS_PER_BOING,
+        "1 BOING back minus the fee"
+    );
 }

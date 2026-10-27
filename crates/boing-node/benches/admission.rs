@@ -29,9 +29,15 @@ fn main() {
         .split(',')
         .filter_map(|s| s.trim().parse().ok())
         .collect();
-    let iters: usize = std::env::var("BOING_BENCH_ITERS").ok().and_then(|s| s.parse().ok()).unwrap_or(200);
+    let iters: usize = std::env::var("BOING_BENCH_ITERS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(200);
 
-    println!("{:>10} {:>14} {:>14} {:>16}", "accounts", "fast (us)", "dry-run (us)", "submit (us)");
+    println!(
+        "{:>10} {:>14} {:>14} {:>16}",
+        "accounts", "fast (us)", "dry-run (us)", "submit (us)"
+    );
     for &n in &sizes {
         let sk = SigningKey::generate(&mut OsRng);
         let sender = AccountId(sk.verifying_key().to_bytes());
@@ -43,12 +49,18 @@ fn main() {
             id[8..16].copy_from_slice(&i.to_le_bytes());
             node.state.insert(Account {
                 id: AccountId(id),
-                state: AccountState { balance: 1_000_000_000_000, ..Default::default() },
+                state: AccountState {
+                    balance: 1_000_000_000_000,
+                    ..Default::default()
+                },
             });
         }
         node.state.insert(Account {
             id: sender,
-            state: AccountState { balance: 1_000_000_000_000_000_000_000, ..Default::default() },
+            state: AccountState {
+                balance: 1_000_000_000_000_000_000_000,
+                ..Default::default()
+            },
         });
         let to = AccountId([2u8; 32]);
         let mk = |nonce: u64| {
@@ -83,6 +95,12 @@ fn main() {
             node.submit_transaction(s).expect("admit");
             sub.push(t.elapsed().as_secs_f64() * 1e6);
         }
-        println!("{:>10} {:>14.1} {:>14.1} {:>16.1}", n, median_us(fast), median_us(full), median_us(sub));
+        println!(
+            "{:>10} {:>14.1} {:>14.1} {:>16.1}",
+            n,
+            median_us(fast),
+            median_us(full),
+            median_us(sub)
+        );
     }
 }

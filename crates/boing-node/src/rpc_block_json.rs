@@ -8,11 +8,11 @@
 //! supports **`include_code: false`** to replace heavy byte vectors with
 //! `{ omitted, size, hash }` stubs so explorers can sample tip windows safely.
 
+use boing_primitives::signature::Signature;
 use boing_primitives::{
     hasher, AccessList, AccountId, BatchCall, Block, Hash, QaPoolVoteKind, Transaction,
     TransactionPayload,
 };
-use boing_primitives::signature::Signature;
 use serde_json::{json, Value};
 
 fn hex0x(bytes: &[u8]) -> String {
@@ -499,7 +499,11 @@ mod tests {
         assert_eq!(bc["size"], json!(10_000));
         assert!(bc["hash"].as_str().unwrap().starts_with("0x"));
         let text = serde_json::to_string(&v).unwrap();
-        assert!(text.len() < 2_000, "slim JSON must stay tiny, got {}", text.len());
+        assert!(
+            text.len() < 2_000,
+            "slim JSON must stay tiny, got {}",
+            text.len()
+        );
         assert!(!text.contains("170,"), "must not emit decimal byte arrays");
     }
 }

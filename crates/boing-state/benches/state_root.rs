@@ -1,4 +1,4 @@
-﻿//! State-root / snapshot micro-benchmark (std only, no extra deps).
+//! State-root / snapshot micro-benchmark (std only, no extra deps).
 //!
 //! Run: `cargo bench -p boing-state --bench state_root`
 //! Env: `BOING_BENCH_ACCOUNTS` (comma list, default `1000,10000,50000`), `BOING_BENCH_TOUCH` (default 200).
@@ -39,7 +39,12 @@ fn build(n: u64) -> StateStore {
     for i in 0..n {
         s.insert(Account {
             id: id(i),
-            state: AccountState { balance: 1_000_000 + i as u128, nonce: 0, stake: 0, ..Default::default() },
+            state: AccountState {
+                balance: 1_000_000 + i as u128,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
         });
     }
     // 20 contracts x 50 slots.
@@ -67,8 +72,14 @@ fn main() {
         .ok()
         .map(|s| s.split(',').filter_map(|x| x.trim().parse().ok()).collect())
         .unwrap_or_else(|| vec![1_000, 10_000, 50_000]);
-    let touch: u64 = std::env::var("BOING_BENCH_TOUCH").ok().and_then(|s| s.parse().ok()).unwrap_or(200);
-    println!("{:>10} {:>16} {:>16} {:>22}", "accounts", "cold_root_us", "snapshot_us", "block_cycle_us(touch)");
+    let touch: u64 = std::env::var("BOING_BENCH_TOUCH")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(200);
+    println!(
+        "{:>10} {:>16} {:>16} {:>22}",
+        "accounts", "cold_root_us", "snapshot_us", "block_cycle_us(touch)"
+    );
     for &n in &sizes {
         let rounds = if n >= 50_000 { 5 } else { 9 };
         // Cold root (first computation).
@@ -113,6 +124,12 @@ fn main() {
                 cycle.push(dt); // first two rounds warm up (first adopted snapshot may be cold)
             }
         }
-        println!("{:>10} {:>16.0} {:>16.0} {:>22.0}", n, median(cold), median(snap), median(cycle));
+        println!(
+            "{:>10} {:>16.0} {:>16.0} {:>22.0}",
+            n,
+            median(cold),
+            median(snap),
+            median(cycle)
+        );
     }
 }
