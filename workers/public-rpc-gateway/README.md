@@ -53,3 +53,14 @@ Override backends with Worker var **`RPC_BACKENDS`** (comma-separated origins, n
 | JSON-RPC body **> ~6 MiB** | Worker returns JSON-RPC `-32000` (“response too large / truncated”) instead of forwarding a cut mid-array body. Tip blocks with large deploy bytecode can exceed this until the node hex-encodes bytecode |
 
 Related: [FLY-IO.md](../../docs/FLY-IO.md), [TESTNET-RPC-INFRA.md](../../docs/TESTNET-RPC-INFRA.md).
+
+## Tests and typecheck
+
+```bash
+cd workers/public-rpc-gateway
+npm ci
+npm run typecheck   # tsc --noEmit
+npm test            # vitest: gateway.test.ts drives the Worker fetch handler (log / enforce / off modes)
+```
+
+Policy logic itself (generated tables, Cloudflare rules) is covered by `boing-sdk/tests/publicRpcPolicy.test.ts`. CI runs both in `.github/workflows/boing-sdk.yml`.

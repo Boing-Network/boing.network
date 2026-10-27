@@ -498,7 +498,7 @@ async function handle(req: Request, env: Env, note: Note): Promise<Response> {
         headers.delete("content-encoding");
         headers.delete("content-length");
         if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-        return new Response(buf, { status: upstream.status, headers });
+        return new Response(buf as BodyInit, { status: upstream.status, headers });
       } catch (e) {
         lastStatus = 502;
         lastText =
