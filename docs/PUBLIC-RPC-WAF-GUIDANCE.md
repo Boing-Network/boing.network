@@ -12,7 +12,7 @@ For operators who expose a `boing-node` JSON-RPC port to the internet (for examp
 | WebSocket connections | `BOING_RPC_WS_MAX_CONNECTIONS` | 512 (`0` = unlimited) | `GET /ws` newHeads subscribers. |
 | Mempool per-sender and global caps | `BOING_MEMPOOL_MAX_TXS`, `--pending-txs-per-sender` | 10000 global; 16 per sender on `mainnet`, 64 on `dev`; 4 free txs per sender | Bounds what a flood of valid submits can hold. |
 | Cheap admission | `submit_transaction` | about 66 us flat | Signature check, then O(1) account gates, so invalid submits are cheap to reject ([PERFORMANCE.md](PERFORMANCE.md)). |
-| Operator-only methods | `BOING_OPERATOR_RPC_TOKEN`, header `X-Boing-Operator` | **required on mainnet (chain 6914); the node refuses to start without it** | Optional but strongly recommended on testnet. |
+| Operator-only methods | `BOING_OPERATOR_RPC_TOKEN`, header `X-Boing-Operator` | **required on mainnet (chain 6914); the node refuses to start without it** | Required to use operator methods on testnet too: when unset they are rejected (fail-closed). |
 | Faucet | `--faucet-enable`, `BOING_FAUCET_MAX_PER_MINUTE` | off; 30/min when on | **Refused on mainnet.** Testnet only. |
 | Blob reads | `BOING_BLOB_GET_REQUIRE_AUTH`, `BOING_BLOB_DOWNLOAD_TOKENS` | off | Enable if blob egress is a cost concern. |
 

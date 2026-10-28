@@ -733,6 +733,10 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!(
             "BOING_OPERATOR_RPC_TOKEN is set: boing_operatorApplyQaPolicy / boing_operatorApplyFeePolicy require X-Boing-Operator; boing_qaPoolVote requires it only when public_membership is false; GET /v1/media/blob?id=… also accepts this token"
         );
+    } else {
+        tracing::warn!(
+            "BOING_OPERATOR_RPC_TOKEN is not set: operator RPC methods (fee/QA policy, slash appeals, admin-only boing_qaPoolVote, blob sample offers) are disabled"
+        );
     }
     if std::env::var("BOING_BLOB_DOWNLOAD_TOKENS")
         .ok()
