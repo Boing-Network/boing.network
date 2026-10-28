@@ -1,5 +1,7 @@
 # Boing Network — Executive Summary & Pitch Deck
 
+> **Dated draft (reviewed 2026-10-27).** Pitch/application copy written before the 2026 rebrand; it is kept for reference and may lag current positioning. Boing is on a **public testnet. Mainnet is not live, and independent audits are not complete.** Approved wording lives in [../BRAND.md](../BRAND.md).
+
 > 👋 **Everyday users:** one-page story. Products you can use today: [wallet](https://boing.express), [explorer](https://boing.observer), [testnet faucet](https://boing.network/faucet).  
 > 🛠️ **Developers:** protocol-enforced QA + native DEX discovery is the technical wedge. Specs: [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md), [RPC-API-SPEC.md](RPC-API-SPEC.md).  
 > 🛰️ **Operators:** testnet is live; PDF is generated via `npm run build:pdfs` in `website/`.
@@ -20,9 +22,9 @@ flowchart LR
 
 # Boing Network
 
-**The first L1 where only quality deployments are allowed on-chain.**
+**Boing Network — Quality, enforced by the protocol.**
 
-Authentic • Decentralized • Protocol-enforced QA • 100% Transparent
+Independent L1 • Open participation • Protocol-enforced QA • Transparent by default
 
 Testnet live • SDK & CLI ready  
 **boing.network**
@@ -42,7 +44,7 @@ Testnet live • SDK & CLI ready
 
 ## Slide 3: Our Solution — Protocol-Enforced QA
 
-**Boing is the first L1 where only deployments meeting defined rules are accepted on-chain.**
+**Boing introduces protocol-level deployment checks designed to identify and restrict deployments that fail transparent quality criteria before they are accepted on-chain.**
 
 | Mechanism | Role |
 |-----------|------|
@@ -50,7 +52,7 @@ Testnet live • SDK & CLI ready
 | **Community QA pool** | Edge cases only; leniency for meme culture; zero tolerance for malice |
 | **Single source of truth** | Clear rules per asset type; updatable via governance |
 
-**Outcome:** Less congestion, lower scam risk, higher trust—at the protocol layer, not as an afterthought.
+**Outcome:** Less congestion and more verifiable deployments, with checks at the protocol layer rather than as an afterthought.
 
 ---
 
@@ -104,9 +106,9 @@ Testnet live • SDK & CLI ready
 
 ## Slide 8: Target Market & Size
 
-- **Primary:** DeFi users, protocols, validators seeking a scam-resistant L1 with transparent governance and sustainable incentives.  
+- **Primary:** DeFi users, protocols, validators seeking an L1 with protocol-level deployment checks, transparent governance and sustainable incentives.  
 - **Secondary:** Developers building on a quality-assured chain.  
-- **Market:** Global DeFi TVL >$50B; millions of users and thousands of protocols face scam and congestion risk daily.  
+- **Market:** Global DeFi TVL >$50B; millions of users and thousands of protocols face scam and congestion risk.  
 - **TAM:** DeFi + quality-conscious institutions + cross-chain liquidity—growing as regulation and user expectations evolve.
 
 ---
@@ -134,7 +136,7 @@ Testnet live • SDK & CLI ready
 
 ## Slide 11: Validation to Date
 
-- **Technical:** Core protocol implemented (consensus, execution, state, P2P); node runs single/multi-node; CLI & SDK; QA design (opcode whitelist, blocklist, scam patterns); tests & fuzz.  
+- **Technical:** Core protocol implemented (consensus, execution, state, P2P); node runs single/multi-node; CLI & SDK; QA design (opcode whitelist, blocklist, known-bad byte patterns); tests & fuzz.  
 - **Operational:** Testnet design (bootnodes, faucet, RPC); runbooks, API spec, testnet docs; boing.network live.  
 - **Market:** Six-pillar philosophy and tokenomics documented; design aligned with user pain; incentivized testnet plan in place. **Next:** Bootnode launch, public testnet, early validator/developer feedback.
 
@@ -142,7 +144,7 @@ Testnet live • SDK & CLI ready
 
 ## Slide 12: Ask & Contact
 
-**We are building the first L1 with protocol-enforced quality assurance—reducing scams and congestion at the source while staying 100% transparent and sustainable.**
+**We are building an independent L1 with protocol-enforced quality assurance, designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks, while staying transparent by default and sustainable.**
 
 **Stage:** MVP / Prototype — Testnet live; SDK & CLI ready.
 
@@ -152,4 +154,4 @@ Testnet live • SDK & CLI ready
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable. Quality-assured.*
+*Boing Network — Quality, enforced by the protocol.*

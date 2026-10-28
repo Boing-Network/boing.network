@@ -1,6 +1,10 @@
 # Boing Network
 
-Authentic, decentralized L1 — built from first principles, with protocol-enforced quality assurance.
+**Quality, enforced by the protocol.**
+
+Boing is an independent Layer 1 where quality is enforced by the protocol. A decentralized, high-performance blockchain built from first principles, with transparent, protocol-level quality assurance (the **Boing Quality Gate**).
+
+> **Status: public testnet. Mainnet is not live.** Independent audits are not yet complete. See the [honest roadmap](https://boing.network/#roadmap) and [READINESS.md](docs/READINESS.md). Naming, tone and visual identity: [BRAND.md](BRAND.md).
 
 > 👋 **Everyday users** start with a wallet, faucet, and explorer.  
 > 🛠️ **Developers** start with JSON-RPC, [`@boing-network/boing-sdk`](https://www.npmjs.com/package/@boing-network/boing-sdk), and the native DEX tutorial.  
@@ -11,9 +15,9 @@ Authentic, decentralized L1 — built from first principles, with protocol-enfor
 ```mermaid
 flowchart LR
   You[You] --> Q{What do you want?}
-  Q -->|Hold / send BOING| Wallet[👛 boing.express]
-  Q -->|Look up a block or account| Explorer[🔭 boing.observer]
-  Q -->|Swap / deploy tokens| Finance[💱 boing.finance]
+  Q -->|Hold / send BOING| Wallet[👛 Boing Express]
+  Q -->|Look up a block or account| Explorer[🔭 Boing Observer]
+  Q -->|Swap / deploy tokens| Finance[💱 Boing Finance]
   Q -->|Build a dApp or node| Docs[📚 docs/]
   Wallet --> Rpc[📡 testnet-rpc.boing.network]
   Explorer --> Rpc
@@ -23,9 +27,9 @@ flowchart LR
 
 | I want to… | Go here |
 |---|---|
-| 👛 Create a wallet and get testnet BOING | [boing.express](https://boing.express) → [Faucet](https://boing.network/faucet) |
-| 🔭 Browse blocks, accounts, QA, and DEX | [boing.observer](https://boing.observer) |
-| 💱 Swap and deploy on Boing (and other chains) | [boing.finance](https://boing.finance) |
+| 👛 Your gateway to Boing: create a wallet and get testnet BOING | [Boing Express](https://boing.express) → [Faucet](https://boing.network/faucet) |
+| 🔭 See what happens on-chain: blocks, accounts, QA decisions and DEX | [Boing Observer](https://boing.observer) |
+| 💱 Move liquidity across chains | [Boing Finance](https://boing.finance) |
 | 📖 Read the written pillars | [docs/SIX-PILLARS.md](docs/SIX-PILLARS.md) · [PDF](website/public/pdfs/SIX-PILLARS.pdf) |
 | 🛠️ Call JSON-RPC or ship a dApp | [docs/RPC-API-SPEC.md](docs/RPC-API-SPEC.md) · [docs/BOING-DAPP-INTEGRATION.md](docs/BOING-DAPP-INTEGRATION.md) |
 | 🛰️ Run a node or join testnet | [docs/TESTNET.md](docs/TESTNET.md) · [docs/RUNBOOK.md](docs/RUNBOOK.md) |
@@ -64,7 +68,9 @@ Set **`BOING_CHAIN_ID`** and **`BOING_CHAIN_NAME`** so `boing_getNetworkInfo` an
 
 Browser dApps need CORS: extra origins via **`BOING_RPC_CORS_EXTRA_ORIGINS`**. **`GET /ws`** supports a **newHeads** WebSocket (handshake in `boing_getNetworkInfo.developer`). Machine-readable API: `boing_getRpcMethodCatalog` and `boing_getRpcOpenApi`.
 
-Ops probes on the same port: **`GET /live`**, **`GET /ready`**, JSON-RPC batch on **`POST /`**, optional **`X-Request-Id`**. See the root README historically packed these details — they now live with the rest of the RPC surface in the spec.
+Ops probes on the same port: **`GET /live`**, **`GET /ready`**, JSON-RPC batch on **`POST /`**, optional **`X-Request-Id`**. Details live with the rest of the RPC surface in [docs/RPC-API-SPEC.md](docs/RPC-API-SPEC.md).
+
+**Operator RPC is fail-closed.** Operator-only methods (fee/QA policy, slash appeals, BLS key registration, blob sample offers, admin-only QA votes) are rejected with `-32057` unless the node has `BOING_OPERATOR_RPC_TOKEN` set and the request sends a matching `X-Boing-Operator` header. On mainnet (chain id 6914) the node refuses to start without the token or with `--faucet-enable`. See [docs/ENVIRONMENT-VARIABLES.md](docs/ENVIRONMENT-VARIABLES.md) and [docs/RUNBOOK.md](docs/RUNBOOK.md).
 
 Hosted bootnode:
 
@@ -87,7 +93,7 @@ Details: [docs/FLY-IO.md](docs/FLY-IO.md), [docs/VIBEMINER-INTEGRATION.md](docs/
 | `boing-governance` | Governance types and helpers used by the protocol stack |
 | `boing-telemetry` | Structured logging and RPC telemetry helpers |
 | `boing-qa` | Protocol QA: Allow/Reject/Unsure checks for deployment ([QUALITY-ASSURANCE-NETWORK.md](docs/QUALITY-ASSURANCE-NETWORK.md)) |
-| `boing-cli` | `boing init`, `boing dev`, `boing deploy`, `boing token` (deploy / mint / transfer / balance), `boing metrics register`, `boing qa apply` |
+| `boing-cli` | `boing init`, `dev`, `deploy`, `token`, `pool`, `validator`, `name`, `iface`, `metrics register`, `qa apply`, `completions` (run `boing --help` for the full list) |
 | `boing-p2p` | libp2p networking |
 | `boing-node` | Node binary |
 
@@ -121,9 +127,9 @@ The [boing.network](https://boing.network) website lives in `website/` (Astro �
 
 | App | URL | Description |
 |-----|-----|-------------|
-| **Explorer** | [boing.observer](https://boing.observer) | Blocks, accounts, search, QA, DEX directory |
-| **Wallet** | [boing.express](https://boing.express) | Non-custodial Boing wallet (web + extension) |
-| **DeFi** | [boing.finance](https://boing.finance) | Cross-chain app with a native Boing L1 path |
+| **Explorer** | [Boing Observer](https://boing.observer) | Blocks, accounts, search, QA, DEX directory |
+| **Wallet** | [Boing Express](https://boing.express) | Non-custodial Boing wallet (web + extension) |
+| **DeFi** | [Boing Finance](https://boing.finance) | Cross-chain app with a native Boing L1 path |
 
 ## 💬 Community
 
@@ -131,8 +137,8 @@ Join the conversation on [Discord](https://discord.gg/K3w9nbUw4N) or open an iss
 
 ---
 
-## 🧭 Priorities
+## Boing Quality Gate
 
-**Security → Scalability → Decentralization → Authenticity → Transparency → True quality assurance.**
+**Secure by design. Open participation. Transparent by default. Built for real applications.**
 
-Protocol QA: only quality assets on-chain; automation first; community pool for edge cases; leniency for meme culture; no malice. See [BOING-NETWORK-ESSENTIALS.md](docs/BOING-NETWORK-ESSENTIALS.md) and [QUALITY-ASSURANCE-NETWORK.md](docs/QUALITY-ASSURANCE-NETWORK.md).
+The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. Automated checks handle clear cases; a decentralized community pool reviews edge cases. It is designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks. See [BOING-NETWORK-ESSENTIALS.md](docs/BOING-NETWORK-ESSENTIALS.md) and [QUALITY-ASSURANCE-NETWORK.md](docs/QUALITY-ASSURANCE-NETWORK.md).

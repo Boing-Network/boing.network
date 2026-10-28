@@ -43,10 +43,10 @@ const paramsObjectWrong = '{}';
     <div class="docs-content">
       <section id="overview" class="doc-section active">
         <h2>Overview</h2>
-        <p>Boing Network is an authentic L1 blockchain built from first principles. It is independent of other chains and designed for sustainable value, uncapped supply with floor-triggered rebalancing, and 100% transparent governance and tokenomics.</p>
+        <p>Boing Network is an independent Layer 1 built from first principles, where quality is enforced by the protocol. It is independent of other chains and designed for sustainable value, uncapped supply with floor-triggered rebalancing, and 100% transparent governance and tokenomics.</p>
         <h3>Pick your path</h3>
         <ul>
-          <li>👋 <strong>Everyday users</strong> — Create a wallet at <a href="https://boing.express" target="_blank" rel="noopener">boing.express</a>, request testnet BOING at <a href="/faucet">the faucet</a>, then look up your account on <a href="https://boing.observer" target="_blank" rel="noopener">boing.observer</a>. Swap on <a href="https://boing.finance" target="_blank" rel="noopener">boing.finance</a> with Boing Express (not MetaMask) on Boing L1.</li>
+          <li>👋 <strong>Everyday users</strong> — Create a wallet at <a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a>, request testnet BOING at <a href="/faucet">the faucet</a>, then look up your account on <a href="https://boing.observer" target="_blank" rel="noopener">Boing Observer</a>. Move liquidity with <a href="https://boing.finance" target="_blank" rel="noopener">Boing Finance</a> using Boing Express on Boing L1.</li>
           <li>🛠️ <strong>Developers</strong> — Public RPC <code>https://testnet-rpc.boing.network/</code>. Addresses are 32-byte hex (64 characters), Ed25519 + BLAKE3, not EVM. Start with <a href="#getting-started">Getting Started</a> and <a href="#rpc-api">RPC API</a>. TypeScript: <code>npm install @boing-network/boing-sdk</code> (source under repo <code>boing-sdk/</code>).</li>
           <li>🛰️ <strong>Operators</strong> — Bootnodes, Fly cluster, and the Worker gateway are documented in the repository <code>docs/TESTNET.md</code> and <code>docs/FLY-IO.md</code>. Upgrading a laptop node does not change the public explorer.</li>
         </ul>
@@ -102,7 +102,7 @@ cargo build --release</code></pre>
         <p>Boing is a greenfield L1 — original architecture, not a fork — with no reliance on other chains.</p>
         <h3>Design principles</h3>
         <ul>
-          <li><strong>Authentic</strong> — Your own stack; not a framework clone.</li>
+          <li><strong>Independent</strong> — Your own stack, built from first principles; not a framework clone.</li>
           <li><strong>Independent</strong> — Core protocol does not depend on another L1 for consensus, execution, or identity.</li>
           <li><strong>Decentralized</strong> — Permissionless validators and full nodes.</li>
           <li><strong>Transparent</strong> — 100% openness in design, tokenomics, and governance.</li>
@@ -158,7 +158,7 @@ cargo build --release</code></pre>
         <ul>
           <li><strong>State rent with grace periods</strong> — Inactive accounts may pay state rent after long grace periods and clear notice.</li>
           <li><strong>Verifiable delay / ordering (VDF)</strong> — Boing-native verifiable delay for fair ordering without depending on another chain.</li>
-          <li><strong>Native DeFi primitives</strong> — Protocol-level swap/AMM-style primitives for <a href="https://boing.finance" target="_blank" rel="noopener">boing.finance</a> integration.</li>
+          <li><strong>Native DeFi primitives</strong> — Protocol-level swap/AMM-style primitives for <a href="https://boing.finance" target="_blank" rel="noopener">Boing Finance</a> integration.</li>
         </ul>
       </section>
 
@@ -204,12 +204,12 @@ cargo build --release</code></pre>
             <tr><td><code>boing_qaPoolList</code></td><td><code>[]</code></td><td>Pending QA pool items.</td></tr>
             <tr><td><code>boing_qaPoolConfig</code></td><td><code>[]</code></td><td>Pool governance + depth.</td></tr>
             <tr><td><code>boing_getQaRegistry</code></td><td><code>[]</code></td><td>Effective QA rule registry.</td></tr>
-            <tr><td><code>boing_qaPoolVote</code></td><td><code>[tx_hash, voter, vote]</code></td><td>Operator header when <code>BOING_OPERATOR_RPC_TOKEN</code> set.</td></tr>
+            <tr><td><code>boing_qaPoolVote</code></td><td><code>[tx_hash, voter, vote]</code></td><td>Admin-only votes need the <code>X-Boing-Operator</code> header matching the node's <code>BOING_OPERATOR_RPC_TOKEN</code>; <code>-32057</code> if missing or unset.</td></tr>
             <tr><td><code>boing_operatorApplyQaPolicy</code></td><td><code>[registry_json, pool_json]</code></td><td>Operator-only when token set.</td></tr>
             <tr><td><code>boing_faucetRequest</code></td><td><code>[hex_account_id]</code></td><td>Only if node started with faucet enabled (testnet).</td></tr>
           </tbody>
         </table>
-        <p><strong>TypeScript client:</strong> npm package <code>@boing-network/boing-sdk</code> (<code>createClient</code>; latest <code>0.5.24</code>) implements these methods with typed results and <code>explainBoingRpcError</code> for QA / pool errors. Do not install unscoped <code>boing-sdk</code>.</p>
+        <p><strong>TypeScript client:</strong> npm package <code>@boing-network/boing-sdk</code> (<code>createClient</code>; see npm for the latest release) implements these methods with typed results and <code>explainBoingRpcError</code> for QA / pool errors. Do not install unscoped <code>boing-sdk</code>.</p>
         <h3>Error codes (selected)</h3>
         <table class="doc-table">
           <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
@@ -238,9 +238,16 @@ cargo build --release</code></pre>
             <tr><td><code>boing dev [--port 8545]</code></td><td>Start local dev chain</td></tr>
             <tr><td><code>boing deploy [path]</code></td><td>Deploy contract or config</td></tr>
             <tr><td><code>boing metrics register --contract &lt;hex&gt; --owner &lt;hex&gt;</code></td><td>Register contract for dApp incentives</td></tr>
+            <tr><td><code>boing token</code></td><td>Native fungible token: deploy, mint, transfer, balance, approve, allowance</td></tr>
+            <tr><td><code>boing pool</code></td><td>Native constant-product AMM pool: create, add/remove liquidity, swap, quote, reserves, route</td></tr>
+            <tr><td><code>boing validator</code></td><td>Open validator set: register, deregister, unjail, claim-unbond, status</td></tr>
+            <tr><td><code>boing name</code></td><td>Name registry (<code>label.boing</code>): resolve, reverse, check, claim, renew, transfer</td></tr>
+            <tr><td><code>boing iface</code></td><td>Interface registry: deploy, hash, publish and fetch contract interface JSON</td></tr>
+            <tr><td><code>boing qa apply</code></td><td>Operator-only: apply a QA registry / pool config to a node (needs the operator token)</td></tr>
             <tr><td><code>boing completions &lt;shell&gt;</code></td><td>Shell completions (bash, zsh, fish, powershell, elvish)</td></tr>
           </tbody>
         </table>
+        <p>Run <code>boing --help</code> or <code>boing &lt;command&gt; --help</code> for every subcommand and flag.</p>
         <h3>Shell completions</h3>
         <p>Example (bash): <code>boing completions bash &gt; ~/.local/share/bash-completion/completions/boing</code>. Similar for zsh, fish.</p>
         <h3>Monitoring and health</h3>

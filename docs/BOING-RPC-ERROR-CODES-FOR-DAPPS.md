@@ -34,7 +34,7 @@ Canonical definitions live in [RPC-API-SPEC.md](RPC-API-SPEC.md). This page is a
 | -32054 | QA pool disabled by governance | — |
 | -32055 | QA pool full (global cap) | optional `{ reason: "pool_full" }` |
 | -32056 | QA pool: per-deployer cap | optional `{ reason: "deployer_cap" }` |
-| -32057 | Operator RPC: missing/invalid `X-Boing-Operator` (only when the node sets `BOING_OPERATOR_RPC_TOKEN`; includes `boing_putBlobSampleOffer`) | — |
+| -32057 | Operator RPC: missing/invalid `X-Boing-Operator` (also returned when the node has no `BOING_OPERATOR_RPC_TOKEN` configured - fail-closed; includes `boing_putBlobSampleOffer`) | — |
 
 ---
 

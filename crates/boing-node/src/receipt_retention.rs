@@ -26,7 +26,9 @@ pub fn parse_retention(raw: Option<&str>) -> u64 {
 /// Configured window (read once from `BOING_RECEIPT_RETENTION_BLOCKS`).
 pub fn retention_blocks() -> u64 {
     static CFG: OnceLock<u64> = OnceLock::new();
-    *CFG.get_or_init(|| parse_retention(std::env::var(ENV_RECEIPT_RETENTION_BLOCKS).ok().as_deref()))
+    *CFG.get_or_init(|| {
+        parse_retention(std::env::var(ENV_RECEIPT_RETENTION_BLOCKS).ok().as_deref())
+    })
 }
 
 /// Window as published over RPC (`receipt_retention_blocks`): `None` (JSON `null`) when unbounded.
@@ -60,7 +62,7 @@ pub fn prune(receipts: &mut HashMap<Hash, ExecutionReceipt>, tip: u64, window: u
 
 /// True when pruning should run after committing `height`.
 pub fn prune_due(height: u64) -> bool {
-    height > 0 && height % PRUNE_INTERVAL == 0
+    height > 0 && height.is_multiple_of(PRUNE_INTERVAL)
 }
 
 #[cfg(test)]
@@ -84,13 +86,19 @@ mod tests {
     fn window_for_rpc_maps_zero_to_null() {
         assert_eq!(window_for_rpc(0), None);
         assert_eq!(window_for_rpc(1), Some(1));
-        assert_eq!(window_for_rpc(DEFAULT_RECEIPT_RETENTION_BLOCKS), Some(1_000_000));
+        assert_eq!(
+            window_for_rpc(DEFAULT_RECEIPT_RETENTION_BLOCKS),
+            Some(1_000_000)
+        );
     }
 
     #[test]
     fn parse_defaults_and_overrides() {
         assert_eq!(parse_retention(None), DEFAULT_RECEIPT_RETENTION_BLOCKS);
-        assert_eq!(parse_retention(Some("abc")), DEFAULT_RECEIPT_RETENTION_BLOCKS);
+        assert_eq!(
+            parse_retention(Some("abc")),
+            DEFAULT_RECEIPT_RETENTION_BLOCKS
+        );
         assert_eq!(parse_retention(Some(" 500 ")), 500);
         assert_eq!(parse_retention(Some("0")), 0);
     }
@@ -111,12 +119,20 @@ mod tests {
             // distinct ids: mix height into the id
             let mut id = [0u8; 32];
             id[..8].copy_from_slice(&h.to_le_bytes());
-            m.insert(Hash(id), ExecutionReceipt { tx_id: Hash(id), ..r });
+            m.insert(
+                Hash(id),
+                ExecutionReceipt {
+                    tx_id: Hash(id),
+                    ..r
+                },
+            );
         }
         let removed = prune(&mut m, 300, 100);
         assert_eq!(removed, 200);
         assert_eq!(m.len(), 100);
-        assert!(m.values().all(|r| r.block_height >= 201 && r.block_height <= 300));
+        assert!(m
+            .values()
+            .all(|r| r.block_height >= 201 && r.block_height <= 300));
         // unlimited never prunes
         assert_eq!(prune(&mut m, 10_000, 0), 0);
         assert_eq!(m.len(), 100);

@@ -191,7 +191,10 @@ pub trait SignalingContract {
         content_pointer: Option<ContentPointer>,
         deposit: u128,
     ) -> SignalingPostResult {
-        SignalingPostResult { ok: false, message_id: None }
+        SignalingPostResult {
+            ok: false,
+            message_id: None,
+        }
     }
 
     /// Post an answer in response to an offer.
@@ -202,7 +205,10 @@ pub trait SignalingContract {
         payload: Option<Vec<u8>>,
         content_pointer: Option<ContentPointer>,
     ) -> SignalingPostResult {
-        SignalingPostResult { ok: false, message_id: None }
+        SignalingPostResult {
+            ok: false,
+            message_id: None,
+        }
     }
 
     /// Post an ICE candidate.
@@ -212,7 +218,10 @@ pub trait SignalingContract {
         recipient: [u8; 32],
         payload: Vec<u8>,
     ) -> SignalingPostResult {
-        SignalingPostResult { ok: false, message_id: None }
+        SignalingPostResult {
+            ok: false,
+            message_id: None,
+        }
     }
 
     /// Fetch pending offers for a recipient (stub).

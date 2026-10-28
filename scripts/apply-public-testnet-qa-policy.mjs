@@ -6,7 +6,7 @@
  *   node scripts/apply-public-testnet-qa-policy.mjs
  *   BOING_RPC_URL=https://testnet-rpc.boing.network/ BOING_OPERATOR_RPC_TOKEN=... node scripts/apply-public-testnet-qa-policy.mjs
  *
- * Requires operator auth when the node sets BOING_OPERATOR_RPC_TOKEN (header X-Boing-Operator).
+ * Requires operator auth: BOING_OPERATOR_RPC_TOKEN must be set on the node and sent as the X-Boing-Operator header (the node rejects with -32057 otherwise).
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

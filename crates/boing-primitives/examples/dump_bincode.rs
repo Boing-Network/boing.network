@@ -8,7 +8,10 @@ use ed25519_dalek::SigningKey;
 
 fn main() {
     let id = AccountId::from_bytes([1u8; 32]);
-    let transfer = TransactionPayload::Transfer { to: id, amount: 100 };
+    let transfer = TransactionPayload::Transfer {
+        to: id,
+        amount: 100,
+    };
     let p = bincode::serialize(&transfer).unwrap();
     println!("Transfer: len={} hex={}", p.len(), hex::encode(&p));
 
@@ -127,11 +130,7 @@ fn main() {
         evidence: b"evidence".to_vec(),
     };
     let p = bincode::serialize(&submit).unwrap();
-    println!(
-        "SubmitSlashAppeal: len={} hex={}",
-        p.len(),
-        hex::encode(&p)
-    );
+    println!("SubmitSlashAppeal: len={} hex={}", p.len(), hex::encode(&p));
 
     let resolve = TransactionPayload::ResolveSlashAppeal {
         appeal_id: 1,
@@ -208,12 +207,12 @@ fn main() {
 
     let signed = SignedTransaction::new(tx, &key);
     let s = bincode::serialize(&signed).unwrap();
-    println!(
-        "SignedTransaction: len={} hex={}",
-        s.len(),
-        hex::encode(&s)
-    );
+    println!("SignedTransaction: len={} hex={}", s.len(), hex::encode(&s));
 
     let sig_only = bincode::serialize(&signed.signature).unwrap();
-    println!("Signature alone: len={} hex={}", sig_only.len(), hex::encode(&sig_only));
+    println!(
+        "Signature alone: len={} hex={}",
+        sig_only.len(),
+        hex::encode(&sig_only)
+    );
 }

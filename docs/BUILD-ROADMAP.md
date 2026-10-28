@@ -1,11 +1,11 @@
-# Boing Blockchain — Implementation Roadmap
+# Boing Network — Implementation Roadmap
 
 > 👋 **Everyday users:** testnet is live. Mainnet is still ahead. Track phases here; day-to-day use is [wallet](https://boing.express) + [explorer](https://boing.observer).  
 > 🛠️ **Developers:** Foundation and networking crates are in-tree. Remaining work is listed by phase — do not treat TBD vision docs as shipped.  
 > 🛰️ **Operators:** public RPC + Fly cluster are the current hosted path ([FLY-IO.md](FLY-IO.md)).
 
 **Priorities:** Security → Scalability → Decentralization → Authenticity → Transparency → True QA  
-**Goal:** Build an authentic, efficient L1 with unique innovations.  
+**Goal:** Build an independent, efficient L1 with protocol-level quality assurance.  
 **Aligned with:** [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md)
 
 ```mermaid
@@ -346,7 +346,7 @@ boing-network/
 ### 7.1 Public Testnet
 
 - [ ] Public testnet launch
-- [ ] Testnet incentive program (sustainability-first): use [TESTNET.md](docs/TESTNET.md) Part 3 for readiness checklist, incentive design (validators, developers, users), and 2–4 week duration.
+- [ ] Testnet incentive program (sustainability-first): use [TESTNET.md](TESTNET.md) Part 3 for readiness checklist, incentive design (validators, developers, users), and 2–4 week duration.
 - [ ] Validator onboarding
 - [ ] boing.finance integration (testnet)
 - [ ] Community engagement: grant programs, hackathons, educational content
@@ -373,4 +373,4 @@ boing-network/
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

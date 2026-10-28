@@ -31,11 +31,11 @@ use crate::blobs_phase25::{
     PHASE25_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE25_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
     PHASE25_LEGACY_ELECTORATE_W_SENTINEL, PHASE25_LEGACY_PIN_SET_COMMITMENT,
     PHASE25_MAX_APPEAL_EVIDENCE_BYTES, PHASE25_MAX_SETTLE_RECEIPTS, PHASE25_PIN_SET_DOMAIN,
-    PHASE25_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, PHASE25_RESOLVE_SLASH_APPEAL_TX_INDEX,
-    PHASE25_RESOLVE_THRESHOLD_DEN, PHASE25_RESOLVE_THRESHOLD_NUM, PHASE25_RESOLVE_WINDOW_BLOCKS,
-    PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE25_SERVE_CHALLENGE_WINDOW_BLOCKS,
-    PHASE25_SETTLE_RECEIPT_TTL_BLOCKS, PHASE25_SUBMIT_SLASH_APPEAL_TX_INDEX,
-    PHASE25_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+    PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE25_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
+    PHASE25_RESOLVE_SLASH_APPEAL_TX_INDEX, PHASE25_RESOLVE_THRESHOLD_DEN,
+    PHASE25_RESOLVE_THRESHOLD_NUM, PHASE25_RESOLVE_WINDOW_BLOCKS,
+    PHASE25_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE25_SETTLE_RECEIPT_TTL_BLOCKS,
+    PHASE25_SUBMIT_SLASH_APPEAL_TX_INDEX, PHASE25_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 use crate::hash::hasher;
 use crate::types::AccountId;
@@ -152,7 +152,11 @@ impl<'de> Deserialize<'de> for BlsPublicKeyG1 {
         impl<'de> Visitor<'de> for V {
             type Value = BlsPublicKeyG1;
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "{} BLS G1 public key bytes", PHASE26_BLS_PUBLIC_KEY_G1_BYTES)
+                write!(
+                    f,
+                    "{} BLS G1 public key bytes",
+                    PHASE26_BLS_PUBLIC_KEY_G1_BYTES
+                )
             }
             fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
                 let mut bytes = [0u8; PHASE26_BLS_PUBLIC_KEY_G1_BYTES];
@@ -222,7 +226,11 @@ impl<'de> Deserialize<'de> for BlsSignatureG2 {
         impl<'de> Visitor<'de> for V {
             type Value = BlsSignatureG2;
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "{} BLS G2 signature bytes", PHASE26_BLS_SIGNATURE_G2_BYTES)
+                write!(
+                    f,
+                    "{} BLS G2 signature bytes",
+                    PHASE26_BLS_SIGNATURE_G2_BYTES
+                )
             }
             fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
                 let mut bytes = [0u8; PHASE26_BLS_SIGNATURE_G2_BYTES];
@@ -442,7 +450,9 @@ mod tests {
     #[test]
     fn plan_mentions_scaffold_and_remaining() {
         let plan = phase26_das_succinct_proof_plan();
-        assert!(plan.iter().any(|s| s.contains("NotWired") || s.contains("scaffold")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("NotWired") || s.contains("scaffold")));
         assert!(plan.iter().any(|s| s.contains("blst") || s.contains("V6")));
         assert!(plan.iter().any(|s| s.contains("verify-each")));
         let checklist = phase26_cap_activation_checklist(Some(1200));

@@ -21,6 +21,9 @@ database_name = "boing-deploy-registry"
 database_id = "a1368306-3159-4088-bba9-5b7db15e657b"
 migrations_dir = "migrations"
 
+[observability]
+enabled = true
+
 [triggers]
 crons = ["* * * * *"]
 

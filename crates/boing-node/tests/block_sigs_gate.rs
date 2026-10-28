@@ -28,12 +28,21 @@ fn transfer(sender: AccountId, nonce: u64, to: AccountId, amount: u128) -> Trans
     }
 }
 
-fn craft(leader: &BoingNode, txs: Vec<Transaction>, signatures: Vec<boing_primitives::Signature>) -> Block {
+fn craft(
+    leader: &BoingNode,
+    txs: Vec<Transaction>,
+    signatures: Vec<boing_primitives::Signature>,
+) -> Block {
     let height = leader.chain.height() + 1;
     let proposer = leader.consensus.leader(height);
     let mut state = leader.state.snapshot();
-    let (_g, receipts) = BlockExecutor::new().execute_block(height, 1, &txs, &mut state, proposer).unwrap();
-    let reward = boing_tokenomics::block_emission_validators_in(height, boing_tokenomics::Denomination::BaseUnits);
+    let (_g, receipts) = BlockExecutor::new()
+        .execute_block(height, 1, &txs, &mut state, proposer)
+        .unwrap();
+    let reward = boing_tokenomics::block_emission_validators_in(
+        height,
+        boing_tokenomics::Denomination::BaseUnits,
+    );
     if reward > 0 {
         state.get_mut(&proposer).unwrap().balance += reward;
     }
@@ -70,7 +79,13 @@ fn block_signatures_follow_the_activation_height() {
         n.chain = ChainState::from_genesis(genesis.clone());
         n.state = boing_state::StateStore::new();
         for id in [uid, vid] {
-            n.state.insert(Account { id, state: AccountState { balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING, ..Default::default() } });
+            n.state.insert(Account {
+                id,
+                state: AccountState {
+                    balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
+                    ..Default::default()
+                },
+            });
         }
         n
     };
@@ -78,7 +93,10 @@ fn block_signatures_follow_the_activation_height() {
     // #14: with a chain id and no network history the chain-bound registration proof applies from
     // genesis, identically for block execution and for admission/simulation.
     assert_eq!(leader.executor.registration_proof_rule(), (Some(6913), 0));
-    assert_eq!(leader.admission_vm().registration_proof_rule(), (Some(6913), 0));
+    assert_eq!(
+        leader.admission_vm().registration_proof_rule(),
+        (Some(6913), 0)
+    );
     let mut follower = mk(AccountId([0x77; 32]), None);
     let to = AccountId([2; 32]);
     let v2 = |tx: &Transaction| boing_primitives::sign_transaction_v2(tx, &user, 6913);
@@ -87,7 +105,9 @@ fn block_signatures_follow_the_activation_height() {
     for nonce in 0..2u64 {
         let tx = transfer(uid, nonce, to, 1);
         let unsigned = craft(&leader, vec![tx.clone()], vec![]);
-        follower.import_network_block_catchup(&unsigned).expect("pre-activation unsigned block");
+        follower
+            .import_network_block_catchup(&unsigned)
+            .expect("pre-activation unsigned block");
         leader.import_network_block_catchup(&unsigned).unwrap();
     }
     assert_eq!(follower.chain.height(), 2);
@@ -96,16 +116,26 @@ fn block_signatures_follow_the_activation_height() {
     let tx = transfer(uid, 2, to, 1);
     let cases: Vec<(&str, Vec<boing_primitives::Signature>)> = vec![
         ("missing", vec![]),
-        ("forged by the proposer", vec![boing_primitives::sign_transaction_v2(&tx, &v, 6913)]),
-        ("legacy format", vec![boing_primitives::sign_transaction(&tx, &user)]),
-        ("other chain", vec![boing_primitives::sign_transaction_v2(&tx, &user, 6914)]),
+        (
+            "forged by the proposer",
+            vec![boing_primitives::sign_transaction_v2(&tx, &v, 6913)],
+        ),
+        (
+            "legacy format",
+            vec![boing_primitives::sign_transaction(&tx, &user)],
+        ),
+        (
+            "other chain",
+            vec![boing_primitives::sign_transaction_v2(&tx, &user, 6914)],
+        ),
     ];
     for (what, sigs) in cases {
         let b = craft(&leader, vec![tx.clone()], sigs);
         assert!(
             matches!(
                 follower.import_network_block_catchup(&b),
-                Err(BlockValidationError::MissingTxSignatures { .. } | BlockValidationError::InvalidTxSignature { .. })
+                Err(BlockValidationError::MissingTxSignatures { .. }
+                    | BlockValidationError::InvalidTxSignature { .. })
             ),
             "{what} signature must be rejected at activation"
         );
@@ -113,15 +143,21 @@ fn block_signatures_follow_the_activation_height() {
     }
     // A correctly signed block imports.
     let good = craft(&leader, vec![tx.clone()], vec![v2(&tx)]);
-    follower.import_network_block_catchup(&good).expect("valid v2 signatures import");
+    follower
+        .import_network_block_catchup(&good)
+        .expect("valid v2 signatures import");
     leader.import_network_block_catchup(&good).unwrap();
 
     // The real producer path: a block produced by the leader carries v2 signatures and imports.
     let tx = transfer(uid, 3, to, 1);
-    leader.submit_transaction(SignedTransaction::new_for_chain(tx, &user, 6913)).unwrap();
+    leader
+        .submit_transaction(SignedTransaction::new_for_chain(tx, &user, 6913))
+        .unwrap();
     leader.produce_block_if_ready().expect("block");
     let b = leader.chain.get_block_by_height(4).unwrap();
     assert_eq!(b.signatures.len(), 1);
-    follower.import_network_block_catchup(&b).expect("produced block imports");
+    follower
+        .import_network_block_catchup(&b)
+        .expect("produced block imports");
     assert_eq!(follower.chain.latest_hash(), leader.chain.latest_hash());
 }

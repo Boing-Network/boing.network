@@ -38,13 +38,12 @@ use crate::blobs_phase29::{
     PHASE29_CAP_ACTIVATION_ENV, PHASE29_EXPIRED_APPEAL_RETENTION_BLOCKS,
     PHASE29_FAILED_SERVE_APPEAL_WINDOW_BLOCKS, PHASE29_LEGACY_ELECTORATE_W_SENTINEL,
     PHASE29_LEGACY_PIN_SET_COMMITMENT, PHASE29_MAX_APPEAL_EVIDENCE_BYTES, PHASE29_MAX_PIN_SET_LEN,
-    PHASE29_MAX_SETTLE_RECEIPTS, PHASE29_PIN_SET_DOMAIN,
-    PHASE29_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX,
-    PHASE29_RESOLVE_SLASH_APPEAL_TX_INDEX, PHASE29_RESOLVE_THRESHOLD_DEN,
-    PHASE29_RESOLVE_THRESHOLD_NUM, PHASE29_RESOLVE_WINDOW_BLOCKS,
-    PHASE29_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE29_SERVE_CHALLENGE_WINDOW_BLOCKS,
-    PHASE29_SETTLE_RECEIPT_TTL_BLOCKS, PHASE29_SUBMIT_SLASH_APPEAL_TX_INDEX,
-    PHASE29_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+    PHASE29_MAX_SETTLE_RECEIPTS, PHASE29_PIN_SET_DOMAIN, PHASE29_RESOLVED_APPEAL_RETENTION_BLOCKS,
+    PHASE29_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
+    PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX, PHASE29_RESOLVE_SLASH_APPEAL_TX_INDEX,
+    PHASE29_RESOLVE_THRESHOLD_DEN, PHASE29_RESOLVE_THRESHOLD_NUM, PHASE29_RESOLVE_WINDOW_BLOCKS,
+    PHASE29_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE29_SETTLE_RECEIPT_TTL_BLOCKS,
+    PHASE29_SUBMIT_SLASH_APPEAL_TX_INDEX, PHASE29_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 use crate::types::AccountId;
 use serde::{Deserialize, Serialize};
@@ -349,16 +348,18 @@ mod tests {
             signer_bls_pubkeys: vec![pk1, pk2],
         };
         assert!(phase30_verify_aggregate_resolve_self_contained(
-            6913, 8, &pin_commit, &pinned, &payload
+            6913,
+            8,
+            &pin_commit,
+            &pinned,
+            &payload
         )
         .is_ok());
         // Wrong pubkey count.
         let mut bad = payload.clone();
         bad.signer_bls_pubkeys.pop();
         assert!(matches!(
-            phase30_verify_aggregate_resolve_self_contained(
-                6913, 8, &pin_commit, &pinned, &bad
-            ),
+            phase30_verify_aggregate_resolve_self_contained(6913, 8, &pin_commit, &pinned, &bad),
             Err(Phase30BlsError::PubkeyCountMismatch { .. })
         ));
         assert_eq!(

@@ -25,7 +25,11 @@ pub struct Trigger {
 
 impl Trigger {
     pub fn new(id: u64, condition: TriggerCondition, action_id: u64) -> Self {
-        Self { id, condition, action_id }
+        Self {
+            id,
+            condition,
+            action_id,
+        }
     }
 
     /// Check if condition is satisfied (simple eval; real impl would query chain).

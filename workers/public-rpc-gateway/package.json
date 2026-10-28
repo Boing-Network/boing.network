@@ -6,14 +6,13 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "tail": "wrangler tail"
+    "tail": "wrangler tail",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "wrangler": "^4.149.0"
-  },
-  "overrides": {
-    "miniflare": {
-      "undici": "7.30.1"
-    }
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.154.0"
   }
 }

@@ -475,8 +475,8 @@ When tasks require off-chain computation or external data (e.g. "When token X hi
 | `FraudProof` | `boing-automation::verification` | Evidence of incorrect execution |
 | `OracleAttestation` | `boing-automation::verification` | Oracle data + quorum signatures |
 
-See [boing-automation](crates/boing-automation/) crate.
+See [boing-automation](../crates/boing-automation/) crate.
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

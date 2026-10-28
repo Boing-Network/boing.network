@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use boing_governance::SlashRegistry;
 use boing_primitives::{
-    decode_bls_dual_key_registry, encode_bls_dual_key_registry, AccountId, AccountState,
-    Block, BlsDualKeyRegistry, ExecutionReceipt, Hash, PHASE27_BLS_DUAL_KEY_REGISTRY_FILE,
+    decode_bls_dual_key_registry, encode_bls_dual_key_registry, AccountId, AccountState, Block,
+    BlsDualKeyRegistry, ExecutionReceipt, Hash, PHASE27_BLS_DUAL_KEY_REGISTRY_FILE,
 };
 use boing_qa::pool_config::QaPoolGovernanceConfig;
 use boing_qa::RuleRegistry;
@@ -106,8 +106,8 @@ const BLS_DUAL_KEY_REGISTRY_FILE: &str = PHASE27_BLS_DUAL_KEY_REGISTRY_FILE;
 pub fn encode_slash_appeals_v5(
     reg: &boing_state::SlashAppealRegistry,
 ) -> Result<Vec<u8>, PersistenceError> {
-    let payload = bincode::serialize(reg)
-        .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+    let payload =
+        bincode::serialize(reg).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
     let mut out = Vec::with_capacity(4 + 4 + payload.len());
     out.extend_from_slice(SLASH_APPEALS_MAGIC);
     out.extend_from_slice(&SLASH_APPEALS_VERSION_V5.to_le_bytes());
@@ -134,9 +134,7 @@ pub fn encode_slash_appeals_v3_fixture(payload: &[u8]) -> Vec<u8> {
 }
 
 /// Encode as Phase 17 V2 envelope (tests / migration fixtures). Prefer [`encode_slash_appeals_v5`].
-pub fn encode_slash_appeals_v2_fixture(
-    payload: &[u8],
-) -> Vec<u8> {
+pub fn encode_slash_appeals_v2_fixture(payload: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(4 + 4 + payload.len());
     out.extend_from_slice(SLASH_APPEALS_MAGIC);
     out.extend_from_slice(&SLASH_APPEALS_VERSION_V2.to_le_bytes());
@@ -147,7 +145,9 @@ pub fn encode_slash_appeals_v2_fixture(
 /// Decode slash-appeals registry: V5 envelope, else V4 (derive resolve_deadline), else V3
 /// (legacy snapshot sentinel), else V2 (ballot=None), else legacy Phase 16 bool votes
 /// (weight=0), else Phase 14/15 (empty votes). Corrupt → hard error (no wipe).
-pub fn decode_slash_appeals(bytes: &[u8]) -> Result<boing_state::SlashAppealRegistry, PersistenceError> {
+pub fn decode_slash_appeals(
+    bytes: &[u8],
+) -> Result<boing_state::SlashAppealRegistry, PersistenceError> {
     if bytes.len() >= 8 && &bytes[..4] == SLASH_APPEALS_MAGIC {
         let ver = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
         if ver == SLASH_APPEALS_VERSION_V5 {
@@ -470,8 +470,8 @@ impl Persistence {
             if js_path.exists() {
                 // Optional, node-local: a missing/corrupt file only loses the display snapshot.
                 if let Ok(b) = read_file_limited(&js_path, MAX_PERSIST_SMALL_FILE_BYTES) {
-                    reg.last_jail =
-                        decode_bincode_limited(&b, MAX_PERSIST_SMALL_FILE_BYTES).unwrap_or_default();
+                    reg.last_jail = decode_bincode_limited(&b, MAX_PERSIST_SMALL_FILE_BYTES)
+                        .unwrap_or_default();
                 }
             }
             state.load_open_validators(reg);
@@ -685,8 +685,8 @@ impl Persistence {
         registry: &BlsDualKeyRegistry,
     ) -> Result<(), PersistenceError> {
         let path = self.bls_dual_key_registry_path();
-        let bytes = encode_bls_dual_key_registry(registry)
-            .map_err(PersistenceError::Serialization)?;
+        let bytes =
+            encode_bls_dual_key_registry(registry).map_err(PersistenceError::Serialization)?;
         std::fs::write(path, bytes)?;
         Ok(())
     }
@@ -751,7 +751,10 @@ mod slash_appeals_envelope_tests {
         assert_eq!(v.weight, 50);
         assert_eq!(v.ballot_signature, Some(sig));
         assert_eq!(back.get_appeal(aid).unwrap().electorate_w_snapshot, 300);
-        assert_eq!(back.get_appeal(aid).unwrap().pin_set_commitment, [0xABu8; 32]);
+        assert_eq!(
+            back.get_appeal(aid).unwrap().pin_set_commitment,
+            [0xABu8; 32]
+        );
         assert_eq!(
             back.get_appeal(aid).unwrap().resolve_deadline,
             boing_primitives::phase21_resolve_deadline(1)
@@ -1118,7 +1121,8 @@ mod bounded_decode_tests {
 
     #[test]
     fn read_file_limited_checks_size_first() {
-        let p = std::env::temp_dir().join(format!("boing-persist-limit-{}.bin", std::process::id()));
+        let p =
+            std::env::temp_dir().join(format!("boing-persist-limit-{}.bin", std::process::id()));
         std::fs::write(&p, vec![7u8; 2048]).unwrap();
         assert_eq!(read_file_limited(&p, 4096).unwrap().len(), 2048);
         let err = read_file_limited(&p, 1024).unwrap_err();

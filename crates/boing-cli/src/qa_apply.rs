@@ -11,12 +11,7 @@ pub async fn run(
     operator_token: Option<&str>,
 ) -> anyhow::Result<()> {
     let registry_json = std::fs::read_to_string(registry_path).map_err(|e| {
-        boing_telemetry::component_warn(
-            "boing_cli::qa_apply",
-            "cli",
-            "read_registry_failed",
-            &e,
-        );
+        boing_telemetry::component_warn("boing_cli::qa_apply", "cli", "read_registry_failed", &e);
         anyhow::anyhow!("read --registry: {}", e)
     })?;
     let pool_json = std::fs::read_to_string(pool_path).map_err(|e| {

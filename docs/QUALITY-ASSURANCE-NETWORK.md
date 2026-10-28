@@ -1,11 +1,13 @@
 # Boing Network — Quality Assurance at the Protocol Layer
 
-> 👋 **Everyday users:** memes are allowed; scams are not. Live queue: [boing.observer/qa](https://boing.observer/qa). Pre-flight UI: [QA check](https://boing.observer/tools/qa-check).  
+> **Boing Quality Gate.** The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. Automated checks handle clear cases; a decentralized community pool reviews edge cases. It is designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks. It does not claim to prevent all malicious activity. Naming and tone: [../BRAND.md](../BRAND.md).
+
+> 👋 **Everyday users:** memes are allowed; the gate is designed to reduce malicious and deceptive deployments. Live queue: [boing.observer/qa](https://boing.observer/qa). Pre-flight UI: [QA check](https://boing.observer/tools/qa-check).  
 > 🛠️ **Developers:** call `boing_qaCheck` before `ContractDeploy`. Read `rule_id` + `message` on reject (`-32050`). **Every enforced gate:** [QA-GATE-RULES.md](QA-GATE-RULES.md) (PDF on [boing.observer/qa/rules](https://boing.observer/qa/rules)).  
 > 🛰️ **Operators:** live rules are `boing_getQaRegistry` on the RPC you trust — not a screenshot of this file.
 
 **Mission:** True quality assurance with top-notch standards.  
-The QA regulatory system **confirms that all assets are up-to-par before approving deployment** onto the blockchain. No asset is deployed until it passes. All regulatory QA processes are **automated and decentralized**—with a decentralization that **defends against the deployment of malicious assets** (no scams, no single gatekeeper).
+The QA regulatory system **confirms that all assets are up-to-par before approving deployment** onto the blockchain. No asset is deployed until it passes. All regulatory QA processes are **automated and decentralized**—with a decentralization that **defends against the deployment of malicious assets** (designed to reduce malicious, deceptive and low-quality deployments; no single gatekeeper).
 
 ```mermaid
 flowchart TD
@@ -70,7 +72,7 @@ flowchart TD
 
 - **Sixth pillar (optimized):** True quality assurance with top-notch standards. All **currently known** edge cases are resolvable by automation (Allow or Reject); **leniency for meme culture**, **no maliciousness or malignancy** allowed; community pool only for genuinely unknown or policy-mandated cases.
 - **Nothing deploys without passing QA.** The regulatory system confirms that every asset is up-to-par **before** approving deployment onto the blockchain. There is no "deploy first, fix later."
-- **Two things must be confirmed:** the **specs** of the asset (technical standards) and the **purpose** (legitimate reason for deploying; **no scams whatsoever**).
+- **Two things must be confirmed:** the **specs** of the asset (technical standards) and the **purpose** (legitimate reason for deploying; designed to reduce scam-like and deceptive deployments).
 - **All regulatory QA is automated and decentralized.** Automation runs the checks; when the system is unsure, a **community QA pool** decides—throughout the **lifespan** of the network. Decentralization is designed to **defend against malicious deployments**, not to enable them.
 - **Transparent, auditable rules** so developers and the community know exactly what is required.
 
@@ -83,7 +85,7 @@ QA must confirm **both** of the following before any deployment is approved:
 | Pillar | What it means | How it's enforced |
 |--------|----------------|--------------------|
 | **Specs of the asset** | Technical compliance: bytecode size, allowed opcodes, well-formedness, interfaces, metadata, and any asset-type-specific standards (e.g. token supply, decimals, NFT metadata schema). | Automated checks: deterministic rules run at submit and execution. Fail → reject. Unclear → pool. |
-| **Purpose / legitimacy** | There must be a **reason** for deploying that meets network standards. **No scams whatsoever.** The deployment must declare or demonstrate a legitimate use (e.g. dApp, token, NFT collection, tooling)—and must not match known scam patterns (fake tokens, phishing, rug-pull patterns, etc.). | Automated checks where possible: required purpose declaration or category, blocklist of known scam patterns, heuristics for obvious abuse. When automation cannot determine legitimacy (e.g. novel or borderline case), the asset **falls into the QA community pool** for a decentralized allow/reject decision. |
+| **Purpose / legitimacy** | There must be a **reason** for deploying that meets network standards. The deployment must declare or demonstrate a legitimate use (e.g. dApp, token, NFT collection, tooling)—and must not match known scam patterns (fake tokens, phishing, rug-pull patterns, etc.). | Automated checks where possible: required purpose declaration or category, blocklist of known scam patterns, heuristics for obvious abuse. When automation cannot determine legitimacy (e.g. novel or borderline case), the asset **falls into the QA community pool** for a decentralized allow/reject decision. |
 
 **Operationalizing "purpose" in an automated, decentralized way:**
 
@@ -150,13 +152,13 @@ These are the **attributes and rules** that deployments must satisfy. They are t
 - **NFT reference calldata** (off-chain convention): see [`BOING-REFERENCE-NFT.md`](BOING-REFERENCE-NFT.md) — `owner_of`, `transfer_nft`, `set_metadata_hash`, and template-v3 **`mint_batch`** (n≤500). Default QA is opcode/size/well-formedness; **Allow or Unsure** is expected. There is no default pin-hash allowlist of official NFT bytecode.
 - **Naming / metadata**: optional checks (e.g. content policy on `asset_name` / `asset_symbol` in `ContractDeployWithPurposeAndMetadata`) apply when those fields are present; NFT URI schemas remain off-chain unless governance adds rules.
 
-### 5.3 Purpose and legitimacy (no scams)
+### 5.3 Purpose and legitimacy
 
 - **Required declaration:** Purpose category and/or description (or hash) as part of deploy payload or metadata; missing or invalid → reject or unsure.
 - **Valid purpose categories** include dApp, token, NFT, **meme**, **community**, **entertainment**, tooling, and other governance-defined categories. Meme and community/entertainment are explicit valid use cases; lack of a "solid" or traditional use-case is not grounds for reject or Unsure (see §10).
 - **Blocklist:** Known scam patterns, bytecode hashes, or behavioral signatures (maintained via governance). Match → reject.
 - **Legitimacy heuristics:** Automated checks for common scam indicators (e.g. misleading naming, copy of known scam). Reject or unsure; unsure → pool.
-- **No scams whatsoever:** The network enforces that deployments have a legitimate reason; edge cases go to the community QA pool so there is no single gatekeeper.
+- **Legitimate purpose required:** The Quality Gate checks that deployments declare a legitimate reason; edge cases go to the community QA pool so there is no single gatekeeper. No automated system can prevent all abuse; the gate is designed to reduce it.
 
 ### 5.4 Central registry of rules
 
@@ -394,7 +396,7 @@ The following table lists **currently known** edge-case types and the **automati
 | Principle | Implementation |
 |-----------|----------------|
 | **Leniency for meme culture** | Meme, community, and entertainment are **valid** purpose categories. Automation **does not** reject or send to pool for "no solid use-case," "no utility," or "minimal description" when the category is one of these. Meme assets that pass specs and are not on the blocklist and do not trigger scam heuristics are **Allowed**. |
-| **No maliciousness / malignancy allowed** | **Blocklist** (known scams, phishing, rug-pulls, malware hashes/patterns) → **Reject**. **Scam heuristics** in the reject zone (e.g. copy of known scam contract, forbidden naming pattern used to deceive) → **Reject**. **Hard rules** (bytecode safety, well-formedness, size) → fail → **Reject**. So: **lenient on purpose** (meme is fine), **strict on harm** (no scams, no malice). |
+| **No maliciousness / malignancy allowed** | **Blocklist** (known scams, phishing, rug-pulls, malware hashes/patterns) → **Reject**. **Scam heuristics** in the reject zone (e.g. copy of known scam contract, forbidden naming pattern used to deceive) → **Reject**. **Hard rules** (bytecode safety, well-formedness, size) → fail → **Reject**. So: **lenient on purpose** (meme is fine), **strict on harm** (known scam-like and malicious patterns are rejected). |
 | **Single line** | Meme culture is welcome; malicious or malignant assets are not. Automation enforces both by explicit rules. |
 
 ### 11.4 Pool only for genuinely unknown cases
@@ -445,7 +447,7 @@ Automated QA does **not** apply open-ended "moral" judgment. It operationalizes 
 | **Hard rules** | Size, opcodes, and well-formedness limit what can be deployed (e.g. no invalid opcodes that could hide exploit code). These are **spec** checks, not moral ones, but they reduce the space for harmful bytecode. |
 | **Edge cases (Unsure)** | When automation is unsure, the **community QA pool** decides using the **canonical definition of malice** (Appendix B): scams, phishing, rug-pulls, malware, impersonation, deceptive naming, Ponzi patterns, spam/abuse. Pool members vote Reject if the asset fits those categories; otherwise Allow (with leniency for meme/experimental). |
 
-**In short:** Automation **rejects** malicious assets when they match the **blocklist** or **scam patterns** (governance-defined). It does **not** deploy vague morality—only the bar set by the protocol and governance. The **canonical malice definition** (Appendix B) is the **moral/harm bar**; automation enforces it via blocklist + patterns, and the **pool** enforces it for Unsure cases. **No scams whatsoever** is policy; automation and the pool together enforce it.
+**In short:** Automation **rejects** malicious assets when they match the **blocklist** or **scam patterns** (governance-defined). It does **not** deploy vague morality—only the bar set by the protocol and governance. The **canonical malice definition** (Appendix B) is the **moral/harm bar**; automation enforces it via blocklist + patterns, and the **pool** enforces it for Unsure cases. Reducing scam-like and malicious deployments is policy; automation and the pool apply it together. No system can prevent all abuse.
 
 ### 13.2 Implementation standards & industry alignment
 
@@ -751,7 +753,7 @@ Boing does **not** use delegate-to-runtime indirection that swaps implementation
 
 ## Summary
 
-- **Mission:** The QA regulatory system confirms that all assets are up-to-par (specs + purpose) before approving deployment. No scams whatsoever. All processes are automated and decentralized, with decentralization defending against malicious deployments.
+- **Mission:** The QA regulatory system confirms that all assets are up-to-par (specs + purpose) before approving deployment. Designed to reduce malicious, deceptive and low-quality deployments. All processes are automated and decentralized, with decentralization defending against malicious deployments.
 - **Two pillars:** (1) **Specs**—technical compliance (bytecode, size, opcodes, well-formedness, interfaces, metadata). (2) **Purpose**—legitimate reason for deploying; blocklists and heuristics catch scams; edge cases go to the pool.
 - **Automation:** Reject deployments that violate specs or purpose rules; return Unsure when the system is not confident. No human-in-the-loop for clear cases.
 - **Community pool:** For edge cases **throughout the network's lifespan**, whenever the system does not know allow vs reject, the asset falls into the QA community pool. What determines "edge case" (Unsure) is defined in §7. Assets **do not remain in the pool indefinitely**: a maximum time T (e.g. 7–14 days) is set by governance; by the deadline the item is resolved (default Reject or Allow by policy). See §8.3.

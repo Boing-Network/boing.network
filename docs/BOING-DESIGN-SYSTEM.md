@@ -5,7 +5,9 @@
 > 🛰️ **Operators:** treat the sections below as the working spec for this topic.
 
 
-**Version:** 1.0 · **Date:** February 2026
+**Version:** 1.0 (February 2026), partially updated for the 2026 rebrand
+
+> **2026 rebrand update:** the shared palette is now a deep-navy foundation (`--boing-navy-950` `#050A1A`, `--boing-navy-900` `#0A1128`, `--boing-navy-800` `#101A38`) with one accent, electric blue `--boing-accent` `#3B8CFF`, in all four repositories. Naming, tone and approved phrases live in [../BRAND.md](../BRAND.md); where this document describes the older per-site accent palettes or neon/glass styling, BRAND.md takes precedence.
 
 This document is the single source of truth for the Boing design system across **boing.express**, **boing.finance**, and **boing.network**. It defines a shared visual language and three tailored variants so each site expresses its own personality while staying recognizably Boing.
 
@@ -15,8 +17,8 @@ This document is the single source of truth for the Boing design system across *
 
 1. [Overview](#1-overview)
 2. [Shared Foundation](#2-shared-foundation)
-3. [Variant 1 — boing.express: Aqua Personal](#3-variant-1--boingexpress-aqua-personal)
-4. [Variant 2 — boing.finance: Deep Trade](#4-variant-2--boingfinance-deep-trade)
+3. [Variant 1 — boing.express: Aqua Personal](#3-variant-1--boingexpress-aqua-personal-historical)
+4. [Variant 2 — boing.finance: Deep Trade](#4-variant-2--boingfinance-deep-trade-historical)
 5. [Variant 3 — boing.network: Cosmic Foundation](#5-variant-3--boingnetwork-cosmic-foundation)
 6. [Cross-Site Consistency Rules](#6-cross-site-consistency-rules)
 7. [Mascot Usage](#7-mascot-usage)
@@ -40,22 +42,23 @@ All three variants use the same structural tokens and rules.
 
 ### 2.1 Shared Color Tokens
 
+The current shared palette is defined in [BRAND.md](../BRAND.md#shared-tokens-identical-in-all-four-repositories) and implemented in `website/src/styles/design-tokens-cosmic.css`. It is identical in all four repositories.
+
 | Token | Value | Usage |
 |-------|--------|--------|
-| `--boing-black` | `#020408` – `#050c18` | Page background |
-| `--boing-navy` | `#060f1e` – `#0a1628` | Section backgrounds |
-| `--boing-navy-mid` | `#091828` – `#0d1f3c` | Card backgrounds |
-| `--text-primary` | `#f0f9ff` / `#f8fafc` | Headings, primary text |
-| `--text-secondary` | `#94a3b8` | Body copy, descriptions |
-| `--text-muted` | `#475569` – `#64748b` | Labels, metadata |
+| `--boing-navy-950` | `#050A1A` | Page background |
+| `--boing-navy-900` | `#0A1128` | Surfaces, sections |
+| `--boing-navy-800` | `#101A38` | Cards |
+| `--boing-navy-700` | `#18244A` | Raised or hover surfaces |
+| `--boing-accent` | `#3B8CFF` | The single accent (electric blue) |
+| `--boing-accent-soft` | `#8DB8FF` | Accent text and hover on dark |
+| `--boing-accent-ink` | `#040814` | Text on accent fills |
+| `--boing-text` | `#F0F4F8` | Primary text |
+| `--boing-success` / `--boing-warning` / `--boing-danger` | `#34D399` / `#FBBF24` / `#F87171` | Status colors |
 
-### 2.2 Shared Typography
+### 2.2 Typography
 
-| Role | Font | Weight | Usage |
-|------|------|--------|--------|
-| Display / Brand | Orbitron | 700–900 | Hero titles, section titles, logo |
-| Body | Inter | 300–700 | Body copy, UI text, labels |
-| Monospace | JetBrains Mono | 400–600 | Code, prices, data (finance/network) |
+Font stacks are defined per site in `website/src/styles/design-tokens-cosmic.css` (`--font-sans`, `--font-display`, `--font-mono`); this site currently uses Comfortaa. The Orbitron / Inter / JetBrains Mono stack in the February 2026 version of this document is historical.
 
 ### 2.3 Shared Spacing & Radius
 
@@ -87,7 +90,9 @@ All sites use a layered background:
 
 ---
 
-## 3. Variant 1 — boing.express: Aqua Personal
+## 3. Variant 1 — boing.express: Aqua Personal (historical)
+
+> **Historical.** The per-site accent palettes in sections 3 and 4 (Aqua `#00e8c8`, Deep Trade `#00e5ff` / `#00ff88`) were replaced by the single shared electric-blue accent above. They are kept only to explain older screenshots and commits. Use [BRAND.md](../BRAND.md) for current tokens.
 
 | Attribute | Value |
 |----------|--------|
@@ -99,7 +104,7 @@ All sites use a layered background:
 
 ---
 
-## 4. Variant 2 — boing.finance: Deep Trade
+## 4. Variant 2 — boing.finance: Deep Trade (historical)
 
 | Attribute | Value |
 |----------|--------|
@@ -179,7 +184,7 @@ All sites use a layered background:
    - All sites reference: Security, Scalability, Decentralization, Authenticity, Transparency, Quality Assurance.
 
 5. **Footer**
-   - Tagline: “Authentic. Decentralized. Optimal. Quality-Assured.”
+   - Tagline: “Quality, enforced by the protocol.”
    - Links to other Boing properties.
    - `border-top: 1px solid` with accent at 8–10% opacity.
 
@@ -219,7 +224,7 @@ All sites use a layered background:
 - **Current coverage (this repo):**
   - `website/src/styles/boing-theme.css`: Cards, links, float, pulse, fade-in-up.
   - `website/src/components/BoingMascot.astro`: Mascot float and glow.
-  - `website/src/components/EnhancedAnimatedBackground.astro`: BG drift, SVG animations, shooting stars (hidden when reduced).
+  - `website/src/components/StoneEngravingOverlay.astro`: engraved stone overlay and shooting-star motion (hidden when reduced).
 
 ### 8.2 Contrast & Focus
 
@@ -288,11 +293,11 @@ To add a new Boing property:
 | Typography | Orbitron (display), Inter (body), JetBrains Mono (code) | `boing-theme.css` |
 | Cards | Glassmorphism, blur(12px) | `.card`, `--bg-card` |
 | Buttons | Gradient teal→cyan, hover glow | `.btn-primary`, `.btn-secondary` |
-| Reduced motion | `prefers-reduced-motion` | boing-theme.css, BoingMascot, EnhancedAnimatedBackground |
+| Reduced motion | `prefers-reduced-motion` | boing-theme.css, BoingMascot, StoneEngravingOverlay |
 | Contrast | WCAG AA | Token-based |
 
 Hardcoded colors should use `var(--…)`; meta theme-color remains hex.
 
 ---
 
-*Boing Design System · Authentic. Decentralized. Optimal. Quality-Assured.*
+*Boing Design System · Quality, enforced by the protocol.*

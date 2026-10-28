@@ -11,7 +11,9 @@ use boing_primitives::{
 use ed25519_dalek::SigningKey;
 use serde_json::{json, Value};
 
-use crate::token::{account_of, hex_account, nonce_for, parse_account, parse_signing_key, rpc, submit};
+use crate::token::{
+    account_of, hex_account, nonce_for, parse_account, parse_signing_key, rpc, submit,
+};
 
 /// Resolve (owner, node) keys. The node key is optional for deregister/unjail when `--node` is given.
 pub fn resolve_keys(
@@ -63,12 +65,24 @@ pub fn build_register_tx(owner: &SigningKey, node: &SigningKey, nonce: u64) -> S
     )
 }
 
-pub fn build_deregister_tx(owner: &SigningKey, node_id: AccountId, nonce: u64) -> SignedTransaction {
-    tx(owner, nonce, TransactionPayload::ValidatorDeregister { node_id })
+pub fn build_deregister_tx(
+    owner: &SigningKey,
+    node_id: AccountId,
+    nonce: u64,
+) -> SignedTransaction {
+    tx(
+        owner,
+        nonce,
+        TransactionPayload::ValidatorDeregister { node_id },
+    )
 }
 
 pub fn build_unjail_tx(owner: &SigningKey, node_id: AccountId, nonce: u64) -> SignedTransaction {
-    tx(owner, nonce, TransactionPayload::ValidatorUnjail { node_id })
+    tx(
+        owner,
+        nonce,
+        TransactionPayload::ValidatorUnjail { node_id },
+    )
 }
 
 async fn require_open_mode(rpc_url: &str) -> anyhow::Result<Value> {
@@ -89,7 +103,9 @@ pub async fn register(
     nonce: Option<u64>,
     dry_run: bool,
 ) -> anyhow::Result<()> {
-    let node = node.ok_or_else(|| anyhow::anyhow!("no node key: pass --node-key-hex or set BOING_VALIDATOR_KEY"))?;
+    let node = node.ok_or_else(|| {
+        anyhow::anyhow!("no node key: pass --node-key-hex or set BOING_VALIDATOR_KEY")
+    })?;
     let owner = owner.unwrap_or_else(|| node.clone());
     if !dry_run {
         let report = require_open_mode(rpc_url).await?;
@@ -102,16 +118,25 @@ pub async fn register(
             );
         }
     }
-    println!("Registering node {} (owner {})", hex_account(&account_of(&node)), hex_account(&account_of(&owner)));
+    println!(
+        "Registering node {} (owner {})",
+        hex_account(&account_of(&node)),
+        hex_account(&account_of(&owner))
+    );
     let n = nonce_for(rpc_url, &owner, nonce).await?;
     submit(rpc_url, &build_register_tx(&owner, &node, n), dry_run).await
 }
 
-fn node_id_from(node_arg: Option<String>, node_key: &Option<SigningKey>) -> anyhow::Result<AccountId> {
+fn node_id_from(
+    node_arg: Option<String>,
+    node_key: &Option<SigningKey>,
+) -> anyhow::Result<AccountId> {
     match (node_arg, node_key) {
         (Some(s), _) => parse_account(&s),
         (None, Some(k)) => Ok(account_of(k)),
-        (None, None) => anyhow::bail!("pass --node <hex id> or a node key (--node-key-hex / BOING_VALIDATOR_KEY)"),
+        (None, None) => anyhow::bail!(
+            "pass --node <hex id> or a node key (--node-key-hex / BOING_VALIDATOR_KEY)"
+        ),
     }
 }
 
@@ -124,8 +149,13 @@ pub async fn deregister(
     dry_run: bool,
 ) -> anyhow::Result<()> {
     let node_id = node_id_from(node_arg, &node_key)?;
-    let owner = owner.or(node_key).ok_or_else(|| anyhow::anyhow!("no owner key: pass --secret-hex or set BOING_SECRET_HEX"))?;
-    println!("Deregistering node {} (bond claimable with ClaimUnbond after the delay)", hex_account(&node_id));
+    let owner = owner.or(node_key).ok_or_else(|| {
+        anyhow::anyhow!("no owner key: pass --secret-hex or set BOING_SECRET_HEX")
+    })?;
+    println!(
+        "Deregistering node {} (bond claimable with ClaimUnbond after the delay)",
+        hex_account(&node_id)
+    );
     let n = nonce_for(rpc_url, &owner, nonce).await?;
     submit(rpc_url, &build_deregister_tx(&owner, node_id, n), dry_run).await
 }
@@ -139,7 +169,9 @@ pub async fn unjail(
     dry_run: bool,
 ) -> anyhow::Result<()> {
     let node_id = node_id_from(node_arg, &node_key)?;
-    let owner = owner.or(node_key).ok_or_else(|| anyhow::anyhow!("no owner key: pass --secret-hex or set BOING_SECRET_HEX"))?;
+    let owner = owner.or(node_key).ok_or_else(|| {
+        anyhow::anyhow!("no owner key: pass --secret-hex or set BOING_SECRET_HEX")
+    })?;
     println!("Unjailing node {}", hex_account(&node_id));
     let n = nonce_for(rpc_url, &owner, nonce).await?;
     submit(rpc_url, &build_unjail_tx(&owner, node_id, n), dry_run).await
@@ -159,25 +191,42 @@ pub async fn claim_unbond(
     nonce: Option<u64>,
     dry_run: bool,
 ) -> anyhow::Result<()> {
-    let owner = owner.or(node_key).ok_or_else(|| anyhow::anyhow!("no owner key: pass --secret-hex or set BOING_SECRET_HEX"))?;
+    let owner = owner.or(node_key).ok_or_else(|| {
+        anyhow::anyhow!("no owner key: pass --secret-hex or set BOING_SECRET_HEX")
+    })?;
     let id = account_of(&owner);
     if !dry_run {
         let acct = rpc(rpc_url, "boing_getAccount", json!([hex_account(&id)])).await?;
-        let pending = acct.get("pending_unbond").and_then(Value::as_str).unwrap_or("0").to_string();
+        let pending = acct
+            .get("pending_unbond")
+            .and_then(Value::as_str)
+            .unwrap_or("0")
+            .to_string();
         // Display in BOING (the node formats base units; older nodes return whole BOING only).
         let pending_shown = acct
             .get("pending_unbond_boing")
             .and_then(Value::as_str)
             .map(str::to_string)
             .unwrap_or_else(|| pending.clone());
-        let unlock = acct.get("unbond_unlock_height").and_then(Value::as_u64).unwrap_or(0);
-        let height = rpc(rpc_url, "boing_chainHeight", json!([])).await?.as_u64().unwrap_or(0);
+        let unlock = acct
+            .get("unbond_unlock_height")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let height = rpc(rpc_url, "boing_chainHeight", json!([]))
+            .await?
+            .as_u64()
+            .unwrap_or(0);
         if pending == "0" {
-            anyhow::bail!("nothing to claim: {} has no pending unbond", hex_account(&id));
+            anyhow::bail!(
+                "nothing to claim: {} has no pending unbond",
+                hex_account(&id)
+            );
         }
         // The claim executes in the next block (height + 1).
         if height + 1 < unlock {
-            anyhow::bail!("unbond of {pending_shown} BOING unlocks at height {unlock} (chain is at {height})");
+            anyhow::bail!(
+                "unbond of {pending_shown} BOING unlocks at height {unlock} (chain is at {height})"
+            );
         }
         println!("Claiming {pending_shown} BOING unbond for {} (unlocked at {unlock}, chain at {height})", hex_account(&id));
     } else {
@@ -223,7 +272,10 @@ pub fn format_status(report: &Value, only: Option<&str>) -> String {
             v["kind"].as_str().unwrap_or("?"),
             status,
             v["in_set"].as_bool().unwrap_or(false),
-            v["bond_boing"].as_str().or(v["bond"].as_str()).unwrap_or("0"),
+            v["bond_boing"]
+                .as_str()
+                .or(v["bond"].as_str())
+                .unwrap_or("0"),
             v["uptime_pct"].as_f64().unwrap_or(0.0),
             v["missed_proposals"],
             v["scheduled_proposals"],
@@ -252,7 +304,9 @@ pub async fn status(rpc_url: &str, node: Option<String>, json_out: bool) -> anyh
         println!("{}", serde_json::to_string_pretty(&report)?);
         return Ok(());
     }
-    let only = node.map(|n| parse_account(&n).map(|a| hex_account(&a))).transpose()?;
+    let only = node
+        .map(|n| parse_account(&n).map(|a| hex_account(&a)))
+        .transpose()?;
     print!("{}", format_status(&report, only.as_deref()));
     Ok(())
 }
@@ -283,16 +337,29 @@ mod tests {
         assert!(stx.verify().is_ok());
         assert_eq!(stx.tx.sender, account_of(&owner));
         match &stx.tx.payload {
-            TransactionPayload::ValidatorRegister { node_id, node_signature } => {
+            TransactionPayload::ValidatorRegister {
+                node_id,
+                node_signature,
+            } => {
                 assert_eq!(*node_id, account_of(&node));
-                assert!(boing_primitives::verify_validator_registration(&account_of(&owner), node_id, node_signature));
+                assert!(boing_primitives::verify_validator_registration(
+                    &account_of(&owner),
+                    node_id,
+                    node_signature
+                ));
             }
             _ => panic!("wrong payload"),
         }
         let d = build_deregister_tx(&owner, account_of(&node), 5);
-        assert!(matches!(d.tx.payload, TransactionPayload::ValidatorDeregister { .. }));
+        assert!(matches!(
+            d.tx.payload,
+            TransactionPayload::ValidatorDeregister { .. }
+        ));
         let u = build_unjail_tx(&owner, account_of(&node), 6);
-        assert!(matches!(u.tx.payload, TransactionPayload::ValidatorUnjail { .. }));
+        assert!(matches!(
+            u.tx.payload,
+            TransactionPayload::ValidatorUnjail { .. }
+        ));
     }
 
     #[test]
@@ -314,8 +381,14 @@ mod tests {
         let s = format_status(&report, None);
         assert!(s.contains("mode=open"));
         assert!(s.contains("jailed(until 25)"));
-        assert!(!s.contains("100000000000000000000"), "bond shown in BOING, not base units: {s}");
-        assert!(s.contains("at jailing (block 15): uptime 0.0%, missed 2/2"), "{s}");
+        assert!(
+            !s.contains("100000000000000000000"),
+            "bond shown in BOING, not base units: {s}"
+        );
+        assert!(
+            s.contains("at jailing (block 15): uptime 0.0%, missed 2/2"),
+            "{s}"
+        );
         let one = format_status(&report, Some("0xAA"));
         assert!(one.contains("0xaa") && !one.contains("0xbb"));
     }

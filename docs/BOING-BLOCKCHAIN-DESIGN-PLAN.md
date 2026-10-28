@@ -1,10 +1,10 @@
-# Boing Blockchain: Authentic Network Design Plan
+# Boing Network: Design Plan
 
 > 👋 **Everyday users:** why Boing is its own L1 — not a fork. Short version: [SIX-PILLARS.md](SIX-PILLARS.md).  
 > 🛠️ **Developers:** architecture, tokenomics, and design decisions. Spec-level truth is [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md).  
 > 🛰️ **Operators:** stack choices (Rust, libp2p, HotStuff) constrain how you run nodes.
 
-**Core Principle:** An authentic, unique L1 blockchain built from first principles — optimized for efficiency, free from dependencies on other chains, designed for **absolute decentralization**, and committed to **100% transparency** in how we build, govern, and operate.  
+**Core Principle:** An independent L1 built from first principles — optimized for efficiency, free from dependencies on other chains, designed for **absolute decentralization**, and committed to **transparency by default** in how we build, govern, and operate.  
 **Quick overview:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md).
 
 ```mermaid
@@ -51,7 +51,7 @@ The Boing blockchain is conceived as a **greenfield L1** with the following pill
 - **Optimal** — Adopt the best ideas from the ecosystem when they’re demonstrably superior
 - **Unique** — A distinct identity and technical story
 - **Decentralized** — Absolute decentralization as a foundational requirement
-- **Transparent** — 100% transparent in how we build, govern, and operate — trust through verifiability, not promises
+- **Transparent** — Transparent by default in how we build, govern, and operate — trust through verifiability, not promises
 
 ---
 
@@ -75,7 +75,7 @@ The Boing blockchain is conceived as a **greenfield L1** with the following pill
 
 ## Priority Pillars
 
-The Boing blockchain prioritizes, in order:
+Boing Network prioritizes, in order:
 
 1. **Security** — Safety and correctness over speed
 2. **Scalability** — Throughput and efficient resource use
@@ -1077,4 +1077,4 @@ Boing commits to pushing beyond baseline decentralization and amplifying authent
 ---
 
 *Document Version: 1.5*  
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

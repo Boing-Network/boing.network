@@ -21,16 +21,16 @@ fn key(b: u8) -> SigningKey {
 }
 
 fn tmp_dir(name: &str) -> std::path::PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "boing-blob-dl-{name}-{}",
-        std::process::id()
-    ));
+    let p = std::env::temp_dir().join(format!("boing-blob-dl-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&p);
     std::fs::create_dir_all(&p).unwrap();
     p
 }
 
-fn node_with_blob(data_dir: &std::path::Path, payload: &[u8]) -> (Arc<RwLock<BoingNode>>, [u8; 32]) {
+fn node_with_blob(
+    data_dir: &std::path::Path,
+    payload: &[u8],
+) -> (Arc<RwLock<BoingNode>>, [u8; 32]) {
     let sk = key(7);
     let id = AccountId(sk.verifying_key().to_bytes());
     let mut n = BoingNode::with_validators(vec![id], id, Some(sk));
@@ -78,7 +78,9 @@ async fn media_blob_download_open_without_tokens() {
     let res = app.oneshot(req).await.unwrap();
     assert_eq!(res.status(), StatusCode::OK);
     assert_eq!(
-        res.headers().get("content-type").and_then(|v| v.to_str().ok()),
+        res.headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok()),
         Some("text/plain")
     );
     let body = res.into_body().collect().await.unwrap().to_bytes();
@@ -126,7 +128,13 @@ async fn media_blob_download_accepts_bearer() {
     let payload = b"bearer-payload";
     let (node, blob_id) = node_with_blob(&dir, payload);
     let op: std::sync::Arc<str> = "bearer-op-token".into();
-    let app = rpc_router(node, &RateLimitConfig::default(), None, Some(op.clone()), None);
+    let app = rpc_router(
+        node,
+        &RateLimitConfig::default(),
+        None,
+        Some(op.clone()),
+        None,
+    );
     let id_hex = hex::encode(blob_id);
     let req = Request::builder()
         .uri(format!("/v1/media/blob?id={id_hex}"))

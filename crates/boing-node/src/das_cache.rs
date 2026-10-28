@@ -16,7 +16,10 @@ pub const DEFAULT_DAS_CACHE_MAX_BYTES: usize = 64 * 1024 * 1024;
 pub const ENV_DAS_CACHE_MAX_BYTES: &str = "BOING_DAS_CACHE_MAX_BYTES";
 
 fn bundle_bytes(b: &MediaBlobErasureBundle) -> usize {
-    b.data_chunks.iter().map(|c| c.len()).sum::<usize>() + b.parity_chunk.len() + b.chunk_hashes.len() * 32 + 128
+    b.data_chunks.iter().map(|c| c.len()).sum::<usize>()
+        + b.parity_chunk.len()
+        + b.chunk_hashes.len() * 32
+        + 128
 }
 
 /// Byte-bounded LRU of `Arc<MediaBlobErasureBundle>` keyed by blob id.
@@ -32,7 +35,14 @@ pub struct DasBundleCache {
 
 impl DasBundleCache {
     pub fn new(max_bytes: usize) -> Self {
-        Self { max_bytes, used: 0, map: HashMap::new(), order: VecDeque::new(), hits: 0, misses: 0 }
+        Self {
+            max_bytes,
+            used: 0,
+            map: HashMap::new(),
+            order: VecDeque::new(),
+            hits: 0,
+            misses: 0,
+        }
     }
 
     fn touch(&mut self, id: &BlobId) {
@@ -67,7 +77,9 @@ impl DasBundleCache {
             }
         }
         while self.used + size > self.max_bytes {
-            let Some(victim) = self.order.pop_front() else { break };
+            let Some(victim) = self.order.pop_front() else {
+                break;
+            };
             if let Some((_, s)) = self.map.remove(&victim) {
                 self.used -= s;
             }
@@ -115,7 +127,9 @@ pub fn get_or_build<E>(
     if let Some(b) = global().lock().ok().and_then(|mut c| c.get(id)) {
         return Ok(Some(b));
     }
-    let Some(bundle) = build()? else { return Ok(None) };
+    let Some(bundle) = build()? else {
+        return Ok(None);
+    };
     let arc = Arc::new(bundle);
     if let Ok(mut c) = global().lock() {
         c.insert(*id, arc.clone());

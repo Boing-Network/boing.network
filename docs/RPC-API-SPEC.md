@@ -188,7 +188,7 @@ Other codes: `-32602` malformed hex or undecodable transaction (clients must ser
 
 **QA pool (Unsure):** If mempool QA returns Unsure **and** governance allows the pool to accept work (`qa_pool_config`: non-zero `max_pending_items` and `public_membership`, `administrators`, or `dev_open_voting`), the node enqueues the deployment and responds with **`-32051`** and `data: { "tx_hash": "0x..." }`. The same signed deploy is **gossiped** so peers can enqueue it. With **`public_membership`**, the node also admits the deploy for inclusion so apply can register it on-chain (no contract created until quorum Allow). Voters submit a signed **`QaPoolVote`** transaction (via `boing_submitTransaction` or as the 4th param to `boing_qaPoolVote`). Hard caps (`max_pending_items`, `max_pending_per_deployer`) prevent pool congestion; when full, **`-32055`** / **`-32056`** apply instead of enqueueing.
 
-**Operator RPC (optional):** When the node process has environment variable **`BOING_OPERATOR_RPC_TOKEN`** set to a non-empty string, **`boing_operatorApplyQaPolicy`**, **`boing_operatorApplyFeePolicy`**, **admin-only** **`boing_qaPoolVote`**, **`boing_registerBlsDualKey`**, **`boing_putBlobSampleOffer`** (node-local offer book writes) and the slash-appeal operator paths require HTTP header **`X-Boing-Operator: <same token>`**. **`public_membership` QA votes do not use the operator header** — eligibility is protocol-side (signed vote tx; `-32053` if ineligible). If the variable is unset, admin-only votes match earlier releases (no header check).
+**Operator RPC:** **`boing_operatorApplyQaPolicy`**, **`boing_operatorApplyFeePolicy`**, **admin-only** **`boing_qaPoolVote`**, **`boing_registerBlsDualKey`**, **`boing_putBlobSampleOffer`** (node-local offer book writes), **`boing_submitSlashAppeal`**, and **`boing_resolveSlashAppeal`** require HTTP header **`X-Boing-Operator: <token>`** matching the node's **`BOING_OPERATOR_RPC_TOKEN`**. **Fail-closed:** if the variable is unset or empty, these methods are rejected with **`-32057`** (earlier releases treated unset as open). **`public_membership` QA votes do not use the operator header** - eligibility is protocol-side (signed vote tx; `-32053` if ineligible). **Breaking change for existing deployments:** nodes that rely on these methods must set **`BOING_OPERATOR_RPC_TOKEN`** and send **`X-Boing-Operator`**.
 
 **Does the pool need RPC to “run”?** No. The node **owns** the pool: when QA returns Unsure and governance allows it, enqueueing happens inside normal transaction/mempool handling (`boing_submitTransaction` may return **`-32051`**). JSON-RPC is how clients *inspect and vote*—**`boing_qaPoolList`**, **`boing_qaPoolConfig`**, **`boing_qaPoolVote`**. Policy changes use **`boing_operatorApplyQaPolicy`**. Explorers and wallets are **read-and-submit clients only**; they must not scrape fees or pay voters. Voter rewards are credited in **apply** from [`PROTOCOL_TREASURY`](QUALITY-ASSURANCE-NETWORK.md).
 
@@ -253,7 +253,7 @@ Read-only view of the consensus **`SlashAppealRegistry`** joined with the node-l
 }
 ```
 
-**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth when **`BOING_OPERATOR_RPC_TOKEN`** is set). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3. Consensus book also exposes **`registryCommitment`**. For ballot crypto audit use **`boing_reverifySlashAppealBallots`**. Phase 23: Expired appeals are pruned from the book after `resolve_deadline + 4096` via housekeeping. Phase 25: Approved/Rejected prune on the same TTL; `includeResolved` lets operators hide them while retained. Phase 26–32: `boing_getMediaBlobParams` echoes `blsAggregateScaffold` / `blsAggregateWired` / `blsPopRequired` / `blsAggregateSubmitLibraryWired` / `blsAggregateSubmitConsensusWired` / `blsCommitteeFlipHeight` / `blsCommitteeFlipActiveAtTip` / dynamic `blsLiveTx32StillEd25519` (Phase 32: opt-in flip of multi-pin verify from Ed25519 **32** → BLS aggregate **33** via `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT`; unset = Phase 31 behavior). Dual-key host registry: **`boing_listBlsDualKeys`** / **`boing_registerBlsDualKey`** (`accountId`, `blsPubkey`, `blsPop`, optional `chainId`; operator auth when token set) / **`boing_verifyBlsAggregate`** / **`boing_verifyBlsAggregateResolve`**.
+**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth: **`X-Boing-Operator`** matching **`BOING_OPERATOR_RPC_TOKEN`**; rejected with `-32057` if the token is unset). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3. Consensus book also exposes **`registryCommitment`**. For ballot crypto audit use **`boing_reverifySlashAppealBallots`**. Phase 23: Expired appeals are pruned from the book after `resolve_deadline + 4096` via housekeeping. Phase 25: Approved/Rejected prune on the same TTL; `includeResolved` lets operators hide them while retained. Phase 26–32: `boing_getMediaBlobParams` echoes `blsAggregateScaffold` / `blsAggregateWired` / `blsPopRequired` / `blsAggregateSubmitLibraryWired` / `blsAggregateSubmitConsensusWired` / `blsCommitteeFlipHeight` / `blsCommitteeFlipActiveAtTip` / dynamic `blsLiveTx32StillEd25519` (Phase 32: opt-in flip of multi-pin verify from Ed25519 **32** → BLS aggregate **33** via `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT`; unset = Phase 31 behavior). Dual-key host registry: **`boing_listBlsDualKeys`** / **`boing_registerBlsDualKey`** (`accountId`, `blsPubkey`, `blsPop`, optional `chainId`; operator auth required; rejected with `-32057` if `BOING_OPERATOR_RPC_TOKEN` is unset) / **`boing_verifyBlsAggregate`** / **`boing_verifyBlsAggregateResolve`**.
 
 ---
 
@@ -276,7 +276,7 @@ Submit an appeal against a recorded slash (within the appeal window).
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[slash_id, evidence_hex]` or `{ "slash_id", "evidence" }` | `slash_id` number; `evidence` hex (optional `0x`, may be empty) |
-| Auth | Operator | Same as **`boing_qaPoolVote`** when **`BOING_OPERATOR_RPC_TOKEN`** is set |
+| Auth | Operator | Same as **`boing_qaPoolVote`**; requires **`BOING_OPERATOR_RPC_TOKEN`** to be set on the node (rejected with `-32057` otherwise) |
 
 **Result:** `{ "appeal_id": N, "slash_id": N }`
 
@@ -291,7 +291,7 @@ Approve or reject a pending appeal. Approval restores burned stake from the fee 
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[appeal_id, approved]` or `{ "appeal_id", "approved" }` | `approved` bool (or string `true`/`approve`/`1`) |
-| Auth | Operator | Same as **`boing_qaPoolVote`** when **`BOING_OPERATOR_RPC_TOKEN`** is set |
+| Auth | Operator | Same as **`boing_qaPoolVote`**; requires **`BOING_OPERATOR_RPC_TOKEN`** to be set on the node (rejected with `-32057` otherwise) |
 
 **Result:** `{ "appeal_id": N, "approved": bool, "restored": "<u128 decimal>" }`
 
@@ -319,7 +319,7 @@ Cast a vote on a pending pool item.
 | Params | `[tx_hash_hex, voter_hex, vote]` or `[tx_hash_hex, voter_hex, vote, signed_vote_tx_hex]` | `vote` is `allow`, `reject`, or `abstain` (case-insensitive). **`public_membership`:** any 32-byte account may vote, but the 4th param **must** be a hex-encoded signed `QaPoolVote` transaction (sender = `voter_hex`, payload subject/vote must match). **Admin-only** configs: listed `administrators` (or `dev_open_voting` with empty admins); operator header may apply. **`-32053`** if the voter is ineligible (not a member, deployer voting on their own item, or below `min_voter_stake`). **Anti-sybil:** one vote per account per item (later votes overwrite). **Abstain** does not count toward quorum and does **not** pay unless `pay_abstain` is true. |
 | Result | `{ outcome: "pending" \| "reject" \| "allow", mempool?: boolean, duplicate?: boolean, error?: string }` | On public membership, Allow/Reject **resolution and voter payouts happen in apply** when the signed vote tx is included. |
 
-**Errors:** `-32052` no pending item; `-32053` voter ineligible; **`-32057`** operator authentication required for **admin-only** votes when the operator token is set.
+**Errors:** `-32052` no pending item; `-32053` voter ineligible; **`-32057`** operator authentication required for **admin-only** votes (missing or wrong `X-Boing-Operator`, or no `BOING_OPERATOR_RPC_TOKEN` configured on the node).
 
 **Voter payout (apply):** When a signed `QaPoolVote` is included and that vote is counted toward a resolving quorum, each unpaid counted voter is credited `reward_per_counted_vote` BOING from `PROTOCOL_TREASURY` (pro-rata if the treasury is short). Explorers/wallets do not pay voters.
 
@@ -340,7 +340,7 @@ Recommended operator policy: **`execution_gas_fee_bps=100`** (micro; ~0.00021 BO
 
 ### boing_operatorApplyFeePolicy
 
-Replace the node’s native fee policy (persists `network_fee_config.json`). Requires **`X-Boing-Operator`** when **`BOING_OPERATOR_RPC_TOKEN`** is set.
+Replace the node’s native fee policy (persists `network_fee_config.json`). Requires **`X-Boing-Operator`** matching **`BOING_OPERATOR_RPC_TOKEN`**; rejected with `-32057` if the token is unset.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -351,14 +351,14 @@ Replace the node’s native fee policy (persists `network_fee_config.json`). Req
 
 ### boing_operatorApplyQaPolicy
 
-Replace the node’s in-memory QA registry and pool governance config (same effect as loading `qa_registry.json` / `qa_pool_config.json` at startup, plus persistence to the node data directory). Intended for operators; requires **`X-Boing-Operator`** when **`BOING_OPERATOR_RPC_TOKEN`** is set.
+Replace the node’s in-memory QA registry and pool governance config (same effect as loading `qa_registry.json` / `qa_pool_config.json` at startup, plus persistence to the node data directory). Intended for operators; requires **`X-Boing-Operator`** matching **`BOING_OPERATOR_RPC_TOKEN`**; rejected with `-32057` if the token is unset.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | Params | `[qa_registry_json, qa_pool_config_json]` | Two **strings**, each the full JSON document (not a path). |
 | Result | `{ ok: true }` | Policy applied. |
 
-**Errors:** **`-32057`** missing or wrong operator header when the token is configured; **`-32602`** invalid JSON or schema.
+**Errors:** **`-32057`** missing or wrong operator header, or no `BOING_OPERATOR_RPC_TOKEN` configured on the node (fail-closed); **`-32602`** invalid JSON or schema.
 
 **CLI:** `boing qa apply --registry <path> --pool <path> [--operator-token …]` (also reads `BOING_OPERATOR_RPC_TOKEN`).
 
@@ -1085,7 +1085,7 @@ Machine-readable copy: `boing_getRpcMethodCatalog` -> `protocol_specs` (source `
 | -32054 | **QA pool disabled** — Governance has not enabled the pool (`max_pending_items` is 0, or none of `public_membership` / `dev_open_voting` / `administrators`). |
 | -32055 | **QA pool full** — Global `max_pending_items` reached; optional `data.reason: "pool_full"`. |
 | -32056 | **QA pool deployer cap** — Sender exceeded `max_pending_per_deployer`; optional `data.reason: "deployer_cap"`. |
-| -32057 | **Operator RPC auth** — `boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`, `boing_registerBlsDualKey`, `boing_putBlobSampleOffer`, or **admin-only** `boing_qaPoolVote` called without valid `X-Boing-Operator` while `BOING_OPERATOR_RPC_TOKEN` is set. |
+| -32057 | **Operator RPC auth** — `boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`, `boing_submitSlashAppeal`, `boing_resolveSlashAppeal`, `boing_registerBlsDualKey`, `boing_putBlobSampleOffer`, or **admin-only** `boing_qaPoolVote` called without a valid `X-Boing-Operator`, **or** while `BOING_OPERATOR_RPC_TOKEN` is unset on the node (fail-closed). |
 
 
 ---
@@ -1105,7 +1105,7 @@ L1 media blobs (see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) for seman
 | `boing_getBlobDasSuccinctProofPlan` | `[]` | Supported proof kinds (`stubBlake3V0`, `reservedRealV1`), size caps and phase notes. |
 | `boing_verifyBlobDasSuccinctProof` | object `{ blobId, sampleCount?, ... proof }` | Verification result; `reservedRealV1` is rejected until a real succinct system is wired. |
 | `boing_getLeaderVrfOutput` | `[round?]` (default: chain height) | `{ round, leaderElection, vrfOutput\|null, note }`; `null` under RoundRobin election. |
-| `boing_putBlobSampleOffer` | `{ blobId, chunkIndex, chunkCount, provider, askFee, expiresAtHeight? }` | Adds a **node-local** (non-consensus) sample offer. **Operator-gated** (`-32057` when `BOING_OPERATOR_RPC_TOKEN` is set). |
+| `boing_putBlobSampleOffer` | `{ blobId, chunkIndex, chunkCount, provider, askFee, expiresAtHeight? }` | Adds a **node-local** (non-consensus) sample offer. **Operator-gated** (`-32057` without a valid `X-Boing-Operator`, or when `BOING_OPERATOR_RPC_TOKEN` is unset on the node). |
 | `boing_listBlobSampleOffers` | `[blobId, chunkIndex?, source?]` (`source` = `all`/`local`/`onChain`) | Offers from the local book and the on-chain registry. |
 | `boing_listSmtBlobSampleOffers` | `[blobId, chunkIndex?]` | Consensus (SMT-resident) offers with `registeredAtHeight`, `escrowedAsk`. |
 | `boing_matchBlobSampleOffer` | `{ blobId, chunkIndex, ... }` | Best matching offer (on-chain preferred, then local) or `-32000 "no matching sample offer"`. |
@@ -1113,11 +1113,11 @@ L1 media blobs (see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) for seman
 | `boing_listBlobSampleServeChallenges` | `[blobId]` or `{ blobId?, status?, includeTerminal? }` | Phase 24 serve challenges. |
 | `boing_getBlobSampleServeChallenge` | `{ blobId, chunkIndex, provider, challenger }` | One serve challenge or `null`. |
 | `boing_listBlsDualKeys` | `[]` | `{ count, file, wired, popRequired, liveTx32StillEd25519, entries: [{ accountId, blsPubkey }] }`. |
-| `boing_registerBlsDualKey` | `[accountId, blsPubkey, blsPop, chainId?]` or object (`accountId`, `blsPubkey`, `blsPop`) | Registers a BLS key with proof-of-possession. **Operator-gated.** |
+| `boing_registerBlsDualKey` | `[accountId, blsPubkey, blsPop, chainId?]` or object (`accountId`, `blsPubkey`, `blsPop`) | Registers a BLS key with proof-of-possession. **Operator-gated** (`-32057` without a valid `X-Boing-Operator`, or when `BOING_OPERATOR_RPC_TOKEN` is unset on the node). |
 | `boing_verifyBlsAggregate` | object | Dry-run verification of a BLS aggregate (library/RPC only; not consensus-admitted). |
 | `boing_verifyBlsAggregateResolve` | object | Dry-run of an aggregate-attested slash-appeal resolve (tx 33 is **not** consensus-admitted; committee nets use tx 32). |
 
 **HTTP media download (non-JSON-RPC):** **`GET /v1/media/blob?id={blobId}`** returns raw bytes (`Content-Disposition: attachment`). Auth: operator/download shared secrets (**`X-Boing-Operator`** / **`X-Boing-Blob-Download`** / **`Authorization: Bearer`**) and/or Phase 34 publisher/grantee proof headers (**`X-Boing-Blob-Downloader`**, **`Expires`**, **`Nonce`**, **`Signature`**). **`BOING_BLOB_ACL_ACTIVATION_HEIGHT`** makes download private-by-default. See [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) and [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md).
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

@@ -34,13 +34,21 @@ fn sample_state() -> StateStore {
     for n in 0..40u64 {
         st.insert(Account {
             id: id(n),
-            state: AccountState { balance: 1_000 + n as u128, nonce: n, ..Default::default() },
+            state: AccountState {
+                balance: 1_000 + n as u128,
+                nonce: n,
+                ..Default::default()
+            },
         });
     }
     let spread = id(1000);
     st.set_contract_code(spread, vec![1, 2, 3, 4]);
     for n in 0..30u64 {
-        st.merge_contract_storage(spread, key(n.wrapping_mul(0x0123_4567_89AB_CDEF), n), word(n + 1));
+        st.merge_contract_storage(
+            spread,
+            key(n.wrapping_mul(0x0123_4567_89AB_CDEF), n),
+            word(n + 1),
+        );
     }
     let colliding = id(2000);
     st.set_contract_code(colliding, vec![9, 9, 9]);
@@ -51,8 +59,7 @@ fn sample_state() -> StateStore {
 }
 
 /// Roots committed by the pre-v2 implementation for `sample_state()`.
-const GOLDEN_LEGACY_ROOT: &str =
-    "0834991abf34bb83570d2fb0fc038525613b818f52cea1b1effc6d0a76626955";
+const GOLDEN_LEGACY_ROOT: &str = "0834991abf34bb83570d2fb0fc038525613b818f52cea1b1effc6d0a76626955";
 
 fn hex(h: &Hash) -> String {
     h.0.iter().map(|b| format!("{b:02x}")).collect()
@@ -70,7 +77,11 @@ fn inactive_by_default_never_changes_roots() {
     let mut st = sample_state();
     assert_eq!(st.storage_tree_v2_activation(), None);
     for h in [0u64, 1, 10, u64::MAX] {
-        assert_eq!(hex(&st.state_root_at_height(h)), GOLDEN_LEGACY_ROOT, "height {h}");
+        assert_eq!(
+            hex(&st.state_root_at_height(h)),
+            GOLDEN_LEGACY_ROOT,
+            "height {h}"
+        );
         assert!(!st.storage_tree_v2_active());
     }
     // Configured but not yet reached: still the legacy root.
@@ -87,17 +98,28 @@ fn active_mode_commits_every_colliding_slot() {
 
     // Legacy: the value of a non-smallest slot in a shared-prefix bucket is NOT committed.
     legacy.merge_contract_storage(colliding, key(7, 5), word(555));
-    assert_eq!(legacy.state_root(), legacy_root, "legacy collision: change is invisible to the root");
+    assert_eq!(
+        legacy.state_root(),
+        legacy_root,
+        "legacy collision: change is invisible to the root"
+    );
 
     // Active: the same edit moves the root.
     let mut v2 = sample_state();
     v2.set_storage_tree_v2_activation(Some(10));
     assert_eq!(hex(&v2.state_root_at_height(9)), GOLDEN_LEGACY_ROOT);
     let v2_root = v2.state_root_at_height(10);
-    assert_ne!(v2_root, legacy_root, "activation changes the root of a state with colliding slots");
+    assert_ne!(
+        v2_root, legacy_root,
+        "activation changes the root of a state with colliding slots"
+    );
     assert!(v2.storage_tree_v2_active());
     v2.merge_contract_storage(colliding, key(7, 5), word(555));
-    assert_ne!(v2.state_root_at_height(10), v2_root, "v2 commits the colliding slot");
+    assert_ne!(
+        v2.state_root_at_height(10),
+        v2_root,
+        "v2 commits the colliding slot"
+    );
     assert_eq!(v2.state_root_at_height(10), v2.state_root_full_rebuild());
 
     // Deleting back (restoring the old value) restores the v2 root.
@@ -112,12 +134,19 @@ fn accounts_only_state_is_unaffected_by_activation() {
     for n in 0..20u64 {
         only_accounts.insert(Account {
             id: id(n),
-            state: AccountState { balance: n as u128 + 1, ..Default::default() },
+            state: AccountState {
+                balance: n as u128 + 1,
+                ..Default::default()
+            },
         });
     }
     let a = only_accounts.state_root_at_height(0);
     only_accounts.set_storage_tree_v2_activation(Some(0));
-    assert_eq!(only_accounts.state_root_at_height(0), a, "no storage => no change at activation");
+    assert_eq!(
+        only_accounts.state_root_at_height(0),
+        a,
+        "no storage => no change at activation"
+    );
 }
 
 #[test]
@@ -150,7 +179,9 @@ fn proofs_verify_under_both_modes() {
         let mut st = sample_state();
         st.set_storage_tree_v2_activation(activation);
         st.state_root_at_height(1);
-        let proof = st.prove_storage(&colliding, &key(7, 3)).expect("slot present");
+        let proof = st
+            .prove_storage(&colliding, &key(7, 3))
+            .expect("slot present");
         if activation.is_some() {
             assert!(proof.verify(), "v2 storage proofs verify");
             assert_eq!(proof.root, st.storage_root_of(&colliding));
@@ -190,14 +221,22 @@ fn incremental_equals_full_rebuild_in_both_modes() {
         for step in 0..300u64 {
             let cp = st.checkpoint();
             for _ in 0..(next() % 4) {
-                st.merge_contract_storage(contract, key(7 + next() % 2, next() % 6), word(next() % 4));
+                st.merge_contract_storage(
+                    contract,
+                    key(7 + next() % 2, next() % 6),
+                    word(next() % 4),
+                );
             }
             if next() % 3 == 0 {
                 st.revert(cp);
             }
             if step % 5 == 0 {
                 let inc = st.state_root_at_height(step);
-                assert_eq!(inc, st.state_root_full_rebuild(), "mode {activation:?} step {step}");
+                assert_eq!(
+                    inc,
+                    st.state_root_full_rebuild(),
+                    "mode {activation:?} step {step}"
+                );
             }
         }
     }

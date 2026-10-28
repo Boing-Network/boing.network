@@ -17,6 +17,7 @@
 //! - Phase 19–24 policies unchanged.
 //! - True BLS, SNARK/IPA/KZG, live 256 MiB — still later.
 
+use crate::blobs_phase10::BlobSampleServeChallengeStatus;
 use crate::blobs_phase24::{
     phase24_cap_activation_checklist, phase24_committee_requires_attested,
     phase24_das_succinct_proof_plan, phase24_expired_appeal_prunable,
@@ -32,7 +33,6 @@ use crate::blobs_phase24::{
     PHASE24_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE24_SETTLE_RECEIPT_TTL_BLOCKS,
     PHASE24_SUBMIT_SLASH_APPEAL_TX_INDEX, PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
-use crate::blobs_phase10::BlobSampleServeChallengeStatus;
 use crate::types::AccountId;
 
 /// Env name for gated 256 MiB raise (unchanged).
@@ -205,7 +205,9 @@ mod tests {
     #[test]
     fn plan_mentions_resolved_prune() {
         let plan = phase25_das_succinct_proof_plan();
-        assert!(plan.iter().any(|s| s.contains("prune_resolved") || s.contains("Approved")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("prune_resolved") || s.contains("Approved")));
         assert!(plan.iter().any(|s| s.contains("includeResolved")));
         let checklist = phase25_cap_activation_checklist(Some(1200));
         assert!(checklist

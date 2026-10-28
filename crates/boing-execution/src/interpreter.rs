@@ -5,7 +5,7 @@
 use std::cmp::Ordering;
 
 use boing_primitives::{
-    AccountId, ExecutionLog, MAX_EXECUTION_LOG_DATA_BYTES, MAX_EXECUTION_LOGS_PER_TX,
+    AccountId, ExecutionLog, MAX_EXECUTION_LOGS_PER_TX, MAX_EXECUTION_LOG_DATA_BYTES,
     MAX_EXECUTION_LOG_TOPICS, MAX_RECEIPT_RETURN_DATA_BYTES,
 };
 use boing_qa::RuleRegistry;
@@ -143,7 +143,12 @@ pub trait StorageAccess {
 
     /// Move `amount` native BOING from `from` to `to` (journaled, reverted with the tx). Default:
     /// unsupported (custom backends).
-    fn native_transfer(&mut self, _from: AccountId, _to: AccountId, _amount: u128) -> Result<(), VmError> {
+    fn native_transfer(
+        &mut self,
+        _from: AccountId,
+        _to: AccountId,
+        _amount: u128,
+    ) -> Result<(), VmError> {
         Err(VmError::NativeValueNotSupported)
     }
 }
@@ -771,7 +776,10 @@ impl Interpreter {
     }
 
     /// Append child logs without re-charging log gas (already accounted in `child.gas_used`).
-    pub(crate) fn merge_child_logs(parent: &mut Vec<ExecutionLog>, child: &Interpreter) -> Result<(), VmError> {
+    pub(crate) fn merge_child_logs(
+        parent: &mut Vec<ExecutionLog>,
+        child: &Interpreter,
+    ) -> Result<(), VmError> {
         if parent.len() + child.logs.len() > MAX_EXECUTION_LOGS_PER_TX {
             return Err(VmError::InvalidLog("too many logs"));
         }
@@ -806,7 +814,12 @@ impl StorageAccess for StateStore {
         self.get(&account).map(|s| s.balance).unwrap_or(0)
     }
 
-    fn native_transfer(&mut self, from: AccountId, to: AccountId, amount: u128) -> Result<(), VmError> {
+    fn native_transfer(
+        &mut self,
+        from: AccountId,
+        to: AccountId,
+        amount: u128,
+    ) -> Result<(), VmError> {
         crate::vm::move_native(self, from, to, amount)
     }
 
@@ -1108,17 +1121,24 @@ mod tests {
         let contract = AccountId([1u8; 32]);
         state.insert(boing_primitives::Account {
             id: contract,
-            state: boing_primitives::AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() },
+            state: boing_primitives::AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
         });
         let bytecode = vec![
             0x60, 0x02, // PUSH1 2
             0x60, 0x03, // PUSH1 3
-            0x01,       // ADD -> 5
-            0x00,       // STOP
+            0x01, // ADD -> 5
+            0x00, // STOP
         ];
         state.set_contract_code(contract, bytecode.clone());
         let mut interpreter = Interpreter::new(bytecode, 1000);
-        let gas = interpreter.run(contract, contract, &[], &mut state).unwrap();
+        let gas = interpreter
+            .run(contract, contract, &[], &mut state)
+            .unwrap();
         assert!(gas > 0);
         assert_eq!(interpreter.stack.len(), 1);
         assert_eq!(interpreter.stack[0][31], 5); // low byte = 5
@@ -1143,11 +1163,7 @@ mod tests {
                     let code = vec![0x60, a, 0x60, b, op, 0x00];
                     let mut it = Interpreter::new(code, 1_000_000);
                     it.run(contract, contract, &[], &mut state).unwrap();
-                    assert_eq!(
-                        it.stack[0][31],
-                        want,
-                        "op={op:#x} a={a} b={b}"
-                    );
+                    assert_eq!(it.stack[0][31], want, "op={op:#x} a={a} b={b}");
                 }
             }
         }

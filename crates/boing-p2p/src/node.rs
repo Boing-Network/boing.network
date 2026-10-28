@@ -14,14 +14,14 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use libp2p::futures::StreamExt;
-use libp2p::multiaddr::Protocol;
+use libp2p::gossipsub::PublishError;
 use libp2p::gossipsub::{IdentTopic, MessageAcceptance, MessageAuthenticity, ValidationMode};
 #[cfg(feature = "mdns")]
 use libp2p::mdns::tokio::Behaviour as Mdns;
+use libp2p::multiaddr::Protocol;
 use libp2p::request_response::{self, ProtocolSupport};
 use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
 use libp2p::StreamProtocol;
-use libp2p::gossipsub::PublishError;
 use libp2p::{gossipsub, SwarmBuilder};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, warn};
@@ -124,9 +124,7 @@ fn direction(endpoint: &libp2p_core::connection::ConnectedPoint) -> &'static str
 fn remote_multiaddr(endpoint: &libp2p_core::connection::ConnectedPoint) -> &libp2p::Multiaddr {
     match endpoint {
         libp2p_core::connection::ConnectedPoint::Dialer { address, .. } => address,
-        libp2p_core::connection::ConnectedPoint::Listener { send_back_addr, .. } => {
-            send_back_addr
-        }
+        libp2p_core::connection::ConnectedPoint::Listener { send_back_addr, .. } => send_back_addr,
     }
 }
 
@@ -177,7 +175,9 @@ pub(crate) fn peer_score_params() -> (gossipsub::PeerScoreParams, gossipsub::Pee
         VRF_PROOFS_TOPIC,
         MEDIA_BLOBS_TOPIC,
     ] {
-        params.topics.insert(IdentTopic::new(t).hash(), topic_params.clone());
+        params
+            .topics
+            .insert(IdentTopic::new(t).hash(), topic_params.clone());
     }
     (params, gossipsub::PeerScoreThresholds::default())
 }
@@ -203,7 +203,12 @@ impl P2pNode {
         block_provider: Option<Arc<dyn BlockProvider>>,
         max_connections_per_ip: u32,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>), P2pError> {
-        Self::new_with_gossip(listen_addr, block_provider, max_connections_per_ip, GossipConfig::from_env())
+        Self::new_with_gossip(
+            listen_addr,
+            block_provider,
+            max_connections_per_ip,
+            GossipConfig::from_env(),
+        )
     }
 
     /// Like [`new`](Self::new) with explicit gossip limits (max frame size, per-peer rate limits, peer scoring).
@@ -246,9 +251,11 @@ impl P2pNode {
                 let gossipsub_config = cfg_builder
                     .build()
                     .map_err(|e| Box::new(std::io::Error::other(e.to_string())))?;
-                let mut gossipsub =
-                    gossipsub::Behaviour::new(MessageAuthenticity::Signed(key.clone()), gossipsub_config)
-                        .map_err(|e| Box::new(std::io::Error::other(e.to_string())))?;
+                let mut gossipsub = gossipsub::Behaviour::new(
+                    MessageAuthenticity::Signed(key.clone()),
+                    gossipsub_config,
+                )
+                .map_err(|e| Box::new(std::io::Error::other(e.to_string())))?;
                 if gossip_for_behaviour.peer_scoring {
                     let (params, thresholds) = peer_score_params();
                     gossipsub
@@ -256,7 +263,10 @@ impl P2pNode {
                         .map_err(|e| Box::new(std::io::Error::other(e)))?;
                 }
                 let block_sync = BlockSyncBehaviour::new(
-                    [(StreamProtocol::new("/boing/block-sync/1"), ProtocolSupport::Full)],
+                    [(
+                        StreamProtocol::new("/boing/block-sync/1"),
+                        ProtocolSupport::Full,
+                    )],
                     request_response::Config::default(),
                 );
                 let ping = libp2p::ping::Behaviour::new(
@@ -307,7 +317,11 @@ impl P2pNode {
             redial_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             // Comma-separated: e.g. `/ip4/0.0.0.0/tcp/4001,/ip6/::/tcp/4001` (IPv6 listeners are
             // v6-only, so a private IPv6 network such as Fly 6PN needs its own listener).
-            for one in listen_addr.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+            for one in listen_addr
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
                 match one.parse::<libp2p::Multiaddr>() {
                     Ok(ma) => {
                         if let Err(e) = swarm.listen_on(ma) {
@@ -322,9 +336,21 @@ impl P2pNode {
                     Err(e) => panic!("invalid P2P listen address {one:?}: {e}"),
                 }
             }
-            swarm.behaviour_mut().gossipsub.subscribe(&blocks_topic).expect("subscribe blocks");
-            swarm.behaviour_mut().gossipsub.subscribe(&txs_topic).expect("subscribe txs");
-            swarm.behaviour_mut().gossipsub.subscribe(&votes_topic).expect("subscribe votes");
+            swarm
+                .behaviour_mut()
+                .gossipsub
+                .subscribe(&blocks_topic)
+                .expect("subscribe blocks");
+            swarm
+                .behaviour_mut()
+                .gossipsub
+                .subscribe(&txs_topic)
+                .expect("subscribe txs");
+            swarm
+                .behaviour_mut()
+                .gossipsub
+                .subscribe(&votes_topic)
+                .expect("subscribe votes");
             swarm
                 .behaviour_mut()
                 .gossipsub
@@ -341,7 +367,11 @@ impl P2pNode {
                 .subscribe(&media_blobs_topic)
                 .expect("subscribe media-blobs");
 
-            info!("P2P: listening on {} peer_id={:?}", listen_addr, swarm.local_peer_id());
+            info!(
+                "P2P: listening on {} peer_id={:?}",
+                listen_addr,
+                swarm.local_peer_id()
+            );
 
             loop {
                 tokio::select! {
@@ -1014,7 +1044,11 @@ impl P2pNode {
     }
 
     /// Request a block from a peer. Response arrives via P2pEvent::BlockFetched.
-    pub fn request_block(&self, peer: libp2p::PeerId, request: BlockRequest) -> Result<(), P2pError> {
+    pub fn request_block(
+        &self,
+        peer: libp2p::PeerId,
+        request: BlockRequest,
+    ) -> Result<(), P2pError> {
         if let Some(ref ch) = self.cmd_tx {
             ch.try_send(Command::RequestBlock(peer, request))
                 .map_err(|e| P2pError::Network(e.to_string()))?;

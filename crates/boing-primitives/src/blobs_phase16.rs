@@ -66,8 +66,7 @@ pub fn phase16_resolve_threshold_met(votes: usize, electorate_m: usize) -> bool 
     }
     let votes = votes as u128;
     let m = electorate_m as u128;
-    votes
-        .saturating_mul(PHASE16_RESOLVE_THRESHOLD_DEN as u128)
+    votes.saturating_mul(PHASE16_RESOLVE_THRESHOLD_DEN as u128)
         >= (PHASE16_RESOLVE_THRESHOLD_NUM as u128).saturating_mul(m)
 }
 
@@ -135,7 +134,9 @@ mod tests {
             .iter()
             .any(|s| s.contains("ReservedRealV1 verify still rejects")));
         assert!(plan.iter().any(|s| s.contains("N-of-M")));
-        assert!(plan.iter().any(|s| s.contains("⌈2M/3⌉") || s.contains("2M/3")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("⌈2M/3⌉") || s.contains("2M/3")));
         assert!(plan.iter().any(|s| s.contains("M=1")));
     }
 }

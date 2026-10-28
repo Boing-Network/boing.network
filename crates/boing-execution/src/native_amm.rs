@@ -37,7 +37,8 @@ pub const SELECTOR_REMOVE_LIQUIDITY_TO: u8 = 0x16;
 pub const SELECTOR_SET_FEE_ADMIN: u8 = 0x17;
 
 /// XOR mask for per-signer LP balance slot: `storage_key = caller_id ^ LP_BALANCE_STORAGE_XOR`.
-pub const LP_BALANCE_STORAGE_XOR: [u8; 32] = *b"BOING_NATIVEAMM_LPRV1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+pub const LP_BALANCE_STORAGE_XOR: [u8; 32] =
+    *b"BOING_NATIVEAMM_LPRV1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
 /// CREATE2 salt (`create2_salt: Some(...)`) for a **canonical** native constant-product pool (v1).
 ///
@@ -74,7 +75,8 @@ pub const NATIVE_CP_POOL_CREATE2_SALT_V7: [u8; 32] =
     *b"BOING_NATIVECP_C2V7\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
 /// `Log2` **topic0** after a successful **`swap`** (data: direction, `amount_in`, `amount_out` words).
-pub const NATIVE_AMM_TOPIC_SWAP: [u8; 32] = *b"BOING_NATIVEAMM_SWAP_V1\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+pub const NATIVE_AMM_TOPIC_SWAP: [u8; 32] =
+    *b"BOING_NATIVEAMM_SWAP_V1\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 /// `Log2` **topic0** after **`add_liquidity`** (data: `amount_a`, `amount_b`, `lp_mint` words).
 pub const NATIVE_AMM_TOPIC_ADD_LIQUIDITY: [u8; 32] =
     *b"BOING_NATIVEAMM_ADDLP_V1\x00\x00\x00\x00\x00\x00\x00\x00";
@@ -213,7 +215,11 @@ pub fn encode_remove_liquidity_to_calldata(
 
 /// 128 bytes: `add_liquidity`.
 #[must_use]
-pub fn encode_add_liquidity_calldata(amount_a: u128, amount_b: u128, min_liquidity: u128) -> Vec<u8> {
+pub fn encode_add_liquidity_calldata(
+    amount_a: u128,
+    amount_b: u128,
+    min_liquidity: u128,
+) -> Vec<u8> {
     let mut v = selector_word(SELECTOR_ADD_LIQUIDITY).to_vec();
     v.extend_from_slice(&amount_word(amount_a));
     v.extend_from_slice(&amount_word(amount_b));
@@ -259,7 +265,10 @@ pub fn encode_set_tokens_calldata(token_a: &AccountId, token_b: &AccountId) -> V
 /// **v3/v4/v6:** 64 bytes — `set_swap_fee_bps(fee)` with **1 ≤ fee ≤ 10_000**.
 #[must_use]
 pub fn encode_set_swap_fee_bps_calldata(fee_bps: u128) -> Vec<u8> {
-    assert!((1..=10_000).contains(&fee_bps), "fee_bps must be in 1..=10_000");
+    assert!(
+        (1..=10_000).contains(&fee_bps),
+        "fee_bps must be in 1..=10_000"
+    );
     let mut v = selector_word(SELECTOR_SET_SWAP_FEE_BPS).to_vec();
     v.extend_from_slice(&amount_word(fee_bps));
     debug_assert_eq!(v.len(), 64);
@@ -301,7 +310,12 @@ pub const fn constant_product_amount_out_after_fee(
     reserve_out: u64,
     amount_in: u64,
 ) -> u64 {
-    constant_product_amount_out_after_fee_with_bps(reserve_in, reserve_out, amount_in, NATIVE_CP_SWAP_FEE_BPS)
+    constant_product_amount_out_after_fee_with_bps(
+        reserve_in,
+        reserve_out,
+        amount_in,
+        NATIVE_CP_SWAP_FEE_BPS,
+    )
 }
 
 /// Same as [`constant_product_amount_out_after_fee`] but with an explicit **`fee_bps`** (**0..=10_000**).
@@ -687,7 +701,12 @@ fn append_load_swap_fee_keep(c: &mut Vec<u8>, storage_swap_fee: bool, abort_pc: 
 }
 
 /// Apply output-side fee to **MEM_DY** (**384**) after raw CP amount is stored.
-fn append_swap_apply_output_fee(c: &mut Vec<u8>, mem_dy: u64, storage_swap_fee: bool, abort_pc: usize) {
+fn append_swap_apply_output_fee(
+    c: &mut Vec<u8>,
+    mem_dy: u64,
+    storage_swap_fee: bool,
+    abort_pc: usize,
+) {
     append_load_swap_fee_keep(c, storage_swap_fee, abort_pc);
     push32(c, &word_u64(mem_dy));
     c.push(Opcode::MLoad as u8);
@@ -1115,26 +1134,19 @@ fn append_remove_liquidity_tail(
             Some((a, b)) => (Some(a), Some(b)),
             None => (None, None),
         };
-        append_v2_payout_one_side(
-            c,
-            &token_a_key(),
-            DAO,
-            V2_RM_CALLDATA,
-            V2_RM_TMP,
-            ra,
-        );
-        append_v2_payout_one_side(
-            c,
-            &token_b_key(),
-            DBO,
-            V2_RM_CALLDATA,
-            V2_RM_TMP,
-            rb,
-        );
+        append_v2_payout_one_side(c, &token_a_key(), DAO, V2_RM_CALLDATA, V2_RM_TMP, ra);
+        append_v2_payout_one_side(c, &token_b_key(), DBO, V2_RM_CALLDATA, V2_RM_TMP, rb);
     }
 
     const RM_LOG: u64 = 800;
-    emit_log2_caller_three_words(c, &NATIVE_AMM_TOPIC_REMOVE_LIQUIDITY, BURN, DAO, DBO, RM_LOG);
+    emit_log2_caller_three_words(
+        c,
+        &NATIVE_AMM_TOPIC_REMOVE_LIQUIDITY,
+        BURN,
+        DAO,
+        DBO,
+        RM_LOG,
+    );
 
     c.push(Opcode::Stop as u8);
 
@@ -1788,11 +1800,25 @@ mod tests {
         assert_eq!(it.logs[0].topics[1], sender.0);
         assert_eq!(it.logs[0].data.len(), 96);
         assert_eq!(&it.logs[0].data[16..32], &amount_word(0)[16..32]);
-        assert_eq!(&it.logs[0].data[48..64], &amount_word(u128::from(dx))[16..32]);
-        assert_eq!(&it.logs[0].data[80..96], &amount_word(u128::from(dy))[16..32]);
+        assert_eq!(
+            &it.logs[0].data[48..64],
+            &amount_word(u128::from(dx))[16..32]
+        );
+        assert_eq!(
+            &it.logs[0].data[80..96],
+            &amount_word(u128::from(dy))[16..32]
+        );
 
-        let ra2 = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_a_key())[16..32].try_into().unwrap());
-        let rb2 = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_b_key())[16..32].try_into().unwrap());
+        let ra2 = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let rb2 = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(ra2, u128::from(ra + dx));
         assert_eq!(rb2, u128::from(rb - dy));
     }
@@ -1819,8 +1845,16 @@ mod tests {
         let mut it = Interpreter::new(code, 5_000_000);
         it.run(sender, contract, &calldata, &mut state).unwrap();
 
-        let ra2 = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_a_key())[16..32].try_into().unwrap());
-        let rb2 = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_b_key())[16..32].try_into().unwrap());
+        let ra2 = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let rb2 = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(rb2, u128::from(rb + dx));
         assert_eq!(ra2, u128::from(ra - dy));
     }
@@ -1847,16 +1881,35 @@ mod tests {
         assert_eq!(it.logs[0].topics[1], sender.0);
         assert_eq!(it.logs[0].data.len(), 96);
 
-        let ra2 = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_a_key())[16..32].try_into().unwrap());
-        let rb2 = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_b_key())[16..32].try_into().unwrap());
+        let ra2 = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let rb2 = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(ra2, 110);
         assert_eq!(rb2, 220);
         let lp_key = lp_balance_storage_key(&sender.0);
-        let t = u128::from_be_bytes(state.get_contract_storage(&contract, &total_lp_supply_key())[16..32].try_into().unwrap());
-        let ulp = u128::from_be_bytes(state.get_contract_storage(&contract, &lp_key)[16..32].try_into().unwrap());
+        let t = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &total_lp_supply_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let ulp = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &lp_key)[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(t, 10);
         assert_eq!(ulp, 10);
-        let ret = it.return_data.as_deref().expect("add_liquidity return data");
+        let ret = it
+            .return_data
+            .as_deref()
+            .expect("add_liquidity return data");
         assert_eq!(decode_add_liquidity_return_lp_minted(ret), Some(10));
     }
 
@@ -1882,31 +1935,60 @@ mod tests {
 
         let code = constant_product_pool_bytecode();
         let mut it = Interpreter::new(code.clone(), 5_000_000);
-        it.run(sender, contract, &encode_add_liquidity_calldata(1_000, 2_000, 0), &mut state)
-            .unwrap();
+        it.run(
+            sender,
+            contract,
+            &encode_add_liquidity_calldata(1_000, 2_000, 0),
+            &mut state,
+        )
+        .unwrap();
 
         assert_eq!(it.logs.len(), 1);
         assert_eq!(it.logs[0].topics[0], NATIVE_AMM_TOPIC_ADD_LIQUIDITY);
 
-        let t0 = u128::from_be_bytes(state.get_contract_storage(&contract, &total_lp_supply_key())[16..32].try_into().unwrap());
+        let t0 = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &total_lp_supply_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(t0, 1_000);
 
         let mut it2 = Interpreter::new(code, 5_000_000);
-        it2
-            .run(sender, contract, &encode_remove_liquidity_calldata(250, 0, 0), &mut state)
-            .unwrap();
+        it2.run(
+            sender,
+            contract,
+            &encode_remove_liquidity_calldata(250, 0, 0),
+            &mut state,
+        )
+        .unwrap();
 
         assert_eq!(it2.logs.len(), 1);
         assert_eq!(it2.logs[0].topics[0], NATIVE_AMM_TOPIC_REMOVE_LIQUIDITY);
 
-        let ra = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_a_key())[16..32].try_into().unwrap());
-        let rb = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_b_key())[16..32].try_into().unwrap());
+        let ra = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let rb = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(ra, 750);
         assert_eq!(rb, 1_500);
-        let t1 = u128::from_be_bytes(state.get_contract_storage(&contract, &total_lp_supply_key())[16..32].try_into().unwrap());
+        let t1 = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &total_lp_supply_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(t1, 750);
         let lp_key = lp_balance_storage_key(&sender.0);
-        let ulp = u128::from_be_bytes(state.get_contract_storage(&contract, &lp_key)[16..32].try_into().unwrap());
+        let ulp = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &lp_key)[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(ulp, 750);
     }
 
@@ -1929,8 +2011,16 @@ mod tests {
         assert_eq!(it.logs.len(), 1);
         assert_eq!(it.logs[0].topics[0], NATIVE_AMM_TOPIC_ADD_LIQUIDITY);
 
-        let ra = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_a_key())[16..32].try_into().unwrap());
-        let rb = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_b_key())[16..32].try_into().unwrap());
+        let ra = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let rb = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(ra, 1_000);
         assert_eq!(rb, 2_000);
 
@@ -1938,12 +2028,21 @@ mod tests {
         let dy = constant_product_amount_out_after_fee(1_000u64, 2_000u64, dx as u64);
         let swap_calldata = encode_swap_calldata(0, dx, u128::from(dy));
         let mut it2 = Interpreter::new(code, 5_000_000);
-        it2.run(sender, contract, &swap_calldata, &mut state).unwrap();
+        it2.run(sender, contract, &swap_calldata, &mut state)
+            .unwrap();
         assert_eq!(it2.logs.len(), 1);
         assert_eq!(it2.logs[0].topics[0], NATIVE_AMM_TOPIC_SWAP);
 
-        let ra2 = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_a_key())[16..32].try_into().unwrap());
-        let rb2 = u128::from_be_bytes(state.get_contract_storage(&contract, &reserve_b_key())[16..32].try_into().unwrap());
+        let ra2 = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let rb2 = u128::from_be_bytes(
+            state.get_contract_storage(&contract, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(ra2, 1_000 + dx);
         assert_eq!(rb2, 2_000 - u128::from(dy));
     }
@@ -2078,7 +2177,8 @@ mod tests {
     #[test]
     fn v5_swap_to_routes_token_payout_to_recipient() {
         use crate::reference_token::{
-            encode_mint_first_calldata, reference_fungible_template_bytecode, REF_FUNGIBLE_BALANCE_XOR,
+            encode_mint_first_calldata, reference_fungible_template_bytecode,
+            REF_FUNGIBLE_BALANCE_XOR,
         };
 
         fn ref_balance_key(holder: &AccountId) -> [u8; 32] {
@@ -2128,7 +2228,10 @@ mod tests {
 
         let dx = 100u64;
         let dy = constant_product_amount_out_after_fee(1_000, 2_000, dx);
-        assert_eq!(word128_tail(&state.get_contract_storage(&token_b, &ref_balance_key(&user))), 0);
+        assert_eq!(
+            word128_tail(&state.get_contract_storage(&token_b, &ref_balance_key(&user))),
+            0
+        );
 
         let swap_cd = encode_swap_to_calldata(0, u128::from(dx), u128::from(dy), &user);
         let mut it2 = Interpreter::new(pool_code, 10_000_000);
@@ -2149,7 +2252,8 @@ mod tests {
     #[test]
     fn v5_remove_liquidity_to_routes_token_b_payout_to_recipient() {
         use crate::reference_token::{
-            encode_mint_first_calldata, reference_fungible_template_bytecode, REF_FUNGIBLE_BALANCE_XOR,
+            encode_mint_first_calldata, reference_fungible_template_bytecode,
+            REF_FUNGIBLE_BALANCE_XOR,
         };
 
         fn ref_balance_key(holder: &AccountId) -> [u8; 32] {
@@ -2205,8 +2309,11 @@ mod tests {
             )
             .unwrap();
 
-        let lp_total =
-            u128::from_be_bytes(state.get_contract_storage(&pool, &total_lp_supply_key())[16..32].try_into().unwrap());
+        let lp_total = u128::from_be_bytes(
+            state.get_contract_storage(&pool, &total_lp_supply_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(lp_total, 1_000);
 
         let burn = 500u128;
@@ -2222,7 +2329,10 @@ mod tests {
             exp_b_out,
             "recipient_b must receive on-chain token B"
         );
-        assert_eq!(word128_tail(&state.get_contract_storage(&token_b, &ref_balance_key(&user))), 0);
+        assert_eq!(
+            word128_tail(&state.get_contract_storage(&token_b, &ref_balance_key(&user))),
+            0
+        );
     }
 
     /// **v3:** Storage [`swap_fee_bps_key`] + seeded reserves — swap uses on-chain **fee_bps** (here **100** = 1 %).
@@ -2251,10 +2361,21 @@ mod tests {
         it.run(sender, pool, &swap_cd, &mut state).unwrap();
 
         assert_eq!(it.logs.len(), 1);
-        assert_eq!(&it.logs[0].data[80..96], &amount_word(u128::from(dy))[16..32]);
+        assert_eq!(
+            &it.logs[0].data[80..96],
+            &amount_word(u128::from(dy))[16..32]
+        );
 
-        let ra2 = u128::from_be_bytes(state.get_contract_storage(&pool, &reserve_a_key())[16..32].try_into().unwrap());
-        let rb2 = u128::from_be_bytes(state.get_contract_storage(&pool, &reserve_b_key())[16..32].try_into().unwrap());
+        let ra2 = u128::from_be_bytes(
+            state.get_contract_storage(&pool, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let rb2 = u128::from_be_bytes(
+            state.get_contract_storage(&pool, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(ra2, u128::from(ra + dx));
         assert_eq!(rb2, u128::from(rb - dy));
     }
@@ -2277,7 +2398,10 @@ mod tests {
         it.run(sender, pool, &cd, &mut state).unwrap();
 
         let got = state.get_contract_storage(&pool, &swap_fee_bps_key());
-        assert_eq!(u128::from_be_bytes(got[16..32].try_into().unwrap()), u128::from(fee_bps));
+        assert_eq!(
+            u128::from_be_bytes(got[16..32].try_into().unwrap()),
+            u128::from(fee_bps)
+        );
     }
 
     /// **v3:** `set_swap_fee_bps` → `add_liquidity` → `swap` end-to-end.
@@ -2300,22 +2424,37 @@ mod tests {
         state.set_contract_code(pool, pool_code.clone());
 
         let mut it0 = Interpreter::new(pool_code.clone(), 10_000_000);
-        it0
-            .run(sender, pool, &encode_set_swap_fee_bps_calldata(u128::from(fee_bps)), &mut state)
-            .unwrap();
+        it0.run(
+            sender,
+            pool,
+            &encode_set_swap_fee_bps_calldata(u128::from(fee_bps)),
+            &mut state,
+        )
+        .unwrap();
 
         let mut it1 = Interpreter::new(pool_code.clone(), 10_000_000);
-        it1
-            .run(sender, pool, &encode_add_liquidity_calldata(u128::from(ra), u128::from(rb), 0), &mut state)
-            .unwrap();
+        it1.run(
+            sender,
+            pool,
+            &encode_add_liquidity_calldata(u128::from(ra), u128::from(rb), 0),
+            &mut state,
+        )
+        .unwrap();
 
         let mut it2 = Interpreter::new(pool_code, 10_000_000);
-        it2
-            .run(sender, pool, &encode_swap_calldata(0, u128::from(dx), u128::from(dy)), &mut state)
-            .unwrap();
+        it2.run(
+            sender,
+            pool,
+            &encode_swap_calldata(0, u128::from(dx), u128::from(dy)),
+            &mut state,
+        )
+        .unwrap();
 
         assert_eq!(it2.logs.len(), 1);
-        assert_eq!(&it2.logs[0].data[80..96], &amount_word(u128::from(dy))[16..32]);
+        assert_eq!(
+            &it2.logs[0].data[80..96],
+            &amount_word(u128::from(dy))[16..32]
+        );
     }
 
     #[test]
@@ -2347,11 +2486,21 @@ mod tests {
 
         // Before LP: set admin + fee.
         let mut it = Interpreter::new(pool_code.clone(), 10_000_000);
-        it.run(admin, pool, &encode_set_fee_admin_calldata(&admin), &mut state)
-            .unwrap();
+        it.run(
+            admin,
+            pool,
+            &encode_set_fee_admin_calldata(&admin),
+            &mut state,
+        )
+        .unwrap();
         let mut it = Interpreter::new(pool_code.clone(), 10_000_000);
-        it.run(admin, pool, &encode_set_swap_fee_bps_calldata(50), &mut state)
-            .unwrap();
+        it.run(
+            admin,
+            pool,
+            &encode_set_swap_fee_bps_calldata(50),
+            &mut state,
+        )
+        .unwrap();
         assert_eq!(
             u128::from_be_bytes(
                 state.get_contract_storage(&pool, &swap_fee_bps_key())[16..32]
@@ -2374,8 +2523,13 @@ mod tests {
         // Stranger cannot change fee after LP.
         let fee_before = state.get_contract_storage(&pool, &swap_fee_bps_key());
         let mut it = Interpreter::new(pool_code.clone(), 10_000_000);
-        it.run(stranger, pool, &encode_set_swap_fee_bps_calldata(200), &mut state)
-            .unwrap();
+        it.run(
+            stranger,
+            pool,
+            &encode_set_swap_fee_bps_calldata(200),
+            &mut state,
+        )
+        .unwrap();
         assert_eq!(
             state.get_contract_storage(&pool, &swap_fee_bps_key()),
             fee_before,
@@ -2384,8 +2538,13 @@ mod tests {
 
         // Admin can change fee after LP.
         let mut it = Interpreter::new(pool_code, 10_000_000);
-        it.run(admin, pool, &encode_set_swap_fee_bps_calldata(200), &mut state)
-            .unwrap();
+        it.run(
+            admin,
+            pool,
+            &encode_set_swap_fee_bps_calldata(200),
+            &mut state,
+        )
+        .unwrap();
         assert_eq!(
             u128::from_be_bytes(
                 state.get_contract_storage(&pool, &swap_fee_bps_key())[16..32]
@@ -2453,7 +2612,10 @@ mod tests {
         .unwrap();
 
         assert_eq!(it.logs.len(), 1);
-        assert_eq!(&it.logs[0].data[80..96], &amount_word(u128::from(dy))[16..32]);
+        assert_eq!(
+            &it.logs[0].data[80..96],
+            &amount_word(u128::from(dy))[16..32]
+        );
 
         let ra2 = u128::from_be_bytes(
             state.get_contract_storage(&pool, &reserve_a_key())[16..32]

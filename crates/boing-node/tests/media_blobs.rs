@@ -48,7 +48,12 @@ fn funded_node(activation: Option<u64>, data: &PathBuf) -> (BoingNode, SigningKe
     (n, sk)
 }
 
-fn put_tx(sk: &SigningKey, nonce: u64, data: Vec<u8>, retention: BlobRetention) -> SignedTransaction {
+fn put_tx(
+    sk: &SigningKey,
+    nonce: u64,
+    data: Vec<u8>,
+    retention: BlobRetention,
+) -> SignedTransaction {
     let sender = idk(sk);
     SignedTransaction::new(
         Transaction {
@@ -71,10 +76,7 @@ fn put_blob_rejected_when_inactive() {
     let (n, sk) = funded_node(None, &dir);
     let signed = put_tx(&sk, 0, b"x".to_vec(), BlobRetention::Forever);
     let err = n.submit_transaction(signed).unwrap_err();
-    assert!(
-        format!("{err}").contains("media blob"),
-        "unexpected: {err}"
-    );
+    assert!(format!("{err}").contains("media blob"), "unexpected: {err}");
     let _ = std::fs::remove_dir_all(dir);
 }
 
@@ -110,10 +112,7 @@ fn put_blob_round_trip_rpc() {
     assert_eq!(meta["contentType"], "image/png");
 
     let blob = n
-        .media_blobs_rpc(
-            "boing_getBlob",
-            &json!([format!("0x{}", hex::encode(id))]),
-        )
+        .media_blobs_rpc("boing_getBlob", &json!([format!("0x{}", hex::encode(id))]))
         .unwrap();
     assert_eq!(blob["dataHex"], format!("0x{}", hex::encode(&data)));
 
@@ -128,7 +127,7 @@ fn put_blob_round_trip_rpc() {
             &json!([format!("0x{}", hex::encode(id)), 4]),
         )
         .unwrap();
-    assert!(lc["samples"].as_array().unwrap().len() >= 1);
+    assert!(!lc["samples"].as_array().unwrap().is_empty());
     assert_eq!(lc["blobId"], format!("0x{}", hex::encode(id)));
 
     let provider = format!("0x{}", hex::encode([9u8; 32]));
@@ -240,20 +239,27 @@ fn das_sample_uses_cache_and_respects_blob_removal() {
         .unwrap();
     assert_eq!(batch["blobId"], idhex);
     let (h1, m1, _, _) = boing_node::das_cache::global_stats();
-    assert!(m1 >= m0 + 1, "first call must miss");
+    assert!(m1 > m0, "first call must miss");
     assert!(h1 >= h0 + 2, "later calls must hit the cache ({h0}->{h1})");
 
     // Removing the stored bytes must still yield null even though the bundle is cached.
     let want = format!("{}.bin", hex::encode(id));
     let file = walk(&dir)
         .into_iter()
-        .find(|p| p.file_name().map(|f| f.to_string_lossy() == want).unwrap_or(false))
+        .find(|p| {
+            p.file_name()
+                .map(|f| f.to_string_lossy() == want)
+                .unwrap_or(false)
+        })
         .expect("blob data file on disk");
     std::fs::remove_file(file).unwrap();
     let after = n
         .media_blobs_rpc("boing_getBlobDasSample", &json!([idhex, 1]))
         .unwrap();
-    assert!(after.is_null(), "removed blob must not be served from cache");
+    assert!(
+        after.is_null(),
+        "removed blob must not be served from cache"
+    );
     let _ = std::fs::remove_dir_all(dir);
 }
 

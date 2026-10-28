@@ -38,7 +38,10 @@ fn batch_tx(key: &SigningKey, nonce: u64, calls: Vec<BatchCall>) -> SignedTransa
 }
 
 fn xfer(to: u8, amount: u128) -> BatchCall {
-    BatchCall::Transfer { to: acct(to), amount }
+    BatchCall::Transfer {
+        to: acct(to),
+        amount,
+    }
 }
 
 // ---------------------------------------------------------------- mempool admission
@@ -57,7 +60,9 @@ fn mempool_rejects_malformed_batches() {
     let too_many = batch_tx(&key, 0, vec![xfer(2, 1); MAX_BATCH_CALLS + 1]);
     assert!(matches!(
         pool.insert(too_many),
-        Err(MempoolError::InvalidBatch(BatchValidationError::TooManyCalls { got: 17, max: 16 }))
+        Err(MempoolError::InvalidBatch(
+            BatchValidationError::TooManyCalls { got: 17, max: 16 }
+        ))
     ));
 
     let big = batch_tx(
@@ -70,13 +75,17 @@ fn mempool_rejects_malformed_batches() {
     );
     assert!(matches!(
         pool.insert(big),
-        Err(MempoolError::InvalidBatch(BatchValidationError::CalldataTooLarge { .. }))
+        Err(MempoolError::InvalidBatch(
+            BatchValidationError::CalldataTooLarge { .. }
+        ))
     ));
 
     let overflow = batch_tx(&key, 0, vec![xfer(2, u128::MAX), xfer(3, 1)]);
     assert!(matches!(
         pool.insert(overflow),
-        Err(MempoolError::InvalidBatch(BatchValidationError::AmountOverflow))
+        Err(MempoolError::InvalidBatch(
+            BatchValidationError::AmountOverflow
+        ))
     ));
 
     assert_eq!(pool.len(), 0, "nothing malformed was admitted");
@@ -181,21 +190,49 @@ async fn rpc_batch_success_then_failing_batch_reverts_and_consumes_nonce() {
     // Capability flag that wallets use to decide batch vs sequential.
     let h = rpc(&app, "boing_health", serde_json::json!([])).await;
     let surface = &h["result"]["rpc_surface"];
-    assert_eq!(surface["tx_payload_batch"], serde_json::json!(true), "{h:?}");
-    assert_eq!(surface["tx_batch_max_calls"], serde_json::json!(MAX_BATCH_CALLS));
+    assert_eq!(
+        surface["tx_payload_batch"],
+        serde_json::json!(true),
+        "{h:?}"
+    );
+    assert_eq!(
+        surface["tx_batch_max_calls"],
+        serde_json::json!(MAX_BATCH_CALLS)
+    );
 
     // 1) Valid batch: three transfers to two recipients.
-    let ok = batch_tx(&key, 0, vec![xfer(0xb0, 100), xfer(0xc0, 250), xfer(0xb0, 5)]);
+    let ok = batch_tx(
+        &key,
+        0,
+        vec![xfer(0xb0, 100), xfer(0xc0, 250), xfer(0xb0, 5)],
+    );
     let ok_id = ok.tx.id();
-    let v = rpc(&app, "boing_submitTransaction", serde_json::json!([hex_tx(&ok)])).await;
+    let v = rpc(
+        &app,
+        "boing_submitTransaction",
+        serde_json::json!([hex_tx(&ok)]),
+    )
+    .await;
     assert!(v.get("error").is_none(), "{v:?}");
     // Submit returns the real tx id (not the legacy "ok" ack).
     let want = format!("0x{}", hex::encode(ok_id.0));
     assert_eq!(v["result"]["tx_hash"], serde_json::json!(want), "{v:?}");
     assert_eq!(v["result"]["tx_id"], serde_json::json!(want), "{v:?}");
-    let dup = rpc(&app, "boing_submitTransaction", serde_json::json!([hex_tx(&ok)])).await;
-    assert_eq!(dup["error"]["data"]["tx_hash"], serde_json::json!(want), "{dup:?}");
-    node.write().await.produce_block_if_ready().expect("block with batch");
+    let dup = rpc(
+        &app,
+        "boing_submitTransaction",
+        serde_json::json!([hex_tx(&ok)]),
+    )
+    .await;
+    assert_eq!(
+        dup["error"]["data"]["tx_hash"],
+        serde_json::json!(want),
+        "{dup:?}"
+    );
+    node.write()
+        .await
+        .produce_block_if_ready()
+        .expect("block with batch");
 
     let r = rpc(
         &app,
@@ -227,9 +264,20 @@ async fn rpc_batch_success_then_failing_batch_reverts_and_consumes_nonce() {
         ],
     );
     let bad_id = bad.tx.id();
-    let v = rpc(&app, "boing_submitTransaction", serde_json::json!([hex_tx(&bad)])).await;
-    assert!(v.get("error").is_none(), "failing batch is still admitted: {v:?}");
-    node.write().await.produce_block_if_ready().expect("block with failing batch");
+    let v = rpc(
+        &app,
+        "boing_submitTransaction",
+        serde_json::json!([hex_tx(&bad)]),
+    )
+    .await;
+    assert!(
+        v.get("error").is_none(),
+        "failing batch is still admitted: {v:?}"
+    );
+    node.write()
+        .await
+        .produce_block_if_ready()
+        .expect("block with failing batch");
 
     let r = rpc(
         &app,
@@ -242,11 +290,18 @@ async fn rpc_batch_success_then_failing_batch_reverts_and_consumes_nonce() {
     let err = rec["error"].as_str().unwrap_or_default();
     assert!(err.contains("step 1"), "{err}");
     let n = node.read().await;
-    assert_eq!(n.state.get(&acct(0xb0)).unwrap().balance, 105, "step 0 was reverted");
+    assert_eq!(
+        n.state.get(&acct(0xb0)).unwrap().balance,
+        105,
+        "step 0 was reverted"
+    );
     let s = n.state.get(&sender).unwrap();
     assert_eq!(s.nonce, 2, "failed batch consumes the nonce");
     // Sender is the proposer (earns block rewards), so only check the 1_000 did not leave it.
-    assert!(s.balance + 1_000 > after_ok, "the 1_000 transfer did not leave the sender");
+    assert!(
+        s.balance + 1_000 > after_ok,
+        "the 1_000 transfer did not leave the sender"
+    );
 }
 
 #[tokio::test]
@@ -258,47 +313,88 @@ async fn rpc_account_transactions_indexes_sender_recipients_and_pages() {
 
     // Block 1: batch paying 0xb0 + 0xc0. Block 2: plain transfer to 0xb0. Block 3: batch to 0xc0.
     let t0 = batch_tx(&key, 0, vec![xfer(0xb0, 10), xfer(0xc0, 20)]);
-    rpc(&app, "boing_submitTransaction", serde_json::json!([hex_tx(&t0)])).await;
+    rpc(
+        &app,
+        "boing_submitTransaction",
+        serde_json::json!([hex_tx(&t0)]),
+    )
+    .await;
     node.write().await.produce_block_if_ready().unwrap();
     let mut plain = Transaction {
         nonce: 1,
         sender,
-        payload: TransactionPayload::Transfer { to: acct(0xb0), amount: 3 },
+        payload: TransactionPayload::Transfer {
+            to: acct(0xb0),
+            amount: 3,
+        },
         access_list: AccessList::default(),
     };
     plain.access_list = plain.suggested_parallel_access_list();
     let t1 = SignedTransaction::new(plain, &key);
-    rpc(&app, "boing_submitTransaction", serde_json::json!([hex_tx(&t1)])).await;
+    rpc(
+        &app,
+        "boing_submitTransaction",
+        serde_json::json!([hex_tx(&t1)]),
+    )
+    .await;
     node.write().await.produce_block_if_ready().unwrap();
 
     let hx = |a: AccountId| format!("0x{}", hex::encode(a.0));
-    let v = rpc(&app, "boing_getAccountTransactions", serde_json::json!([hx(acct(0xb0))])).await;
+    let v = rpc(
+        &app,
+        "boing_getAccountTransactions",
+        serde_json::json!([hx(acct(0xb0))]),
+    )
+    .await;
     let txs = v["result"]["transactions"].as_array().unwrap().clone();
     assert_eq!(txs.len(), 2, "{v:?}");
     assert_eq!(txs[0]["payload"]["kind"], "transfer", "newest first");
     assert_eq!(txs[0]["direction"], "in");
     assert_eq!(txs[1]["payload"]["kind"], "batch");
-    assert_eq!(txs[1]["tx_id"], serde_json::json!(hx(AccountId(t0.tx.id().0))));
+    assert_eq!(
+        txs[1]["tx_id"],
+        serde_json::json!(hx(AccountId(t0.tx.id().0)))
+    );
     assert!(v["result"]["next_cursor"].is_null());
 
     // Incremental catch-up after another block.
     let t2 = batch_tx(&key, 2, vec![xfer(0xc0, 1)]);
-    rpc(&app, "boing_submitTransaction", serde_json::json!([hex_tx(&t2)])).await;
+    rpc(
+        &app,
+        "boing_submitTransaction",
+        serde_json::json!([hex_tx(&t2)]),
+    )
+    .await;
     node.write().await.produce_block_if_ready().unwrap();
 
     // Sender sees all three; page size 2 then the rest via cursor.
-    let p1 = rpc(&app, "boing_getAccountTransactions", serde_json::json!([hx(sender), {"limit": 2}])).await;
+    let p1 = rpc(
+        &app,
+        "boing_getAccountTransactions",
+        serde_json::json!([hx(sender), {"limit": 2}]),
+    )
+    .await;
     let a = p1["result"]["transactions"].as_array().unwrap().clone();
     assert_eq!(a.len(), 2, "{p1:?}");
     assert_eq!(a[0]["direction"], "out");
     assert_eq!(a[0]["success"], true);
     let cur = p1["result"]["next_cursor"].as_str().unwrap().to_string();
-    let p2 = rpc(&app, "boing_getAccountTransactions", serde_json::json!([hx(sender), {"limit": 2, "cursor": cur}])).await;
+    let p2 = rpc(
+        &app,
+        "boing_getAccountTransactions",
+        serde_json::json!([hx(sender), {"limit": 2, "cursor": cur}]),
+    )
+    .await;
     let b = p2["result"]["transactions"].as_array().unwrap().clone();
     assert_eq!(b.len(), 1, "{p2:?}");
     assert!(p2["result"]["next_cursor"].is_null());
     assert_eq!(b[0]["tx_id"], txs[1]["tx_id"]);
 
-    let bad = rpc(&app, "boing_getAccountTransactions", serde_json::json!([hx(sender), {"cursor": "nope"}])).await;
+    let bad = rpc(
+        &app,
+        "boing_getAccountTransactions",
+        serde_json::json!([hx(sender), {"cursor": "nope"}]),
+    )
+    .await;
     assert_eq!(bad["error"]["code"], -32602);
 }

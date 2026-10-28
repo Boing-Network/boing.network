@@ -612,7 +612,10 @@ mod tests {
             Transaction {
                 nonce,
                 sender,
-                payload: TransactionPayload::Transfer { to: AccountId([2u8; 32]), amount: 1 },
+                payload: TransactionPayload::Transfer {
+                    to: AccountId([2u8; 32]),
+                    amount: 1,
+                },
                 access_list: AccessList::default(),
             },
             key,
@@ -637,7 +640,11 @@ mod tests {
             small.push(k);
         }
         assert_eq!(pool.len(), 6);
-        assert_eq!(pool.suggested_next_nonce(whale_id, 0), 3, "nonces 3..5 evicted, 0..2 kept");
+        assert_eq!(
+            pool.suggested_next_nonce(whale_id, 0),
+            3,
+            "nonces 3..5 evicted, 0..2 kept"
+        );
         // whale 3 vs a newcomer with 0: 3 > 0 + 1, so the whale loses one more
         let k4 = SigningKey::generate(&mut OsRng);
         pool.insert(transfer(&k4, 0)).unwrap();
@@ -663,7 +670,10 @@ mod tests {
             Transaction {
                 nonce: 0,
                 sender: k4_id,
-                payload: TransactionPayload::Transfer { to: AccountId([7u8; 32]), amount: 2 },
+                payload: TransactionPayload::Transfer {
+                    to: AccountId([7u8; 32]),
+                    amount: 2,
+                },
                 access_list: AccessList::default(),
             },
             &k4,
@@ -683,7 +693,8 @@ mod tests {
         }
         let first = pool.drain_for_block(7);
         assert_eq!(first.len(), 7);
-        let keyed: Vec<(u64, [u8; 32])> = first.iter().map(|s| (s.tx.nonce, s.tx.sender.0)).collect();
+        let keyed: Vec<(u64, [u8; 32])> =
+            first.iter().map(|s| (s.tx.nonce, s.tx.sender.0)).collect();
         let mut sorted = keyed.clone();
         sorted.sort();
         assert_eq!(keyed, sorted, "untipped order is (nonce, sender)");
@@ -693,7 +704,12 @@ mod tests {
         assert!(pool.is_empty());
         for k in &keys {
             let id = AccountId(k.verifying_key().to_bytes());
-            let all: Vec<u64> = first.iter().chain(rest.iter()).filter(|s| s.tx.sender == id).map(|s| s.tx.nonce).collect();
+            let all: Vec<u64> = first
+                .iter()
+                .chain(rest.iter())
+                .filter(|s| s.tx.sender == id)
+                .map(|s| s.tx.nonce)
+                .collect();
             assert_eq!(all, vec![0, 1, 2]);
         }
     }
@@ -710,6 +726,10 @@ mod tests {
         pool.insert(transfer(&b, 0)).unwrap();
         pool.insert(transfer(&c, 0)).unwrap();
         pool.reinsert(drained);
-        assert_eq!(pool.len(), 4, "txs of a failed block are restored even when the pool is full");
+        assert_eq!(
+            pool.len(),
+            4,
+            "txs of a failed block are restored even when the pool is full"
+        );
     }
 }

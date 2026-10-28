@@ -119,15 +119,17 @@ You can still override only the mempool cap: `--dev-rate-limits --pending-txs-pe
 
 Every `BOING_*` variable, its default and the default ports are listed in [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md). For any node whose RPC port is reachable beyond localhost:
 
-- Set **`BOING_OPERATOR_RPC_TOKEN`**. Without it, operator-only methods (`boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_submitSlashAppeal`, `boing_resolveSlashAppeal`, `boing_registerBlsDualKey`, `boing_putBlobSampleOffer`, and `boing_qaPoolVote` unless the QA pool has public membership) accept any caller.
+- Set **`BOING_OPERATOR_RPC_TOKEN`**. Without it, operator-only methods (`boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_submitSlashAppeal`, `boing_resolveSlashAppeal`, `boing_registerBlsDualKey`, `boing_putBlobSampleOffer`, and `boing_qaPoolVote` unless the QA pool has public membership) are rejected with `-32057` (fail-closed). Existing deployments that relied on the old open behavior must now set the token and send `X-Boing-Operator`.
 - Keep the rate profile at `mainnet` (default); never use `--dev-rate-limits` on public RPC.
-- Never pass `--faucet-enable` on mainnet; the faucet key is public. **Enforced:** when `BOING_CHAIN_ID=6914` (mainnet) the node exits at startup if `BOING_OPERATOR_RPC_TOKEN` is unset/blank, or if `--faucet-enable` is passed (also checked against the installed network history's chain id). Testnet (6913), devnets and unset chain ids behave as before: the operator token stays optional (but recommended) and the faucet may be enabled.
+- Never pass `--faucet-enable` on mainnet; the faucet key is public. **Enforced:** when `BOING_CHAIN_ID=6914` (mainnet) the node exits at startup if `BOING_OPERATOR_RPC_TOKEN` is unset/blank, or if `--faucet-enable` is passed (also checked against the installed network history's chain id). Testnet (6913), devnets and unset chain ids do not refuse to start without the token and may enable the faucet, but operator-only methods are still rejected (fail-closed, `-32057`) until the token is set, so set it on any node where you need them.
 - Keep `BOING_VALIDATOR_KEY` in a secret store (Fly secrets), not in `fly.toml` or shell history.
-- Public RPC: the node's HTTP rate limit is one global bucket, so per-IP limits, a method allow-list and origin lock-down belong at the edge. The rules are config-as-code in `ops/cloudflare/public-rpc/`: `node scripts/public-rpc-edge.mjs check` (drift check), `node scripts/public-rpc-edge.mjs apply` (dry run), `CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ZONE_ID=... node scripts/public-rpc-edge.mjs apply --apply` (applies; `--remove --apply` rolls back). Numbers, rationale and rollout order: [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md#implemented-edge-policy-config-as-code).
+- Public RPC: the node's HTTP rate limit is one global bucket, so per-IP limits, a method allow-list and origin lock-down belong at the edge. The rules are config-as-code in `ops/cloudflare/public-rpc/`: `node scripts/public-rpc-edge.mjs check` (drift check), `node scripts/public-rpc-edge.mjs apply` (dry run), `CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ZONE_ID=... node scripts/public-rpc-edge.mjs apply --apply` (applies; `--remove --apply` rolls back). The zone rate-limit rules depend on the Cloudflare plan (`zone_rules.plan` in `policy.json`, default **free**: one rule, 100 requests / 10 s per IP on path `/`, block; or `--plan pro|business|enterprise`); per-method-class limits live in the gateway Worker. After upgrading the plan, change `zone_rules.plan` and re-run generate + apply. Numbers, rationale and rollout order: [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md#2a-implemented-edge-policy-config-as-code).
 
 ### Storage-tree v2 activation (testnet only for now)
 
 Off by default; mainnet unset. The testnet rollout (proposed height, script, per-node verification via `boing_getNetworkInfo.storage_tree_v2_activation_height`, rollback and the mainnet gate) is in [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md#testnet-rollout-chain-6913-only). Compute the height with `node scripts/compute-activation-height.mjs`; the variable must be on **every** node before the head reaches it.
+
+Day-of checklist (what to check in logs and state roots, the last moment to roll back, what a fork looks like): [OPERATIONS-WATCHLIST.md](OPERATIONS-WATCHLIST.md#1-testnet-4400-crossing-watch-storage-tree-v2-chain-6913).
 
 ### Gossip limits and rollout (P2P)
 
@@ -409,4 +411,4 @@ For full setup steps, see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md). If
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

@@ -1,5 +1,5 @@
-﻿//! `boing_putBlobSampleOffer` writes the node-local offer book, so it requires the operator token
-//! when `BOING_OPERATOR_RPC_TOKEN` is configured.
+//! `boing_putBlobSampleOffer` writes the node-local offer book, so it requires the operator token
+//! (and is rejected when `BOING_OPERATOR_RPC_TOKEN` is unset).
 
 use std::sync::Arc;
 
@@ -58,7 +58,13 @@ async fn json_of(res: axum::response::Response) -> serde_json::Value {
 async fn put_sample_offer_requires_operator_token_when_configured() {
     let (node, dir) = node_with_store("gated");
     let op: Arc<str> = "offer-gate-secret".into();
-    let app = rpc_router(node, &RateLimitConfig::default(), None, Some(op.clone()), None);
+    let app = rpc_router(
+        node,
+        &RateLimitConfig::default(),
+        None,
+        Some(op.clone()),
+        None,
+    );
 
     let denied = json_of(app.clone().oneshot(put_offer(None)).await.unwrap()).await;
     assert_eq!(denied["error"]["code"], -32057, "{denied}");
@@ -71,10 +77,13 @@ async fn put_sample_offer_requires_operator_token_when_configured() {
 }
 
 #[tokio::test]
-async fn put_sample_offer_stays_open_without_operator_token() {
-    let (node, dir) = node_with_store("open");
+async fn put_sample_offer_rejected_without_operator_token() {
+    // Fail closed: with no `BOING_OPERATOR_RPC_TOKEN` configured the operator gate rejects every call.
+    let (node, dir) = node_with_store("unset");
     let app = rpc_router(node, &RateLimitConfig::default(), None, None, None);
-    let ok = json_of(app.oneshot(put_offer(None)).await.unwrap()).await;
-    assert_eq!(ok["result"]["ok"], true, "{ok}");
+    let denied = json_of(app.clone().oneshot(put_offer(None)).await.unwrap()).await;
+    assert_eq!(denied["error"]["code"], -32057, "{denied}");
+    let guess = json_of(app.oneshot(put_offer(Some("guess"))).await.unwrap()).await;
+    assert_eq!(guess["error"]["code"], -32057, "{guess}");
     let _ = std::fs::remove_dir_all(dir);
 }

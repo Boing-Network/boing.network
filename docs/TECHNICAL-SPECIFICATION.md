@@ -518,8 +518,8 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 | `boing_qaPoolConfig` | `[]` | Pool governance + queue snapshot |
 | `boing_getQaRegistry` | `[]` | Effective QA rule registry JSON |
 | `boing_qaPoolVote` | `[tx_hash_hex, voter_hex, vote]` or 4th signed `QaPoolVote` hex | Vote outcome object; **-32053** if ineligible |
-| `boing_operatorApplyQaPolicy` | `[qa_registry_json, qa_pool_config_json]` | `{ ok: true }` (operator auth when configured) |
-| `boing_operatorApplyFeePolicy` | `[network_fee_config_json]` | `{ ok: true }` (operator auth when configured) |
+| `boing_operatorApplyQaPolicy` | `[qa_registry_json, qa_pool_config_json]` | `{ ok: true }` (operator auth required; rejected with `-32057` if `BOING_OPERATOR_RPC_TOKEN` is unset) |
+| `boing_operatorApplyFeePolicy` | `[network_fee_config_json]` | `{ ok: true }` (operator auth required; rejected with `-32057` if `BOING_OPERATOR_RPC_TOKEN` is unset) |
 | `boing_faucetRequest` | `[hex_account_id]` | `{ ok: true, amount, to, message }` (only when `--faucet-enable`) |
 
 ### 11.3 Error Codes
@@ -623,4 +623,4 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

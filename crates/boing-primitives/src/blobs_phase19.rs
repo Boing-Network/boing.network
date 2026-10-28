@@ -140,7 +140,9 @@ mod tests {
         assert!(plan
             .iter()
             .any(|s| s.contains("|pinned") && s.contains("> 1") && s.contains("32")));
-        assert!(plan.iter().any(|s| s.contains("not BLS") || s.contains("still later")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("not BLS") || s.contains("still later")));
         assert!(plan
             .iter()
             .any(|s| s.contains("do not clear") || s.contains("V3")));

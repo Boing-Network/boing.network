@@ -26,7 +26,9 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> BoingNode 
         state: AccountState {
             balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let native_aggregates = state.compute_native_aggregates();
@@ -47,8 +49,8 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> BoingNode 
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
-    validator_signing_key: None,
-    pending_commit: None,
+        validator_signing_key: None,
+        pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
         slashed_equivocations: HashMap::new(),
@@ -84,10 +86,20 @@ fn v2_signatures_legacy_cutover_cross_chain_and_failed_tx_fee() {
     let mut node = node_with_proposer_key(&key, 1_000_000);
 
     // Before activation (next block 1): legacy and v2 both admitted; another chain's v2 is not.
-    node.submit_transaction(SignedTransaction::new_legacy(transfer(me, 0, to, 1), &key)).unwrap();
-    node.submit_transaction(SignedTransaction::new_for_chain(transfer(me, 1, to, 1), &key, 6913)).unwrap();
+    node.submit_transaction(SignedTransaction::new_legacy(transfer(me, 0, to, 1), &key))
+        .unwrap();
+    node.submit_transaction(SignedTransaction::new_for_chain(
+        transfer(me, 1, to, 1),
+        &key,
+        6913,
+    ))
+    .unwrap();
     assert!(matches!(
-        node.submit_transaction(SignedTransaction::new_for_chain(transfer(me, 2, to, 1), &key, 6914)),
+        node.submit_transaction(SignedTransaction::new_for_chain(
+            transfer(me, 2, to, 1),
+            &key,
+            6914
+        )),
         Err(MempoolError::InvalidSignature)
     ));
     node.produce_block_if_ready().expect("block 1");
@@ -100,29 +112,49 @@ fn v2_signatures_legacy_cutover_cross_chain_and_failed_tx_fee() {
         Err(MempoolError::LegacySignature)
     ));
     assert!(matches!(
-        node.submit_transaction(SignedTransaction::new_for_chain(transfer(me, 2, to, 1), &key, 6914)),
+        node.submit_transaction(SignedTransaction::new_for_chain(
+            transfer(me, 2, to, 1),
+            &key,
+            6914
+        )),
         Err(MempoolError::InvalidSignature)
     ));
     // A deliberately failing tx (amount far above the balance) passes admission (signature, nonce,
     // fee balance), is included, charged, and advances the nonce.
     let failing = transfer(me, 2, to, u128::MAX / 4);
     let failing_id = failing.id();
-    node.submit_transaction(SignedTransaction::new_for_chain(failing, &key, 6913)).unwrap();
+    node.submit_transaction(SignedTransaction::new_for_chain(failing, &key, 6913))
+        .unwrap();
     let treasury = |n: &BoingNode| {
-        n.state.get(&boing_tokenomics::PROTOCOL_TREASURY).map(|s| s.balance).unwrap_or(0)
+        n.state
+            .get(&boing_tokenomics::PROTOCOL_TREASURY)
+            .map(|s| s.balance)
+            .unwrap_or(0)
     };
     let t_before = treasury(&node);
     node.produce_block_if_ready().expect("block 2");
     assert_eq!(node.chain.height(), 2);
-    let r = node.receipts.get(&failing_id).expect("failure receipt recorded");
+    let r = node
+        .receipts
+        .get(&failing_id)
+        .expect("failure receipt recorded");
     assert!(!r.success);
     assert_eq!(r.gas_used, boing_execution::FAILED_TX_GAS);
     let fee = boing_execution::failed_tx_fee_amount(node.executor.fee_policy());
-    assert_eq!(treasury(&node) - t_before, fee, "failed-tx fee charged to the treasury");
+    assert_eq!(
+        treasury(&node) - t_before,
+        fee,
+        "failed-tx fee charged to the treasury"
+    );
     assert_eq!(node.state.get(&me).unwrap().nonce, 3, "nonce advanced");
     assert_eq!(node.state.get(&to).unwrap().balance, 2, "transfer reverted");
     // The next tx from the same sender works.
-    node.submit_transaction(SignedTransaction::new_for_chain(transfer(me, 3, to, 5), &key, 6913)).unwrap();
+    node.submit_transaction(SignedTransaction::new_for_chain(
+        transfer(me, 3, to, 5),
+        &key,
+        6913,
+    ))
+    .unwrap();
     node.produce_block_if_ready().expect("block 3");
     assert_eq!(node.state.get(&to).unwrap().balance, 7);
 }

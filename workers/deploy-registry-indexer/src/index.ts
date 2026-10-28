@@ -18,6 +18,7 @@ import {
   extractUniversalContractDeploymentsFromBlock,
   type UniversalContractDeploymentRow,
 } from '@boing-network/boing-sdk';
+import { mergeSkipped, parseSkipped, planChunk, type SkippedBlock } from './ingest';
 
 type Env = {
   DEPLOY_REGISTRY_DB: D1Database;
@@ -45,6 +46,9 @@ export type SyncTelemetry = {
   rowsInserted?: number;
   nextHeight?: number;
   chainTip?: number | null;
+  /** Heights skipped this run because the RPC gateway rejected them as oversized. */
+  skippedHeights?: number[];
+  /** Set when the run stopped early on a transient failure (cursor held at the failing height). */
   error?: string;
 };
 
@@ -84,11 +88,30 @@ async function readNextHeight(db: D1Database, fallback: number): Promise<number>
   return fallback;
 }
 
-async function writeNextHeight(db: D1Database, h: number): Promise<void> {
-  await db
-    .prepare(`INSERT INTO ingest_state (k, v) VALUES ('next_height', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v`)
-    .bind(String(h))
-    .run();
+async function readSkippedBlocks(db: D1Database): Promise<SkippedBlock[]> {
+  const r = await db.prepare(`SELECT v FROM ingest_state WHERE k = 'skipped_blocks'`).first<{ v: string }>();
+  return parseSkipped(r?.v);
+}
+
+/**
+ * Persist the cursor (and, when there are new oversize skips, the skip list) in ONE D1 batch.
+ * Callers only invoke this when the cursor actually moved, so an idle tick at the chain tip writes nothing here.
+ */
+async function writeCursorAndSkips(db: D1Database, h: number, newSkips: SkippedBlock[]): Promise<void> {
+  const stmts = [
+    db
+      .prepare(`INSERT INTO ingest_state (k, v) VALUES ('next_height', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v`)
+      .bind(String(h)),
+  ];
+  if (newSkips.length > 0) {
+    const merged = mergeSkipped(await readSkippedBlocks(db), newSkips);
+    stmts.push(
+      db
+        .prepare(`INSERT INTO ingest_state (k, v) VALUES ('skipped_blocks', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v`)
+        .bind(JSON.stringify(merged)),
+    );
+  }
+  await db.batch(stmts);
 }
 
 const D1_INSERT_BATCH = 100;
@@ -134,6 +157,7 @@ export type SyncDeployRegistryResult = {
   nextHeight: number;
   chainTip: number | null;
   durationMs: number;
+  skippedHeights?: number[];
 };
 
 export async function syncDeployRegistry(env: Env): Promise<SyncDeployRegistryResult> {
@@ -150,7 +174,8 @@ export async function syncDeployRegistry(env: Env): Promise<SyncDeployRegistryRe
   }
 
   try {
-    const client = createClient({ baseUrl });
+    // Bounded SDK-level retry (transient 429/502/503/504/timeouts only; oversize rejections are not retriable).
+    const client = createClient({ baseUrl, maxRetries: 2, retryBaseDelayMs: 300 });
     const head = await client.chainHeight();
     const fromDefault = parseIntOpt(env.DEPLOY_REGISTRY_FROM_HEIGHT, 0);
     const maxPer = Math.min(256, Math.max(1, parseIntOpt(env.DEPLOY_REGISTRY_MAX_BLOCKS_PER_TICK, 8)));
@@ -163,35 +188,63 @@ export async function syncDeployRegistry(env: Env): Promise<SyncDeployRegistryRe
     const chainTip = typeof head === 'number' && Number.isFinite(head) ? head : null;
     const tipN = chainTip ?? 0;
     let h = cursor;
+    const newSkips: SkippedBlock[] = [];
+    let stopError: unknown;
     while (indexedBlocks < maxPer && h <= tipN) {
       const room = maxPer - indexedBlocks;
       const horizon = tipN - h + 1;
       const chunk = Math.min(parallel, room, horizon);
       const heights = Array.from({ length: chunk }, (_, i) => h + i);
-      const blocks = await Promise.all(heights.map((height) => client.getBlockByHeight(height, false)));
+      // allSettled: one bad height must not discard the others. Only explicit gateway size-cap rejections are
+      // skipped (and recorded); any other failure holds the cursor so the next tick retries that height.
+      const settled = await Promise.allSettled(heights.map((height) => client.getBlockByHeight(height, false)));
+      const plan = planChunk(heights, settled, new Date().toISOString());
 
       const batchRows: UniversalContractDeploymentRow[] = [];
-      for (const block of blocks) {
-        if (block) batchRows.push(...extractUniversalContractDeploymentsFromBlock(block as unknown));
+      for (const block of plan.blocks) {
+        batchRows.push(...extractUniversalContractDeploymentsFromBlock(block));
       }
       rowsInserted += await insertDeploymentRowsBatch(env.DEPLOY_REGISTRY_DB, batchRows);
 
-      h += chunk;
-      indexedBlocks += chunk;
+      newSkips.push(...plan.skipped);
+      h += plan.advanceBy;
+      indexedBlocks += plan.advanceBy;
+      if (plan.stopError !== undefined) {
+        stopError = plan.stopError;
+        break;
+      }
     }
 
-    await writeNextHeight(env.DEPLOY_REGISTRY_DB, h);
+    // Write only when the cursor moved (no D1 write for an idle tick at the chain tip).
+    if (h !== cursor) await writeCursorAndSkips(env.DEPLOY_REGISTRY_DB, h, newSkips);
+    const skippedHeights = newSkips.map((s) => s.height);
+    if (skippedHeights.length > 0) {
+      console.warn('deploy-registry skipped oversized blocks', JSON.stringify(skippedHeights));
+    }
+
+    // Transient failure with zero progress: surface as an error (telemetry ok:false), cursor unchanged.
+    if (stopError !== undefined && indexedBlocks === 0) throw stopError;
+
     const durationMs = Date.now() - t0;
     await writeSyncTelemetry(env.DEPLOY_REGISTRY_DB, {
-      ok: true,
+      ok: stopError === undefined,
       at: new Date().toISOString(),
       durationMs,
       indexedBlocks,
       rowsInserted,
       nextHeight: h,
       chainTip,
+      ...(skippedHeights.length > 0 ? { skippedHeights } : {}),
+      ...(stopError !== undefined ? { error: `stopped at height ${h}: ${String(stopError).slice(0, 700)}` } : {}),
     });
-    return { indexedBlocks, rowsInserted, nextHeight: h, chainTip, durationMs };
+    return {
+      indexedBlocks,
+      rowsInserted,
+      nextHeight: h,
+      chainTip,
+      durationMs,
+      ...(skippedHeights.length > 0 ? { skippedHeights } : {}),
+    };
   } catch (e) {
     const durationMs = Date.now() - t0;
     await writeSyncTelemetry(env.DEPLOY_REGISTRY_DB, {
@@ -209,12 +262,15 @@ async function buildStatus(env: Env): Promise<{
   chain: { configured: boolean; tipHeight: number | null; blocksPending: number | null };
   config: { maxBlocksPerTick: number; parallelFetches: number };
   lastSync: SyncTelemetry | null;
+  skippedBlocks: { count: number; recent: SkippedBlock[] };
 }> {
   const fromDefault = parseIntOpt(env.DEPLOY_REGISTRY_FROM_HEIGHT, 0);
-  const [nextHeight, lastSync] = await Promise.all([
+  const [nextHeight, lastSync, skipped] = await Promise.all([
     readNextHeight(env.DEPLOY_REGISTRY_DB, fromDefault),
     readSyncTelemetry(env.DEPLOY_REGISTRY_DB),
+    readSkippedBlocks(env.DEPLOY_REGISTRY_DB),
   ]);
+  const skippedBlocks = { count: skipped.length, recent: skipped.slice(-50) };
   const maxPer = Math.min(256, Math.max(1, parseIntOpt(env.DEPLOY_REGISTRY_MAX_BLOCKS_PER_TICK, 8)));
   const parallel = Math.min(16, Math.max(1, parseIntOpt(env.DEPLOY_REGISTRY_PARALLEL_FETCHES, 6)));
   const baseUrl = String(env.DEPLOY_REGISTRY_RPC_URL || '').trim();
@@ -225,9 +281,10 @@ async function buildStatus(env: Env): Promise<{
       chain: { configured: false, tipHeight: null, blocksPending: null },
       config,
       lastSync,
+      skippedBlocks,
     };
   }
-  const client = createClient({ baseUrl });
+  const client = createClient({ baseUrl, maxRetries: 1, retryBaseDelayMs: 200 });
   const tip = await client.chainHeight();
   const t = typeof tip === 'number' && Number.isFinite(tip) ? tip : null;
   let blocksPending: number | null = null;
@@ -239,6 +296,7 @@ async function buildStatus(env: Env): Promise<{
     chain: { configured: true, tipHeight: t, blocksPending },
     config,
     lastSync,
+    skippedBlocks,
   };
 }
 

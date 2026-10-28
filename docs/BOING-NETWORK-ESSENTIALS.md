@@ -4,7 +4,7 @@
 > 🛠️ **Developers:** crates, RPC defaults, and the spec index.  
 > 🛰️ **Operators:** the same facts wallets and explorers depend on.
 
-**One place for the essentials of the Boing blockchain network:** the six pillars, design philosophy, priorities, tech stack, and pointers to the rest of the docs.
+**One place for the essentials of Boing Network:** the six pillars, design philosophy, priorities, tech stack, and pointers to the rest of the docs.
 
 ```mermaid
 flowchart TB
@@ -26,7 +26,7 @@ flowchart TB
 
 ## What is Boing Network?
 
-**Boing Network** is an authentic, decentralized **L1 blockchain** built from first principles. It is optimized for efficiency, free from dependencies on other chains, and committed to **100% transparency** and **true quality assurance** at the protocol layer. This document summarizes the core commitments and where to go for detail.
+**Boing Network** is an independent, decentralized **Layer 1** built from first principles. It is optimized for efficiency, free from dependencies on other chains, and committed to **transparency by default** and **protocol-level quality assurance**. This document summarizes the core commitments and where to go for detail.
 
 Public testnet RPC: **`https://testnet-rpc.boing.network/`**. Addresses are **32-byte** Ed25519 account ids (64 hex chars, optional `0x`) — not 20-byte EVM addresses.
 
@@ -36,7 +36,7 @@ Public testnet RPC: **`https://testnet-rpc.boing.network/`**. Addresses are **32
 
 The written pillars live in [SIX-PILLARS.md](SIX-PILLARS.md) and are published as **`/pdfs/SIX-PILLARS.pdf`** on the websites. Summary:
 
-The Boing blockchain prioritizes, in order:
+Boing Network prioritizes, in order:
 
 | # | Pillar | What it means |
 |---|--------|----------------|
@@ -56,7 +56,7 @@ The Boing blockchain prioritizes, in order:
 - **Optimal** — Adopt the best ideas from the ecosystem when they are demonstrably superior.
 - **Unique** — A distinct identity and technical story.
 - **Decentralized** — Absolute decentralization as a foundational requirement.
-- **Transparent** — 100% transparent in how we build, govern, and operate — trust through verifiability, not promises.
+- **Transparent** — Transparent by default in how we build, govern, and operate — trust through verifiability, not promises.
 
 ---
 
@@ -149,4 +149,4 @@ We commit to 100% transparency in:
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable. Quality-assured.*
+*Boing Network — Quality, enforced by the protocol.*

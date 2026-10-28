@@ -689,7 +689,12 @@ impl StateStore {
 
     pub fn load_qa_pending(&mut self, items: Vec<(Hash, QaPendingRecord)>) {
         if self.journaling() {
-            let subjects: Vec<Hash> = self.qa_pending.keys().chain(items.iter().map(|(k, _)| k)).copied().collect();
+            let subjects: Vec<Hash> = self
+                .qa_pending
+                .keys()
+                .chain(items.iter().map(|(k, _)| k))
+                .copied()
+                .collect();
             for s in subjects {
                 self.record_qa(&s);
             }
@@ -858,7 +863,7 @@ impl StateStore {
         // node (HashMap iteration order is per-process random), and a partial selection so the cost
         // is O(accounts + n log n) instead of a full sort.
         let order = |a: &(&AccountId, &AccountState), b: &(&AccountId, &AccountState)| {
-            b.1.stake.cmp(&a.1.stake).then_with(|| a.0.0.cmp(&b.0.0))
+            b.1.stake.cmp(&a.1.stake).then_with(|| a.0 .0.cmp(&b.0 .0))
         };
         let mut accounts: Vec<_> = self.accounts.iter().collect();
         if n == 0 {
@@ -982,7 +987,11 @@ mod tests {
             .commit(&params, 1, AccountId([1; 32]), [7; 32])
             .unwrap();
         let root0 = state.state_root();
-        assert_eq!(state.journal_len(), 0, "no journal without live checkpoints");
+        assert_eq!(
+            state.journal_len(),
+            0,
+            "no journal without live checkpoints"
+        );
 
         let outer = state.checkpoint();
         state.get_mut(&AccountId([1; 32])).unwrap().balance = 1;
@@ -1005,10 +1014,19 @@ mod tests {
         // Inner writes undone, outer writes kept.
         assert_eq!(state.get(&AccountId([1; 32])).unwrap().balance, 1);
         assert_eq!(state.get(&AccountId([2; 32])).unwrap().balance, 5);
-        assert_eq!(state.get_contract_code(&AccountId([9; 32])), Some(&vec![1, 2, 3]));
+        assert_eq!(
+            state.get_contract_code(&AccountId([9; 32])),
+            Some(&vec![1, 2, 3])
+        );
         assert!(state.get_contract_code(&AccountId([8; 32])).is_none());
-        assert_eq!(state.get_contract_storage(&AccountId([9; 32]), &[1; 32]), [2; 32]);
-        assert_eq!(state.get_contract_storage(&AccountId([9; 32]), &[4; 32]), [0; 32]);
+        assert_eq!(
+            state.get_contract_storage(&AccountId([9; 32]), &[1; 32]),
+            [2; 32]
+        );
+        assert_eq!(
+            state.get_contract_storage(&AccountId([9; 32]), &[4; 32]),
+            [0; 32]
+        );
         assert!(state.qa_pending(&Hash([5; 32])).is_some());
 
         state.revert(outer);
@@ -1052,8 +1070,14 @@ mod tests {
         }
         assert_eq!(state.journal_len(), 1);
         let inner = state.checkpoint();
-        state.names_mut().commit(&params, 1, AccountId([99; 32]), [99; 32]).unwrap();
-        state.names_mut().commit(&params, 1, AccountId([98; 32]), [98; 32]).unwrap();
+        state
+            .names_mut()
+            .commit(&params, 1, AccountId([99; 32]), [99; 32])
+            .unwrap();
+        state
+            .names_mut()
+            .commit(&params, 1, AccountId([98; 32]), [98; 32])
+            .unwrap();
         assert_eq!(state.journal_len(), 2);
         state.revert(inner);
         let after_inner = state.names().commitment();
@@ -1104,7 +1128,7 @@ mod tests {
             }
             // Revert everything back to a checkpoint taken first.
             let mut state2 = state;
-            let all: Vec<_> = cps.drain(..).collect();
+            let all: Vec<_> = std::mem::take(&mut cps);
             drop(all);
             let cp0 = state2.checkpoint();
             state2.insert(acct(200, 1));
@@ -1261,19 +1285,52 @@ mod tests {
         let mut st = StateStore::new();
         let a = AccountId([1; 32]);
         let b = AccountId([2; 32]);
-        st.insert(Account { id: a, state: AccountState { balance: 20, stake: 3, pending_unbond: 4, nonce: 7, unbond_unlock_height: 99 } });
-        st.insert(Account { id: b, state: AccountState { balance: 0, ..Default::default() } });
+        st.insert(Account {
+            id: a,
+            state: AccountState {
+                balance: 20,
+                stake: 3,
+                pending_unbond: 4,
+                nonce: 7,
+                unbond_unlock_height: 99,
+            },
+        });
+        st.insert(Account {
+            id: b,
+            state: AccountState {
+                balance: 0,
+                ..Default::default()
+            },
+        });
         let p = crate::OpenValidatorParams::default();
-        st.open_validators_mut().register(&p, 0, b, AccountId([9; 32])).unwrap();
+        st.open_validators_mut()
+            .register(&p, 0, b, AccountId([9; 32]))
+            .unwrap();
         let root_before = st.state_root();
         let cp = st.checkpoint();
         assert_eq!(st.redenominate(10), 2);
         let s = st.get(&a).unwrap();
-        assert_eq!((s.balance, s.stake, s.pending_unbond, s.nonce, s.unbond_unlock_height), (200, 30, 40, 7, 99));
-        assert_eq!(st.open_validators().records[&AccountId([9; 32])].bond, 1_000);
+        assert_eq!(
+            (
+                s.balance,
+                s.stake,
+                s.pending_unbond,
+                s.nonce,
+                s.unbond_unlock_height
+            ),
+            (200, 30, 40, 7, 99)
+        );
+        assert_eq!(
+            st.open_validators().records[&AccountId([9; 32])].bond,
+            1_000
+        );
         assert_ne!(st.state_root(), root_before);
         st.revert(cp);
-        assert_eq!(st.get(&a).unwrap().balance, 20, "journaled: revert undoes it");
+        assert_eq!(
+            st.get(&a).unwrap().balance,
+            20,
+            "journaled: revert undoes it"
+        );
         assert_eq!(st.open_validators().records[&AccountId([9; 32])].bond, 100);
         assert_eq!(st.state_root(), root_before);
     }
@@ -1301,7 +1358,10 @@ mod tests {
                     to: AccountId([2; 32]),
                     amount: n as u128,
                 },
-                access_list: boing_primitives::AccessList { read: vec![], write: vec![] },
+                access_list: boing_primitives::AccessList {
+                    read: vec![],
+                    write: vec![],
+                },
             },
             votes: Default::default(),
             rewarded: Default::default(),
@@ -1321,24 +1381,30 @@ mod tests {
                             a.balance = a.balance.wrapping_add(7);
                         }
                     }
-                    3 => st.set_contract_code(id, vec![(r.next() % 4) as u8; (r.next() % 5) as usize]),
-                    4 | 5 | 6 => {
+                    3 => st
+                        .set_contract_code(id, vec![(r.next() % 4) as u8; (r.next() % 5) as usize]),
+                    4..=6 => {
                         // small-integer style slots (shared 64-bit prefix) and random slots
                         let mut key = [0u8; 32];
-                        if r.next() % 2 == 0 {
+                        if r.next().is_multiple_of(2) {
                             key[31] = (r.next() % 6) as u8;
                         } else {
                             key[..8].copy_from_slice(&r.next().to_le_bytes());
                         }
                         st.merge_contract_storage(id, key, [(r.next() % 3) as u8; 32]);
                     }
-                    7 => st.insert_qa_pending(Hash([(r.next() % 4) as u8; 32]), qa_rec((r.next() % 5) as u8)),
+                    7 => st.insert_qa_pending(
+                        Hash([(r.next() % 4) as u8; 32]),
+                        qa_rec((r.next() % 5) as u8),
+                    ),
                     8 => {
                         st.remove_qa_pending(&Hash([(r.next() % 4) as u8; 32]));
                     }
                     9 => {
                         let params = NameRegistryParams::default();
-                        let _ = st.names_mut().commit(&params, step, id, [(r.next() % 3) as u8; 32]);
+                        let _ =
+                            st.names_mut()
+                                .commit(&params, step, id, [(r.next() % 3) as u8; 32]);
                     }
                     10 => cps.push(st.checkpoint()),
                     11 => {
@@ -1350,26 +1416,50 @@ mod tests {
                         // a snapshot must carry the incremental caches and then evolve independently
                         let mut snap = st.snapshot();
                         snap.insert(acct(200, 5));
-                        assert_eq!(snap.state_root(), snap.state_root_full_rebuild(), "seed {seed} step {step} snap");
-                        assert_eq!(st.state_root(), st.state_root_full_rebuild(), "seed {seed} step {step} orig");
+                        assert_eq!(
+                            snap.state_root(),
+                            snap.state_root_full_rebuild(),
+                            "seed {seed} step {step} snap"
+                        );
+                        assert_eq!(
+                            st.state_root(),
+                            st.state_root_full_rebuild(),
+                            "seed {seed} step {step} orig"
+                        );
                     }
                     _ => {
-                        assert_eq!(st.state_root(), st.state_root_full_rebuild(), "seed {seed} step {step}");
+                        assert_eq!(
+                            st.state_root(),
+                            st.state_root_full_rebuild(),
+                            "seed {seed} step {step}"
+                        );
                     }
                 }
             }
-            assert_eq!(st.state_root(), st.state_root_full_rebuild(), "seed {seed} final");
+            assert_eq!(
+                st.state_root(),
+                st.state_root_full_rebuild(),
+                "seed {seed} final"
+            );
             // Unwind every open checkpoint (innermost first), checking after each.
             while let Some(cp) = cps.pop() {
                 st.revert(cp);
-                assert_eq!(st.state_root(), st.state_root_full_rebuild(), "seed {seed} unwind");
+                assert_eq!(
+                    st.state_root(),
+                    st.state_root_full_rebuild(),
+                    "seed {seed} unwind"
+                );
             }
             // Persistence round trip lands on the same root.
             let (a, c, s) = st.export_for_persistence();
             let mut loaded = StateStore::load_from_persistence(a, c, s);
             loaded.load_qa_pending(st.export_qa_pending());
             *loaded.names_mut() = st.names().clone();
-            assert_eq!(loaded.state_root(), st.state_root(), "seed {seed} persistence");
+            assert_eq!(
+                loaded.state_root(),
+                st.state_root(),
+                "seed {seed} persistence"
+            );
         }
     }
 }

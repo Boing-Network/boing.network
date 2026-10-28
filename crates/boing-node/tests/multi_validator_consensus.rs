@@ -23,7 +23,10 @@ fn multi_validator_node(
     balance: u128,
     p2p_listen: &str,
     shared_genesis: &Block,
-) -> (BoingNode, tokio::sync::mpsc::UnboundedReceiver<boing_p2p::P2pEvent>) {
+) -> (
+    BoingNode,
+    tokio::sync::mpsc::UnboundedReceiver<boing_p2p::P2pEvent>,
+) {
     let validators: Vec<AccountId> = keys
         .iter()
         .map(|k| AccountId(k.verifying_key().to_bytes()))
@@ -50,7 +53,9 @@ fn multi_validator_node(
             state: AccountState {
                 balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
     }
 

@@ -1,8 +1,10 @@
 # 📚 Boing Network — Documentation Index
 
+> **Quality, enforced by the protocol.** Brand foundation, naming and approved phrases: [../BRAND.md](../BRAND.md).
+
 This folder is the **canonical map** of protocol docs. Website pages and PDFs are generated from a subset of these files — keep them aligned with what is actually shipped.
 
-> 👋 **Everyday users:** start with [SIX-PILLARS.md](SIX-PILLARS.md), then the [wallet](https://boing.express), [faucet](https://boing.network/faucet), and [explorer](https://boing.observer).
+> 👋 **Everyday users:** start with [SIX-PILLARS.md](SIX-PILLARS.md), then the [Boing Express wallet](https://boing.express), [faucet](https://boing.network/faucet), and [Boing Observer explorer](https://boing.observer).
 > 🛠️ **Developers:** start with [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), and [boing-sdk](../boing-sdk/README.md).
 > 🛰️ **Operators:** start with [TESTNET.md](TESTNET.md), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), and [RUNBOOK.md](RUNBOOK.md).
 
@@ -46,7 +48,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [SIX-PILLARS.md](SIX-PILLARS.md) | Why Boing exists, in order of priority (also `/pdfs/SIX-PILLARS.pdf`) |
 | [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Stack, crates, and the short map of everything else |
 | [TESTNET.md](TESTNET.md) | Join testnet, faucet, portal, quests |
-| [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) | How the wallet works (product lives at boing.express) |
+| [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) | How the wallet works (product lives at [boing.express](https://boing.express)) |
 | [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md) | Explorer + wallet: what each app is for |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Allow / Reject / Unsure in plain language + deployer checklist |
 | [QA-GATE-RULES.md](QA-GATE-RULES.md) | Operational catalog of every automated gate (also observer `/qa/rules` PDF) |

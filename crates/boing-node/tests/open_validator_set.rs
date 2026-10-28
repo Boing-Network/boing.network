@@ -8,8 +8,8 @@ use std::time::Duration;
 use boing_node::chain::ChainState;
 use boing_node::node::BoingNode;
 use boing_primitives::{
-    sign_validator_registration, AccessList, Account, AccountId, AccountState, Block, ConsensusVote,
-    Hash, SignedTransaction, Transaction, TransactionPayload,
+    sign_validator_registration, AccessList, Account, AccountId, AccountState, Block,
+    ConsensusVote, Hash, SignedTransaction, Transaction, TransactionPayload,
 };
 use boing_state::{OpenValidatorParams, StateStore, ValidatorStatus};
 use ed25519_dalek::SigningKey;
@@ -65,7 +65,12 @@ fn genesis_state(accounts: &[AccountId]) -> StateStore {
     for a in accounts {
         s.insert(Account {
             id: *a,
-            state: AccountState { balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING, nonce: 0, stake: 0, ..Default::default() },
+            state: AccountState {
+                balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
         });
     }
     s
@@ -103,14 +108,23 @@ impl Net {
             if let Some(p) = &open_params {
                 node.enable_open_validator_set(p.clone());
             }
-            members.push(Member { node, key: k, online: true });
+            members.push(Member {
+                node,
+                key: k,
+                online: true,
+            });
         }
         let mut signers = HashMap::new();
         signers.insert(idk(&key(SPAMMER)), key(SPAMMER));
         for i in 0..8 {
             signers.insert(idk(&owner_key(i)), owner_key(i));
         }
-        Net { members, nonces: HashMap::new(), signers, params: open_params }
+        Net {
+            members,
+            nonces: HashMap::new(),
+            signers,
+            params: open_params,
+        }
     }
 
     fn height(&self) -> u64 {
@@ -128,15 +142,28 @@ impl Net {
     fn signed(&self, signer: AccountId, payload: TransactionPayload) -> SignedTransaction {
         let nonce = *self.nonces.get(&signer).unwrap_or(&0);
         let access_list = match &payload {
-            TransactionPayload::Transfer { to, .. } => AccessList::new(vec![signer, *to], vec![signer, *to]),
+            TransactionPayload::Transfer { to, .. } => {
+                AccessList::new(vec![signer, *to], vec![signer, *to])
+            }
             _ => AccessList::new(vec![signer], vec![signer]),
         };
-        let tx = Transaction { nonce, sender: signer, payload, access_list };
+        let tx = Transaction {
+            nonce,
+            sender: signer,
+            payload,
+            access_list,
+        };
         SignedTransaction::new(tx, &self.signers[&signer])
     }
 
     fn filler(&self) -> SignedTransaction {
-        self.signed(idk(&key(SPAMMER)), TransactionPayload::Transfer { to: SINK, amount: 1 })
+        self.signed(
+            idk(&key(SPAMMER)),
+            TransactionPayload::Transfer {
+                to: SINK,
+                amount: 1,
+            },
+        )
     }
 
     /// Who proposes the next block: the scheduled leader if online, else the fallback anchor.
@@ -149,7 +176,9 @@ impl Net {
                 return i;
             }
         }
-        let fb = c.fallback_anchor(h).expect("anchor mode or static leader online");
+        let fb = c
+            .fallback_anchor(h)
+            .expect("anchor mode or static leader online");
         self.idx_of(&fb).expect("fallback anchor is a member")
     }
 
@@ -216,7 +245,10 @@ impl Net {
         }
         for (i, m) in self.members.iter().enumerate() {
             if m.online && m.node.chain.height() != h {
-                return Err(format!("member {i} at height {} after block {h}", m.node.chain.height()));
+                return Err(format!(
+                    "member {i} at height {} after block {h}",
+                    m.node.chain.height()
+                ));
             }
         }
         Ok(())
@@ -257,19 +289,34 @@ impl Net {
     }
 
     fn assert_all_agree(&self) {
-        let root0 = self.anchor0().chain.get_block_by_height(self.height()).unwrap().header.state_root;
+        let root0 = self
+            .anchor0()
+            .chain
+            .get_block_by_height(self.height())
+            .unwrap()
+            .header
+            .state_root;
         for (i, m) in self.members.iter().enumerate() {
             if !m.online {
                 continue;
             }
-            assert_eq!(m.node.consensus.validators(), self.set().as_slice(), "member {i} set");
+            assert_eq!(
+                m.node.consensus.validators(),
+                self.set().as_slice(),
+                "member {i} set"
+            );
             assert_eq!(
                 m.node.state.open_validators(),
                 self.anchor0().state.open_validators(),
                 "member {i} registry"
             );
             assert_eq!(
-                m.node.chain.get_block_by_height(self.height()).unwrap().header.state_root,
+                m.node
+                    .chain
+                    .get_block_by_height(self.height())
+                    .unwrap()
+                    .header
+                    .state_root,
                 root0,
                 "member {i} root"
             );
@@ -282,7 +329,10 @@ impl Net {
         let from = self.members[i].node.chain.height() + 1;
         for h in from..=tip {
             let b = self.members[0].node.chain.get_block_by_height(h).unwrap();
-            self.members[i].node.import_network_block_catchup(&b).expect("catch-up");
+            self.members[i]
+                .node
+                .import_network_block_catchup(&b)
+                .expect("catch-up");
         }
         self.members[i].online = true;
     }
@@ -301,12 +351,20 @@ fn pre_activation_chain_is_identical_to_static_mode() {
     for _ in 0..12 {
         let b1 = open.step();
         let b2 = stat.step();
-        assert_eq!(b1.header.state_root, b2.header.state_root, "height {}", b1.header.height);
+        assert_eq!(
+            b1.header.state_root, b2.header.state_root,
+            "height {}",
+            b1.header.height
+        );
         assert_eq!(b1.header.tx_root, b2.header.tx_root);
         assert_eq!(b1.header.receipts_root, b2.header.receipts_root);
     }
     assert!(open.anchor0().state.open_validators().is_empty());
-    assert_eq!(open.anchor0().consensus.anchors().len(), 0, "legacy quorum until activation");
+    assert_eq!(
+        open.anchor0().consensus.anchors().len(),
+        0,
+        "legacy quorum until activation"
+    );
 }
 
 #[test]
@@ -337,13 +395,22 @@ fn registration_rules_bad_signatures_and_duplicates() {
             node_signature: sign_validator_registration(&owner0, &open_key(1)),
         },
     );
-    assert!(net.step_with(Some(bad)).unwrap_err().contains("invalid node signature"));
+    assert!(net
+        .step_with(Some(bad))
+        .unwrap_err()
+        .contains("invalid node signature"));
     // Garbage signature.
     let bad = net.signed(
         owner0,
-        TransactionPayload::ValidatorRegister { node_id: node0, node_signature: vec![1, 2, 3] },
+        TransactionPayload::ValidatorRegister {
+            node_id: node0,
+            node_signature: vec![1, 2, 3],
+        },
     );
-    assert!(net.step_with(Some(bad)).unwrap_err().contains("invalid node signature"));
+    assert!(net
+        .step_with(Some(bad))
+        .unwrap_err()
+        .contains("invalid node signature"));
     // Anchors cannot register.
     let anchor_reg = net.signed(
         owner0,
@@ -352,15 +419,27 @@ fn registration_rules_bad_signatures_and_duplicates() {
             node_signature: sign_validator_registration(&owner0, &anchor_key(0)),
         },
     );
-    assert!(net.step_with(Some(anchor_reg)).unwrap_err().contains("anchor"));
+    assert!(net
+        .step_with(Some(anchor_reg))
+        .unwrap_err()
+        .contains("anchor"));
 
     let bal_before = net.anchor0().state.get(&owner0).unwrap().balance;
     net.step_with(Some(net.register_tx(0, 0))).unwrap();
     let bal_after = net.anchor0().state.get(&owner0).unwrap().balance;
-    assert!(bal_before - bal_after >= 100 * boing_primitives::BASE_UNITS_PER_BOING, "bond locked");
+    assert!(
+        bal_before - bal_after >= 100 * boing_primitives::BASE_UNITS_PER_BOING,
+        "bond locked"
+    );
     assert_eq!(net.status(0), Some(ValidatorStatus::Pending));
-    assert_eq!(net.anchor0().state.open_validators().records[&node0].bond, 100 * boing_primitives::BASE_UNITS_PER_BOING);
-    assert!(!net.set().contains(&node0), "joins only at the next boundary");
+    assert_eq!(
+        net.anchor0().state.open_validators().records[&node0].bond,
+        100 * boing_primitives::BASE_UNITS_PER_BOING
+    );
+    assert!(
+        !net.set().contains(&node0),
+        "joins only at the next boundary"
+    );
 
     // Duplicate node (other owner) and second node for the same owner.
     let dup = net.signed(
@@ -370,11 +449,20 @@ fn registration_rules_bad_signatures_and_duplicates() {
             node_signature: sign_validator_registration(&owner1, &open_key(0)),
         },
     );
-    assert!(net.step_with(Some(dup)).unwrap_err().contains("already registered"));
+    assert!(net
+        .step_with(Some(dup))
+        .unwrap_err()
+        .contains("already registered"));
     let second = net.register_tx(0, 1);
-    assert!(net.step_with(Some(second)).unwrap_err().contains("owner already"));
+    assert!(net
+        .step_with(Some(second))
+        .unwrap_err()
+        .contains("owner already"));
     // Deregister by a non-owner is refused.
-    let wrong = net.signed(owner1, TransactionPayload::ValidatorDeregister { node_id: node0 });
+    let wrong = net.signed(
+        owner1,
+        TransactionPayload::ValidatorDeregister { node_id: node0 },
+    );
     assert!(net.step_with(Some(wrong)).unwrap_err().contains("owner"));
     net.assert_all_agree();
 }
@@ -431,11 +519,25 @@ fn offline_validator_is_jailed_keeps_bond_and_can_unjail_after_cooldown() {
     assert!(net.set().contains(&node0));
     net.members[1].online = false; // goes offline
     net.run_to(15); // anchor proposes the open slots as fallback; chain never stalls
-    assert!(matches!(net.status(0), Some(ValidatorStatus::Jailed { until: 25 })), "{:?}", net.status(0));
+    assert!(
+        matches!(net.status(0), Some(ValidatorStatus::Jailed { until: 25 })),
+        "{:?}",
+        net.status(0)
+    );
     assert!(!net.set().contains(&node0));
-    assert_eq!(net.anchor0().state.open_validators().records[&node0].bond, 100 * boing_primitives::BASE_UNITS_PER_BOING, "no slashing");
+    assert_eq!(
+        net.anchor0().state.open_validators().records[&node0].bond,
+        100 * boing_primitives::BASE_UNITS_PER_BOING,
+        "no slashing"
+    );
     let report = net.anchor0().validators_report();
-    let v = report["validators"].as_array().unwrap().iter().find(|v| v["status"] == "jailed").unwrap().clone();
+    let v = report["validators"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["status"] == "jailed")
+        .unwrap()
+        .clone();
     assert_eq!(v["jailed_until"], 25);
     assert_eq!(v["jail_count"], 1);
     // Last liveness at jailing is kept and shown (the live window was purged).
@@ -447,16 +549,26 @@ fn offline_validator_is_jailed_keeps_bond_and_can_unjail_after_cooldown() {
     assert_eq!(v["scheduled_proposals"], 0, "current window is fresh");
 
     let owner0 = idk(&owner_key(0));
-    let early = net.signed(owner0, TransactionPayload::ValidatorUnjail { node_id: node0 });
+    let early = net.signed(
+        owner0,
+        TransactionPayload::ValidatorUnjail { node_id: node0 },
+    );
     assert!(net.step_with(Some(early)).unwrap_err().contains("cooldown"));
     net.run_to(24);
     net.bring_online(1);
-    let unjail = net.signed(owner0, TransactionPayload::ValidatorUnjail { node_id: node0 });
+    let unjail = net.signed(
+        owner0,
+        TransactionPayload::ValidatorUnjail { node_id: node0 },
+    );
     net.step_with(Some(unjail)).unwrap(); // height 25 >= until; 25 is also a boundary → re-admitted now
     assert_eq!(net.status(0), Some(ValidatorStatus::Active));
     net.run_to(30);
     assert!(net.set().contains(&node0), "re-joined at the next boundary");
-    assert_eq!(net.anchor0().state.open_validators().stats(&node0).missed, 0, "fresh liveness window");
+    assert_eq!(
+        net.anchor0().state.open_validators().stats(&node0).missed,
+        0,
+        "fresh liveness window"
+    );
     net.assert_all_agree();
 }
 
@@ -520,7 +632,11 @@ fn offline_open_majority_cannot_stall_and_is_removed() {
     }
     assert!(fallback_blocks > 0);
     for i in 0..4 {
-        assert!(matches!(net.status(i), Some(ValidatorStatus::Jailed { .. })), "open {i}: {:?}", net.status(i));
+        assert!(
+            matches!(net.status(i), Some(ValidatorStatus::Jailed { .. })),
+            "open {i}: {:?}",
+            net.status(i)
+        );
     }
     let mut want = anchors.clone();
     want.sort();
@@ -544,7 +660,13 @@ fn late_open_leader_is_superseded_without_equivocation() {
     let h = net.height() + 1;
     // The open leader proposes but its block never reaches the anchor in time.
     let owner1 = idk(&owner_key(1));
-    let late_tx = net.signed(owner1, TransactionPayload::Transfer { to: SINK, amount: 1 });
+    let late_tx = net.signed(
+        owner1,
+        TransactionPayload::Transfer {
+            to: SINK,
+            amount: 1,
+        },
+    );
     net.members[1].node.submit_transaction(late_tx).unwrap();
     assert!(net.members[1].node.produce_block_if_ready().is_none());
     assert!(net.members[1].node.pending_commit.is_some());
@@ -556,17 +678,34 @@ fn late_open_leader_is_superseded_without_equivocation() {
     let anchor_block = net.anchor0().chain.get_block_by_height(h).unwrap();
     assert_eq!(anchor_block.header.proposer, a);
     // The open node receives the anchor block: supersedes its own, does not vote twice, commits on the anchor vote.
-    net.members[1].node.handle_network_block(&anchor_block).unwrap();
+    net.members[1]
+        .node
+        .handle_network_block(&anchor_block)
+        .unwrap();
     assert_eq!(net.members[1].node.last_local_vote_round, Some(h));
     let v = ConsensusVote::sign(h, anchor_block.hash(), &net.members[0].key);
     net.members[1].node.on_consensus_vote(v);
     assert_eq!(net.members[1].node.chain.height(), h);
-    assert_eq!(net.members[1].node.chain.get_block_by_height(h).unwrap().hash(), anchor_block.hash());
+    assert_eq!(
+        net.members[1]
+            .node
+            .chain
+            .get_block_by_height(h)
+            .unwrap()
+            .hash(),
+        anchor_block.hash()
+    );
     for m in &net.members {
-        assert!(m.node.slash_registry.list_slashes().is_empty(), "no equivocation");
+        assert!(
+            m.node.slash_registry.list_slashes().is_empty(),
+            "no equivocation"
+        );
     }
     // The missed slot is on-chain for every node.
-    assert_eq!(net.anchor0().state.open_validators().stats(&node0).missed, 1);
+    assert_eq!(
+        net.anchor0().state.open_validators().stats(&node0).missed,
+        1
+    );
     net.step();
     net.assert_all_agree();
 }
@@ -580,10 +719,16 @@ fn deregistration_leaves_at_boundary_and_bond_is_claimable_after_delay() {
     net.run_to(10);
     let node0 = idk(&open_key(0));
     let owner0 = idk(&owner_key(0));
-    let dereg = net.signed(owner0, TransactionPayload::ValidatorDeregister { node_id: node0 });
+    let dereg = net.signed(
+        owner0,
+        TransactionPayload::ValidatorDeregister { node_id: node0 },
+    );
     let b = net.step_with(Some(dereg)).unwrap();
     let acct = net.anchor0().state.get(&owner0).unwrap().clone();
-    assert_eq!(acct.pending_unbond, 100 * boing_primitives::BASE_UNITS_PER_BOING);
+    assert_eq!(
+        acct.pending_unbond,
+        100 * boing_primitives::BASE_UNITS_PER_BOING
+    );
     assert_eq!(acct.unbond_unlock_height, b.header.height + 10);
     assert_eq!(net.status(0), Some(ValidatorStatus::Exiting));
     assert!(net.set().contains(&node0), "stays until the boundary");
@@ -592,10 +737,14 @@ fn deregistration_leaves_at_boundary_and_bond_is_claimable_after_delay() {
     assert_eq!(net.status(0), None);
     net.run_to(acct.unbond_unlock_height);
     let bal = net.anchor0().state.get(&owner0).unwrap().balance;
-    net.step_with(Some(net.signed(owner0, TransactionPayload::ClaimUnbond))).unwrap();
+    net.step_with(Some(net.signed(owner0, TransactionPayload::ClaimUnbond)))
+        .unwrap();
     let after = net.anchor0().state.get(&owner0).unwrap().clone();
     assert_eq!(after.pending_unbond, 0);
-    assert!(after.balance > bal + 90 * boing_primitives::BASE_UNITS_PER_BOING, "bond returned (minus fee)");
+    assert!(
+        after.balance > bal + 90 * boing_primitives::BASE_UNITS_PER_BOING,
+        "bond returned (minus fee)"
+    );
     // The owner may register again.
     net.step_with(Some(net.register_tx(0, 0))).unwrap();
     assert_eq!(net.status(0), Some(ValidatorStatus::Pending));
@@ -604,7 +753,10 @@ fn deregistration_leaves_at_boundary_and_bond_is_claimable_after_delay() {
 fn temp_dir(tag: &str) -> std::path::PathBuf {
     let d = std::env::temp_dir().join(format!(
         "boing-open-validators-{tag}-{}",
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     ));
     std::fs::create_dir_all(&d).unwrap();
     d
@@ -620,14 +772,25 @@ fn restart_restores_registry_and_set_and_replay_is_deterministic() {
     let genesis = ChainState::genesis(a);
 
     let make = |dir: &std::path::Path| {
-        let mut n = BoingNode::with_data_dir_and_validators(Some(dir), vec![a], a, Some(a_key.clone())).unwrap();
+        let mut n =
+            BoingNode::with_data_dir_and_validators(Some(dir), vec![a], a, Some(a_key.clone()))
+                .unwrap();
         n.anchor_fallback_timeout = Duration::ZERO;
         n
     };
     let mut n = make(&dir);
     n.state = genesis_state(&funded);
     n.enable_open_validator_set(p.clone());
-    let mut net = Net { members: vec![Member { node: n, key: a_key.clone(), online: true }], nonces: HashMap::new(), signers: HashMap::new(), params: Some(p.clone()) };
+    let mut net = Net {
+        members: vec![Member {
+            node: n,
+            key: a_key.clone(),
+            online: true,
+        }],
+        nonces: HashMap::new(),
+        signers: HashMap::new(),
+        params: Some(p.clone()),
+    };
     net.signers.insert(idk(&key(SPAMMER)), key(SPAMMER));
     net.signers.insert(idk(&owner_key(0)), owner_key(0));
     net.run_to(6);
@@ -635,9 +798,20 @@ fn restart_restores_registry_and_set_and_replay_is_deterministic() {
     net.run_to(17); // node0 joins at 10 (offline: never a member here) and is jailed at 15
     let reg_before = net.anchor0().state.open_validators().clone();
     let set_before = net.set();
-    let root_before = net.anchor0().chain.get_block_by_height(17).unwrap().header.state_root;
-    assert!(matches!(net.status(0), Some(ValidatorStatus::Jailed { .. })));
-    let blocks: Vec<Block> = (1..=17).map(|h| net.anchor0().chain.get_block_by_height(h).unwrap()).collect();
+    let root_before = net
+        .anchor0()
+        .chain
+        .get_block_by_height(17)
+        .unwrap()
+        .header
+        .state_root;
+    assert!(matches!(
+        net.status(0),
+        Some(ValidatorStatus::Jailed { .. })
+    ));
+    let blocks: Vec<Block> = (1..=17)
+        .map(|h| net.anchor0().chain.get_block_by_height(h).unwrap())
+        .collect();
     drop(net);
 
     // Restart from disk.
@@ -648,9 +822,21 @@ fn restart_restores_registry_and_set_and_replay_is_deterministic() {
     assert_eq!(n2.consensus.validators(), set_before.as_slice());
     assert_eq!(n2.state.state_root(), root_before);
     // And it keeps producing.
-    let mut net2 = Net { members: vec![Member { node: n2, key: a_key.clone(), online: true }], nonces: HashMap::new(), signers: HashMap::new(), params: Some(p.clone()) };
+    let mut net2 = Net {
+        members: vec![Member {
+            node: n2,
+            key: a_key.clone(),
+            online: true,
+        }],
+        nonces: HashMap::new(),
+        signers: HashMap::new(),
+        params: Some(p.clone()),
+    };
     net2.signers.insert(idk(&key(SPAMMER)), key(SPAMMER));
-    net2.nonces.insert(idk(&key(SPAMMER)), net2.anchor0().state.get(&idk(&key(SPAMMER))).unwrap().nonce);
+    net2.nonces.insert(
+        idk(&key(SPAMMER)),
+        net2.anchor0().state.get(&idk(&key(SPAMMER))).unwrap().nonce,
+    );
     net2.run_to(21);
 
     // A fresh follower replaying the same blocks derives the identical registry and set.
@@ -675,8 +861,27 @@ fn open_mode_config_mismatch_is_detected_by_state_root() {
     // A node without open mode (or other params) rejects the activation block.
     let mut other = Net::new(1, 0, None);
     other.run_to(4);
-    let b = (1..=4).map(|h| other.anchor0().chain.get_block_by_height(h).unwrap().header.state_root).collect::<Vec<_>>();
-    let mine = (1..=4).map(|h| net.anchor0().chain.get_block_by_height(h).unwrap().header.state_root).collect::<Vec<_>>();
+    let b = (1..=4)
+        .map(|h| {
+            other
+                .anchor0()
+                .chain
+                .get_block_by_height(h)
+                .unwrap()
+                .header
+                .state_root
+        })
+        .collect::<Vec<_>>();
+    let mine = (1..=4)
+        .map(|h| {
+            net.anchor0()
+                .chain
+                .get_block_by_height(h)
+                .unwrap()
+                .header
+                .state_root
+        })
+        .collect::<Vec<_>>();
     assert_eq!(b, mine, "identical before activation");
     // Import the open net's own blocks 1..4 into a static-mode node (block hashes include timestamps,
     // so the separately produced `other` chain may not be a valid parent for b5; that made this flaky).
@@ -684,7 +889,8 @@ fn open_mode_config_mismatch_is_detected_by_state_root() {
     stat.chain = ChainState::from_genesis(net.anchor0().chain.get_block_by_height(0).unwrap());
     stat.state = genesis_state(&funded_ids(0));
     for h in 1..=4 {
-        stat.import_network_block_catchup(&net.anchor0().chain.get_block_by_height(h).unwrap()).unwrap();
+        stat.import_network_block_catchup(&net.anchor0().chain.get_block_by_height(h).unwrap())
+            .unwrap();
     }
     let err = stat.import_network_block_catchup(&b5).unwrap_err();
     assert!(err.to_string().contains("state root"), "{err}");

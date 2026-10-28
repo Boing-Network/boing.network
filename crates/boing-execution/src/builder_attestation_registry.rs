@@ -134,7 +134,11 @@ fn append_sstore_slot_caller(code: &mut Vec<u8>, mem_idx: u64, field: u8) {
 }
 
 /// Abort if `SLOAD(calldata[asset_off] ^ CLAIMER_XOR) != CALLER`.
-fn append_require_caller_is_claimer(code: &mut Vec<u8>, asset_off: u64, fix_aborts: &mut Vec<usize>) {
+fn append_require_caller_is_claimer(
+    code: &mut Vec<u8>,
+    asset_off: u64,
+    fix_aborts: &mut Vec<usize>,
+) {
     push32(code, &word_u64(asset_off));
     code.push(Opcode::MLoad as u8);
     push32(code, &BUILDER_ATTEST_CLAIMER_XOR);
@@ -583,7 +587,12 @@ mod tests {
         AccountId([byte; 32])
     }
 
-    fn run(state: &mut StateStore, registry: AccountId, caller: AccountId, calldata: &[u8]) -> Interpreter {
+    fn run(
+        state: &mut StateStore,
+        registry: AccountId,
+        caller: AccountId,
+        calldata: &[u8],
+    ) -> Interpreter {
         let mut it = Interpreter::new(builder_attestation_registry_bytecode(), 8_000_000);
         it.run(caller, registry, calldata, state).unwrap();
         it

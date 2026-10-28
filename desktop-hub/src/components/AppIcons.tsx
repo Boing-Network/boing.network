@@ -31,16 +31,12 @@ export function AppIcon({ appId, size = 18, ariaHidden = true }: { appId: string
         </svg>
       );
     case "network":
+      /* Monochrome Arc Slab: same geometry as the Boing logo (public/favicon.svg), scaled to the 24-unit icon grid. */
       return (
         <svg {...p}>
-          <circle cx="12" cy="5" r="1" />
-          <circle cx="5" cy="12" r="1" />
-          <circle cx="19" cy="12" r="1" />
-          <circle cx="12" cy="19" r="1" />
-          <path d="M5.64 7.64 8.34 10.34" />
-          <path d="M15.66 10.34 18.36 7.64" />
-          <path d="M18.36 16.36 15.66 13.66" />
-          <path d="M8.34 13.66 5.64 16.36" />
+          <rect x="3" y="3" width="18" height="18" rx="5" />
+          <path d="M5.4 16.5 C7.5 16.5 8.2 14.8 9.6 12.4 C11 9.9 12.3 8.2 14.1 7.5 C15.8 6.8 17.2 7.8 17.9 9.2" />
+          <circle cx="17.9" cy="9.2" r="1.5" fill="currentColor" stroke="none" />
         </svg>
       );
     case "qa":

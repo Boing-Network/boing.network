@@ -70,7 +70,8 @@ impl ExecutorAttestation {
             .map_err(|_| VerificationError::InvalidPublicKey)?;
         let msg = self.signable_hash();
         let sig = Ed25519Sig::from_bytes(&self.signature.0);
-        pk.verify(&msg, &sig).map_err(|_| VerificationError::InvalidSignature)?;
+        pk.verify(&msg, &sig)
+            .map_err(|_| VerificationError::InvalidSignature)?;
         Ok(())
     }
 }

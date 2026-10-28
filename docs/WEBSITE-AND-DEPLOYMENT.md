@@ -15,13 +15,13 @@
 
 ### Design theme: Outerspace-Oceanic
 
-All official Boing websites and applications use the **outerspace-oceanic** theme to match the [Boing Network promotional launch video](https://youtu.be/sSP6wsugauo) and Marketing Asset Package.
+All official Boing websites and applications share one visual system defined in [BRAND.md](../BRAND.md) and [BOING-DESIGN-SYSTEM.md](BOING-DESIGN-SYSTEM.md): a deep-navy foundation with a single electric-blue accent. (The earlier "outerspace-oceanic" teal/cyan theme is historical.)
 
-- **Look & feel:** Deep ocean / cosmic depth; bioluminescent teal and electric blue; friendly, futuristic.
-- **Colors:** Primary `#00E5CC` (Teal/Cyan), Secondary `#00B4FF` (Electric Blue), Dark background `#0A0E1A` (Deep Navy).
-- **Typography:** Comfortaa (sans), JetBrains Mono (code).
-- **Motifs:** Hexagonal grid (network/circuit), circuit-style lines, neon glow, floating orbs, bubbles, shooting stars; robot mascot in brand assets.
-- **Implementation:** `website/src/styles/boing-theme.css`, `website/src/components/EnhancedAnimatedBackground.astro`. Use the same theme and environment across Boing products for a consistent brand experience.
+- **Look & feel:** Deep navy, restrained glow, friendly and futuristic; status shown honestly (public testnet, mainnet not live).
+- **Colors:** Page background `--boing-navy-950` `#050A1A`, surfaces `--boing-navy-900` `#0A1128`, cards `--boing-navy-800` `#101A38`, accent `--boing-accent` `#3B8CFF`.
+- **Typography:** Font stacks are set in `website/src/styles/design-tokens-cosmic.css` (currently Comfortaa).
+- **Motifs:** Engraved stone slab with vein SVG, shooting stars and mascot in brand assets.
+- **Implementation:** `website/src/styles/design-tokens-cosmic.css`, `website/src/styles/boing-theme.css`, `website/src/components/StoneEngravingOverlay.astro`. Use the same tokens across Boing products.
 
 ### Site structure
 
@@ -57,7 +57,7 @@ boing.network/
 
 | Page / Section | Source | Notes |
 |----------------|--------|-------|
-| Landing | docs/BOING-BLOCKCHAIN-DESIGN-PLAN.md (Design Philosophy, Priority Pillars) | Hero, "Authentic L1" messaging |
+| Landing | docs/BOING-BLOCKCHAIN-DESIGN-PLAN.md (Design Philosophy, Priority Pillars) | Hero, "Quality, enforced by the protocol" messaging |
 | /about | docs/SIX-PILLARS.md, docs/BOING-NETWORK-ESSENTIALS.md | Written pillars and essentials as **PDFs** (`/pdfs/…`); page chrome only |
 | /docs/getting-started | docs/BUILD-ROADMAP.md Quick Start, README | `cargo build`, `cargo run -p boing-node` |
 | /docs/architecture | Design Plan (Tech Stack, Full Stack Architecture) | Mermaid diagrams, layer breakdown |
@@ -92,9 +92,9 @@ boing.network/
 
 ### SEO & meta
 
-- **Slogan:** The DeFi that always bounces back
-- Title: `Boing Network | The DeFi that always bounces back`
-- Description: `The DeFi that always bounces back. Authentic L1 blockchain built from first principles.`
+- **Tagline:** Boing Network — Quality, enforced by the protocol.
+- Title: `Boing Network — Quality, enforced by the protocol.`
+- Description: `Boing is an independent Layer 1 where quality is enforced by the protocol.`
 - Canonical URLs, Open Graph, Twitter cards, JSON-LD structured data
 - OG image: `/og.png` (1200×630) — add for social sharing
 - Favicon: `/favicon.svg`
@@ -233,4 +233,4 @@ For Pages + Functions with D1/KV/R2, use the [Cloudflare adapter for Astro](http
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

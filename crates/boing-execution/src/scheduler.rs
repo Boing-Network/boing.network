@@ -28,9 +28,9 @@ impl TransactionScheduler {
                 if assigned[j] {
                     continue;
                 }
-                let conflicts = batch.iter().any(|&k| {
-                    txs[k].access_list.conflicts_with(&txs[j].access_list)
-                });
+                let conflicts = batch
+                    .iter()
+                    .any(|&k| txs[k].access_list.conflicts_with(&txs[j].access_list));
                 if !conflicts {
                     batch.push(j);
                     assigned[j] = true;
@@ -71,10 +71,7 @@ mod tests {
         let a = AccountId::from_bytes([1u8; 32]);
         let b = AccountId::from_bytes([2u8; 32]);
         let c = AccountId::from_bytes([3u8; 32]);
-        let txs = vec![
-            tx_with_access(vec![a, b]),
-            tx_with_access(vec![c]),
-        ];
+        let txs = vec![tx_with_access(vec![a, b]), tx_with_access(vec![c])];
         let batches = s.schedule(&txs);
         assert_eq!(batches.len(), 1, "Independent txs should be in one batch");
         assert_eq!(batches[0].len(), 2);
@@ -85,11 +82,12 @@ mod tests {
         let s = TransactionScheduler::new();
         let a = AccountId::from_bytes([1u8; 32]);
         let b = AccountId::from_bytes([2u8; 32]);
-        let txs = vec![
-            tx_with_access(vec![a, b]),
-            tx_with_access(vec![a]),
-        ];
+        let txs = vec![tx_with_access(vec![a, b]), tx_with_access(vec![a])];
         let batches = s.schedule(&txs);
-        assert_eq!(batches.len(), 2, "Conflicting txs should be in separate batches");
+        assert_eq!(
+            batches.len(),
+            2,
+            "Conflicting txs should be in separate batches"
+        );
     }
 }

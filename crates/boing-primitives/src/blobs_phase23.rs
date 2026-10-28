@@ -102,8 +102,7 @@ pub fn phase23_resolve_expired(tip_height: u64, resolve_deadline: u64) -> bool {
 ///
 /// `tip_height > resolve_deadline + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS`.
 pub fn phase23_expired_appeal_prunable(tip_height: u64, resolve_deadline: u64) -> bool {
-    tip_height
-        > resolve_deadline.saturating_add(PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS)
+    tip_height > resolve_deadline.saturating_add(PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS)
 }
 
 /// Snapshot electorate W (Phase 20–22 alias).
@@ -211,14 +210,14 @@ mod tests {
             .iter()
             .any(|s| s.contains("prune_expired") || s.contains("4096")));
         assert!(plan.iter().any(|s| s.contains("includeExpired")));
+        assert!(plan.iter().any(|s| s.contains("V5")
+            && (s.contains("no clear")
+                || s.contains("no schema")
+                || s.contains("stays V5")
+                || s.contains("do not clear"))));
         assert!(plan
             .iter()
-            .any(|s| s.contains("V5")
-                && (s.contains("no clear")
-                    || s.contains("no schema")
-                    || s.contains("stays V5")
-                    || s.contains("do not clear"))));
-        assert!(plan.iter().any(|s| s.contains("still later") || s.contains("BLS")));
+            .any(|s| s.contains("still later") || s.contains("BLS")));
         assert!(phase23_committee_requires_attested(3));
         assert!(!phase23_committee_requires_attested(1));
     }

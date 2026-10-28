@@ -92,7 +92,12 @@ fn append_build_triplet_key(code: &mut Vec<u8>, mem_idx: u64, field: u8) {
 }
 
 /// `SStore` pops **key** then **value**. Stack top must be **key**; load value first, then build key.
-fn append_sstore_triplet_field(code: &mut Vec<u8>, mem_idx: u64, field: u8, calldata_word_off: u64) {
+fn append_sstore_triplet_field(
+    code: &mut Vec<u8>,
+    mem_idx: u64,
+    field: u8,
+    calldata_word_off: u64,
+) {
     push32(code, &word_u64(calldata_word_off));
     code.push(Opcode::MLoad as u8);
     append_build_triplet_key(code, mem_idx, field);
@@ -101,7 +106,11 @@ fn append_sstore_triplet_field(code: &mut Vec<u8>, mem_idx: u64, field: u8, call
 
 /// Encode [`SELECTOR_REGISTER_PAIR`] calldata (**128** bytes).
 #[must_use]
-pub fn encode_register_pair_calldata(token_a: &AccountId, token_b: &AccountId, pool: &AccountId) -> Vec<u8> {
+pub fn encode_register_pair_calldata(
+    token_a: &AccountId,
+    token_b: &AccountId,
+    pool: &AccountId,
+) -> Vec<u8> {
     let mut v = selector_word(SELECTOR_REGISTER_PAIR).to_vec();
     v.extend_from_slice(&token_a.0);
     v.extend_from_slice(&token_b.0);
@@ -292,19 +301,23 @@ mod tests {
         state.set_contract_code(factory, code);
 
         let mut it = Interpreter::new(native_dex_factory_bytecode(), 5_000_000);
-        it.run(AccountId([0xee; 32]), factory, &encode_pairs_count_calldata(), &mut state)
-            .unwrap();
+        it.run(
+            AccountId([0xee; 32]),
+            factory,
+            &encode_pairs_count_calldata(),
+            &mut state,
+        )
+        .unwrap();
         assert_eq!(it.return_data.as_deref(), Some(&[0u8; 32][..]));
 
         let mut it2 = Interpreter::new(native_dex_factory_bytecode(), 5_000_000);
-        it2
-            .run(
-                AccountId([0xee; 32]),
-                factory,
-                &encode_register_pair_calldata(&ta, &tb, &pool),
-                &mut state,
-            )
-            .unwrap();
+        it2.run(
+            AccountId([0xee; 32]),
+            factory,
+            &encode_register_pair_calldata(&ta, &tb, &pool),
+            &mut state,
+        )
+        .unwrap();
         assert_eq!(it2.logs.len(), 1);
         assert_eq!(it2.logs[0].topics[0], NATIVE_DEX_FACTORY_TOPIC_REGISTER);
         assert_eq!(it2.logs[0].topics[1], ta.0);
@@ -312,17 +325,25 @@ mod tests {
         assert_eq!(it2.logs[0].data, pool.0.to_vec());
 
         let mut it3 = Interpreter::new(native_dex_factory_bytecode(), 5_000_000);
-        it3
-            .run(AccountId([0xee; 32]), factory, &encode_pairs_count_calldata(), &mut state)
-            .unwrap();
+        it3.run(
+            AccountId([0xee; 32]),
+            factory,
+            &encode_pairs_count_calldata(),
+            &mut state,
+        )
+        .unwrap();
         let mut exp = [0u8; 32];
         exp[31] = 1;
         assert_eq!(it3.return_data.as_deref(), Some(&exp[..]));
 
         let mut it4 = Interpreter::new(native_dex_factory_bytecode(), 5_000_000);
-        it4
-            .run(AccountId([0xee; 32]), factory, &encode_get_pair_at_calldata(0), &mut state)
-            .unwrap();
+        it4.run(
+            AccountId([0xee; 32]),
+            factory,
+            &encode_get_pair_at_calldata(0),
+            &mut state,
+        )
+        .unwrap();
         let mut want = Vec::new();
         want.extend_from_slice(&ta.0);
         want.extend_from_slice(&tb.0);

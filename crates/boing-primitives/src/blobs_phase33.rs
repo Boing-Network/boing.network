@@ -16,9 +16,7 @@
 //! 2. Coordinated 256 MiB activation.
 
 use crate::blobs::BlobError;
-use crate::blobs_phase10::{
-    BlobSampleServeChallengeStatus, DasSuccinctProofReserved,
-};
+use crate::blobs_phase10::{BlobSampleServeChallengeStatus, DasSuccinctProofReserved};
 use crate::blobs_phase11::validate_das_succinct_proof_reserved_envelope;
 use crate::blobs_phase26::{BlsPublicKeyG1, DualKeyIdentity};
 use crate::blobs_phase29::BlsAggregateResolvePayload;
@@ -32,23 +30,24 @@ use crate::blobs_phase32::{
     phase32_is_legacy_electorate_snapshot, phase32_pin_set_commitment, phase32_resolve_deadline,
     phase32_resolve_expired, phase32_resolve_threshold_met, phase32_resolved_appeal_prunable,
     phase32_snapshot_electorate_w, phase32_terminal_serve_challenge_prunable,
-    phase32_verify_aggregate_resolve_self_contained, phase32_verify_aggregate_resolve_with_registry,
-    Phase32BlsError, PHASE32_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE32_BLS_AGGREGATE_BALLOT_DOMAIN,
+    phase32_verify_aggregate_resolve_self_contained,
+    phase32_verify_aggregate_resolve_with_registry, Phase32BlsError,
+    PHASE32_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE32_BLS_AGGREGATE_BALLOT_DOMAIN,
     PHASE32_BLS_AGGREGATE_SELF_CONTAINED_WIRED, PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
     PHASE32_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED, PHASE32_BLS_AGGREGATE_WIRED,
     PHASE32_BLS_COMMITTEE_FLIP_ENV, PHASE32_BLS_DUAL_KEY_REGISTRY_FILE,
     PHASE32_BLS_DUAL_KEY_REGISTRY_MAGIC, PHASE32_BLS_DUAL_KEY_REGISTRY_VERSION,
-    PHASE32_BLS_LIVE_TX32_STILL_ED25519, PHASE32_BLS_POP_REQUIRED,
-    PHASE32_BLS_PUBLIC_KEY_G1_BYTES, PHASE32_BLS_SIGNATURE_G2_BYTES, PHASE32_CAP_ACTIVATION_ENV,
+    PHASE32_BLS_LIVE_TX32_STILL_ED25519, PHASE32_BLS_POP_REQUIRED, PHASE32_BLS_PUBLIC_KEY_G1_BYTES,
+    PHASE32_BLS_SIGNATURE_G2_BYTES, PHASE32_CAP_ACTIVATION_ENV,
     PHASE32_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE32_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
     PHASE32_LEGACY_ELECTORATE_W_SENTINEL, PHASE32_LEGACY_PIN_SET_COMMITMENT,
     PHASE32_MAX_APPEAL_EVIDENCE_BYTES, PHASE32_MAX_PIN_SET_LEN, PHASE32_MAX_SETTLE_RECEIPTS,
-    PHASE32_PIN_SET_DOMAIN, PHASE32_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
+    PHASE32_PIN_SET_DOMAIN, PHASE32_RESOLVED_APPEAL_RETENTION_BLOCKS,
+    PHASE32_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
     PHASE32_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX, PHASE32_RESOLVE_SLASH_APPEAL_TX_INDEX,
     PHASE32_RESOLVE_THRESHOLD_DEN, PHASE32_RESOLVE_THRESHOLD_NUM, PHASE32_RESOLVE_WINDOW_BLOCKS,
-    PHASE32_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE32_SERVE_CHALLENGE_WINDOW_BLOCKS,
-    PHASE32_SETTLE_RECEIPT_TTL_BLOCKS, PHASE32_SUBMIT_SLASH_APPEAL_TX_INDEX,
-    PHASE32_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+    PHASE32_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE32_SETTLE_RECEIPT_TTL_BLOCKS,
+    PHASE32_SUBMIT_SLASH_APPEAL_TX_INDEX, PHASE32_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 use crate::types::AccountId;
 
@@ -422,11 +421,9 @@ mod tests {
             snark,
             Phase33ReservedRealError::NotWired { backend: "snarkV1" }
         ));
-        let disp = phase33_verify_das_succinct_proof_reserved_real(
-            &p,
-            DasRealVerifierBackend::SnarkV1,
-        )
-        .unwrap_err();
+        let disp =
+            phase33_verify_das_succinct_proof_reserved_real(&p, DasRealVerifierBackend::SnarkV1)
+                .unwrap_err();
         let msg = disp.to_string();
         assert!(msg.contains("not wired"));
         assert!(msg.contains("is_implemented() remains false"));
@@ -458,8 +455,12 @@ mod tests {
     fn plan_and_checklist_note_scaffold() {
         let plan = phase33_das_succinct_proof_plan();
         assert!(plan.iter().any(|s| s.contains("Phase 33")));
-        assert!(plan.iter().any(|s| s.contains("PHASE33_RESERVED_REAL_VERIFIER_WIRED=false")));
-        assert!(plan.iter().any(|s| s.contains("is_implemented() remains false")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("PHASE33_RESERVED_REAL_VERIFIER_WIRED=false")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("is_implemented() remains false")));
         assert!(plan.iter().any(|s| s.contains("Phase 32")));
         let checklist = phase33_cap_activation_checklist(None);
         assert!(checklist

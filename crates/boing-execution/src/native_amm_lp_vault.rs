@@ -91,7 +91,10 @@ fn append_copy_calldata_slice(out: &mut Vec<u8>, src_base: u64, dst_base: u64, n
 
 /// Encode **96** bytes: [`SELECTOR_NATIVE_AMM_LP_VAULT_CONFIGURE`] + `pool` + `share_token`.
 #[must_use]
-pub fn encode_native_amm_lp_vault_configure_calldata(pool: &AccountId, share_token: &AccountId) -> Vec<u8> {
+pub fn encode_native_amm_lp_vault_configure_calldata(
+    pool: &AccountId,
+    share_token: &AccountId,
+) -> Vec<u8> {
     let mut v = selector_word(SELECTOR_NATIVE_AMM_LP_VAULT_CONFIGURE).to_vec();
     v.extend_from_slice(&pool.0);
     v.extend_from_slice(&share_token.0);
@@ -102,7 +105,10 @@ pub fn encode_native_amm_lp_vault_configure_calldata(pool: &AccountId, share_tok
 /// Encode **192** bytes: [`SELECTOR_NATIVE_AMM_LP_VAULT_DEPOSIT_ADD`] + **128-byte** pool
 /// `add_liquidity` calldata + `min_lp` word.
 #[must_use]
-pub fn encode_native_amm_lp_vault_deposit_add_calldata(inner_add_liquidity_128: &[u8], min_lp: u128) -> Vec<u8> {
+pub fn encode_native_amm_lp_vault_deposit_add_calldata(
+    inner_add_liquidity_128: &[u8],
+    min_lp: u128,
+) -> Vec<u8> {
     assert_eq!(
         inner_add_liquidity_128.len(),
         128,
@@ -131,7 +137,10 @@ pub fn native_amm_lp_vault_bytecode() -> Vec<u8> {
     // -- configure (0xC0)
     push32(&mut c, &word_u64(MEM_SCRATCH_SEL));
     c.push(Opcode::MLoad as u8);
-    push32(&mut c, &selector_word(SELECTOR_NATIVE_AMM_LP_VAULT_CONFIGURE));
+    push32(
+        &mut c,
+        &selector_word(SELECTOR_NATIVE_AMM_LP_VAULT_CONFIGURE),
+    );
     c.push(Opcode::Eq as u8);
     c.push(Opcode::IsZero as u8);
     let fix_skip_cfg = c.len();
@@ -170,7 +179,10 @@ pub fn native_amm_lp_vault_bytecode() -> Vec<u8> {
     // -- deposit_add (0xC1)
     push32(&mut c, &word_u64(MEM_SCRATCH_SEL));
     c.push(Opcode::MLoad as u8);
-    push32(&mut c, &selector_word(SELECTOR_NATIVE_AMM_LP_VAULT_DEPOSIT_ADD));
+    push32(
+        &mut c,
+        &selector_word(SELECTOR_NATIVE_AMM_LP_VAULT_DEPOSIT_ADD),
+    );
     c.push(Opcode::Eq as u8);
     c.push(Opcode::IsZero as u8);
     let fix_skip_dep = c.len();
@@ -320,34 +332,37 @@ mod tests {
         state.set_contract_code(share, share_code.clone());
 
         let mut it0 = Interpreter::new(vault_code.clone(), 20_000_000);
-        it0
-            .run(
-                alice,
-                vault,
-                &encode_native_amm_lp_vault_configure_calldata(&pool, &share),
-                &mut state,
-            )
-            .unwrap();
+        it0.run(
+            alice,
+            vault,
+            &encode_native_amm_lp_vault_configure_calldata(&pool, &share),
+            &mut state,
+        )
+        .unwrap();
 
         let mut it1 = Interpreter::new(share_code.clone(), 20_000_000);
-        it1
-            .run(alice, share, &encode_lp_share_set_minter_once_calldata(&vault), &mut state)
-            .unwrap();
+        it1.run(
+            alice,
+            share,
+            &encode_lp_share_set_minter_once_calldata(&vault),
+            &mut state,
+        )
+        .unwrap();
 
         let amount_a = 1_000u128;
         let amount_b = 2_000u128;
         let inner = encode_add_liquidity_calldata(amount_a, amount_b, 0);
         let mut it2 = Interpreter::new(vault_code, 30_000_000);
-        it2
-            .run(
-                alice,
-                vault,
-                &encode_native_amm_lp_vault_deposit_add_calldata(&inner, 0),
-                &mut state,
-            )
-            .unwrap();
+        it2.run(
+            alice,
+            vault,
+            &encode_native_amm_lp_vault_deposit_add_calldata(&inner, 0),
+            &mut state,
+        )
+        .unwrap();
 
-        let lp_minted = tail_u128(&state.get_contract_storage(&pool, &lp_balance_storage_key(&vault.0)));
+        let lp_minted =
+            tail_u128(&state.get_contract_storage(&pool, &lp_balance_storage_key(&vault.0)));
         assert!(lp_minted > 0);
         assert_eq!(
             tail_u128(&state.get_contract_storage(&share, &share_bal_key(&alice))),
@@ -403,7 +418,10 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(state.get_contract_storage(&vault, &NATIVE_AMM_LP_VAULT_KEY_POOL), pool_a.0);
+        assert_eq!(
+            state.get_contract_storage(&vault, &NATIVE_AMM_LP_VAULT_KEY_POOL),
+            pool_a.0
+        );
         assert_eq!(
             state.get_contract_storage(&vault, &NATIVE_AMM_LP_VAULT_KEY_SHARE_TOKEN),
             share_a.0

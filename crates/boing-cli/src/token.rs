@@ -477,21 +477,37 @@ mod tests {
         listener.set_nonblocking(true).unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         let stx = build_deploy_tx(&key(9), 0, Some("Dry".into()), Some("DRY".into()));
-        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-        rt.block_on(submit(&url, &stx, true)).expect("dry run is offline");
-        assert!(listener.accept().is_err(), "dry run opened a connection to the RPC");
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(submit(&url, &stx, true))
+            .expect("dry run is offline");
+        assert!(
+            listener.accept().is_err(),
+            "dry run opened a connection to the RPC"
+        );
         // Control: a real submit does connect (and fails, since nobody answers JSON-RPC).
         let _ = rt.block_on(async {
-            tokio::time::timeout(std::time::Duration::from_millis(300), submit(&url, &stx, false)).await
+            tokio::time::timeout(
+                std::time::Duration::from_millis(300),
+                submit(&url, &stx, false),
+            )
+            .await
         });
-        assert!(listener.accept().is_ok(), "non-dry submit should reach the RPC");
+        assert!(
+            listener.accept().is_ok(),
+            "non-dry submit should reach the RPC"
+        );
     }
 
     #[test]
     fn duplicate_mempool_error_is_treated_as_accepted() {
         let e = r#"boing_submitTransaction failed: {"code":-32000,"data":{"reason":"already_in_mempool"},"message":"Duplicate transaction"}"#;
         assert!(is_already_in_mempool(e));
-        assert!(!is_already_in_mempool(r#"boing_submitTransaction failed: {"code":-32000,"message":"insufficient balance"}"#));
+        assert!(!is_already_in_mempool(
+            r#"boing_submitTransaction failed: {"code":-32000,"message":"insufficient balance"}"#
+        ));
     }
 
     fn key(b: u8) -> SigningKey {
@@ -535,8 +551,7 @@ mod tests {
         }
         assert!(stx.tx.access_list_covers_parallel_suggestion());
         let hex_tx = encode_signed(&stx).unwrap();
-        let back =
-            SignedTransaction::from_bincode(&hex::decode(&hex_tx[2..]).unwrap()).unwrap();
+        let back = SignedTransaction::from_bincode(&hex::decode(&hex_tx[2..]).unwrap()).unwrap();
         assert_eq!(back, stx);
     }
 

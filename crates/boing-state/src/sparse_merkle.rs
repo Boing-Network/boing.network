@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
 use boing_primitives::{hasher, AccountId, AccountState, Hash};
+use serde::{Deserialize, Serialize};
 
 const EMPTY_HASH: Hash = Hash::ZERO;
 
@@ -63,11 +63,18 @@ fn leaf_hash(key: &[u8; 32], val: &[u8; 32]) -> [u8; 32] {
 
 #[derive(Clone, Debug)]
 enum Node {
-    Leaf { key: [u8; 32], val: [u8; 32] },
+    Leaf {
+        key: [u8; 32],
+        val: [u8; 32],
+    },
     /// Two or more entries sharing the first 64 key bits (only the smallest key is committed).
     Bucket(Vec<([u8; 32], [u8; 32])>),
     /// Subtree with at least two entries. `hash` is a cache cleared on any change below.
-    Branch { left: u32, right: u32, hash: Option<[u8; 32]> },
+    Branch {
+        left: u32,
+        right: u32,
+        hash: Option<[u8; 32]>,
+    },
     Free,
 }
 
@@ -84,7 +91,12 @@ struct Trie {
 
 impl Default for Trie {
     fn default() -> Self {
-        Self { nodes: Vec::new(), free: Vec::new(), root: NIL, max_depth: LEGACY_MAX_DEPTH }
+        Self {
+            nodes: Vec::new(),
+            free: Vec::new(),
+            root: NIL,
+            max_depth: LEGACY_MAX_DEPTH,
+        }
     }
 }
 
@@ -126,10 +138,14 @@ impl Trie {
                 let (k0, v0) = (*k0, *v0);
                 if d >= max_depth {
                     let mut v = vec![(k0, v0), (key, val)];
-                    v.sort_by(|a, b| a.0.cmp(&b.0));
+                    v.sort_by_key(|a| a.0);
                     self.nodes[idx as usize] = Node::Bucket(v);
                 } else {
-                    self.nodes[idx as usize] = Node::Branch { left: NIL, right: NIL, hash: None };
+                    self.nodes[idx as usize] = Node::Branch {
+                        left: NIL,
+                        right: NIL,
+                        hash: None,
+                    };
                     self.ins(idx, d, k0, v0);
                     self.ins(idx, d, key, val);
                 }
@@ -234,7 +250,10 @@ impl Trie {
             let bit = SparseMerkleTree::path_bit(key, d);
             let (mine, sibling) = if bit == 0 { (l, r) } else { (r, l) };
             let sibling_hash = Hash(self.hash_of(sibling));
-            out.push(ProofStep { sibling_hash, path_bit: bit });
+            out.push(ProofStep {
+                sibling_hash,
+                path_bit: bit,
+            });
             idx = mine;
             d += 1;
         }
@@ -249,7 +268,11 @@ impl Trie {
             Node::Leaf { key, val } => leaf_hash(key, val),
             Node::Bucket(v) => leaf_hash(&v[0].0, &v[0].1),
             Node::Branch { hash: Some(h), .. } => *h,
-            Node::Branch { left, right, hash: None } => {
+            Node::Branch {
+                left,
+                right,
+                hash: None,
+            } => {
                 let (l, r) = (*left, *right);
                 let lh = self.hash_of(l);
                 let rh = self.hash_of(r);
@@ -274,7 +297,11 @@ impl SparseMerkleTree {
     pub fn with_max_depth(max_depth: u32) -> Self {
         let mut trie = Trie::default();
         trie.max_depth = max_depth;
-        Self { leaves: HashMap::new(), trie, max_depth }
+        Self {
+            leaves: HashMap::new(),
+            trie,
+            max_depth,
+        }
     }
 
     /// Routing depth of this tree.
@@ -372,7 +399,6 @@ pub fn hash_contract_code(bytecode: &[u8]) -> Hash {
 }
 
 impl SparseMerkleTree {
-
     /// Root hash. Incremental: only nodes dirtied since the last call are re-hashed.
     pub fn root(&mut self) -> Hash {
         let r = self.trie.root;
@@ -395,7 +421,12 @@ impl SparseMerkleTree {
         Self::build_root(&sorted, 0, self.max_depth, 0)
     }
 
-    fn build_root(entries: &[([u8; 32], Hash)], depth: u32, max_depth: u32, _bit_prefix: u64) -> Hash {
+    fn build_root(
+        entries: &[([u8; 32], Hash)],
+        depth: u32,
+        max_depth: u32,
+        _bit_prefix: u64,
+    ) -> Hash {
         if entries.is_empty() {
             return EMPTY_HASH;
         }
@@ -456,7 +487,12 @@ impl SparseMerkleTree {
         let mut entries: Vec<_> = self.leaves.iter().map(|(k, v)| (*k, Hash(*v))).collect();
         entries.sort_by(|a, b| a.0.as_ref().cmp(b.0.as_ref()));
         let siblings = Self::collect_proof_path(&entries, key.0, 0, self.max_depth);
-        Some(MerkleProof { key: key.0, value_hash: Hash(value_hash), siblings, root: self.reference_root() })
+        Some(MerkleProof {
+            key: key.0,
+            value_hash: Hash(value_hash),
+            siblings,
+            root: self.reference_root(),
+        })
     }
 
     /// Collect sibling hashes along path from root to leaf for `key`.
@@ -473,8 +509,10 @@ impl SparseMerkleTree {
         if entries.len() == 1 {
             return vec![];
         }
-        let (left_entries, right_entries): (Vec<_>, Vec<_>) =
-            entries.iter().cloned().partition(|(k, _)| Self::path_bit(k, depth) == 0);
+        let (left_entries, right_entries): (Vec<_>, Vec<_>) = entries
+            .iter()
+            .cloned()
+            .partition(|(k, _)| Self::path_bit(k, depth) == 0);
         let bit = Self::path_bit(&key, depth);
         let (my_entries, sibling_entries) = if bit == 0 {
             (left_entries, right_entries)
@@ -490,16 +528,17 @@ impl SparseMerkleTree {
             sibling_hash,
             path_bit: bit,
         }];
-        path.extend(Self::collect_proof_path(&my_entries, key, depth + 1, max_depth));
+        path.extend(Self::collect_proof_path(
+            &my_entries,
+            key,
+            depth + 1,
+            max_depth,
+        ));
         path
     }
 
     #[cfg(test)]
-    fn hash_subtree_impl(
-        entries: &[([u8; 32], Hash)],
-        depth: u32,
-        max_depth: u32,
-    ) -> Hash {
+    fn hash_subtree_impl(entries: &[([u8; 32], Hash)], depth: u32, max_depth: u32) -> Hash {
         if entries.is_empty() {
             return EMPTY_HASH;
         }
@@ -512,8 +551,10 @@ impl SparseMerkleTree {
             out.copy_from_slice(h.finalize().as_bytes());
             return Hash(out);
         }
-        let (left_entries, right_entries): (Vec<_>, Vec<_>) =
-            entries.iter().cloned().partition(|(k, _)| Self::path_bit(k, depth) == 0);
+        let (left_entries, right_entries): (Vec<_>, Vec<_>) = entries
+            .iter()
+            .cloned()
+            .partition(|(k, _)| Self::path_bit(k, depth) == 0);
         let left_hash = Self::hash_subtree_impl(&left_entries, depth + 1, max_depth);
         let right_hash = Self::hash_subtree_impl(&right_entries, depth + 1, max_depth);
         hash_pair(&left_hash, &right_hash)
@@ -544,11 +585,7 @@ impl MerkleProof {
         computed == self.root
     }
 
-    fn compute_root_from_proof(
-        key: &[u8; 32],
-        value_hash: &Hash,
-        steps: &[ProofStep],
-    ) -> Hash {
+    fn compute_root_from_proof(key: &[u8; 32], value_hash: &Hash, steps: &[ProofStep]) -> Hash {
         let mut h = hasher();
         h.update(key);
         h.update(value_hash.as_bytes());
@@ -583,7 +620,15 @@ mod tests {
     fn test_insert_root_deterministic() {
         let mut tree = SparseMerkleTree::new();
         let id = AccountId([1u8; 32]);
-        tree.insert(id, &AccountState { balance: 100, nonce: 0, stake: 0, ..Default::default() });
+        tree.insert(
+            id,
+            &AccountState {
+                balance: 100,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        );
         let r1 = tree.root();
         let r2 = tree.root();
         assert_eq!(r1, r2);
@@ -594,8 +639,24 @@ mod tests {
         let mut t1 = SparseMerkleTree::new();
         let mut t2 = SparseMerkleTree::new();
         let id = AccountId([1u8; 32]);
-        t1.insert(id, &AccountState { balance: 100, nonce: 0, stake: 0, ..Default::default() });
-        t2.insert(id, &AccountState { balance: 200, nonce: 0, stake: 0, ..Default::default() });
+        t1.insert(
+            id,
+            &AccountState {
+                balance: 100,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        );
+        t2.insert(
+            id,
+            &AccountState {
+                balance: 200,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        );
         assert_ne!(t1.root(), t2.root());
     }
 
@@ -603,7 +664,15 @@ mod tests {
     fn test_get() {
         let mut tree = SparseMerkleTree::new();
         let id = AccountId([1u8; 32]);
-        tree.insert(id, &AccountState { balance: 42, nonce: 1, stake: 0, ..Default::default() });
+        tree.insert(
+            id,
+            &AccountState {
+                balance: 42,
+                nonce: 1,
+                stake: 0,
+                ..Default::default()
+            },
+        );
         assert!(tree.get(&id).is_some());
         assert!(tree.get(&AccountId([2u8; 32])).is_none());
     }
@@ -618,8 +687,24 @@ mod tests {
         k2[0] = 128;
         let id1 = AccountId(k1);
         let id2 = AccountId(k2);
-        tree.insert(id1, &AccountState { balance: 100, nonce: 0, stake: 0, ..Default::default() });
-        tree.insert(id2, &AccountState { balance: 200, nonce: 1, stake: 0, ..Default::default() });
+        tree.insert(
+            id1,
+            &AccountState {
+                balance: 100,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        );
+        tree.insert(
+            id2,
+            &AccountState {
+                balance: 200,
+                nonce: 1,
+                stake: 0,
+                ..Default::default()
+            },
+        );
         assert!(tree.prove(&id1).unwrap().verify());
         assert!(tree.prove(&id2).unwrap().verify());
     }
@@ -628,7 +713,15 @@ mod tests {
     fn test_delete() {
         let mut tree = SparseMerkleTree::new();
         let id = AccountId([1u8; 32]);
-        tree.insert(id, &AccountState { balance: 100, nonce: 0, stake: 0, ..Default::default() });
+        tree.insert(
+            id,
+            &AccountState {
+                balance: 100,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        );
         let root_with = tree.root();
         tree.delete(&id);
         assert!(tree.get(&id).is_none());
@@ -686,7 +779,7 @@ mod tests {
             let mut t = SparseMerkleTree::new();
             for step in 0..400 {
                 let k = gen_key(&mut r);
-                if r.next() % 3 == 0 {
+                if r.next().is_multiple_of(3) {
                     t.delete_raw(&k);
                 } else {
                     let mut v = [0u8; 32];
@@ -751,8 +844,9 @@ mod tests {
     #[test]
     fn insertion_order_does_not_change_root() {
         let mut r = Rng(42);
-        let entries: Vec<([u8; 32], Hash)> =
-            (0..200).map(|i| (gen_key(&mut r), Hash([(i % 7) as u8; 32]))).collect();
+        let entries: Vec<([u8; 32], Hash)> = (0..200)
+            .map(|i| (gen_key(&mut r), Hash([(i % 7) as u8; 32])))
+            .collect();
         let mut a = SparseMerkleTree::new();
         for (k, v) in &entries {
             a.insert_leaf_hash(*k, *v);
@@ -780,12 +874,20 @@ mod tests {
         t.insert_leaf_hash(k2, Hash([9u8; 32]));
         let two = t.root();
         t.insert_leaf_hash(k2, Hash([10u8; 32]));
-        assert_ne!(t.root(), two, "second key's value IS committed at depth 256");
+        assert_ne!(
+            t.root(),
+            two,
+            "second key's value IS committed at depth 256"
+        );
         assert_eq!(t.root(), t.reference_root());
         t.delete_raw(&k2);
         let mut only = SparseMerkleTree::with_max_depth(DEEP_MAX_DEPTH);
         only.insert_leaf_hash(k1, Hash([7u8; 32]));
-        assert_eq!(t.root(), only.root(), "delete restores the single-leaf root");
+        assert_eq!(
+            t.root(),
+            only.root(),
+            "delete restores the single-leaf root"
+        );
         // A single entry hashes as H(k||v) at any depth, so the legacy and deep roots agree.
         let mut legacy = SparseMerkleTree::new();
         legacy.insert_leaf_hash(k1, Hash([7u8; 32]));
@@ -799,7 +901,7 @@ mod tests {
             let mut t = SparseMerkleTree::with_max_depth(DEEP_MAX_DEPTH);
             for step in 0..300 {
                 let k = gen_key(&mut r);
-                if r.next() % 3 == 0 {
+                if r.next().is_multiple_of(3) {
                     t.delete_raw(&k);
                 } else {
                     let mut v = [0u8; 32];
@@ -832,7 +934,10 @@ mod tests {
         let one = t.root();
         t.insert_leaf_hash(k2, Hash([9u8; 32]));
         let two = t.root();
-        assert_ne!(two, one, "the second key only adds the (empty-sibling) path hashes");
+        assert_ne!(
+            two, one,
+            "the second key only adds the (empty-sibling) path hashes"
+        );
         // ...but its VALUE is not committed: changing it leaves the root untouched (known limitation).
         t.insert_leaf_hash(k2, Hash([10u8; 32]));
         assert_eq!(t.root(), two);

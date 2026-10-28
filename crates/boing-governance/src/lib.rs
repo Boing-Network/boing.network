@@ -88,7 +88,10 @@ impl Governance {
     /// Advance to cooling (e.g. after quorum vote).
     pub fn advance_to_cooling(&mut self, id: u64, now: SystemTime) -> Result<(), GovernanceError> {
         let result = (|| {
-            let p = self.proposals.get_mut(&id).ok_or(GovernanceError::NotFound)?;
+            let p = self
+                .proposals
+                .get_mut(&id)
+                .ok_or(GovernanceError::NotFound)?;
             if p.phase != ProposalPhase::Proposal {
                 return Err(GovernanceError::InvalidPhase);
             }
@@ -108,9 +111,16 @@ impl Governance {
     }
 
     /// Advance to execution (after cooling ends).
-    pub fn advance_to_execution(&mut self, id: u64, now: SystemTime) -> Result<(), GovernanceError> {
+    pub fn advance_to_execution(
+        &mut self,
+        id: u64,
+        now: SystemTime,
+    ) -> Result<(), GovernanceError> {
         let result = (|| {
-            let p = self.proposals.get_mut(&id).ok_or(GovernanceError::NotFound)?;
+            let p = self
+                .proposals
+                .get_mut(&id)
+                .ok_or(GovernanceError::NotFound)?;
             if p.phase != ProposalPhase::Cooling {
                 return Err(GovernanceError::InvalidPhase);
             }
@@ -134,7 +144,11 @@ impl Governance {
     }
 
     /// Execute proposal (within execution window). Returns (key, value) to apply.
-    pub fn execute(&mut self, id: u64, now: SystemTime) -> Result<(String, Vec<u8>), GovernanceError> {
+    pub fn execute(
+        &mut self,
+        id: u64,
+        now: SystemTime,
+    ) -> Result<(String, Vec<u8>), GovernanceError> {
         let result = (|| {
             let p = self.proposals.get(&id).ok_or(GovernanceError::NotFound)?;
             if p.phase != ProposalPhase::Execution {
@@ -165,7 +179,7 @@ impl Governance {
 }
 
 pub use slashing_appeal::{
-    AppealStatus, SlashRecord, SlashReason, SlashRegistry, SlashingAppeal, SlashingError,
+    AppealStatus, SlashReason, SlashRecord, SlashRegistry, SlashingAppeal, SlashingError,
 };
 
 #[derive(Debug, thiserror::Error)]

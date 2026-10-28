@@ -108,11 +108,9 @@ pub fn phase24_terminal_serve_challenge_prunable(
     }
     match status {
         BlobSampleServeChallengeStatus::Open => false,
-        BlobSampleServeChallengeStatus::Responded
-        | BlobSampleServeChallengeStatus::FailedServe => {
+        BlobSampleServeChallengeStatus::Responded | BlobSampleServeChallengeStatus::FailedServe => {
             tip_height
-                > deadline_height
-                    .saturating_add(PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS)
+                > deadline_height.saturating_add(PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS)
         }
     }
 }
@@ -247,7 +245,9 @@ mod tests {
         assert!(plan
             .iter()
             .any(|s| s.contains("getBlobSampleServeChallenge") || s.contains("includeTerminal")));
-        assert!(plan.iter().any(|s| s.contains("still later") || s.contains("BLS")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("still later") || s.contains("BLS")));
         assert!(phase24_committee_requires_attested(3));
     }
 }

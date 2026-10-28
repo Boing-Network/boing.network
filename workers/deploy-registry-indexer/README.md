@@ -24,6 +24,7 @@ Materializes **every contract deploy** (`ContractDeploy*`) seen on a Boing chain
 ## Sync model
 
 - **Cron** (default: every minute) advances **`next_height`** in D1 and ingests up to **`DEPLOY_REGISTRY_MAX_BLOCKS_PER_TICK`** blocks per tick.
+- **Oversize blocks:** if the RPC gateway rejects a block as over its response cap (Upstream RPC response too large / exceeded gateway limit), that height is **skipped and recorded** (D1 ingest_state.skipped_blocks, newest 500, shown in /v1/status as skippedBlocks) so the cursor does not stall. Transient failures (5xx, timeouts, truncated responses) never skip: the cursor holds at that height and the next tick retries. The cursor row is written only when it changes.
 - Each tick issues up to **`DEPLOY_REGISTRY_PARALLEL_FETCHES`** concurrent **`boing_getBlockByHeight`** calls, then **batches D1 inserts** (up to 100 statements per `batch()` round-trip) for all deploy rows in those blocks.
 - **Push-style clients** should open **`/v1/deployments/stream`** or subscribe to the node's WebSocket **`newHeads`** stream (`GET /ws`) and refetch **`/v1/deployments`** after each head.
 - **Catch-up:** tune **`DEPLOY_REGISTRY_MAX_BLOCKS_PER_TICK`** / **`DEPLOY_REGISTRY_PARALLEL_FETCHES`**, or call **`POST /v1/sync`** in a loop (with auth) to drain backlog faster than cron alone.

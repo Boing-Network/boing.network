@@ -21,10 +21,10 @@ interface Props {
   pageClass?: 'page-landing' | 'page-app';
 }
 
-const { title = 'Boing Network', description = 'Boing Network — Authentic. Decentralized. Optimal. Quality-Assured. Authentic L1 blockchain built from first principles.', canonical, pageClass } = Astro.props;
+const { title = 'Boing Network', description = 'Boing is an independent Layer 1 where quality is enforced by the protocol, with transparent deployment checks and open participation for users, developers and validators. Public testnet; mainnet not live.', canonical, pageClass } = Astro.props;
 
 const siteUrl = 'https://boing.network';
-const fullTitle = title === 'Boing Network' ? 'Boing Network | Authentic. Decentralized. Optimal. Quality-Assured.' : `${title} | Boing Network`;
+const fullTitle = title === 'Boing Network' ? 'Boing Network — Quality, enforced by the protocol.' : `${title} | Boing Network`;
 const path = (Astro.url.pathname || '/').replace(/\/$/, '') || '';
 const pathNorm = path.replace(/^\//, '');
 const isTestnetApp = pathNorm === 'testnet' || pathNorm.startsWith('testnet/');
@@ -58,7 +58,7 @@ const navCurrent = {
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonicalUrl} />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=5" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=6" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/logo-192.png" />
@@ -76,7 +76,7 @@ const navCurrent = {
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Boing Network — The DeFi that always bounces back!" />
+    <meta property="og:image:alt" content="Boing Network — Quality, enforced by the protocol." />
     <meta property="og:site_name" content="Boing Network" />
     <meta property="og:locale" content="en_US" />
 
@@ -86,11 +86,11 @@ const navCurrent = {
     <meta name="twitter:title" content={fullTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
-    <meta name="twitter:image:alt" content="Boing Network — The DeFi that always bounces back!" />
+    <meta name="twitter:image:alt" content="Boing Network — Quality, enforced by the protocol." />
 
     <!-- Additional SEO -->
-    <meta name="theme-color" content="#070a0e" />
-    <meta name="keywords" content="Boing, Boing Network, blockchain, DeFi, L1, cryptocurrency, boing.finance, boing.express, boing.observer, decentralized finance, wallet, block explorer" />
+    <meta name="theme-color" content="#050A1A" />
+    <meta name="keywords" content="Boing, Boing Network, Layer 1, blockchain, Quality Gate, protocol-enforced quality assurance, Boing Express, Boing Observer, Boing Finance, testnet, validators" />
 
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
@@ -100,8 +100,8 @@ const navCurrent = {
           "@id": `${siteUrl}/#organization`,
           "name": "Boing Network",
           "url": siteUrl,
-          "description": "Authentic. Decentralized. Optimal. Quality-Assured. Authentic L1 blockchain built from first principles.",
-          "slogan": "The DeFi that always bounces back!",
+          "description": "Boing is an independent Layer 1 where quality is enforced by the protocol, with transparent deployment checks and open participation for users, developers and validators. Public testnet; mainnet not live.",
+          "slogan": "Quality, enforced by the protocol.",
           "logo": `${siteUrl}/assets/icon-only-transparent.png`,
           "image": ogImage,
           "sameAs": [
@@ -117,7 +117,7 @@ const navCurrent = {
           "name": "Boing Network",
           "alternateName": "boing.network",
           "url": siteUrl,
-          "description": "Authentic L1 blockchain built from first principles. Swap, stake, and build on the Boing ecosystem.",
+          "description": "An independent Layer 1 built from first principles, with transparent deployment checks and open participation. Public testnet; mainnet not live.",
           "inLanguage": "en-US",
           "publisher": { "@id": `${siteUrl}/#organization` }
         }
@@ -134,7 +134,7 @@ const navCurrent = {
       <div class="site-header-inner">
         <div class="site-header-bar">
           <a href="/" class="logo" aria-label="Boing Network home">
-            <img src="/logo.svg" alt="" width="36" height="36" class="logo-icon" />
+            <img src="/logo.svg" alt="" width="40" height="40" class="logo-icon" />
             <span class="logo-wordmark">Boing Network</span>
           </a>
           <button
@@ -156,9 +156,10 @@ const navCurrent = {
             <>
               <div class="site-nav-cluster">
                 <a href="#hero" class="nav-section" data-nav-section="hero">Overview</a>
-                <a href="#pillars" class="nav-section" data-nav-section="pillars">Pillars</a>
-                <a href="#tokenomics" class="nav-section" data-nav-section="tokenomics">Tokenomics</a>
+                <a href="#problem" class="nav-section" data-nav-section="problem">Quality Gate</a>
+                <a href="#roles" class="nav-section" data-nav-section="roles">Roles</a>
                 <a href="#roadmap" class="nav-section" data-nav-section="roadmap">Roadmap</a>
+                <a href="#ecosystem" class="nav-section" data-nav-section="ecosystem">Ecosystem</a>
                 <a href="#build" class="nav-section" data-nav-section="build">Build</a>
                 <a href="/resources" class="nav-link">Resources</a>
                 <a href="/downloads" class="nav-link">Downloads</a>
@@ -226,7 +227,7 @@ const navCurrent = {
       </div>
     </footer>
     <footer class="site-footer site-footer-main" data-testnet-hide>
-      <p>Boing Network — Authentic. Decentralized. Optimal. Quality-Assured. <strong>Currently in Testnet.</strong></p>
+      <p>Boing Network — Quality, enforced by the protocol. <strong>Public testnet — mainnet not live.</strong></p>
       <div class="footer-links">
         <a href="/testnet">Dashboard</a>
         <a href="/resources">Resources</a>
@@ -234,11 +235,11 @@ const navCurrent = {
         <a href="/testnet/join">Join Testnet</a>
         <a href="/testnet/operators/validator">Run a validator</a>
         <a href="/faucet">Faucet</a>
-        <a href="https://boing.observer" target="_blank" rel="noopener">Explorer</a>
-        <a href="https://boing.express" target="_blank" rel="noopener">Wallet</a>
+        <a href="https://boing.observer" target="_blank" rel="noopener">Boing Observer</a>
+        <a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a>
         <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">GitHub</a>
         <a href="https://discord.gg/K3w9nbUw4N" target="_blank" rel="noopener">Discord</a>
-        <a href="https://boing.finance" target="_blank" rel="noopener">boing.finance</a>
+        <a href="https://boing.finance" target="_blank" rel="noopener">Boing Finance</a>
         <a href="/docs">Documentation</a>
       </div>
     </footer>
@@ -481,12 +482,12 @@ const navCurrent = {
     z-index: 30;
     padding: 0.7rem 1.25rem;
     background:
-      linear-gradient(180deg, rgba(6, 8, 12, 0.82) 0%, rgba(7, 10, 14, 0.58) 100%);
+      linear-gradient(180deg, rgba(4, 8, 20, 0.82) 0%, rgba(5, 10, 26, 0.58) 100%);
     backdrop-filter: blur(22px) saturate(1.2);
     -webkit-backdrop-filter: blur(22px) saturate(1.2);
-    border-bottom: 1px solid rgba(0, 217, 255, 0.12);
+    border-bottom: 1px solid rgba(59, 140, 255, 0.12);
     box-shadow:
-      inset 0 1px 0 rgba(0, 217, 255, 0.06),
+      inset 0 1px 0 rgba(59, 140, 255, 0.06),
       0 10px 36px rgba(0, 0, 0, 0.28);
   }
   .site-header-inner {
@@ -535,9 +536,9 @@ const navCurrent = {
     height: 42px;
     padding: 0;
     margin: 0;
-    border: 1px solid rgba(0, 217, 255, 0.18);
+    border: 1px solid rgba(59, 140, 255, 0.18);
     border-radius: 999px;
-    background: rgba(15, 20, 25, 0.55);
+    background: rgba(10, 17, 40, 0.55);
     color: var(--text-secondary);
     cursor: pointer;
     position: relative;
@@ -546,10 +547,10 @@ const navCurrent = {
   }
   .site-nav-toggle:hover,
   .site-header.nav-open .site-nav-toggle {
-    border-color: rgba(0, 217, 255, 0.45);
+    border-color: rgba(59, 140, 255, 0.45);
     color: var(--accent-teal);
-    background: rgba(0, 217, 255, 0.08);
-    box-shadow: 0 0 16px rgba(0, 217, 255, 0.15);
+    background: rgba(59, 140, 255, 0.08);
+    box-shadow: 0 0 16px rgba(59, 140, 255, 0.15);
   }
   .site-nav-toggle-bars {
     display: flex;
@@ -615,21 +616,21 @@ const navCurrent = {
   .logo-wordmark {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 1.05rem;
-    letter-spacing: 0.01em;
-    color: var(--text-primary);
+    font-size: 1.2rem;
+    letter-spacing: -0.01em;
+    color: var(--accent-teal); /* all-blue wordmark, same as Boing Express (BRAND.md accent #3B8CFF) */
     white-space: nowrap;
     transition: color 0.2s ease, text-shadow 0.2s ease;
   }
   .logo:hover .logo-wordmark {
-    color: var(--accent-teal);
-    text-shadow: 0 0 12px rgba(0, 217, 255, 0.35);
+    color: var(--boing-accent-soft, #8DB8FF);
+    text-shadow: 0 0 12px rgba(59, 140, 255, 0.35);
   }
   .logo-icon {
     flex-shrink: 0;
     display: block;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     object-fit: contain;
     filter: drop-shadow(0 0 8px var(--glow-cyan-subtle));
     transition: filter 0.2s ease;
@@ -652,8 +653,8 @@ const navCurrent = {
     align-items: center;
     gap: 0.1rem;
     padding: 0.22rem;
-    background: rgba(12, 16, 24, 0.55);
-    border: 1px solid rgba(36, 48, 66, 0.8);
+    background: rgba(10, 17, 40, 0.55);
+    border: 1px solid rgba(40, 58, 100, 0.8);
     border-radius: 999px;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
@@ -684,7 +685,7 @@ const navCurrent = {
   .site-header nav a:hover,
   .site-nav a:hover {
     color: var(--accent-teal);
-    background: rgba(0, 217, 255, 0.08);
+    background: rgba(59, 140, 255, 0.08);
     filter: none;
     text-shadow: none;
   }
@@ -695,8 +696,8 @@ const navCurrent = {
   .site-nav a[aria-current="page"],
   .site-nav a[aria-current="location"] {
     color: var(--accent-teal);
-    background: rgba(0, 217, 255, 0.12);
-    box-shadow: 0 0 16px rgba(0, 217, 255, 0.1);
+    background: rgba(59, 140, 255, 0.12);
+    box-shadow: 0 0 16px rgba(59, 140, 255, 0.1);
   }
 
   body.testnet-app [data-testnet-show] { display: revert !important; }
@@ -728,7 +729,7 @@ const navCurrent = {
   .site-header nav a.testnet-logout:hover,
   .site-nav a.testnet-logout:hover {
     color: var(--accent-teal);
-    background: rgba(0, 217, 255, 0.08);
+    background: rgba(59, 140, 255, 0.08);
   }
   .portal-auth-nav {
     font-size: 0.8rem;
@@ -761,7 +762,7 @@ const navCurrent = {
   }
   .portal-auth-nav .auth-signout:hover {
     color: var(--accent-teal);
-    background: rgba(0, 217, 255, 0.08);
+    background: rgba(59, 140, 255, 0.08);
   }
 
   .site-header nav a.nav-cta,
@@ -773,18 +774,18 @@ const navCurrent = {
     letter-spacing: 0.02em;
     font-family: var(--font-display);
     color: var(--accent-teal);
-    background: rgba(0, 217, 255, 0.1);
-    border: 1px solid rgba(0, 217, 255, 0.38);
-    box-shadow: 0 0 18px rgba(0, 217, 255, 0.12);
+    background: rgba(59, 140, 255, 0.1);
+    border: 1px solid rgba(59, 140, 255, 0.38);
+    box-shadow: 0 0 18px rgba(59, 140, 255, 0.12);
   }
   .site-header nav a.nav-cta:hover,
   .site-nav a.nav-cta:hover,
   .site-header nav a.nav-cta:focus-visible,
   .site-nav a.nav-cta:focus-visible {
     color: var(--accent-teal);
-    background: rgba(0, 217, 255, 0.16);
-    border-color: rgba(0, 217, 255, 0.7);
-    box-shadow: 0 0 22px rgba(0, 217, 255, 0.28);
+    background: rgba(59, 140, 255, 0.16);
+    border-color: rgba(59, 140, 255, 0.7);
+    box-shadow: 0 0 22px rgba(59, 140, 255, 0.28);
     transform: none;
     filter: none;
     text-shadow: none;
@@ -792,18 +793,18 @@ const navCurrent = {
 
   /* Shared Join Testnet / primary CTA (hero, banners) — Design Kit */
   .btn-testnet {
-    color: var(--stone-deep, #06080c) !important;
+    color: var(--stone-deep, #040814) !important;
     background: var(--accent-teal) !important;
     border: none !important;
     font-weight: 600;
     font-family: var(--font-display);
-    box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
+    box-shadow: 0 0 20px rgba(59, 140, 255, 0.6);
     transition: all 0.2s ease;
   }
   .btn-testnet:hover {
-    color: var(--stone-deep, #06080c) !important;
+    color: var(--stone-deep, #040814) !important;
     transform: translateY(-2px);
-    box-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
+    box-shadow: 0 0 30px rgba(59, 140, 255, 0.8);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -876,7 +877,7 @@ const navCurrent = {
       -webkit-overflow-scrolling: touch;
       padding: 0.85rem 0.15rem 1rem;
       margin-top: 0.65rem;
-      border-top: 1px solid rgba(0, 217, 255, 0.1);
+      border-top: 1px solid rgba(59, 140, 255, 0.1);
     }
 
     .site-header.nav-open nav,
@@ -915,7 +916,7 @@ const navCurrent = {
 
     .site-nav a:hover,
     .site-nav a:focus-visible {
-      background: rgba(0, 217, 255, 0.08);
+      background: rgba(59, 140, 255, 0.08);
     }
 
     .site-header nav a.nav-cta,

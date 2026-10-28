@@ -1,33 +1,33 @@
 //! JSON-RPC helpers for L1 media blobs.
 
 use boing_primitives::{
-    build_das_light_client_batch, build_das_light_client_batch_vrf,
-    build_das_succinct_proof_stub, build_das_succinct_proof_stub_vrf, chunk_media_blob,
-    match_sample_prefer_on_chain, media_blob_das_sample, parse_media_blob_id,
-    phase32_bls_committee_flip_active, phase32_pin_set_commitment,
-    phase32_verify_aggregate_resolve_self_contained, phase32_verify_aggregate_resolve_with_registry,
-    phase33_cap_activation_checklist, phase33_das_succinct_proof_plan, phase34_notes,
-    phase34_blob_acl_activation_height, phase34_blob_acl_active_at_tip, verify_das_succinct_proof,
-    AccountId, BlobRetention, BlobSampleOfferSource,
-    BlobSampleServeChallengeStatus, BlobSampleSettleQuote, BlsAggregateResolvePayload,
-    BlsAggregateResolveSelfContainedPayload, BlsPublicKeyG1, BlsSignatureG2, DasSuccinctProof,
-    DasSuccinctProofKind, MediaBlobSampleOffer, MAX_MEDIA_BLOB_BYTES,
-    MAX_MEDIA_BLOB_CONTENT_TYPE_LEN, MAX_MEDIA_BLOB_INLINE_BYTES,
+    build_das_light_client_batch, build_das_light_client_batch_vrf, build_das_succinct_proof_stub,
+    build_das_succinct_proof_stub_vrf, chunk_media_blob, match_sample_prefer_on_chain,
+    media_blob_das_sample, parse_media_blob_id, phase32_bls_committee_flip_active,
+    phase32_pin_set_commitment, phase32_verify_aggregate_resolve_self_contained,
+    phase32_verify_aggregate_resolve_with_registry, phase33_cap_activation_checklist,
+    phase33_das_succinct_proof_plan, phase34_blob_acl_activation_height,
+    phase34_blob_acl_active_at_tip, phase34_notes, verify_das_succinct_proof, AccountId,
+    BlobRetention, BlobSampleOfferSource, BlobSampleServeChallengeStatus, BlobSampleSettleQuote,
+    BlsAggregateResolvePayload, BlsAggregateResolveSelfContainedPayload, BlsPublicKeyG1,
+    BlsSignatureG2, DasSuccinctProof, DasSuccinctProofKind, MediaBlobSampleOffer,
+    MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN, MAX_MEDIA_BLOB_INLINE_BYTES,
     MAX_MEDIA_BLOB_INLINE_PREFER_BYTES, MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS,
     MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOBS_GOSSIP_TOPIC, MEDIA_BLOB_DAS_CHUNK_BYTES,
     MEDIA_BLOB_FOREVER_MULTIPLIER, MEDIA_BLOB_GAS_BASE, MEDIA_BLOB_GAS_PER_WORD,
     MEDIA_BLOB_RS_PARITY_SHARDS, MEDIA_BLOB_URI_PREFIX, MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS,
-    PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES, PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES,
-    PHASE6_MAX_SAMPLE_OFFERS, PHASE6_MAX_VIDEO_SEGMENTS, PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES,
-    PHASE6_VIDEO_SEGMENT_TARGET_BYTES, PHASE32_BLS_AGGREGATE_SELF_CONTAINED_WIRED,
-    PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED, PHASE32_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED,
-    PHASE32_BLS_AGGREGATE_WIRED, PHASE32_BLS_DUAL_KEY_REGISTRY_FILE, PHASE32_BLS_POP_REQUIRED,
-    PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES, PHASE33_RESERVED_REAL_VERIFIER_WIRED,
-    PHASE32_BLS_PUBLIC_KEY_G1_BYTES, PHASE32_BLS_SIGNATURE_G2_BYTES,
-    PHASE32_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE32_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
+    PHASE32_BLS_AGGREGATE_SELF_CONTAINED_WIRED, PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+    PHASE32_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED, PHASE32_BLS_AGGREGATE_WIRED,
+    PHASE32_BLS_DUAL_KEY_REGISTRY_FILE, PHASE32_BLS_POP_REQUIRED, PHASE32_BLS_PUBLIC_KEY_G1_BYTES,
+    PHASE32_BLS_SIGNATURE_G2_BYTES, PHASE32_EXPIRED_APPEAL_RETENTION_BLOCKS,
+    PHASE32_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE32_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
     PHASE32_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX, PHASE32_RESOLVE_THRESHOLD_DEN,
     PHASE32_RESOLVE_THRESHOLD_NUM, PHASE32_RESOLVE_WINDOW_BLOCKS,
-    PHASE32_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE32_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+    PHASE32_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+    PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES, PHASE33_RESERVED_REAL_VERIFIER_WIRED,
+    PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES, PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES,
+    PHASE6_MAX_SAMPLE_OFFERS, PHASE6_MAX_VIDEO_SEGMENTS, PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES,
+    PHASE6_VIDEO_SEGMENT_TARGET_BYTES,
 };
 use serde_json::{json, Value};
 
@@ -204,16 +204,18 @@ fn parse_u32(v: &Value, name: &str) -> Result<u32, (i32, String)> {
     Err((-32602, format!("{name} must be a number or decimal string")))
 }
 
-fn parse_u64_field(params: &Value, keys: &[&str], default: Option<u64>) -> Result<u64, (i32, String)> {
+fn parse_u64_field(
+    params: &Value,
+    keys: &[&str],
+    default: Option<u64>,
+) -> Result<u64, (i32, String)> {
     for k in keys {
         if let Some(v) = params.get(*k) {
             if let Some(n) = v.as_u64() {
                 return Ok(n);
             }
             if let Some(s) = v.as_str() {
-                return s
-                    .parse()
-                    .map_err(|_| (-32602, format!("invalid {k}: {s}")));
+                return s.parse().map_err(|_| (-32602, format!("invalid {k}: {s}")));
             }
             return Err((-32602, format!("{k} must be a number or decimal string")));
         }
@@ -238,9 +240,7 @@ fn parse_u128(v: &Value, key: &str) -> Result<u128, (i32, String)> {
 }
 
 fn parse_u128_field(params: &Value, key: &str) -> Result<u128, (i32, String)> {
-    let v = params
-        .get(key)
-        .ok_or((-32602, format!("expected {key}")))?;
+    let v = params.get(key).ok_or((-32602, format!("expected {key}")))?;
     parse_u128(v, key)
 }
 
@@ -443,11 +443,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 "consensusSlashAppealStakeWeightedResolve",
                 json!(true),
             );
-            put(
-                &mut m,
-                "consensusSlashAppealAttestedResolve",
-                json!(true),
-            );
+            put(&mut m, "consensusSlashAppealAttestedResolve", json!(true));
             put(
                 &mut m,
                 "consensusSlashAppealCommitteeAttestedRequired",
@@ -458,41 +454,21 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 "consensusSlashAppealElectorateSnapshot",
                 json!(true),
             );
-            put(
-                &mut m,
-                "consensusSlashAppealResolveExpiry",
-                json!(true),
-            );
-            put(
-                &mut m,
-                "consensusSlashAppealBallotReverify",
-                json!(true),
-            );
-            put(
-                &mut m,
-                "consensusSlashAppealExpiredPrune",
-                json!(true),
-            );
+            put(&mut m, "consensusSlashAppealResolveExpiry", json!(true));
+            put(&mut m, "consensusSlashAppealBallotReverify", json!(true));
+            put(&mut m, "consensusSlashAppealExpiredPrune", json!(true));
             put(
                 &mut m,
                 "consensusSlashAppealExpiredRetentionBlocks",
                 json!(PHASE32_EXPIRED_APPEAL_RETENTION_BLOCKS),
             );
-            put(
-                &mut m,
-                "consensusSlashAppealResolvedPrune",
-                json!(true),
-            );
+            put(&mut m, "consensusSlashAppealResolvedPrune", json!(true));
             put(
                 &mut m,
                 "consensusSlashAppealResolvedRetentionBlocks",
                 json!(PHASE32_RESOLVED_APPEAL_RETENTION_BLOCKS),
             );
-            put(
-                &mut m,
-                "blsAggregateScaffold",
-                json!(true),
-            );
+            put(&mut m, "blsAggregateScaffold", json!(true));
             put(
                 &mut m,
                 "blsAggregateWired",
@@ -528,11 +504,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                     "boing_verifyBlsAggregateResolve"
                 ]),
             );
-            put(
-                &mut m,
-                "blsPopRequired",
-                json!(PHASE32_BLS_POP_REQUIRED),
-            );
+            put(&mut m, "blsPopRequired", json!(PHASE32_BLS_POP_REQUIRED));
             put(
                 &mut m,
                 "blsAggregateSubmitLibraryWired",
@@ -580,11 +552,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 "reservedRealV1IsImplemented",
                 json!(DasSuccinctProofKind::ReservedRealV1.is_implemented()),
             );
-            put(
-                &mut m,
-                "serveChallengeTerminalPrune",
-                json!(true),
-            );
+            put(&mut m, "serveChallengeTerminalPrune", json!(true));
             put(
                 &mut m,
                 "serveChallengeTerminalRetentionBlocks",
@@ -655,16 +623,8 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 "failedServeAppealWindowBlocks",
                 json!(boing_primitives::PHASE14_FAILED_SERVE_APPEAL_WINDOW_BLOCKS),
             );
-            put(
-                &mut m,
-                "failedServeAppealRestoresBalance",
-                json!(true),
-            );
-            put(
-                &mut m,
-                "requireSettleForChallenge",
-                json!(true),
-            );
+            put(&mut m, "failedServeAppealRestoresBalance", json!(true));
+            put(&mut m, "requireSettleForChallenge", json!(true));
             put(
                 &mut m,
                 "settleReceiptCount",
@@ -734,8 +694,8 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .ok_or((-32602, "expected aggregate hex (96 bytes)".into()))?;
             let agg_raw = hex::decode(agg_hex.strip_prefix("0x").unwrap_or(agg_hex))
                 .map_err(|e| (-32602, format!("aggregate: {e}")))?;
-            let aggregate = BlsSignatureG2::try_from_slice(&agg_raw)
-                .map_err(|e| (-32602, e.to_string()))?;
+            let aggregate =
+                BlsSignatureG2::try_from_slice(&agg_raw).map_err(|e| (-32602, e.to_string()))?;
             let accounts_v = obj
                 .get("accountIds")
                 .or_else(|| obj.get("accounts"))
@@ -750,11 +710,10 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                     .ok_or((-32602, "accountIds entries must be hex strings".into()))?;
                 accounts.push(parse_account(s)?);
             }
-            match node.bls_dual_key_registry.verify_aggregate_for_accounts(
-                &message,
-                &aggregate,
-                &accounts,
-            ) {
+            match node
+                .bls_dual_key_registry
+                .verify_aggregate_for_accounts(&message, &aggregate, &accounts)
+            {
                 Ok(()) => Ok(json!({
                     "ok": true,
                     "wired": PHASE32_BLS_AGGREGATE_WIRED,
@@ -811,8 +770,8 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .ok_or((-32602, "expected aggregate hex (96 bytes)".into()))?;
             let agg_raw = hex::decode(agg_hex.strip_prefix("0x").unwrap_or(agg_hex))
                 .map_err(|e| (-32602, format!("aggregate: {e}")))?;
-            let aggregate = BlsSignatureG2::try_from_slice(&agg_raw)
-                .map_err(|e| (-32602, e.to_string()))?;
+            let aggregate =
+                BlsSignatureG2::try_from_slice(&agg_raw).map_err(|e| (-32602, e.to_string()))?;
             let chain_id = obj
                 .get("chainId")
                 .and_then(|v| {
@@ -828,47 +787,49 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                         .into(),
                 ))?;
             // Prefer appeal book when present; else require slashId + pinned.
-            let (slash_id, pin_commit, pinned) = if let Some(appeal) =
-                node.state.slash_appeals().get_appeal(appeal_id)
-            {
-                let pinned = node
-                    .state
-                    .slash_appeal_resolvers()
-                    .map(|s| s.to_vec())
-                    .unwrap_or_default();
-                (appeal.slash_id, appeal.pin_set_commitment, pinned)
-            } else {
-                let slash_id = obj
-                    .get("slashId")
-                    .or_else(|| obj.get("slash_id"))
-                    .and_then(|v| {
-                        v.as_u64()
-                            .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
-                    })
-                    .ok_or((
-                        -32602,
-                        "appeal not found; pass slashId (+ pinned) for dry-run".into(),
-                    ))?;
-                let pinned_v = obj
-                    .get("pinned")
-                    .or_else(|| obj.get("pinSet"))
-                    .and_then(|v| v.as_array())
-                    .ok_or((
-                        -32602,
-                        "appeal not found; pass pinned accountId array for dry-run".into(),
-                    ))?;
-                let mut pinned = Vec::with_capacity(pinned_v.len());
-                for v in pinned_v {
-                    let s = v
-                        .as_str()
-                        .ok_or((-32602, "pinned entries must be hex strings".into()))?;
-                    pinned.push(parse_account(s)?);
-                }
-                let pin_commit = phase32_pin_set_commitment(&pinned);
-                (slash_id, pin_commit, pinned)
-            };
+            let (slash_id, pin_commit, pinned) =
+                if let Some(appeal) = node.state.slash_appeals().get_appeal(appeal_id) {
+                    let pinned = node
+                        .state
+                        .slash_appeal_resolvers()
+                        .map(|s| s.to_vec())
+                        .unwrap_or_default();
+                    (appeal.slash_id, appeal.pin_set_commitment, pinned)
+                } else {
+                    let slash_id = obj
+                        .get("slashId")
+                        .or_else(|| obj.get("slash_id"))
+                        .and_then(|v| {
+                            v.as_u64()
+                                .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                        })
+                        .ok_or((
+                            -32602,
+                            "appeal not found; pass slashId (+ pinned) for dry-run".into(),
+                        ))?;
+                    let pinned_v = obj
+                        .get("pinned")
+                        .or_else(|| obj.get("pinSet"))
+                        .and_then(|v| v.as_array())
+                        .ok_or((
+                            -32602,
+                            "appeal not found; pass pinned accountId array for dry-run".into(),
+                        ))?;
+                    let mut pinned = Vec::with_capacity(pinned_v.len());
+                    for v in pinned_v {
+                        let s = v
+                            .as_str()
+                            .ok_or((-32602, "pinned entries must be hex strings".into()))?;
+                        pinned.push(parse_account(s)?);
+                    }
+                    let pin_commit = phase32_pin_set_commitment(&pinned);
+                    (slash_id, pin_commit, pinned)
+                };
             if pinned.is_empty() {
-                return Err((-32602, "empty pin set — cannot verify aggregate resolve".into()));
+                return Err((
+                    -32602,
+                    "empty pin set — cannot verify aggregate resolve".into(),
+                ));
             }
             let pubkeys_opt = obj
                 .get("signerPubkeys")
@@ -954,10 +915,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
         }
         "boing_getBlobMeta" => {
             let id = parse_id_param(params)?;
-            let store = node.media_blob_store().ok_or((
-                -32000,
-                "media blob store unavailable (no data dir)".into(),
-            ))?;
+            let store = node
+                .media_blob_store()
+                .ok_or((-32000, "media blob store unavailable (no data dir)".into()))?;
             match store.get_meta(&id) {
                 Some(m) => Ok(meta_json(&m)),
                 None => Ok(Value::Null),
@@ -965,10 +925,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
         }
         "boing_getBlobAccess" => {
             let id = parse_id_param(params)?;
-            let store = node.media_blob_store().ok_or((
-                -32000,
-                "media blob store unavailable (no data dir)".into(),
-            ))?;
+            let store = node
+                .media_blob_store()
+                .ok_or((-32000, "media blob store unavailable (no data dir)".into()))?;
             let Some(meta) = store.get_meta(&id) else {
                 return Ok(Value::Null);
             };
@@ -986,14 +945,11 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
         }
         "boing_getBlob" => {
             let id = parse_id_param(params)?;
-            let store = node.media_blob_store().ok_or((
-                -32000,
-                "media blob store unavailable (no data dir)".into(),
-            ))?;
+            let store = node
+                .media_blob_store()
+                .ok_or((-32000, "media blob store unavailable (no data dir)".into()))?;
             let meta = store.get_meta(&id);
-            let bytes = store
-                .get_bytes(&id)
-                .map_err(|e| (-32000, e.to_string()))?;
+            let bytes = store.get_bytes(&id).map_err(|e| (-32000, e.to_string()))?;
             match (meta, bytes) {
                 (None, None) | (None, Some(_)) | (Some(_), None) => Ok(Value::Null),
                 (Some(m), Some(data)) => Ok(json!({
@@ -1005,10 +961,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
         "boing_getBlobDasSample" => {
             let id = parse_id_param(params)?;
             let chunk_index = parse_chunk_index(params)?;
-            let store = node.media_blob_store().ok_or((
-                -32000,
-                "media blob store unavailable (no data dir)".into(),
-            ))?;
+            let store = node
+                .media_blob_store()
+                .ok_or((-32000, "media blob store unavailable (no data dir)".into()))?;
             let Some(bundle) = cached_das_bundle(store, &id)? else {
                 return Ok(Value::Null);
             };
@@ -1045,10 +1000,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
             let tip = node.chain.height();
-            let store = node.media_blob_store().ok_or((
-                -32000,
-                "media blob store unavailable (no data dir)".into(),
-            ))?;
+            let store = node
+                .media_blob_store()
+                .ok_or((-32000, "media blob store unavailable (no data dir)".into()))?;
             let Some(bundle) = cached_das_bundle(store, &id)? else {
                 return Ok(Value::Null);
             };
@@ -1118,8 +1072,7 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .ok_or((-32602, "expected provider hex".into()))?;
             let provider = parse_account(provider_s)?;
             let ask_fee = parse_u128_field(&params, "askFee")?;
-            let expires_at_height =
-                parse_u64_field(&params, &["expiresAtHeight"], Some(0))?;
+            let expires_at_height = parse_u64_field(&params, &["expiresAtHeight"], Some(0))?;
             let offer = MediaBlobSampleOffer {
                 blob_id,
                 chunk_index,
@@ -1128,10 +1081,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 ask_fee,
                 expires_at_height,
             };
-            let store = node.media_blob_store().ok_or((
-                -32000,
-                "media blob store unavailable (no data dir)".into(),
-            ))?;
+            let store = node
+                .media_blob_store()
+                .ok_or((-32000, "media blob store unavailable (no data dir)".into()))?;
             store
                 .upsert_sample_offer(offer.clone())
                 .map_err(|e| (-32000, e))?;
@@ -1154,10 +1106,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .and_then(|v| v.as_str())
                 .unwrap_or("all");
             let tip = node.chain.height();
-            let store = node.media_blob_store().ok_or((
-                -32000,
-                "media blob store unavailable (no data dir)".into(),
-            ))?;
+            let store = node
+                .media_blob_store()
+                .ok_or((-32000, "media blob store unavailable (no data dir)".into()))?;
             let _ = store.prune_sample_offers(tip);
             let mut offers = Vec::new();
             if source_filter == "all" || source_filter == "onChain" {
@@ -1216,10 +1167,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .transpose()?
                 .unwrap_or(0);
             let tip = node.chain.height();
-            let store = node.media_blob_store().ok_or((
-                -32000,
-                "media blob store unavailable (no data dir)".into(),
-            ))?;
+            let store = node
+                .media_blob_store()
+                .ok_or((-32000, "media blob store unavailable (no data dir)".into()))?;
             let _ = store.prune_sample_offers(tip);
             let on = store.onchain_sample_market_snapshot();
             let local = store.sample_market_snapshot();
@@ -1268,10 +1218,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .transpose()?
                 .unwrap_or(0);
             let tip = node.chain.height();
-            let store = node.media_blob_store().ok_or((
-                -32000,
-                "media blob store unavailable (no data dir)".into(),
-            ))?;
+            let store = node
+                .media_blob_store()
+                .ok_or((-32000, "media blob store unavailable (no data dir)".into()))?;
             let _ = store.prune_sample_offers(tip);
             let on = store.onchain_sample_market_snapshot();
             let local = store.sample_market_snapshot();
@@ -1307,10 +1256,9 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                 .min(PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES as u32)
                 .max(1);
             let tip = node.chain.height();
-            let store = node.media_blob_store().ok_or((
-                -32000,
-                "media blob store unavailable (no data dir)".into(),
-            ))?;
+            let store = node
+                .media_blob_store()
+                .ok_or((-32000, "media blob store unavailable (no data dir)".into()))?;
             let Some(bundle) = cached_das_bundle(store, &id)? else {
                 return Ok(json!({"ok": false, "reason": "blob not found"}));
             };
@@ -1505,7 +1453,10 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
                     .and_then(|a| a.first())
                     .and_then(|v| v.as_object())
                     .map(|o| Value::Object(o.clone()))
-                    .ok_or((-32602, "expected object { blobId, chunkIndex, provider, challenger }".into()))?
+                    .ok_or((
+                        -32602,
+                        "expected object { blobId, chunkIndex, provider, challenger }".into(),
+                    ))?
             };
             let blob_s = obj
                 .get("blobId")

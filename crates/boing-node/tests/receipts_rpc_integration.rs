@@ -314,7 +314,10 @@ async fn rpc_get_network_info_shape() {
     let bal = rpc_call(&mut app, "boing_getBalance", serde_json::json!([me])).await;
     assert_eq!(bal["result"]["balance_boing"], "1000000");
     assert_eq!(cn.get("account_count"), Some(&serde_json::json!(1)));
-    assert_eq!(cn.get("total_balance"), Some(&serde_json::json!("1000000000000000000000000")));
+    assert_eq!(
+        cn.get("total_balance"),
+        Some(&serde_json::json!("1000000000000000000000000"))
+    );
     assert_eq!(cn.get("total_stake"), Some(&serde_json::json!("0")));
     assert_eq!(
         cn.get("total_native_held"),
@@ -721,7 +724,11 @@ async fn protocol_params_are_published_additively() {
             Some(&serde_json::Value::Null),
             "{method}: unset activation must be null"
         );
-        assert_eq!(r.get("receipt_retention_blocks"), Some(&expected_retention), "{method}");
+        assert_eq!(
+            r.get("receipt_retention_blocks"),
+            Some(&expected_retention),
+            "{method}"
+        );
     }
 
     // Configured: the same height the state tree uses is published as a JSON integer.

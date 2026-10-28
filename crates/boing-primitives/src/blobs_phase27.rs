@@ -19,19 +19,19 @@ use crate::blobs_phase26::{
     phase26_committee_requires_attested, phase26_das_succinct_proof_plan,
     phase26_expired_appeal_prunable, phase26_is_legacy_electorate_snapshot,
     phase26_pin_set_commitment, phase26_resolve_deadline, phase26_resolve_expired,
-    phase26_resolve_threshold_met, phase26_resolved_appeal_prunable,
-    phase26_snapshot_electorate_w, phase26_terminal_serve_challenge_prunable,
-    phase26_validate_dual_key_set, BlsAggregateError, BlsPublicKeyG1, BlsSignatureG2,
-    DualKeyIdentity, PHASE26_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE26_BLS_AGGREGATE_BALLOT_DOMAIN,
-    PHASE26_BLS_PUBLIC_KEY_G1_BYTES, PHASE26_BLS_SIGNATURE_G2_BYTES, PHASE26_CAP_ACTIVATION_ENV,
+    phase26_resolve_threshold_met, phase26_resolved_appeal_prunable, phase26_snapshot_electorate_w,
+    phase26_terminal_serve_challenge_prunable, phase26_validate_dual_key_set, BlsAggregateError,
+    BlsPublicKeyG1, BlsSignatureG2, DualKeyIdentity, PHASE26_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
+    PHASE26_BLS_AGGREGATE_BALLOT_DOMAIN, PHASE26_BLS_PUBLIC_KEY_G1_BYTES,
+    PHASE26_BLS_SIGNATURE_G2_BYTES, PHASE26_CAP_ACTIVATION_ENV,
     PHASE26_EXPIRED_APPEAL_RETENTION_BLOCKS, PHASE26_FAILED_SERVE_APPEAL_WINDOW_BLOCKS,
     PHASE26_LEGACY_ELECTORATE_W_SENTINEL, PHASE26_LEGACY_PIN_SET_COMMITMENT,
     PHASE26_MAX_APPEAL_EVIDENCE_BYTES, PHASE26_MAX_SETTLE_RECEIPTS, PHASE26_PIN_SET_DOMAIN,
-    PHASE26_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, PHASE26_RESOLVE_SLASH_APPEAL_TX_INDEX,
-    PHASE26_RESOLVE_THRESHOLD_DEN, PHASE26_RESOLVE_THRESHOLD_NUM, PHASE26_RESOLVE_WINDOW_BLOCKS,
-    PHASE26_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE26_SERVE_CHALLENGE_WINDOW_BLOCKS,
-    PHASE26_SETTLE_RECEIPT_TTL_BLOCKS, PHASE26_SUBMIT_SLASH_APPEAL_TX_INDEX,
-    PHASE26_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
+    PHASE26_RESOLVED_APPEAL_RETENTION_BLOCKS, PHASE26_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX,
+    PHASE26_RESOLVE_SLASH_APPEAL_TX_INDEX, PHASE26_RESOLVE_THRESHOLD_DEN,
+    PHASE26_RESOLVE_THRESHOLD_NUM, PHASE26_RESOLVE_WINDOW_BLOCKS,
+    PHASE26_SERVE_CHALLENGE_WINDOW_BLOCKS, PHASE26_SETTLE_RECEIPT_TTL_BLOCKS,
+    PHASE26_SUBMIT_SLASH_APPEAL_TX_INDEX, PHASE26_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS,
 };
 use crate::types::AccountId;
 use blst::min_pk::{AggregateSignature, PublicKey, SecretKey, Signature};
@@ -197,8 +197,8 @@ pub fn phase27_aggregate_bls_signatures(
         .collect();
     let parsed = parsed?;
     let refs: Vec<&Signature> = parsed.iter().collect();
-    let agg = AggregateSignature::aggregate(&refs, true)
-        .map_err(|_| Phase27BlsError::AggregateFailed)?;
+    let agg =
+        AggregateSignature::aggregate(&refs, true).map_err(|_| Phase27BlsError::AggregateFailed)?;
     Ok(BlsSignatureG2::from_bytes(agg.to_signature().to_bytes()))
 }
 
@@ -209,13 +209,13 @@ pub fn phase27_verify_bls_aggregate(
     identities: &[DualKeyIdentity],
 ) -> Result<(), Phase27BlsError> {
     phase27_validate_dual_key_set(identities)?;
-    let sig = Signature::from_bytes(aggregate.as_bytes()).map_err(|_| {
-        Phase27BlsError::InvalidSignature
-    })?;
+    let sig = Signature::from_bytes(aggregate.as_bytes())
+        .map_err(|_| Phase27BlsError::InvalidSignature)?;
     let pks: Result<Vec<PublicKey>, Phase27BlsError> = identities
         .iter()
         .map(|id| {
-            let pk = PublicKey::from_bytes(id.bls_pubkey.as_bytes()).map_err(Phase27BlsError::from)?;
+            let pk =
+                PublicKey::from_bytes(id.bls_pubkey.as_bytes()).map_err(Phase27BlsError::from)?;
             if pk.validate().is_err() {
                 return Err(Phase27BlsError::InvalidPublicKey);
             }
@@ -503,7 +503,9 @@ mod tests {
     #[test]
     fn plan_mentions_blst_and_tx32_safe() {
         let plan = phase27_das_succinct_proof_plan();
-        assert!(plan.iter().any(|s| s.contains("blst") && s.contains("WIRED")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("blst") && s.contains("WIRED")));
         assert!(plan.iter().any(|s| s.contains("bls_dual_key_registry")));
         assert!(plan.iter().any(|s| s.contains("verify-each")));
         let checklist = phase27_cap_activation_checklist(Some(1200));

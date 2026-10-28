@@ -5,11 +5,9 @@
 use rayon::prelude::*;
 
 use boing_primitives::{AccountId, ExecutionReceipt, Transaction, TransactionPayload};
-use boing_state::{StateCheckpoint, StateStore};
 use boing_primitives::{Denomination, BASE_UNITS_PER_BOING};
-use boing_tokenomics::{
-    charge_priority_tip, network_fee_amount_in, NetworkFeePolicy,
-};
+use boing_state::{StateCheckpoint, StateStore};
+use boing_tokenomics::{charge_priority_tip, network_fee_amount_in, NetworkFeePolicy};
 
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
 
@@ -72,7 +70,8 @@ impl BlockExecutor {
     pub fn set_execution_history(&mut self, history: Option<crate::history::ExecutionHistory>) {
         if let Some(h) = &history {
             let cid = (h.chain_id != 0).then_some(h.chain_id);
-            self.vm.set_registration_proof_rule(cid, h.registration_proof_v2_from);
+            self.vm
+                .set_registration_proof_rule(cid, h.registration_proof_v2_from);
             self.vm.set_security_v4_from(h.security_v4_from);
             self.vm.set_base_units_from(h.base_units_from);
             self.vm.set_native_value_from(h.native_value_from);
@@ -133,7 +132,10 @@ impl BlockExecutor {
 
     /// Whether failed txs pay the failed-tx fee at `height` (always, for chains without history).
     pub fn failed_tx_fee_active(&self, height: u64) -> bool {
-        self.history.as_ref().map(|h| h.failed_tx_fee_active(height)).unwrap_or(true)
+        self.history
+            .as_ref()
+            .map(|h| h.failed_tx_fee_active(height))
+            .unwrap_or(true)
     }
 
     /// Ledger unit at `height`: base units, except on a network history before its migration height.
@@ -146,7 +148,10 @@ impl BlockExecutor {
 
     /// Migration height of the ledger to base units (`None`: base units from genesis, nothing to do).
     pub fn redenomination_height(&self) -> Option<u64> {
-        self.history.as_ref().map(|h| h.base_units_from).filter(|h| *h > 0)
+        self.history
+            .as_ref()
+            .map(|h| h.base_units_from)
+            .filter(|h| *h > 0)
     }
 
     /// Bring a state taken at height `next_height - 1` to the unit `next_height` executes in: at the
@@ -180,7 +185,10 @@ impl BlockExecutor {
 
     /// Whether the security-review v4 rules apply at `height` (always, for chains without history).
     pub fn security_v4_active(&self, height: u64) -> bool {
-        self.history.as_ref().map(|h| h.security_v4_active(height)).unwrap_or(true)
+        self.history
+            .as_ref()
+            .map(|h| h.security_v4_active(height))
+            .unwrap_or(true)
     }
 
     pub fn vm(&self) -> &Vm {
@@ -258,12 +266,14 @@ impl BlockExecutor {
         self.prepare_state_for_height(block_height, state);
         let denom = self.denomination_at(block_height);
         let (fee_policy, fee_remainder) = self.fee_rule_at(block_height);
-        let failed_fee = self.failed_tx_fee_active(block_height).then_some(FailedTxFee {
-            policy: &fee_policy,
-            remainder: fee_remainder,
-            recipient: fee_recipient,
-            denom,
-        });
+        let failed_fee = self
+            .failed_tx_fee_active(block_height)
+            .then_some(FailedTxFee {
+                policy: &fee_policy,
+                remainder: fee_remainder,
+                recipient: fee_recipient,
+                denom,
+            });
         // Security review #9: parallel merges write each tx's pre-batch snapshot back, so a later tx
         // whose access list includes a fee-receiving account (fee recipient, protocol treasury, burn
         // sink) overwrote fees credited earlier in the batch. From v4 such batches run sequentially
@@ -274,9 +284,9 @@ impl BlockExecutor {
         let mut receipts: Vec<Option<ExecutionReceipt>> = vec![None; txs.len()];
 
         for batch in batches {
-            let all_transfer = batch.iter().all(|&i| {
-                matches!(&txs[i].payload, TransactionPayload::Transfer { .. })
-            });
+            let all_transfer = batch
+                .iter()
+                .all(|&i| matches!(&txs[i].payload, TransactionPayload::Transfer { .. }));
 
             // The parallel path only sees the accounts each tx declares, so it is used only when every
             // transfer's access list covers its sender and recipient (read + write) and the batch's
@@ -306,80 +316,80 @@ impl BlockExecutor {
                 let par_receipts_before: Vec<Option<ExecutionReceipt>> =
                     batch.iter().map(|&i| receipts[i].clone()).collect();
                 let attempt = (|| -> Result<u64, ExecutionError> {
-                let mut par_gas = 0u64;
-                // Parallel path: copy state slice per tx (sequential read), execute in parallel, merge
-                let snapshots: Vec<_> = batch
-                    .iter()
-                    .map(|&idx| {
-                        let tx = txs[idx].clone();
-                        let ids: Vec<_> = tx.access_list.all().copied().collect();
-                        let snapshot: std::collections::HashMap<_, _> = ids
-                            .iter()
-                            .filter_map(|id| state.get(id).map(|s| (*id, s.clone())))
-                            .collect();
-                        (idx, tx, snapshot)
-                    })
-                    .collect();
+                    let mut par_gas = 0u64;
+                    // Parallel path: copy state slice per tx (sequential read), execute in parallel, merge
+                    let snapshots: Vec<_> = batch
+                        .iter()
+                        .map(|&idx| {
+                            let tx = txs[idx].clone();
+                            let ids: Vec<_> = tx.access_list.all().copied().collect();
+                            let snapshot: std::collections::HashMap<_, _> = ids
+                                .iter()
+                                .filter_map(|id| state.get(id).map(|s| (*id, s.clone())))
+                                .collect();
+                            (idx, tx, snapshot)
+                        })
+                        .collect();
 
-                let batch_results: Result<Vec<_>, ExecutionError> = snapshots
-                    .par_iter()
-                    .map(|(idx, tx, snapshot)| {
-                        let mut view = ExecutionView::from_snapshot(snapshot.clone());
-                        let out = self
-                            .vm
-                            .execute_transfer(tx, &mut view)
-                            .map_err(ExecutionError::Vm)?;
-                        Ok((*idx, view, out.gas_used))
-                    })
-                    .collect();
+                    let batch_results: Result<Vec<_>, ExecutionError> = snapshots
+                        .par_iter()
+                        .map(|(idx, tx, snapshot)| {
+                            let mut view = ExecutionView::from_snapshot(snapshot.clone());
+                            let out = self
+                                .vm
+                                .execute_transfer(tx, &mut view)
+                                .map_err(ExecutionError::Vm)?;
+                            Ok((*idx, view, out.gas_used))
+                        })
+                        .collect();
 
-                let batch_results = batch_results?;
-                // Sanity check: verify no conflicting writes (access lists should be disjoint)
-                let mut written: std::collections::HashSet<AccountId> =
-                    std::collections::HashSet::new();
-                for (_, view, _) in &batch_results {
-                    for id in view.account_ids() {
-                        if !written.insert(*id) {
-                            return Err(ExecutionError::ConflictDetected(format!(
-                                "Parallel batch wrote to same account: {:?}",
-                                id
-                            )));
+                    let batch_results = batch_results?;
+                    // Sanity check: verify no conflicting writes (access lists should be disjoint)
+                    let mut written: std::collections::HashSet<AccountId> =
+                        std::collections::HashSet::new();
+                    for (_, view, _) in &batch_results {
+                        for id in view.account_ids() {
+                            if !written.insert(*id) {
+                                return Err(ExecutionError::ConflictDetected(format!(
+                                    "Parallel batch wrote to same account: {:?}",
+                                    id
+                                )));
+                            }
                         }
                     }
-                }
-                for (idx, view, gas) in batch_results {
-                    view.merge_into(state);
-                    let fee = network_fee_amount_in(gas, &txs[idx].payload, &fee_policy, denom);
-                    boing_tokenomics::charge_and_distribute_fee_with_remainder(
-                        state,
-                        &txs[idx].sender,
-                        fee,
-                        &fee_recipient,
-                        &fee_policy,
-                        fee_remainder,
-                    )
-                    .map_err(ExecutionError::Fee)?;
-                    charge_priority_tip(
-                        state,
-                        &txs[idx].sender,
-                        tip_at(idx),
-                        &fee_recipient,
-                        &fee_policy,
-                    )
-                    .map_err(ExecutionError::Fee)?;
-                    receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
-                        &txs[idx],
-                        block_height,
-                        idx as u32,
-                        true,
-                        gas,
-                        Vec::new(),
-                        vec![],
-                        None,
-                    ));
-                    par_gas = par_gas.saturating_add(gas);
-                }
-                Ok(par_gas)
+                    for (idx, view, gas) in batch_results {
+                        view.merge_into(state);
+                        let fee = network_fee_amount_in(gas, &txs[idx].payload, &fee_policy, denom);
+                        boing_tokenomics::charge_and_distribute_fee_with_remainder(
+                            state,
+                            &txs[idx].sender,
+                            fee,
+                            &fee_recipient,
+                            &fee_policy,
+                            fee_remainder,
+                        )
+                        .map_err(ExecutionError::Fee)?;
+                        charge_priority_tip(
+                            state,
+                            &txs[idx].sender,
+                            tip_at(idx),
+                            &fee_recipient,
+                            &fee_policy,
+                        )
+                        .map_err(ExecutionError::Fee)?;
+                        receipts[idx] = Some(ExecutionReceipt::from_tx_outcome(
+                            &txs[idx],
+                            block_height,
+                            idx as u32,
+                            true,
+                            gas,
+                            Vec::new(),
+                            vec![],
+                            None,
+                        ));
+                        par_gas = par_gas.saturating_add(gas);
+                    }
+                    Ok(par_gas)
                 })();
                 match attempt {
                     Ok(g) => {
@@ -402,25 +412,31 @@ impl BlockExecutor {
                     let tx_ckpt = state.checkpoint();
                     match self.vm.execute_with_context(tx, state, exec_ctx) {
                         Ok(out) => {
-                            let fee = network_fee_amount_in(out.gas_used, &tx.payload, &fee_policy, denom);
-                            let tip = tip_at(idx);
-                            let fee_ok = boing_tokenomics::charge_and_distribute_fee_with_remainder(
-                                state,
-                                &tx.sender,
-                                fee,
-                                &fee_recipient,
+                            let fee = network_fee_amount_in(
+                                out.gas_used,
+                                &tx.payload,
                                 &fee_policy,
-                                fee_remainder,
-                            )
-                            .and_then(|_| {
-                                charge_priority_tip(
+                                denom,
+                            );
+                            let tip = tip_at(idx);
+                            let fee_ok =
+                                boing_tokenomics::charge_and_distribute_fee_with_remainder(
                                     state,
                                     &tx.sender,
-                                    tip,
+                                    fee,
                                     &fee_recipient,
                                     &fee_policy,
+                                    fee_remainder,
                                 )
-                            });
+                                .and_then(|_| {
+                                    charge_priority_tip(
+                                        state,
+                                        &tx.sender,
+                                        tip,
+                                        &fee_recipient,
+                                        &fee_policy,
+                                    )
+                                });
                             match fee_ok {
                                 Ok(()) => {
                                     total_gas = total_gas.saturating_add(out.gas_used);
@@ -436,16 +452,17 @@ impl BlockExecutor {
                                     ));
                                 }
                                 Err(e) => {
-                                    total_gas = total_gas.saturating_add(apply_failed_tx_consuming_nonce(
-                                        state,
-                                        tx,
-                                        tx_ckpt,
-                                        block_height,
-                                        idx as u32,
-                                        format!("{}", e),
-                                        &mut receipts[idx],
-                                        failed_fee.as_ref(),
-                                    ));
+                                    total_gas =
+                                        total_gas.saturating_add(apply_failed_tx_consuming_nonce(
+                                            state,
+                                            tx,
+                                            tx_ckpt,
+                                            block_height,
+                                            idx as u32,
+                                            format!("{}", e),
+                                            &mut receipts[idx],
+                                            failed_fee.as_ref(),
+                                        ));
                                 }
                             }
                         }
@@ -468,7 +485,9 @@ impl BlockExecutor {
         let receipts: Vec<ExecutionReceipt> = receipts
             .into_iter()
             .enumerate()
-            .map(|(i, r)| r.unwrap_or_else(|| panic!("internal error: missing receipt at index {i}")))
+            .map(|(i, r)| {
+                r.unwrap_or_else(|| panic!("internal error: missing receipt at index {i}"))
+            })
             .collect();
         Ok((total_gas, receipts))
     }
@@ -586,7 +605,9 @@ fn parallel_transfer_batch_is_safe(batch: &[usize], txs: &[Transaction]) -> bool
 #[cfg(test)]
 mod tests {
     use super::*;
-    use boing_primitives::{AccessList, Account, AccountId, AccountState, Transaction, TransactionPayload};
+    use boing_primitives::{
+        AccessList, Account, AccountId, AccountState, Transaction, TransactionPayload,
+    };
 
     /// Regression (testnet stall at height 217): a transfer with an empty access list in the same block
     /// as a properly declared transfer must execute (sequentially), not fail the whole block.
@@ -600,23 +621,38 @@ mod tests {
         let proposer = AccountId::from_bytes([9u8; 32]);
         let mut state = StateStore::new();
         for id in [a, c] {
-            state.insert(Account { id, state: AccountState { balance: 100_000 * B, ..Default::default() } });
+            state.insert(Account {
+                id,
+                state: AccountState {
+                    balance: 100_000 * B,
+                    ..Default::default()
+                },
+            });
         }
         let mut t1 = tx(a, b, 0, 5);
         t1.access_list = AccessList::default();
         let t2 = tx(c, d, 0, 7);
-        let (_gas, receipts) = exec.execute_block(1, 0, &[t1, t2], &mut state, proposer).unwrap();
+        let (_gas, receipts) = exec
+            .execute_block(1, 0, &[t1, t2], &mut state, proposer)
+            .unwrap();
         assert!(receipts.iter().all(|r| r.success));
         assert_eq!(state.get(&b).unwrap().balance, 5);
         assert_eq!(state.get(&d).unwrap().balance, 7);
         // Same result regardless of order.
         let mut s2 = StateStore::new();
         for id in [a, c] {
-            s2.insert(Account { id, state: AccountState { balance: 100_000 * B, ..Default::default() } });
+            s2.insert(Account {
+                id,
+                state: AccountState {
+                    balance: 100_000 * B,
+                    ..Default::default()
+                },
+            });
         }
         let mut t1b = tx(a, b, 0, 5);
         t1b.access_list = AccessList::default();
-        exec.execute_block(1, 0, &[tx(c, d, 0, 7), t1b], &mut s2, proposer).unwrap();
+        exec.execute_block(1, 0, &[tx(c, d, 0, 7), t1b], &mut s2, proposer)
+            .unwrap();
         assert_eq!(s2.get(&b).unwrap().balance, 5);
         assert_eq!(s2.get(&d).unwrap().balance, 7);
     }
@@ -640,29 +676,84 @@ mod tests {
         let f = AccountId::from_bytes([6u8; 32]);
         let proposer = AccountId::from_bytes([9u8; 32]);
         let mut state = StateStore::new();
-        state.insert(Account { id: a, state: AccountState { balance: 100_000 * B, ..Default::default() } });
-        state.insert(Account { id: c, state: AccountState { balance: 50 * B, ..Default::default() } });
-        state.insert(Account { id: e, state: AccountState { balance: 100_000 * B, nonce: 3, ..Default::default() } });
+        state.insert(Account {
+            id: a,
+            state: AccountState {
+                balance: 100_000 * B,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: c,
+            state: AccountState {
+                balance: 50 * B,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: e,
+            state: AccountState {
+                balance: 100_000 * B,
+                nonce: 3,
+                ..Default::default()
+            },
+        });
         // c sends its whole balance (cannot pay the fee); e uses a stale nonce.
         let txs = [tx(a, b, 0, 5), tx(c, d, 0, 50 * B), tx(e, f, 0, 1)];
         assert!(parallel_transfer_batch_is_safe(&[0, 1, 2], &txs));
-        let (_gas, receipts) = exec.execute_block(1, 0, &txs, &mut state, proposer).expect("block must execute");
+        let (_gas, receipts) = exec
+            .execute_block(1, 0, &txs, &mut state, proposer)
+            .expect("block must execute");
         assert!(receipts[0].success);
         assert!(!receipts[1].success);
         assert!(!receipts[2].success);
         assert_eq!(state.get(&b).unwrap().balance, 5);
         assert!(state.get(&d).is_none(), "failed transfer is reverted");
         assert_eq!(state.get(&c).unwrap().balance, 50 * B);
-        assert_eq!(state.get(&c).unwrap().nonce, 1, "nonce consumed like the sequential path");
+        assert_eq!(
+            state.get(&c).unwrap().nonce,
+            1,
+            "nonce consumed like the sequential path"
+        );
         // Identical to executing the same txs one block-tx at a time on the sequential path.
         let mut seq = StateStore::new();
-        seq.insert(Account { id: a, state: AccountState { balance: 100_000 * B, ..Default::default() } });
-        seq.insert(Account { id: c, state: AccountState { balance: 50 * B, ..Default::default() } });
-        seq.insert(Account { id: e, state: AccountState { balance: 100_000 * B, nonce: 3, ..Default::default() } });
+        seq.insert(Account {
+            id: a,
+            state: AccountState {
+                balance: 100_000 * B,
+                ..Default::default()
+            },
+        });
+        seq.insert(Account {
+            id: c,
+            state: AccountState {
+                balance: 50 * B,
+                ..Default::default()
+            },
+        });
+        seq.insert(Account {
+            id: e,
+            state: AccountState {
+                balance: 100_000 * B,
+                nonce: 3,
+                ..Default::default()
+            },
+        });
         let mut t0 = tx(a, b, 0, 5);
         t0.access_list = AccessList::default(); // forces the sequential path
-        let (_g, r2) = exec.execute_block(1, 0, &[t0, tx(c, d, 0, 50 * B), tx(e, f, 0, 1)], &mut seq, proposer).unwrap();
-        assert_eq!(r2.iter().map(|r| r.success).collect::<Vec<_>>(), vec![true, false, false]);
+        let (_g, r2) = exec
+            .execute_block(
+                1,
+                0,
+                &[t0, tx(c, d, 0, 50 * B), tx(e, f, 0, 1)],
+                &mut seq,
+                proposer,
+            )
+            .unwrap();
+        assert_eq!(
+            r2.iter().map(|r| r.success).collect::<Vec<_>>(),
+            vec![true, false, false]
+        );
         assert_eq!(seq.state_root(), state.state_root());
     }
 
@@ -687,13 +778,35 @@ mod tests {
         let proposer = AccountId::from_bytes([9u8; 32]);
         let mk = || {
             let mut s = StateStore::new();
-            s.insert(Account { id: a, state: AccountState { balance: 100_000 * B, ..Default::default() } });
-            s.insert(Account { id: c, state: AccountState { balance: 50 * B, ..Default::default() } });
-            s.insert(Account { id: e, state: AccountState { balance: 100_000 * B, nonce: 3, ..Default::default() } });
+            s.insert(Account {
+                id: a,
+                state: AccountState {
+                    balance: 100_000 * B,
+                    ..Default::default()
+                },
+            });
+            s.insert(Account {
+                id: c,
+                state: AccountState {
+                    balance: 50 * B,
+                    ..Default::default()
+                },
+            });
+            s.insert(Account {
+                id: e,
+                state: AccountState {
+                    balance: 100_000 * B,
+                    nonce: 3,
+                    ..Default::default()
+                },
+            });
             s
         };
         let txs = [tx(a, b, 0, 5), tx(c, d, 0, 50 * B), tx(e, f, 0, 1)];
-        let treasury_before = mk().get(&boing_tokenomics::PROTOCOL_TREASURY).map(|x| x.balance).unwrap_or(0);
+        let treasury_before = mk()
+            .get(&boing_tokenomics::PROTOCOL_TREASURY)
+            .map(|x| x.balance)
+            .unwrap_or(0);
 
         // Before activation (height 4): legacy behaviour.
         let mut s4 = mk();
@@ -703,8 +816,15 @@ mod tests {
         // After activation (height 5), parallel-safe batch.
         let mut s5 = mk();
         let (gas, r) = exec.execute_block(5, 0, &txs, &mut s5, proposer).unwrap();
-        assert_eq!(r.iter().map(|r| r.success).collect::<Vec<_>>(), vec![true, false, false]);
-        assert_eq!(s5.get(&c).unwrap().balance, 50 * B - fee, "failed tx charged the failed-tx fee");
+        assert_eq!(
+            r.iter().map(|r| r.success).collect::<Vec<_>>(),
+            vec![true, false, false]
+        );
+        assert_eq!(
+            s5.get(&c).unwrap().balance,
+            50 * B - fee,
+            "failed tx charged the failed-tx fee"
+        );
         assert_eq!(s5.get(&c).unwrap().nonce, 1, "nonce advances");
         assert!(s5.get(&d).is_none(), "state reverted");
         assert_eq!(r[1].gas_used, FAILED_TX_GAS);
@@ -714,18 +834,32 @@ mod tests {
         assert_eq!(s5.get(&e).unwrap().nonce, 3);
         assert_eq!(r[2].gas_used, 0);
         assert_eq!(gas, r.iter().map(|r| r.gas_used).sum::<u64>());
-        let treasury_after = s5.get(&boing_tokenomics::PROTOCOL_TREASURY).map(|x| x.balance).unwrap_or(0);
-        assert!(treasury_after >= treasury_before + fee, "failed-tx fee is distributed");
+        let treasury_after = s5
+            .get(&boing_tokenomics::PROTOCOL_TREASURY)
+            .map(|x| x.balance)
+            .unwrap_or(0);
+        assert!(
+            treasury_after >= treasury_before + fee,
+            "failed-tx fee is distributed"
+        );
 
         // Sequential path gives the identical state root (determinism).
         let mut seq = mk();
         let mut t0 = tx(a, b, 0, 5);
         t0.access_list = AccessList::default();
-        exec.execute_block(5, 0, &[t0, tx(c, d, 0, 50 * B), tx(e, f, 0, 1)], &mut seq, proposer).unwrap();
+        exec.execute_block(
+            5,
+            0,
+            &[t0, tx(c, d, 0, 50 * B), tx(e, f, 0, 1)],
+            &mut seq,
+            proposer,
+        )
+        .unwrap();
         assert_eq!(seq.state_root(), s5.state_root());
         // Re-executing the same block from the same state is deterministic.
         let mut again = mk();
-        exec.execute_block(5, 0, &txs, &mut again, proposer).unwrap();
+        exec.execute_block(5, 0, &txs, &mut again, proposer)
+            .unwrap();
         assert_eq!(again.state_root(), s5.state_root());
     }
 
@@ -742,8 +876,20 @@ mod tests {
         let z = AccountId::from_bytes([7u8; 32]);
         let proposer = AccountId::from_bytes([9u8; 32]);
         let mut state = StateStore::new();
-        state.insert(Account { id: a, state: AccountState { balance: 1_000 * B, ..Default::default() } });
-        state.insert(Account { id: z, state: AccountState { balance: 0, ..Default::default() } });
+        state.insert(Account {
+            id: a,
+            state: AccountState {
+                balance: 1_000 * B,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: z,
+            state: AccountState {
+                balance: 0,
+                ..Default::default()
+            },
+        });
         // second call overdraws: the whole batch must revert (b gets nothing)
         let batch = Transaction {
             nonce: 0,
@@ -751,16 +897,24 @@ mod tests {
             payload: TransactionPayload::Batch {
                 calls: vec![
                     BatchCall::Transfer { to: b, amount: 100 },
-                    BatchCall::Transfer { to: c, amount: 10_000 * B },
+                    BatchCall::Transfer {
+                        to: c,
+                        amount: 10_000 * B,
+                    },
                 ],
             },
             access_list: AccessList::new(vec![a, b, c], vec![a, b, c]),
         };
         // z has a zero balance: its failing tx is included, nonce advances, nothing to charge.
         let zt = tx(z, b, 0, 1);
-        let (_g, r) = exec.execute_block(1, 0, &[batch, zt], &mut state, proposer).expect("block executes");
+        let (_g, r) = exec
+            .execute_block(1, 0, &[batch, zt], &mut state, proposer)
+            .expect("block executes");
         assert!(!r[0].success && !r[1].success);
-        assert!(state.get(&b).is_none() && state.get(&c).is_none(), "batch reverted atomically");
+        assert!(
+            state.get(&b).is_none() && state.get(&c).is_none(),
+            "batch reverted atomically"
+        );
         assert_eq!(state.get(&a).unwrap().balance, 1_000 * B - fee);
         assert_eq!(state.get(&a).unwrap().nonce, 1);
         assert_eq!(state.get(&z).unwrap().balance, 0);
@@ -773,14 +927,23 @@ mod tests {
         let b = AccountId::from_bytes([2u8; 32]);
         let c = AccountId::from_bytes([3u8; 32]);
         let d = AccountId::from_bytes([4u8; 32]);
-        assert!(parallel_transfer_batch_is_safe(&[0, 1], &[tx(a, b, 0, 1), tx(c, d, 0, 1)]));
+        assert!(parallel_transfer_batch_is_safe(
+            &[0, 1],
+            &[tx(a, b, 0, 1), tx(c, d, 0, 1)]
+        ));
         let mut bad = tx(a, b, 0, 1);
         bad.access_list = AccessList::new(vec![a], vec![a]);
-        assert!(!parallel_transfer_batch_is_safe(&[0, 1], &[bad, tx(c, d, 0, 1)]));
-        assert!(!parallel_transfer_batch_is_safe(&[0, 1], &[tx(a, b, 0, 1), tx(c, b, 0, 1)]));
+        assert!(!parallel_transfer_batch_is_safe(
+            &[0, 1],
+            &[bad, tx(c, d, 0, 1)]
+        ));
+        assert!(!parallel_transfer_batch_is_safe(
+            &[0, 1],
+            &[tx(a, b, 0, 1), tx(c, b, 0, 1)]
+        ));
     }
 
-/// Network fee in base units (chains without history are in base units from genesis).
+    /// Network fee in base units (chains without history are in base units from genesis).
     fn base_fee(gas: u64, payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u128 {
         boing_tokenomics::network_fee_amount_in(gas, payload, policy, Denomination::BaseUnits)
     }
@@ -803,21 +966,40 @@ mod tests {
         let b = AccountId::from_bytes([2u8; 32]);
         let proposer = AccountId::from_bytes([9u8; 32]);
         let mut state = StateStore::new();
-        state.insert(Account { id: a, state: AccountState { balance: 1_000, stake: 7, ..Default::default() } });
+        state.insert(Account {
+            id: a,
+            state: AccountState {
+                balance: 1_000,
+                stake: 7,
+                ..Default::default()
+            },
+        });
 
         // H - 1: whole BOING.
         let t1 = tx(a, b, 0, 10);
-        let (g1, r) = exec.execute_block(H - 1, 0, std::slice::from_ref(&t1), &mut state, proposer).unwrap();
+        let (g1, r) = exec
+            .execute_block(H - 1, 0, std::slice::from_ref(&t1), &mut state, proposer)
+            .unwrap();
         assert!(r[0].success);
-        let fee1 = boing_tokenomics::network_fee_amount_in(g1, &t1.payload, &policy, Denomination::WholeBoing);
+        let fee1 = boing_tokenomics::network_fee_amount_in(
+            g1,
+            &t1.payload,
+            &policy,
+            Denomination::WholeBoing,
+        );
         assert_eq!(fee1, 1, "whole-unit rule: ceil(21000/21000)");
         assert_eq!(state.get(&a).unwrap().balance, 1_000 - 10 - fee1);
-        let treasury_h1 = state.get(&boing_tokenomics::PROTOCOL_TREASURY).map(|s| s.balance).unwrap_or(0);
+        let treasury_h1 = state
+            .get(&boing_tokenomics::PROTOCOL_TREASURY)
+            .map(|s| s.balance)
+            .unwrap_or(0);
         let pre_h = state.snapshot();
 
         // H: migration, then base units (a fractional fee).
         let t2 = tx(a, b, 1, 3 * B / 2);
-        let (g2, r) = exec.execute_block(H, 0, std::slice::from_ref(&t2), &mut state, proposer).unwrap();
+        let (g2, r) = exec
+            .execute_block(H, 0, std::slice::from_ref(&t2), &mut state, proposer)
+            .unwrap();
         assert!(r[0].success);
         let fee2 = exec.network_fee_at(g2, &t2.payload, H);
         assert_eq!(fee2, 21_000 * boing_tokenomics::GAS_PRICE_BASE_UNITS);
@@ -827,20 +1009,26 @@ mod tests {
         assert_eq!(state.get(&a).unwrap().stake, 7 * B);
         assert_eq!(state.get(&b).unwrap().balance, 10 * B + 3 * B / 2);
         assert_eq!(
-            state.get(&boing_tokenomics::PROTOCOL_TREASURY).unwrap().balance,
+            state
+                .get(&boing_tokenomics::PROTOCOL_TREASURY)
+                .unwrap()
+                .balance,
             treasury_h1 * B + fee2
         );
         let root_h = state.state_root();
 
         // Re-executing H from the H-1 state gives the same root (deterministic, still exactly once).
         let mut again = pre_h.snapshot();
-        exec.execute_block(H, 0, std::slice::from_ref(&t2), &mut again, proposer).unwrap();
+        exec.execute_block(H, 0, std::slice::from_ref(&t2), &mut again, proposer)
+            .unwrap();
         assert_eq!(again.state_root(), root_h);
 
         // H + 1: no second multiplication.
         assert!(!exec.prepare_state_for_height(H + 1, &mut state.snapshot()));
         let t3 = tx(a, b, 2, 1);
-        let (g3, r) = exec.execute_block(H + 1, 0, std::slice::from_ref(&t3), &mut state, proposer).unwrap();
+        let (g3, r) = exec
+            .execute_block(H + 1, 0, std::slice::from_ref(&t3), &mut state, proposer)
+            .unwrap();
         assert!(r[0].success);
         let fee3 = exec.network_fee_at(g3, &t3.payload, H + 1);
         assert_eq!(state.get(&a).unwrap().balance, a_after_h - 1 - fee3);
@@ -851,7 +1039,11 @@ mod tests {
     #[test]
     fn denomination_and_emission_follow_the_gate() {
         let mut exec = BlockExecutor::new();
-        assert_eq!(exec.denomination_at(0), Denomination::BaseUnits, "no history: base units from genesis");
+        assert_eq!(
+            exec.denomination_at(0),
+            Denomination::BaseUnits,
+            "no history: base units from genesis"
+        );
         assert_eq!(exec.redenomination_height(), None);
         exec.set_execution_history(Some(crate::history::ExecutionHistory {
             base_units_from: 1_050,
@@ -860,9 +1052,15 @@ mod tests {
         assert_eq!(exec.redenomination_height(), Some(1_050));
         assert_eq!(exec.denomination_at(1_049), Denomination::WholeBoing);
         assert_eq!(exec.denomination_at(1_050), Denomination::BaseUnits);
-        assert_eq!(exec.block_emission(1_049), boing_tokenomics::block_emission_validators(1_049));
+        assert_eq!(
+            exec.block_emission(1_049),
+            boing_tokenomics::block_emission_validators(1_049)
+        );
         let e = exec.block_emission(1_050);
-        assert!(e > 3 * B && e < 4 * B, "base-unit emission is the exact ~3.55 BOING, got {e}");
+        assert!(
+            e > 3 * B && e < 4 * B,
+            "base-unit emission is the exact ~3.55 BOING, got {e}"
+        );
         assert_eq!(exec.vm().denomination_at(1_049), Denomination::WholeBoing);
         assert_eq!(exec.vm().denomination_at(1_050), Denomination::BaseUnits);
     }
@@ -885,18 +1083,34 @@ mod tests {
         let mut state = StateStore::new();
         state.insert(Account {
             id: a,
-            state: AccountState { balance: 100_000 * B, nonce: 0, stake: 0, ..Default::default() },
+            state: AccountState {
+                balance: 100_000 * B,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
         });
         state.insert(Account {
             id: b,
-            state: AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() },
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
         });
         let txs = vec![tx(a, b, 0, 100)];
-        let (gas, receipts) = exec.execute_block(1, 0, &txs, &mut state, proposer).unwrap();
+        let (gas, receipts) = exec
+            .execute_block(1, 0, &txs, &mut state, proposer)
+            .unwrap();
         assert_eq!(gas, super::super::vm::GAS_PER_TRANSFER);
         assert_eq!(receipts.len(), 1);
         assert!(receipts[0].success);
-        let fee = base_fee(gas, &txs[0].payload, &boing_tokenomics::NetworkFeePolicy::treasury_default());
+        let fee = base_fee(
+            gas,
+            &txs[0].payload,
+            &boing_tokenomics::NetworkFeePolicy::treasury_default(),
+        );
         assert_eq!(state.get(&a).unwrap().balance, 100_000 * B - 100 - fee);
         assert_eq!(state.get(&b).unwrap().balance, 100);
         let (v, t, burn) = boing_tokenomics::split_fee(fee);
@@ -936,21 +1150,45 @@ mod tests {
                 ..Default::default()
             }));
             let mut state = StateStore::new();
-            state.insert(Account { id: a, state: AccountState { balance: 100_000 * B, ..Default::default() } });
-            state.insert(Account { id: c, state: AccountState { balance: 100_000 * B, ..Default::default() } });
-            state.insert(Account { id: treasury, state: AccountState { balance: 1_000 * B, ..Default::default() } });
+            state.insert(Account {
+                id: a,
+                state: AccountState {
+                    balance: 100_000 * B,
+                    ..Default::default()
+                },
+            });
+            state.insert(Account {
+                id: c,
+                state: AccountState {
+                    balance: 100_000 * B,
+                    ..Default::default()
+                },
+            });
+            state.insert(Account {
+                id: treasury,
+                state: AccountState {
+                    balance: 1_000 * B,
+                    ..Default::default()
+                },
+            });
             let total_before: u128 = [a, b, c, treasury, proposer, boing_tokenomics::FEE_BURN_SINK]
                 .iter()
                 .map(|id| state.get(id).map(|s| s.balance).unwrap_or(0))
                 .sum();
             let txs = vec![tx(a, b, 0, 100), tx(c, treasury, 0, 50)];
-            let (_, receipts) = exec.execute_block(10, 0, &txs, &mut state, proposer).unwrap();
+            let (_, receipts) = exec
+                .execute_block(10, 0, &txs, &mut state, proposer)
+                .unwrap();
             assert!(receipts.iter().all(|r| r.success));
             let total_after: u128 = [a, b, c, treasury, proposer, boing_tokenomics::FEE_BURN_SINK]
                 .iter()
                 .map(|id| state.get(id).map(|s| s.balance).unwrap_or(0))
                 .sum();
-            (total_before, total_after, state.get(&treasury).unwrap().balance)
+            (
+                total_before,
+                total_after,
+                state.get(&treasury).unwrap().balance,
+            )
         };
         let fee = base_fee(
             super::super::vm::GAS_PER_TRANSFER,
@@ -961,7 +1199,11 @@ mod tests {
         assert_eq!(after, before, "v4: no value lost");
         assert_eq!(t, 1_000 * B + 50 + 2 * fee);
         let (before, after, t) = run(11);
-        assert_eq!(t, 1_000 * B + 50 + fee, "pre-v4 replay keeps the historical (lossy) result");
+        assert_eq!(
+            t,
+            1_000 * B + 50 + fee,
+            "pre-v4 replay keeps the historical (lossy) result"
+        );
         assert_eq!(after, before - fee);
     }
 
@@ -974,16 +1216,47 @@ mod tests {
         let d = AccountId::from_bytes([4u8; 32]);
         let proposer = AccountId::from_bytes([9u8; 32]);
         let mut state = StateStore::new();
-        state.insert(Account { id: a, state: AccountState { balance: 100_000 * B, nonce: 0, stake: 0, ..Default::default() } });
-        state.insert(Account { id: b, state: AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() } });
-        state.insert(Account { id: c, state: AccountState { balance: 100_000 * B, nonce: 0, stake: 0, ..Default::default() } });
-        state.insert(Account { id: d, state: AccountState { balance: 0, nonce: 0, stake: 0, ..Default::default() } });
+        state.insert(Account {
+            id: a,
+            state: AccountState {
+                balance: 100_000 * B,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: b,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: c,
+            state: AccountState {
+                balance: 100_000 * B,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
+        state.insert(Account {
+            id: d,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 0,
+                ..Default::default()
+            },
+        });
         // Independent transfers a->b and c->d — same batch, parallel execution
-        let txs = vec![
-            tx(a, b, 0, 100),
-            tx(c, d, 0, 50 * B),
-        ];
-        let (gas, receipts) = exec.execute_block(1, 0, &txs, &mut state, proposer).unwrap();
+        let txs = vec![tx(a, b, 0, 100), tx(c, d, 0, 50 * B)];
+        let (gas, receipts) = exec
+            .execute_block(1, 0, &txs, &mut state, proposer)
+            .unwrap();
         assert_eq!(receipts.len(), 2);
         assert!(receipts.iter().all(|r| r.success));
         let fee_each = base_fee(
@@ -993,7 +1266,10 @@ mod tests {
         );
         assert_eq!(state.get(&a).unwrap().balance, 100_000 * B - 100 - fee_each);
         assert_eq!(state.get(&b).unwrap().balance, 100);
-        assert_eq!(state.get(&c).unwrap().balance, 100_000 * B - 50 * B - fee_each);
+        assert_eq!(
+            state.get(&c).unwrap().balance,
+            100_000 * B - 50 * B - fee_each
+        );
         assert_eq!(state.get(&d).unwrap().balance, 50 * B);
         assert_eq!(gas, super::super::vm::GAS_PER_TRANSFER * 2);
     }
@@ -1053,7 +1329,7 @@ mod tests {
 
     #[test]
     fn public_qa_vote_pays_from_treasury_and_completes_deploy() {
-        use boing_primitives::{QaPoolVoteKind, nonce_derived_contract_address};
+        use boing_primitives::{nonce_derived_contract_address, QaPoolVoteKind};
         use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
         use boing_tokenomics::PROTOCOL_TREASURY;
 
@@ -1132,8 +1408,14 @@ mod tests {
         assert_eq!(receipts[0].return_data, b"qa_pending");
         assert!(receipts[1].success);
         assert_eq!(receipts[1].return_data, b"qa_vote_allow");
-        let deploy_fee = boing_tokenomics::fee_for_gas_in(super::super::vm::GAS_PER_CONTRACT_DEPLOY, Denomination::BaseUnits);
-        let vote_fee = boing_tokenomics::fee_for_gas_in(super::super::vm::GAS_PER_QA_POOL_VOTE, Denomination::BaseUnits);
+        let deploy_fee = boing_tokenomics::fee_for_gas_in(
+            super::super::vm::GAS_PER_CONTRACT_DEPLOY,
+            Denomination::BaseUnits,
+        );
+        let vote_fee = boing_tokenomics::fee_for_gas_in(
+            super::super::vm::GAS_PER_QA_POOL_VOTE,
+            Denomination::BaseUnits,
+        );
         assert_eq!(
             state.get(&PROTOCOL_TREASURY).unwrap().balance,
             100 * B + deploy_fee + vote_fee - 5 * B

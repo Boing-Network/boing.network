@@ -1,17 +1,17 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 const terms = [
-  ['Boing L1 / Boing Network', 'The Boing blockchain itself: its own VM, Ed25519 signatures, and native BOING. Not an EVM chain.'],
+  ['Boing L1 / Boing Network', 'Boing Network itself, an independent Layer 1: its own VM, Ed25519 signatures, and native BOING. Not an EVM chain.'],
   ['BOING', 'The native coin. Integer units (1 unit = 1 BOING). Pays fees; testnet BOING comes from the faucet.'],
   ['Address (account address)', 'Your 32-byte account identifier, shown as 0x + 64 hex characters. It is your Ed25519 public key. Older docs and APIs call it the account ID; same thing.'],
   ['Private key', 'The 32-byte secret that signs for your address. Shown once at wallet creation and in Boing Express under Wallet → Reveal private key. Never share it.'],
   ['Boing Express', 'The official wallet: a web app at boing.express and a Chrome extension that connects dApps (window.boing).'],
   ['Boing Observer', 'The block explorer at boing.observer: blocks, transactions, accounts, tokens.'],
-  ['boing.finance', 'The DeFi app: native Boing AMM swaps and pools, token deploys; it also supports EVM chains and Solana.'],
+  ['Boing Finance', 'The DeFi app: native Boing AMM swaps and pools, token deploys; it also supports EVM chains and Solana.'],
   ['Testnet / Mainnet', 'Testnet chain ID 6913 (0x1b01), free coins from the faucet. Mainnet chain ID 6914 (0x1b02).'],
   ['Faucet', 'Free testnet BOING at boing.network/faucet, one request per account every 60 seconds.'],
   ['Nonce', 'Per-account transaction counter. Wallets and the CLI fill it in for you.'],
-  ['Reference token', 'The canonical fungible token template used by boing.finance, the boing token CLI and @boing-network/boing-sdk. Fixed supply (one mint); the first caller is admin.'],
+  ['Reference token', 'The canonical fungible token template used by Boing Finance, the boing token CLI and @boing-network/boing-sdk. Fixed supply (one mint); the first caller is admin.'],
   ['QA (deploy-time quality assurance)', 'Rules every contract deploy is checked against before it is accepted; deploys declare a purpose such as token.'],
 ];
 ---
@@ -20,7 +20,7 @@ const terms = [
     <header class="page-hero-full">
       <div class="page-wrap-inner" style="max-width: 800px;">
         <h1>Glossary</h1>
-        <p class="lead">The words used across Boing Network, Boing Express, Boing Observer and boing.finance.</p>
+        <p class="lead">The words used across Boing Network, Boing Express, Boing Observer and Boing Finance.</p>
       </div>
     </header>
     <div class="page-wrap-inner" style="max-width: 800px; padding-bottom: 3rem;">

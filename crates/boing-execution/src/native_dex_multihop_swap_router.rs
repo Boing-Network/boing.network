@@ -157,7 +157,12 @@ pub fn encode_swap4_router_calldata_128(
     }
     encode_outer(
         SELECTOR_SWAP4_ROUTER_128,
-        &[(pool1, inner1), (pool2, inner2), (pool3, inner3), (pool4, inner4)],
+        &[
+            (pool1, inner1),
+            (pool2, inner2),
+            (pool3, inner3),
+            (pool4, inner4),
+        ],
     )
 }
 
@@ -178,7 +183,12 @@ pub fn encode_swap4_router_calldata_160(
     }
     encode_outer(
         SELECTOR_SWAP4_ROUTER_160,
-        &[(pool1, inner1), (pool2, inner2), (pool3, inner3), (pool4, inner4)],
+        &[
+            (pool1, inner1),
+            (pool2, inner2),
+            (pool3, inner3),
+            (pool4, inner4),
+        ],
     )
 }
 
@@ -411,8 +421,8 @@ mod tests {
 
     use crate::interpreter::Interpreter;
     use crate::native_amm::{
-        constant_product_amount_out_after_fee, constant_product_pool_bytecode, encode_swap_calldata, reserve_a_key,
-        reserve_b_key,
+        constant_product_amount_out_after_fee, constant_product_pool_bytecode,
+        encode_swap_calldata, reserve_a_key, reserve_b_key,
     };
     use crate::reference_token::amount_word;
 
@@ -464,10 +474,26 @@ mod tests {
         let e2a = r2a + dx2;
         let e2b = r2b - dy2;
 
-        let p1a = u128::from_be_bytes(state.get_contract_storage(&p1, &reserve_a_key())[16..32].try_into().unwrap());
-        let p1b = u128::from_be_bytes(state.get_contract_storage(&p1, &reserve_b_key())[16..32].try_into().unwrap());
-        let p2a = u128::from_be_bytes(state.get_contract_storage(&p2, &reserve_a_key())[16..32].try_into().unwrap());
-        let p2b = u128::from_be_bytes(state.get_contract_storage(&p2, &reserve_b_key())[16..32].try_into().unwrap());
+        let p1a = u128::from_be_bytes(
+            state.get_contract_storage(&p1, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let p1b = u128::from_be_bytes(
+            state.get_contract_storage(&p1, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let p2a = u128::from_be_bytes(
+            state.get_contract_storage(&p2, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let p2b = u128::from_be_bytes(
+            state.get_contract_storage(&p2, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
 
         assert_eq!(p1a, u128::from(e1a));
         assert_eq!(p1b, u128::from(e1b));
@@ -477,7 +503,11 @@ mod tests {
 
     #[test]
     fn swap3_router_runs_three_v1_swaps() {
-        let pools = [AccountId([0x11; 32]), AccountId([0x22; 32]), AccountId([0x33; 32])];
+        let pools = [
+            AccountId([0x11; 32]),
+            AccountId([0x22; 32]),
+            AccountId([0x33; 32]),
+        ];
         let router = AccountId([0xde; 32]);
         let sender = AccountId([0xab; 32]);
         let pool_code = constant_product_pool_bytecode();
@@ -545,7 +575,14 @@ mod tests {
 
         let inner = encode_swap_calldata(0, 5u128, 1u128);
         let outer = encode_swap4_router_calldata_128(
-            &pools[0].0, &inner, &pools[1].0, &inner, &pools[2].0, &inner, &pools[3].0, &inner,
+            &pools[0].0,
+            &inner,
+            &pools[1].0,
+            &inner,
+            &pools[2].0,
+            &inner,
+            &pools[3].0,
+            &inner,
         );
         assert_eq!(outer.len(), outer_len(4, 128));
 
@@ -583,8 +620,16 @@ mod tests {
 
         let inner = encode_swap_calldata(0, 4u128, 1u128);
         let outer = encode_swap5_router_calldata_128(
-            &pools[0].0, &inner, &pools[1].0, &inner, &pools[2].0, &inner, &pools[3].0, &inner,
-            &pools[4].0, &inner,
+            &pools[0].0,
+            &inner,
+            &pools[1].0,
+            &inner,
+            &pools[2].0,
+            &inner,
+            &pools[3].0,
+            &inner,
+            &pools[4].0,
+            &inner,
         );
         assert_eq!(outer.len(), outer_len(5, 128));
 
@@ -623,8 +668,18 @@ mod tests {
 
         let inner = encode_swap_calldata(0, 3u128, 1u128);
         let outer = encode_swap6_router_calldata_128(
-            &pools[0].0, &inner, &pools[1].0, &inner, &pools[2].0, &inner, &pools[3].0, &inner,
-            &pools[4].0, &inner, &pools[5].0, &inner,
+            &pools[0].0,
+            &inner,
+            &pools[1].0,
+            &inner,
+            &pools[2].0,
+            &inner,
+            &pools[3].0,
+            &inner,
+            &pools[4].0,
+            &inner,
+            &pools[5].0,
+            &inner,
         );
         assert_eq!(outer.len(), outer_len(6, 128));
 

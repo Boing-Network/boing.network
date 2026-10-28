@@ -141,8 +141,12 @@ mod tests {
         assert!(plan
             .iter()
             .any(|s| s.contains("ReservedRealV1 verify still rejects")));
-        assert!(plan.iter().any(|s| s.contains("stake-weighted") || s.contains("⌈2W/3⌉")));
-        assert!(plan.iter().any(|s| s.contains("versioned") || s.contains("slash_appeals_registry")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("stake-weighted") || s.contains("⌈2W/3⌉")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("versioned") || s.contains("slash_appeals_registry")));
         assert!(plan.iter().any(|s| s.contains("W=0")));
     }
 }

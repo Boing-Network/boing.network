@@ -17,7 +17,9 @@ fn key() -> SigningKey {
 }
 
 fn sigs(txs: &[Transaction]) -> Vec<boing_primitives::Signature> {
-    txs.iter().map(|t| boing_primitives::sign_transaction(t, &key())).collect()
+    txs.iter()
+        .map(|t| boing_primitives::sign_transaction(t, &key()))
+        .collect()
 }
 
 fn mk_transfer(from: AccountId, to: AccountId, nonce: u64, amount: u128) -> Transaction {
@@ -62,14 +64,18 @@ fn test_validate_and_execute_block() {
         state: AccountState {
             balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
     parent.insert(Account {
         id: to,
         state: AccountState {
             balance: 0,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let tx = mk_transfer(proposer, to, 0, 100);
@@ -79,7 +85,10 @@ fn test_validate_and_execute_block() {
     let (_g, exec_receipts) = exec
         .execute_block(1, 0, &txs, &mut state, proposer)
         .unwrap();
-    let reward = boing_tokenomics::block_emission_validators_in(1, boing_tokenomics::Denomination::BaseUnits);
+    let reward = boing_tokenomics::block_emission_validators_in(
+        1,
+        boing_tokenomics::Denomination::BaseUnits,
+    );
     state.get_mut(&proposer).unwrap().balance =
         state.get(&proposer).unwrap().balance.saturating_add(reward);
     let state_root = state.state_root();
@@ -107,7 +116,10 @@ fn test_validate_and_execute_block() {
     let (new_state, receipts) = result.unwrap();
     assert_eq!(receipts.len(), 1);
     assert!(receipts[0].success);
-    let fee = boing_tokenomics::fee_for_gas_in(receipts[0].gas_used, boing_tokenomics::Denomination::BaseUnits);
+    let fee = boing_tokenomics::fee_for_gas_in(
+        receipts[0].gas_used,
+        boing_tokenomics::Denomination::BaseUnits,
+    );
     let (v, _, _) = boing_tokenomics::split_fee(fee);
     // Proposer is also sender: pays amount+fee, then receives validator fee share + block reward.
     assert_eq!(
@@ -131,7 +143,9 @@ fn test_import_block() {
         state: AccountState {
             balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
     let to = AccountId([2u8; 32]);
     parent.insert(Account {
@@ -139,7 +153,9 @@ fn test_import_block() {
         state: AccountState {
             balance: 0,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let tx = mk_transfer(proposer, to, 0, 50);
@@ -149,7 +165,10 @@ fn test_import_block() {
     let (_g, exec_receipts) = exec
         .execute_block(1, 0, &txs, &mut state, proposer)
         .unwrap();
-    let reward = boing_tokenomics::block_emission_validators_in(1, boing_tokenomics::Denomination::BaseUnits);
+    let reward = boing_tokenomics::block_emission_validators_in(
+        1,
+        boing_tokenomics::Denomination::BaseUnits,
+    );
     state.get_mut(&proposer).unwrap().balance =
         state.get(&proposer).unwrap().balance.saturating_add(reward);
     let state_root = state.state_root();

@@ -32,7 +32,7 @@ Use this as the **upstream contract** for dependent projects. **Canonical GitHub
 | **Tutorial CLI** | `examples/native-boing-tutorial/scripts/` — including **`print-native-dex-routes`** (off-chain route dump over public RPC) |
 | **Website / portal** | `website/` — testnet portal, docs PDFs, links to Explorer / Wallet per alignment doc |
 
-Dependent apps should **pin or track** published **`@boing-network/boing-sdk`** versions from npm (current latest **`0.5.25`**; do not install unscoped `boing-sdk`). Monorepo / `file:` consumers re-run **`npm run build`** in `boing-sdk/` when pulling protocol-side source changes. Prefer registry installs over GitHub `path:/boing-sdk` pins.
+Dependent apps should **pin or track** published **`@boing-network/boing-sdk`** versions from npm (see npm for the current latest (this repo's `boing-sdk/package.json` is **`0.5.38`**); do not install unscoped `boing-sdk`). Monorepo / `file:` consumers re-run **`npm run build`** in `boing-sdk/` when pulling protocol-side source changes. Prefer registry installs over GitHub `path:/boing-sdk` pins.
 
 ---
 

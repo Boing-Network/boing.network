@@ -39,7 +39,9 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         state: AccountState {
             balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let native_aggregates = state.compute_native_aggregates();
@@ -60,8 +62,8 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
-    validator_signing_key: None,
-    pending_commit: None,
+        validator_signing_key: None,
+        pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
         slashed_equivocations: HashMap::new(),
@@ -369,8 +371,14 @@ async fn native_dex_factory_deploy_register_and_query_via_rpc() {
         Some(token_a_hex.as_str())
     );
     // No code at these ids and no operator map: decimals are unknown (null), never a guessed 18.
-    assert!(pools[0].get("tokenADecimals").expect("tokenADecimals").is_null());
-    assert!(pools[0].get("tokenBDecimals").expect("tokenBDecimals").is_null());
+    assert!(pools[0]
+        .get("tokenADecimals")
+        .expect("tokenADecimals")
+        .is_null());
+    assert!(pools[0]
+        .get("tokenBDecimals")
+        .expect("tokenBDecimals")
+        .is_null());
     assert_eq!(
         pools[0].get("createdAtHeight").and_then(|x| x.as_u64()),
         Some(register_block_height)
@@ -438,7 +446,10 @@ async fn native_dex_factory_deploy_register_and_query_via_rpc() {
         .find(|t| t.get("id").and_then(|x| x.as_str()) == Some(token_a_hex.as_str()))
         .expect("token a row");
     assert_eq!(row_a.get("decimals").and_then(|x| x.as_u64()), Some(6));
-    assert_eq!(row_a.get("decimalsSource").and_then(|x| x.as_str()), Some("env"));
+    assert_eq!(
+        row_a.get("decimalsSource").and_then(|x| x.as_str()),
+        Some("env")
+    );
 
     let lp_dec = rpc_call(
         &mut app,
@@ -456,9 +467,12 @@ async fn native_dex_factory_deploy_register_and_query_via_rpc() {
         pools_dec[0].get("tokenADecimals").and_then(|x| x.as_u64()),
         Some(6)
     );
-    assert!(pools_dec[0].get("tokenBDecimals").expect("tokenBDecimals").is_null());
+    assert!(pools_dec[0]
+        .get("tokenBDecimals")
+        .expect("tokenBDecimals")
+        .is_null());
 
-    let _ = std::env::remove_var("BOING_DEX_TOKEN_DECIMALS_JSON");
+    std::env::remove_var("BOING_DEX_TOKEN_DECIMALS_JSON");
 
     let gt = rpc_call(
         &mut app,
@@ -478,7 +492,7 @@ async fn native_dex_factory_deploy_register_and_query_via_rpc() {
         Some(register_block_height)
     );
 
-    let _ = std::env::remove_var("BOING_CANONICAL_NATIVE_DEX_FACTORY");
+    std::env::remove_var("BOING_CANONICAL_NATIVE_DEX_FACTORY");
     let lp2 = rpc_call(
         &mut app,
         "boing_listDexPools",

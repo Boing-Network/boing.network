@@ -101,7 +101,10 @@ pub fn native_dex_ledger_router_bytecode() -> Vec<u8> {
     // Dispatch: only 0xE0; unknown → STOP
     push32(&mut c, &word_u64(0));
     c.push(Opcode::MLoad as u8);
-    push32(&mut c, &selector_word(SELECTOR_LEDGER_ROUTER_FORWARD_POOL_CALL));
+    push32(
+        &mut c,
+        &selector_word(SELECTOR_LEDGER_ROUTER_FORWARD_POOL_CALL),
+    );
     c.push(Opcode::Eq as u8);
     let fix_ok = c.len();
     push32(&mut c, &[0u8; 32]);
@@ -148,7 +151,10 @@ pub fn native_dex_ledger_router_bytecode_v2() -> Vec<u8> {
 
     push32(&mut c, &word_u64(0));
     c.push(Opcode::MLoad as u8);
-    push32(&mut c, &selector_word(SELECTOR_LEDGER_ROUTER_FORWARD_POOL_CALL_V2));
+    push32(
+        &mut c,
+        &selector_word(SELECTOR_LEDGER_ROUTER_FORWARD_POOL_CALL_V2),
+    );
     c.push(Opcode::Eq as u8);
     let fix_ok = c.len();
     push32(&mut c, &[0u8; 32]);
@@ -192,7 +198,10 @@ pub fn native_dex_ledger_router_bytecode_v3() -> Vec<u8> {
 
     push32(&mut c, &word_u64(0));
     c.push(Opcode::MLoad as u8);
-    push32(&mut c, &selector_word(SELECTOR_LEDGER_ROUTER_FORWARD_POOL_CALL_V3));
+    push32(
+        &mut c,
+        &selector_word(SELECTOR_LEDGER_ROUTER_FORWARD_POOL_CALL_V3),
+    );
     c.push(Opcode::Eq as u8);
     let fix_ok = c.len();
     push32(&mut c, &[0u8; 32]);
@@ -242,12 +251,14 @@ mod tests {
     use crate::interpreter::Interpreter;
     use crate::native_amm::{
         constant_product_amount_out_after_fee, constant_product_pool_bytecode,
-        constant_product_pool_bytecode_v5, encode_add_liquidity_calldata, encode_remove_liquidity_to_calldata,
-        encode_set_tokens_calldata, encode_swap_calldata, encode_swap_to_calldata, total_lp_supply_key,
-        reserve_a_key, reserve_b_key,
+        constant_product_pool_bytecode_v5, encode_add_liquidity_calldata,
+        encode_remove_liquidity_to_calldata, encode_set_tokens_calldata, encode_swap_calldata,
+        encode_swap_to_calldata, reserve_a_key, reserve_b_key, total_lp_supply_key,
     };
-    use crate::reference_token::{encode_mint_first_calldata, reference_fungible_template_bytecode, REF_FUNGIBLE_BALANCE_XOR};
     use crate::reference_token::amount_word;
+    use crate::reference_token::{
+        encode_mint_first_calldata, reference_fungible_template_bytecode, REF_FUNGIBLE_BALANCE_XOR,
+    };
 
     #[test]
     fn ledger_router_forwards_swap_to_v1_pool() {
@@ -284,8 +295,16 @@ mod tests {
 
         let exp_rb = rb - dy;
         let exp_ra = ra + dx;
-        let ra2 = u128::from_be_bytes(state.get_contract_storage(&pool, &reserve_a_key())[16..32].try_into().unwrap());
-        let rb2 = u128::from_be_bytes(state.get_contract_storage(&pool, &reserve_b_key())[16..32].try_into().unwrap());
+        let ra2 = u128::from_be_bytes(
+            state.get_contract_storage(&pool, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let rb2 = u128::from_be_bytes(
+            state.get_contract_storage(&pool, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(ra2, u128::from(exp_ra));
         assert_eq!(rb2, u128::from(exp_rb));
     }
@@ -326,8 +345,16 @@ mod tests {
 
         let exp_rb = rb - dy;
         let exp_ra = ra + dx;
-        let ra2 = u128::from_be_bytes(state.get_contract_storage(&pool, &reserve_a_key())[16..32].try_into().unwrap());
-        let rb2 = u128::from_be_bytes(state.get_contract_storage(&pool, &reserve_b_key())[16..32].try_into().unwrap());
+        let ra2 = u128::from_be_bytes(
+            state.get_contract_storage(&pool, &reserve_a_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
+        let rb2 = u128::from_be_bytes(
+            state.get_contract_storage(&pool, &reserve_b_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(ra2, u128::from(exp_ra));
         assert_eq!(rb2, u128::from(exp_rb));
     }
@@ -390,8 +417,11 @@ mod tests {
             )
             .unwrap();
 
-        let lp_total =
-            u128::from_be_bytes(state.get_contract_storage(&pool, &total_lp_supply_key())[16..32].try_into().unwrap());
+        let lp_total = u128::from_be_bytes(
+            state.get_contract_storage(&pool, &total_lp_supply_key())[16..32]
+                .try_into()
+                .unwrap(),
+        );
         assert_eq!(lp_total, 1_000);
 
         let burn = 500u128;
@@ -446,5 +476,4 @@ mod tests {
             "expected Allow or Unsure for ledger router v3 bytecode, got {r:?}"
         );
     }
-
 }

@@ -4,7 +4,7 @@ import Layout from '../layouts/Layout.astro';
 
 <Layout
   title="Executive Summary"
-  description="Boing Network — Executive summary for investors and grant programs. Authentic L1 blockchain built from first principles with protocol-enforced quality assurance, sustainable tokenomics, and 100% transparency."
+  description="Boing Network — Executive summary for investors and grant programs. An independent Layer 1 where quality is enforced by the protocol, with transparent rules, sustainable tokenomics and a public testnet (mainnet not live)."
   canonical="/investors"
   pageClass="page-app"
 >
@@ -13,19 +13,19 @@ import Layout from '../layouts/Layout.astro';
       <img src="/logo.svg" alt="Boing Network" class="investor-logo" width="64" height="64" />
       <h1>Boing Network</h1>
       <p class="investor-tagline">Executive Summary</p>
-      <p class="investor-subtitle">Authentic. Decentralized. Optimal. Quality-Assured.</p>
+      <p class="investor-subtitle">Quality, enforced by the protocol.</p>
       <p class="investor-stage"><strong>Stage:</strong> MVP / Prototype · Testnet live · SDK & CLI ready</p>
     </header>
 
     <section class="investor-section">
       <h2>Vision</h2>
-      <p>Boing Network is an <strong>authentic, decentralized L1 blockchain</strong> built from first principles — optimized for efficiency, independent of other chains, and committed to <strong>100% transparency</strong> and <strong>protocol-enforced quality assurance</strong>. We are building the infrastructure for a sustainable, scam-resistant DeFi ecosystem where only assets meeting defined security and compliance standards reach the chain.</p>
+      <p>Boing Network is an <strong>independent, decentralized Layer 1</strong> built from first principles — optimized for efficiency, independent of other chains, and committed to <strong>transparent rules</strong> and <strong>protocol-enforced quality assurance</strong>. The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. It is designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks. The public testnet is live; mainnet is not, and audits are not yet complete.</p>
     </section>
 
     <section class="investor-section">
       <h2>The Problem</h2>
       <ul>
-        <li><strong>Scam proliferation</strong> — Most chains allow any bytecode; users and protocols bear the risk of malicious or low-quality deployments.</li>
+        <li><strong>Unchecked deployments</strong> — Most chains allow any bytecode; users and protocols bear the risk of malicious, deceptive or low-quality deployments.</li>
         <li><strong>Network congestion</strong> — When anything and everything can be deployed, chains become clogged with low-value or spam transactions, driving up fees and degrading UX for legitimate users.</li>
         <li><strong>Fragmented liquidity</strong> — Value is spread across dozens of chains; cross-chain coordination is trust-heavy and complex.</li>
         <li><strong>Opaque governance</strong> — Many networks lack verifiable transparency in tokenomics, treasury, and upgrades.</li>
@@ -35,12 +35,12 @@ import Layout from '../layouts/Layout.astro';
 
     <section class="investor-section">
       <h2>Our Solution</h2>
-      <p>Boing introduces <strong>protocol-enforced quality assurance</strong> — the first L1 where only deployments meeting defined rules (bytecode, security heuristics, purpose declaration) are accepted. By ensuring that not anything and everything can be deployed to the chain, our built-in QA directly reduces network congestion: the mempool and blocks stay focused on legitimate, high-quality transactions instead of spam and low-value deployments. Automation handles known cases; a community QA pool handles edge cases. We combine this with:</p>
+      <p>Boing introduces <strong>protocol-enforced quality assurance</strong> (the Boing Quality Gate): deployments are checked against defined, transparent rules (bytecode, security heuristics, purpose declaration) before they are accepted. Because not everything can be deployed, the mempool and blocks are designed to stay focused on legitimate, high-quality transactions rather than spam and low-value deployments. Automated checks handle clear cases; a decentralized community pool reviews edge cases. We combine this with:</p>
       <ul>
         <li><strong>QA at the infrastructure layer</strong> — Protocol-enforced filtering so only quality deployments reach the chain, reducing congestion from the start</li>
         <li><strong>Native account abstraction</strong> — Gasless UX, social recovery, session keys at the protocol level</li>
         <li><strong>Adaptive gas model</strong> — Dynamic pricing with predictable caps</li>
-        <li><strong>Cross-chain DeFi coordination</strong> — Light client verification, unified liquidity routing via boing.finance</li>
+        <li><strong>Cross-chain DeFi coordination</strong> — Light client verification, unified liquidity routing via Boing Finance</li>
         <li><strong>Phased governance</strong> — Time-locked proposals; no surprise upgrades</li>
         <li><strong>Sustainable tokenomics</strong> — Uncapped supply with floor-triggered waves; no reward cliffs</li>
       </ul>
@@ -48,7 +48,7 @@ import Layout from '../layouts/Layout.astro';
 
     <section class="investor-section">
       <h2>Competitive Advantage</h2>
-      <p>Most established L1s permit any bytecode deployment—quality checks, when they exist, live in applications or contracts, not consensus. <strong>Boing is the first L1 to enforce quality at the protocol layer.</strong> This is infrastructure, not a dApp feature. We reduce congestion and scam risk at the source.</p>
+      <p>Most established L1s permit any bytecode deployment—quality checks, when they exist, live in applications or contracts, not consensus. <strong>Boing introduces protocol-level deployment checks designed to identify and restrict deployments that fail transparent quality criteria before they are accepted on-chain.</strong> This is infrastructure, not a dApp feature.</p>
       <h3>Unique Differentiators</h3>
       <div class="differentiators-grid">
         <div class="diff-card">
@@ -79,7 +79,7 @@ import Layout from '../layouts/Layout.astro';
       <ul>
         <li><strong>Core protocol</strong> — Consensus (HotStuff), execution (custom VM), state (Sparse Merkle), P2P (libp2p)</li>
         <li><strong>Developer tools</strong> — <code>boing init</code>, <code>boing dev</code>, <code>boing deploy</code>; Boing SDK (TypeScript)</li>
-        <li><strong>Protocol QA</strong> — Automated checks (opcode whitelist, blocklist, scam patterns); community pool for edge cases</li>
+        <li><strong>Protocol QA</strong> — Automated checks (opcode whitelist, blocklist, known-abuse patterns); community pool for edge cases</li>
         <li><strong>Tokenomics</strong> — Emission curve, fee split, dApp incentive caps, floor-triggered waves</li>
         <li><strong>Testnet</strong> — Bootnodes, faucet, public RPC; VibeMiner one-click validator integration</li>
         <li><strong>Website & docs</strong> — boing.network; comprehensive technical documentation</li>
@@ -88,15 +88,15 @@ import Layout from '../layouts/Layout.astro';
 
     <section class="investor-section">
       <h2>Target Market</h2>
-      <p><strong>Primary:</strong> DeFi users, protocols, and validators seeking a scam-resistant L1 with transparent governance and sustainable incentives. <strong>Secondary:</strong> Developers building on a quality-assured chain.</p>
-      <p>Global DeFi TVL exceeds $50B across hundreds of chains. Millions of users and thousands of protocols face scam and congestion risk daily. We target early adopters: security-conscious protocols, validators tired of opaque ecosystems, and users burned by scams. Long-term TAM: DeFi protocols requiring compliance or quality standards that cannot achieve that on permissionless-anything chains.</p>
+      <p><strong>Primary:</strong> DeFi users, protocols, and validators seeking an L1 with transparent deployment rules, transparent governance and sustainable incentives. <strong>Secondary:</strong> Developers building on a quality-assured chain.</p>
+      <p>Global DeFi TVL exceeds $50B across hundreds of chains. Millions of users and thousands of protocols face deployment-quality and congestion risk. We target early adopters: security-conscious protocols, validators who want transparent participation rules, and users who want a safer way to explore on-chain applications. Long-term TAM: DeFi protocols requiring compliance or quality standards that cannot achieve that on permissionless-anything chains.</p>
     </section>
 
     <section class="investor-section">
       <h2>Go-to-Market</h2>
       <ul>
         <li><strong>Phase 1 — Testnet:</strong> Public bootnodes, faucet, RPC. Developer docs, CLI, SDK, VibeMiner one-click validator. Incentivized testnet (2–4 weeks) rewards validators, developers, and users.</li>
-        <li><strong>Phase 2 — Mainnet:</strong> Security audits, formal verification. Validator bootstrap via early incentives and hardware grants (capped). Developer grants and hackathons. boing.finance integration for cross-chain swap, bridge, and liquidity routing.</li>
+        <li><strong>Phase 2 — Mainnet:</strong> Security audits, formal verification. Validator bootstrap via early incentives and hardware grants (capped). Developer grants and hackathons. Boing Finance integration for cross-chain swap, bridge, and liquidity routing.</li>
         <li><strong>Phase 3 — Ecosystem:</strong> Success-based dApp incentives with per-dApp caps; community QA pool; governance-driven evolution. Channels: GitHub, Discord, docs, accelerator/VC outreach.</li>
       </ul>
     </section>
@@ -109,14 +109,14 @@ import Layout from '../layouts/Layout.astro';
         <div class="token-row"><span class="token-pct">30%</span> Treasury (grants, audits, ecosystem)</div>
         <div class="token-row"><span class="token-pct">15%</span> Community & Grants</div>
       </div>
-      <p>Fee split: 70–80% to validators, 20–30% to treasury. At maturity, <strong>fee revenue dominates</strong>—validators and treasury earn from transactions; emissions decline (Year 1 ~8%, Year 10+ targets 1% floor or 0% if fees sufficient). dApp incentives (success-based, per-dApp capped) align developer success with adoption. Cross-chain DeFi via boing.finance captures value from swap fees and liquidity.</p>
+      <p>Fee split: 70–80% to validators, 20–30% to treasury. At maturity, <strong>fee revenue dominates</strong>—validators and treasury earn from transactions; emissions decline (Year 1 ~8%, Year 10+ targets 1% floor or 0% if fees sufficient). dApp incentives (success-based, per-dApp capped) align developer success with adoption. Cross-chain DeFi via Boing Finance captures value from swap fees and liquidity.</p>
     </section>
 
     <section class="investor-section">
       <h2>Validation</h2>
-      <p><strong>Technical:</strong> Core protocol implemented—consensus (HotStuff), execution (custom VM), state (Sparse Merkle), P2P (libp2p). Node runs single- and multi-node. CLI and SDK scaffold and deploy dApps. Protocol QA design includes opcode whitelist, blocklist, scam patterns. Build and tests pass; fuzz harness for primitives.</p>
+      <p><strong>Technical:</strong> Core protocol implemented—consensus (HotStuff), execution (custom VM), state (Sparse Merkle), P2P (libp2p). Node runs single- and multi-node. CLI and SDK scaffold and deploy dApps. Protocol QA design includes opcode whitelist, blocklist, known-abuse patterns. Build and tests pass; fuzz harness for primitives.</p>
       <p><strong>Operational:</strong> Testnet infrastructure ready—bootnodes, faucet, public RPC. Documentation supports validators and developers. boing.network live with docs, faucet, investor materials.</p>
-      <p><strong>Market:</strong> Design aligns with user pain (scams, congestion, opacity). Six-pillar philosophy and sustainable tokenomics documented. Incentivized testnet plan defined. Next: bootnode launch, public testnet, early validator/developer feedback.</p>
+      <p><strong>Market:</strong> Design aligns with user pain (malicious deployments, congestion, opacity). Six-pillar philosophy and sustainable tokenomics documented. Incentivized testnet plan defined. Next: bootnode launch, public testnet, early validator/developer feedback.</p>
     </section>
 
     <section class="investor-section">
@@ -137,14 +137,14 @@ import Layout from '../layouts/Layout.astro';
         <div class="deck-slides" id="deck-slides">
           <div class="deck-slide active" data-slide="0">
             <h3>Boing Network</h3>
-            <p class="slide-tagline">Authentic. Decentralized. Optimal. Quality-Assured.</p>
+            <p class="slide-tagline">Quality, enforced by the protocol.</p>
             <p class="slide-stage">MVP · Testnet Live · SDK & CLI Ready</p>
             <p class="slide-sub">Executive Summary for Investors</p>
           </div>
           <div class="deck-slide" data-slide="1">
             <h3>The Problem</h3>
             <ul>
-              <li>Scam proliferation — users bear risk</li>
+              <li>Unchecked deployments — users bear risk</li>
               <li>Network congestion from low-value deployments</li>
               <li>Fragmented liquidity across chains</li>
               <li>Opaque governance</li>
@@ -165,17 +165,17 @@ import Layout from '../layouts/Layout.astro';
           <div class="deck-slide" data-slide="3">
             <h3>Competitive Advantage</h3>
             <p>No other L1 enforces deployment standards at the protocol layer.</p>
-            <p>Protocol QA · 100% Transparency · Rust + BFT · boing.finance integration</p>
+            <p>Protocol QA · 100% Transparency · Rust + BFT · Boing Finance integration</p>
           </div>
           <div class="deck-slide" data-slide="4">
             <h3>Target Market</h3>
-            <p>DeFi users, protocols, validators seeking scam-resistant L1. Global DeFi TVL &gt;$50B. We target security-conscious protocols, validators, and users burned by scams.</p>
+            <p>DeFi users, protocols and validators seeking transparent deployment rules. Global DeFi TVL &gt;$50B. We target security-conscious protocols, validators, and users who want a safer way to explore on-chain applications.</p>
           </div>
           <div class="deck-slide" data-slide="5">
             <h3>Go-to-Market</h3>
             <ul>
               <li>Phase 1: Testnet, incentivized program</li>
-              <li>Phase 2: Mainnet, audits, boing.finance</li>
+              <li>Phase 2: Mainnet, audits, Boing Finance</li>
               <li>Phase 3: Ecosystem, dApp incentives</li>
             </ul>
           </div>
@@ -223,7 +223,7 @@ import Layout from '../layouts/Layout.astro';
     </section>
 
     <footer class="investor-footer">
-      <p>Boing Network — Authentic. Decentralized. Optimal. Quality-Assured.</p>
+      <p>Boing Network — Quality, enforced by the protocol.</p>
       <p><a href="/">← Return to Home</a></p>
     </footer>
   </article>
@@ -316,7 +316,7 @@ import Layout from '../layouts/Layout.astro';
     margin-top: 1rem;
   }
   .diff-card {
-    background: rgba(18, 24, 41, 0.6);
+    background: rgba(16, 26, 56, 0.6);
     border: 1px solid rgba(124, 58, 237, 0.2);
     border-radius: 12px;
     padding: 1.25rem;
@@ -387,7 +387,7 @@ import Layout from '../layouts/Layout.astro';
 
   /* Pitch deck */
   .pitch-deck-section {
-    background: rgba(18, 24, 41, 0.5);
+    background: rgba(16, 26, 56, 0.5);
     border: 1px solid rgba(124, 58, 237, 0.25);
     border-radius: 16px;
     padding: 2rem;
