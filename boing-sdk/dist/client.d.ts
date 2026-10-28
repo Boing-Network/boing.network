@@ -1,7 +1,7 @@
 /**
  * Boing JSON-RPC client — typed methods for all node RPCs.
  */
-import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsParams, ListSlashRecordsResult, ReverifySlashAppealBallotsParams, ReverifySlashAppealBallotsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, ContractCode, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, NetworkFeePolicyResult, JsonRpcBatchResponseItem } from './types.js';
+import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsParams, ListSlashRecordsResult, ReverifySlashAppealBallotsParams, ReverifySlashAppealBallotsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, ContractCode, DexPoolListPage, DexTokenListPage, DexTokenListRow, TokenListPage, TokenMetadata, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, NetworkFeePolicyResult, JsonRpcBatchResponseItem } from './types.js';
 /**
  * Default UA for Node/CLI calls to public RPC (some CDN/WAF edges return HTTP 403 for empty/bot UA).
  * Overridable via {@link BoingClientConfig.extraHeaders}.
@@ -284,6 +284,18 @@ export declare class BoingClient {
         enrich?: boolean;
         includeDiagnostics?: boolean;
     }): Promise<DexTokenListRow | null>;
+    /**
+     * Name, symbol, decimals and total supply for **any** token contract (`boing_getTokenMetadata`),
+     * including tokens that are not in a DEX pool. Resolves to **`null`** when the id is not a contract.
+     * Throws a method-not-found RPC error on nodes that predate this method; callers that must support
+     * older nodes should fall back to {@link getDexToken}.
+     */
+    getTokenMetadata(idHex32: string): Promise<TokenMetadata | null>;
+    /** Cursor-paginated directory of every known token (`boing_listTokens`), ordered by id. */
+    listTokensPage(params?: {
+        cursor?: string | null;
+        limit?: number;
+    }): Promise<TokenListPage>;
     /** Simulate a transaction without applying it. Params: hex-encoded signed transaction. */
     simulateTransaction(hexSignedTx: string): Promise<SimulateResult>;
     /**

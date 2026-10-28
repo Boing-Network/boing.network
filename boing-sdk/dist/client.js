@@ -789,6 +789,20 @@ export class BoingClient {
         const id = validateHex32(idHex32);
         return this.request('boing_getDexToken', [{ id, ...options }]);
     }
+    /**
+     * Name, symbol, decimals and total supply for **any** token contract (`boing_getTokenMetadata`),
+     * including tokens that are not in a DEX pool. Resolves to **`null`** when the id is not a contract.
+     * Throws a method-not-found RPC error on nodes that predate this method; callers that must support
+     * older nodes should fall back to {@link getDexToken}.
+     */
+    async getTokenMetadata(idHex32) {
+        const id = validateHex32(idHex32);
+        return this.request('boing_getTokenMetadata', [{ id }]);
+    }
+    /** Cursor-paginated directory of every known token (`boing_listTokens`), ordered by id. */
+    async listTokensPage(params) {
+        return this.request('boing_listTokens', [params ?? {}]);
+    }
     /** Simulate a transaction without applying it. Params: hex-encoded signed transaction. */
     async simulateTransaction(hexSignedTx) {
         const hex = ensureHex(hexSignedTx);

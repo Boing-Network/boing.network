@@ -166,6 +166,42 @@ export interface DexTokenListRow {
     /** Present on **`boing_getDexToken`** when **`includeDiagnostics: true`**. */
     diagnostics?: DexDiscoveryTokenDiagnostics;
 }
+/** Token implementation recognised from exact deployed code (**`boing_getTokenMetadata`**). */
+export type TokenStandard = 'reference-fungible-v1' | 'reference-fungible-v2' | 'reference-fungible-secured-v1' | 'reference-fungible-secured-v2' | 'wrapped-boing';
+/**
+ * Result of **`boing_getTokenMetadata`** / one row of **`boing_listTokens`**. Works for any token contract,
+ * not only tokens that sit in a DEX pool. Every field except **`id`** can be **`null`**: the node reports
+ * only what exists on chain and never guesses.
+ */
+export interface TokenMetadata {
+    /** 32-byte token account id (lowercase hex with `0x`). */
+    id: string;
+    /** Declared at deploy (**`ContractDeployWithPurposeAndMetadata`**); **`null`** when the deploy carried none. */
+    name: string | null;
+    symbol: string | null;
+    /** **`BOING_DEX_TOKEN_DECIMALS_JSON`**, else **0** for reference fungible templates, **18** for wBOING, else **`null`** (unknown). */
+    decimals: number | null;
+    decimalsSource: 'env' | 'template' | null;
+    /** Decimal string (u128) or **`null`** when unknown. Wrapped BOING reads storage; reference tokens use the one-time **`mint_first`** amount. */
+    totalSupply: string | null;
+    totalSupplySource: 'storage' | 'mint_first' | null;
+    standard: TokenStandard | null;
+    /** **`deploy`** when name/symbol came from the deploy transaction, else **`null`**. */
+    metadataSource: 'deploy' | null;
+    deployHeight: number | null;
+    deployer: string | null;
+    deployTx: string | null;
+}
+/** Paginated **`boing_listTokens`** result. */
+export interface TokenListPage {
+    tokens: TokenMetadata[];
+    /** Pass as **`cursor`** for the next page; **`null`** on the last page. */
+    nextCursor: string | null;
+    /** Number of tokens in the directory. */
+    total: number;
+    /** Highest block height the node has indexed. */
+    indexedThroughHeight: number;
+}
 /** Paginated **`boing_listDexPools`** result. */
 export interface DexPoolListPage {
     pools: DexPoolListRow[];
