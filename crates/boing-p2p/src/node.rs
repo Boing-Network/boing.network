@@ -262,12 +262,17 @@ impl P2pNode {
                         .with_peer_score(params, thresholds)
                         .map_err(|e| Box::new(std::io::Error::other(e)))?;
                 }
-                let block_sync = BlockSyncBehaviour::new(
+                let sync_limits = crate::block_sync::BlockSyncLimits::from_env();
+                let block_sync = BlockSyncBehaviour::with_codec(
+                    request_response::cbor::codec::Codec::default()
+                        .set_response_size_maximum(sync_limits.max_response_bytes),
                     [(
                         StreamProtocol::new("/boing/block-sync/1"),
                         ProtocolSupport::Full,
                     )],
-                    request_response::Config::default(),
+                    request_response::Config::default().with_request_timeout(Duration::from_secs(
+                        sync_limits.request_timeout_secs,
+                    )),
                 );
                 let ping = libp2p::ping::Behaviour::new(
                     libp2p::ping::Config::new()

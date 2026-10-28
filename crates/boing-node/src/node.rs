@@ -583,6 +583,20 @@ impl BoingNode {
         self.executor.set_fee_policy(policy);
     }
 
+    /// Install `policy` as the in-memory fee policy unless the node already has one of its own
+    /// (a persisted `network_fee_config.json`). Never persists, so a network preset's default can be
+    /// corrected by a later release without leaving a stale file behind.
+    pub fn apply_default_fee_policy(&mut self, policy: NetworkFeePolicy) {
+        let has_own = self
+            .persistence
+            .as_ref()
+            .and_then(|p| p.load_network_fee_config().ok().flatten())
+            .is_some();
+        if !has_own {
+            self.apply_fee_policy_without_persist(policy);
+        }
+    }
+
     /// Legacy free-pending caps only when gas is waived *and* micro-fee height allows reduced BPS.
     fn sync_mempool_optional_fees_flag(&self, policy: &NetworkFeePolicy) {
         let next = self.chain.height().saturating_add(1);

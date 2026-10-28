@@ -146,7 +146,8 @@ struct Args {
     name_registry_activation_height: Option<u64>,
 
     /// Enable L1 media blobs (PutBlob) from this height (all nodes must agree). Overrides
-    /// **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`**. Unset = media blobs off. Default live cap **16 MiB**.
+    /// **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`**. Unset = media blobs off, except on a chain with a
+    /// network preset (testnet 6913: 1200). Default live cap **16 MiB**.
     #[arg(long)]
     media_blobs_activation_height: Option<u64>,
 
@@ -156,7 +157,8 @@ struct Args {
     blobs_root_header_activation_height: Option<u64>,
 
     /// Phase 7: raise Put/Announce max toward 256 MiB from this height (all nodes must agree).
-    /// Overrides **`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`**. Unset = keep **16 MiB** (Fly-safe).
+    /// Overrides **`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`**. Unset = keep **16 MiB** (Fly-safe), except on a
+    /// chain with a network preset (testnet 6913: 1306).
     #[arg(long)]
     media_blobs_phase7_cap_activation_height: Option<u64>,
 
@@ -168,6 +170,7 @@ struct Args {
 
     /// Honor reduced `execution_gas_fee_bps` (micro fee / waive) from this height. Overrides
     /// **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`**. Below it, gas is always the full historical schedule.
+    /// Testnet 6913 preset default: 1188 (with the 100 bps fee policy).
     #[arg(long)]
     micro_fees_activation_height: Option<u64>,
 

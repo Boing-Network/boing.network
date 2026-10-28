@@ -22,12 +22,20 @@ RPC port **8545** only needs to be public if you want to serve RPC to others.
 
 ## 2. Get the node
 
-**Release binaries (recommended):** download `testnet-v0.1.18` (or newer) from
+> **A fresh node needs a build that includes the testnet network preset with micro fees and media blobs
+> (heights 1188, 1200, 1306).** No release up to and including `testnet-v0.1.18` has it: those binaries
+> sync normally up to block 1187 and then stop with `block 1188 ... state root mismatch` (a state-root
+> mismatch from the fee rule, not a network problem). Use the first testnet release after
+> `testnet-v0.1.18` (the release notes name it), or build `main` from source (below). An already-synced
+> node is unaffected by this. See "Older binaries" in section 5 for what a pre-fix source build needs.
+
+**Release binaries:** from the first release that contains the preset (see the note above) at
 <https://github.com/Boing-Network/boing.network/releases>. The zip contains `boing-node-<platform>` and
 `boing-<platform>`, so rename them after unzipping (there is no `--version` flag; use `./boing-node --help`):
 
 ```bash
-curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.18/release-linux-x86_64.zip
+# Replace <tag> with that release (for example the tag that follows testnet-v0.1.18):
+curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/<tag>/release-linux-x86_64.zip
 unzip release-linux-x86_64.zip && mv boing-node-linux-x86_64 boing-node && mv boing-linux-x86_64 boing && chmod +x boing-node boing
 ./boing validator --help
 ```
@@ -110,8 +118,10 @@ Official bootnode (also on <https://boing.network/bootnodes>):
 # These must match the public nodes or your node computes different roots:
 export BOING_CHAIN_ID=6913 BOING_VALIDATOR_SET=open BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 \
        BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
-# With BOING_CHAIN_ID=6913 the node applies the testnet network preset (genesis allocations, historical
-# fee rules, anchor validator), so it replays from genesis with identical roots. No --faucet-enable needed.
+# With BOING_CHAIN_ID=6913 a build that includes the preset (see section 2) applies it: genesis allocations,
+# historical fee rules, the anchor validator, and the activation heights and fee policy below, so it replays
+# from genesis to the tip with identical roots. No --faucet-enable, --network-fee-config or other
+# BOING_* consensus settings are needed beyond the four above.
 ./boing-node \
   --data-dir ./boing-data \
   --p2p-listen /ip4/0.0.0.0/tcp/4001 \
@@ -130,6 +140,48 @@ docker run -d --name boing-node --restart unless-stopped \
   -e BOING_BOOTNODES=/ip4/169.155.48.188/tcp/4001 \
   boing-node
 ```
+
+**What the testnet preset sets (do not set these yourself on a current build).** They are consensus rules:
+a node that disagrees on any of them computes different roots at the first affected block and stops syncing.
+
+| Rule | Value | First block that needs it |
+|---|---|---|
+| Micro fees (`BOING_MICRO_FEES_ACTIVATION_HEIGHT`) | from **1188** | 1188 |
+| Execution gas fee policy (`execution_gas_fee_bps`) | **100** bps from 1188 (the policy in `docs/config/network_fee_config.canonical.json`) | 1188 |
+| L1 media blobs (`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`) | from **1200** | 1311 (first `PutBlob`) |
+| Media-blob Phase 7 cap (`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`) | from **1306** | 1311 |
+
+The micro-fee rule needs both the height and the 100 bps policy; either one alone fails at 1188. An
+environment variable or flag you set still overrides the preset (a wrong value breaks sync), and a
+`network_fee_config.json` already in your data directory (or `--network-fee-config`) is used instead of the
+preset policy. `BOING_BLOB_ACL_ACTIVATION_HEIGHT` (live: 1317) only gates HTTP blob downloads for non-public
+blobs on your own node. It is not consensus and does not affect sync, so leave it unset unless you serve blobs.
+
+Blocks 1311 to 1317 are large (`PutBlob` payloads of up to about 80 MiB each, around 750 MB of JSON in
+total; block 1316 alone is about 160 MiB on the wire). The block-sync protocol used to reject any response
+above 10 MiB, which stalled a fresh node silently at block 1312 (it reports height 1312 and never advances,
+with no error). Current builds accept responses up to **512 MiB** and wait up to **120 s** per block request
+(`BOING_P2P_BLOCK_SYNC_MAX_RESPONSE_BYTES`, `BOING_P2P_BLOCK_SYNC_TIMEOUT_SECS`; receive side only, not
+consensus). Expect the first sync to take a few minutes and to use a few hundred MB of extra memory while it
+passes those blocks. Nodes that already serve the chain need no upgrade for this: the limit applies to the
+node that requests the block.
+
+**Older binaries (a build without the preset).** A fresh node needs a current build. A source build of a
+`main` commit from before the preset can reach block 1312 with these settings, on a fresh data directory (the
+policy file is in this repository), but it still stalls at block 1312 because of the 10 MiB block-sync limit,
+so there is no complete workaround without the fix:
+
+```bash
+export BOING_MICRO_FEES_ACTIVATION_HEIGHT=1188 \
+       BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT=1200 \
+       BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT=1306
+./boing-node ... --network-fee-config docs/config/network_fee_config.canonical.json   # plus the flags above
+```
+
+Releases up to `testnet-v0.1.18` do not contain micro fees or media blobs at all and cannot sync past
+block 1187. A node stuck at 1187 or 1312: stop it, replace the binary with a current build and start it
+again on the same data directory (it continues from its stored height; if it does not, delete the data
+directory and sync again).
 
 Check it is syncing: `boing_getSyncState` / `boing_health` on your node should report the same `head_height`
 as `https://testnet-rpc.boing.network/` within a few blocks. A fresh node syncs the whole chain from genesis

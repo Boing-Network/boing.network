@@ -10,6 +10,11 @@
 //! 18-decimals migration height. `tests/fixtures/testnet_blocks_after_942.jsonl` continues the recorded
 //! chain from 942 through the live v4 gate (1000) and the live 18-decimals switch (1050), recorded
 //! 2026-10-17 at tip 1052; `replay_live_chain_across_v4_and_redenomination` replays both files.
+//! `tests/fixtures/testnet_blocks_1053_to_1310.jsonl` continues it to 1310, across the micro-fee switch
+//! at 1188 and the media-blob gates (1200, 1306), recorded 2026-10-28 (live tip 1337). Blocks
+//! 1311..=1317 carry up to ~80 MiB of incompressible `PutBlob` data each (~750 MB of JSON) and are not
+//! committed; `replay_full_live_chain_to_the_tip` replays a full dump to the tip when
+//! `BOING_REPLAY_FULL_CHAIN=<path>` is set (see docs/TESTNET-VALIDATOR-GUIDE.md).
 
 use std::io::{BufRead, BufReader};
 
@@ -32,21 +37,30 @@ fn fixture_path() -> std::path::PathBuf {
         })
 }
 
-/// `"amount":"123"` -> `"amount":123` (only all-digit strings), so `u128` fields decode.
+/// `"amount":"123"` -> `"amount":123` (only all-digit strings), so `u128` fields decode. The same for
+/// `"value"` (native value of `ContractCallWithValue`, from 1150).
 fn unquote_amounts(json: &str) -> String {
-    const KEY: &str = "\"amount\":\"";
+    let mut out = json.to_string();
+    for key in ["amount", "value"] {
+        out = unquote_key(&out, key);
+    }
+    out
+}
+
+fn unquote_key(json: &str, name: &str) -> String {
+    let key = format!("\"{name}\":\"");
     let mut out = String::with_capacity(json.len());
     let mut rest = json;
-    while let Some(i) = rest.find(KEY) {
-        let after = &rest[i + KEY.len()..];
+    while let Some(i) = rest.find(&key) {
+        let after = &rest[i + key.len()..];
         let digits = after.bytes().take_while(u8::is_ascii_digit).count();
         if digits > 0 && after.as_bytes().get(digits) == Some(&b'"') {
             out.push_str(&rest[..i]);
-            out.push_str("\"amount\":");
+            out.push_str(&format!("\"{name}\":"));
             out.push_str(&after[..digits]);
             rest = &after[digits + 1..];
         } else {
-            out.push_str(&rest[..i + KEY.len()]);
+            out.push_str(&rest[..i + key.len()]);
             rest = after;
         }
     }
@@ -652,4 +666,216 @@ fn replay_live_chain_then_cross_native_value_locally() {
         f2 > f1 && f2 - f1 < BASE_UNITS_PER_BOING,
         "1 BOING back minus the fee"
     );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Micro fees (1188) and media-blob gates (1200, 1306): the preset alone must reproduce the live
+// chain, with no env vars and no --network-fee-config.
+// ---------------------------------------------------------------------------------------------
+
+const MICRO_FEES_FROM: u64 = 1_188;
+
+fn fixture(name: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(name)
+}
+
+/// Fixtures concatenated: heights 0..=1310 (the committed part of the live chain).
+fn load_chain_to_1310() -> Vec<(Block, String)> {
+    let mut all = load_blocks_from(&fixture("testnet_blocks.jsonl"));
+    for name in [
+        "testnet_blocks_after_942.jsonl",
+        "testnet_blocks_1053_to_1310.jsonl",
+    ] {
+        let part = load_blocks_from(&fixture(name));
+        assert_eq!(
+            part[0].0.header.height,
+            all.last().unwrap().0.header.height + 1,
+            "{name} must continue the previous fixture"
+        );
+        all.extend(part);
+    }
+    assert_eq!(all.last().unwrap().0.header.height, 1_310);
+    all
+}
+
+fn first_failure(blocks: &[(Block, String)], node: &mut BoingNode) -> Option<u64> {
+    replay(node, blocks).err().map(|(h, _)| h)
+}
+
+/// Pins the testnet preset values (consensus: never change once a network runs them).
+#[test]
+fn testnet_preset_carries_micro_fees_and_media_blob_gates() {
+    let p = network_preset::boing_testnet_preset();
+    assert_eq!(p.history.micro_fees_from, MICRO_FEES_FROM);
+    assert_eq!(p.media_blobs_from, Some(1_200));
+    assert_eq!(p.media_blobs_phase7_cap_from, Some(1_306));
+    let fee = p.fee_policy.expect("preset carries the live fee policy");
+    assert_eq!(fee.execution_gas_fee_bps, 100);
+    assert_eq!(fee, boing_tokenomics::NetworkFeePolicy::micro_fee_default());
+    // Other networks get no preset.
+    assert!(network_preset::preset_for_chain(6914).is_none());
+}
+
+/// A fresh testnet node (preset only) replays genesis..=1310 across the micro-fee switch at 1188 with
+/// every block hash and state root matching the live chain, and reports the live fee rule.
+#[test]
+fn replay_live_chain_to_1310_with_preset_only() {
+    std::env::set_var("BOING_CHAIN_ID", "6913");
+    let blocks = load_chain_to_1310();
+    let mut node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    replay(&mut node, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    assert_eq!(node.chain.height(), 1_310);
+    assert_eq!(node.chain.latest_hash(), blocks.last().unwrap().0.hash());
+    assert_eq!(
+        node.executor
+            .fee_rule_at(MICRO_FEES_FROM - 1)
+            .0
+            .execution_gas_fee_bps,
+        10_000
+    );
+    assert_eq!(
+        node.executor
+            .fee_rule_at(MICRO_FEES_FROM)
+            .0
+            .execution_gas_fee_bps,
+        100
+    );
+    assert_eq!(node.executor.vm().media_blobs_from(), Some(1_200));
+    assert_eq!(node.media_blobs_phase7_cap_activation_height(), Some(1_306));
+}
+
+/// Explicitly configuring exactly what the live Fly node runs (env/CLI heights, the fee policy file)
+/// on top of the preset changes nothing: no double application, same roots.
+#[test]
+fn explicit_live_settings_on_top_of_the_preset_replay_identically() {
+    std::env::set_var("BOING_CHAIN_ID", "6913");
+    let blocks = load_chain_to_1310();
+    let mut preset = network_preset::boing_testnet_preset();
+    network_preset::resolve_micro_fees_from(Some(MICRO_FEES_FROM), &mut preset.history).unwrap();
+    let mut node = BoingNode::with_validators(
+        vec![BOING_TESTNET_GENESIS_ACCOUNT],
+        BOING_TESTNET_GENESIS_ACCOUNT,
+        None,
+    );
+    network_preset::apply_preset(&mut node, &preset);
+    // What main() does after the preset: env/CLI heights, then --network-fee-config.
+    node.enable_media_blobs(1_200);
+    node.enable_media_blobs_phase7_cap(1_306);
+    node.set_fee_policy(boing_tokenomics::NetworkFeePolicy::micro_fee_default());
+    let mut open = boing_state::OpenValidatorParams::default();
+    open.activation_height = TESTNET_OPEN_ACTIVATION;
+    open.anchors = vec![BOING_TESTNET_GENESIS_ACCOUNT];
+    node.enable_open_validator_set(open);
+    node.enable_name_registry(boing_state::NameRegistryParams {
+        activation_height: TESTNET_NAME_ACTIVATION,
+        ..Default::default()
+    });
+    replay(&mut node, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    assert_eq!(node.chain.latest_hash(), blocks.last().unwrap().0.hash());
+}
+
+/// Block 1188 needs the micro-fee height *and* the 100 bps policy. Dropping either, or moving the
+/// height by one, breaks the replay at exactly the expected block (documents the regression).
+#[test]
+fn micro_fee_switch_needs_both_height_and_policy() {
+    std::env::set_var("BOING_CHAIN_ID", "6913");
+    let blocks = load_chain_to_1310();
+    let upto_1190: Vec<_> = blocks[..=1_190].to_vec();
+
+    // Height only (policy left at the 10_000 bps default): the reported failure at 1188.
+    let mut node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    node.set_fee_policy(boing_tokenomics::NetworkFeePolicy::treasury_default());
+    assert_eq!(first_failure(&upto_1190, &mut node), Some(MICRO_FEES_FROM));
+
+    // Policy only (height never): same block fails.
+    let mut node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    node.executor.set_execution_history(Some({
+        let mut h = network_preset::boing_testnet_history();
+        h.micro_fees_from = u64::MAX;
+        h
+    }));
+    assert_eq!(first_failure(&upto_1190, &mut node), Some(MICRO_FEES_FROM));
+
+    // One block early fails one block early; one late fails at 1188.
+    for (from, fails_at) in [
+        (MICRO_FEES_FROM - 1, MICRO_FEES_FROM - 1),
+        (MICRO_FEES_FROM + 1, MICRO_FEES_FROM),
+    ] {
+        let mut node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+        let mut h = network_preset::boing_testnet_history();
+        h.micro_fees_from = from;
+        node.executor.set_execution_history(Some(h));
+        assert_eq!(
+            first_failure(&upto_1190, &mut node),
+            Some(fails_at),
+            "micro_fees_from={from}"
+        );
+    }
+}
+
+/// A node's own fee policy (a persisted `network_fee_config.json`, as the live node has) is never
+/// replaced by the preset default; a node with none gets the preset policy in memory only.
+#[test]
+fn preset_fee_policy_is_a_default_not_an_override() {
+    let dir = std::env::temp_dir().join(format!(
+        "boing-preset-fee-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let preset = network_preset::boing_testnet_preset();
+    let mut custom = boing_tokenomics::NetworkFeePolicy::treasury_default();
+    custom.execution_gas_fee_bps = 5_000;
+
+    // No persisted policy: preset default applies and nothing is written.
+    let mut fresh = BoingNode::with_data_dir_and_validators(
+        Some(&dir),
+        vec![BOING_TESTNET_GENESIS_ACCOUNT],
+        BOING_TESTNET_GENESIS_ACCOUNT,
+        None,
+    )
+    .unwrap();
+    network_preset::apply_preset(&mut fresh, &preset);
+    assert_eq!(fresh.executor.fee_policy().execution_gas_fee_bps, 100);
+    assert!(
+        !dir.join("network_fee_config.json").exists(),
+        "preset default must not be persisted"
+    );
+
+    // Persisted policy (operator RPC / --network-fee-config): kept across a restart.
+    fresh.set_fee_policy(custom.clone());
+    drop(fresh);
+    let mut restarted = BoingNode::with_data_dir_and_validators(
+        Some(&dir),
+        vec![BOING_TESTNET_GENESIS_ACCOUNT],
+        BOING_TESTNET_GENESIS_ACCOUNT,
+        None,
+    )
+    .unwrap();
+    network_preset::apply_preset(&mut restarted, &preset);
+    assert_eq!(restarted.executor.fee_policy(), &custom);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Replays a complete dump of the live chain (every block `boing_getBlockByHeight(h, true)`, one per
+/// line, genesis..=tip) with the preset only. Skipped unless `BOING_REPLAY_FULL_CHAIN` names the dump;
+/// blocks 1311..=1317 are huge `PutBlob` blocks, so the dump is ~750 MB and cannot be committed.
+#[test]
+fn replay_full_live_chain_to_the_tip() {
+    let Ok(path) = std::env::var("BOING_REPLAY_FULL_CHAIN") else {
+        eprintln!("BOING_REPLAY_FULL_CHAIN not set; skipping full-chain replay");
+        return;
+    };
+    std::env::set_var("BOING_CHAIN_ID", "6913");
+    let blocks = load_blocks_from(std::path::Path::new(&path));
+    let tip = blocks.last().unwrap().0.header.height;
+    let mut node = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    replay(&mut node, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    assert_eq!(node.chain.height(), tip);
+    assert_eq!(node.chain.latest_hash(), blocks.last().unwrap().0.hash());
+    println!("full-chain replay OK to tip {tip}");
 }

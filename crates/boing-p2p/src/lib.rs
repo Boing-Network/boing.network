@@ -9,7 +9,7 @@ mod node;
 pub mod redial;
 mod webrtc;
 
-pub use block_sync::{BlockRequest, BlockResponse};
+pub use block_sync::{BlockRequest, BlockResponse, BlockSyncLimits};
 pub use boing_primitives::{
     Block, ConsensusVote, EquivocationEvidence, SignedTransaction, Transaction, VrfProofGossip,
 };

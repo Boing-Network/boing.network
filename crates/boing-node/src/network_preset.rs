@@ -47,6 +47,18 @@ pub const BOING_TESTNET_BASE_UNITS_FROM: u64 = 1_050;
 /// `SELFBALANCE` / `BALANCE` and pay out with `NATIVE_TRANSFER`. Chosen ~80 blocks above the tip at
 /// deploy time (~1067; blocks are produced on demand). Validators must run testnet-v0.1.18 before it.
 pub const BOING_TESTNET_NATIVE_VALUE_FROM: u64 = 1_150;
+/// Testnet height from which the reduced (micro) `execution_gas_fee_bps` is honored. Block 1188 (a
+/// 20 BOING faucet transfer, 2026-10-21) is the first block executed under the micro-fee rule, so a
+/// node replaying from genesis must switch exactly here and use [`BOING_TESTNET_EXECUTION_GAS_FEE_BPS`]
+/// (the policy the live network runs). Setting only the height, or only the policy, replays wrong roots.
+pub const BOING_TESTNET_MICRO_FEES_FROM: u64 = 1_188;
+/// `execution_gas_fee_bps` of the live testnet fee policy (`NetworkFeePolicy::micro_fee_default()`;
+/// 100 bps = 1% of the full gas schedule), in force from [`BOING_TESTNET_MICRO_FEES_FROM`].
+pub const BOING_TESTNET_EXECUTION_GAS_FEE_BPS: u16 = 100;
+/// Testnet activation height of media blobs (`PutBlob` / `BlobAnnounce`); consensus, never change.
+pub const BOING_TESTNET_MEDIA_BLOBS_FROM: u64 = 1_200;
+/// Testnet activation height of the Phase 7 raised blob size cap; consensus, never change.
+pub const BOING_TESTNET_MEDIA_BLOBS_PHASE7_CAP_FROM: u64 = 1_306;
 
 /// Genesis block proposer plus the accounts funded at height 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -63,6 +75,16 @@ pub struct NetworkPreset {
     pub anchors: Vec<AccountId>,
     pub genesis: GenesisSpec,
     pub history: ExecutionHistory,
+    /// Fee policy the network runs after its fee eras, used when the node has no policy of its own
+    /// (no persisted `network_fee_config.json`, no `--network-fee-config`). It is applied in memory
+    /// only, never persisted, so a later release can correct it. `None` = keep the node default.
+    pub fee_policy: Option<NetworkFeePolicy>,
+    /// Media blobs activation height (consensus). `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` / the CLI flag
+    /// override it.
+    pub media_blobs_from: Option<u64>,
+    /// Phase 7 raised-cap activation height (consensus). `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`
+    /// / the CLI flag override it.
+    pub media_blobs_phase7_cap_from: Option<u64>,
 }
 
 /// Historical execution eras of the public testnet, found by replaying every committed block
@@ -90,11 +112,10 @@ pub fn boing_testnet_history() -> ExecutionHistory {
         security_v4_from: BOING_TESTNET_SECURITY_V4_FROM,
         base_units_from: BOING_TESTNET_BASE_UNITS_FROM,
         native_value_from: BOING_TESTNET_NATIVE_VALUE_FROM,
-        // Honor reduced execution_gas_fee_bps only after operators opt in via env/CLI
-        // (`BOING_MICRO_FEES_ACTIVATION_HEIGHT`); until then keep full historical gas for replay.
-        // `u64::MAX` = never via history alone (policy BPS ignored for reduction until env sets a height,
-        // or a future preset pins a concrete height). Overridden by env when set.
-        micro_fees_from: u64::MAX,
+        // Reduced execution_gas_fee_bps is honored from block 1188, the first block the live testnet
+        // executed with the micro fee (policy in `boing_testnet_fee_policy`). Below it full historical
+        // gas applies, so replay stays exact. `BOING_MICRO_FEES_ACTIVATION_HEIGHT` / the CLI override it.
+        micro_fees_from: BOING_TESTNET_MICRO_FEES_FROM,
     }
 }
 
@@ -209,12 +230,25 @@ pub fn boing_testnet_genesis() -> GenesisSpec {
     }
 }
 
+/// Fee policy of the live testnet after the fee eras: treasury-first split with the micro execution
+/// fee ([`BOING_TESTNET_EXECUTION_GAS_FEE_BPS`]). Only takes effect from
+/// [`BOING_TESTNET_MICRO_FEES_FROM`]; below that height gas is charged in full.
+pub fn boing_testnet_fee_policy() -> NetworkFeePolicy {
+    NetworkFeePolicy {
+        execution_gas_fee_bps: BOING_TESTNET_EXECUTION_GAS_FEE_BPS,
+        ..NetworkFeePolicy::treasury_default()
+    }
+}
+
 pub fn boing_testnet_preset() -> NetworkPreset {
     NetworkPreset {
         chain_id: BOING_TESTNET_CHAIN_ID,
         anchors: vec![BOING_TESTNET_GENESIS_ACCOUNT],
         genesis: boing_testnet_genesis(),
         history: boing_testnet_history(),
+        fee_policy: Some(boing_testnet_fee_policy()),
+        media_blobs_from: Some(BOING_TESTNET_MEDIA_BLOBS_FROM),
+        media_blobs_phase7_cap_from: Some(BOING_TESTNET_MEDIA_BLOBS_PHASE7_CAP_FROM),
     }
 }
 
@@ -240,7 +274,7 @@ pub fn preset_from_env() -> Option<NetworkPreset> {
 }
 
 /// Resolve micro-fee activation height: CLI, else `BOING_MICRO_FEES_ACTIVATION_HEIGHT`, else keep
-/// the history preset value (`u64::MAX` on public testnet until operators opt in).
+/// the history preset value (testnet: [`BOING_TESTNET_MICRO_FEES_FROM`]).
 pub fn resolve_micro_fees_from(
     cli: Option<u64>,
     history: &mut boing_execution::ExecutionHistory,
@@ -269,10 +303,24 @@ pub fn resolve_micro_fees_from(
 /// Apply a preset to a freshly constructed node: installs the historical execution eras and, if the
 /// node is still at height 0, the network genesis (block 0 + allocations). Never touches a node that
 /// already has blocks beyond genesis except for the (replay-only) execution eras.
+///
+/// The preset's fee policy and media-blob activation heights are *defaults*: the fee policy is skipped
+/// when the node already has its own (persisted `network_fee_config.json`; `--network-fee-config` is
+/// applied after this call), and the activation heights are re-applied by the caller from
+/// `BOING_MEDIA_BLOBS_*` / CLI when those are set, so explicit settings always win.
 /// Returns true when the genesis was (re)written.
 pub fn apply_preset(node: &mut BoingNode, preset: &NetworkPreset) -> bool {
     node.executor
         .set_execution_history(Some(preset.history.clone()));
+    if let Some(policy) = &preset.fee_policy {
+        node.apply_default_fee_policy(policy.clone());
+    }
+    if let Some(h) = preset.media_blobs_from {
+        node.enable_media_blobs(h);
+    }
+    if let Some(h) = preset.media_blobs_phase7_cap_from {
+        node.enable_media_blobs_phase7_cap(h);
+    }
     node.apply_genesis_spec(&preset.genesis)
 }
 
