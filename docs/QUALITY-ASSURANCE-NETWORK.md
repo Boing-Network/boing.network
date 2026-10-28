@@ -85,7 +85,7 @@ QA must confirm **both** of the following before any deployment is approved:
 | Pillar | What it means | How it's enforced |
 |--------|----------------|--------------------|
 | **Specs of the asset** | Technical compliance: bytecode size, allowed opcodes, well-formedness, interfaces, metadata, and any asset-type-specific standards (e.g. token supply, decimals, NFT metadata schema). | Automated checks: deterministic rules run at submit and execution. Fail → reject. Unclear → pool. |
-| **Purpose / legitimacy** | There must be a **reason** for deploying that meets network standards. **No scams whatsoever.** The deployment must declare or demonstrate a legitimate use (e.g. dApp, token, NFT collection, tooling)—and must not match known scam patterns (fake tokens, phishing, rug-pull patterns, etc.). | Automated checks where possible: required purpose declaration or category, blocklist of known scam patterns, heuristics for obvious abuse. When automation cannot determine legitimacy (e.g. novel or borderline case), the asset **falls into the QA community pool** for a decentralized allow/reject decision. |
+| **Purpose / legitimacy** | There must be a **reason** for deploying that meets network standards. The deployment must declare or demonstrate a legitimate use (e.g. dApp, token, NFT collection, tooling)—and must not match known scam patterns (fake tokens, phishing, rug-pull patterns, etc.). | Automated checks where possible: required purpose declaration or category, blocklist of known scam patterns, heuristics for obvious abuse. When automation cannot determine legitimacy (e.g. novel or borderline case), the asset **falls into the QA community pool** for a decentralized allow/reject decision. |
 
 **Operationalizing "purpose" in an automated, decentralized way:**
 
@@ -152,7 +152,7 @@ These are the **attributes and rules** that deployments must satisfy. They are t
 - **NFT reference calldata** (off-chain convention): see [`BOING-REFERENCE-NFT.md`](BOING-REFERENCE-NFT.md) — `owner_of`, `transfer_nft`, `set_metadata_hash`, and template-v3 **`mint_batch`** (n≤500). Default QA is opcode/size/well-formedness; **Allow or Unsure** is expected. There is no default pin-hash allowlist of official NFT bytecode.
 - **Naming / metadata**: optional checks (e.g. content policy on `asset_name` / `asset_symbol` in `ContractDeployWithPurposeAndMetadata`) apply when those fields are present; NFT URI schemas remain off-chain unless governance adds rules.
 
-### 5.3 Purpose and legitimacy (no scams)
+### 5.3 Purpose and legitimacy
 
 - **Required declaration:** Purpose category and/or description (or hash) as part of deploy payload or metadata; missing or invalid → reject or unsure.
 - **Valid purpose categories** include dApp, token, NFT, **meme**, **community**, **entertainment**, tooling, and other governance-defined categories. Meme and community/entertainment are explicit valid use cases; lack of a "solid" or traditional use-case is not grounds for reject or Unsure (see §10).

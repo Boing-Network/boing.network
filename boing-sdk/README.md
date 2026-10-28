@@ -21,7 +21,7 @@ flowchart LR
 npm install @boing-network/boing-sdk
 ```
 
-Current registry latest: **`0.5.24`**. Package page: [npmjs.com/package/@boing-network/boing-sdk](https://www.npmjs.com/package/@boing-network/boing-sdk). Do **not** install unscoped [`boing-sdk`](https://www.npmjs.com/package/boing-sdk) — that name is abandoned/locked and is not updated by this repo.
+Current registry latest: see the npm package page (this repo's `package.json` is **`0.5.38`**). Package page: [npmjs.com/package/@boing-network/boing-sdk](https://www.npmjs.com/package/@boing-network/boing-sdk). Do **not** install unscoped [`boing-sdk`](https://www.npmjs.com/package/boing-sdk) — that name is abandoned/locked and is not updated by this repo.
 
 **Monorepo / contributors** (this directory):
 
@@ -42,13 +42,13 @@ When you change SDK **source** (`src/`), run `npm run build` in `boing-sdk` and 
 
 Package name on the registry: **`@boing-network/boing-sdk`** (scoped). Unscoped `boing-sdk` remains abandoned/locked and is **not** published from this workflow.
 
-Scoped publish is live (`latest` = **0.5.24**). Routine releases use the **Publish boing-sdk** GitHub Action (`.github/workflows/boing-sdk-publish.yml`) on tags `boing-sdk/v*` with repository secret **`NPM_TOKEN`** (npm Automation or granular publish token for org **`boing-network`**, with bypass-2FA / Automation so CI does not need interactive OTP).
+Scoped publish is live. Routine releases use the **Publish boing-sdk** GitHub Action (`.github/workflows/boing-sdk-publish.yml`) on tags `boing-sdk/v*` with repository secret **`NPM_TOKEN`** (npm Automation or granular publish token for org **`boing-network`**, with bypass-2FA / Automation so CI does not need interactive OTP).
 
 **Each release** (after `package.json` version + `CHANGELOG` + committed `dist/` are on `main`):
 
 ```bash
 git checkout main && git pull origin main
-node -p "require('./boing-sdk/package.json').version"   # e.g. 0.5.24
+node -p "require('./boing-sdk/package.json').version"   # e.g. 0.5.38
 git tag -a "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")" -m "@boing-network/boing-sdk $(node -p "require('./boing-sdk/package.json').version")"
 git push origin "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")"
 ```

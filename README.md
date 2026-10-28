@@ -15,9 +15,9 @@ Boing is an independent Layer 1 where quality is enforced by the protocol. A dec
 ```mermaid
 flowchart LR
   You[You] --> Q{What do you want?}
-  Q -->|Hold / send BOING| Wallet[👛 boing.express]
-  Q -->|Look up a block or account| Explorer[🔭 boing.observer]
-  Q -->|Swap / deploy tokens| Finance[💱 boing.finance]
+  Q -->|Hold / send BOING| Wallet[👛 Boing Express]
+  Q -->|Look up a block or account| Explorer[🔭 Boing Observer]
+  Q -->|Swap / deploy tokens| Finance[💱 Boing Finance]
   Q -->|Build a dApp or node| Docs[📚 docs/]
   Wallet --> Rpc[📡 testnet-rpc.boing.network]
   Explorer --> Rpc
@@ -68,7 +68,9 @@ Set **`BOING_CHAIN_ID`** and **`BOING_CHAIN_NAME`** so `boing_getNetworkInfo` an
 
 Browser dApps need CORS: extra origins via **`BOING_RPC_CORS_EXTRA_ORIGINS`**. **`GET /ws`** supports a **newHeads** WebSocket (handshake in `boing_getNetworkInfo.developer`). Machine-readable API: `boing_getRpcMethodCatalog` and `boing_getRpcOpenApi`.
 
-Ops probes on the same port: **`GET /live`**, **`GET /ready`**, JSON-RPC batch on **`POST /`**, optional **`X-Request-Id`**. See the root README historically packed these details — they now live with the rest of the RPC surface in the spec.
+Ops probes on the same port: **`GET /live`**, **`GET /ready`**, JSON-RPC batch on **`POST /`**, optional **`X-Request-Id`**. Details live with the rest of the RPC surface in [docs/RPC-API-SPEC.md](docs/RPC-API-SPEC.md).
+
+**Operator RPC is fail-closed.** Operator-only methods (fee/QA policy, slash appeals, BLS key registration, blob sample offers, admin-only QA votes) are rejected with `-32057` unless the node has `BOING_OPERATOR_RPC_TOKEN` set and the request sends a matching `X-Boing-Operator` header. On mainnet (chain id 6914) the node refuses to start without the token or with `--faucet-enable`. See [docs/ENVIRONMENT-VARIABLES.md](docs/ENVIRONMENT-VARIABLES.md) and [docs/RUNBOOK.md](docs/RUNBOOK.md).
 
 Hosted bootnode:
 
@@ -91,7 +93,7 @@ Details: [docs/FLY-IO.md](docs/FLY-IO.md), [docs/VIBEMINER-INTEGRATION.md](docs/
 | `boing-governance` | Governance types and helpers used by the protocol stack |
 | `boing-telemetry` | Structured logging and RPC telemetry helpers |
 | `boing-qa` | Protocol QA: Allow/Reject/Unsure checks for deployment ([QUALITY-ASSURANCE-NETWORK.md](docs/QUALITY-ASSURANCE-NETWORK.md)) |
-| `boing-cli` | `boing init`, `boing dev`, `boing deploy`, `boing token` (deploy / mint / transfer / balance), `boing metrics register`, `boing qa apply` |
+| `boing-cli` | `boing init`, `dev`, `deploy`, `token`, `pool`, `validator`, `name`, `iface`, `metrics register`, `qa apply`, `completions` (run `boing --help` for the full list) |
 | `boing-p2p` | libp2p networking |
 | `boing-node` | Node binary |
 

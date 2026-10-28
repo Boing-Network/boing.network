@@ -7,8 +7,8 @@
 
 This document is for **protocol and VM engineers** shipping **factory / router / locker**-style DeFi on Boing L1. It complements **boing.finance** docs:
 
-- [boing-l1-vs-evm-dex.md](https://github.com/Boing-Network/boing.finance/blob/main/docs/boing-l1-vs-evm-dex.md) (conceptual)
-- [boing-l1-dex-roadmap.md](https://github.com/Boing-Network/boing.finance/blob/main/docs/boing-l1-dex-roadmap.md) (milestones)
+- [native-dex.md](https://github.com/Boing-Network/boing.finance/blob/main/docs/native-dex.md) (Boing L1 vs EVM DEX, roadmap, indexer)
+- [native-dex-discovery.md](https://github.com/Boing-Network/boing.finance/blob/main/docs/native-dex-discovery.md) (L1 list RPCs and operator handoff)
 
 ## Facts about L1 today
 

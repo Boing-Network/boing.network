@@ -858,14 +858,14 @@ export class BoingClient {
         return this.request('boing_reverifySlashAppealBallots', [filters]);
     }
     /**
-     * Submit a slash appeal. Requires operator header when the node sets `BOING_OPERATOR_RPC_TOKEN`.
+     * Submit a slash appeal. Requires the operator header (`X-Boing-Operator`); the node rejects with `-32057` when `BOING_OPERATOR_RPC_TOKEN` is unset or does not match.
      * `evidenceHex` is optional hex (with or without `0x`); empty string = empty evidence.
      */
     async submitSlashAppeal(slashId, evidenceHex = '') {
         return this.request('boing_submitSlashAppeal', [slashId, evidenceHex]);
     }
     /**
-     * Resolve a pending slash appeal. Requires operator header when the node sets `BOING_OPERATOR_RPC_TOKEN`.
+     * Resolve a pending slash appeal. Requires the operator header (`X-Boing-Operator`); the node rejects with `-32057` when `BOING_OPERATOR_RPC_TOKEN` is unset or does not match.
      * Approved appeals restore burned stake from the fee burn sink.
      */
     async resolveSlashAppeal(appealId, approved) {
@@ -894,7 +894,7 @@ export class BoingClient {
     /**
      * Apply QA registry and pool governance config on the node (operator RPC).
      * Params are full JSON documents as strings (same format as `qa_registry.json` / `qa_pool_config.json`).
-     * Requires `X-Boing-Operator` when the node has `BOING_OPERATOR_RPC_TOKEN` set.
+     * Requires `X-Boing-Operator` matching the node's `BOING_OPERATOR_RPC_TOKEN` (rejected with `-32057` when the token is unset).
      */
     async operatorApplyQaPolicy(registryJson, qaPoolConfigJson) {
         return this.request('boing_operatorApplyQaPolicy', [registryJson, qaPoolConfigJson]);

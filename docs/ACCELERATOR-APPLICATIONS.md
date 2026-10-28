@@ -1,5 +1,7 @@
 # Accelerator Applications — Beacon & Outlier Ventures (OV)
 
+> **Dated draft (reviewed 2026-10-27).** Pitch/application copy written before the 2026 rebrand; it is kept for reference and may lag current positioning. Boing is on a **public testnet. Mainnet is not live, and independent audits are not complete.** Approved wording lives in [../BRAND.md](../BRAND.md).
+
 > 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
 > 🛠️ **Developers:** keep this aligned with shipped code.
 > 🛰️ **Operators:** treat the sections below as the working spec for this topic.
@@ -24,7 +26,7 @@
 
 ### Elevator pitch (75 words or less)
 
-Boing Network is an authentic L1 blockchain built from first principles with protocol-enforced quality assurance. We are the first chain where only deployments meeting defined security and compliance rules are accepted on-chain—reducing scams, congestion, and low-value spam. Combined with native account abstraction, adaptive gas, and 100% transparent tokenomics, we are building infrastructure for a sustainable, scam-resistant DeFi ecosystem. Testnet live; SDK and CLI ready.
+Boing Network is an independent L1 built from first principles with protocol-enforced quality assurance: Boing introduces protocol-level deployment checks designed to identify and restrict deployments that fail transparent quality criteria before they are accepted on-chain. Combined with native account abstraction, adaptive gas, and transparent, published tokenomics, we are building infrastructure for a sustainable DeFi ecosystem. Public testnet live (mainnet not live); SDK and CLI ready.
 
 ### Problem (200 words max)
 
@@ -32,15 +34,15 @@ Most L1 blockchains allow any bytecode to be deployed. Users and protocols bear 
 
 ### Solution (200 words max)
 
-Boing introduces protocol-enforced quality assurance: the first L1 where only deployments meeting defined rules (bytecode checks, security heuristics, purpose declaration) are accepted. This reduces network congestion by keeping mempools and blocks focused on legitimate, high-quality transactions instead of spam. Automation handles known cases; a community QA pool handles edge cases, with leniency for meme culture and zero tolerance for malice. We combine QA with native account abstraction (gasless UX, social recovery, session keys at the protocol level), an adaptive gas model (dynamic pricing with predictable caps), and cross-chain DeFi coordination via light clients and boing.finance. Phased governance uses time-locked proposals—no surprise upgrades. Tokenomics are sustainable: uncapped supply with floor-triggered waves and no reward cliffs. The core protocol (consensus, execution, state, P2P) is implemented in Rust; developer tools include `boing init`, `boing dev`, `boing deploy`, and a TypeScript SDK. Testnet is live with bootnodes and faucet.
+Boing introduces protocol-enforced quality assurance: deployments are checked against defined rules (bytecode checks, security heuristics, purpose declaration) before they are accepted. This reduces network congestion by keeping mempools and blocks focused on legitimate, high-quality transactions instead of spam. Automation handles known cases; a community QA pool handles edge cases, with leniency for meme culture and a safety-first default for malicious deployments. We combine QA with native account abstraction (gasless UX, social recovery, session keys at the protocol level), an adaptive gas model (dynamic pricing with predictable caps), and cross-chain DeFi coordination via light clients and boing.finance. Phased governance uses time-locked proposals—no surprise upgrades. Tokenomics are sustainable: uncapped supply with floor-triggered waves and no reward cliffs. The core protocol (consensus, execution, state, P2P) is implemented in Rust; developer tools include `boing init`, `boing dev`, `boing deploy`, and a TypeScript SDK. The public testnet is live with bootnodes and faucet (mainnet is not live).
 
 ### Competition & advantage (200 words max)
 
-Existing L1s generally permit any bytecode deployment. Quality assurance, when it exists, is application- or contract-layer—not protocol-enforced. No major L1 today filters deployments at consensus or execution layers. Boing’s advantage is protocol QA: only assets meeting defined rules reach the chain. This is not a dApp feature; it is infrastructure. We reduce congestion and scam risk at the source. No other L1 enforces deployment standards at the protocol layer. We add 100% transparency (open specs, auditable tokenomics), a custom stack (Rust, HotStuff BFT, libp2p), and sustainable tokenomics (floor-triggered waves, no cliffs). We are independent of other chains—our own architecture, not a fork. Ecosystem integration via boing.finance provides cross-chain DeFi coordination. Developer tooling (CLI, SDK) and success-based dApp incentives are built in. We are uniquely positioned to serve users and protocols seeking a scam-resistant, congestion-aware L1.
+Existing L1s generally permit any bytecode deployment. Quality assurance, when it exists, is usually application- or contract-layer rather than protocol-enforced. Boing’s approach is protocol QA: deployments that fail transparent quality criteria are restricted before they are accepted on-chain. This is not a dApp feature; it is infrastructure, designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks. We add transparency by default (open specs, published tokenomics), a custom stack (Rust, HotStuff BFT, libp2p), and sustainable tokenomics (floor-triggered waves, no cliffs). We are independent of other chains—our own architecture, not a fork. Ecosystem integration via boing.finance provides cross-chain DeFi coordination. Developer tooling (CLI, SDK) and success-based dApp incentives are built in. We aim to serve users and protocols seeking an L1 with transparent, protocol-level quality checks.
 
 ### Target market & size (200 words max)
 
-**Primary:** DeFi users, protocols, and validators seeking a scam-resistant L1 with transparent governance and sustainable incentives. **Secondary:** Developers building on a quality-assured chain. **Market size:** Global DeFi TVL exceeds $50B across hundreds of chains. Millions of users and thousands of protocols face scam and congestion risk daily. We target early adopters: security-conscious protocols, validators tired of opaque ecosystems, and users burned by scams. Long-term, we aim for DeFi protocols that require compliance or quality standards. TAM includes the intersection of DeFi, quality-conscious institutions, and cross-chain liquidity—a growing segment as regulation and user expectations evolve.
+**Primary:** DeFi users, protocols, and validators seeking an L1 with protocol-level deployment checks, transparent governance and sustainable incentives. **Secondary:** Developers building on a quality-assured chain. **Market size:** Global DeFi TVL exceeds $50B across hundreds of chains. Millions of users and thousands of protocols face scam and congestion risk. We target early adopters: security-conscious protocols, validators tired of opaque ecosystems, and users burned by scams. Long-term, we aim for DeFi protocols that require compliance or quality standards. TAM includes the intersection of DeFi, quality-conscious institutions, and cross-chain liquidity—a growing segment as regulation and user expectations evolve.
 
 ### Go-to-market (200 words max)
 
@@ -92,7 +94,7 @@ The core protocol is written and maintained by the founding team. Full codebase:
 **[YOU FILL]** — Founder/team backgrounds, technical expertise (blockchain, Rust, distributed systems), prior projects, why this team can ship and scale Boing.
 
 **Why you care (200 words max):**  
-**[YOU FILL]** — Founder motivation: personal experience with scams/congestion/trust in DeFi, vision for scam-resistant transparent ecosystem, commitment to sustainability and community.
+**[YOU FILL]** — Founder motivation: personal experience with scams/congestion/trust in DeFi, vision for a transparent ecosystem with protocol-level quality checks, commitment to sustainability and community.
 
 **What you hope to gain (3 months):**  
 **[YOU FILL]** — e.g. mentorship on go-to-market and tokenomics, technical support/audits, validator and ecosystem introductions, help with legal/fundraising/product.
@@ -147,23 +149,23 @@ Use these for application forms that ask for project basics, blurb, traction, an
 | **Project Name** | Boing Network |
 | **Project Website** | https://boing.network |
 | **Link to the deck** | https://boing.network/investors/ |
-| **One-liner** | The first L1 where only quality deployments are allowed on-chain—reducing scams, congestion, and spam at the protocol layer. |
+| **One-liner** | Boing Network — Quality, enforced by the protocol. |
 | **Your title/role** | Founder / Developer |
 | **Industry** | Web3+AI, DeFi, Infrastructure |
 
 ### One-liner (alternative, shorter)
 
-**Option A (current):** The first L1 where only quality deployments are allowed on-chain—reducing scams, congestion, and spam at the protocol layer.
+**Option A (current):** Boing Network — Quality, enforced by the protocol.
 
-**Option B (shorter):** The first L1 with protocol-enforced quality assurance—only rule-compliant deployments allowed on-chain.
+**Option B (shorter):** An independent L1 with protocol-enforced quality assurance.
 
-**Option C (outcome-focused):** An L1 built from first principles where only quality assets reach the chain; scam-resistant DeFi infrastructure with 100% transparent tokenomics.
+**Option C (outcome-focused):** An L1 built from first principles with transparent, protocol-level deployment checks and published tokenomics.
 
 ---
 
 ### Complete project blurb
 
-Boing Network is an authentic L1 blockchain built from first principles with **protocol-enforced quality assurance**: the first chain where only deployments meeting defined security and compliance rules are accepted on-chain. This reduces scams, congestion, and low-value spam at the source—not via app-level filters but at the protocol layer. We combine this with native account abstraction, adaptive gas, 100% transparent tokenomics, and cross-chain DeFi coordination (boing.finance). The stack is implemented in Rust (consensus: HotStuff BFT; execution: custom VM; networking: libp2p). Developer tools include the CLI (`boing init`, `boing dev`, `boing deploy`) and a TypeScript SDK. Testnet is live with bootnodes, faucet, and public RPC; explorer (boing.observer) and wallet (boing.express) are available. We are building infrastructure for a sustainable, scam-resistant DeFi ecosystem.
+Boing Network is an independent L1 built from first principles with **protocol-enforced quality assurance**: Boing introduces protocol-level deployment checks designed to identify and restrict deployments that fail transparent quality criteria before they are accepted on-chain. These checks run at the protocol layer rather than as app-level filters, designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks. We combine this with native account abstraction, adaptive gas, published tokenomics, and cross-chain DeFi coordination (boing.finance). The stack is implemented in Rust (consensus: HotStuff BFT; execution: custom VM; networking: libp2p). Developer tools include the CLI (`boing init`, `boing dev`, `boing deploy`) and a TypeScript SDK. The public testnet is live with bootnodes, faucet, and public RPC (mainnet is not live); explorer (boing.observer) and wallet (boing.express) are available. We are building infrastructure for a sustainable DeFi ecosystem.
 
 ---
 

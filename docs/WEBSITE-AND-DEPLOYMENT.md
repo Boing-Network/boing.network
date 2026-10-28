@@ -15,13 +15,13 @@
 
 ### Design theme: Outerspace-Oceanic
 
-All official Boing websites and applications use the **outerspace-oceanic** theme to match the [Boing Network promotional launch video](https://youtu.be/sSP6wsugauo) and Marketing Asset Package.
+All official Boing websites and applications share one visual system defined in [BRAND.md](../BRAND.md) and [BOING-DESIGN-SYSTEM.md](BOING-DESIGN-SYSTEM.md): a deep-navy foundation with a single electric-blue accent. (The earlier "outerspace-oceanic" teal/cyan theme is historical.)
 
-- **Look & feel:** Deep ocean / cosmic depth; bioluminescent teal and electric blue; friendly, futuristic.
-- **Colors:** Primary `#00E5CC` (Teal/Cyan), Secondary `#00B4FF` (Electric Blue), Dark background `#0A0E1A` (Deep Navy).
-- **Typography:** Comfortaa (sans), JetBrains Mono (code).
-- **Motifs:** Hexagonal grid (network/circuit), circuit-style lines, neon glow, floating orbs, bubbles, shooting stars; robot mascot in brand assets.
-- **Implementation:** `website/src/styles/boing-theme.css`, `website/src/components/EnhancedAnimatedBackground.astro`. Use the same theme and environment across Boing products for a consistent brand experience.
+- **Look & feel:** Deep navy, restrained glow, friendly and futuristic; status shown honestly (public testnet, mainnet not live).
+- **Colors:** Page background `--boing-navy-950` `#050A1A`, surfaces `--boing-navy-900` `#0A1128`, cards `--boing-navy-800` `#101A38`, accent `--boing-accent` `#3B8CFF`.
+- **Typography:** Font stacks are set in `website/src/styles/design-tokens-cosmic.css` (currently Comfortaa).
+- **Motifs:** Engraved stone slab with vein SVG, shooting stars and mascot in brand assets.
+- **Implementation:** `website/src/styles/design-tokens-cosmic.css`, `website/src/styles/boing-theme.css`, `website/src/components/StoneEngravingOverlay.astro`. Use the same tokens across Boing products.
 
 ### Site structure
 

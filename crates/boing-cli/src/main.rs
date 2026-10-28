@@ -590,7 +590,7 @@ enum ValidatorCommands {
 
 #[derive(Subcommand)]
 enum QaCommands {
-    /// Push `qa_registry.json` and `qa_pool_config.json` via RPC (requires X-Boing-Operator when the node sets BOING_OPERATOR_RPC_TOKEN)
+    /// Push `qa_registry.json` and `qa_pool_config.json` via RPC (operator-only: the node rejects it unless BOING_OPERATOR_RPC_TOKEN is set and X-Boing-Operator matches)
     Apply {
         /// Path to QA registry JSON
         #[arg(long)]

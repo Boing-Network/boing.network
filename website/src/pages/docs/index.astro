@@ -204,12 +204,12 @@ cargo build --release</code></pre>
             <tr><td><code>boing_qaPoolList</code></td><td><code>[]</code></td><td>Pending QA pool items.</td></tr>
             <tr><td><code>boing_qaPoolConfig</code></td><td><code>[]</code></td><td>Pool governance + depth.</td></tr>
             <tr><td><code>boing_getQaRegistry</code></td><td><code>[]</code></td><td>Effective QA rule registry.</td></tr>
-            <tr><td><code>boing_qaPoolVote</code></td><td><code>[tx_hash, voter, vote]</code></td><td>Operator header when <code>BOING_OPERATOR_RPC_TOKEN</code> set.</td></tr>
+            <tr><td><code>boing_qaPoolVote</code></td><td><code>[tx_hash, voter, vote]</code></td><td>Admin-only votes need the <code>X-Boing-Operator</code> header matching the node's <code>BOING_OPERATOR_RPC_TOKEN</code>; <code>-32057</code> if missing or unset.</td></tr>
             <tr><td><code>boing_operatorApplyQaPolicy</code></td><td><code>[registry_json, pool_json]</code></td><td>Operator-only when token set.</td></tr>
             <tr><td><code>boing_faucetRequest</code></td><td><code>[hex_account_id]</code></td><td>Only if node started with faucet enabled (testnet).</td></tr>
           </tbody>
         </table>
-        <p><strong>TypeScript client:</strong> npm package <code>@boing-network/boing-sdk</code> (<code>createClient</code>; latest <code>0.5.24</code>) implements these methods with typed results and <code>explainBoingRpcError</code> for QA / pool errors. Do not install unscoped <code>boing-sdk</code>.</p>
+        <p><strong>TypeScript client:</strong> npm package <code>@boing-network/boing-sdk</code> (<code>createClient</code>; see npm for the latest release) implements these methods with typed results and <code>explainBoingRpcError</code> for QA / pool errors. Do not install unscoped <code>boing-sdk</code>.</p>
         <h3>Error codes (selected)</h3>
         <table class="doc-table">
           <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
@@ -238,9 +238,16 @@ cargo build --release</code></pre>
             <tr><td><code>boing dev [--port 8545]</code></td><td>Start local dev chain</td></tr>
             <tr><td><code>boing deploy [path]</code></td><td>Deploy contract or config</td></tr>
             <tr><td><code>boing metrics register --contract &lt;hex&gt; --owner &lt;hex&gt;</code></td><td>Register contract for dApp incentives</td></tr>
+            <tr><td><code>boing token</code></td><td>Native fungible token: deploy, mint, transfer, balance, approve, allowance</td></tr>
+            <tr><td><code>boing pool</code></td><td>Native constant-product AMM pool: create, add/remove liquidity, swap, quote, reserves, route</td></tr>
+            <tr><td><code>boing validator</code></td><td>Open validator set: register, deregister, unjail, claim-unbond, status</td></tr>
+            <tr><td><code>boing name</code></td><td>Name registry (<code>label.boing</code>): resolve, reverse, check, claim, renew, transfer</td></tr>
+            <tr><td><code>boing iface</code></td><td>Interface registry: deploy, hash, publish and fetch contract interface JSON</td></tr>
+            <tr><td><code>boing qa apply</code></td><td>Operator-only: apply a QA registry / pool config to a node (needs the operator token)</td></tr>
             <tr><td><code>boing completions &lt;shell&gt;</code></td><td>Shell completions (bash, zsh, fish, powershell, elvish)</td></tr>
           </tbody>
         </table>
+        <p>Run <code>boing --help</code> or <code>boing &lt;command&gt; --help</code> for every subcommand and flag.</p>
         <h3>Shell completions</h3>
         <p>Example (bash): <code>boing completions bash &gt; ~/.local/share/bash-completion/completions/boing</code>. Similar for zsh, fish.</p>
         <h3>Monitoring and health</h3>

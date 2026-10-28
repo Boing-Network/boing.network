@@ -8,6 +8,8 @@ Use this document to **bootstrap**, **integrate**, and **publish** **Boing Expre
 
 **Cross-repo alignment:** [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md). **Canonical implementation:** sibling repo `boing.express`.
 
+> **Which doc is which?** This file is the **canonical integration and bootstrap spec** (method table, signing, portal, store publishing). The Boing Express repo has a file with the same name, [`docs/BOING-EXPRESS-WALLET.md`](https://github.com/Boing-Network/boing.express/blob/main/docs/BOING-EXPRESS-WALLET.md), which is the **injected-provider and RPC-forwarding reference** for what `window.boing` does in code; its connection details live in [`docs/WALLET_CONNECTION_AND_API.md`](https://github.com/Boing-Network/boing.express/blob/main/docs/WALLET_CONNECTION_AND_API.md).
+
 ```mermaid
 flowchart LR
   User[You] --> Web[🌐 boing.express web]
