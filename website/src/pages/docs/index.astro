@@ -195,6 +195,8 @@ cargo build --release</code></pre>
             <tr><td><code>boing_listDexPools</code></td><td><code>[object]</code></td><td>Paginated CP pools from the on-chain pair directory + reserves (needs factory via env or <code>factory</code> field). See spec.</td></tr>
             <tr><td><code>boing_listDexTokens</code></td><td><code>[object]</code></td><td>Paginated tokens derived from registered pools + optional deploy metadata scans.</td></tr>
             <tr><td><code>boing_getDexToken</code></td><td><code>[object]</code></td><td>Single token row by <code>id</code>, or <code>null</code>.</td></tr>
+            <tr><td><code>boing_getTokenMetadata</code></td><td><code>[id]</code> or <code>[object]</code></td><td>Name, symbol, decimals, total supply for any token contract (not only DEX pools); fields the chain does not hold are <code>null</code>.</td></tr>
+            <tr><td><code>boing_listTokens</code></td><td><code>[object]</code></td><td>Cursor-paginated directory of every known token, ordered by id.</td></tr>
             <tr><td><code>boing_simulateTransaction</code></td><td><code>[hex_signed_tx]</code></td><td>Gas, success, <code>suggested_access_list</code>, …</td></tr>
             <tr><td><code>boing_simulateContractCall</code></td><td><code>[hex_contract, hex_calldata, sender?, at_block?]</code></td><td>Unsigned calldata dry-run; same result shape as simulate (see spec).</td></tr>
             <tr><td><code>boing_submitTransaction</code></td><td><code>[hex_signed_tx]</code></td><td>Success: <code>tx_hash</code> field — current node uses literal <code>"ok"</code> when accepted; track inclusion via receipt / nonce (see spec).</td></tr>
@@ -261,7 +263,7 @@ cargo build --release</code></pre>
         <ul>
           <li><strong>Node won't start</strong> — Ensure RPC port is free; run with <code>RUST_LOG=debug</code>; on Windows try WSL or check firewall.</li>
           <li><strong>Transaction not included</strong> — Validator mode must be on for block production; simulate with <code>boing_simulateTransaction</code> first; check mempool and nonce order.</li>
-          <li><strong>Method not found</strong> — Method names are case-sensitive; most methods expect <code>params</code> as a JSON array (e.g. <code>{paramsArrayExample}</code> not <code>{paramsObjectWrong}</code>). <strong>Exception:</strong> <code>boing_listDexPools</code>, <code>boing_listDexTokens</code>, and <code>boing_getDexToken</code> accept a single JSON object or <code>[object]</code> — see <code>docs/RPC-API-SPEC.md</code>.</li>
+          <li><strong>Method not found</strong> — Method names are case-sensitive; most methods expect <code>params</code> as a JSON array (e.g. <code>{paramsArrayExample}</code> not <code>{paramsObjectWrong}</code>). <strong>Exception:</strong> <code>boing_listDexPools</code>, <code>boing_listDexTokens</code>, <code>boing_getDexToken</code>, <code>boing_getTokenMetadata</code>, and <code>boing_listTokens</code> accept a single JSON object or <code>[object]</code> — see <code>docs/RPC-API-SPEC.md</code>.</li>
           <li><strong>Build fails</strong> — Try <code>cargo clean</code> then <code>cargo build</code>.</li>
         </ul>
       </section>

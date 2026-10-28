@@ -777,6 +777,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getRpcMethodCatalog",
     "boing_getRpcOpenApi",
     "boing_getSyncState",
+    "boing_getTokenMetadata",
     "boing_getTransactionReceipt",
     "boing_getValidators",
     "boing_getAccountTransactions",
@@ -784,6 +785,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_listDexPools",
     "boing_listDexTokens",
     "boing_listSlashRecords",
+    "boing_listTokens",
     "boing_listBlsDualKeys",
     "boing_registerBlsDualKey",
     "boing_verifyBlsAggregate",
@@ -1375,6 +1377,7 @@ fn network_info_developer_hints() -> serde_json::Value {
         },
         "api_discovery_methods": ["boing_getRpcMethodCatalog", "boing_getRpcOpenApi", "boing_rpcSupportedMethods"],
         "dex_discovery_methods": ["boing_listDexPools", "boing_listDexTokens", "boing_getDexToken"],
+        "token_metadata_methods": ["boing_getTokenMetadata", "boing_listTokens"],
         "http": {
             "live_path": "/live",
             "ready_path": "/ready",
@@ -3903,6 +3906,32 @@ async fn dispatch_jsonrpc_request(
                     "value": format!("0x{}", hex::encode(word)),
                 }),
             )
+        }
+        "boing_getTokenMetadata" => {
+            let n = node.read().await;
+            match crate::token_metadata::get_token_metadata(
+                crate::token_metadata::global_index(),
+                &n.state,
+                &n.receipts,
+                &n.chain,
+                &req.params,
+            ) {
+                Ok(v) => rpc_ok(id, v),
+                Err((code, msg)) => rpc_error(id, code, msg),
+            }
+        }
+        "boing_listTokens" => {
+            let n = node.read().await;
+            match crate::token_metadata::list_tokens(
+                crate::token_metadata::global_index(),
+                &n.state,
+                &n.receipts,
+                &n.chain,
+                &req.params,
+            ) {
+                Ok(v) => rpc_ok(id, v),
+                Err((code, msg)) => rpc_error(id, code, msg),
+            }
         }
         "boing_getDexToken" => {
             let n = node.read().await;

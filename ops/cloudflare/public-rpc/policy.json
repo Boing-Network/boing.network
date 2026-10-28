@@ -71,7 +71,7 @@
         "boing_getContractCode", "boing_getContractStorage", "boing_getDexToken", "boing_getLeaderVrfOutput",
         "boing_getMediaBlobParams", "boing_getNameInfo", "boing_getNetworkFeePolicy", "boing_getNetworkInfo",
         "boing_getQaRegistry", "boing_getRpcMethodCatalog", "boing_getRpcOpenApi", "boing_getSyncState",
-        "boing_getTransactionReceipt", "boing_getValidators", "boing_health", "boing_listBlobSampleOffers",
+        "boing_getTokenMetadata", "boing_getTransactionReceipt", "boing_getValidators", "boing_health", "boing_listBlobSampleOffers",
         "boing_listBlobSampleServeChallenges", "boing_listBlsDualKeys", "boing_listDexPools", "boing_listDexTokens",
         "boing_listSlashRecords", "boing_listSmtBlobSampleOffers", "boing_namesOwnedBy", "boing_qaPoolConfig",
         "boing_qaPoolList", "boing_resolveName", "boing_reverseName", "boing_rpcSupportedMethods",
@@ -82,7 +82,7 @@
       "$comment": "Allowed but CPU, memory or egress heavy (log scans, blob bytes, VM simulation, signature verification, QA analysis).",
       "methods": [
         "boing_getBlob", "boing_getBlobDasLightClientBatch", "boing_getBlobDasSample", "boing_getLogs",
-        "boing_matchBlobSampleOffer", "boing_qaCheck", "boing_quoteBlobSampleSettle", "boing_reverifySlashAppealBallots",
+        "boing_listTokens", "boing_matchBlobSampleOffer", "boing_qaCheck", "boing_quoteBlobSampleSettle", "boing_reverifySlashAppealBallots",
         "boing_simulateContractCall", "boing_simulateTransaction", "boing_verifyBlobDasSuccinctProof",
         "boing_verifyBlsAggregate", "boing_verifyBlsAggregateResolve"
       ]

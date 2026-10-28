@@ -28,4 +28,5 @@ pub mod rpc_block_json;
 pub mod rpc_ws;
 pub mod security;
 pub mod stake_validator_set;
+pub mod token_metadata;
 pub mod validator_config;

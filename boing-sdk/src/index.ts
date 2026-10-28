@@ -162,6 +162,9 @@ export type {
   DexDiscoveryTokenDiagnostics,
   DexTokenListPage,
   DexTokenListRow,
+  TokenListPage,
+  TokenMetadata,
+  TokenStandard,
   GetLogsFilter,
   RpcLogEntry,
 } from './types.js';

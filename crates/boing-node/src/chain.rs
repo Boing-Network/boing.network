@@ -104,6 +104,17 @@ impl ChainState {
             .cloned()
     }
 
+    /// Run `f` on the block at `height` without cloning it (read-only; holds the chain read lock for
+    /// the duration of `f`, so keep it short and never call back into [`ChainState`] from `f`).
+    pub fn with_block_by_height<R>(&self, height: u64, f: impl FnOnce(&Block) -> R) -> Option<R> {
+        self.inner
+            .read()
+            .unwrap()
+            .blocks_by_height
+            .get(&height)
+            .map(f)
+    }
+
     /// Get block by hash, if present.
     pub fn get_block_by_hash(&self, hash: &Hash) -> Option<Block> {
         self.inner.read().unwrap().blocks_by_hash.get(hash).cloned()

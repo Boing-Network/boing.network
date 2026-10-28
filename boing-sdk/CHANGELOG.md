@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Token metadata for every token** — `getTokenMetadata(id)` (`boing_getTokenMetadata`) and `listTokensPage({ cursor, limit })` (`boing_listTokens`) return name, symbol, decimals and total supply for any token contract, not only tokens in a DEX pool; types `TokenMetadata`, `TokenListPage`, `TokenStandard`. Fields the chain does not hold come back `null`. Older nodes answer method-not-found: fall back to `getDexToken`.
 - **PutBlob / BlobAnnounce `maxBytes`** — `validatePutBlob`, `validateBlobAnnounce`, and `putBlobPayload` accept an optional size cap (default remains **16 MiB**). Pass `mediaBlobMaxBytesAt(true)` / RPC `effectiveMaxBytesAtTip` when Phase 7 **256 MiB** is active so clients can publish larger media without a separate SDK fork.
 - **Public exports** — `extractBoingBlobUri` and `blobIdHexFromBoingUri` from `metadataMedia` are re-exported from the package root (dApps resolving `boing://blob/…`).
 

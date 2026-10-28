@@ -144,7 +144,7 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 
 Current `boing-node` implements these 66 JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
 
-`boing_chainHeight`, `boing_checkNames`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getAccountTransactions`, `boing_getBalance`, `boing_getBlob`, `boing_getBlobAccess`, `boing_getBlobDasLightClientBatch`, `boing_getBlobDasSample`, `boing_getBlobDasSuccinctProofPlan`, `boing_getBlobMeta`, `boing_getBlobSampleServeChallenge`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractCode`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLeaderVrfOutput`, `boing_getLogs`, `boing_getMediaBlobParams`, `boing_getNameInfo`, `boing_getNetworkFeePolicy`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_getValidators`, `boing_health`, `boing_listBlobSampleOffers`, `boing_listBlobSampleServeChallenges`, `boing_listBlsDualKeys`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_listSmtBlobSampleOffers`, `boing_matchBlobSampleOffer`, `boing_namesOwnedBy`, `boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_putBlobSampleOffer`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_quoteBlobSampleSettle`, `boing_registerBlsDualKey`, `boing_registerDappMetrics`, `boing_resolveName`, `boing_resolveSlashAppeal`, `boing_reverifySlashAppealBallots`, `boing_reverseName`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`, `boing_verifyBlobDasSuccinctProof`, `boing_verifyBlsAggregate`, `boing_verifyBlsAggregateResolve`.
+`boing_chainHeight`, `boing_checkNames`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getAccountTransactions`, `boing_getBalance`, `boing_getBlob`, `boing_getBlobAccess`, `boing_getBlobDasLightClientBatch`, `boing_getBlobDasSample`, `boing_getBlobDasSuccinctProofPlan`, `boing_getBlobMeta`, `boing_getBlobSampleServeChallenge`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractCode`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLeaderVrfOutput`, `boing_getLogs`, `boing_getMediaBlobParams`, `boing_getNameInfo`, `boing_getNetworkFeePolicy`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTokenMetadata`, `boing_getTransactionReceipt`, `boing_getValidators`, `boing_health`, `boing_listBlobSampleOffers`, `boing_listBlobSampleServeChallenges`, `boing_listBlsDualKeys`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_listSmtBlobSampleOffers`, `boing_listTokens`, `boing_matchBlobSampleOffer`, `boing_namesOwnedBy`, `boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_putBlobSampleOffer`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_quoteBlobSampleSettle`, `boing_registerBlsDualKey`, `boing_registerDappMetrics`, `boing_resolveName`, `boing_resolveSlashAppeal`, `boing_reverifySlashAppealBallots`, `boing_reverseName`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`, `boing_verifyBlobDasSuccinctProof`, `boing_verifyBlsAggregate`, `boing_verifyBlsAggregateResolve`.
 
 **Implementation / single source of truth:** `BOING_RPC_SUPPORTED_METHODS` in `crates/boing-node/src/rpc.rs`. A unit test (`spec_lists_every_supported_method`) fails the build if a method in that list is missing from this file, so add a section here whenever you add a method. For exact wire formats of transactions and signatures see [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md); for the machine-readable catalog call **`boing_getRpcMethodCatalog`** / **`boing_getRpcOpenApi`**.
 
@@ -584,6 +584,10 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
       "boing_listDexTokens",
       "boing_getDexToken"
     ],
+    "token_metadata_methods": [
+      "boing_getTokenMetadata",
+      "boing_listTokens"
+    ],
     "http": {
       "live_path": "/live",
       "ready_path": "/ready",
@@ -862,6 +866,34 @@ First-class **DEX-derived discovery** (see [HANDOFF_Boing_Network_Global_Token_D
 **SDK:** `BoingClient.listDexPoolsPage`, `listDexTokensPage`, `getDexToken`.
 
 **Regression:** `cargo test -p boing-node --test native_dex_factory_rpc_happy_path`.
+
+---
+
+### boing_getTokenMetadata / boing_listTokens
+
+Token name, symbol, decimals and total supply for **any** token contract, **not only tokens that sit in a DEX pool** (contrast [`boing_getDexToken`](#boing_listdexpools--boing_listdextokens--boing_getdextoken)). **Read-only and non-consensus**; no DEX factory is needed. The node builds an in-memory index from the blocks and receipts it already holds (incrementally, re-anchored on a reorg).
+
+| | |
+|--|--|
+| **`boing_getTokenMetadata` params** | `["0x" + 64 hex]`, `[{ "id": "0x…" }]` or `{ "id": "0x…" }`. A malformed id returns **`-32602`**. |
+| **`boing_getTokenMetadata` result** | Token object, or JSON **`null`** when the id has no contract code and no recorded deploy. |
+| **`boing_listTokens` params** | `[{ "limit"?: 1–500 (default 100), "cursor"?: last id from `nextCursor` }]`. |
+| **`boing_listTokens` result** | `{ tokens: [...], nextCursor: string \| null, total, indexedThroughHeight }`, ordered by `id`. Directory = every contract that declared a name/symbol at deploy **or** runs a known token implementation (reference fungible v1/v2/secured, wrapped BOING). |
+
+**Token object:** `id`, `name`, `symbol`, `decimals`, `decimalsSource`, `totalSupply`, `totalSupplySource`, `standard`, `metadataSource`, `deployHeight`, `deployer`, `deployTx`. Every field except `id` may be **`null`**; the node reports only what exists on chain and never guesses.
+
+| Field | Where it comes from |
+|-------|---------------------|
+| `name` / `symbol` | The **deploy transaction only** (`ContractDeployWithPurposeAndMetadata`: `asset_name` ≤ 256 bytes, `asset_symbol` ≤ 32). Contract storage never holds them. A token deployed without that metadata has **no** name or symbol anywhere on chain, so both are **`null`** and `metadataSource` is **`null`** (otherwise **`"deploy"`**). No abbreviated placeholder is ever returned. |
+| `decimals` / `decimalsSource` | Operator map `BOING_DEX_TOKEN_DECIMALS_JSON` (`"env"`), else **`0`** for reference fungible template code (`"template"`: those contracts store whole-unit balances and have no decimals slot), else **`18`** for wrapped BOING, else **`null`** (unknown). Same resolver as `boing_getDexToken`. |
+| `totalSupply` / `totalSupplySource` | Decimal string (u128). Wrapped BOING: read from storage (`"storage"`). Reference tokens have no supply slot; their supply is the amount of the single successful one-time `mint_first` call, found in the blocks and receipts the node still holds (`"mint_first"`). Otherwise **`null`**. |
+| `standard` | `reference-fungible-v1`, `reference-fungible-v2`, `reference-fungible-secured-v1`, `reference-fungible-secured-v2`, `wrapped-boing`, or **`null`** (code not recognised). |
+
+**Limits:** the index covers the blocks the node holds, so a node that pruned history cannot report deploy metadata for old tokens. Tokens with unrecognised bytecode and no deploy metadata are not listed by `boing_listTokens` (they still resolve through `boing_getTokenMetadata` with mostly `null` fields). Older nodes answer **method not found** (`-32601`); clients should fall back to `boing_getDexToken` / `boing_listDexTokens`.
+
+**Public gateway class:** `boing_getTokenMetadata` is **read**; `boing_listTokens` is **heavy_read** (`ops/cloudflare/public-rpc/policy.json`).
+
+**SDK:** `BoingClient.getTokenMetadata`, `listTokensPage`. **Regression:** `cargo test -p boing-node token_metadata` and `cargo test -p boing-node --test token_metadata_rpc`.
 
 ---
 

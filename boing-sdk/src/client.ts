@@ -38,6 +38,8 @@ import type {
   DexPoolListPage,
   DexTokenListPage,
   DexTokenListRow,
+  TokenListPage,
+  TokenMetadata,
   VerifyProofResult,
   OperatorApplyQaPolicyResult,
   QaRegistryResult,
@@ -1086,6 +1088,22 @@ export class BoingClient {
   ): Promise<DexTokenListRow | null> {
     const id = validateHex32(idHex32);
     return this.request<DexTokenListRow | null>('boing_getDexToken', [{ id, ...options }]);
+  }
+
+  /**
+   * Name, symbol, decimals and total supply for **any** token contract (`boing_getTokenMetadata`),
+   * including tokens that are not in a DEX pool. Resolves to **`null`** when the id is not a contract.
+   * Throws a method-not-found RPC error on nodes that predate this method; callers that must support
+   * older nodes should fall back to {@link getDexToken}.
+   */
+  async getTokenMetadata(idHex32: string): Promise<TokenMetadata | null> {
+    const id = validateHex32(idHex32);
+    return this.request<TokenMetadata | null>('boing_getTokenMetadata', [{ id }]);
+  }
+
+  /** Cursor-paginated directory of every known token (`boing_listTokens`), ordered by id. */
+  async listTokensPage(params?: { cursor?: string | null; limit?: number }): Promise<TokenListPage> {
+    return this.request<TokenListPage>('boing_listTokens', [params ?? {}]);
   }
 
   /** Simulate a transaction without applying it. Params: hex-encoded signed transaction. */

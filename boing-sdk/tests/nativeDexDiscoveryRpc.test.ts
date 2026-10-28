@@ -66,4 +66,28 @@ describe('DEX discovery RPC helpers', () => {
     const methods = fetchImpl.mock.calls.map((c) => JSON.parse((c[1] as RequestInit).body as string).method);
     expect(methods).toEqual(['boing_listDexTokens', 'boing_getDexToken']);
   });
+
+  it('getTokenMetadata and listTokensPage forward methods and params', async () => {
+    const fetchImpl = vi.fn(async (_input, init) => {
+      const body = JSON.parse((init as RequestInit).body as string) as { method: string };
+      const result =
+        body.method === 'boing_listTokens'
+          ? { tokens: [], nextCursor: null, total: 0, indexedThroughHeight: 7 }
+          : { id: '0x' + 'cc'.repeat(32), name: null, symbol: null, decimals: 0, totalSupply: null };
+      return new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    const client = new BoingClient({ baseUrl: 'https://example.invalid', fetch: fetchImpl as typeof fetch });
+    const meta = await client.getTokenMetadata('0x' + 'cc'.repeat(32));
+    expect(meta?.decimals).toBe(0);
+    const page = await client.listTokensPage({ limit: 10 });
+    expect(page.indexedThroughHeight).toBe(7);
+    const calls = fetchImpl.mock.calls.map((c) => JSON.parse((c[1] as RequestInit).body as string));
+    expect(calls[0].method).toBe('boing_getTokenMetadata');
+    expect(calls[0].params).toEqual([{ id: '0x' + 'cc'.repeat(32) }]);
+    expect(calls[1].method).toBe('boing_listTokens');
+    expect(calls[1].params).toEqual([{ limit: 10 }]);
+  });
 });

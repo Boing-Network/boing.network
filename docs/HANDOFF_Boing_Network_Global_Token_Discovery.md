@@ -207,5 +207,7 @@ Until L1 RPC exists end-to-end:
 | **`boing_listDexPools`** | Paginated pools + reserves + **`createdAtHeight`**. |
 | **`boing_listDexTokens`** | DEX-derived token set (tokens in any listed pool). |
 | **`boing_getDexToken`** | Single-row lookup or **`null`**. |
+| **`boing_getTokenMetadata`** | Name / symbol / decimals / supply for **any** token, DEX pool or not (see [RPC-API-SPEC.md](RPC-API-SPEC.md) § boing_getTokenMetadata). |
+| **`boing_listTokens`** | Cursor-paginated directory of every known token, independent of the DEX. |
 
 **Verify:** `cargo test -p boing-node --test native_dex_factory_rpc_happy_path`; **`npm test`** in **`boing-sdk/`**.

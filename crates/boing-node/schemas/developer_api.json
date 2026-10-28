@@ -358,6 +358,18 @@
         "result": { "type": "object" }
       },
       {
+        "name": "boing_getTokenMetadata",
+        "summary": "Name, symbol, decimals and total supply for ANY token contract, not only tokens in a DEX pool. Params: [\"0x<32-byte id>\"] or [{ \"id\": \"0x…\" }]. name/symbol exist only in the deploy transaction (ContractDeployWithPurposeAndMetadata); null when the token was deployed without them (never an abbreviation). decimals: BOING_DEX_TOKEN_DECIMALS_JSON, else 0 for reference fungible template code, 18 for wrapped BOING, else null. totalSupply is a decimal string: wrapped BOING from storage, reference tokens from the one-time mint_first call (totalSupplySource), else null. Returns null when the id has no contract code and no recorded deploy. Non-consensus; works without a DEX factory.",
+        "params": { "type": "array", "minItems": 1, "maxItems": 1 },
+        "result": { "description": "Token metadata object or JSON null when the id is not a contract", "type": ["object", "null"] }
+      },
+      {
+        "name": "boing_listTokens",
+        "summary": "Cursor-paginated token directory independent of the DEX: every contract that declared a name/symbol at deploy or runs a known token implementation (reference fungible v1/v2/secured, wrapped BOING). Params: [{ limit?: 1-500 (default 100), cursor?: last id from nextCursor }]. Rows have the boing_getTokenMetadata shape, ordered by id. Result: { tokens, nextCursor, total, indexedThroughHeight }. Non-consensus.",
+        "params": { "type": "array", "maxItems": 1 },
+        "result": { "type": "object" }
+      },
+      {
         "name": "boing_getDexToken",
         "summary": "Single token row from the DEX-derived discovery universe. Factory: params.factory or BOING_CANONICAL_NATIVE_DEX_FACTORY. Optional light / enrich; includeDiagnostics for scan counters; decimals: BOING_DEX_TOKEN_DECIMALS_JSON, else 0 for reference fungible template code (v2 etc.), else null.",
         "params": { "type": "array", "minItems": 1, "maxItems": 1 },

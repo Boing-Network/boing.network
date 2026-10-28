@@ -34,7 +34,7 @@ const DEFAULT_MAX_RECEIPT_SCANS: usize = 500_000;
 
 pub type DexDiscoveryRpcError = (i32, String);
 
-fn err_bad(msg: impl Into<String>) -> DexDiscoveryRpcError {
+pub(crate) fn err_bad(msg: impl Into<String>) -> DexDiscoveryRpcError {
     (-32602, msg.into())
 }
 
@@ -42,7 +42,7 @@ fn err_config(msg: impl Into<String>) -> DexDiscoveryRpcError {
     (-32000, msg.into())
 }
 
-fn parse_account_id_hex(s: &str) -> Result<AccountId, DexDiscoveryRpcError> {
+pub(crate) fn parse_account_id_hex(s: &str) -> Result<AccountId, DexDiscoveryRpcError> {
     let bytes = hex::decode(s.trim().trim_start_matches("0x"))
         .map_err(|_| err_bad("invalid account hex".to_string()))?;
     if bytes.len() != 32 {
@@ -53,7 +53,7 @@ fn parse_account_id_hex(s: &str) -> Result<AccountId, DexDiscoveryRpcError> {
     Ok(AccountId(arr))
 }
 
-fn account_id_hex_lower(id: &AccountId) -> String {
+pub(crate) fn account_id_hex_lower(id: &AccountId) -> String {
     format!("0x{}", hex::encode(id.0))
 }
 
@@ -168,7 +168,7 @@ fn max_receipt_scans_limit() -> Option<usize> {
 
 /// Optional JSON object: **`"0x" + 64 hex` → decimals** (0–255), the operator override for
 /// **`boing_listDexPools`** leg fields, **`boing_listDexTokens`** and **`boing_getDexToken`**.
-fn parse_token_decimals_json() -> HashMap<String, u8> {
+pub(crate) fn parse_token_decimals_json() -> HashMap<String, u8> {
     match std::env::var("BOING_DEX_TOKEN_DECIMALS_JSON") {
         Ok(raw) => parse_token_decimals_map(&raw),
         Err(_) => HashMap::new(),
@@ -209,7 +209,7 @@ fn parse_token_decimals_map(raw: &str) -> HashMap<String, u8> {
 /// Deployed code of the reference fungible templates. None of them has a decimals slot: balances are
 /// whole units, so a token running one of these has **0** decimals (v2 is what boing.finance deploys
 /// and what the v8 / v9 custody pools hold). Name and symbol live in the deploy metadata, not in storage.
-fn whole_unit_token_codes() -> &'static [Vec<u8>] {
+pub(crate) fn whole_unit_token_codes() -> &'static [Vec<u8>] {
     static CODES: OnceLock<Vec<Vec<u8>>> = OnceLock::new();
     CODES.get_or_init(|| {
         vec![
@@ -222,7 +222,7 @@ fn whole_unit_token_codes() -> &'static [Vec<u8>] {
 }
 
 /// Deployed code of wrapped BOING (native BOING 1:1 in base units, **18** decimals).
-fn wboing_code() -> &'static Vec<u8> {
+pub(crate) fn wboing_code() -> &'static Vec<u8> {
     static CODE: OnceLock<Vec<u8>> = OnceLock::new();
     CODE.get_or_init(boing_execution::wrapped_boing_bytecode)
 }
@@ -232,7 +232,7 @@ fn wboing_code() -> &'static Vec<u8> {
 /// 2. **`template`**: the token's deployed code is a reference fungible template (whole units, **0**)
 ///    or wrapped BOING (**18**);
 /// 3. otherwise unknown (**`None`**, JSON **`null`**); the node does not guess.
-fn resolve_token_decimals(
+pub(crate) fn resolve_token_decimals(
     state: &StateStore,
     map: &HashMap<String, u8>,
     id: &AccountId,
@@ -251,11 +251,11 @@ fn resolve_token_decimals(
     (None, None)
 }
 
-fn decimals_json(d: Option<u8>) -> Value {
+pub(crate) fn decimals_json(d: Option<u8>) -> Value {
     d.map(Value::from).unwrap_or(Value::Null)
 }
 
-fn source_json(s: Option<&'static str>) -> Value {
+pub(crate) fn source_json(s: Option<&'static str>) -> Value {
     s.map(Value::from).unwrap_or(Value::Null)
 }
 
@@ -416,7 +416,7 @@ fn scan_pool_register_heights(
     (out, scanned, capped)
 }
 
-fn predicted_deploy_addresses(tx: &Transaction) -> Vec<AccountId> {
+pub(crate) fn predicted_deploy_addresses(tx: &Transaction) -> Vec<AccountId> {
     let Some((bytecode, _, _, _, _)) = tx.payload.as_contract_deploy() else {
         return Vec::new();
     };
