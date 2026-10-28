@@ -64,7 +64,7 @@ Use these names consistently. Do not switch between "Boing", "Boing Network" and
 3. **Transparent by default:** observable rules, deployments and outcomes.
 4. **Built for real applications:** native accounts, adaptive gas, cross-chain liquidity.
 
-**Proof points:** purpose-built VM rather than EVM compatibility; ~2-second target blocks; public testnet and faucet; open validator and node participation; automated QA screening with community review for unclear cases; explorer-level transparency around QA decisions.
+**Proof points:** purpose-built VM rather than EVM compatibility; ~2-second target block time when transactions are pending (blocks are produced only when transactions are present); public testnet and faucet; open validator and node participation; automated QA screening with community review for unclear cases; explorer-level transparency around QA decisions.
 
 ## 6. Audience messages
 

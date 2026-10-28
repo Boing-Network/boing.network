@@ -10,7 +10,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
         <span class="stage-badge-global">Testnet</span>
         <h1>Network Status</h1>
         <p class="lead">
-          The public testnet RPC endpoint is <code>{TESTNET_RPC_URL}</code>; the live panel below shows whether it is reachable and whether blocks are advancing. Use the
+          The public testnet RPC endpoint is <code>{TESTNET_RPC_URL}</code>; the live panel below shows whether it is reachable and when the latest block was produced (blocks are only produced when there are transactions). Use the
           <a href="https://boing.observer">Boing Observer</a> for blocks, accounts, tokens, and QA transparency, or query a node directly via
           <code>boing_chainHeight</code> and <code>boing_getNetworkInfo</code>.
         </p>
@@ -22,7 +22,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
         <p class="live-state" data-field="state">Checking the public RPC…</p>
         <dl class="live-grid">
           <div><dt>Block height</dt><dd data-field="height">–</dd></div>
-          <div><dt>Last block</dt><dd data-field="lastblock">–</dd></div>
+          <div><dt>Last block (idle is normal)</dt><dd data-field="lastblock">–</dd></div>
           <div><dt>Validators</dt><dd data-field="validators">–</dd></div>
           <div><dt>Total staked</dt><dd data-field="stake">–</dd></div>
           <div><dt>Chain ID</dt><dd data-field="chain">–</dd></div>
@@ -70,7 +70,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
       set('stake', stake != null ? Number(stake).toLocaleString('en-US') + ' BOING' : '–');
       set('chain', r.chain_id != null ? r.chain_id + ' (0x' + Number(r.chain_id).toString(16) + ')' : '–');
       set('version', String(r.client_version ?? '–'));
-      let stalled = false;
+      let idle = false;
       try {
         const bres = await fetch(rpc, {
           method: 'POST',
@@ -82,18 +82,18 @@ import { TESTNET_RPC_URL } from '../config/testnet';
         if (ts) {
           const ageMin = Math.max(0, Math.floor((Date.now() - ts * 1000) / 60000));
           set('lastblock', ageMin < 1 ? 'under a minute ago' : ageMin < 120 ? ageMin + ' min ago' : Math.floor(ageMin / 60) + ' h ago');
-          stalled = ageMin > 10;
+          idle = ageMin > 10;
         }
       } catch {
         set('lastblock', 'unavailable');
       }
       set(
         'state',
-        stalled
-          ? 'RPC reachable, but block production looks stalled (no new block in over 10 minutes). Transactions and faucet requests may not confirm until blocks resume. Updated ' + new Date().toLocaleTimeString()
+        idle
+          ? 'RPC reachable · no transactions recently. The testnet only produces a block when there are transactions to include, so an old last block is normal. Updated ' + new Date().toLocaleTimeString()
           : 'RPC reachable · updated ' + new Date().toLocaleTimeString()
       );
-      box?.setAttribute('data-state', stalled ? 'stalled' : 'ok');
+      box?.setAttribute('data-state', 'ok');
     } catch {
       set('state', 'The public RPC is not responding right now. Wallets and the faucet will fail until it is back; check again in a minute.');
       box?.setAttribute('data-state', 'down');
@@ -108,7 +108,6 @@ import { TESTNET_RPC_URL } from '../config/testnet';
   .live-status h2 { margin: 0 0 0.25rem; font-size: 1.1rem; }
   .live-state { font-size: 0.9rem; margin: 0 0 0.75rem; }
   .live-status[data-state='down'] .live-state { color: #ffb4a8; }
-  .live-status[data-state='stalled'] .live-state { color: #ffb800; }
   .live-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin: 0; }
   .live-grid dt { font-size: 0.8rem; color: var(--text-secondary); }
   .live-grid dd { margin: 0.15rem 0 0; font-size: 1.05rem; font-variant-numeric: tabular-nums; word-break: break-word; }

@@ -1,5 +1,5 @@
 ---
-import ChainStaleBanner from '../../components/ChainStaleBanner.astro';
+import ChainIdleNotice from '../../components/ChainIdleNotice.astro';
 import Layout from '../../layouts/Layout.astro';
 import Icon from '../../components/Icon.astro';
 import CopyButton from '../../components/CopyButton.astro';
@@ -31,7 +31,7 @@ import {
       </div>
     </header>
     <div class="page-wrap-inner testnet-content">
-    <ChainStaleBanner />
+    <ChainIdleNotice />
     <div class="dedicated-cards">
       <a href="/single-vs-multi" class="dedicated-card card-reveal">
         <span class="card-icon"><Icon name="node" size={28} /></span>

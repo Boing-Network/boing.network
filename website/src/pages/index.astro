@@ -23,7 +23,7 @@ import Layout from '../layouts/Layout.astro';
       <ul class="proof-chips" aria-label="Proof points">
         <li>Public testnet and faucet</li>
         <li>Purpose-built VM, not EVM-compatible</li>
-        <li>~2-second target blocks</li>
+        <li>~2-second target block time under load</li>
         <li>Open validator and node participation</li>
       </ul>
     </div>
@@ -72,7 +72,7 @@ import Layout from '../layouts/Layout.astro';
       <div class="spec section-reveal delay-3"><strong>Ed25519</strong><span>Signatures</span></div>
       <div class="spec section-reveal delay-3"><strong>BLAKE3</strong><span>Hashing</span></div>
       <div class="spec section-reveal delay-4"><strong>Purpose-built VM</strong><span>Not EVM-compatible</span></div>
-      <div class="spec section-reveal delay-4"><strong>~2 s blocks</strong><span>Target block time</span></div>
+      <div class="spec section-reveal delay-4"><strong>~2 s blocks</strong><span>Target block time when transactions are pending</span></div>
     </div>
     <div class="grid pillars-secondary">
       <div class="card section-reveal delay-5"><h3>Secure by design</h3><p>Rust, HotStuff proof of stake, Ed25519 and BLAKE3.</p></div>
@@ -219,7 +219,7 @@ import Layout from '../layouts/Layout.astro';
     <div class="stats-grid">
       <div class="stat-card section-reveal delay-2"><span class="stat-value">Uncapped</span><span class="stat-label">Total Supply</span></div>
       <div class="stat-card section-reveal delay-3"><span class="stat-value">Set at launch</span><span class="stat-label">Initial Supply</span></div>
-      <div class="stat-card section-reveal delay-4"><span class="stat-value">~2s</span><span class="stat-label">Block Time</span></div>
+      <div class="stat-card section-reveal delay-4"><span class="stat-value">~2s</span><span class="stat-label">Target Block Time (when transactions are pending)</span></div>
     </div>
     <div class="chart-card chart-fullwidth section-reveal delay-5">
       <h3>Initial Supply Allocation</h3>

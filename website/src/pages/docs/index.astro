@@ -109,7 +109,7 @@ cargo build --release</code></pre>
         </ul>
         <h3>Key parameters</h3>
         <ul>
-          <li><strong>Block time</strong> — ~2 seconds (target).</li>
+          <li><strong>Block time</strong> — ~2 seconds target when transactions are pending. Blocks are produced only when transactions are present, so a quiet network can sit on the same tip for hours.</li>
           <li><strong>Consensus</strong> — Proof of Stake (PoS) with BFT-style consensus; validators stake BOING.</li>
           <li><strong>State</strong> — Sparse Merkle tree commitments and proofs in current <code>boing-state</code> (see repository technical specification; Verkle remains a documented upgrade path in code comments).</li>
           <li><strong>RPC port</strong> — Default 8545 (HTTP JSON-RPC).</li>
