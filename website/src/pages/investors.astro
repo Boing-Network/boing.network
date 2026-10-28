@@ -204,7 +204,7 @@ import Layout from '../layouts/Layout.astro';
         </div>
         <div class="deck-nav">
           <button type="button" class="deck-btn deck-prev" id="deck-prev" aria-label="Previous slide">← Prev</button>
-          <span class="deck-dots" id="deck-dots" role="tablist"></span>
+          <span class="deck-dots" id="deck-dots" role="group" aria-label="Choose a slide"></span>
           <button type="button" class="deck-btn deck-next" id="deck-next" aria-label="Next slide">Next →</button>
         </div>
       </div>
@@ -642,7 +642,11 @@ import Layout from '../layouts/Layout.astro';
     function goTo(i) {
       current = (i + total) % total;
       slides.forEach((s, j) => s.classList.toggle('active', j === current));
-      dotsEl?.querySelectorAll('.deck-dot').forEach((d, j) => d.classList.toggle('active', j === current));
+      dotsEl?.querySelectorAll('.deck-dot').forEach((d, j) => {
+        d.classList.toggle('active', j === current);
+        if (j === current) d.setAttribute('aria-current', 'true');
+        else d.removeAttribute('aria-current');
+      });
     }
 
     prevBtn?.addEventListener('click', () => goTo(current - 1));
@@ -652,7 +656,8 @@ import Layout from '../layouts/Layout.astro';
       const dot = document.createElement('button');
       dot.type = 'button';
       dot.className = 'deck-dot' + (i === 0 ? ' active' : '');
-      dot.setAttribute('aria-label', `Slide ${i + 1}`);
+      dot.setAttribute('aria-label', `Slide ${i + 1} of ${total}`);
+      if (i === 0) dot.setAttribute('aria-current', 'true');
       dot.addEventListener('click', () => goTo(i));
       dotsEl?.appendChild(dot);
     });
@@ -660,6 +665,9 @@ import Layout from '../layouts/Layout.astro';
     downloadBtn?.addEventListener('click', () => window.print());
 
     document.addEventListener('keydown', (e) => {
+      const t = e.target;
+      if (t instanceof HTMLElement && t.closest('input, select, textarea, [contenteditable], [role="tab"], [role="slider"]')) return;
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.key === 'ArrowLeft') goTo(current - 1);
       if (e.key === 'ArrowRight') goTo(current + 1);
     });

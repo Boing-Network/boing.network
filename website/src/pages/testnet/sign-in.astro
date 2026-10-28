@@ -32,7 +32,7 @@ import Layout from '../../layouts/Layout.astro';
           <p class="wallet-confirm-desc">Signed. Click Sign in to continue.</p>
           <button type="button" id="wallet-signin-btn" class="auth-btn auth-btn-primary">Sign in</button>
           <p class="wallet-disconnect-hint"><button type="button" id="wallet-disconnect-btn" class="link-btn">Disconnect</button> to use a different wallet or account</p>
-          <p class="wallet-debug-option" style="margin-top: 0.75rem;">
+          <p class="wallet-debug-option" id="wallet-debug-option" hidden style="margin-top: 0.75rem;">
             <label><input type="checkbox" id="portal-debug-blake3" /> Debug: include server BLAKE3 on 401 (compare with wallet console)</label>
           </p>
           <p id="portal-debug-output" class="portal-debug-output hidden" style="margin-top: 0.5rem; font-size: 0.8rem; word-break: break-all; color: var(--text-tertiary);"></p>
@@ -60,6 +60,13 @@ import Layout from '../../layouts/Layout.astro';
 
 <script is:inline src="/portal-session.js"></script>
 <script is:inline src="/portal-wallet.js"></script>
+<script>
+  // The BLAKE3 debug option is for developers only: show it with ?debug in the URL.
+  if (new URLSearchParams(window.location.search).has('debug')) {
+    const dbg = document.getElementById('wallet-debug-option');
+    if (dbg) dbg.hidden = false;
+  }
+</script>
 <script>
   (function () {
     var form = document.getElementById('signin-form');

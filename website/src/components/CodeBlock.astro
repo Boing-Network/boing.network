@@ -1,0 +1,48 @@
+---
+/**
+ * Command / code block with a keyboard-focusable scroll region and a Copy button.
+ */
+import CopyButton from './CopyButton.astro';
+interface Props {
+  code: string;
+  /** Short description used for the region and the copy button, e.g. "Download the node binary". */
+  label: string;
+}
+const { code, label } = Astro.props;
+---
+<div class="copy-wrapper cb-wrap" data-copy-value={code}>
+  <pre tabindex="0" role="region" aria-label={`${label} (command)`}><code>{code}</code></pre>
+  <CopyButton label="Copy" copiedLabel="Copied!" ariaLabel={`Copy: ${label}`} class="cb-copy" />
+</div>
+
+<style>
+  .cb-wrap {
+    position: relative;
+  }
+  .cb-wrap pre {
+    margin: 0.75rem 0;
+    overflow-x: auto;
+    padding: 0.9rem 5.5rem 0.9rem 1rem;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .cb-wrap pre code {
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+  .cb-wrap pre:focus-visible {
+    outline: 2px solid var(--accent-teal);
+    outline-offset: 2px;
+  }
+  .cb-wrap :global(.cb-copy) {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    min-height: 44px;
+    min-width: 44px;
+  }
+</style>

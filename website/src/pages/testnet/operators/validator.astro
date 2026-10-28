@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import CodeBlock from '../../../components/CodeBlock.astro';
 import HubNav from '../../../components/HubNav.astro';
 import { BOOTNODES, TESTNET_RPC_URL } from '../../../config/testnet';
 import '../../../styles/hub-common.css';
@@ -99,11 +100,11 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
     <section class="section" id="node">
       <h2>2. Get the node</h2>
       <p><strong>Release binaries (recommended):</strong> download <a href={relUrl} target="_blank" rel="noopener">{REL}</a> or newer (macOS and Windows zips are on the same page). The zip holds <code>boing-node-&lt;platform&gt;</code> and <code>boing-&lt;platform&gt;</code>, so rename them; there is no <code>--version</code> flag. Older releases lack open validator mode and fresh-node sync.</p>
-      <pre><code>{getBinary}</code></pre>
+      <CodeBlock code={getBinary} label="Download the node binary" />
       <p><strong>Build from source</strong> (alternative):</p>
-      <pre><code>{getSource}</code></pre>
+      <CodeBlock code={getSource} label="Build the node from source" />
       <p><strong>Docker</strong> (build from source):</p>
-      <pre><code>{getDocker}</code></pre>
+      <CodeBlock code={getDocker} label="Build the node Docker image" />
     </section>
 
     <section class="section" id="keys">
@@ -128,11 +129,11 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
     <section class="section" id="sync">
       <h2>5. Sync from the testnet bootnodes</h2>
       <p>Official bootnodes (see <a href="/bootnodes">Bootnodes</a>):</p>
-      <pre><code>{BOOTNODES.join('\n')}</code></pre>
+      <CodeBlock code={BOOTNODES.join('\n')} label="Official bootnode list" />
       <p><strong>Binary:</strong></p>
-      <pre><code>{syncBinary}</code></pre>
+      <CodeBlock code={syncBinary} label="Sync with the binary" />
       <p><strong>Docker:</strong></p>
-      <pre><code>{syncDocker}</code></pre>
+      <CodeBlock code={syncDocker} label="Sync with Docker" />
       <p>Your node is synced when <code>boing_health</code> reports the same <code>head_height</code> as the public RPC.</p>
     </section>
 
@@ -150,19 +151,19 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
     <section class="section" id="validate">
       <h2>7. Run as a validator</h2>
       <p>Run with the validator flags and the open-mode settings used by the public nodes (key in an env file, not on the command line). Have it synced and running before your registration's epoch boundary:</p>
-      <pre><code>{runValidator}</code></pre>
+      <CodeBlock code={runValidator} label="Run the validator" />
       <p>Docker: add <code>--env-file validator.env -e BOING_VALIDATOR=1</code>.</p>
       <h3 id="fly">Fly.io</h3>
-      <pre><code>{flyNotes}</code></pre>
+      <CodeBlock code={flyNotes} label="Fly.io deployment notes" />
       <h3 id="unjail">Unjail</h3>
       <p>Jailed for missing more than 10% of your scheduled proposals? Your bond is kept. Fix the node first, then:</p>
-      <pre><code>{unjail}</code></pre>
+      <CodeBlock code={unjail} label="Unjail command" />
       <p>No <code>--faucet-enable</code> or <code>--validators</code> needed: with <code>BOING_CHAIN_ID=6913</code> the node applies the testnet network preset (genesis allocations, historical fee rules, anchor validator) and replays from genesis with identical roots.</p>
     </section>
 
     <section class="section" id="monitoring">
       <h2>8. Monitoring</h2>
-      <pre><code>{monitor}</code></pre>
+      <CodeBlock code={monitor} label="Monitoring commands" />
       <p>Watch that <code>head_height</code> keeps pace with the public RPC, you have at least one peer, and disk has room. Run under a supervisor (systemd <code>Restart=always</code> or Docker <code>--restart unless-stopped</code>) and alert when <code>/live</code> fails.</p>
     </section>
 
@@ -206,7 +207,7 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
 </Layout>
 
 <style>
-  .validator-guide pre {
+  .validator-guide :global(pre) {
     overflow-x: auto;
     padding: 0.9rem 1rem;
     border-radius: 10px;

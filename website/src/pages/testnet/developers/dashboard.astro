@@ -37,9 +37,9 @@ import '../../../styles/hub-common.css';
         <h2>Register a dApp (testnet)</h2>
         <p>Add a contract address to track it for testnet incentives. Enter your account address (owner) if you're not logged in. At mainnet, use the RPC method <code>boing_registerDappMetrics</code>.</p>
         <form id="dapp-form" class="compact-form">
-          <input id="dapp-owner" type="text" placeholder="Your account address (0x..., optional if session exists)" title="32-byte hex account address" />
-          <input id="dapp-contract" type="text" placeholder="Contract address (0x...)" required />
-          <input id="dapp-name" type="text" placeholder="dApp name (optional)" />
+          <input id="dapp-owner" type="text" aria-label="Your account address (optional if signed in)" placeholder="Your account address (0x..., optional if session exists)" title="32-byte hex account address" />
+          <input id="dapp-contract" type="text" aria-label="Contract address (0x…)" placeholder="Contract address (0x...)" required />
+          <input id="dapp-name" type="text" aria-label="dApp name (optional)" placeholder="dApp name (optional)" />
           <button type="submit">Add dApp</button>
         </form>
         <p id="dapp-message" class="form-message"></p>
