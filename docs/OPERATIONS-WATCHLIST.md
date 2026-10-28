@@ -18,7 +18,7 @@ the new root, or it rejects the first v2 block and forks off. **After `H` there 
 - [ ] Every node reports the same value (and none reports `null`):
       `curl -s -X POST <rpc> -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"boing_getNetworkInfo","params":[]}'`
       then read `result.storage_tree_v2_activation_height` and `result.head_height`.
-      Check every public RPC, `boing-testnet-1`, `boing-testnet-2` and any operator-run nodes.
+      Check every public RPC, `boing-testnet-1` and any operator-run nodes (`boing-testnet-2` was retired on 2026-10-24).
 - [ ] Blocks are still being produced and every node's `head_height` agrees within a block or two.
 - [ ] Note the head, the time, and the last good block's `result.header.state_root`
       (`boing_getBlockByHeight`) in your ops notes as a baseline.
@@ -35,7 +35,7 @@ head reaches `H`. Once the head is at or past `H`, the only fix for a misconfigu
 
 ### At the crossing (heads H-1, H, H+1 ... H+10)
 
-Logs (Fly: `fly logs -a boing-testnet-1` and `-a boing-testnet-2`; other hosts: the node's stdout/journal):
+Logs (Fly: `fly logs -a boing-testnet-1`; other hosts: the node's stdout/journal):
 
 - [ ] Blocks keep being committed past `H`; the height keeps increasing on every node.
 - [ ] No `Invalid state root: expected ..., computed ...` (the `InvalidStateRoot` block-validation error) on any node.

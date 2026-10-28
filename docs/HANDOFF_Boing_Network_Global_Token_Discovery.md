@@ -174,7 +174,7 @@ Until L1 RPC exists end-to-end:
 
 ## Consumer apps (`boing.finance`, `boing.observer`, `boing.express`)
 
-**SDK:** **`@boing-network/boing-sdk@^0.5.25`** — `listDexPoolsPage`, `listDexTokensPage`, `getDexToken`.
+**SDK:** **`@boing-network/boing-sdk@^0.5.38`** — `listDexPoolsPage`, `listDexTokensPage`, `getDexToken`.
 
 ### Integration checklist (all three)
 

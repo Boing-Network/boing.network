@@ -1,6 +1,14 @@
-# Boing Network — QA Gate Rules
+# Boing Network — Boing Quality Gate rules
 
 **Operational catalog of every rule a deployment must satisfy before it can be approved for inclusion in a block.**
+
+The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. Automated checks handle clear cases. A decentralized community pool reviews edge cases. Boing Observer is where those rules, deployments, and outcomes stay visible and auditable.
+
+Transparent by default — observable rules, deployments and outcomes.
+
+Designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks. Boing introduces protocol-level deployment checks designed to identify and restrict deployments that fail transparent quality criteria before they are accepted on-chain.
+
+Public testnet — mainnet not live. The live registry on the RPC you query is the authority for list contents.
 
 | Field | Value |
 |-------|--------|
@@ -149,7 +157,7 @@ These are binary. Failure is **Reject**. Passing all of them is **necessary** fo
 
 There is no `scam` or `malware` category; declaring one is invalid → Reject.
 
-### R8 — Scam byte patterns
+### R8 — Known-bad byte patterns
 
 | | |
 |--|--|
@@ -293,7 +301,7 @@ Production defaults (`QaPoolGovernanceConfig::production_default`) differ: `publ
 - On **Reject** or **expiry with default reject**: pending record dropped; no contract created.
 - Pool full → new Unsure submissions refused (`-32055` global, `-32056` per deployer). `max_pending_items = 0` disables the pool (`-32054`).
 
-**Pool bar (Appendix B of the design spec) — what voters should Reject:** scams, phishing, rug-pulls, malware, impersonation, deceptive naming, Ponzi patterns, spam/abuse. **Not malice:** meme, experimental, unconventional culture, failed/unpopular projects. When in doubt, pool guidance is **reject** (safety-first). Discriminating against memes as a class is contrary to protocol policy.
+**Pool bar (Appendix B of the design spec).** Designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks. Reviewers should reject phishing, rug-pulls, malware, impersonation, deceptive naming, Ponzi patterns, and spam/abuse. **Not a reason to reject:** meme, experimental, unconventional culture, failed/unpopular projects. When in doubt, pool guidance is **reject**. Discriminating against memes as a class is contrary to protocol policy. Outcomes stay visible on Boing Observer.
 
 ---
 
@@ -322,7 +330,7 @@ The following are **not** reasons to Reject or Unsure in shipped automation:
 - Meme / community / entertainment with little or no description.
 - Novel bytecode that does not match a blocklist hash or scam pattern (new patterns **Allow** if hard rules pass).
 - Jump-target alignment, stack-depth, or “looks suspicious” heuristics (not implemented).
--
+- Token/NFT ABI layout (`BOING-REFERENCE-TOKEN.md` / `BOING-REFERENCE-NFT.md`) — interoperability convention, not a deploy reject. NFT template **v3** ships `mint_batch` (`0x06`, n≤500); that is calldata/bytecode convention, not a QA rule. Official NFT↔fungible **linked pairs** are a separate on-chain registry (`BOING-LINKED-NFT-TOKEN.md`); QA does not validate or mint those links at deploy time.
 - Off-chain metadata, websites, social accounts.
 - Vulgarity **inside bytecode** or storage (only deploy-time name/symbol vs `content_blocklist`).
 - Upgrade-proxy *product* pattern of a hub that `CALL`s a separately QA’d implementation (permitted). Opaque patterns meant to hide what users execute may be judged by the pool under malice rules, not a dedicated opcode ban.
@@ -351,7 +359,7 @@ a55hole, asshole, assholes, b1tch, badass, bastard, bastards, beaner, beaners, b
 
 ## Appendix B — Canonical malice (pool voting bar)
 
-Reject (or never Allow) assets that are: **scams**, **phishing**, **rug-pulls**, **malware**, **impersonation**, **deceptive naming**, **Ponzi patterns**, or **spam/abuse**.
+Reject (or never Allow) assets that are malicious, deceptive, or low-quality: **phishing**, **rug-pulls**, **malware**, **impersonation**, **deceptive naming**, **Ponzi patterns**, or **spam/abuse**.
 
 Not malice: **meme assets**, **experimental/novel** code that is not deceptive, **unconventional art or culture**, **failed or unpopular** projects.
 
