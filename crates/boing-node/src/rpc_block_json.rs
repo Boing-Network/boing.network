@@ -394,6 +394,14 @@ fn payload_json(payload: &TransactionPayload, include_code: bool) -> Value {
                 "grantee": account_json(grantee),
             }
         }),
+        TransactionPayload::ReportEquivocation { evidence } => json!({
+            "ReportEquivocation": {
+                "validator": account_json(&evidence.validator()),
+                "round": evidence.round(),
+                "vote_a": serde_json::to_value(&evidence.vote_a).unwrap_or(Value::Null),
+                "vote_b": serde_json::to_value(&evidence.vote_b).unwrap_or(Value::Null),
+            }
+        }),
     }
 }
 

@@ -685,7 +685,7 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("Applied network fee policy from CLI (--network-fee-config)");
     }
 
-    // Testnet faucet: ensure faucet account exists and pass signer to RPC
+    // Testnet faucet: create the faucet account at genesis only, and pass the signer to RPC
     let faucet_signer = if args.faucet_enable {
         let faucet_id = faucet::testnet_faucet_account_id();
         let key = faucet::testnet_faucet_signing_key();
@@ -697,12 +697,17 @@ async fn main() -> anyhow::Result<()> {
             true,
         )
         .map_err(|e| anyhow::anyhow!(e))?;
-        if n.state.get(&faucet_id).is_none() {
-            // Whole BOING scaled to the ledger unit at the tip (base units on chains without history).
-            let tip = n.chain.height();
+        if n.state.get(&faucet_id).is_none() && n.chain.height() > 0 {
+            // Minting past genesis would change committed state outside block execution.
+            tracing::warn!(
+                "Faucet account is not in committed state at height {}; it can only be created at genesis. Faucet requests will fail until it is funded by a transaction.",
+                n.chain.height()
+            );
+        } else if n.state.get(&faucet_id).is_none() {
+            // Genesis only (height 0): part of the genesis allocation, before any block executes.
             let initial = n
                 .executor
-                .denomination_at(tip)
+                .denomination_at(0)
                 .scale(faucet::FAUCET_INITIAL_BALANCE);
             n.state.insert(Account {
                 id: faucet_id,

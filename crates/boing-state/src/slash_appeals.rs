@@ -868,6 +868,19 @@ impl SlashAppealRegistry {
         self.appeals.get(&id)
     }
 
+    /// Slash id of the equivocation slash already recorded for `account` in `round`, if any.
+    /// Equivocation rows store the vote round in `block_height`.
+    pub fn equivocation_slash_id(&self, account: &AccountId, round: u64) -> Option<u64> {
+        self.slashes
+            .values()
+            .find(|s| {
+                s.reason == ConsensusSlashReason::Equivocation
+                    && s.account == *account
+                    && s.block_height == round
+            })
+            .map(|s| s.id)
+    }
+
     pub fn list_slashes(&self) -> Vec<&ConsensusSlashRecord> {
         self.slashes.values().collect()
     }

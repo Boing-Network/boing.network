@@ -84,7 +84,8 @@ pub struct BoingNode {
     pub early_votes: HashMap<(u64, Hash), Vec<AccountId>>,
     /// When set, refresh the consensus validator set from `top_stakers(n)` every `epoch_len` blocks.
     pub stake_validator_set: Option<StakeValidatorSetConfig>,
-    /// Rounds already slashed for a validator → slash registry id (dedupe local + gossiped evidence).
+    /// (validator, round) pairs this node has reported or seen slashed in committed state. The value
+    /// is the consensus slash id once committed, 0 while the report is pending inclusion.
     pub slashed_equivocations: HashMap<(AccountId, u64), u64>,
     /// Last accepted signed vote per (round, validator) — used to build gossip evidence on conflict.
     pub observed_votes: HashMap<(u64, AccountId), ConsensusVote>,
@@ -485,8 +486,8 @@ impl BoingNode {
             }
             if let Some(slash_reg) = load_slash {
                 node.slash_registry = slash_reg;
-                node.rebuild_slashed_equivocations_from_registry();
             }
+            node.sync_consensus_slash_records();
             if let Some(ref p) = node.persistence {
                 match p.load_bls_dual_key_registry() {
                     Ok(Some(reg)) => node.bls_dual_key_registry = reg,
@@ -498,17 +499,6 @@ impl BoingNode {
 
         node.refresh_native_aggregates();
         Ok(node)
-    }
-
-    /// Rebuild `(validator, round) → slash_id` dedupe map from persisted equivocation records.
-    fn rebuild_slashed_equivocations_from_registry(&mut self) {
-        self.slashed_equivocations.clear();
-        for slash in self.slash_registry.list_slashes() {
-            if matches!(slash.reason, SlashReason::Equivocation) {
-                self.slashed_equivocations
-                    .insert((AccountId(slash.validator), slash.block_height), slash.id);
-            }
-        }
     }
 
     fn persist_slash_registry(&self) {
@@ -722,6 +712,7 @@ impl BoingNode {
         self.maybe_refresh_stake_validators(height);
         self.sync_open_validator_set();
         self.sync_failed_serve_slash_records();
+        self.sync_consensus_slash_records();
         self.anchor_fallback_wait = None;
         // Successful commit clears leader-timeout accounting for this height's proposer.
         self.liveness_miss_streak
@@ -760,6 +751,38 @@ impl BoingNode {
     }
 
     /// Prove + gossip local ECVRF for the current consensus round when VRF leader mode is on.
+    /// Mirror committed equivocation / liveness slashes from the consensus book into the node-local
+    /// SlashRegistry and the report dedupe map. Read-only on committed state.
+    fn sync_consensus_slash_records(&mut self) {
+        let mut mirrored = 0usize;
+        for slash in self.state.slash_appeals().list_slashes() {
+            let reason = match slash.reason {
+                boing_state::ConsensusSlashReason::Equivocation => SlashReason::Equivocation,
+                boing_state::ConsensusSlashReason::Liveness => SlashReason::Liveness,
+                _ => continue,
+            };
+            if reason == SlashReason::Equivocation {
+                self.slashed_equivocations
+                    .insert((slash.account, slash.block_height), slash.id);
+            }
+            if self.slash_registry.get_slash(slash.id).is_some() {
+                continue;
+            }
+            self.slash_registry.record_slash_with_id(
+                slash.id,
+                slash.account.0,
+                slash.amount,
+                reason,
+                slash.block_height,
+                slash.appeal_deadline.saturating_sub(slash.block_height),
+            );
+            mirrored = mirrored.saturating_add(1);
+        }
+        if mirrored > 0 {
+            self.persist_slash_registry();
+        }
+    }
+
     pub fn maybe_publish_vrf_proof_for_current_round(&mut self) {
         if self.consensus.leader_election() != boing_consensus::LeaderElection::Vrf {
             return;
@@ -911,7 +934,7 @@ impl BoingNode {
                 self.last_local_vote_round = Some(round);
                 if let Some(ref key) = self.validator_signing_key {
                     let vote = ConsensusVote::sign(round, block_hash, key);
-                    self.note_signed_vote_and_maybe_slash(&vote);
+                    self.note_signed_vote_and_maybe_report(&vote);
                     let _ = self.p2p.broadcast_vote(&vote);
                 }
                 if let Some(h) = committed {
@@ -946,7 +969,7 @@ impl BoingNode {
             return None;
         }
         // Detect conflicting signed votes even before / without a matching pending proposal.
-        self.note_signed_vote_and_maybe_slash(&vote);
+        self.note_signed_vote_and_maybe_report(&vote);
 
         // Buffer votes that arrive before we have a matching pending proposal.
         let have_pending = self
@@ -975,8 +998,13 @@ impl BoingNode {
             }
             Ok(None) => None,
             Err(boing_consensus::ConsensusError::Equivocation { validator, round }) => {
-                // Slash already attempted via note_signed_vote; ensure local path still fires.
-                let _ = self.apply_equivocation_slash(validator, round);
+                // No signed evidence here; note_signed_vote_and_maybe_report already reported it.
+                boing_telemetry::component_warn(
+                    "boing_node::node",
+                    "consensus",
+                    "peer_vote_equivocation",
+                    format!("validator={:?} round={round}", validator),
+                );
                 None
             }
             Err(e) => {
@@ -991,70 +1019,67 @@ impl BoingNode {
         }
     }
 
-    /// Burn a fraction of the offender's active stake (local + gossiped evidence; deduped per round).
-    ///
-    /// Phase 15: also seeds the consensus [`boing_state::SlashAppealRegistry`] so Submit/Resolve
-    /// txs (30/31) can restore stake on multi-validator replay. Detection/apply itself remains
-    /// node-local (evidence gossip); validators that saw the same evidence apply the same slash
-    /// (same social/ops model as today's local SlashRegistry mirror).
-    fn apply_equivocation_slash(&mut self, validator: AccountId, round: u64) -> bool {
-        let key = (validator, round);
+    /// Report verified equivocation evidence for block-ordered slashing. Never writes committed
+    /// state: the slash is applied by [`TransactionPayload::ReportEquivocation`] during block
+    /// execution, so every node applies it at the same height. With a validator key, submits and
+    /// gossips a signed report tx. Returns true the first time this node sees the (validator, round).
+    fn report_equivocation(&mut self, evidence: &EquivocationEvidence) -> bool {
+        let key = (evidence.validator(), evidence.round());
         if self.slashed_equivocations.contains_key(&key) {
             return false;
         }
-        let burned = boing_tokenomics::slash_equivocation_stake(&mut self.state, &validator);
-        let slash_id = self
+        if let Some(id) = self
             .state
-            .slash_appeals_mut()
-            .record_slash(
-                validator,
-                burned,
-                boing_state::ConsensusSlashReason::Equivocation,
-                round,
-                boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS,
-            )
-            .unwrap_or_else(|_| {
-                // Extremely defensive: fall back to local-only id if consensus insert somehow fails.
-                self.slash_registry.record_slash(
-                    validator.0,
-                    burned,
-                    SlashReason::Equivocation,
-                    round,
-                    boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS,
-                )
-            });
-        self.slash_registry.record_slash_with_id(
-            slash_id,
-            validator.0,
-            burned,
-            SlashReason::Equivocation,
-            round,
-            boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS,
-        );
-        self.slashed_equivocations.insert(key, slash_id);
-        self.persist_slash_registry();
-        if burned > 0 {
-            self.refresh_native_aggregates();
-            info!(
-                "Equivocation slash: validator={} round={} burned={} slash_id={}",
-                hex::encode(validator.0),
-                round,
-                burned,
-                slash_id
-            );
-            true
-        } else {
-            boing_telemetry::component_warn(
-                "boing_node::node",
-                "consensus",
-                "equivocation_no_stake",
-                format!(
-                    "validator={:?} round={round} slash_id={slash_id}",
-                    validator
-                ),
-            );
-            true // still mark as processed so we do not retry forever
+            .slash_appeals()
+            .equivocation_slash_id(&key.0, key.1)
+        {
+            self.slashed_equivocations.insert(key, id);
+            return false;
         }
+        self.slashed_equivocations.insert(key, 0);
+        info!(
+            "Equivocation detected: validator={} round={}",
+            hex::encode(key.0 .0),
+            key.1
+        );
+        if let Some(signed) = self.sign_equivocation_report(evidence) {
+            match self.submit_transaction(signed.clone()) {
+                Ok(()) => {
+                    let _ = self.p2p.broadcast_signed_transaction(&signed);
+                }
+                Err(e) => boing_telemetry::component_warn(
+                    "boing_node::node",
+                    "consensus",
+                    "equivocation_report_rejected",
+                    e,
+                ),
+            }
+        }
+        true
+    }
+
+    /// Signed [`TransactionPayload::ReportEquivocation`] from this node's validator key, if any.
+    fn sign_equivocation_report(
+        &self,
+        evidence: &EquivocationEvidence,
+    ) -> Option<SignedTransaction> {
+        let key = self.validator_signing_key.as_ref()?;
+        let sender = AccountId(key.verifying_key().to_bytes());
+        let chain_nonce = self.state.get(&sender).map(|a| a.nonce).unwrap_or(0);
+        let mut tx = boing_primitives::Transaction {
+            nonce: self.mempool.suggested_next_nonce(sender, chain_nonce),
+            sender,
+            payload: TransactionPayload::ReportEquivocation {
+                evidence: evidence.clone(),
+            },
+            access_list: boing_primitives::AccessList::default(),
+        };
+        tx.access_list = tx.suggested_parallel_access_list();
+        Some(crate::network_preset::sign_for_chain(
+            tx,
+            key,
+            crate::network_preset::effective_chain_id(self.executor.execution_history()),
+        ))
     }
 
     /// Submit an appeal for a recorded slash (must be within the appeal window at current chain height).
@@ -1077,13 +1102,10 @@ impl BoingNode {
         Ok(id)
     }
 
-    /// Resolve a pending appeal. If approved, restores from the fee burn sink:
-    /// stake for equivocation/liveness/fraud; **balance** for BlobFailedServe (Phase 13).
-    /// Returns the amount restored (0 if rejected or nothing to restore).
-    ///
-    /// **Deprecated for FailedServe / equivocation / liveness:** prefer consensus tx
-    /// `ResolveSlashAppeal` (index 31). Refuses restore when the consensus appeal book already
-    /// reversed the slash (no double credit).
+    /// Resolve a pending appeal in the node-local SlashRegistry mirror. Never restores funds: a
+    /// restore changes committed state, so it only happens through consensus txs
+    /// `ResolveSlashAppeal` (31), `ResolveSlashAppealAttested` (32) or
+    /// `ResolveSlashAppealBlsAggregate` (33). Always returns 0 restored.
     pub fn resolve_slash_appeal(
         &mut self,
         appeal_id: u64,
@@ -1091,40 +1113,11 @@ impl BoingNode {
     ) -> Result<u128, SlashingError> {
         self.slash_registry.resolve_appeal(appeal_id, approved)?;
         self.persist_slash_registry();
-        if !approved {
-            return Ok(0);
-        }
-        let Some(appeal) = self.slash_registry.get_appeal(appeal_id) else {
-            return Err(SlashingError::AppealNotFound);
-        };
-        let slash_id = appeal.slash_id;
-        if self.state.slash_appeals().is_reversed(slash_id) {
-            // Consensus Resolve already restored — do not double-credit via operator RPC.
-            return Ok(0);
-        }
-        let Some(slash) = self.slash_registry.get_slash(slash_id) else {
-            return Err(SlashingError::SlashNotFound);
-        };
-        let account = AccountId(slash.validator);
-        let amount = slash.amount;
-        let reason = slash.reason.clone();
-        let restored = match &reason {
-            SlashReason::BlobFailedServe => {
-                boing_tokenomics::restore_failed_serve_penalty(&mut self.state, &account, amount)
-            }
-            _ => boing_tokenomics::restore_equivocation_slash(&mut self.state, &account, amount),
-        };
-        if restored > 0 {
-            self.refresh_native_aggregates();
-            info!(
-                "Slash appeal approved: slash_id={} appeal_id={} restored={} reason={:?}",
-                slash_id, appeal_id, restored, reason
-            );
-        }
-        Ok(restored)
+        Ok(0)
     }
 
-    /// Apply verified gossiped equivocation evidence (slash + optional rebroadcast).
+    /// Handle verified gossiped equivocation evidence: report it for block inclusion and rebroadcast.
+    /// Does not change committed state.
     pub fn on_equivocation_evidence(&mut self, evidence: EquivocationEvidence) -> bool {
         if evidence.verify().is_err() {
             return false;
@@ -1132,20 +1125,20 @@ impl BoingNode {
         if !self.consensus.validators().contains(&evidence.validator()) {
             return false;
         }
-        let applied = self.apply_equivocation_slash(evidence.validator(), evidence.round());
-        if applied {
+        let reported = self.report_equivocation(&evidence);
+        if reported {
             let _ = self.p2p.broadcast_equivocation(&evidence);
         }
-        applied
+        reported
     }
 
-    /// Remember a signed vote; if it conflicts with a prior vote, slash and gossip evidence.
-    fn note_signed_vote_and_maybe_slash(&mut self, vote: &ConsensusVote) {
+    /// Remember a signed vote; if it conflicts with a prior vote, report and gossip evidence.
+    fn note_signed_vote_and_maybe_report(&mut self, vote: &ConsensusVote) {
         let key = (vote.round, vote.validator);
         if let Some(prev) = self.observed_votes.get(&key) {
             if prev.block_hash != vote.block_hash {
                 if let Ok(ev) = EquivocationEvidence::try_from_votes(prev.clone(), vote.clone()) {
-                    if self.apply_equivocation_slash(ev.validator(), ev.round()) {
+                    if self.report_equivocation(&ev) {
                         let _ = self.p2p.broadcast_equivocation(&ev);
                     }
                 }
@@ -1220,6 +1213,7 @@ impl BoingNode {
         self.maybe_refresh_stake_validators(block.header.height);
         self.sync_open_validator_set();
         self.sync_failed_serve_slash_records();
+        self.sync_consensus_slash_records();
         self.maybe_publish_vrf_proof_for_current_round();
         Ok(())
     }
@@ -2127,7 +2121,8 @@ impl BoingNode {
 
     /// Tick liveness: if this node is not the round leader, has pending mempool txs, and has waited
     /// longer than [`boing_tokenomics::LIVENESS_LEADER_TIMEOUT_SECS`] for a proposal, count a miss
-    /// against the expected leader and slash at [`boing_tokenomics::LIVENESS_MISS_THRESHOLD`].
+    /// against the expected leader and log a warning at [`boing_tokenomics::LIVENESS_MISS_THRESHOLD`].
+    /// Observation only: timeouts are node-local, so they never change committed state.
     ///
     /// Call from the validator loop alongside [`Self::produce_block_if_ready`]. No-op for
     /// single-validator sets. Local mempool non-empty is a heuristic to avoid idle false positives.
@@ -2135,7 +2130,7 @@ impl BoingNode {
         if self.consensus.num_validators() <= 1 {
             return;
         }
-        // Open mode tracks liveness deterministically on-chain (jail, no slashing); skip local slashing.
+        // Open mode tracks liveness deterministically on-chain (jail, no slashing).
         if !self.consensus.anchors().is_empty() || self.open_validator_params.is_some() {
             self.leader_wait_started = None;
             return;
@@ -2177,46 +2172,18 @@ impl BoingNode {
             return;
         }
         *streak = 0;
-        let burned = boing_tokenomics::slash_liveness_stake(&mut self.state, &leader);
-        // Phase 15: seed consensus appeal book (detection remains node-local; 30/31 replay restore).
-        let slash_id = self
-            .state
-            .slash_appeals_mut()
-            .record_slash(
-                leader,
-                burned,
-                boing_state::ConsensusSlashReason::Liveness,
-                next_height,
-                boing_tokenomics::LIVENESS_APPEAL_WINDOW_BLOCKS,
-            )
-            .unwrap_or_else(|_| {
-                self.slash_registry.record_slash(
-                    leader.0,
-                    burned,
-                    SlashReason::Liveness,
-                    next_height,
-                    boing_tokenomics::LIVENESS_APPEAL_WINDOW_BLOCKS,
-                )
-            });
-        self.slash_registry.record_slash_with_id(
-            slash_id,
-            leader.0,
-            burned,
-            SlashReason::Liveness,
-            next_height,
-            boing_tokenomics::LIVENESS_APPEAL_WINDOW_BLOCKS,
-        );
-        self.persist_slash_registry();
-        if burned > 0 {
-            self.refresh_native_aggregates();
-            info!(
-                "Liveness slash: leader={} height={} burned={} slash_id={}",
+        // A missed proposal leaves no on-chain evidence, so a liveness slash cannot be applied
+        // identically by every node. Report only; committed state is not touched.
+        boing_telemetry::component_warn(
+            "boing_node::node",
+            "consensus",
+            "leader_liveness_miss_threshold",
+            format!(
+                "leader={} height={next_height} misses={}",
                 hex::encode(leader.0),
-                next_height,
-                burned,
-                slash_id
-            );
-        }
+                boing_tokenomics::LIVENESS_MISS_THRESHOLD
+            ),
+        );
     }
 
     /// Produce one block from mempool if there are pending txs and this node is the round leader.

@@ -357,6 +357,11 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "blob_id":hex0x(blob_id),
             "grantee":hex0x(&grantee.0),
         }),
+        TransactionPayload::ReportEquivocation { evidence } => json!({
+            "kind":"report_equivocation",
+            "validator":hex0x(&evidence.validator().0),
+            "round":evidence.round(),
+        }),
     }
 }
 

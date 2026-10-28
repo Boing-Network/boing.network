@@ -1,4 +1,5 @@
-//! Equivocation detection burns a fraction of the offender's active stake.
+//! Equivocation: detection only reports; the `ReportEquivocation` tx burns a fraction of the
+//! offender's active stake during block execution.
 
 use std::collections::HashMap;
 
@@ -83,6 +84,37 @@ fn node_with_validators(validators: Vec<AccountId>, stakes: &[(AccountId, u128)]
     }
 }
 
+/// Funded non-validator account that submits equivocation reports in these tests.
+const REPORTER: AccountId = AccountId([0x77u8; 32]);
+
+/// Execute a `ReportEquivocation` tx from `reporter` against `state` at `height`; returns slash id.
+fn execute_report(
+    state: &mut boing_state::StateStore,
+    reporter: AccountId,
+    ev: &EquivocationEvidence,
+    height: u64,
+) -> Result<u64, boing_execution::VmError> {
+    if state.get(&reporter).is_none() {
+        state.insert(Account {
+            id: reporter,
+            state: AccountState {
+                balance: 1_000_000,
+                ..Default::default()
+            },
+        });
+    }
+    let tx = Transaction {
+        nonce: state.get(&reporter).map(|a| a.nonce).unwrap_or(0),
+        sender: reporter,
+        payload: TransactionPayload::ReportEquivocation {
+            evidence: ev.clone(),
+        },
+        access_list: AccessList::new(vec![reporter], vec![reporter]),
+    };
+    let out = Vm::new().execute_with_context(&tx, state, ctx(height))?;
+    Ok(u64::from_le_bytes(out.return_data[..8].try_into().unwrap()))
+}
+
 #[test]
 fn equivocation_slash_burns_half_active_stake() {
     let v1 = AccountId([1u8; 32]);
@@ -139,7 +171,7 @@ fn equivocation_slash_burns_half_active_stake() {
 }
 
 #[test]
-fn gossiped_equivocation_evidence_slashes_once() {
+fn gossiped_equivocation_evidence_reports_and_tx_slashes_once() {
     let v1 = AccountId([1u8; 32]);
     let v3 = AccountId([3u8; 32]);
     let v4 = AccountId([4u8; 32]);
@@ -151,10 +183,18 @@ fn gossiped_equivocation_evidence_slashes_once() {
     let b = ConsensusVote::sign(9, Hash([2u8; 32]), &key);
     let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
 
+    let root_before = node.state.state_root();
     assert!(node.on_equivocation_evidence(ev.clone()));
+    // Detection never touches committed state.
+    assert_eq!(node.state.get(&offender).unwrap().stake, 10_000);
+    assert!(node.state.slash_appeals().list_slashes().is_empty());
+    assert_eq!(node.state.state_root(), root_before);
+    assert_eq!(node.slashed_equivocations.get(&(offender, 9)), Some(&0));
+    assert!(!node.on_equivocation_evidence(ev.clone()));
+
+    // Block execution of the report applies the slash and seeds the consensus book.
+    let slash_id = execute_report(&mut node.state, REPORTER, &ev, 10).unwrap();
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
-    // Phase 15: consensus book seeded at slash-apply time.
-    let slash_id = *node.slashed_equivocations.get(&(offender, 9)).unwrap();
     let cons = node
         .state
         .slash_appeals()
@@ -165,12 +205,19 @@ fn gossiped_equivocation_evidence_slashes_once() {
         boing_state::ConsensusSlashReason::Equivocation
     ));
     assert_eq!(cons.amount, 5_000);
-    assert!(!node.on_equivocation_evidence(ev));
+    assert_eq!(cons.block_height, 9);
+    // Appeal window runs from the including block, not the vote round.
+    assert_eq!(
+        cons.appeal_deadline,
+        10 + boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS
+    );
+    // A second report for the same (offender, round) fails and burns nothing more.
+    assert!(execute_report(&mut node.state, REPORTER, &ev, 11).is_err());
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
 }
 
 #[test]
-fn conflicting_observed_votes_slash_via_on_consensus_vote() {
+fn conflicting_observed_votes_report_via_on_consensus_vote() {
     let v1 = AccountId([1u8; 32]);
     let v3 = AccountId([3u8; 32]);
     let v4 = AccountId([4u8; 32]);
@@ -180,10 +227,14 @@ fn conflicting_observed_votes_slash_via_on_consensus_vote() {
 
     let a = ConsensusVote::sign(3, Hash([9u8; 32]), &key);
     let b = ConsensusVote::sign(3, Hash([8u8; 32]), &key);
-    assert!(node.on_consensus_vote(a).is_none());
-    assert!(node.on_consensus_vote(b).is_none());
-    assert_eq!(node.state.get(&offender).unwrap().stake, 4_000);
+    assert!(node.on_consensus_vote(a.clone()).is_none());
+    assert!(node.on_consensus_vote(b.clone()).is_none());
+    assert_eq!(node.state.get(&offender).unwrap().stake, 8_000);
     assert!(node.slashed_equivocations.contains_key(&(offender, 3)));
+
+    let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
+    execute_report(&mut node.state, REPORTER, &ev, 4).unwrap();
+    assert_eq!(node.state.get(&offender).unwrap().stake, 4_000);
 }
 
 #[test]
@@ -205,11 +256,9 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
     let a = ConsensusVote::sign(7, Hash([1u8; 32]), &key);
     let b = ConsensusVote::sign(7, Hash([2u8; 32]), &key);
     let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
-    assert!(node.on_equivocation_evidence(ev));
+    let slash_id = execute_report(&mut node.state, REPORTER, &ev, 8).unwrap();
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
-
-    let slash_id = *node.slashed_equivocations.get(&(offender, 7)).unwrap();
-    // Operator RPC refused — consensus book owns the slash (Phase 15).
+    // Operator RPC refused: consensus book owns the slash (Phase 15).
     assert!(node
         .submit_slash_appeal(slash_id, b"false positive".to_vec())
         .is_err());
@@ -334,8 +383,7 @@ fn consensus_slash_appeal_rejected_keeps_burn() {
     let a = ConsensusVote::sign(4, Hash([1u8; 32]), &key);
     let b = ConsensusVote::sign(4, Hash([2u8; 32]), &key);
     let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
-    assert!(node.on_equivocation_evidence(ev));
-    let slash_id = *node.slashed_equivocations.get(&(offender, 4)).unwrap();
+    let slash_id = execute_report(&mut node.state, REPORTER, &ev, 5).unwrap();
 
     // Phase 17: equal stakes among 4 pinned resolvers → need 3 reject votes to finalize.
     let mut vm = Vm::new();
@@ -420,8 +468,7 @@ fn failed_serve_and_equivocation_slash_ids_do_not_collide() {
     let a = ConsensusVote::sign(5, Hash([1u8; 32]), &key);
     let b = ConsensusVote::sign(5, Hash([2u8; 32]), &key);
     let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
-    assert!(node.on_equivocation_evidence(ev));
-    let eq_id = *node.slashed_equivocations.get(&(offender, 5)).unwrap();
+    let eq_id = execute_report(&mut node.state, REPORTER, &ev, 6).unwrap();
     assert_ne!(eq_id, fs_id);
     assert_eq!(eq_id, 2);
     assert_eq!(node.state.slash_appeals().list_slashes().len(), 2);
@@ -447,7 +494,7 @@ async fn list_slash_records_rpc_returns_equivocation_entry() {
     let a = ConsensusVote::sign(11, Hash([1u8; 32]), &key);
     let b = ConsensusVote::sign(11, Hash([2u8; 32]), &key);
     let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
-    assert!(node.on_equivocation_evidence(ev));
+    execute_report(&mut node.state, REPORTER, &ev, 12).unwrap();
 
     let app = rpc_router(
         Arc::new(RwLock::new(node)),
