@@ -58,7 +58,7 @@ const navCurrent = {
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonicalUrl} />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=5" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=6" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/logo-192.png" />
@@ -134,7 +134,7 @@ const navCurrent = {
       <div class="site-header-inner">
         <div class="site-header-bar">
           <a href="/" class="logo" aria-label="Boing Network home">
-            <img src="/logo.svg" alt="" width="36" height="36" class="logo-icon" />
+            <img src="/logo.svg" alt="" width="40" height="40" class="logo-icon" />
             <span class="logo-wordmark">Boing Network</span>
           </a>
           <button
@@ -616,21 +616,21 @@ const navCurrent = {
   .logo-wordmark {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 1.05rem;
-    letter-spacing: 0.01em;
-    color: var(--text-primary);
+    font-size: 1.2rem;
+    letter-spacing: -0.01em;
+    color: var(--accent-teal); /* all-blue wordmark, same as Boing Express (BRAND.md accent #3B8CFF) */
     white-space: nowrap;
     transition: color 0.2s ease, text-shadow 0.2s ease;
   }
   .logo:hover .logo-wordmark {
-    color: var(--accent-teal);
+    color: var(--boing-accent-soft, #8DB8FF);
     text-shadow: 0 0 12px rgba(59, 140, 255, 0.35);
   }
   .logo-icon {
     flex-shrink: 0;
     display: block;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     object-fit: contain;
     filter: drop-shadow(0 0 8px var(--glow-cyan-subtle));
     transition: filter 0.2s ease;

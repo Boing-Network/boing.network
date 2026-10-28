@@ -1,6 +1,9 @@
 /**
- * Rasterize public/logo.svg for favicons, Apple touch icon, Open Graph, and SEO fallbacks.
- * Run via npm run generate:brand-raster (also runs automatically before astro build).
+ * Rasterize the Boing "Arc Slab" mark for favicons, Apple touch / PWA icons and the Open Graph card.
+ * - public/logo.svg: full mark (48px and larger rasters)
+ * - public/favicon.svg: simplified 32-grid mark (16/32px rasters and favicon.ico layers)
+ * - public/assets/boing-network-wordmark.svg: mark + "Boing Network" in Comfortaa Bold, outlined (OG card)
+ * Run via npm run generate:brand-raster (also runs automatically before astro build). Output is committed.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -12,62 +15,12 @@ const root = join(__dirname, '..')
 const publicDir = join(root, 'public')
 const assetsDir = join(publicDir, 'assets')
 const logoSvgPath = join(publicDir, 'logo.svg')
+const smallSvgPath = join(publicDir, 'favicon.svg')
+const wordmarkPath = join(assetsDir, 'boing-network-wordmark.svg')
 
-const BRAND_RGB = { r: 10, g: 17, b: 40 } // navy 900 (see BRAND.md)
+const BRAND_RGB = { r: 5, g: 10, b: 26 } // navy 950 (see BRAND.md)
+const PNG = { compressionLevel: 9 }
 
-async function loadLogoSvg() {
-  return readFile(logoSvgPath)
-}
-
-/** Square PNG with transparent background; logo inset by pad ratio. */
-async function writeTransparentIcon(svg, size, outPath, pad = 0.11) {
-  const inner = Math.round(size * (1 - 2 * pad))
-  const resized = await sharp(svg)
-    .resize(inner, inner, {
-      fit: 'contain',
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png()
-    .toBuffer()
-
-  await sharp({
-    create: {
-      width: size,
-      height: size,
-      channels: 4,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    },
-  })
-    .composite([{ input: resized, gravity: 'centre' }])
-    .png()
-    .toFile(outPath)
-}
-
-/** Square icon on solid brand background (Apple touch, etc.). */
-async function writeSolidIcon(svg, size, outPath, pad = 0.12) {
-  const inner = Math.round(size * (1 - 2 * pad))
-  const resized = await sharp(svg)
-    .resize(inner, inner, {
-      fit: 'contain',
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png()
-    .toBuffer()
-
-  await sharp({
-    create: {
-      width: size,
-      height: size,
-      channels: 3,
-      background: BRAND_RGB,
-    },
-  })
-    .composite([{ input: resized, gravity: 'centre' }])
-    .png()
-    .toFile(outPath)
-}
-
-/** Pack PNG buffers into a multi-size ICO (Vista+ PNG-in-ICO). */
 function pngsToIco(pngBuffers) {
   const count = pngBuffers.length
   const headerSize = 6 + 16 * count
@@ -96,106 +49,81 @@ function pngsToIco(pngBuffers) {
   return buf
 }
 
-async function writeFaviconIco(svg, outPath) {
-  const sizes = [16, 32, 48]
-  const pngs = []
-  for (const size of sizes) {
-    const inner = Math.round(size * 0.88)
-    const resized = await sharp(svg)
-      .resize(inner, inner, {
-        fit: 'contain',
-        background: { r: 0, g: 0, b: 0, alpha: 0 },
-      })
-      .png()
-      .toBuffer()
-    const tiled = await sharp({
-      create: {
-        width: size,
-        height: size,
-        channels: 4,
-        background: { r: BRAND_RGB.r, g: BRAND_RGB.g, b: BRAND_RGB.b, alpha: 1 },
-      },
-    })
-      .composite([{ input: resized, gravity: 'centre' }])
-      .png()
-      .toBuffer()
-    pngs.push(tiled)
-  }
+/** Rasterize at 4x the target size, then downsample (crisp, stable output). */
+const raster = (svg, size, viewBox) =>
+  sharp(svg, { density: Math.round(((size * 4) / viewBox) * 72) }).resize(size, size, { kernel: 'lanczos3' })
+
+async function writePng(svg, size, viewBox, outPath) {
+  await raster(svg, size, viewBox).png(PNG).toFile(outPath)
+}
+
+/** Mark centred on the solid brand background (Apple touch / maskable PWA icons). */
+async function writeSolidIcon(svg, size, outPath, pad = 0.04) {
+  const inner = Math.round(size * (1 - 2 * pad))
+  const mark = await raster(svg, inner, 64).png().toBuffer()
+  await sharp({ create: { width: size, height: size, channels: 3, background: BRAND_RGB } })
+    .composite([{ input: mark, gravity: 'centre' }])
+    .png(PNG)
+    .toFile(outPath)
+}
+
+async function writeFaviconIco(smallSvg, svg, outPath) {
+  const pngs = [
+    await raster(smallSvg, 16, 32).png(PNG).toBuffer(),
+    await raster(smallSvg, 32, 32).png(PNG).toBuffer(),
+    await raster(svg, 48, 64).png(PNG).toBuffer(),
+  ]
   await mkdir(dirname(outPath), { recursive: true })
   await writeFile(outPath, pngsToIco(pngs))
 }
 
-function ogTextOverlaySvg() {
-  const esc = (s) =>
-    s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-
+function ogTaglineSvg() {
   return Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="680" height="400" viewBox="0 0 680 400">
-  <text x="0" y="52" fill="#3B8CFF" font-family="Segoe UI,system-ui,-apple-system,sans-serif" font-size="52" font-weight="700">${esc('Boing Network')}</text>
-  <text x="0" y="118" fill="#94a3b8" font-family="Segoe UI,system-ui,-apple-system,sans-serif" font-size="26">${esc('Quality, enforced by the protocol.')}</text>
-  <text x="0" y="168" fill="#64748b" font-family="Segoe UI,system-ui,-apple-system,sans-serif" font-size="22">${esc('boing.network  ·  Public testnet, mainnet not live')}</text>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="120" viewBox="0 0 800 120">
+  <text x="0" y="40" fill="#94a3b8" font-family="Comfortaa,Segoe UI,system-ui,sans-serif" font-size="30">Quality, enforced by the protocol.</text>
+  <text x="0" y="92" fill="#64748b" font-family="Comfortaa,Segoe UI,system-ui,sans-serif" font-size="24">boing.network · Public testnet, mainnet not live</text>
 </svg>`,
     'utf8',
   )
 }
 
-async function writeOgImage(svg, outPath) {
+/** 1200x630: outlined wordmark (mark + Comfortaa Bold paths) with the tagline under the text. */
+async function writeOgImage(wordmarkSvg, outPath) {
   const W = 1200
   const H = 630
-
-  const bg = await sharp({
-    create: {
-      width: W,
-      height: H,
-      channels: 3,
-      background: BRAND_RGB,
-    },
-  })
-    .png()
-    .toBuffer()
-
-  const logoSize = 360
-  const logoBuf = await sharp(svg)
-    .resize(logoSize, logoSize, {
-      fit: 'contain',
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png()
-    .toBuffer()
-
-  const textBuf = await sharp(ogTextOverlaySvg()).png().toBuffer()
-
-  const logoLeft = Math.round((W * 0.38 - logoSize) / 2)
-  const logoTop = Math.round((H - logoSize) / 2)
-
-  await sharp(bg)
+  const wmWidth = 900
+  const wm = await sharp(wordmarkSvg, { density: 900 }).resize({ width: wmWidth }).png().toBuffer()
+  const { height: wmHeight } = await sharp(wm).metadata()
+  const tag = await sharp(ogTaglineSvg()).png().toBuffer()
+  const left = Math.round((W - wmWidth) / 2)
+  const top = Math.round(H / 2 - wmHeight / 2 - 50)
+  // the text starts at x=76 of the wordmark's 290-unit viewBox
+  const textLeft = left + Math.round(wmWidth * (76 / 290))
+  await sharp({ create: { width: W, height: H, channels: 3, background: BRAND_RGB } })
     .composite([
-      { input: logoBuf, left: Math.max(48, logoLeft), top: logoTop },
-      { input: textBuf, left: Math.round(W * 0.38) + 32, top: Math.round(H / 2 - 200) },
+      { input: wm, left, top },
+      { input: tag, left: textLeft, top: top + wmHeight + 8 },
     ])
-    .png()
+    .png(PNG)
     .toFile(outPath)
 }
 
 async function main() {
-  const svg = await loadLogoSvg()
-
+  const svg = await readFile(logoSvgPath)
+  const smallSvg = await readFile(smallSvgPath)
+  const wordmark = await readFile(wordmarkPath)
   await mkdir(assetsDir, { recursive: true })
 
-  await writeTransparentIcon(svg, 512, join(assetsDir, 'icon-only-transparent.png'))
-  await writeTransparentIcon(svg, 192, join(assetsDir, 'logo-192.png'))
-  await writeTransparentIcon(svg, 32, join(assetsDir, 'favicon-32x32.png'), 0.06)
-  await writeTransparentIcon(svg, 16, join(assetsDir, 'favicon-16x16.png'), 0.06)
+  await writePng(svg, 512, 64, join(assetsDir, 'icon-only-transparent.png'))
+  await writePng(svg, 192, 64, join(assetsDir, 'logo-192.png'))
+  await writePng(smallSvg, 32, 32, join(assetsDir, 'favicon-32x32.png'))
+  await writePng(smallSvg, 16, 32, join(assetsDir, 'favicon-16x16.png'))
 
   await writeSolidIcon(svg, 180, join(publicDir, 'apple-touch-icon.png'))
-  await writeSolidIcon(svg, 512, join(assetsDir, 'logo-512-maskable.png'), 0.18)
+  await writeSolidIcon(svg, 512, join(assetsDir, 'logo-512-maskable.png'), 0.14)
 
-  await writeOgImage(svg, join(publicDir, 'og.png'))
-  await writeFaviconIco(svg, join(publicDir, 'favicon.ico'))
+  await writeOgImage(wordmark, join(publicDir, 'og.png'))
+  await writeFaviconIco(smallSvg, svg, join(publicDir, 'favicon.ico'))
 
   console.log('Brand raster assets written: icon-only-transparent.png, favicon-*.png, logo-192.png, logo-512-maskable.png, apple-touch-icon.png, og.png, favicon.ico')
 }
