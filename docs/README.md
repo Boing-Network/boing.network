@@ -1,5 +1,7 @@
 # 📚 Boing Network — Documentation Index
 
+> **Quality, enforced by the protocol.** Brand foundation, naming and approved phrases: [../BRAND.md](../BRAND.md).
+
 This folder is the **canonical map** of protocol docs. Website pages and PDFs are generated from a subset of these files — keep them aligned with what is actually shipped.
 
 > 👋 **Everyday users:** start with [SIX-PILLARS.md](SIX-PILLARS.md), then the [wallet](https://boing.express), [faucet](https://boing.network/faucet), and [explorer](https://boing.observer).

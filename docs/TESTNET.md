@@ -524,4 +524,4 @@ Use this draft to promote the incentivized testnet on Reddit. Fill in **[PLACEHO
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

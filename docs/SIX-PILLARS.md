@@ -1,6 +1,6 @@
 # The Six Pillars of Boing Network
 
-**Authentic. Decentralized. Optimal. Quality-Assured.**
+**Quality, enforced by the protocol.**
 
 August 2026 · [boing.network](https://boing.network) · [boing.observer](https://boing.observer)
 
