@@ -3,6 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import { BOOTNODES, TESTNET_RPC_URL } from '../../../config/testnet';
+import { FAUCET_AMOUNT_BOING } from '../../../config/faucet';
 import '../../../styles/hub-common.css';
 
 const REL = 'testnet-v0.1.14';
@@ -117,7 +118,7 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
 
     <section class="section" id="stake">
       <h2>4. Fund the bond</h2>
-      <p>Registering locks a <strong>100 BOING</strong> bond; keep a few BOING extra for fees (about 1 BOING per transaction). The <a href="/faucet">faucet</a> sends 20 BOING per request, once a minute, so a few requests cover the bond. Stuck or want help? Reach out with your <strong>AccountId</strong> and node multiaddr (<code>/ip4/&lt;public-ip&gt;/tcp/4001</code>):</p>
+      <p>Registering locks a <strong>100 BOING</strong> bond; keep a few BOING extra for fees (about 1 BOING per transaction). The <a href="/faucet">faucet</a> sends {FAUCET_AMOUNT_BOING} BOING per request, once a minute, so a few requests cover the bond. Stuck or want help? Reach out with your <strong>AccountId</strong> and node multiaddr (<code>/ip4/&lt;public-ip&gt;/tcp/4001</code>):</p>
       <ul>
         <li>Email: <a href={`mailto:${contactEmail}?subject=Boing%20testnet%20validator%20stake%20request`}>{contactEmail}</a></li>
         <li>Discord: <a href={discordUrl} target="_blank" rel="noopener">{discordUrl}</a> (operators channel)</li>

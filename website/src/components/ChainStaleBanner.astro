@@ -1,0 +1,123 @@
+---
+/**
+ * Dismissible notice shown when the public testnet tip is older than `thresholdMinutes`.
+ * Reads the same public RPC the rest of the site uses (boing_chainHeight + boing_getBlockByHeight).
+ * Renders nothing when the chain is advancing, or when the RPC cannot be reached
+ * (we only say "stalled" when we actually saw an old block).
+ */
+import { TESTNET_RPC_URL } from '../config/testnet';
+interface Props {
+  thresholdMinutes?: number;
+}
+const { thresholdMinutes = 10 } = Astro.props;
+---
+<div
+  class="chain-stale-banner"
+  role="status"
+  aria-live="polite"
+  data-rpc={TESTNET_RPC_URL}
+  data-threshold-minutes={thresholdMinutes}
+  hidden
+>
+  <p class="chain-stale-banner__text">
+    <strong>Testnet block production looks stalled</strong> — last block <span data-stale-ago>a while</span> ago (height <span data-stale-height>?</span>).
+    Transactions and faucet requests may not confirm until blocks resume. See <a href="/status">Network Status</a> for updates.
+  </p>
+  <button type="button" class="chain-stale-banner__dismiss" aria-label="Dismiss testnet status notice">Dismiss</button>
+</div>
+
+<script>
+  (function () {
+    var root = document.querySelector('.chain-stale-banner') as HTMLElement | null;
+    if (!root) return;
+    var rpc = (root.getAttribute('data-rpc') || '').replace(/\/?$/, '/');
+    var thresholdMs = Number(root.getAttribute('data-threshold-minutes') || '10') * 60 * 1000;
+    var agoEl = root.querySelector('[data-stale-ago]') as HTMLElement;
+    var heightEl = root.querySelector('[data-stale-height]') as HTMLElement;
+    var dismissKey = 'boing-stale-banner-dismissed';
+    var timer: number | undefined;
+
+    function fmtAgo(ms: number): string {
+      var m = Math.floor(ms / 60000);
+      if (m < 60) return m + ' min';
+      var h = Math.floor(m / 60);
+      if (h < 48) return h + ' h ' + (m % 60) + ' min';
+      return Math.floor(h / 24) + ' days';
+    }
+    function rpcCall(method: string, params: unknown[]) {
+      var ctrl = new AbortController();
+      var t = setTimeout(function () { ctrl.abort(); }, 8000);
+      return fetch(rpc, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: method, params: params }),
+        signal: ctrl.signal,
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { clearTimeout(t); return j && j.result; });
+    }
+    function check() {
+      rpcCall('boing_chainHeight', [])
+        .then(function (h) {
+          if (typeof h !== 'number') throw new Error('no height');
+          return rpcCall('boing_getBlockByHeight', [h, false]).then(function (b) { return { h: h, b: b }; });
+        })
+        .then(function (x) {
+          var ts = x.b && x.b.header && Number(x.b.header.timestamp);
+          if (!ts) return;
+          var age = Date.now() - ts * 1000;
+          if (age > thresholdMs) {
+            agoEl.textContent = fmtAgo(age);
+            heightEl.textContent = String(x.h);
+            var dismissed = false;
+            try { dismissed = sessionStorage.getItem(dismissKey) === String(x.h); } catch (e) {}
+            root!.hidden = dismissed;
+          } else {
+            root!.hidden = true;
+          }
+        })
+        .catch(function () { /* RPC unreachable: say nothing rather than guess */ });
+    }
+    root.querySelector('.chain-stale-banner__dismiss')!.addEventListener('click', function () {
+      root!.hidden = true;
+      try { sessionStorage.setItem(dismissKey, heightEl.textContent || ''); } catch (e) {}
+    });
+    check();
+    timer = window.setInterval(check, 60000);
+    window.addEventListener('pagehide', function () { if (timer) clearInterval(timer); });
+  })();
+</script>
+
+<style>
+  .chain-stale-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin: 0 0 1.25rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(255, 184, 0, 0.55);
+    border-left-width: 4px;
+    border-radius: 10px;
+    background: rgba(255, 184, 0, 0.09);
+    color: var(--text-primary, #e8f0f8);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+  .chain-stale-banner[hidden] { display: none; }
+  .chain-stale-banner__text { margin: 0; flex: 1; }
+  .chain-stale-banner__text strong { color: var(--warning-color, #ffb800); }
+  .chain-stale-banner__dismiss {
+    flex-shrink: 0;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid rgba(255, 184, 0, 0.55);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-primary, #e8f0f8);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.85rem;
+  }
+  .chain-stale-banner__dismiss:hover { background: rgba(255, 184, 0, 0.15); }
+</style>
