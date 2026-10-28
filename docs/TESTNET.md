@@ -142,7 +142,7 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 **Notes:**
 
 - Only nodes started with `--faucet-enable` support this. **Do not use on mainnet.**
-- The faucet account is funded at genesis with 10,000,000 testnet BOING; each request sends **10**.
+- The faucet account is funded at genesis with 10,000,000 testnet BOING; each request sends **20** (`FAUCET_DISPENSE_AMOUNT` in `crates/boing-node/src/faucet.rs`; a node that has not been redeployed since Oct 15, 2026 may still send 10, and the RPC response reports the amount actually sent).
 - If you get "Faucet cooldown", wait 60 seconds and try again for the same account.
 
 ### 5.2 Public faucet page

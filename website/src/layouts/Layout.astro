@@ -44,6 +44,8 @@ const navCurrent = {
   users: pathNorm.startsWith('testnet/users'),
   operators: pathNorm.startsWith('testnet/operators'),
   register: pathNorm.startsWith('testnet/register'),
+  faucet: path === '/faucet' || path === '/faucet/',
+  join: pathNorm === 'testnet/join',
 };
 ---
 
@@ -163,10 +165,12 @@ const navCurrent = {
                 <a href="#build" class="nav-section" data-nav-section="build">Build</a>
                 <a href="/resources" class="nav-link">Resources</a>
                 <a href="/downloads" class="nav-link">Downloads</a>
+                <a href="/faucet" class="nav-link">Faucet</a>
               </div>
               <div class="site-nav-actions">
                 <BoingApps />
-                <a href="/testnet" class="nav-cta">Dashboard</a>
+                <a href="/testnet" class="nav-quiet">Dashboard</a>
+                <a href="/testnet/join" class="nav-cta">Get started</a>
               </div>
             </>
           ) : isTestnetApp ? (
@@ -190,6 +194,8 @@ const navCurrent = {
                 <a href="/testnet/operators" class="nav-link" data-testnet-nav="operators" aria-current={navCurrent.operators ? 'page' : undefined}>Operators</a>
                 <a href="/testnet/register" class="nav-link" data-testnet-nav="register" aria-current={navCurrent.register ? 'page' : undefined}>Register</a>
                 <span class="nav-site-sep" id="nav-testnet-sep" hidden></span>
+                <a href="/testnet/join" class="nav-link" aria-current={navCurrent.join ? 'page' : undefined}>Get started</a>
+                <a href="/faucet" class="nav-link" aria-current={navCurrent.faucet ? 'page' : undefined}>Faucet</a>
                 <a href="/resources" class="nav-link" id="nav-testnet-site-resources">Resources</a>
               </div>
               <div class="site-nav-actions">
@@ -206,10 +212,12 @@ const navCurrent = {
                 <a href="/downloads" class="nav-link" aria-current={navCurrent.downloads ? 'page' : undefined}>Downloads</a>
                 <a href="/about" class="nav-link" aria-current={navCurrent.about ? 'page' : undefined}>About</a>
                 <a href="/community" class="nav-link" aria-current={navCurrent.community ? 'page' : undefined}>Community</a>
+                <a href="/faucet" class="nav-link" aria-current={navCurrent.faucet ? 'page' : undefined}>Faucet</a>
               </div>
               <div class="site-nav-actions">
                 <BoingApps />
-                <a href="/testnet" class="nav-cta">Dashboard</a>
+                <a href="/testnet" class="nav-quiet">Dashboard</a>
+                <a href="/testnet/join" class="nav-cta" aria-current={navCurrent.join ? 'page' : undefined}>Get started</a>
               </div>
             </>
           )}
@@ -860,6 +868,16 @@ const navCurrent = {
   @media (max-width: 959px) {
     .site-nav-toggle {
       display: inline-flex;
+    }
+
+    /* Opaque panel when the mobile menu is open so page text never shows through. */
+    .site-header.nav-open {
+      background: #050a1a;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    body.nav-scroll-lock .site-nav-backdrop {
+      background: rgba(2, 4, 10, 0.86);
     }
 
     .site-header nav,
