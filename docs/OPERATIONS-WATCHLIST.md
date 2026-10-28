@@ -72,14 +72,16 @@ boing.observer recomputation if it is available.
 
 ## 2. Public RPC gateway (`boing-public-rpc-gateway` Worker)
 
-While `EDGE_POLICY_MODE = "log"`, the Worker only **observes**: a request that would be refused still succeeds, and
-the response carries `X-Boing-Edge-Policy: would-deny:<reason>`.
+Since 2026-10-28 the Worker runs with `EDGE_POLICY_MODE = "enforce"`: a refused request gets a JSON-RPC error and the
+response carries `X-Boing-Edge-Policy: denied:<reason>`. It ran in `log` mode for two days first (5 of 35,796 requests would have
+been denied, all unknown methods; in `log` mode the same marker reads `would-deny:<reason>` and the request still succeeds).
+To go back, set `log` or `off` and redeploy, or `wrangler rollback`.
 
 - Workers Logs (Cloudflare dashboard, Workers & Pages, the Worker, Observability): search for the `edge_policy` field.
   Each would-deny is a JSON line `{edge_policy, reason, class, method, denial, ip}`.
 - Live tail without storing: `npx wrangler tail boing-public-rpc-gateway --format json` (needs `wrangler login`).
-- Before switching to `enforce`: review a few days of would-deny lines. Legitimate wallets, boing.finance and the
-  observer must not appear. Switching modes is a deliberate redeploy (change `EDGE_POLICY_MODE`), never an emergency edit.
+- Now that it enforces: look for `"edge_policy":"enforce"` lines and `denied:` responses. Legitimate wallets, boing.finance and the
+  observer must not appear; if one does, roll back first and investigate after. Switching modes is a deliberate redeploy (change `EDGE_POLICY_MODE`), never an emergency edit.
 - Typecheck and tests: `cd workers/public-rpc-gateway && npm ci && npm run typecheck && npm test`.
 
 ## 3. Cloudflare Free plan limits and what to do on upgrade
@@ -96,7 +98,7 @@ re-check, plans change):
 | Zone rate-limiting rules | 1 rule; period and mitigation 10 s only; no `log` action; path-only expression | One generous guard (`boing_public_rpc_rl_guard`, 100 req / 10 s per IP, block). The fine-grained per-method limits live in the Worker (rate-limit bindings RL_READ, RL_HEAVY, RL_SUBMIT, RL_WRITE, RL_FAUCET) so they do not depend on the plan. |
 | Custom WAF rules | Few; fields limited | Used for blocking unusual HTTP methods and `X-Boing-Operator` on the public host. |
 
-Rules of thumb on Free: keep `EDGE_POLICY_MODE` at `log` until reviewed, do not add another zone rate-limit rule (the API
+Rules of thumb on Free: the Worker enforces (`EDGE_POLICY_MODE = "enforce"`); review any denials before relaxing it; do not add another zone rate-limit rule (the API
 refuses and the tool checks the budget), and do not expect multi-day logs.
 
 ### If you upgrade the plan

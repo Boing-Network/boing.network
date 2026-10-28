@@ -13,8 +13,8 @@ zone_name = "boing.network"
 # Single hosted backend: boing-testnet-2 retired 2026-10-24.
 RPC_BACKENDS = "https://boing-testnet-1.fly.dev"
 # Method allow-list + per-IP class limits (src/edgePolicy.ts): "log" = observe only, "enforce" = reject, "off".
-# Start in log, check `wrangler tail` for "edge_policy" lines, then switch to enforce. Optional secret: EDGE_TRUSTED_TOKEN.
-EDGE_POLICY_MODE = "log"
+# Enforcing since 2026-10-28 after two days of log mode (5 of 35,796 requests would have been denied, all unknown methods). Rollback: set "log" or "off" and redeploy, or `wrangler rollback`. Optional secret: EDGE_TRUSTED_TOKEN.
+EDGE_POLICY_MODE = "enforce"
 
 # Workers Logs: persisted, queryable in the dashboard (Workers & Pages > boing-public-rpc-gateway > Logs) and via the telemetry API.
 [observability]
