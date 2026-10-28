@@ -51,7 +51,7 @@ The last pillar is last because it is a *product* of the others working. It is n
 
 **Plain terms.** The chain should feel snappy without quietly giving up the other pillars.
 
-**On chain.** Target block time is about two seconds. Transfers that do not touch the same accounts can execute in parallel; access-list batching feeds that scheduler. The VM is stack-based and purpose-built (Boing opcodes only — no foreign bytecode engine in consensus). State is a sparse Merkle tree today, with Verkle as the stated target. Networking is libp2p (TCP, Noise, gossipsub, request-response). Large media belongs on a **separate blob fee path** ([BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)), not stuffed into account SSTORE — so NFT art does not bid up everyday transfer gas.
+**On chain.** Target block time is about two seconds when transactions are pending; blocks are produced only when transactions are present. Transfers that do not touch the same accounts can execute in parallel; access-list batching feeds that scheduler. The VM is stack-based and purpose-built (Boing opcodes only — no foreign bytecode engine in consensus). State is a sparse Merkle tree today, with Verkle as the stated target. Networking is libp2p (TCP, Noise, gossipsub, request-response). Large media belongs on a **separate blob fee path** ([BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)), not stuffed into account SSTORE — so NFT art does not bid up everyday transfer gas.
 
 **What that means for you.** Scale is “more useful work per second under the same security assumptions,” not “turn off checks.” If a shortcut needs a permissioned sequencer or a trusted VM, it is the wrong shortcut.
 

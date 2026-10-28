@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import Icon from '../components/Icon.astro';
 import CopyButton from '../components/CopyButton.astro';
-import ChainStaleBanner from '../components/ChainStaleBanner.astro';
+import ChainIdleNotice from '../components/ChainIdleNotice.astro';
 import { TESTNET_RPC_URL } from '../config/testnet';
 import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
 ---
@@ -25,7 +25,7 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
       </div>
     </header>
     <div class="page-wrap-inner faucet-content">
-      <ChainStaleBanner />
+      <ChainIdleNotice />
       <section class="faucet-form">
       <label for="account-id">Your Boing address (32-byte account address, hex, with or without 0x)</label>
       <div class="input-with-copy">
@@ -67,7 +67,7 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
       <div id="next-steps" class="next-steps" hidden>
         <strong>Next steps</strong>
         <ul>
-          <li>Funds arrive when the next block is produced (normally a few seconds; if the stalled-testnet notice is showing, they will wait until blocks resume). Check your balance in <a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a>.</li>
+          <li>Funds arrive when the next block is produced. The testnet only produces a block when there are transactions to include, so your faucet request itself triggers one (normally a few seconds). Check your balance in <a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a>.</li>
           <li><a data-observer href="https://boing.observer" target="_blank" rel="noopener">View your account on Boing Observer</a>.</li>
           <li>Building? <a href="/developers/quickstart">Deploy a token with the <code>boing token</code> CLI</a>.</li>
         </ul>

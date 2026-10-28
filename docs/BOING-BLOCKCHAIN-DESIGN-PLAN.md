@@ -564,7 +564,7 @@ If fee revenue consistently exceeds validator costs, the network is **self-susta
 |-----------|-------|-----------|
 | **Supply model** | **Uncapped, floor-triggered waves** | Start with specific initial supply; when circulating supply reaches a defined floor, a new wave of tokens is minted to restore balance (see [Chosen Model: Uncapped Supply with Floor-Triggered Waves](#chosen-model-uncapped-supply-with-floor-triggered-waves)). |
 | **Initial supply** | Specific amount at mainnet launch (TBD) | No infinite mint at genesis; predictable starting point. |
-| **Block time** | ~2 seconds (target) | Balance between throughput and finality |
+| **Block time** | ~2 seconds (target when transactions are pending; blocks are produced only when transactions are present) | Balance between throughput and finality |
 
 ### Emission Schedule (Block Rewards)
 

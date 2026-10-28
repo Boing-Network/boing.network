@@ -1,9 +1,11 @@
 ---
 /**
- * Dismissible notice shown when the public testnet tip is older than `thresholdMinutes`.
+ * Neutral, dismissible info line shown when the public testnet tip is older than `thresholdMinutes`.
+ * The Boing node only produces a block when there are transactions to include, so an old tip on a quiet
+ * testnet is normal and is NOT a fault: this is deliberately not styled as a warning.
  * Reads the same public RPC the rest of the site uses (boing_chainHeight + boing_getBlockByHeight).
- * Renders nothing when the chain is advancing, or when the RPC cannot be reached
- * (we only say "stalled" when we actually saw an old block).
+ * Renders nothing when the tip is recent or when the RPC cannot be reached; an unreachable RPC is reported
+ * as a real problem on /status.
  */
 import { TESTNET_RPC_URL } from '../config/testnet';
 interface Props {
@@ -12,29 +14,28 @@ interface Props {
 const { thresholdMinutes = 10 } = Astro.props;
 ---
 <div
-  class="chain-stale-banner"
+  class="chain-idle-notice"
   role="status"
   aria-live="polite"
   data-rpc={TESTNET_RPC_URL}
   data-threshold-minutes={thresholdMinutes}
   hidden
 >
-  <p class="chain-stale-banner__text">
-    <strong>Testnet block production looks stalled</strong> — last block <span data-stale-ago>a while</span> ago (height <span data-stale-height>?</span>).
-    Transactions and faucet requests may not confirm until blocks resume. See <a href="/status">Network Status</a> for updates.
+  <p class="chain-idle-notice__text">
+    <strong>No transactions recently.</strong> The Boing testnet only produces a block when there are transactions to include. Last block <span data-idle-ago>a while</span> ago (height <span data-idle-height>?</span>). A new block appears as soon as a transaction, such as a faucet request, is submitted. See <a href="/status">Network Status</a>.
   </p>
-  <button type="button" class="chain-stale-banner__dismiss" aria-label="Dismiss testnet status notice">Dismiss</button>
+  <button type="button" class="chain-idle-notice__dismiss" aria-label="Dismiss idle-chain notice">Dismiss</button>
 </div>
 
 <script>
   (function () {
-    var root = document.querySelector('.chain-stale-banner') as HTMLElement | null;
+    var root = document.querySelector('.chain-idle-notice') as HTMLElement | null;
     if (!root) return;
     var rpc = (root.getAttribute('data-rpc') || '').replace(/\/?$/, '/');
     var thresholdMs = Number(root.getAttribute('data-threshold-minutes') || '10') * 60 * 1000;
-    var agoEl = root.querySelector('[data-stale-ago]') as HTMLElement;
-    var heightEl = root.querySelector('[data-stale-height]') as HTMLElement;
-    var dismissKey = 'boing-stale-banner-dismissed';
+    var agoEl = root.querySelector('[data-idle-ago]') as HTMLElement;
+    var heightEl = root.querySelector('[data-idle-height]') as HTMLElement;
+    var dismissKey = 'boing-idle-notice-dismissed';
     var timer: number | undefined;
 
     function fmtAgo(ms: number): string {
@@ -76,9 +77,9 @@ const { thresholdMinutes = 10 } = Astro.props;
             root!.hidden = true;
           }
         })
-        .catch(function () { /* RPC unreachable: say nothing rather than guess */ });
+        .catch(function () { /* RPC unreachable: say nothing here; /status reports it */ });
     }
-    root.querySelector('.chain-stale-banner__dismiss')!.addEventListener('click', function () {
+    root.querySelector('.chain-idle-notice__dismiss')!.addEventListener('click', function () {
       root!.hidden = true;
       try { sessionStorage.setItem(dismissKey, heightEl.textContent || ''); } catch (e) {}
     });
@@ -89,29 +90,28 @@ const { thresholdMinutes = 10 } = Astro.props;
 </script>
 
 <style>
-  .chain-stale-banner {
+  .chain-idle-notice {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
     margin: 0 0 1.25rem;
     padding: 0.75rem 1rem;
-    border: 1px solid rgba(255, 184, 0, 0.55);
-    border-left-width: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 10px;
-    background: rgba(255, 184, 0, 0.09);
-    color: var(--text-primary, #e8f0f8);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-secondary, #b8c4d0);
     font-size: 0.92rem;
     line-height: 1.5;
   }
-  .chain-stale-banner[hidden] { display: none; }
-  .chain-stale-banner__text { margin: 0; flex: 1; }
-  .chain-stale-banner__text strong { color: var(--warning-color, #ffb800); }
-  .chain-stale-banner__dismiss {
+  .chain-idle-notice[hidden] { display: none; }
+  .chain-idle-notice__text { margin: 0; flex: 1; }
+  .chain-idle-notice__text strong { color: var(--text-primary, #e8f0f8); }
+  .chain-idle-notice__dismiss {
     flex-shrink: 0;
     min-height: 44px;
     min-width: 44px;
     padding: 0.35rem 0.8rem;
-    border: 1px solid rgba(255, 184, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px;
     background: transparent;
     color: var(--text-primary, #e8f0f8);
@@ -119,5 +119,5 @@ const { thresholdMinutes = 10 } = Astro.props;
     font: inherit;
     font-size: 0.85rem;
   }
-  .chain-stale-banner__dismiss:hover { background: rgba(255, 184, 0, 0.15); }
+  .chain-idle-notice__dismiss:hover { background: rgba(255, 255, 255, 0.08); }
 </style>

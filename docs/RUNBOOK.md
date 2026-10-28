@@ -263,7 +263,7 @@ For security incidents and vulnerabilities:
 
 ## 6b. Scalability Characteristics
 
-- **Block time:** ~2 seconds (configurable via tokenomics)
+- **Block time:** ~2 seconds target when transactions are pending (configurable via tokenomics). Blocks are produced only when transactions are present, so an idle network not advancing is normal.
 - **Throughput:** Parallel transfer batches; access-list batching reduces conflicts
 - **Gas / fees:** Fixed gas per tx type; **fee market v1** scales the historical schedule by `execution_gas_fee_bps` (recommended **100** → ~**0.00021 BOING**/transfer) plus optional `extra_fixed_fee` / `transfer_amount_bps` / blob fees. Optional **`priority_tip`** for inclusion priority (split via `tip_*_bps`, default 100% proposer). Protocol gas default split is **100% treasury**; block **emission** still goes to the round proposer. Height gate: `BOING_MICRO_FEES_ACTIVATION_HEIGHT`. Override via `network_fee_config.json` / `boing_operatorApplyFeePolicy` ([OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md), [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §8.4).
 - **Batching:** Scheduler groups non-conflicting txs; transfers with disjoint access lists run in parallel
@@ -383,7 +383,7 @@ For full setup steps, see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md). If
 ### 8.4 Monitoring the testnet
 
 - **Upgrading the RPC binary:** [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) (build, test, tunnel, post-deploy **`check-testnet-rpc`**).
-- **Chain height:** Call `boing_chainHeight` on the public RPC periodically; alert if growth stalls. Tutorial **`BOING_POLL_ONCE=1 node scripts/observer-chain-tip-poll.mjs`** emits one JSON sample (see [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3).
+- **Chain height:** Call `boing_chainHeight` on the public RPC periodically; alert if growth stops while transactions are pending (an idle chain with no transactions does not advance, which is normal). Tutorial **`BOING_POLL_ONCE=1 node scripts/observer-chain-tip-poll.mjs`** emits one JSON sample (see [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3).
 - **Faucet balance:** Check the faucet account balance via `boing_getBalance` with the faucet account ID; refill or alert when low (genesis funding is 10M; **20** BOING per request in current builds; the public node sends 10 until redeployed).
 - **Bootnode reachability:** Ensure ports 4001 (P2P) and 8545 (RPC, if exposed) are reachable from the internet; use a simple TCP check or your monitoring stack.
 
