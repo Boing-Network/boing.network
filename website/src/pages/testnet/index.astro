@@ -49,7 +49,7 @@ import '../../styles/hub-common.css';
 
     <section class="section section-glance fade-in-up delay-1" id="network-glance">
       <h2>Network at a glance</h2>
-      <p class="muted">Live testnet activity. Numbers update when the API is connected.</p>
+      <p class="muted">Live testnet activity from the portal API. If it cannot be reached, the numbers show as unavailable and you can retry.</p>
       <div class="testnet-glance" id="testnet-glance">
         <div class="testnet-glance__card">
           <span class="testnet-glance__value" id="glance-quests">—</span>
@@ -60,6 +60,8 @@ import '../../styles/hub-common.css';
           <span class="testnet-glance__label">dApps registered</span>
         </div>
       </div>
+      <p class="muted testnet-glance__status" id="glance-status" role="status" aria-live="polite"></p>
+      <button type="button" class="btn btn-secondary" id="glance-retry" hidden>Retry</button>
     </section>
 
     </div>
@@ -81,22 +83,47 @@ import '../../styles/hub-common.css';
   (function () {
     var questsEl = document.getElementById('glance-quests');
     var dappsEl = document.getElementById('glance-dapps');
+    var statusEl = document.getElementById('glance-status');
+    var retryBtn = document.getElementById('glance-retry');
     if (!questsEl && !dappsEl) return;
-    function setQuests(n) {
-      if (questsEl) questsEl.textContent = typeof n === 'number' ? n : '—';
+
+    function fetchJson(url) {
+      return fetch(url).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      });
     }
-    function setDapps(n) {
-      if (dappsEl) dappsEl.textContent = typeof n === 'number' ? n : '—';
+    function load() {
+      if (retryBtn) retryBtn.hidden = true;
+      if (statusEl) statusEl.textContent = 'Loading live numbers…';
+      if (questsEl) questsEl.textContent = '…';
+      if (dappsEl) dappsEl.textContent = '…';
+      var problems = [];
+      var q = fetchJson('/api/portal/quests-stats').then(function (d) {
+        if (d && d.ok && d.total_completions != null) { if (questsEl) questsEl.textContent = String(d.total_completions); }
+        else throw new Error('unexpected response');
+      }).catch(function (e) {
+        if (questsEl) questsEl.textContent = 'Unavailable';
+        problems.push('quest completions (' + e.message + ')');
+      });
+      var d2 = fetchJson('/api/portal/dapps').then(function (d) {
+        if (d && d.ok && Array.isArray(d.dapps)) { if (dappsEl) dappsEl.textContent = String(d.dapps.length); }
+        else throw new Error('unexpected response');
+      }).catch(function (e) {
+        if (dappsEl) dappsEl.textContent = 'Unavailable';
+        problems.push('registered dApps (' + e.message + ')');
+      });
+      Promise.all([q, d2]).then(function () {
+        if (problems.length) {
+          if (statusEl) statusEl.textContent = 'Could not load ' + problems.join(' and ') + '. The portal API may be offline or you may be offline.';
+          if (retryBtn) retryBtn.hidden = false;
+        } else if (statusEl) {
+          statusEl.textContent = 'Updated ' + new Date().toLocaleTimeString() + '.';
+        }
+      });
     }
-    Promise.all([
-      fetch('/api/portal/quests-stats').then(function (r) { return r.json().catch(function () { return {}; }); }),
-      fetch('/api/portal/dapps').then(function (r) { return r.json().catch(function () { return {}; }); })
-    ]).then(function (results) {
-      var quests = results[0];
-      var dapps = results[1];
-      if (quests.ok && quests.total_completions != null) setQuests(quests.total_completions);
-      if (dapps.ok && Array.isArray(dapps.dapps)) setDapps(dapps.dapps.length);
-    }).catch(function () {});
+    if (retryBtn) retryBtn.addEventListener('click', load);
+    load();
   })();
 </script>
 

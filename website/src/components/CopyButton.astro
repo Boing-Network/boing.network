@@ -5,12 +5,14 @@
  */
 interface Props {
   label?: string;
+  /** Accessible name when several copy buttons share the same visible label. Should contain the visible label. */
+  ariaLabel?: string;
   copiedLabel?: string;
   class?: string;
 }
-const { label = 'Copy', copiedLabel = 'Copied!', class: className = '' } = Astro.props;
+const { label = 'Copy', copiedLabel = 'Copied!', ariaLabel, class: className = '' } = Astro.props;
 ---
-<button type="button" class:list={['copy-btn', className]} data-copy-done={copiedLabel} aria-label={label}>
+<button type="button" class:list={['copy-btn', className]} data-copy-done={copiedLabel} aria-label={ariaLabel ?? label}>
   <span class="copy-btn-text">{label}</span>
 </button>
 
