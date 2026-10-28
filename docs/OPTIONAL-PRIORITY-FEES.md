@@ -35,7 +35,7 @@ Example `network_fee_config.json` (also [`docs/config/network_fee_config.canonic
 }
 ```
 
-Apply live with `boing_operatorApplyFeePolicy` (operator auth when configured) or load via `--network-fee-config`.
+Apply live with `boing_operatorApplyFeePolicy` (operator auth required; rejected with `-32057` if `BOING_OPERATOR_RPC_TOKEN` is unset) or load via `--network-fee-config`.
 
 ## Operator / testnet enablement
 

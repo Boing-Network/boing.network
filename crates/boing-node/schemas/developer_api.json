@@ -401,13 +401,13 @@
       },
       {
         "name": "boing_submitSlashAppeal",
-        "summary": "Submit an appeal for a slash (operator auth when BOING_OPERATOR_RPC_TOKEN is set). Params: [slash_id, evidence_hex] or {slash_id, evidence}.",
+        "summary": "Submit an appeal for a slash (operator auth: send X-Boing-Operator matching BOING_OPERATOR_RPC_TOKEN; rejected with -32057 if the token is unset). Params: [slash_id, evidence_hex] or {slash_id, evidence}.",
         "params": { "type": "array", "minItems": 2 },
         "result": { "type": "object" }
       },
       {
         "name": "boing_resolveSlashAppeal",
-        "summary": "Resolve a pending slash appeal (operator auth when BOING_OPERATOR_RPC_TOKEN is set). Params: [appeal_id, approved] or {appeal_id, approved}. Approved restores stake from the burn sink.",
+        "summary": "Resolve a pending slash appeal (operator auth: send X-Boing-Operator matching BOING_OPERATOR_RPC_TOKEN; rejected with -32057 if the token is unset). Params: [appeal_id, approved] or {appeal_id, approved}. Approved restores stake from the burn sink.",
         "params": { "type": "array", "minItems": 2 },
         "result": { "type": "object" }
       },

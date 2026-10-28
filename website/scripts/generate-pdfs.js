@@ -155,9 +155,9 @@ async function main() {
         timeout: 120000,
         margin: { top: '22mm', right: '18mm', bottom: '20mm', left: '18mm' },
         displayHeaderFooter: true,
-        headerTemplate: `<div style="font-size:9px;width:100%;padding:0 18mm;color:#5b6b7c;font-family:Segoe UI,Helvetica,sans-serif;">Boing Network · ${base.replace(/-/g, ' ')}</div>`,
+        headerTemplate: `<div style="font-size:9px;width:100%;padding:0 18mm;color:#5b6b7c;font-family:Segoe UI,Helvetica,sans-serif;display:flex;justify-content:space-between;"><span>Boing Network &mdash; Quality, enforced by the protocol</span><span>${base.replace(/-/g, ' ')}</span></div>`,
         footerTemplate:
-          '<div style="font-size:9px;width:100%;padding:0 18mm;color:#5b6b7c;font-family:Segoe UI,Helvetica,sans-serif;display:flex;justify-content:space-between;"><span>boing.network</span><span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>',
+          '<div style="font-size:9px;width:100%;padding:0 18mm;color:#5b6b7c;font-family:Segoe UI,Helvetica,sans-serif;display:flex;justify-content:space-between;"><span>boing.network &middot; public testnet</span><span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>',
       });
       await page.close();
       console.log('Generated:', base + '.pdf');
