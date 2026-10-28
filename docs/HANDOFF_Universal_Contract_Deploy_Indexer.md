@@ -9,7 +9,7 @@
 
 **This is not** `boing_listDexTokens` or the native DEX directory Worker (DEX-scoped pools/tokens). It is a **chain-wide deploy feed** backed by an **indexer** that reads full **`transactions`** from **`boing_getBlockByHeight`**.
 
-**Related:** [HANDOFF_Boing_Network_Global_Token_Discovery.md](HANDOFF_Boing_Network_Global_Token_Discovery.md) (DEX discovery consumers; pin **`boing-sdk@^0.3.1`**). Node RPC reference: [RPC-API-SPEC.md](RPC-API-SPEC.md) (`boing_getBlockByHeight`). Receipt/log indexers: [INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md).
+**Related:** [HANDOFF_Boing_Network_Global_Token_Discovery.md](HANDOFF_Boing_Network_Global_Token_Discovery.md) (DEX discovery consumers; pin **`@boing-network/boing-sdk@^0.5.25`**). Node RPC reference: [RPC-API-SPEC.md](RPC-API-SPEC.md) (`boing_getBlockByHeight`). Receipt/log indexers: [INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md).
 
 ---
 
@@ -17,7 +17,7 @@
 
 | Piece | Location |
 |-------|-----------|
-| **Extract + tx id** | **`boing-sdk`** — `universalContractDeployIndex.ts`: **`rpcTransactionJsonToTransactionInput`**, **`transactionIdFromUnsignedRpcTransaction`** (BLAKE3(bincode(`Transaction`)) = node **`tx_id`**), **`extractUniversalContractDeploymentsFromBlock`** / **`extractUniversalContractDeploymentsFromBlockJson`**, **`CONTRACT_DEPLOY_INIT_CODE_MARKER`**, types **`UniversalContractDeploymentRow`**, **`UniversalContractDeployPayloadKind`**. Matches node rules for nonce-derived and CREATE2 deploys (including init-code / double prediction). Published as **`boing-sdk@0.3.1+`**. |
+| **Extract + tx id** | **`boing-sdk`** — `universalContractDeployIndex.ts`: **`rpcTransactionJsonToTransactionInput`**, **`transactionIdFromUnsignedRpcTransaction`** (BLAKE3(bincode(`Transaction`)) = node **`tx_id`**), **`extractUniversalContractDeploymentsFromBlock`** / **`extractUniversalContractDeploymentsFromBlockJson`**, **`CONTRACT_DEPLOY_INIT_CODE_MARKER`**, types **`UniversalContractDeploymentRow`**, **`UniversalContractDeployPayloadKind`**. Matches node rules for nonce-derived and CREATE2 deploys (including init-code / double prediction). Published as **`@boing-network/boing-sdk@0.5.25+`**. |
 | **Hosted indexer (optional)** | **`workers/deploy-registry-indexer`** — Cloudflare Worker + **D1** + **cron** ingest + **batched** SQL + **parallel** block RPC. Operator README: [../workers/deploy-registry-indexer/README.md](../workers/deploy-registry-indexer/README.md). |
 
 ---

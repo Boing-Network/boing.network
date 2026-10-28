@@ -156,9 +156,7 @@ impl QaPoolGovernanceConfig {
         if self.max_pending_items == 0 {
             return false;
         }
-        self.public_membership
-            || self.dev_open_voting
-            || !self.administrator_accounts().is_empty()
+        self.public_membership || self.dev_open_voting || !self.administrator_accounts().is_empty()
     }
 
     /// Membership gate (ignores stake and deployer conflict). Used by the in-memory pool.

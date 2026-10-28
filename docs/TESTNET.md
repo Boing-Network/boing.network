@@ -27,7 +27,7 @@ flowchart LR
 | 🖥️ One-click node | [VibeMiner](VIBEMINER-INTEGRATION.md) using `GET https://boing.network/api/networks` |
 | 🛰️ Join as a validator | Part 1 below: P2P listen + hosted bootnodes + faucet + Bond |
 
-Hosted bootnodes (2026-08-24): `/ip4/169.155.48.188/tcp/4001` and `/ip4/109.105.220.118/tcp/4001`. Canonical public RPC hostname is the Worker gateway — **not** a home Cloudflare Tunnel.
+Hosted bootnode: `/ip4/169.155.48.188/tcp/4001` (`boing-testnet-1`). Canonical public RPC hostname is the Worker gateway — **not** a home Cloudflare Tunnel. (`boing-testnet-2` / `/ip4/109.105.220.118/tcp/4001` retired 2026-10-24.)
 
 ---
 
@@ -167,11 +167,10 @@ Public testnet connectivity (as of **2026-08-24**):
 | Bootnode | Multiaddr | Notes |
 |----------|-----------|-------|
 | Primary | `/ip4/169.155.48.188/tcp/4001` | Fly.io `boing-testnet-1` (validator + faucet) |
-| Secondary | `/ip4/109.105.220.118/tcp/4001` | Fly.io `boing-testnet-2` (full node) |
 
 **Operator maintenance:**
 
-1. **Bootnodes:** Keep at least one stable P2P listener on **4001**; update the table when adding a second IP.
+1. **Bootnodes:** Keep at least one stable P2P listener on **4001**; update the table when adding another IP.
 2. **Public RPC:** Hosted Fly nodes behind the Cloudflare Worker at **`https://testnet-rpc.boing.network/`** ([FLY-IO.md](FLY-IO.md)). Publish **`BOING_CANONICAL_NATIVE_*`** per [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example).
 3. **Genesis:** All validators must share genesis so the faucet account holds testnet BOING.
 4. **Docs:** Incentive program — [Part 3](#part-3--incentivized-testnet). Critical path — [READINESS.md](READINESS.md) §3.
@@ -525,4 +524,4 @@ Use this draft to promote the incentivized testnet on Reddit. Fill in **[PLACEHO
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

@@ -10,8 +10,8 @@ use axum::{
 use boing_node::rpc::rpc_router;
 use boing_node::security::RateLimitConfig;
 use boing_primitives::{
-    nonce_derived_contract_address, AccessList, Account, AccountId, AccountState, SignedTransaction,
-    Transaction, TransactionPayload,
+    nonce_derived_contract_address, AccessList, Account, AccountId, AccountState,
+    SignedTransaction, Transaction, TransactionPayload,
 };
 use boing_state::StateStore;
 use ed25519_dalek::SigningKey;
@@ -33,7 +33,9 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         state: AccountState {
             balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let native_aggregates = state.compute_native_aggregates();
@@ -54,8 +56,8 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
-    validator_signing_key: None,
-    pending_commit: None,
+        validator_signing_key: None,
+        pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
         slashed_equivocations: HashMap::new(),
@@ -68,18 +70,15 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         anchor_fallback_wait: None,
         last_local_vote_round: None,
         media_blob_store: None,
-}
+        bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
+    }
 }
 
 fn return_42_runtime_bytecode() -> Vec<u8> {
     let mut code = vec![0x7f];
     code.extend(std::iter::repeat_n(0u8, 31));
     code.push(0x42);
-    code.extend([
-        0x60, 0x00, 0x52,
-        0x60, 0x20, 0x60, 0x00, 0xf3,
-        0x00,
-    ]);
+    code.extend([0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3, 0x00]);
     code
 }
 
@@ -112,7 +111,12 @@ async fn rpc_simulate_contract_call_invalid_params() {
     let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 1_000_000)));
     let mut app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
 
-    let v = rpc_call(&mut app, "boing_simulateContractCall", serde_json::json!([])).await;
+    let v = rpc_call(
+        &mut app,
+        "boing_simulateContractCall",
+        serde_json::json!([]),
+    )
+    .await;
     let err = v.get("error").expect("error");
     assert_eq!(err.get("code"), Some(&serde_json::json!(-32602)));
 }
@@ -230,12 +234,7 @@ async fn rpc_supported_methods_includes_simulate_contract_call() {
     let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 1_000_000)));
     let mut app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
 
-    let sm = rpc_call(
-        &mut app,
-        "boing_rpcSupportedMethods",
-        serde_json::json!([]),
-    )
-    .await;
+    let sm = rpc_call(&mut app, "boing_rpcSupportedMethods", serde_json::json!([])).await;
     let arr = sm
         .get("result")
         .and_then(|x| x.as_array())
@@ -252,7 +251,12 @@ async fn rpc_get_contract_code() {
 
     let v = rpc_call(&mut app, "boing_getContractCode", serde_json::json!([])).await;
     assert_eq!(v["error"]["code"], serde_json::json!(-32602));
-    let v = rpc_call(&mut app, "boing_getContractCode", serde_json::json!(["0x12"])).await;
+    let v = rpc_call(
+        &mut app,
+        "boing_getContractCode",
+        serde_json::json!(["0x12"]),
+    )
+    .await;
     assert_eq!(v["error"]["code"], serde_json::json!(-32602));
 
     // Non-contract (EOA with balance) and unknown accounts -> null.
@@ -270,7 +274,10 @@ async fn rpc_get_contract_code() {
 
     let contract = AccountId([0xcd; 32]);
     let code = return_42_runtime_bytecode();
-    node.write().await.state.set_contract_code(contract, code.clone());
+    node.write()
+        .await
+        .state
+        .set_contract_code(contract, code.clone());
     let v = rpc_call(
         &mut app,
         "boing_getContractCode",
@@ -278,11 +285,21 @@ async fn rpc_get_contract_code() {
     )
     .await;
     let r = &v["result"];
-    assert_eq!(r["bytecode"], serde_json::json!(format!("0x{}", hex::encode(&code))));
+    assert_eq!(
+        r["bytecode"],
+        serde_json::json!(format!("0x{}", hex::encode(&code)))
+    );
     assert_eq!(r["size"], serde_json::json!(code.len()));
     let expected = boing_state::hash_contract_code(&code);
-    assert_eq!(r["code_hash"], serde_json::json!(format!("0x{}", hex::encode(expected.as_bytes()))));
+    assert_eq!(
+        r["code_hash"],
+        serde_json::json!(format!("0x{}", hex::encode(expected.as_bytes())))
+    );
 
     let sm = rpc_call(&mut app, "boing_rpcSupportedMethods", serde_json::json!([])).await;
-    assert!(sm["result"].as_array().unwrap().iter().any(|m| m == "boing_getContractCode"));
+    assert!(sm["result"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|m| m == "boing_getContractCode"));
 }

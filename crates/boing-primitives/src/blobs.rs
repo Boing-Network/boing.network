@@ -22,6 +22,7 @@
 //! Phase 19: [`crate::blobs_phase19`] — require 32 when `|slash_appeal_resolvers| > 1`; keep 31 for solo/unpinned/`|pinned|≤1`.
 //! Phase 20: [`crate::blobs_phase20`] — snapshot electorate W (+ pin-set commitment) at SubmitSlashAppeal; Resolve uses frozen W; registry V4.
 //! Phase 21: [`crate::blobs_phase21`] — resolve_deadline at Submit; Resolve rejects after deadline; stuck Pending → Expired; registry V5.
+//! Phase 22: [`crate::blobs_phase22`] — ballot domain V2 binds pin_set_commitment; dual-verify V1; read-only `boing_reverifySlashAppealBallots`; registry stays V5.
 
 use serde::{Deserialize, Serialize};
 
@@ -176,7 +177,9 @@ pub enum BlobError {
     AnnounceSizeZero,
     #[error("chunk index {index} out of range (count={count})")]
     ChunkIndexOutOfRange { index: u32, count: u32 },
-    #[error("cannot recover blob: need all-but-one data chunks plus XOR parity (or all data chunks)")]
+    #[error(
+        "cannot recover blob: need all-but-one data chunks plus XOR parity (or all data chunks)"
+    )]
     RecoveryInsufficient,
     #[error("recovered bytes do not match blob id")]
     RecoveryIdMismatch,
@@ -556,7 +559,11 @@ pub fn media_blob_chunk_merkle_proof(
     let mut layer: Vec<[u8; 32]> = leaves.to_vec();
     let mut idx = index;
     while layer.len() > 1 {
-        let sibling_idx = if idx % 2 == 0 { idx + 1 } else { idx - 1 };
+        let sibling_idx = if idx.is_multiple_of(2) {
+            idx + 1
+        } else {
+            idx - 1
+        };
         let sib = if sibling_idx < layer.len() {
             layer[sibling_idx]
         } else {
@@ -585,7 +592,7 @@ pub fn verify_media_blob_das_sample(sample: &MediaBlobDasSample) -> Result<(), B
     let mut hash = sample.chunk_hash;
     let mut idx = sample.chunk_index as usize;
     for sib in &sample.siblings {
-        hash = if idx % 2 == 0 {
+        hash = if idx.is_multiple_of(2) {
             hash_pair(&hash, sib)
         } else {
             hash_pair(sib, &hash)
@@ -809,12 +816,8 @@ mod tests {
         assert_eq!(bundle.data_chunks.len(), 2);
         assert_eq!(bundle.original_len as usize, data.len());
 
-        let mut parts: Vec<Option<Vec<u8>>> = bundle
-            .data_chunks
-            .iter()
-            .cloned()
-            .map(Some)
-            .collect();
+        let mut parts: Vec<Option<Vec<u8>>> =
+            bundle.data_chunks.iter().cloned().map(Some).collect();
         parts[1] = None;
         let recovered =
             recover_media_blob_xor(&bundle.blob_id, data.len(), &parts, &bundle.parity_chunk)

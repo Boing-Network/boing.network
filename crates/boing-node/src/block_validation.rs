@@ -73,7 +73,9 @@ pub fn validate_and_execute_block(
                     state: AccountState {
                         balance: reward,
                         nonce: 0,
-                        stake: 0, ..Default::default() },
+                        stake: 0,
+                        ..Default::default()
+                    },
                 });
             }
         }
@@ -96,7 +98,7 @@ pub fn validate_and_execute_block(
     }
 
     // 6. State root
-    let computed_root = state.state_root();
+    let computed_root = state.state_root_at_height(block.header.height);
     if block.header.state_root != computed_root {
         return Err(BlockValidationError::InvalidStateRoot {
             expected: block.header.state_root,
@@ -121,7 +123,10 @@ pub fn validate_and_execute_block(
 }
 
 /// Verify the block's tx signatures against the rules in force at its height.
-pub fn verify_block_tx_signatures(block: &Block, executor: &BlockExecutor) -> Result<(), BlockValidationError> {
+pub fn verify_block_tx_signatures(
+    block: &Block,
+    executor: &BlockExecutor,
+) -> Result<(), BlockValidationError> {
     let history = executor.execution_history();
     let height = block.header.height;
     let required = height >= crate::network_preset::block_sigs_from(history);

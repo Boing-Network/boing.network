@@ -9,9 +9,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **PutBlob / BlobAnnounce `maxBytes`** — `validatePutBlob`, `validateBlobAnnounce`, and `putBlobPayload` accept an optional size cap (default remains **16 MiB**). Pass `mediaBlobMaxBytesAt(true)` / RPC `effectiveMaxBytesAtTip` when Phase 7 **256 MiB** is active so clients can publish larger media without a separate SDK fork.
+- **Public exports** — `extractBoingBlobUri` and `blobIdHexFromBoingUri` from `metadataMedia` are re-exported from the package root (dApps resolving `boing://blob/…`).
+
 - **Optional priority tips** — `TransactionInput.priorityTip`, `withPriorityTip`, `signableTransactionHashWithTip` / `TX_SIGNING_DOMAIN_PRIORITY`. Zero tip keeps historical encode/sign; non-zero tips bind into the signature and wire encoding.
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
+
+## [0.5.38] - 2026-10-25
+
+### Added
+
+- **Phase 34 blob download ACL** — `PayloadVariant.GrantBlobDownload` (**34**) / `RevokeBlobDownload` (**35**); `grantBlobDownloadPayload` / `revokeBlobDownloadPayload`; `blobDownloadProofPreimage` / `signBlobDownloadProof` / `blobDownloadProofHeaders` for wallet-signed HTTP download. Docs: [HANDOFF_BLOB_DOWNLOAD_ACL.md](../docs/HANDOFF_BLOB_DOWNLOAD_ACL.md).
+
+## [0.5.36] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 33** — `phase33DasSuccinctProofPlan`; `PHASE33_RESERVED_REAL_VERIFIER_WIRED` (**false**), `PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES` (`ipaV1` / `kzgV1` / `snarkV1`), `PHASE33_RESERVED_REAL_V1_IS_IMPLEMENTED` (**false**); honest NotWired stubs `phase33VerifyReservedRealV1Ipa` / `Kzg` / `Snark` / `phase33VerifyDasSuccinctProofReservedReal` (no fake crypto); independent of Phase 32 BLS committee flip; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **real verifier / flip `is_implemented` / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+## [0.5.35] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 32** — `phase32DasSuccinctProofPlan`; `PHASE32_BLS_COMMITTEE_FLIP_ENV`; `phase32BlsCommitteeFlipActive` / `phase32CommitteeRequiresAttested` / `phase32CommitteeRequiresBlsAggregate`; `PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` (**true**), `PHASE32_BLS_LIVE_TX32_STILL_ED25519` (**true** compile-time default until flip); unset flip ⇒ identical to Phase 31 (multi-pin default Ed25519 **32**); when flip active and `|pinned|>1` require tx **33**; solo keeps Ed25519; slash registry stays **V5**; dual-key file stays BDKR v1; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **account-side binding / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
+## [0.5.34] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 31** — `phase31DasSuccinctProofPlan`; `PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` (**true**), `PHASE31_BLS_LIVE_TX32_STILL_ED25519` (**true**); `phase31AdmitBlsAggregateResolveTx` succeeds; `encodeResolveSlashAppealBlsAggregate` submits consensus-admitted tx **33** (optional path); multi-pin **default** remains Ed25519 **32**; slash registry stays **V5**; dual-key file stays BDKR v1; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **flip cast / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
+## [0.5.33] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 30** — `phase30DasSuccinctProofPlan`; `PHASE30_*` including `PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED` (**true**), `PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` (**false**); `phase30IdentitiesFromSelfContained`; `encodeResolveSlashAppealBlsAggregate` (tx **33**); JS self-contained verify / consensus admit throw (use Rust/`blst` + `boing_verifyBlsAggregateResolve` with `signerPubkeys`); live tx **32** stays Ed25519 verify-each; slash registry stays **V5**; dual-key file stays BDKR v1; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **consensus execute tx 33 / flip cast / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
+## [0.5.32] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 29** — `phase29DasSuccinctProofPlan`; `PHASE29_*` including `PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX` (**33**), `PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED` (**true**), `PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` (**false**); `phase29EncodeSignerBitset` / `phase29DecodeSignerBitset`; JS aggregate-resolve verify / consensus admit throw (use Rust/`blst` + `boing_verifyBlsAggregateResolve`); live tx **32** stays Ed25519 verify-each; slash registry stays **V5**; dual-key file stays BDKR v1; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **consensus admit tx 33 / flip cast / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
+## [0.5.31] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 28** — `phase28DasSuccinctProofPlan`; `PHASE28_*` including `PHASE28_BLS_POP_REQUIRED` (**true**), `PHASE28_BLS_POP_DOMAIN` / `PHASE28_BLS_POP_SIG_DST`; `phase28BlsPopPreimage` (BLAKE3); JS PoP sign/verify throw (use Rust/`blst` + `boing_registerBlsDualKey`); live tx **32** stays Ed25519 verify-each; slash registry stays **V5**; dual-key file stays BDKR v1; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **aggregate submit / flip cast / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
+## [0.5.30] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 27** — `phase27DasSuccinctProofPlan`; `PHASE27_*` including `PHASE27_BLS_AGGREGATE_WIRED` (**true** for node library + RPC), `PHASE27_BLS_DUAL_KEY_REGISTRY_FILE`; dual-key validate helpers; JS aggregate/verify throw directing clients to `boing_verifyBlsAggregate` (no fake browser blst); live tx **32** stays Ed25519 verify-each; slash registry stays **V5**; host-local `bls_dual_key_registry.bin`; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **PoP / aggregate submit / flip cast / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
+## [0.5.29] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 26** — `phase26DasSuccinctProofPlan`; `PHASE26_*` including `PHASE26_BLS_PUBLIC_KEY_G1_BYTES` (**48**), `PHASE26_BLS_SIGNATURE_G2_BYTES` (**96**), `PHASE26_BLS_AGGREGATE_WIRED` (**false**); dual-key validation + honest `NotWired` aggregate/verify stubs (no fake crypto); live tx **32** stays Ed25519 verify-each; registry stays **V5**; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **wire blst / dual-key V6 / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
+## [0.5.28] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 25** — `phase25DasSuccinctProofPlan`; `PHASE25_*` aliases including `PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS` (**4096**); prune ancient Approved / Rejected slash appeals after `resolve_deadline + 4096` in block housekeeping; `listSlashRecords` / `reverifySlashAppealBallots` gain `includeResolved` (list default true; re-verify default false); registry stays **V5**; txs unchanged; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **true BLS / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
+## [0.5.27] - 2026-10-24
+
+### Added
+
+- **L1 media blobs Phase 24** — `phase24DasSuccinctProofPlan`; `PHASE24_*` aliases including `PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS` (**4096**); prune terminal Responded / settled FailedServe serve challenges after `deadline + 4096` in block housekeeping; `listBlobSampleServeChallenges` gains `status` / `includeTerminal`; client `getBlobSampleServeChallenge` → `boing_getBlobSampleServeChallenge`; slash appeals stay **V5**; txs unchanged; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **true BLS / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
+## [0.5.26] - 2026-10-23
+
+### Added
+
+- **L1 media blobs Phase 23** — `phase23DasSuccinctProofPlan`; `PHASE23_*` aliases including `PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS` (**4096**); Expired slash appeals pruned after `resolve_deadline + 4096` in block housekeeping; `boing_listSlashRecords` / `boing_reverifySlashAppealBallots` gain `appealStatus` / `includeExpired` filters (re-verify defaults `includeExpired: false`); registry stays **V5** (row deletion only, no clear, no schema change); txs 30/31/32 unchanged; ballot V2 + re-verify from Phase 22 unchanged; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; **true BLS / SNARK / serve-challenge TTL / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
+
+## [0.5.25] - 2026-10-23
+
+### Added
+
+- **L1 media blobs Phase 22** — `phase22DasSuccinctProofPlan`; `PHASE22_*` aliases; `signSlashAppealResolveBallotV2` / dual-verify helpers; `encodeResolveSlashAppealAttestedV2`; client `reverifySlashAppealBallots` → `boing_reverifySlashAppealBallots`; new **32** ballots bind `pin_set_commitment` (dual-verify historical V1); registry stays **V5** (no clear, no schema change); txs 30/31/32 unchanged; still **16 MiB** default; ReservedRealV1 verify still rejects; admission height unchanged; Phase 19/20/21 policies unchanged; **true BLS / SNARK / 256 MiB still later**. Docs: [BOING-L1-MEDIA-BLOBS.md](../docs/BOING-L1-MEDIA-BLOBS.md).
 
 ## [0.5.24] - 2026-10-22
 

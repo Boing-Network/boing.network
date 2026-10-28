@@ -1,26 +1,52 @@
 /**
  * Public JSON-RPC edge for `testnet-rpc.boing.network`.
  *
- * Cloudflare Worker in front of the hosted Fly cluster: health-check `/live`,
- * fail over between backends, fan-out `boing_submitTransaction` to every origin
- * (so deploys reach the validator, not only the full node), and keep the stable
- * public hostname independent of a home Cloudflare Tunnel connector.
+ * Cloudflare Worker in front of the hosted Fly validator: health-check `/live`,
+ * proxy JSON-RPC, fan-out `boing_submitTransaction` to every configured origin,
+ * and keep the stable public hostname independent of a home Cloudflare Tunnel.
  */
+
+import {
+  checkRates,
+  denial,
+  inspectBody,
+  parseMode,
+  planRequest,
+  sameToken,
+  type Denial,
+  type Violation,
+} from "./edgePolicy";
 
 type Env = {
   RPC_BACKENDS?: string;
+  /** "log" (default) | "enforce" | "off": see edgePolicy.ts and docs/PUBLIC-RPC-WAF-GUIDANCE.md. */
+  EDGE_POLICY_MODE?: string;
+  /** Optional secret: callers presenting it in `X-Boing-Edge-Trusted` skip rate limits (never the blocklist). */
+  EDGE_TRUSTED_TOKEN?: string;
+  [binding: string]: unknown;
 };
 
-const DEFAULT_BACKENDS = [
-  "https://boing-testnet-1.fly.dev",
-  "https://boing-testnet-2.fly.dev",
-];
+const DEFAULT_BACKENDS = ["https://boing-testnet-1.fly.dev"];
 
 const HEALTH_TTL_MS = 8_000;
 const UPSTREAM_TIMEOUT_MS = 25_000;
 /** Parallel write timeout: stay under the Worker ~30s wall clock when skipping health probes. */
 const SUBMIT_UPSTREAM_TIMEOUT_MS = 20_000;
 const MAX_BODY_BYTES = 8 * 1_048_576;
+/**
+ * Cap JSON-RPC response bodies forwarded to clients. Fly can return 15–300 MiB for tip
+ * blocks whose ContractDeploy bytecode is serde'd as JSON number arrays; streaming those
+ * through the Worker often truncates mid-array (HTTP 200 + invalid JSON), which breaks
+ * explorers (`Expected ',' or ']' after array element…`).
+ */
+const MAX_RESPONSE_BYTES = 6 * 1_048_576;
+/**
+ * CPU budget (Workers Free = 10 ms): full `JSON.parse` + `TextDecoder` validation of a response is only
+ * worth its cost for small bodies. Above this size, when the node declared a Content-Length and we received
+ * exactly that many bytes (so the body cannot have been cut short), we only check the JSON envelope
+ * (first/last byte). Large bodies without a declared length still get the full parse.
+ */
+const FULL_VALIDATE_MAX_BYTES = 256 * 1024;
 const FAILOVER_STATUSES = new Set([502, 503, 504, 521, 522, 523, 524, 525, 526, 530]);
 /** Writes that must reach the validator, not only the first healthy full node. */
 const FANOUT_RPC_METHODS = new Set(["boing_submitTransaction"]);
@@ -29,7 +55,8 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, Accept, Authorization, X-Boing-Operator, User-Agent",
+    "Content-Type, Accept, Authorization, X-Boing-Operator, X-Boing-Blob-Download, X-Boing-Edge-Trusted, User-Agent",
+  "Access-Control-Expose-Headers": "X-Boing-Edge-Policy, Retry-After",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -102,8 +129,18 @@ function shouldFailover(status: number): boolean {
   return FAILOVER_STATUSES.has(status);
 }
 
+/**
+ * Ask the node for an uncompressed body. The node only sets `Content-Length` for identity responses
+ * (compressed ones are chunked), and the gateway needs that length to reject oversized responses
+ * (e.g. 8-160 MiB `boing_getBlockByHeight` for ContractDeploy blocks) before reading a single byte.
+ * Without it every such request streams and decompresses up to MAX_RESPONSE_BYTES first, which
+ * exceeds the Free-plan CPU limit (Cloudflare error 1102 / HTTP 503).
+ */
+const UPSTREAM_ACCEPT_ENCODING = "identity";
+
 function hopHeaders(req: Request): Headers {
   const headers = new Headers();
+  headers.set("Accept-Encoding", UPSTREAM_ACCEPT_ENCODING);
   const pass = ["content-type", "accept", "authorization", "x-boing-operator", "user-agent"];
   for (const name of pass) {
     const v = req.headers.get(name);
@@ -128,6 +165,69 @@ async function proxyOnce(
     redirect: "manual",
     signal: AbortSignal.timeout(timeoutMs),
   });
+}
+
+/**
+ * Read upstream body up to `maxBytes`; return null if the cap would be exceeded.
+ * Copies each stream chunk immediately — Workers may reuse the underlying buffer across
+ * reads, and holding views until the end intermittently corrupted even small JSON-RPC
+ * bodies (false “invalid JSON” rejects for methods like boing_getSyncState).
+ */
+async function readBodyCapped(res: Response, maxBytes: number): Promise<Uint8Array | null> {
+  const declared = Number(res.headers.get("content-length") ?? "NaN");
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    await res.body?.cancel().catch(() => undefined);
+    return null;
+  }
+
+  // Fast path: known small Content-Length — one-shot arrayBuffer (no stream view reuse).
+  if (Number.isFinite(declared) && declared >= 0 && declared <= maxBytes) {
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.byteLength > maxBytes) return null;
+    return buf;
+  }
+
+  if (!res.body) return new Uint8Array(0);
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value || value.byteLength === 0) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      // Must copy: the stream may reuse `value`'s backing memory on the next read.
+      chunks.push(value.slice());
+    }
+  } catch {
+    await reader.cancel().catch(() => undefined);
+    throw new Error("upstream body read failed");
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    out.set(c, offset);
+    offset += c.byteLength;
+  }
+  return out;
+}
+
+/** True when `buf` starts with `{`/`[` and ends with the matching `}`/`]` (ignoring JSON whitespace). */
+export function hasJsonEnvelope(buf: Uint8Array): boolean {
+  const isWs = (c: number) => c === 0x20 || c === 0x0a || c === 0x0d || c === 0x09;
+  let a = 0;
+  let b = buf.byteLength - 1;
+  while (a <= b && isWs(buf[a])) a += 1;
+  while (b >= a && isWs(buf[b])) b -= 1;
+  if (b <= a) return false;
+  const first = buf[a];
+  const last = buf[b];
+  return (first === 0x7b && last === 0x7d) || (first === 0x5b && last === 0x5d);
 }
 
 function jsonRpcMethod(body: ArrayBuffer | null): string | null {
@@ -172,8 +272,8 @@ function corsJsonResponse(attempt: FanoutAttempt): Response {
 
 /**
  * POST `boing_submitTransaction` to every configured backend (validator first in
- * `RPC_BACKENDS`). Sequential failover to the full node can mempool-accept a deploy
- * that the single validator never sees, so finance reports success and explorer stays empty.
+ * `RPC_BACKENDS`). With multiple backends, sequential read failover alone can
+ * mempool-accept a deploy that the validator never sees.
  *
  * Prefer the validator's JSON-RPC success or application error; only use another
  * backend when the validator times out or returns HTTP 5xx.
@@ -251,8 +351,52 @@ async function proxySubmitFanout(origins: string[], req: Request, body: ArrayBuf
   });
 }
 
+type Note = { value: string | null };
+
+/**
+ * Method allow-list and per-IP class limits. Returns a Response only in enforce mode; in log mode it
+ * records what would have been denied in `note` and lets the request through.
+ */
+async function edgeGate(req: Request, env: Env, body: ArrayBuffer | null, note: Note): Promise<Response | null> {
+  const mode = parseMode(env.EDGE_POLICY_MODE);
+  if (mode === "off" || req.method !== "POST" || !body) return null;
+  const inspection = inspectBody(new TextDecoder().decode(body));
+  if (!inspection) return null;
+  const plan = planRequest(inspection);
+  let first: Violation | undefined = plan.violations[0];
+  if (!first) {
+    const trusted = env.EDGE_TRUSTED_TOKEN ? sameToken(req.headers.get("x-boing-edge-trusted") ?? "", env.EDGE_TRUSTED_TOKEN) : false;
+    if (!trusted) {
+      const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
+      const over = await checkRates(env, ip, plan.counts);
+      if (over) first = { reason: "rate_limited", class: over, id: inspection.calls[0]?.id ?? null };
+    }
+  }
+  if (!first) return null;
+  const d: Denial = denial(first, inspection.batch);
+  console.warn(JSON.stringify({ edge_policy: mode, reason: first.reason, class: first.class ?? null, method: first.method ?? null, denial: d.note, ip: req.headers.get("cf-connecting-ip") }));
+  if (mode === "log") {
+    note.value = d.note;
+    return null;
+  }
+  const headers = withCors(new Headers({ "Content-Type": "application/json", "X-Boing-Edge-Policy": d.note.replace("would-deny", "denied") }));
+  if (d.retryAfter) headers.set("Retry-After", String(d.retryAfter));
+  return new Response(JSON.stringify(d.body), { status: d.status, headers });
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
+    const note: Note = { value: null };
+    const res = await handle(req, env, note);
+    if (!note.value) return res;
+    const headers = new Headers(res.headers);
+    headers.set("X-Boing-Edge-Policy", note.value);
+    return new Response(res.body, { status: res.status, headers });
+  },
+};
+
+async function handle(req: Request, env: Env, note: Note): Promise<Response> {
+  {
     if (req.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: withCors(new Headers()) });
     }
@@ -286,6 +430,9 @@ export default {
       }
     }
 
+    const denied = await edgeGate(req, env, body, note);
+    if (denied) return denied;
+
     if (req.method === "POST" && FANOUT_RPC_METHODS.has(jsonRpcMethod(body) ?? "")) {
       return proxySubmitFanout(origins, req, body);
     }
@@ -305,10 +452,95 @@ export default {
           healthCache = null;
           continue;
         }
+
+        const declaredLength = Number(upstream.headers.get("content-length") ?? "NaN");
+        if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
+          await upstream.body?.cancel().catch(() => undefined);
+          return json(
+            {
+              jsonrpc: "2.0",
+              id: null,
+              error: {
+                code: -32000,
+                message: `Upstream RPC response too large (${declaredLength} bytes; gateway limit ${MAX_RESPONSE_BYTES}).`,
+              },
+            },
+            200
+          );
+        }
+
+        // Buffer (with cap) so we never forward a mid-stream truncation as HTTP 200 JSON.
+        const buf = await readBodyCapped(upstream, MAX_RESPONSE_BYTES);
+        if (buf === null) {
+          return json(
+            {
+              jsonrpc: "2.0",
+              id: null,
+              error: {
+                code: -32000,
+                message: `Upstream RPC response exceeded gateway limit (${MAX_RESPONSE_BYTES} bytes).`,
+              },
+            },
+            200
+          );
+        }
+        if (
+          Number.isFinite(declaredLength) &&
+          declaredLength > 0 &&
+          buf.byteLength < declaredLength
+        ) {
+          return json(
+            {
+              jsonrpc: "2.0",
+              id: null,
+              error: {
+                code: -32000,
+                message: `Upstream RPC response truncated (${buf.byteLength} of ${declaredLength} bytes).`,
+              },
+            },
+            200
+          );
+        }
+
+        // Only reject when the body is non-empty yet not JSON. Empty 502/530 pages from
+        // the edge still failover above; valid small JSON-RPC must never be false-rejected.
+        if (req.method === "POST" && buf.byteLength > 0) {
+          let valid: boolean;
+          if (
+            buf.byteLength > FULL_VALIDATE_MAX_BYTES &&
+            Number.isFinite(declaredLength) &&
+            declaredLength === buf.byteLength
+          ) {
+            valid = hasJsonEnvelope(buf);
+          } else {
+            try {
+              JSON.parse(new TextDecoder().decode(buf));
+              valid = true;
+            } catch {
+              valid = false;
+            }
+          }
+          if (!valid) {
+            return json(
+              {
+                jsonrpc: "2.0",
+                id: null,
+                error: {
+                  code: -32000,
+                  message:
+                    "Upstream RPC returned truncated or invalid JSON (not forwarding corrupt body).",
+                },
+              },
+              200
+            );
+          }
+        }
+
         const headers = withCors(upstream.headers);
         headers.delete("content-encoding");
         headers.delete("content-length");
-        return new Response(upstream.body, { status: upstream.status, headers });
+        if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+        return new Response(buf as BodyInit, { status: upstream.status, headers });
       } catch (e) {
         lastStatus = 502;
         lastText =
@@ -329,5 +561,5 @@ export default {
       },
       lastStatus >= 400 ? lastStatus : 502
     );
-  },
-};
+  }
+}

@@ -1,3 +1,5 @@
+# RETIRED (2026-10-24): Fly app `boing-testnet-2` destroyed. Kept as recreate reference only.
+# Do not deploy unless intentionally bringing a second full node back.
 # Secondary Fly.io node: full node that peers with boing-testnet-1.
 # Must live at repo root so Docker build context includes Cargo.toml + crates/.
 # Deploy: fly deploy --config fly.testnet-2.toml --remote-only --ha=false

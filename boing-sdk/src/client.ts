@@ -17,7 +17,10 @@ import type {
   QaPoolConfigResult,
   QaPoolListResult,
   QaPoolVoteResult,
+  ListSlashRecordsParams,
   ListSlashRecordsResult,
+  ReverifySlashAppealBallotsParams,
+  ReverifySlashAppealBallotsResult,
   SubmitSlashAppealResult,
   ResolveSlashAppealResult,
   RegisterDappResult,
@@ -853,15 +856,47 @@ export class BoingClient {
     return this.request('boing_listSmtBlobSampleOffers', params);
   }
 
-  /** Sample-serve challenges (`boing_listBlobSampleServeChallenges`). */
+  /**
+   * Sample-serve challenges (`boing_listBlobSampleServeChallenges`).
+   * Phase 24: pass string/bytes blobId, or `{ blobId?, status?, includeTerminal? }`.
+   */
   async listBlobSampleServeChallenges(
-    blobId: string | Uint8Array,
+    blobIdOrFilters:
+      | string
+      | Uint8Array
+      | {
+          blobId?: string;
+          status?: 'open' | 'responded' | 'failedServe';
+          includeTerminal?: boolean;
+        } = {},
   ): Promise<Record<string, unknown>> {
-    const id =
-      typeof blobId === 'string'
-        ? blobId
-        : `0x${Array.from(blobId, (b) => b.toString(16).padStart(2, '0')).join('')}`;
-    return this.request('boing_listBlobSampleServeChallenges', [id]);
+    if (typeof blobIdOrFilters === 'string') {
+      return this.request('boing_listBlobSampleServeChallenges', [blobIdOrFilters]);
+    }
+    if (blobIdOrFilters instanceof Uint8Array) {
+      const id = `0x${Array.from(blobIdOrFilters, (b) =>
+        b.toString(16).padStart(2, '0'),
+      ).join('')}`;
+      return this.request('boing_listBlobSampleServeChallenges', [id]);
+    }
+    const hasFilters = Object.keys(blobIdOrFilters).length > 0;
+    return this.request(
+      'boing_listBlobSampleServeChallenges',
+      hasFilters ? [blobIdOrFilters] : [],
+    );
+  }
+
+  /**
+   * Phase 24 get-by-key (`boing_getBlobSampleServeChallenge`).
+   * Returns null when missing.
+   */
+  async getBlobSampleServeChallenge(params: {
+    blobId: string;
+    chunkIndex: number;
+    provider: string;
+    challenger: string;
+  }): Promise<Record<string, unknown> | null> {
+    return this.request('boing_getBlobSampleServeChallenge', [params]);
   }
 
   /** Succinct DAS proof roadmap (`boing_getBlobDasSuccinctProofPlan`). */
@@ -914,10 +949,24 @@ export class BoingClient {
     return this.request<AccountState>('boing_getAccount', [hex]);
   }
 
-  /** Get block by height. Returns null if not found. */
-  async getBlockByHeight(height: number, includeReceipts?: boolean): Promise<Block | null> {
-    const params =
-      includeReceipts === true ? [height, true] : includeReceipts === false ? [height, false] : [height];
+  /**
+   * Get block by height. Returns null if not found.
+   * @param includeReceipts when true, include per-tx receipts
+   * @param includeCode when false, large byte fields (bytecode/calldata/blob data) are
+   *   `{ omitted, size, hash }` stubs — preferred for explorer tip windows
+   */
+  async getBlockByHeight(
+    height: number,
+    includeReceipts?: boolean,
+    includeCode?: boolean
+  ): Promise<Block | null> {
+    const params: unknown[] = [height];
+    if (includeReceipts !== undefined || includeCode !== undefined) {
+      params.push(includeReceipts === true);
+    }
+    if (includeCode !== undefined) {
+      params.push(includeCode === true);
+    }
     return this.request<Block | null>('boing_getBlockByHeight', params);
   }
 
@@ -944,11 +993,20 @@ export class BoingClient {
     return this.request<RpcLogEntry[]>('boing_getLogs', [payload]);
   }
 
-  /** Get block by hash. Params: 32-byte block hash (hex). */
-  async getBlockByHash(hexBlockHash: string, includeReceipts?: boolean): Promise<Block | null> {
+  /** Get block by hash. Params: 32-byte block hash (hex). See {@link getBlockByHeight} for flags. */
+  async getBlockByHash(
+    hexBlockHash: string,
+    includeReceipts?: boolean,
+    includeCode?: boolean
+  ): Promise<Block | null> {
     const hex = validateHex32(hexBlockHash);
-    const params =
-      includeReceipts === true ? [hex, true] : includeReceipts === false ? [hex, false] : [hex];
+    const params: unknown[] = [hex];
+    if (includeReceipts !== undefined || includeCode !== undefined) {
+      params.push(includeReceipts === true);
+    }
+    if (includeCode !== undefined) {
+      params.push(includeCode === true);
+    }
     return this.request<Block | null>('boing_getBlockByHash', params);
   }
 
@@ -1099,9 +1157,31 @@ export class BoingClient {
     return this.request<QaPoolListResult>('boing_qaPoolList', []);
   }
 
-  /** Read-only: slash/appeal registry (equivocation + liveness). */
-  async listSlashRecords(): Promise<ListSlashRecordsResult> {
-    return this.request<ListSlashRecordsResult>('boing_listSlashRecords', []);
+  /**
+   * Read-only: slash/appeal registry (consensus + local mirror).
+   * Phase 23/25: optional `{ reason, slashId, appealStatus, includeExpired, includeResolved }`.
+   */
+  async listSlashRecords(
+    filters: ListSlashRecordsParams = {},
+  ): Promise<ListSlashRecordsResult> {
+    const hasFilters = Object.keys(filters).length > 0;
+    return this.request<ListSlashRecordsResult>(
+      'boing_listSlashRecords',
+      hasFilters ? [filters] : [],
+    );
+  }
+
+  /**
+   * Phase 22 read-only audit: dual-verify stored Ed25519 resolve ballots,
+   * pin-set match, and registry commitment (`boing_reverifySlashAppealBallots`).
+   */
+  async reverifySlashAppealBallots(
+    filters: ReverifySlashAppealBallotsParams = {},
+  ): Promise<ReverifySlashAppealBallotsResult> {
+    return this.request<ReverifySlashAppealBallotsResult>(
+      'boing_reverifySlashAppealBallots',
+      [filters],
+    );
   }
 
   /**

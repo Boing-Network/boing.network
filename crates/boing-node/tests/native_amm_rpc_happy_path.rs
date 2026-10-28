@@ -10,13 +10,14 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use boing_execution::reference_token::amount_word;
 use boing_execution::{
-    constant_product_amount_out_after_fee, constant_product_pool_bytecode, decode_add_liquidity_return_lp_minted,
-    encode_add_liquidity_calldata, encode_remove_liquidity_calldata, encode_swap_calldata, reserve_a_key,
-    reserve_b_key, total_lp_supply_key, NATIVE_AMM_TOPIC_ADD_LIQUIDITY, NATIVE_AMM_TOPIC_REMOVE_LIQUIDITY,
+    constant_product_amount_out_after_fee, constant_product_pool_bytecode,
+    decode_add_liquidity_return_lp_minted, encode_add_liquidity_calldata,
+    encode_remove_liquidity_calldata, encode_swap_calldata, reserve_a_key, reserve_b_key,
+    total_lp_supply_key, NATIVE_AMM_TOPIC_ADD_LIQUIDITY, NATIVE_AMM_TOPIC_REMOVE_LIQUIDITY,
     NATIVE_AMM_TOPIC_SWAP, NATIVE_CP_POOL_CREATE2_SALT_V1,
 };
-use boing_execution::reference_token::amount_word;
 use boing_node::rpc::rpc_router;
 use boing_node::security::RateLimitConfig;
 use boing_primitives::{
@@ -43,7 +44,9 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         state: AccountState {
             balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let native_aggregates = state.compute_native_aggregates();
@@ -64,8 +67,8 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
-    validator_signing_key: None,
-    pending_commit: None,
+        validator_signing_key: None,
+        pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
         slashed_equivocations: HashMap::new(),
@@ -78,7 +81,8 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         anchor_fallback_wait: None,
         last_local_vote_round: None,
         media_blob_store: None,
-}
+        bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
+    }
 }
 
 async fn rpc_call(
@@ -169,7 +173,10 @@ fn assert_receipt_add_liquidity_return_lp(rpc: &serde_json::Value, expected_lp_m
 async fn native_amm_deploy_add_liquidity_swap_via_rpc() {
     let signing_key = SigningKey::generate(&mut OsRng);
     let proposer = AccountId(signing_key.verifying_key().to_bytes());
-    let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 10_000_000)));
+    let node = Arc::new(RwLock::new(node_with_proposer_key(
+        &signing_key,
+        10_000_000,
+    )));
     let mut app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
 
     let bytecode = constant_product_pool_bytecode();
@@ -230,7 +237,8 @@ async fn native_amm_deploy_add_liquidity_swap_via_rpc() {
     assert!(v2.get("error").is_none(), "{v2:?}");
     {
         let mut n = node.write().await;
-        n.produce_block_if_ready().expect("block with add_liquidity");
+        n.produce_block_if_ready()
+            .expect("block with add_liquidity");
     }
 
     let r_add = rpc_call(
@@ -250,7 +258,9 @@ async fn native_amm_deploy_add_liquidity_swap_via_rpc() {
     assert_receipt_add_liquidity_return_lp(&r_add, 1_000);
 
     let dx: u128 = 100;
-    let dy = u128::from(constant_product_amount_out_after_fee(1_000u64, 2_000u64, dx as u64));
+    let dy = u128::from(constant_product_amount_out_after_fee(
+        1_000u64, 2_000u64, dx as u64,
+    ));
     let swap_calldata = encode_swap_calldata(0, dx, dy);
     let swap_tx = Transaction {
         nonce: 2,
@@ -285,14 +295,7 @@ async fn native_amm_deploy_add_liquidity_swap_via_rpc() {
         serde_json::json!([tx_id_hex(&signed_swap.tx)]),
     )
     .await;
-    assert_native_amm_log2(
-        &r_swap,
-        &NATIVE_AMM_TOPIC_SWAP,
-        &proposer,
-        0,
-        dx,
-        dy,
-    );
+    assert_native_amm_log2(&r_swap, &NATIVE_AMM_TOPIC_SWAP, &proposer, 0, dx, dy);
 
     let ra = rpc_call(
         &mut app,
@@ -351,7 +354,8 @@ async fn native_amm_deploy_add_liquidity_swap_via_rpc() {
     assert!(v4.get("error").is_none(), "{v4:?}");
     {
         let mut n = node.write().await;
-        n.produce_block_if_ready().expect("block with remove_liquidity");
+        n.produce_block_if_ready()
+            .expect("block with remove_liquidity");
     }
 
     let r_rm = rpc_call(
@@ -445,7 +449,10 @@ async fn native_amm_deploy_add_liquidity_swap_via_rpc() {
 async fn native_amm_create2_deploy_add_swap_via_rpc() {
     let signing_key = SigningKey::generate(&mut OsRng);
     let proposer = AccountId(signing_key.verifying_key().to_bytes());
-    let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 10_000_000)));
+    let node = Arc::new(RwLock::new(node_with_proposer_key(
+        &signing_key,
+        10_000_000,
+    )));
     let mut app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
 
     let bytecode = constant_product_pool_bytecode();
@@ -478,7 +485,8 @@ async fn native_amm_create2_deploy_add_swap_via_rpc() {
     assert!(v.get("error").is_none(), "{v:?}");
     {
         let mut n = node.write().await;
-        n.produce_block_if_ready().expect("block with create2 deploy");
+        n.produce_block_if_ready()
+            .expect("block with create2 deploy");
     }
 
     let al = AccessList::new(vec![proposer, pool], vec![proposer, pool]);
@@ -506,7 +514,8 @@ async fn native_amm_create2_deploy_add_swap_via_rpc() {
     assert!(v2.get("error").is_none(), "{v:?}");
     {
         let mut n = node.write().await;
-        n.produce_block_if_ready().expect("block with add_liquidity");
+        n.produce_block_if_ready()
+            .expect("block with add_liquidity");
     }
 
     let r_add = rpc_call(
@@ -518,7 +527,9 @@ async fn native_amm_create2_deploy_add_swap_via_rpc() {
     assert_receipt_add_liquidity_return_lp(&r_add, 500);
 
     let dx: u128 = 50;
-    let dy = u128::from(constant_product_amount_out_after_fee(500u64, 800u64, dx as u64));
+    let dy = u128::from(constant_product_amount_out_after_fee(
+        500u64, 800u64, dx as u64,
+    ));
     let swap_calldata = encode_swap_calldata(0, dx, dy);
     let swap_tx = Transaction {
         nonce: 2,
@@ -552,12 +563,5 @@ async fn native_amm_create2_deploy_add_swap_via_rpc() {
         serde_json::json!([tx_id_hex(&signed_swap.tx)]),
     )
     .await;
-    assert_native_amm_log2(
-        &r_swap,
-        &NATIVE_AMM_TOPIC_SWAP,
-        &proposer,
-        0,
-        dx,
-        dy,
-    );
+    assert_native_amm_log2(&r_swap, &NATIVE_AMM_TOPIC_SWAP, &proposer, 0, dx, dy);
 }

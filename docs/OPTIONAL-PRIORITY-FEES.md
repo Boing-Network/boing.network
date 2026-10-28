@@ -63,7 +63,8 @@ Fresh / private chains with no `ExecutionHistory`: micro BPS applies from genesi
 
 ## Mempool
 
-- **Always** tip-descending drain + lowest-tip eviction preference
+- Block building drains **per-sender nonce-contiguous runs** (a sender's txs always execute in nonce order), choosing the highest tip among each sender's next-ready tx first; lowest-tip eviction preference when the pool is full
+- Wire format and signing domain: [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) (decode with `SignedTransaction::from_bincode`)
 - Existing global / per-sender pending caps remain the structural limits
 - Legacy free-pending cap + `free_tx_min_balance` apply **only** if someone sets `execution_gas_fee_bps = 0` after the micro-fee height — not the main spam story
 

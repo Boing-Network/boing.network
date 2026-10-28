@@ -138,6 +138,17 @@ impl Mempool {
         self.qa_registry = registry;
     }
 
+    /// Ed25519 signature check under the current tx-verify policy (see `set_tx_verify_policy`).
+    /// Cheap relative to state-dependent admission checks, so callers run it first.
+    pub fn verify_signature(signed: &SignedTransaction) -> Result<(), MempoolError> {
+        signed.verify().map_err(|e| match e {
+            boing_primitives::SignatureError::LegacySignatureRejected => {
+                MempoolError::LegacySignature
+            }
+            _ => MempoolError::InvalidSignature,
+        })
+    }
+
     /// Insert a signed transaction. Rejects duplicates, invalid nonces, per-sender cap, and ContractDeploy that fail QA.
     pub fn insert(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
         self.insert_inner(signed, false)
@@ -187,12 +198,7 @@ impl Mempool {
         qa_mode: DeployQaMode,
         restoring: bool,
     ) -> Result<(), MempoolError> {
-        signed.verify().map_err(|e| match e {
-            boing_primitives::SignatureError::LegacySignatureRejected => {
-                MempoolError::LegacySignature
-            }
-            _ => MempoolError::InvalidSignature,
-        })?;
+        Self::verify_signature(&signed)?;
         signed
             .tx
             .payload
@@ -325,29 +331,52 @@ impl Mempool {
 
     /// Remove and return signed transactions up to `max` for block inclusion.
     ///
-    /// Ordering: higher `priority_tip` first, then lower nonce, then sender id (deterministic).
-    /// Untipped txs (tip `0`) keep historical nonce/sender order among themselves.
+    /// Ordering: a k-way merge over per-sender queues. Each sender's txs are always emitted in
+    /// nonce order (a later nonce can never precede an earlier one, so a high tip on nonce 5 cannot
+    /// make it execute before nonce 3 and fail). Among the senders' next-ready txs, higher
+    /// `priority_tip` goes first, then lower nonce, then sender id (deterministic). With all tips `0`
+    /// this is exactly the historical (nonce, sender) order.
+    ///
+    /// Cost is `O(max * log(senders))` rather than sorting every pending tx each block.
     pub fn drain_for_block(&self, max: usize) -> Vec<SignedTransaction> {
+        use std::cmp::Reverse;
+        use std::collections::BinaryHeap;
+
         let mut inner = self.inner.lock().unwrap();
-        let mut candidates: Vec<(u128, AccountId, u64)> = Vec::new();
+        // Max-heap on (tip, Reverse(nonce), Reverse(sender)): highest tip, then lowest nonce, then lowest sender.
+        let mut heap: BinaryHeap<(u128, Reverse<u64>, Reverse<[u8; 32]>)> = BinaryHeap::new();
         for (sender, by_nonce) in inner.by_sender.iter() {
-            for (nonce, signed) in by_nonce.iter() {
-                candidates.push((signed.priority_tip, *sender, *nonce));
+            if let Some((nonce, signed)) = by_nonce.iter().next() {
+                heap.push((signed.priority_tip, Reverse(*nonce), Reverse(sender.0)));
             }
         }
-        candidates.sort_by(|a, b| {
-            b.0.cmp(&a.0)
-                .then_with(|| a.2.cmp(&b.2))
-                .then_with(|| a.1 .0.cmp(&b.1 .0))
-        });
-        let mut out = Vec::with_capacity(max.min(candidates.len()));
-        for (_tip, sender, nonce) in candidates.into_iter().take(max) {
-            if let Some(by_nonce) = inner.by_sender.get_mut(&sender) {
-                if let Some(signed) = by_nonce.remove(&nonce) {
-                    inner.by_id.remove(&signed.tx.id());
-                    inner.len = inner.len.saturating_sub(1);
-                    out.push(signed);
+        let mut out = Vec::with_capacity(max.min(inner.len));
+        while out.len() < max {
+            let Some((_tip, Reverse(nonce), Reverse(sender_bytes))) = heap.pop() else {
+                break;
+            };
+            let sender = AccountId(sender_bytes);
+            let (signed, next) = {
+                let Some(by_nonce) = inner.by_sender.get_mut(&sender) else {
+                    continue;
+                };
+                let Some(signed) = by_nonce.remove(&nonce) else {
+                    continue;
+                };
+                let next = by_nonce
+                    .iter()
+                    .next()
+                    .map(|(n, s)| (s.priority_tip, Reverse(*n), Reverse(sender.0)));
+                if by_nonce.is_empty() {
+                    inner.by_sender.remove(&sender);
                 }
+                (signed, next)
+            };
+            inner.by_id.remove(&signed.tx.id());
+            inner.len = inner.len.saturating_sub(1);
+            out.push(signed);
+            if let Some(n) = next {
+                heap.push(n);
             }
         }
         out
@@ -418,6 +447,12 @@ pub enum MempoolError {
     MempoolFull { limit: usize },
     #[error("insufficient balance for fee: have {have}, need {need}")]
     InsufficientFee { have: u128, need: u128 },
+    /// The tx nonce is below the sender's committed nonce, so it can never execute.
+    #[error("stale nonce: account nonce is {expected}, tx nonce is {got}")]
+    StaleNonce { expected: u64, got: u64 },
+    /// The sender has no account on chain (nothing to charge, nothing that could execute).
+    #[error("unknown sender: account has no on-chain balance; fund it before sending")]
+    UnknownSender,
     #[error("free tx rejected: sender balance {have} below free_tx_min_balance {need}")]
     FreeTxBalanceGate { have: u128, need: u128 },
     /// Protocol QA rejected this deployment; rule_id and message give user feedback.
@@ -577,7 +612,10 @@ mod tests {
             Transaction {
                 nonce,
                 sender,
-                payload: TransactionPayload::Transfer { to: AccountId([2u8; 32]), amount: 1 },
+                payload: TransactionPayload::Transfer {
+                    to: AccountId([2u8; 32]),
+                    amount: 1,
+                },
                 access_list: AccessList::default(),
             },
             key,
@@ -602,7 +640,11 @@ mod tests {
             small.push(k);
         }
         assert_eq!(pool.len(), 6);
-        assert_eq!(pool.suggested_next_nonce(whale_id, 0), 3, "nonces 3..5 evicted, 0..2 kept");
+        assert_eq!(
+            pool.suggested_next_nonce(whale_id, 0),
+            3,
+            "nonces 3..5 evicted, 0..2 kept"
+        );
         // whale 3 vs a newcomer with 0: 3 > 0 + 1, so the whale loses one more
         let k4 = SigningKey::generate(&mut OsRng);
         pool.insert(transfer(&k4, 0)).unwrap();
@@ -628,13 +670,48 @@ mod tests {
             Transaction {
                 nonce: 0,
                 sender: k4_id,
-                payload: TransactionPayload::Transfer { to: AccountId([7u8; 32]), amount: 2 },
+                payload: TransactionPayload::Transfer {
+                    to: AccountId([7u8; 32]),
+                    amount: 2,
+                },
                 access_list: AccessList::default(),
             },
             &k4,
         );
         pool.insert(replacement).unwrap();
         assert_eq!(pool.len(), 6);
+    }
+
+    #[test]
+    fn drain_untipped_matches_nonce_then_sender_order_and_respects_max() {
+        let pool = Mempool::new();
+        let keys: Vec<SigningKey> = (0..5).map(|_| SigningKey::generate(&mut OsRng)).collect();
+        for k in &keys {
+            for n in 0..3u64 {
+                pool.insert(transfer(k, n)).unwrap();
+            }
+        }
+        let first = pool.drain_for_block(7);
+        assert_eq!(first.len(), 7);
+        let keyed: Vec<(u64, [u8; 32])> =
+            first.iter().map(|s| (s.tx.nonce, s.tx.sender.0)).collect();
+        let mut sorted = keyed.clone();
+        sorted.sort();
+        assert_eq!(keyed, sorted, "untipped order is (nonce, sender)");
+        assert_eq!(pool.len(), 8);
+        let rest = pool.drain_for_block(100);
+        assert_eq!(rest.len(), 8);
+        assert!(pool.is_empty());
+        for k in &keys {
+            let id = AccountId(k.verifying_key().to_bytes());
+            let all: Vec<u64> = first
+                .iter()
+                .chain(rest.iter())
+                .filter(|s| s.tx.sender == id)
+                .map(|s| s.tx.nonce)
+                .collect();
+            assert_eq!(all, vec![0, 1, 2]);
+        }
     }
 
     #[test]
@@ -649,6 +726,10 @@ mod tests {
         pool.insert(transfer(&b, 0)).unwrap();
         pool.insert(transfer(&c, 0)).unwrap();
         pool.reinsert(drained);
-        assert_eq!(pool.len(), 4, "txs of a failed block are restored even when the pool is full");
+        assert_eq!(
+            pool.len(),
+            4,
+            "txs of a failed block are restored even when the pool is full"
+        );
     }
 }

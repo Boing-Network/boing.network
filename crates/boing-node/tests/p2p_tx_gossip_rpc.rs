@@ -44,7 +44,9 @@ fn node_with_p2p_only(
         state: AccountState {
             balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let (p2p, event_rx) = boing_p2p::P2pNode::new(p2p_listen, None, 0).expect("P2P init");
@@ -81,6 +83,7 @@ fn node_with_p2p_only(
         anchor_fallback_wait: None,
         last_local_vote_round: None,
         media_blob_store: None,
+        bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
     };
     (node, event_rx)
 }
@@ -215,18 +218,12 @@ async fn rpc_submitted_tx_propagates_to_peer_mempool_via_gossip() {
     let tx = Transaction {
         nonce: 0,
         sender: proposer,
-        payload: TransactionPayload::Transfer {
-            to,
-            amount: 1,
-        },
+        payload: TransactionPayload::Transfer { to, amount: 1 },
         access_list: AccessList::new(vec![proposer, to], vec![proposer, to]),
     };
     let signed = SignedTransaction::new(tx, &key);
     let tx_id = signed.tx.id();
-    let hex_tx = format!(
-        "0x{}",
-        hex::encode(bincode::serialize(&signed).unwrap())
-    );
+    let hex_tx = format!("0x{}", hex::encode(bincode::serialize(&signed).unwrap()));
 
     let v = rpc_call(
         &mut app,

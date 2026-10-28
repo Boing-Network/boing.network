@@ -98,7 +98,7 @@ pub const FLAG_NO_MINT: u32 = 0x20;
 pub const FLAG_TRANSFER_UNLOCK: u32 = 0x40;
 
 /// Baked into init bytecode; see flag constants.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct ReferenceFungibleSecuredConfig {
     pub flags: u32,
     pub max_tx: u128,
@@ -108,21 +108,6 @@ pub struct ReferenceFungibleSecuredConfig {
     pub cooldown_secs: u64,
     pub transfer_unlock_height: u64,
     pub initial_paused: bool,
-}
-
-impl Default for ReferenceFungibleSecuredConfig {
-    fn default() -> Self {
-        Self {
-            flags: 0,
-            max_tx: 0,
-            max_wallet: 0,
-            anti_bot_extra_blocks: 0,
-            anti_bot_max_amount: 0,
-            cooldown_secs: 0,
-            transfer_unlock_height: 0,
-            initial_paused: false,
-        }
-    }
 }
 
 impl ReferenceFungibleSecuredConfig {
@@ -212,7 +197,9 @@ pub fn reference_fungible_secured_runtime_bytecode_v2() -> Vec<u8> {
 
 /// v2 deploy payload (`0xFD` || init returning the v2 runtime).
 #[must_use]
-pub fn reference_fungible_secured_deploy_bytecode_v2(config: &ReferenceFungibleSecuredConfig) -> Vec<u8> {
+pub fn reference_fungible_secured_deploy_bytecode_v2(
+    config: &ReferenceFungibleSecuredConfig,
+) -> Vec<u8> {
     let rt = reference_fungible_secured_runtime_bytecode_v2();
     let init = reference_fungible_secured_init_bytecode(config, &rt);
     let mut out = vec![CONTRACT_DEPLOY_INIT_CODE_MARKER];
@@ -223,7 +210,9 @@ pub fn reference_fungible_secured_deploy_bytecode_v2(config: &ReferenceFungibleS
 /// [`reference_fungible_secured_deploy_bytecode_v2`] with the pinned public default config.
 #[must_use]
 pub fn reference_fungible_secured_pinned_default_deploy_bytecode_v2() -> Vec<u8> {
-    reference_fungible_secured_deploy_bytecode_v2(&ReferenceFungibleSecuredConfig::pinned_public_default())
+    reference_fungible_secured_deploy_bytecode_v2(
+        &ReferenceFungibleSecuredConfig::pinned_public_default(),
+    )
 }
 
 fn secured_runtime(self_transfer_guard: bool) -> Vec<u8> {
@@ -759,11 +748,11 @@ fn secured_runtime(self_transfer_guard: bool) -> Vec<u8> {
 
 fn emit_runtime_to_memory(code: &mut Vec<u8>, runtime: &[u8]) {
     let mut rt = runtime.to_vec();
-    while rt.len() % 32 != 0 {
+    while !rt.len().is_multiple_of(32) {
         rt.push(0);
     }
     let mut off = 0usize;
-    for ch in rt.chunks_exact(32) {
+    for ch in rt.as_chunks::<32>().0 {
         let mut w = [0u8; 32];
         w.copy_from_slice(ch);
         push32(code, &w);
@@ -832,7 +821,9 @@ pub fn reference_fungible_secured_init_bytecode(
 
 /// Full deploy payload: **`0xFD` || init** (init `RETURN`s runtime).
 #[must_use]
-pub fn reference_fungible_secured_deploy_bytecode(config: &ReferenceFungibleSecuredConfig) -> Vec<u8> {
+pub fn reference_fungible_secured_deploy_bytecode(
+    config: &ReferenceFungibleSecuredConfig,
+) -> Vec<u8> {
     let rt = reference_fungible_secured_runtime_bytecode();
     let init = reference_fungible_secured_init_bytecode(config, &rt);
     let mut out = vec![CONTRACT_DEPLOY_INIT_CODE_MARKER];
@@ -843,7 +834,9 @@ pub fn reference_fungible_secured_deploy_bytecode(config: &ReferenceFungibleSecu
 /// [`reference_fungible_secured_deploy_bytecode`] with [`ReferenceFungibleSecuredConfig::pinned_public_default`].
 #[must_use]
 pub fn reference_fungible_secured_pinned_default_deploy_bytecode() -> Vec<u8> {
-    reference_fungible_secured_deploy_bytecode(&ReferenceFungibleSecuredConfig::pinned_public_default())
+    reference_fungible_secured_deploy_bytecode(
+        &ReferenceFungibleSecuredConfig::pinned_public_default(),
+    )
 }
 
 /// Encode admin **set_deny** calldata (`to`, `set_nonzero`).
@@ -898,7 +891,9 @@ mod tests {
             state: boing_primitives::AccountState {
                 balance: 10_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
 
         let deploy_bc = reference_fungible_secured_pinned_default_deploy_bytecode();
@@ -921,7 +916,8 @@ mod tests {
             block_timestamp: 1_700_000_000,
             native_value: false,
         };
-        vm.execute_with_context(&deploy_tx, &mut state, ctx).unwrap();
+        vm.execute_with_context(&deploy_tx, &mut state, ctx)
+            .unwrap();
         let token = boing_primitives::nonce_derived_contract_address(&deployer, 0);
 
         let call_mint = boing_primitives::Transaction {
@@ -933,7 +929,8 @@ mod tests {
             },
             access_list: boing_primitives::AccessList::default(),
         };
-        vm.execute_with_context(&call_mint, &mut state, ctx).unwrap();
+        vm.execute_with_context(&call_mint, &mut state, ctx)
+            .unwrap();
 
         let call_xfer = boing_primitives::Transaction {
             nonce: 2,
@@ -944,7 +941,8 @@ mod tests {
             },
             access_list: boing_primitives::AccessList::default(),
         };
-        vm.execute_with_context(&call_xfer, &mut state, ctx).unwrap();
+        vm.execute_with_context(&call_xfer, &mut state, ctx)
+            .unwrap();
 
         let b_bob = state.get_contract_storage(&token, &xor_bal_key(&bob));
         assert_eq!(&b_bob[16..32], &100u128.to_be_bytes());
@@ -971,7 +969,9 @@ mod tests {
             state: boing_primitives::AccountState {
                 balance: 10_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
 
         let vm = Vm::new();
@@ -993,7 +993,8 @@ mod tests {
             },
             access_list: boing_primitives::AccessList::default(),
         };
-        vm.execute_with_context(&deploy_tx, &mut state, ctx).unwrap();
+        vm.execute_with_context(&deploy_tx, &mut state, ctx)
+            .unwrap();
         let token = boing_primitives::nonce_derived_contract_address(&deployer, 0);
 
         vm.execute_with_context(
@@ -1070,7 +1071,9 @@ mod tests {
             state: boing_primitives::AccountState {
                 balance: 10_000_000,
                 nonce: 0,
-                stake: 0, ..Default::default() },
+                stake: 0,
+                ..Default::default()
+            },
         });
 
         let vm = Vm::new();
@@ -1093,7 +1096,8 @@ mod tests {
             },
             access_list: boing_primitives::AccessList::default(),
         };
-        vm.execute_with_context(&deploy_tx, &mut state, ctx).unwrap();
+        vm.execute_with_context(&deploy_tx, &mut state, ctx)
+            .unwrap();
         let token = boing_primitives::nonce_derived_contract_address(&deployer, 0);
 
         vm.execute_with_context(

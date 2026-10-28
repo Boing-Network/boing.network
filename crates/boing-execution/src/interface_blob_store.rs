@@ -210,7 +210,10 @@ pub fn interface_blob_store_bytecode() -> Vec<u8> {
     // start < 2^32 - 64
     push32(&mut c, &word_u64(64));
     c.push(Opcode::MLoad as u8);
-    push32(&mut c, &word_u64((1u64 << 32) - IFACE_BLOB_MAX_WORDS_PER_PUT as u64));
+    push32(
+        &mut c,
+        &word_u64((1u64 << 32) - IFACE_BLOB_MAX_WORDS_PER_PUT as u64),
+    );
     c.push(Opcode::Lt as u8);
     revert_if_zero(&mut c, &mut fix_reverts);
     // count < 65
@@ -307,22 +310,43 @@ mod tests {
         it.run(caller, store, cd, state).is_ok()
     }
 
-    fn read(state: &StateStore, store: AccountId, writer: &AccountId, id: u64, n: usize) -> Vec<[u8; 32]> {
+    fn read(
+        state: &StateStore,
+        store: AccountId,
+        writer: &AccountId,
+        id: u64,
+        n: usize,
+    ) -> Vec<[u8; 32]> {
         (0..n)
-            .map(|i| state.get_contract_storage(&store, &interface_blob_storage_key(writer, id, i as u32)))
+            .map(|i| {
+                state
+                    .get_contract_storage(&store, &interface_blob_storage_key(writer, id, i as u32))
+            })
             .collect()
     }
 
     #[test]
     fn salt_uri_and_words_roundtrip() {
-        assert_eq!(&INTERFACE_BLOB_STORE_CREATE2_SALT_V1[..25], b"BOING_IFACE_BLOB_STORE_V1");
+        assert_eq!(
+            &INTERFACE_BLOB_STORE_CREATE2_SALT_V1[..25],
+            b"BOING_IFACE_BLOB_STORE_V1"
+        );
         let w = aid(0xab);
         let uri = interface_blob_uri(&w, 0x0123_4567_89ab_cdef);
         assert!(uri.len() <= 192);
         // cross-checked in boing-sdk tests/interfaceBlobStore.test.ts
-        let k: String = interface_blob_storage_key(&w, 0x0123_4567_89ab_cdef, 5).iter().map(|b| format!("{b:02x}")).collect();
-        assert_eq!(k, "e9e4e2e5ecf4e2edeae8eef4e9e7e4e9f4fd9aabaa88eecc22006644abababae");
-        assert_eq!(parse_interface_blob_uri(&uri), Some((w, 0x0123_4567_89ab_cdef)));
+        let k: String = interface_blob_storage_key(&w, 0x0123_4567_89ab_cdef, 5)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert_eq!(
+            k,
+            "e9e4e2e5ecf4e2edeae8eef4e9e7e4e9f4fd9aabaa88eecc22006644abababae"
+        );
+        assert_eq!(
+            parse_interface_blob_uri(&uri),
+            Some((w, 0x0123_4567_89ab_cdef))
+        );
         assert_eq!(parse_interface_blob_uri("https://x"), None);
         let data: Vec<u8> = (0..100u8).collect();
         let words = interface_blob_words(&data, IFACE_BLOB_ENCODING_DEFLATE_RAW).unwrap();
@@ -375,15 +399,35 @@ mod tests {
             v.extend_from_slice(&id);
             v.extend_from_slice(&word_u64(start));
             v.extend_from_slice(&word_u64(count));
-            v.extend(std::iter::repeat(7u8).take(32 * n));
+            v.extend(std::iter::repeat_n(7u8, 32 * n));
             v
         };
         assert!(put(&mut state, store, alice, &mk(word_u64(1), 0, 1, 1)));
-        assert!(!put(&mut state, store, alice, &mk(word_u64(1), 0, 0, 0)), "count 0");
-        assert!(!put(&mut state, store, alice, &mk(word_u64(1), 0, 65, 65)), "count 65");
-        assert!(!put(&mut state, store, alice, &mk(word_pow2(64), 0, 1, 1)), "id >= 2^64");
-        assert!(!put(&mut state, store, alice, &mk(word_u64(1), (1 << 32) - 64, 1, 1)), "start too big");
-        assert!(put(&mut state, store, alice, &mk(word_u64(1), 0, 64, 64)), "64 words ok");
+        assert!(
+            !put(&mut state, store, alice, &mk(word_u64(1), 0, 0, 0)),
+            "count 0"
+        );
+        assert!(
+            !put(&mut state, store, alice, &mk(word_u64(1), 0, 65, 65)),
+            "count 65"
+        );
+        assert!(
+            !put(&mut state, store, alice, &mk(word_pow2(64), 0, 1, 1)),
+            "id >= 2^64"
+        );
+        assert!(
+            !put(
+                &mut state,
+                store,
+                alice,
+                &mk(word_u64(1), (1 << 32) - 64, 1, 1)
+            ),
+            "start too big"
+        );
+        assert!(
+            put(&mut state, store, alice, &mk(word_u64(1), 0, 64, 64)),
+            "64 words ok"
+        );
         // unknown selector: no-op success
         let mut other = selector_word(0x01).to_vec();
         other.extend_from_slice(&[0u8; 96]);
@@ -400,6 +444,6 @@ mod tests {
         let mut it = Interpreter::new(interface_blob_store_bytecode(), 8_000_000);
         it.run(aid(1), store, cd, &mut state).unwrap();
         let used = it.gas_used;
-        assert!(used >= 64 * 20_000 && used < 2_000_000, "gas used {used}");
+        assert!((64 * 20_000..2_000_000).contains(&used), "gas used {used}");
     }
 }

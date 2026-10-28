@@ -2,8 +2,24 @@
  * L1 media blobs — content-addressed PutBlob / BlobAnnounce helpers (not the interface SSTORE store).
  * @see docs/BOING-L1-MEDIA-BLOBS.md
  */
+import * as ed25519 from '@noble/ed25519';
 import { blake3 } from '@noble/hashes/blake3';
 import { bytesToHex, ensureHex, hexToBytes } from './hex.js';
+function u64Le(n) {
+    const b = new Uint8Array(8);
+    new DataView(b.buffer).setBigUint64(0, BigInt(n), true);
+    return b;
+}
+function concatBytes(...parts) {
+    const len = parts.reduce((a, p) => a + p.length, 0);
+    const out = new Uint8Array(len);
+    let o = 0;
+    for (const p of parts) {
+        out.set(p, o);
+        o += p.length;
+    }
+    return out;
+}
 /** Live consensus hard cap (16 MiB). Still not multi-minute video-scale. */
 export const MAX_MEDIA_BLOB_BYTES = 16 * 1024 * 1024;
 /** Alias: Phase 3 target is now the live cap. */
@@ -183,9 +199,14 @@ export function mediaBlobGas(size, retention) {
     const mult = retention.kind === 'forever' ? MEDIA_BLOB_FOREVER_MULTIPLIER : 1n;
     return mediaBlobGasRaw(size) * mult;
 }
-export function validatePutBlob(retention, contentType, data) {
-    if (data.length > MAX_MEDIA_BLOB_BYTES) {
-        throw new Error(`media blob exceeds MAX_MEDIA_BLOB_BYTES (${MAX_MEDIA_BLOB_BYTES})`);
+/**
+ * Validate PutBlob fields. `maxBytes` defaults to the live consensus floor (`MAX_MEDIA_BLOB_BYTES` = 16 MiB).
+ * Pass `mediaBlobMaxBytesAt(phase7CapActive)` (or RPC `effectiveMaxBytesAtTip`) when Phase 7 cap is live (256 MiB).
+ */
+export function validatePutBlob(retention, contentType, data, maxBytes = MAX_MEDIA_BLOB_BYTES) {
+    const cap = Number.isFinite(maxBytes) && maxBytes > 0 ? Math.trunc(maxBytes) : MAX_MEDIA_BLOB_BYTES;
+    if (data.length > cap) {
+        throw new Error(`media blob exceeds max bytes (${cap})`);
     }
     if (contentType.length > MAX_MEDIA_BLOB_CONTENT_TYPE_LEN) {
         throw new Error(`contentType exceeds ${MAX_MEDIA_BLOB_CONTENT_TYPE_LEN} bytes`);
@@ -199,13 +220,14 @@ export function validatePutBlob(retention, contentType, data) {
     }
     return blobIdOf(data);
 }
-export function validateBlobAnnounce(blobId, size, retention, contentType) {
+export function validateBlobAnnounce(blobId, size, retention, contentType, maxBytes = MAX_MEDIA_BLOB_BYTES) {
+    const cap = Number.isFinite(maxBytes) && maxBytes > 0 ? Math.trunc(maxBytes) : MAX_MEDIA_BLOB_BYTES;
     if (blobId.length !== 32)
         throw new Error('blobId must be 32 bytes');
     if (size <= 0)
         throw new Error('announce size must be > 0');
-    if (size > MAX_MEDIA_BLOB_BYTES) {
-        throw new Error(`announce size exceeds MAX_MEDIA_BLOB_BYTES (${MAX_MEDIA_BLOB_BYTES})`);
+    if (size > cap) {
+        throw new Error(`announce size exceeds max bytes (${cap})`);
     }
     if (contentType.length > MAX_MEDIA_BLOB_CONTENT_TYPE_LEN) {
         throw new Error(`contentType exceeds ${MAX_MEDIA_BLOB_CONTENT_TYPE_LEN} bytes`);
@@ -221,7 +243,7 @@ export function validateBlobAnnounce(blobId, size, retention, contentType) {
 /** Build a PutBlob payload for `encodeTransaction` / signing. */
 export function putBlobPayload(input) {
     const contentType = input.contentType ?? '';
-    validatePutBlob(input.retention, contentType, input.data);
+    validatePutBlob(input.retention, contentType, input.data, input.maxBytes);
     return {
         kind: 'putBlob',
         retention: input.retention,
@@ -279,6 +301,59 @@ export function payBlobSamplePayload(input) {
         chunkIndex: input.chunkIndex,
         chunkCount: input.chunkCount,
     };
+}
+/** Domain separator for Phase 34 download proofs (`BOING_BLOB_DOWNLOAD_V1`). */
+export const BLOB_DOWNLOAD_PROOF_DOMAIN = new TextEncoder().encode('BOING_BLOB_DOWNLOAD_V1');
+/** Soft max TTL for download proofs (seconds); matches node. */
+export const PHASE34_DOWNLOAD_PROOF_MAX_TTL_SECS = 3600;
+/** Phase 34: grant download ACL (`GrantBlobDownload`, variant 34). Publisher-only. */
+export function grantBlobDownloadPayload(input) {
+    if (input.blobId.length !== 32)
+        throw new Error('blobId must be 32 bytes');
+    if (input.grantee.length !== 32)
+        throw new Error('grantee must be 32 bytes');
+    return { kind: 'grantBlobDownload', blobId: input.blobId, grantee: input.grantee };
+}
+/** Phase 34: revoke download ACL (`RevokeBlobDownload`, variant 35). Publisher-only. */
+export function revokeBlobDownloadPayload(input) {
+    if (input.blobId.length !== 32)
+        throw new Error('blobId must be 32 bytes');
+    if (input.grantee.length !== 32)
+        throw new Error('grantee must be 32 bytes');
+    return { kind: 'revokeBlobDownload', blobId: input.blobId, grantee: input.grantee };
+}
+/** BLAKE3 preimage for a Phase 34 download authorization signature. */
+export function blobDownloadProofPreimage(input) {
+    if (input.blobId.length !== 32)
+        throw new Error('blobId must be 32 bytes');
+    if (input.nonce.length !== 32)
+        throw new Error('nonce must be 32 bytes');
+    return blake3(concatBytes(BLOB_DOWNLOAD_PROOF_DOMAIN, u64Le(input.chainId), input.blobId, u64Le(input.expiresAtUnix), input.nonce));
+}
+/**
+ * Build download-proof headers. `signature64` is the Ed25519 signature over
+ * [`blobDownloadProofPreimage`] (pass the preimage hex to `boing_signMessage`).
+ */
+export function blobDownloadProofHeaders(input) {
+    if (input.downloader.length !== 32)
+        throw new Error('downloader must be 32 bytes');
+    if (input.nonce.length !== 32)
+        throw new Error('nonce must be 32 bytes');
+    if (input.signature64.length !== 64)
+        throw new Error('signature must be 64 bytes');
+    return {
+        'X-Boing-Blob-Downloader': `0x${bytesToHex(input.downloader)}`,
+        'X-Boing-Blob-Expires': String(input.expiresAtUnix),
+        'X-Boing-Blob-Nonce': `0x${bytesToHex(input.nonce)}`,
+        'X-Boing-Blob-Signature': `0x${bytesToHex(input.signature64)}`,
+    };
+}
+/** Sign a download proof with a 32-byte Ed25519 secret key (tests / Node tooling). */
+export async function signBlobDownloadProof(input) {
+    const preimage = blobDownloadProofPreimage(input);
+    const downloader = await ed25519.getPublicKeyAsync(input.secretKey32);
+    const signature = await ed25519.signAsync(preimage, input.secretKey32);
+    return { downloader, preimage, signature };
 }
 /**
  * NFT binding: store BlobId as `metadata_hash`, or put `boing://blob/0x{id}` in off-chain JSON
@@ -764,7 +839,7 @@ export function encodeResolveSlashAppeal(input) {
         approved: input.approved,
     };
 }
-/** Phase 18: attested resolve (`ResolveSlashAppealAttested`, variant 32). */
+/** Phase 18/22: attested resolve (`ResolveSlashAppealAttested`, variant 32). */
 export function encodeResolveSlashAppealAttested(input) {
     if (input.ballotSignature.length !== 64) {
         throw new Error('ballotSignature must be 64 bytes');
@@ -775,6 +850,25 @@ export function encodeResolveSlashAppealAttested(input) {
         approved: input.approved,
         ballotSignature: input.ballotSignature,
     };
+}
+/**
+ * Phase 22: encode attested resolve by signing ballot domain **V2** (binds pin set).
+ * `secretKey32` must match the voter AccountId / tx.sender.
+ */
+export async function encodeResolveSlashAppealAttestedV2(input) {
+    const ballotSignature = await signSlashAppealResolveBallotV2({
+        chainId: input.chainId,
+        appealId: input.appealId,
+        slashId: input.slashId,
+        approved: input.approved,
+        pinSetCommitment: input.pinSetCommitment,
+        secretKey32: input.secretKey32,
+    });
+    return encodeResolveSlashAppealAttested({
+        appealId: input.appealId,
+        approved: input.approved,
+        ballotSignature,
+    });
 }
 /** Honest plan strings for Phase 14 (consensus slash-appeal txs; ReservedRealV1 still rejects). */
 export function phase14DasSuccinctProofPlan() {
@@ -986,6 +1080,931 @@ export function phase21DasSuccinctProofPlan() {
         'Phase 21: block housekeeping expire_pending_appeals cleans stuck Pending (W=0 / incomplete ⌈2W/3⌉); Expired never restores balance/stake (economically like Rejected).',
         'Phase 21: slash_appeals_registry.bin is V5; V4/V3/V2/legacy load migrates without required clear — pre-V5 Pending derives resolve_deadline from slash.appeal_deadline.',
         'Phase 21: Phase 19 multi-pin → 32 and Phase 20 frozen W unchanged; true BLS aggregate, SNARK/IPA/KZG, and live 256 MiB remain later — keep Fly-safe 16 MiB; do not clear the registry.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Phase 22 ballot domain tags. */
+export const SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V1 = 'BOING_SLASH_APPEAL_RESOLVE_BALLOT_V1';
+export const SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V2 = 'BOING_SLASH_APPEAL_RESOLVE_BALLOT_V2';
+/** Phase 22 aliases / constants. */
+export const PHASE22_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE21_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE22_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE21_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE22_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE21_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE22_RESOLVE_WINDOW_BLOCKS = PHASE21_RESOLVE_WINDOW_BLOCKS;
+export const PHASE22_SETTLE_RECEIPT_TTL_BLOCKS = PHASE21_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE22_MAX_APPEAL_EVIDENCE_BYTES = PHASE21_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE22_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE21_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE22_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE21_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE22_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE21_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE22_RESOLVE_THRESHOLD_NUM = PHASE21_RESOLVE_THRESHOLD_NUM;
+export const PHASE22_RESOLVE_THRESHOLD_DEN = PHASE21_RESOLVE_THRESHOLD_DEN;
+export const PHASE22_LEGACY_ELECTORATE_W_SENTINEL = PHASE21_LEGACY_ELECTORATE_W_SENTINEL;
+/** True when a multi-pin committee must use attested resolve (32) (Phase 19 alias). */
+export function phase22CommitteeRequiresAttested(pinnedLen) {
+    return phase21CommitteeRequiresAttested(pinnedLen);
+}
+export function phase22ResolveDeadline(submitHeight) {
+    return phase21ResolveDeadline(submitHeight);
+}
+export function phase22ResolveExpired(tipHeight, resolveDeadline) {
+    return phase21ResolveExpired(tipHeight, resolveDeadline);
+}
+/** BLAKE3 preimage for ballot domain V1 (historical). */
+export function slashAppealResolveBallotPreimageV1(input) {
+    if (input.voter.length !== 32)
+        throw new Error('voter must be 32 bytes');
+    const domain = new TextEncoder().encode(SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V1);
+    return blake3(concatBytes(domain, u64Le(input.chainId), u64Le(input.appealId), u64Le(input.slashId), new Uint8Array([input.approved ? 1 : 0]), input.voter));
+}
+/** BLAKE3 preimage for ballot domain V2 (binds pin_set_commitment). */
+export function slashAppealResolveBallotPreimageV2(input) {
+    if (input.voter.length !== 32)
+        throw new Error('voter must be 32 bytes');
+    if (input.pinSetCommitment.length !== 32) {
+        throw new Error('pinSetCommitment must be 32 bytes');
+    }
+    const domain = new TextEncoder().encode(SLASH_APPEAL_RESOLVE_BALLOT_DOMAIN_V2);
+    return blake3(concatBytes(domain, u64Le(input.chainId), u64Le(input.appealId), u64Le(input.slashId), new Uint8Array([input.approved ? 1 : 0]), input.voter, input.pinSetCommitment));
+}
+/** Sign a historical V1 resolve ballot. */
+export async function signSlashAppealResolveBallotV1(input) {
+    if (input.secretKey32.length !== 32)
+        throw new Error('secret key must be 32 bytes');
+    const voter = await ed25519.getPublicKeyAsync(input.secretKey32);
+    const msg = slashAppealResolveBallotPreimageV1({
+        chainId: input.chainId,
+        appealId: input.appealId,
+        slashId: input.slashId,
+        approved: input.approved,
+        voter,
+    });
+    return ed25519.signAsync(msg, input.secretKey32);
+}
+/** Sign a Phase 22 V2 resolve ballot (binds pin set). Prefer for new 32 casts. */
+export async function signSlashAppealResolveBallotV2(input) {
+    if (input.secretKey32.length !== 32)
+        throw new Error('secret key must be 32 bytes');
+    const voter = await ed25519.getPublicKeyAsync(input.secretKey32);
+    const msg = slashAppealResolveBallotPreimageV2({
+        chainId: input.chainId,
+        appealId: input.appealId,
+        slashId: input.slashId,
+        approved: input.approved,
+        voter,
+        pinSetCommitment: input.pinSetCommitment,
+    });
+    return ed25519.signAsync(msg, input.secretKey32);
+}
+/**
+ * Dual-verify a ballot: non-legacy pin tries V2 then V1; legacy all-zero pin is V1-only.
+ * Returns which domain matched, or null if neither verifies.
+ */
+export async function verifySlashAppealResolveBallotDual(input) {
+    if (input.voter.length !== 32 || input.ballotSignature.length !== 64)
+        return null;
+    if (input.pinSetCommitment.length !== 32)
+        return null;
+    const legacy = input.pinSetCommitment.every((b) => b === 0);
+    const tryV1 = async () => {
+        const msg = slashAppealResolveBallotPreimageV1(input);
+        return ed25519.verifyAsync(input.ballotSignature, msg, input.voter);
+    };
+    const tryV2 = async () => {
+        const msg = slashAppealResolveBallotPreimageV2(input);
+        return ed25519.verifyAsync(input.ballotSignature, msg, input.voter);
+    };
+    if (legacy) {
+        return (await tryV1()) ? 'v1' : null;
+    }
+    if (await tryV2())
+        return 'v2';
+    if (await tryV1())
+        return 'v1';
+    return null;
+}
+/** Honest plan strings for Phase 22 (batch re-verify + pin-bound V2 ballots; still 16 MiB). */
+export function phase22DasSuccinctProofPlan() {
+    return [
+        ...phase21DasSuccinctProofPlan(),
+        'Phase 22: boing_reverifySlashAppealBallots is a read-only audit RPC — batch-checks stored Ed25519 resolve ballots, pin-set match, and registry commitment; never mutates book state.',
+        'Phase 22: ResolveSlashAppealAttested (32) new casts use ballot domain V2 binding pin_set_commitment; dual-verify accepts historical V1 (mid-upgrade / pre-Phase-22).',
+        'Phase 22: registry stays V5 (no schema change, no clear); txs 30/31/32 unchanged; Phase 19 multi-pin→32, Phase 20 frozen W, Phase 21 resolve expiry unchanged.',
+        'Phase 22: true BLS aggregate, SNARK/IPA/KZG, and live 256 MiB remain later — keep Fly-safe 16 MiB; do not clear the registry.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Phase 23 retention for Expired slash appeals (blocks after resolve_deadline). */
+export const PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS = 4096n;
+/** Phase 23 aliases / constants. */
+export const PHASE23_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE22_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE23_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE22_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE23_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE22_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE23_RESOLVE_WINDOW_BLOCKS = PHASE22_RESOLVE_WINDOW_BLOCKS;
+export const PHASE23_SETTLE_RECEIPT_TTL_BLOCKS = PHASE22_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE23_MAX_APPEAL_EVIDENCE_BYTES = PHASE22_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE23_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE22_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE23_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE22_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE23_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE22_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE23_RESOLVE_THRESHOLD_NUM = PHASE22_RESOLVE_THRESHOLD_NUM;
+export const PHASE23_RESOLVE_THRESHOLD_DEN = PHASE22_RESOLVE_THRESHOLD_DEN;
+export const PHASE23_LEGACY_ELECTORATE_W_SENTINEL = PHASE22_LEGACY_ELECTORATE_W_SENTINEL;
+/** True when a multi-pin committee must use attested resolve (32) (Phase 19 alias). */
+export function phase23CommitteeRequiresAttested(pinnedLen) {
+    return phase22CommitteeRequiresAttested(pinnedLen);
+}
+export function phase23ResolveDeadline(submitHeight) {
+    return phase22ResolveDeadline(submitHeight);
+}
+export function phase23ResolveExpired(tipHeight, resolveDeadline) {
+    return phase22ResolveExpired(tipHeight, resolveDeadline);
+}
+/**
+ * True when an Expired appeal is past retention and may be pruned:
+ * `tipHeight > resolveDeadline + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS`.
+ */
+export function phase23ExpiredAppealPrunable(tipHeight, resolveDeadline) {
+    return tipHeight > resolveDeadline + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS;
+}
+/** Honest plan strings for Phase 23 (Expired retention prune + list filters; still 16 MiB). */
+export function phase23DasSuccinctProofPlan() {
+    return [
+        ...phase22DasSuccinctProofPlan(),
+        'Phase 23: block housekeeping prune_expired_appeals drops Expired rows when tip > resolve_deadline + 4096 (mirrors settle-receipt TTL); slash records stay; no fund restore.',
+        'Phase 23: do not prune Pending / Approved / Rejected — keep finalize + ballot audit trail for Phase 22 re-verify.',
+        'Phase 23: boing_listSlashRecords gains appealStatus / includeExpired (default true for back-compat); boing_reverifySlashAppealBallots gains includeExpired (default false).',
+        'Phase 23: registry stays V5 (row deletion only, no schema change, no clear); txs 30/31/32 unchanged; Phase 19–22 policies unchanged.',
+        'Phase 23: true BLS aggregate, SNARK/IPA/KZG, serve-challenge TTL, and live 256 MiB remain later — keep Fly-safe 16 MiB; do not clear the registry.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Phase 24 retention for terminal serve challenges (blocks after deadline). */
+export const PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = 4096n;
+/** Phase 24 aliases / constants. */
+export const PHASE24_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE23_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE24_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE23_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE24_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE23_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE24_RESOLVE_WINDOW_BLOCKS = PHASE23_RESOLVE_WINDOW_BLOCKS;
+export const PHASE24_SETTLE_RECEIPT_TTL_BLOCKS = PHASE23_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE24_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE24_MAX_APPEAL_EVIDENCE_BYTES = PHASE23_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE24_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE23_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE24_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE23_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE24_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE23_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE24_RESOLVE_THRESHOLD_NUM = PHASE23_RESOLVE_THRESHOLD_NUM;
+export const PHASE24_RESOLVE_THRESHOLD_DEN = PHASE23_RESOLVE_THRESHOLD_DEN;
+export const PHASE24_LEGACY_ELECTORATE_W_SENTINEL = PHASE23_LEGACY_ELECTORATE_W_SENTINEL;
+export function phase24CommitteeRequiresAttested(pinnedLen) {
+    return phase23CommitteeRequiresAttested(pinnedLen);
+}
+export function phase24ResolveDeadline(submitHeight) {
+    return phase23ResolveDeadline(submitHeight);
+}
+export function phase24ResolveExpired(tipHeight, resolveDeadline) {
+    return phase23ResolveExpired(tipHeight, resolveDeadline);
+}
+export function phase24ExpiredAppealPrunable(tipHeight, resolveDeadline) {
+    return phase23ExpiredAppealPrunable(tipHeight, resolveDeadline);
+}
+/**
+ * True when a terminal serve challenge is past retention and may be pruned:
+ * settled Responded/FailedServe with `tip > deadline + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS`.
+ */
+export function phase24TerminalServeChallengePrunable(input) {
+    if (!input.bondSettled || input.status === 'open')
+        return false;
+    return (input.tipHeight >
+        input.deadlineHeight + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS);
+}
+/** Honest plan strings for Phase 24 (serve-challenge TTL prune + list/get UX; still 16 MiB). */
+export function phase24DasSuccinctProofPlan() {
+    return [
+        ...phase23DasSuccinctProofPlan(),
+        'Phase 24: block housekeeping prune_terminal_serve_challenges drops Responded / settled FailedServe when tip > deadline + 4096 (frees soft-cap 256); Open and unsettled FailedServe stay.',
+        'Phase 24: boing_listBlobSampleServeChallenges gains status / includeTerminal filters; boing_getBlobSampleServeChallenge looks up by blobId+chunkIndex+provider+challenger.',
+        'Phase 24: slash_appeals_registry.bin untouched (stay V5); do not clear; txs 28/29/30/31/32 unchanged; Phase 19–23 policies unchanged.',
+        'Phase 24: true BLS aggregate, SNARK/IPA/KZG, and live 256 MiB remain later — keep Fly-safe 16 MiB.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Phase 25 retention for Approved/Rejected slash appeals (blocks after resolve_deadline). */
+export const PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS = 4096n;
+/** Phase 25 aliases / constants. */
+export const PHASE25_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE24_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE25_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE24_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE25_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE24_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE25_RESOLVE_WINDOW_BLOCKS = PHASE24_RESOLVE_WINDOW_BLOCKS;
+export const PHASE25_SETTLE_RECEIPT_TTL_BLOCKS = PHASE24_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE25_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE24_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE25_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE25_MAX_APPEAL_EVIDENCE_BYTES = PHASE24_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE25_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE24_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE25_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE24_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE25_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE24_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE25_RESOLVE_THRESHOLD_NUM = PHASE24_RESOLVE_THRESHOLD_NUM;
+export const PHASE25_RESOLVE_THRESHOLD_DEN = PHASE24_RESOLVE_THRESHOLD_DEN;
+export const PHASE25_LEGACY_ELECTORATE_W_SENTINEL = PHASE24_LEGACY_ELECTORATE_W_SENTINEL;
+export function phase25CommitteeRequiresAttested(pinnedLen) {
+    return phase24CommitteeRequiresAttested(pinnedLen);
+}
+export function phase25ResolveDeadline(submitHeight) {
+    return phase24ResolveDeadline(submitHeight);
+}
+export function phase25ResolveExpired(tipHeight, resolveDeadline) {
+    return phase24ResolveExpired(tipHeight, resolveDeadline);
+}
+export function phase25ExpiredAppealPrunable(tipHeight, resolveDeadline) {
+    return phase24ExpiredAppealPrunable(tipHeight, resolveDeadline);
+}
+/**
+ * True when an Approved/Rejected appeal is past retention and may be pruned:
+ * `tipHeight > resolveDeadline + PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS`.
+ */
+export function phase25ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return tipHeight > resolveDeadline + PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS;
+}
+export function phase25TerminalServeChallengePrunable(input) {
+    return phase24TerminalServeChallengePrunable(input);
+}
+/** Honest plan strings for Phase 25 (ancient Approved/Rejected prune + list filters; still 16 MiB). */
+export function phase25DasSuccinctProofPlan() {
+    return [
+        ...phase24DasSuccinctProofPlan(),
+        'Phase 25: block housekeeping prune_resolved_appeals drops Approved / Rejected rows when tip > resolve_deadline + 4096 (mirrors Expired TTL); slash records stay; Pending untouched.',
+        'Phase 25: boing_listSlashRecords gains includeResolved (default true for back-compat); boing_reverifySlashAppealBallots gains includeResolved (default false).',
+        'Phase 25: registry stays V5 (row deletion only, no schema change, no clear); txs 30/31/32 unchanged; Phase 19–24 policies unchanged.',
+        'Phase 25: true BLS aggregate, SNARK/IPA/KZG, and live 256 MiB remain later — keep Fly-safe 16 MiB; do not clear the registry.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Compressed BLS12-381 G1 public key size (bytes). */
+export const PHASE26_BLS_PUBLIC_KEY_G1_BYTES = 48;
+/** Compressed BLS12-381 G2 signature / aggregate size (bytes). */
+export const PHASE26_BLS_SIGNATURE_G2_BYTES = 96;
+/**
+ * Flip only when a real `blst` (or equivalent) verify path is wired.
+ * Scaffold keeps this **false** — do not treat types as live crypto.
+ */
+export const PHASE26_BLS_AGGREGATE_WIRED = false;
+/** Phase 26 aliases / constants. */
+export const PHASE26_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE25_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE26_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE25_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE26_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE25_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE26_RESOLVE_WINDOW_BLOCKS = PHASE25_RESOLVE_WINDOW_BLOCKS;
+export const PHASE26_SETTLE_RECEIPT_TTL_BLOCKS = PHASE25_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE26_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE25_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE26_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE25_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE26_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE26_MAX_APPEAL_EVIDENCE_BYTES = PHASE25_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE26_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE25_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE26_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE25_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE26_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE25_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE26_RESOLVE_THRESHOLD_NUM = PHASE25_RESOLVE_THRESHOLD_NUM;
+export const PHASE26_RESOLVE_THRESHOLD_DEN = PHASE25_RESOLVE_THRESHOLD_DEN;
+export const PHASE26_LEGACY_ELECTORATE_W_SENTINEL = PHASE25_LEGACY_ELECTORATE_W_SENTINEL;
+/** Length-check a dual-key set (unique accountIds). No curve validation until wired. */
+export function phase26ValidateDualKeySet(identities) {
+    if (identities.length === 0) {
+        throw new Error('empty signer set');
+    }
+    const seen = new Set();
+    for (const id of identities) {
+        if (id.blsPubkey.length !== PHASE26_BLS_PUBLIC_KEY_G1_BYTES) {
+            throw new Error(`invalid BLS public key length: expected ${PHASE26_BLS_PUBLIC_KEY_G1_BYTES}, got ${id.blsPubkey.length}`);
+        }
+        if (id.accountId.length !== 32) {
+            throw new Error(`invalid AccountId length: expected 32, got ${id.accountId.length}`);
+        }
+        const key = bytesToHex(id.accountId);
+        if (seen.has(key))
+            throw new Error('duplicate AccountId in dual-key registration set');
+        seen.add(key);
+    }
+}
+/**
+ * Aggregate / verify stubs — always throw until `PHASE26_BLS_AGGREGATE_WIRED`.
+ * Live resolve path remains Ed25519 verify-each on tx 32.
+ */
+export function phase26AggregateBlsSignatures(_signatures) {
+    throw new Error('BLS aggregate crypto not wired (PHASE26_BLS_AGGREGATE_WIRED=false); Ed25519 verify-each on tx 32 remains live');
+}
+export function phase26VerifyBlsAggregate(_input) {
+    throw new Error('BLS aggregate crypto not wired (PHASE26_BLS_AGGREGATE_WIRED=false); Ed25519 verify-each on tx 32 remains live');
+}
+export function phase26CommitteeRequiresAttested(pinnedLen) {
+    return phase25CommitteeRequiresAttested(pinnedLen);
+}
+export function phase26ResolveDeadline(submitHeight) {
+    return phase25ResolveDeadline(submitHeight);
+}
+export function phase26ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase25ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 26 (BLS dual-key scaffold; still 16 MiB). */
+export function phase26DasSuccinctProofPlan() {
+    return [
+        ...phase25DasSuccinctProofPlan(),
+        'Phase 26: scaffold dual-key BLS aggregate types (BLS12-381 G1 pubkey 48 B + G2 sig 96 B) and NotWired aggregate/verify APIs — do not fake crypto.',
+        'Phase 26: live ResolveSlashAppealAttested (32) stays Ed25519 verify-each; PHASE26_BLS_AGGREGATE_WIRED=false until blst is wired.',
+        'Phase 26: remaining — optional blst feature, dual-key persistence (likely V6), registration tx/host config, aggregate submit path, flip verify when wired.',
+        'Phase 26: registry stays V5 (untouched); do not clear; txs 30/31/32 unchanged; Phase 19–25 policies unchanged.',
+        'Phase 26: SNARK/IPA/KZG and live 256 MiB remain later — keep Fly-safe 16 MiB.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Compressed BLS12-381 sizes (same as Phase 26). */
+export const PHASE27_BLS_PUBLIC_KEY_G1_BYTES = PHASE26_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE27_BLS_SIGNATURE_G2_BYTES = PHASE26_BLS_SIGNATURE_G2_BYTES;
+/**
+ * Node library + RPC aggregate verify is wired (`blst` min_pk).
+ * Live tx **32** remains Ed25519 verify-each. JS SDK has no blst — use
+ * `boing_verifyBlsAggregate` on the node for real verify.
+ */
+export const PHASE27_BLS_AGGREGATE_WIRED = true;
+export const PHASE27_BLS_DUAL_KEY_REGISTRY_FILE = 'bls_dual_key_registry.bin';
+/** Phase 27 aliases / constants. */
+export const PHASE27_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE26_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE27_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE26_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE27_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE26_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE27_RESOLVE_WINDOW_BLOCKS = PHASE26_RESOLVE_WINDOW_BLOCKS;
+export const PHASE27_SETTLE_RECEIPT_TTL_BLOCKS = PHASE26_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE27_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE26_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE27_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE26_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE27_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE26_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE27_MAX_APPEAL_EVIDENCE_BYTES = PHASE26_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE27_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE26_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE27_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE26_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE27_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE26_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE27_RESOLVE_THRESHOLD_NUM = PHASE26_RESOLVE_THRESHOLD_NUM;
+export const PHASE27_RESOLVE_THRESHOLD_DEN = PHASE26_RESOLVE_THRESHOLD_DEN;
+export const PHASE27_LEGACY_ELECTORATE_W_SENTINEL = PHASE26_LEGACY_ELECTORATE_W_SENTINEL;
+/** Length-check a dual-key set (unique accountIds). */
+export function phase27ValidateDualKeySet(identities) {
+    phase26ValidateDualKeySet(identities);
+}
+/**
+ * JS has no `blst` — do not fake crypto. Use node RPC `boing_verifyBlsAggregate`
+ * (or the Rust library). Live tx 32 remains Ed25519 verify-each.
+ */
+export function phase27AggregateBlsSignatures(_signatures) {
+    throw new Error('JS SDK has no blst; use node library / boing_verifyBlsAggregate RPC (PHASE27_BLS_AGGREGATE_WIRED=true). Live tx 32 stays Ed25519 verify-each');
+}
+export function phase27VerifyBlsAggregate(_input) {
+    throw new Error('JS SDK has no blst; use node library / boing_verifyBlsAggregate RPC (PHASE27_BLS_AGGREGATE_WIRED=true). Live tx 32 stays Ed25519 verify-each');
+}
+export function phase27CommitteeRequiresAttested(pinnedLen) {
+    return phase26CommitteeRequiresAttested(pinnedLen);
+}
+export function phase27ResolveDeadline(submitHeight) {
+    return phase26ResolveDeadline(submitHeight);
+}
+export function phase27ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase26ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 27 (blst wire + host-local dual-keys; still 16 MiB). */
+export function phase27DasSuccinctProofPlan() {
+    return [
+        ...phase26DasSuccinctProofPlan(),
+        'Phase 27: wire blst (min_pk) — real sign / aggregate / fast_aggregate_verify; PHASE27_BLS_AGGREGATE_WIRED=true for library + RPC.',
+        'Phase 27: host-local bls_dual_key_registry.bin (BDKR v1) — not slash V5, not state-root; list/register/verify RPC.',
+        'Phase 27: live ResolveSlashAppealAttested (32) stays Ed25519 verify-each — do not flip committee cast until aggregate submit path lands.',
+        'Phase 27: JS SDK has no blst — clients call boing_verifyBlsAggregate; do not fake browser verify.',
+        'Phase 27: remaining — PoP for dual-keys, aggregate submit tx / signer bitset, flip verify-each → aggregate when operators opt in.',
+        'Phase 27: slash_appeals_registry.bin stays V5 (untouched); do not clear; txs 30/31/32 unchanged; Phase 19–26 policies unchanged.',
+        'Phase 27: SNARK/IPA/KZG and live 256 MiB remain later — keep Fly-safe 16 MiB.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Phase 28 sizes / wired flags (library+RPC still from Phase 27). */
+export const PHASE28_BLS_PUBLIC_KEY_G1_BYTES = PHASE27_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE28_BLS_SIGNATURE_G2_BYTES = PHASE27_BLS_SIGNATURE_G2_BYTES;
+export const PHASE28_BLS_AGGREGATE_WIRED = PHASE27_BLS_AGGREGATE_WIRED;
+export const PHASE28_BLS_DUAL_KEY_REGISTRY_FILE = PHASE27_BLS_DUAL_KEY_REGISTRY_FILE;
+/** Registration requires a verified BLS proof-of-possession. */
+export const PHASE28_BLS_POP_REQUIRED = true;
+/** BLAKE3 domain for the PoP preimage (not the blst DST). */
+export const PHASE28_BLS_POP_DOMAIN = new TextEncoder().encode('BOING_BLS_DUAL_KEY_POP_V1');
+/** CipherSuite DST string for dual-key PoP (Rust/`blst` signers). */
+export const PHASE28_BLS_POP_SIG_DST = 'BOING_BLS_POP_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_';
+export const PHASE28_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE27_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE28_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE27_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE28_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE27_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE28_RESOLVE_WINDOW_BLOCKS = PHASE27_RESOLVE_WINDOW_BLOCKS;
+export const PHASE28_SETTLE_RECEIPT_TTL_BLOCKS = PHASE27_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE28_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE27_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE28_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE27_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE28_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE27_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE28_MAX_APPEAL_EVIDENCE_BYTES = PHASE27_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE28_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE27_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE28_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE27_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE27_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE28_RESOLVE_THRESHOLD_NUM = PHASE27_RESOLVE_THRESHOLD_NUM;
+export const PHASE28_RESOLVE_THRESHOLD_DEN = PHASE27_RESOLVE_THRESHOLD_DEN;
+export const PHASE28_LEGACY_ELECTORATE_W_SENTINEL = PHASE27_LEGACY_ELECTORATE_W_SENTINEL;
+/**
+ * BLAKE3 PoP preimage: domain || chainId_le8 || accountId || blsPubkey.
+ * Sign this 32-byte message with blst under `PHASE28_BLS_POP_SIG_DST` (Rust tooling).
+ */
+export function phase28BlsPopPreimage(input) {
+    if (input.accountId.length !== 32) {
+        throw new Error(`invalid AccountId length: expected 32, got ${input.accountId.length}`);
+    }
+    if (input.blsPubkey.length !== PHASE28_BLS_PUBLIC_KEY_G1_BYTES) {
+        throw new Error(`invalid BLS public key length: expected ${PHASE28_BLS_PUBLIC_KEY_G1_BYTES}, got ${input.blsPubkey.length}`);
+    }
+    return blake3(concatBytes(PHASE28_BLS_POP_DOMAIN, u64Le(input.chainId), input.accountId, input.blsPubkey));
+}
+/** Length-check a dual-key set (unique accountIds). */
+export function phase28ValidateDualKeySet(identities) {
+    phase27ValidateDualKeySet(identities);
+}
+/**
+ * JS has no `blst` — do not fake PoP sign/verify. Use Rust/`blst` to sign
+ * `phase28BlsPopPreimage`, then `boing_registerBlsDualKey` with `blsPop`.
+ */
+export function phase28SignBlsPop(_input) {
+    throw new Error('JS SDK has no blst; sign phase28BlsPopPreimage with Rust/blst under PHASE28_BLS_POP_SIG_DST, then call boing_registerBlsDualKey');
+}
+export function phase28VerifyBlsPop(_input) {
+    throw new Error('JS SDK has no blst; node verifies PoP on boing_registerBlsDualKey (PHASE28_BLS_POP_REQUIRED=true)');
+}
+export function phase28CommitteeRequiresAttested(pinnedLen) {
+    return phase27CommitteeRequiresAttested(pinnedLen);
+}
+export function phase28ResolveDeadline(submitHeight) {
+    return phase27ResolveDeadline(submitHeight);
+}
+export function phase28ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase27ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 28 (BLS dual-key PoP; still 16 MiB). */
+export function phase28DasSuccinctProofPlan() {
+    return [
+        ...phase27DasSuccinctProofPlan(),
+        'Phase 28: BLS dual-key proof-of-possession — chain-bound PoP required on boing_registerBlsDualKey (PHASE28_BLS_POP_REQUIRED=true).',
+        'Phase 28: PoP message = BLAKE3(BOING_BLS_DUAL_KEY_POP_V1 || chain_id || accountId || blsPubkey); signed under BOING_BLS_POP_… DST.',
+        'Phase 28: live ResolveSlashAppealAttested (32) stays Ed25519 verify-each — PoP does not flip committee cast.',
+        'Phase 28: JS SDK exposes phase28BlsPopPreimage only; sign with Rust/blst — do not fake browser PoP.',
+        'Phase 28: remaining — aggregate submit tx / signer bitset, flip verify-each → aggregate, optional Ed25519 account-side binding, SNARK / 256 MiB.',
+        'Phase 28: slash_appeals_registry.bin stays V5; bls_dual_key_registry.bin stays BDKR v1; do not clear.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Phase 29 sizes / wired flags (library + dry-run RPC; consensus admit still off). */
+export const PHASE29_BLS_PUBLIC_KEY_G1_BYTES = PHASE28_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE29_BLS_SIGNATURE_G2_BYTES = PHASE28_BLS_SIGNATURE_G2_BYTES;
+export const PHASE29_BLS_AGGREGATE_WIRED = PHASE28_BLS_AGGREGATE_WIRED;
+export const PHASE29_BLS_DUAL_KEY_REGISTRY_FILE = PHASE28_BLS_DUAL_KEY_REGISTRY_FILE;
+export const PHASE29_BLS_POP_REQUIRED = PHASE28_BLS_POP_REQUIRED;
+/** Reserved payload index for future ResolveSlashAppealBlsAggregate (not consensus-admitted). */
+export const PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = 33;
+/** Soft cap on pin-set length for bitset helpers. */
+export const PHASE29_MAX_PIN_SET_LEN = 64;
+/** Library + RPC dry-run helpers are available. */
+export const PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = true;
+/** Consensus admit of tx 33 stays false (dual-keys still host-local). */
+export const PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = false;
+export const PHASE29_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE28_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE29_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE28_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE29_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE28_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE29_RESOLVE_WINDOW_BLOCKS = PHASE28_RESOLVE_WINDOW_BLOCKS;
+export const PHASE29_SETTLE_RECEIPT_TTL_BLOCKS = PHASE28_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE29_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE28_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE29_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE28_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE29_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE28_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE29_MAX_APPEAL_EVIDENCE_BYTES = PHASE28_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE29_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE28_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE29_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE28_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE29_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE29_RESOLVE_THRESHOLD_NUM = PHASE28_RESOLVE_THRESHOLD_NUM;
+export const PHASE29_RESOLVE_THRESHOLD_DEN = PHASE28_RESOLVE_THRESHOLD_DEN;
+export const PHASE29_LEGACY_ELECTORATE_W_SENTINEL = PHASE28_LEGACY_ELECTORATE_W_SENTINEL;
+/** Encode a pin-set-relative signer bitset (LSB = pinned[0]). */
+export function phase29EncodeSignerBitset(pinned, signers) {
+    if (pinned.length === 0)
+        throw new Error('pin set empty');
+    if (pinned.length > PHASE29_MAX_PIN_SET_LEN) {
+        throw new Error(`pin set too large: ${pinned.length} > ${PHASE29_MAX_PIN_SET_LEN}`);
+    }
+    if (signers.length === 0)
+        throw new Error('signer bitset empty');
+    const nbytes = Math.ceil(pinned.length / 8);
+    const bits = new Uint8Array(nbytes);
+    const seen = new Set();
+    for (const s of signers) {
+        if (s.length !== 32) {
+            throw new Error(`invalid AccountId length: expected 32, got ${s.length}`);
+        }
+        const idx = pinned.findIndex((p) => bytesEqual(p, s));
+        if (idx < 0)
+            throw new Error('account not in pin set');
+        if (seen.has(idx))
+            throw new Error('duplicate signer index in bitset encode');
+        seen.add(idx);
+        bits[Math.floor(idx / 8)] |= 1 << idx % 8;
+    }
+    return bits;
+}
+/** Decode bitset → pin-set AccountIds (ascending pin index). */
+export function phase29DecodeSignerBitset(pinned, bitset) {
+    if (pinned.length === 0)
+        throw new Error('pin set empty');
+    if (pinned.length > PHASE29_MAX_PIN_SET_LEN) {
+        throw new Error(`pin set too large: ${pinned.length} > ${PHASE29_MAX_PIN_SET_LEN}`);
+    }
+    const need = Math.ceil(pinned.length / 8);
+    if (bitset.length > need)
+        throw new Error('signer bitset longer than pin set');
+    const out = [];
+    for (let byteI = 0; byteI < bitset.length; byteI++) {
+        const byte = bitset[byteI];
+        for (let bit = 0; bit < 8; bit++) {
+            if ((byte & (1 << bit)) === 0)
+                continue;
+            const idx = byteI * 8 + bit;
+            if (idx >= pinned.length)
+                throw new Error('signer bitset has bits set beyond pin set length');
+            out.push(pinned[idx]);
+        }
+    }
+    if (out.length === 0)
+        throw new Error('signer bitset empty');
+    return out;
+}
+/**
+ * JS has no `blst` — do not fake aggregate-resolve verify.
+ * Use node RPC `boing_verifyBlsAggregateResolve` (library wired; consensus admit false).
+ */
+export function phase29VerifyBlsAggregateResolve(_input) {
+    throw new Error('JS SDK has no blst; use node library / boing_verifyBlsAggregateResolve RPC (PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED=true, CONSENSUS_WIRED=false). Live tx 32 stays Ed25519 verify-each');
+}
+/** Consensus admit helper — always throws until dual-keys are consensus-visible. */
+export function phase29AdmitBlsAggregateResolveTx() {
+    throw new Error('BLS aggregate resolve consensus admit not wired (PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false); use ResolveSlashAppealAttested (32)');
+}
+export function phase29CommitteeRequiresAttested(pinnedLen) {
+    return phase28CommitteeRequiresAttested(pinnedLen);
+}
+export function phase29ResolveDeadline(submitHeight) {
+    return phase28ResolveDeadline(submitHeight);
+}
+export function phase29ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase28ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 29 (aggregate resolve payload + bitset; still 16 MiB). */
+export function phase29DasSuccinctProofPlan() {
+    return [
+        ...phase28DasSuccinctProofPlan(),
+        'Phase 29: BLS aggregate resolve payload + pin-set signer bitset (library + dry-run RPC); reserved tx index 33.',
+        'Phase 29: PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED=true; PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false — dual-keys still host-local.',
+        'Phase 29: live ResolveSlashAppealAttested (32) stays Ed25519 verify-each — do not flip committee cast yet.',
+        'Phase 29: JS SDK exposes bitset encode/decode + dry-run RPC tip; verify via boing_verifyBlsAggregateResolve — do not fake browser blst.',
+        'Phase 29: remaining — consensus-admit tx 33 (consensus-visible dual-keys or self-contained pubkeys), flip cast when operators opt in, SNARK / 256 MiB.',
+        'Phase 29: slash_appeals_registry.bin stays V5; bls_dual_key_registry.bin stays BDKR v1; do not clear.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Phase 30 sizes / wired flags (self-contained pubkeys; consensus admit still off). */
+export const PHASE30_BLS_PUBLIC_KEY_G1_BYTES = PHASE29_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE30_BLS_SIGNATURE_G2_BYTES = PHASE29_BLS_SIGNATURE_G2_BYTES;
+export const PHASE30_BLS_AGGREGATE_WIRED = PHASE29_BLS_AGGREGATE_WIRED;
+export const PHASE30_BLS_DUAL_KEY_REGISTRY_FILE = PHASE29_BLS_DUAL_KEY_REGISTRY_FILE;
+export const PHASE30_BLS_POP_REQUIRED = PHASE29_BLS_POP_REQUIRED;
+export const PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX;
+export const PHASE30_MAX_PIN_SET_LEN = PHASE29_MAX_PIN_SET_LEN;
+export const PHASE30_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED;
+/** Self-contained G1 pubkey list verify path (no host registry). */
+export const PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED = true;
+/** Consensus admit of tx 33 stays false (mempool/VM reject). */
+export const PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = false;
+export const PHASE30_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE29_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE30_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE29_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE30_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE29_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE30_RESOLVE_WINDOW_BLOCKS = PHASE29_RESOLVE_WINDOW_BLOCKS;
+export const PHASE30_SETTLE_RECEIPT_TTL_BLOCKS = PHASE29_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE30_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE29_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE30_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE29_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE30_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE29_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE30_MAX_APPEAL_EVIDENCE_BYTES = PHASE29_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE30_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE29_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE30_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE29_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE30_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE29_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE30_RESOLVE_THRESHOLD_NUM = PHASE29_RESOLVE_THRESHOLD_NUM;
+export const PHASE30_RESOLVE_THRESHOLD_DEN = PHASE29_RESOLVE_THRESHOLD_DEN;
+export const PHASE30_LEGACY_ELECTORATE_W_SENTINEL = PHASE29_LEGACY_ELECTORATE_W_SENTINEL;
+export function phase30EncodeSignerBitset(pinned, signers) {
+    return phase29EncodeSignerBitset(pinned, signers);
+}
+export function phase30DecodeSignerBitset(pinned, bitset) {
+    return phase29DecodeSignerBitset(pinned, bitset);
+}
+/** Build dual-key identities from pin-set + bitset + self-contained pubkeys. */
+export function phase30IdentitiesFromSelfContained(input) {
+    const signers = phase30DecodeSignerBitset(input.pinned, input.bitset);
+    if (input.pubkeys.length !== signers.length) {
+        throw new Error(`signer pubkey count ${input.pubkeys.length} != bitset signer count ${signers.length}`);
+    }
+    const identities = signers.map((accountId, i) => {
+        const blsPubkey = input.pubkeys[i];
+        if (blsPubkey.length !== PHASE30_BLS_PUBLIC_KEY_G1_BYTES) {
+            throw new Error(`invalid BLS public key length: expected ${PHASE30_BLS_PUBLIC_KEY_G1_BYTES}, got ${blsPubkey.length}`);
+        }
+        return { accountId, blsPubkey };
+    });
+    phase28ValidateDualKeySet(identities);
+    return identities;
+}
+/**
+ * JS has no `blst` — do not fake self-contained aggregate-resolve verify.
+ * Use node RPC `boing_verifyBlsAggregateResolve` with `signerPubkeys`.
+ */
+export function phase30VerifyBlsAggregateResolveSelfContained(_input) {
+    throw new Error('JS SDK has no blst; use node library / boing_verifyBlsAggregateResolve with signerPubkeys (PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED=true, CONSENSUS_WIRED=false). Live tx 32 stays Ed25519 verify-each');
+}
+/** Consensus admit helper — always throws until operators opt in. */
+export function phase30AdmitBlsAggregateResolveTx() {
+    throw new Error('BLS aggregate resolve consensus admit not wired (PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false); use ResolveSlashAppealAttested (32)');
+}
+/** Encode ResolveSlashAppealBlsAggregate (33) — consensus admit still rejects on node. */
+export function encodeResolveSlashAppealBlsAggregate(input) {
+    return {
+        kind: 'resolveSlashAppealBlsAggregate',
+        appealId: input.appealId,
+        approved: input.approved,
+        signerBitset: input.signerBitset,
+        aggregateSignature: input.aggregateSignature,
+        signerBlsPubkeys: input.signerBlsPubkeys,
+    };
+}
+export function phase30CommitteeRequiresAttested(pinnedLen) {
+    return phase29CommitteeRequiresAttested(pinnedLen);
+}
+export function phase30ResolveDeadline(submitHeight) {
+    return phase29ResolveDeadline(submitHeight);
+}
+export function phase30ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase29ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 30 (self-contained pubkeys; still 16 MiB). */
+export function phase30DasSuccinctProofPlan() {
+    return [
+        ...phase29DasSuccinctProofPlan(),
+        'Phase 30: self-contained BLS G1 pubkey list on aggregate-resolve payload (library + dry-run); TransactionPayload::ResolveSlashAppealBlsAggregate (33) wired but not consensus-admitted.',
+        'Phase 30: PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED=true; PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=false — verify without host dual-key registry; do not execute tx 33 yet.',
+        'Phase 30: live ResolveSlashAppealAttested (32) stays Ed25519 verify-each — do not flip committee cast yet.',
+        'Phase 30: JS SDK exposes identities-from-self-contained + encodeResolveSlashAppealBlsAggregate; verify via boing_verifyBlsAggregateResolve with signerPubkeys.',
+        'Phase 30: remaining — consensus-admit/execute tx 33, flip cast when operators opt in, optional Ed25519 account-side binding, SNARK / 256 MiB.',
+        'Phase 30: slash_appeals_registry.bin stays V5; bls_dual_key_registry.bin stays BDKR v1; do not clear.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Phase 31: consensus admit/execute tx 33; multi-pin default still Ed25519 32. */
+export const PHASE31_BLS_PUBLIC_KEY_G1_BYTES = PHASE30_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE31_BLS_SIGNATURE_G2_BYTES = PHASE30_BLS_SIGNATURE_G2_BYTES;
+export const PHASE31_BLS_AGGREGATE_WIRED = PHASE30_BLS_AGGREGATE_WIRED;
+export const PHASE31_BLS_DUAL_KEY_REGISTRY_FILE = PHASE30_BLS_DUAL_KEY_REGISTRY_FILE;
+export const PHASE31_BLS_POP_REQUIRED = PHASE30_BLS_POP_REQUIRED;
+export const PHASE31_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX;
+export const PHASE31_MAX_PIN_SET_LEN = PHASE30_MAX_PIN_SET_LEN;
+export const PHASE31_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = PHASE30_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED;
+export const PHASE31_BLS_AGGREGATE_SELF_CONTAINED_WIRED = PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED;
+/** Consensus admit/execute of tx 33 is on (optional path). */
+export const PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = true;
+/** Multi-pin committee default remains Ed25519 tx 32. */
+export const PHASE31_BLS_LIVE_TX32_STILL_ED25519 = true;
+export const PHASE31_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE30_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE31_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE30_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE31_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE30_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE31_RESOLVE_WINDOW_BLOCKS = PHASE30_RESOLVE_WINDOW_BLOCKS;
+export const PHASE31_SETTLE_RECEIPT_TTL_BLOCKS = PHASE30_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE31_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE30_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE31_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE30_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE31_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE30_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE31_MAX_APPEAL_EVIDENCE_BYTES = PHASE30_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE31_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE30_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE31_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE30_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE31_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE30_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE31_RESOLVE_THRESHOLD_NUM = PHASE30_RESOLVE_THRESHOLD_NUM;
+export const PHASE31_RESOLVE_THRESHOLD_DEN = PHASE30_RESOLVE_THRESHOLD_DEN;
+export const PHASE31_LEGACY_ELECTORATE_W_SENTINEL = PHASE30_LEGACY_ELECTORATE_W_SENTINEL;
+export function phase31EncodeSignerBitset(pinned, signers) {
+    return phase30EncodeSignerBitset(pinned, signers);
+}
+export function phase31DecodeSignerBitset(pinned, bitset) {
+    return phase30DecodeSignerBitset(pinned, bitset);
+}
+export function phase31IdentitiesFromSelfContained(input) {
+    return phase30IdentitiesFromSelfContained(input);
+}
+/** Admit helper — succeeds in Phase 31 (consensus wired). */
+export function phase31AdmitBlsAggregateResolveTx() {
+    if (!PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED) {
+        throw new Error('BLS aggregate resolve consensus admit not wired; use ResolveSlashAppealAttested (32)');
+    }
+}
+/**
+ * JS has no `blst` — do not fake verify. Encode with `encodeResolveSlashAppealBlsAggregate`
+ * and submit; node verifies on execute. Dry-run via `boing_verifyBlsAggregateResolve`.
+ */
+export function phase31VerifyBlsAggregateResolveSelfContained(_input) {
+    throw new Error('JS SDK has no blst; submit encodeResolveSlashAppealBlsAggregate (33) or dry-run boing_verifyBlsAggregateResolve with signerPubkeys. Multi-pin default remains Ed25519 32.');
+}
+export function phase31CommitteeRequiresAttested(pinnedLen) {
+    // Still means "must use attested Ed25519 32" — not flipped to require BLS 33.
+    return phase30CommitteeRequiresAttested(pinnedLen);
+}
+export function phase31ResolveDeadline(submitHeight) {
+    return phase30ResolveDeadline(submitHeight);
+}
+export function phase31ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase30ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 31 (consensus tx 33; default cast still 32). */
+export function phase31DasSuccinctProofPlan() {
+    return [
+        ...phase30DasSuccinctProofPlan(),
+        'Phase 31: consensus-admit / execute ResolveSlashAppealBlsAggregate (33) with self-contained pubkey verify → stake-weighted cast for each bitset signer.',
+        'Phase 31: PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=true; live multi-pin committee default stays ResolveSlashAppealAttested (32) Ed25519 verify-each (PHASE31_BLS_LIVE_TX32_STILL_ED25519=true).',
+        'Phase 31: JS SDK exposes encodeResolveSlashAppealBlsAggregate for submit; verify still via node / dry-run RPC — do not fake browser blst.',
+        'Phase 31: remaining — flip committee default to BLS aggregate when operators opt in, optional Ed25519 account-side binding, SNARK / 256 MiB.',
+        'Phase 31: slash_appeals_registry.bin stays V5; bls_dual_key_registry.bin stays BDKR v1; do not clear.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+/** Phase 32: opt-in flip of multi-pin committee verify from Ed25519 32 → BLS aggregate 33. */
+export const PHASE32_BLS_COMMITTEE_FLIP_ENV = 'BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT';
+export const PHASE32_BLS_PUBLIC_KEY_G1_BYTES = PHASE31_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE32_BLS_SIGNATURE_G2_BYTES = PHASE31_BLS_SIGNATURE_G2_BYTES;
+export const PHASE32_BLS_AGGREGATE_WIRED = PHASE31_BLS_AGGREGATE_WIRED;
+export const PHASE32_BLS_DUAL_KEY_REGISTRY_FILE = PHASE31_BLS_DUAL_KEY_REGISTRY_FILE;
+export const PHASE32_BLS_POP_REQUIRED = PHASE31_BLS_POP_REQUIRED;
+export const PHASE32_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = PHASE31_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX;
+export const PHASE32_MAX_PIN_SET_LEN = PHASE31_MAX_PIN_SET_LEN;
+export const PHASE32_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = PHASE31_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED;
+export const PHASE32_BLS_AGGREGATE_SELF_CONTAINED_WIRED = PHASE31_BLS_AGGREGATE_SELF_CONTAINED_WIRED;
+/** Consensus admit/execute of tx 33 remains on. */
+export const PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = true;
+/**
+ * Compile-time default: until operators set the flip height, live multi-pin cast stays Ed25519 tx 32.
+ * Prefer dynamic `!phase32BlsCommitteeFlipActive(height, flipFrom)` for live tip checks.
+ */
+export const PHASE32_BLS_LIVE_TX32_STILL_ED25519 = true;
+export const PHASE32_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE31_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE32_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE31_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE32_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE31_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE32_RESOLVE_WINDOW_BLOCKS = PHASE31_RESOLVE_WINDOW_BLOCKS;
+export const PHASE32_SETTLE_RECEIPT_TTL_BLOCKS = PHASE31_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE32_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE31_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE32_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE31_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE32_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE31_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE32_MAX_APPEAL_EVIDENCE_BYTES = PHASE31_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE32_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE31_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE32_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE31_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE32_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE31_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE32_RESOLVE_THRESHOLD_NUM = PHASE31_RESOLVE_THRESHOLD_NUM;
+export const PHASE32_RESOLVE_THRESHOLD_DEN = PHASE31_RESOLVE_THRESHOLD_DEN;
+export const PHASE32_LEGACY_ELECTORATE_W_SENTINEL = PHASE31_LEGACY_ELECTORATE_W_SENTINEL;
+/** True when flip is configured and `height >= flipFrom`. */
+export function phase32BlsCommitteeFlipActive(height, flipFrom) {
+    if (flipFrom === null || flipFrom === undefined)
+        return false;
+    return BigInt(height) >= BigInt(flipFrom);
+}
+/**
+ * When flip not active: same as Phase 31 (`pinnedLen > 1` ⇒ require Ed25519 32).
+ * When flip active: return false (multi-pin no longer requires Ed25519 32).
+ */
+export function phase32CommitteeRequiresAttested(pinnedLen, height, flipFrom) {
+    if (phase32BlsCommitteeFlipActive(height, flipFrom))
+        return false;
+    return phase31CommitteeRequiresAttested(pinnedLen);
+}
+/** True when flip is active and `pinnedLen > 1` (multi-pin must use tx 33). */
+export function phase32CommitteeRequiresBlsAggregate(pinnedLen, height, flipFrom) {
+    return phase32BlsCommitteeFlipActive(height, flipFrom) && pinnedLen > 1;
+}
+export function phase32EncodeSignerBitset(pinned, signers) {
+    return phase31EncodeSignerBitset(pinned, signers);
+}
+export function phase32DecodeSignerBitset(pinned, bitset) {
+    return phase31DecodeSignerBitset(pinned, bitset);
+}
+export function phase32IdentitiesFromSelfContained(input) {
+    return phase31IdentitiesFromSelfContained(input);
+}
+/** Admit helper — succeeds in Phase 32 (consensus wired). */
+export function phase32AdmitBlsAggregateResolveTx() {
+    if (!PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED) {
+        throw new Error('BLS aggregate resolve consensus admit not wired; use ResolveSlashAppealAttested (32)');
+    }
+}
+/**
+ * JS has no `blst` — do not fake verify. Encode with `encodeResolveSlashAppealBlsAggregate`
+ * and submit; node verifies on execute. Dry-run via `boing_verifyBlsAggregateResolve`.
+ */
+export function phase32VerifyBlsAggregateResolveSelfContained(_input) {
+    throw new Error('JS SDK has no blst; submit encodeResolveSlashAppealBlsAggregate (33) or dry-run boing_verifyBlsAggregateResolve with signerPubkeys. When flip unset, multi-pin default remains Ed25519 32.');
+}
+export function phase32ResolveDeadline(submitHeight) {
+    return phase31ResolveDeadline(submitHeight);
+}
+export function phase32ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase31ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 32 (opt-in BLS multi-pin committee flip). */
+export function phase32DasSuccinctProofPlan() {
+    return [
+        ...phase31DasSuccinctProofPlan(),
+        'Phase 32: opt-in flip of live multi-pin committee verify from Ed25519 ResolveSlashAppealAttested (32) → ResolveSlashAppealBlsAggregate (33), gated by BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT.',
+        'Phase 32: PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=true; PHASE32_BLS_LIVE_TX32_STILL_ED25519=true as compile-time default until flip; unset flip ⇒ identical to Phase 31.',
+        'Phase 32: when flip active and |pinned|>1, reject tx 31/32 and require 33; solo (|pinned|≤1) keeps Ed25519 / unattested policy.',
+        'Phase 32: JS SDK exposes phase32BlsCommitteeFlipActive / phase32CommitteeRequiresBlsAggregate / phase32CommitteeRequiresAttested; verify still via node / dry-run RPC.',
+        'Phase 32: remaining — optional Ed25519 account-side binding, SNARK / 256 MiB.',
+        'Phase 32: slash_appeals_registry.bin stays V5; bls_dual_key_registry.bin stays BDKR v1; do not clear.',
+        'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
+    ];
+}
+export const PHASE33_RESERVED_REAL_VERIFIER_WIRED = false;
+export const PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES = [
+    'ipaV1',
+    'kzgV1',
+    'snarkV1',
+];
+/** `DasSuccinctProofKind::ReservedRealV1.is_implemented()` — stays false until a real verifier. */
+export const PHASE33_RESERVED_REAL_V1_IS_IMPLEMENTED = false;
+export const PHASE33_BLS_PUBLIC_KEY_G1_BYTES = PHASE32_BLS_PUBLIC_KEY_G1_BYTES;
+export const PHASE33_BLS_SIGNATURE_G2_BYTES = PHASE32_BLS_SIGNATURE_G2_BYTES;
+export const PHASE33_BLS_AGGREGATE_WIRED = PHASE32_BLS_AGGREGATE_WIRED;
+export const PHASE33_BLS_DUAL_KEY_REGISTRY_FILE = PHASE32_BLS_DUAL_KEY_REGISTRY_FILE;
+export const PHASE33_BLS_POP_REQUIRED = PHASE32_BLS_POP_REQUIRED;
+export const PHASE33_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX = PHASE31_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX;
+export const PHASE33_MAX_PIN_SET_LEN = PHASE32_MAX_PIN_SET_LEN;
+export const PHASE33_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED = PHASE31_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED;
+export const PHASE33_BLS_AGGREGATE_SELF_CONTAINED_WIRED = PHASE31_BLS_AGGREGATE_SELF_CONTAINED_WIRED;
+export const PHASE33_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED = PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED;
+export const PHASE33_BLS_LIVE_TX32_STILL_ED25519 = PHASE32_BLS_LIVE_TX32_STILL_ED25519;
+export const PHASE33_BLS_COMMITTEE_FLIP_ENV = PHASE32_BLS_COMMITTEE_FLIP_ENV;
+export function phase33BlsCommitteeFlipActive(height, flipFrom) {
+    return phase32BlsCommitteeFlipActive(height, flipFrom);
+}
+export function phase33CommitteeRequiresBlsAggregate(pinnedLen, height, flipFrom) {
+    return phase32CommitteeRequiresBlsAggregate(pinnedLen, height, flipFrom);
+}
+export const PHASE33_SERVE_CHALLENGE_WINDOW_BLOCKS = PHASE32_SERVE_CHALLENGE_WINDOW_BLOCKS;
+export const PHASE33_ACTIVATED_MAX_MEDIA_BLOB_BYTES = PHASE32_ACTIVATED_MAX_MEDIA_BLOB_BYTES;
+export const PHASE33_FAILED_SERVE_APPEAL_WINDOW_BLOCKS = PHASE31_FAILED_SERVE_APPEAL_WINDOW_BLOCKS;
+export const PHASE33_RESOLVE_WINDOW_BLOCKS = PHASE32_RESOLVE_WINDOW_BLOCKS;
+export const PHASE33_SETTLE_RECEIPT_TTL_BLOCKS = PHASE32_SETTLE_RECEIPT_TTL_BLOCKS;
+export const PHASE33_EXPIRED_APPEAL_RETENTION_BLOCKS = PHASE32_EXPIRED_APPEAL_RETENTION_BLOCKS;
+export const PHASE33_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS = PHASE31_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+export const PHASE33_RESOLVED_APPEAL_RETENTION_BLOCKS = PHASE32_RESOLVED_APPEAL_RETENTION_BLOCKS;
+export const PHASE33_MAX_APPEAL_EVIDENCE_BYTES = PHASE32_MAX_APPEAL_EVIDENCE_BYTES;
+export const PHASE33_SUBMIT_SLASH_APPEAL_TX_INDEX = PHASE32_SUBMIT_SLASH_APPEAL_TX_INDEX;
+export const PHASE33_RESOLVE_SLASH_APPEAL_TX_INDEX = PHASE32_RESOLVE_SLASH_APPEAL_TX_INDEX;
+export const PHASE33_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX = PHASE31_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX;
+export const PHASE33_RESOLVE_THRESHOLD_NUM = PHASE32_RESOLVE_THRESHOLD_NUM;
+export const PHASE33_RESOLVE_THRESHOLD_DEN = PHASE32_RESOLVE_THRESHOLD_DEN;
+export const PHASE33_LEGACY_ELECTORATE_W_SENTINEL = PHASE32_LEGACY_ELECTORATE_W_SENTINEL;
+/** Active backend — always `null` while `PHASE33_RESERVED_REAL_VERIFIER_WIRED` is false. */
+export function phase33ReservedRealVerifierBackend() {
+    return null;
+}
+/**
+ * Honest NotWired stub — JS has no IPA/KZG/SNARK verifier.
+ * Envelope validation lives on the node; do not fake crypto in the browser.
+ */
+export function phase33VerifyReservedRealV1Ipa(_proof) {
+    throw new Error('ReservedRealV1 ipaV1 verifier not wired (PHASE33_RESERVED_REAL_VERIFIER_WIRED=false); ReservedRealV1.is_implemented() remains false');
+}
+export function phase33VerifyReservedRealV1Kzg(_proof) {
+    throw new Error('ReservedRealV1 kzgV1 verifier not wired (PHASE33_RESERVED_REAL_VERIFIER_WIRED=false); ReservedRealV1.is_implemented() remains false');
+}
+export function phase33VerifyReservedRealV1Snark(_proof) {
+    throw new Error('ReservedRealV1 snarkV1 verifier not wired (PHASE33_RESERVED_REAL_VERIFIER_WIRED=false); ReservedRealV1.is_implemented() remains false');
+}
+export function phase33VerifyDasSuccinctProofReservedReal(_proof, backend) {
+    throw new Error(`ReservedRealV1 ${backend} verifier not wired (PHASE33_RESERVED_REAL_VERIFIER_WIRED=false); ReservedRealV1.is_implemented() remains false`);
+}
+export function phase33AdmitBlsAggregateResolveTx() {
+    phase32AdmitBlsAggregateResolveTx();
+}
+export function phase33CommitteeRequiresAttested(pinnedLen, height, flipFrom) {
+    return phase32CommitteeRequiresAttested(pinnedLen, height, flipFrom);
+}
+export function phase33ResolveDeadline(submitHeight) {
+    return phase32ResolveDeadline(submitHeight);
+}
+export function phase33ResolvedAppealPrunable(tipHeight, resolveDeadline) {
+    return phase32ResolvedAppealPrunable(tipHeight, resolveDeadline);
+}
+/** Honest plan strings for Phase 33 (SNARK scaffold; is_implemented still false). */
+export function phase33DasSuccinctProofPlan() {
+    return [
+        ...phase32DasSuccinctProofPlan(),
+        'Phase 33: scaffold ReservedRealV1 IPA/KZG/SNARK verifier backends (ipaV1/kzgV1/snarkV1) — PHASE33_RESERVED_REAL_VERIFIER_WIRED=false; stubs return NotWired after envelope checks.',
+        'Phase 33: DasSuccinctProofKind::ReservedRealV1.is_implemented() remains false — do not flip without a real verifier; no arkworks/halo2 deps yet.',
+        'Phase 33: independent of Phase 32 (BLS committee flip) — this branch wraps Phase 31 only.',
+        'Phase 33: JS SDK exposes NotWired helpers only — do not fake IPA/KZG/SNARK in the browser.',
+        'Phase 33: remaining — wire a real IPA/KZG/SNARK verifier and flip is_implemented when production-ready; coordinated 256 MiB still later.',
         'ReservedRealV1 verify still rejects; do not flip is_implemented without a real IPA/KZG/SNARK verifier.',
     ];
 }

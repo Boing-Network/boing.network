@@ -98,7 +98,7 @@ No separate "miner" binary: **validating** is done by running `boing-node --vali
 | **Testnet** | [TESTNET.md](TESTNET.md) §6; website [boing.network/testnet/join](https://boing.network/testnet/join) | `https://testnet-rpc.boing.network/` |
 | **Mainnet** | To be published at mainnet launch | To be published |
 
-**Testnet bootnodes (current):** `/ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001` (Fly.io pair; see [TESTNET.md](TESTNET.md) §6 and `website/src/config/testnet.ts`). Override via env `PUBLIC_BOOTNODES` when building the website.
+**Testnet bootnodes (current):** `/ip4/169.155.48.188/tcp/4001` (Fly.io `boing-testnet-1`; see [TESTNET.md](TESTNET.md) §6 and `website/src/config/testnet.ts`). Override via env `PUBLIC_BOOTNODES` when building the website.
 
 **Testnet public RPC:** `https://testnet-rpc.boing.network/` — used for faucet (`boing_faucetRequest`) and read-only queries (`boing_chainHeight`, `boing_getBlockByHeight`, etc.). Override via env `PUBLIC_TESTNET_RPC_URL`.
 
@@ -125,7 +125,7 @@ Boing exposes a small JSON list for node runners (used alongside `@vibeminer/sha
 | **`official_bootnodes`** | Multiaddr strings; comma-join for `--bootnodes`. |
 | **`cli_long_flags`** | Always **`kebab-case`** (`--p2p-listen`, not `--p2p_listen`). |
 | **`docs`** | URLs to this file, [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md), and [**`tools/boing-node-public-testnet.env.example`**](https://github.com/Boing-Network/boing.network/blob/main/tools/boing-node-public-testnet.env.example) (**`boing_node_public_env_example`**) — operator copy-paste for chain id, **`BOING_CANONICAL_NATIVE_*`**, and **`BOING_DEX_*`** discovery tuning. |
-| **`ecosystem`** | Canonical **`wallet_url`** (boing.express), **`explorer_url`** (boing.observer), **`website_url`**, and GitHub links for [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md), [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md), [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md). Clients may surface these for “Get wallet” / “View explorer” without hard-coding domains. |
+| **`ecosystem`** | Canonical **`wallet_url`** (boing.express), **`explorer_url`** (boing.observer), **`website_url`**, **`discord_url`** (community Discord invite), and GitHub links for [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md), [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md), [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md). Clients may surface these for “Get wallet” / “View explorer” without hard-coding domains. |
 
 **Canonical GitHub org in JSON:** [website/functions/api/networks.js](../website/functions/api/networks.js) normalizes official **`boing.network`** repo URLs in **`meta`** and in **`node_download_url`** (when D1 still stores legacy **`chiku524/boing.network`**) to **`Boing-Network/boing.network`**, so the live payload matches the canonical org without relying only on VibeMiner’s merge-time **`patchBlockchainNetworkJsonForBoing`**.
 
@@ -222,7 +222,7 @@ Use these values to list **Boing Network** in the VibeMiner request listing form
 | Field | Value |
 |-------|--------|
 | **Node download URL (HTTPS)** | `https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.10/release-windows-x86_64.zip` (Linux/macOS: `release-linux-x86_64.zip` / `release-macos-aarch64.zip`; see [TESTNET.md](TESTNET.md) §9.1) |
-| **Command template** | `boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/169.155.48.188/tcp/4001,/ip4/109.105.220.118/tcp/4001 --rpc-port 8545 --faucet-enable` (add `--validator` for validator preset; Linux/macOS use `boing-node-linux-x86_64` / `boing-node-macos-aarch64`) |
+| **Command template** | `boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/169.155.48.188/tcp/4001 --rpc-port 8545 --faucet-enable` (add `--validator` for validator preset; Linux/macOS use `boing-node-linux-x86_64` / `boing-node-macos-aarch64`) |
 | **Disk (GB)** | 10 |
 | **RAM (MB)** | 2048 |
 | **Binary SHA256 (optional)** | *(Leave blank or fill per release for integrity)* |
@@ -230,7 +230,7 @@ Use these values to list **Boing Network** in the VibeMiner request listing form
 **Notes for command template:**
 
 - Use `{dataDir}` exactly as your form expects (some systems use `{dataDir}`, others `{data_dir}`).
-- Bootnodes: current testnet bootnodes are `/ip4/169.155.48.188/tcp/4001` and `/ip4/109.105.220.118/tcp/4001`. Canonical list is at [boing.network/testnet/join](https://boing.network/testnet/join) and in [TESTNET.md](TESTNET.md) §6. If VibeMiner supports configurable bootnodes (e.g. from a URL or env), you can document that so operators get the latest list.
+- Bootnodes: current testnet bootnode is `/ip4/169.155.48.188/tcp/4001`. Canonical list is at [boing.network/testnet/join](https://boing.network/testnet/join) and in [TESTNET.md](TESTNET.md) §6. If VibeMiner supports configurable bootnodes (e.g. from a URL or env), you can document that so operators get the latest list.
 - Omit `--validator` for a full-node-only run if the app offers that option.
 - **Windows:** Build with `--no-default-features` to disable mDNS (see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)).
 - **Rate limits:** For a **local** node behind heavy wallet/indexer traffic, operators may set env **`BOING_RATE_PROFILE=dev`** or pass **`--dev-rate-limits`** (see [RUNBOOK.md](RUNBOOK.md) §2). Do **not** recommend the dev profile for **public** RPC hosts.
@@ -284,4 +284,4 @@ See also [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), [PRE-VIBEMINER-NODE-COMMA
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

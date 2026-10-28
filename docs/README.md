@@ -1,5 +1,7 @@
 # 📚 Boing Network — Documentation Index
 
+> **Quality, enforced by the protocol.** Brand foundation, naming and approved phrases: [../BRAND.md](../BRAND.md).
+
 This folder is the **canonical map** of protocol docs. Website pages and PDFs are generated from a subset of these files — keep them aligned with what is actually shipped.
 
 > 👋 **Everyday users:** start with [SIX-PILLARS.md](SIX-PILLARS.md), then the [wallet](https://boing.express), [faucet](https://boing.network/faucet), and [explorer](https://boing.observer).
@@ -59,11 +61,14 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | Doc | What you get |
 |-----|----------------|
 | [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) | Connect `window.boing`, simulate, submit, native DEX |
-| [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC methods, errors, DEX discovery, HTTP probes |
+| [RPC-API-SPEC.md](RPC-API-SPEC.md) | **Source of truth** for the JSON-RPC surface (all 66 methods, errors, rejection reasons, DEX discovery, media blobs, HTTP probes); enforced by a unit test |
 | [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) | Crypto, bincode, VM, gas, QA rules |
 | [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md) | Micro base fee (~0.00021 BOING/transfer) + optional priority tips |
 | [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md) | Error codes wallets and UIs should map |
-| [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) | Signable hash + bincode layout |
+| [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) | **Source of truth** for the tx / block bincode layout, signing domains (v2, priority tip), payload indices |
+| [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md) | Every `BOING_*` environment variable, defaults, ports |
+| [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md) | Gated fix for the 64-bit storage-key prefix collision: design, activation procedure, migration notes |
+| [PERFORMANCE.md](PERFORMANCE.md) | Benchmarks (state root, mempool admission) with before/after numbers |
 | [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md) | Pinned fungible / NFT bytecode |
 | [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) | Reference fungible |
 | [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) | Reference NFT (v3 `mint_batch` `0x06`, n≤500) |

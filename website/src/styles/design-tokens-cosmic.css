@@ -5,20 +5,35 @@
    ============================================================ */
 
 :root {
+  /* Boing brand tokens: shared across boing.network, boing.express, boing.observer and boing.finance. See BRAND.md. */
+  --boing-navy-950: #050A1A;
+  --boing-navy-900: #0A1128;
+  --boing-navy-800: #101A38;
+  --boing-navy-700: #18244A;
+  --boing-line: rgba(120, 150, 220, 0.18);
+  --boing-accent: #3B8CFF;
+  --boing-accent-rgb: 59, 140, 255;
+  --boing-accent-soft: #8DB8FF;
+  --boing-accent-ink: #040814;
+  --boing-success: #34D399;
+  --boing-warning: #FBBF24;
+  --boing-danger: #F87171;
+  --boing-text: #F0F4F8;
+  --accent-rgb: var(--boing-accent-rgb);
   color-scheme: dark;
 
   /* Stone slab (page chrome + engraved BG component) */
-  --stone-deep: #06080c;
-  --stone-mid: #0c1018;
-  --stone-vein: #121a24;
-  --surface: #0f1419;
-  --surface-2: #151c24;
+  --stone-deep: #040814;
+  --stone-mid: #0A1128;
+  --stone-vein: #101A38;
+  --surface: #0A1128;
+  --surface-2: #101A38;
 
   /* Backgrounds — aligned to stone stack */
-  --bg-primary: #070a0e;
+  --bg-primary: #050A1A;
   --bg-secondary: var(--stone-mid);
   --bg-tertiary: var(--surface-2);
-  --bg-card: rgba(21, 28, 36, 0.72);
+  --bg-card: rgba(16, 26, 56, 0.72);
 
   /* Text */
   --text-primary: #F0F4F8;
@@ -27,29 +42,29 @@
   --text-muted: var(--text-tertiary);
 
   /* Accents — Design Kit primary */
-  --accent-teal: #00D9FF;
-  --accent-cyan: #00D9FF;
-  --accent-electric: #0099FF;
-  --accent-purple: #6B21A8;
+  --accent-teal: #3B8CFF;
+  --accent-cyan: #3B8CFF;
+  --accent-electric: #2563EB;
+  --accent-purple: #8DB8FF;
   --accent-gold: #FFB800;
   --accent-gold-dim: #e5a600;
 
   /* Borders — cool slate + hint of brand cyan */
-  --border-color: rgba(36, 48, 66, 0.85);
-  --border-hover: rgba(0, 217, 255, 0.35);
+  --border-color: rgba(40, 58, 100, 0.85);
+  --border-hover: rgba(59, 140, 255, 0.35);
 
   /* Glows */
-  --glow-cyan: rgba(0, 217, 255, 0.5);
-  --glow-blue: rgba(0, 153, 255, 0.4);
-  --glow-cyan-subtle: rgba(0, 217, 255, 0.25);
+  --glow-cyan: rgba(59, 140, 255, 0.5);
+  --glow-blue: rgba(37, 99, 235, 0.4);
+  --glow-cyan-subtle: rgba(59, 140, 255, 0.25);
   --glow-gold-subtle: rgba(255, 184, 0, 0.25);
 
   /* Aliases for components */
-  --primary-color: #00D9FF;
-  --secondary-color: #0099FF;
-  --accent-color: #00D9FF;
-  --accent-neon: #00D9FF;
-  --success-color: #00FF88;
+  --primary-color: #3B8CFF;
+  --secondary-color: #2563EB;
+  --accent-color: #3B8CFF;
+  --accent-neon: #3B8CFF;
+  --success-color: #34D399;
   --warning-color: #FFB800;
   --error-color: #FF4444;
   --border: var(--border-color);

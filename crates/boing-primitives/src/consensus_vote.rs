@@ -66,10 +66,7 @@ mod tests {
         let hash = Hash([9u8; 32]);
         let vote = ConsensusVote::sign(3, hash, &key);
         assert!(vote.verify().is_ok());
-        assert_eq!(
-            vote.validator,
-            AccountId(key.verifying_key().to_bytes())
-        );
+        assert_eq!(vote.validator, AccountId(key.verifying_key().to_bytes()));
     }
 
     #[test]

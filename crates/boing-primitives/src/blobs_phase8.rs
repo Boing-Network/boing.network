@@ -108,10 +108,7 @@ impl ConsensusNativeSampleMarket {
         &self.inner
     }
 
-    pub fn upsert_from_register(
-        &mut self,
-        offer: MediaBlobSampleOffer,
-    ) -> Result<(), BlobError> {
+    pub fn upsert_from_register(&mut self, offer: MediaBlobSampleOffer) -> Result<(), BlobError> {
         self.inner.upsert_offer(offer)
     }
 
@@ -201,7 +198,14 @@ pub fn match_sample_prefer_on_chain(
     tip_height: u64,
     provider: Option<&AccountId>,
     protocol_sample_fee: u128,
-) -> Result<(MediaBlobSampleMatch, BlobSampleSettleQuote, BlobSampleOfferSource), BlobError> {
+) -> Result<
+    (
+        MediaBlobSampleMatch,
+        BlobSampleSettleQuote,
+        BlobSampleOfferSource,
+    ),
+    BlobError,
+> {
     match on_chain.match_settle(
         blob_id,
         chunk_index,
@@ -371,10 +375,7 @@ pub fn build_das_light_client_batch_vrf(
         vrf_output,
     );
     if idxs.is_empty() {
-        return Err(BlobError::ChunkIndexOutOfRange {
-            index: 0,
-            count: 0,
-        });
+        return Err(BlobError::ChunkIndexOutOfRange { index: 0, count: 0 });
     }
     let mut samples = Vec::with_capacity(idxs.len());
     for i in idxs {
@@ -434,31 +435,13 @@ mod tests {
         })
         .unwrap();
         let (_match, quote) = m
-            .match_settle(
-                &blob,
-                0,
-                2,
-                AccountId([2u8; 32]),
-                60,
-                10,
-                None,
-                10,
-            )
+            .match_settle(&blob, 0, 2, AccountId([2u8; 32]), 60, 10, None, 10)
             .unwrap();
         assert_eq!(quote.protocol_sample_fee, 10);
         assert_eq!(quote.ask_fee, 50);
         assert_eq!(quote.total, 60);
         assert!(m
-            .match_settle(
-                &blob,
-                0,
-                2,
-                AccountId([2u8; 32]),
-                59,
-                10,
-                None,
-                10,
-            )
+            .match_settle(&blob, 0, 2, AccountId([2u8; 32]), 59, 10, None, 10,)
             .is_err());
     }
 
@@ -541,9 +524,6 @@ mod tests {
     #[test]
     fn activation_checklist_nonempty() {
         assert!(phase8_cap_activation_checklist(None).len() >= 5);
-        assert_eq!(
-            PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
-            256 * 1024 * 1024
-        );
+        assert_eq!(PHASE8_ACTIVATED_MAX_MEDIA_BLOB_BYTES, 256 * 1024 * 1024);
     }
 }

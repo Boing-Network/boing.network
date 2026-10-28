@@ -948,20 +948,26 @@ mod tests {
     fn claim_self_snippet_and_runtime_match_boing_sdk() {
         // boing-sdk buildLinkedNftTokenClaimSelfInitSnippetHex('0xbb…bb')
         let sdk_snippet = "7f00000000000000000000000000000000000000000000000000000000000000e77f000000000000000000000000000000000000000000000000000000000000000052337f0000000000000000000000000000000000000000000000000000000000000020527fbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb7f00000000000000000000000000000000000000000000000000000000000000007f00000000000000000000000000000000000000000000000000000000000000407f00000000000000000000000000000000000000000000000000000000000000007f0000000000000000000000000000000000000000000000000000000000000000f1";
-        let ours: String = linked_nft_token_registry_v2_claim_self_init_snippet(&AccountId([0xbb; 32]))
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
+        let ours: String =
+            linked_nft_token_registry_v2_claim_self_init_snippet(&AccountId([0xbb; 32]))
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect();
         assert_eq!(ours, sdk_snippet);
 
-        let sdk_file = include_str!("../../../boing-sdk/src/defaultLinkedNftTokenRegistryV2BytecodeHex.ts");
+        let sdk_file =
+            include_str!("../../../boing-sdk/src/defaultLinkedNftTokenRegistryV2BytecodeHex.ts");
         let start = sdk_file.find("'0x").expect("hex literal") + 3;
         let end = start + sdk_file[start..].find('\'').expect("closing quote");
         let runtime: String = linked_nft_token_registry_v2_runtime_bytecode()
             .iter()
             .map(|b| format!("{b:02x}"))
             .collect();
-        assert_eq!(&sdk_file[start..end], runtime, "regenerate the SDK file with dump_linked_nft_token_registry_v2");
+        assert_eq!(
+            &sdk_file[start..end],
+            runtime,
+            "regenerate the SDK file with dump_linked_nft_token_registry_v2"
+        );
     }
 
     #[test]

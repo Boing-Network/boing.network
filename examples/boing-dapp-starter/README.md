@@ -1,6 +1,6 @@
 # Boing dApp starter (TypeScript)
 
-Minimal Node script that wires **`boing-sdk`**: RPC preflight, **`createNativeDexDiscovery`**, and a sample pool collect.
+Minimal Node script that wires **`@boing-network/boing-sdk`**: RPC preflight, **`createNativeDexDiscovery`**, and a sample pool collect.
 
 ## Setup
 

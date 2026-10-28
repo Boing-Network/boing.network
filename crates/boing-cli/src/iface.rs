@@ -12,11 +12,11 @@ use crate::token::{
     account_of, hex_account, nonce_for, parse_account, resolve_signing_key, rpc, submit,
 };
 use boing_execution::{
-    interface_blob_store_bytecode, INTERFACE_BLOB_STORE_CREATE2_SALT_V1,
-    encode_iface_claim_asset_calldata, encode_iface_set_interface_calldata, interface_json_hash,
-    interface_registry_bytecode, interface_registry_claimer_storage_key,
-    interface_registry_field_storage_key, InterfaceRecord, IFACE_FIELD_HASH, IFACE_FIELD_PUBLISHER,
-    IFACE_FIELD_URI0, IFACE_FIELD_URI_LEN, INTERFACE_REGISTRY_CREATE2_SALT_V1,
+    encode_iface_claim_asset_calldata, encode_iface_set_interface_calldata,
+    interface_blob_store_bytecode, interface_json_hash, interface_registry_bytecode,
+    interface_registry_claimer_storage_key, interface_registry_field_storage_key, InterfaceRecord,
+    IFACE_FIELD_HASH, IFACE_FIELD_PUBLISHER, IFACE_FIELD_URI0, IFACE_FIELD_URI_LEN,
+    INTERFACE_BLOB_STORE_CREATE2_SALT_V1, INTERFACE_REGISTRY_CREATE2_SALT_V1,
     INTERFACE_REGISTRY_MAX_URI_BYTES,
 };
 use boing_primitives::{
@@ -72,7 +72,7 @@ pub fn check_interface_json(bytes: &[u8]) -> anyhow::Result<[u8; 32]> {
         }
         if f.get("name")
             .and_then(Value::as_str)
-            .map_or(true, str::is_empty)
+            .is_none_or(str::is_empty)
         {
             anyhow::bail!("functions[{i}].name is required");
         }
@@ -222,7 +222,13 @@ pub async fn deploy_blob_store(rpc_url: &str, s: Signer) -> anyhow::Result<()> {
     println!("  deployer {}", hex_account(&account_of(&key)));
     println!("  store    {}", hex_account(&addr));
     if !s.dry_run {
-        if let Ok(v) = rpc(rpc_url, "boing_getContractCode", json!([hex_account(&addr)])).await {
+        if let Ok(v) = rpc(
+            rpc_url,
+            "boing_getContractCode",
+            json!([hex_account(&addr)]),
+        )
+        .await
+        {
             if !v.is_null() {
                 println!("  already deployed; nothing to do");
                 return Ok(());

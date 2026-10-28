@@ -20,6 +20,7 @@ export { probeBoingRpcCapabilities, countAvailableBoingRpcMethods, explainBoingR
 export { doctorBoingRpcEnvironment, formatBoingRpcDoctorReport, doctorErrorMessage, } from './rpcDoctor.js';
 export { BoingRpcPreflightError, assertBoingRpcEnvironment, isBoingRpcPreflightError, } from './preflightGate.js';
 export { displayChainTitle, explorerBaseUrl, faucetUrl, explorerTxUrl, explorerAccountUrl, formatSupportHint, } from './dappUiHelpers.js';
+export { storageTreeV2ActiveAt, firstServedReceiptHeight, } from './chainParameters.js';
 export { mergeRpcSurface, clampGetLogsBlockSpan, suggestedReadSpacingMs, describeGetLogsLimits, websocketHasConnectionCap, } from './rpcSurfaceUi.js';
 export { BoingConnectionMonitor, } from './connectionMonitor.js';
 export { boingRpcWebSocketUrl, BoingNewHeadsWs, } from './newHeadsWs.js';
@@ -46,7 +47,7 @@ export { ERC721_TRANSFER_TOPIC0_HEX, tryParseErc721TransferRpcLog, filterMapErc7
 export { collectNftOwnersFromErc721Transfers, } from './nativeDexNftIndexer.js';
 export { collectArchivedReceiptLogRows, } from './nativeDexReceiptArchive.js';
 export { SELECTOR_OWNER_OF, SELECTOR_TRANSFER_NFT, SELECTOR_SET_METADATA_HASH, SELECTOR_MINT_BATCH, MAX_REFERENCE_NFT_MINT_BATCH, REF_NFT_OWNER_STORAGE_XOR_HEX, REF_NFT_METADATA_STORAGE_XOR_HEX, referenceNftOwnerStorageKey, referenceNftMetadataStorageKey, referenceNftTokenIdWordFromU64, encodeReferenceOwnerOfCalldata, encodeReferenceTransferNftCalldata, encodeReferenceSetMetadataHashCalldata, encodeReferenceMintBatchCalldata, encodeReferenceOwnerOfCalldataHex, encodeReferenceTransferNftCalldataHex, encodeReferenceSetMetadataHashCalldataHex, encodeReferenceMintBatchCalldataHex, referenceNftCalldataSelector, tryReferenceNftTokenIdU64, decodeReferenceNftCalldata, tokenIdsFromDecodedReferenceNftCall, } from './referenceNft.js';
-export { ipfsUriToGatewayUrl, extractHttpOrIpfsUrl, resolveImageUrlFromMetadataJson, resolveImageUrlFromSources, metadataHashWordToFetchUrls, fetchMetadataJsonFromUrl, fetchFirstMetadataJson, } from './metadataMedia.js';
+export { ipfsUriToGatewayUrl, extractHttpOrIpfsUrl, extractBoingBlobUri, blobIdHexFromBoingUri, resolveImageUrlFromMetadataJson, resolveImageUrlFromSources, metadataHashWordToFetchUrls, fetchMetadataJsonFromUrl, fetchFirstMetadataJson, } from './metadataMedia.js';
 export { accountsFromSuggestedAccessList, mergeAccessListWithSimulation, accessListFromSimulation, simulationCoversSuggestedAccessList, } from './accessList.js';
 export { normalizeTopicWord, normalizeExecutionLog, logTopic0, iterReceiptLogs, logMatchesTopicFilter, filterReceiptLogsByTopic0, iterBlockReceiptLogs, } from './receiptLogs.js';
 export { PayloadVariant, concatBytes, writeU32Le, writeU64Le, writeU128Le, encodeAccessList, encodeByteVec, encodeBincodeString, encodeOptionFixed32, encodeOptionByteVec, encodeOptionString, encodeTransactionPayload, encodeTransaction, encodeSignature, encodeSignedTransaction, signableTransactionHash, signableTransactionHashV2, signableTransactionHashWithTip, TX_SIGNING_DOMAIN_PRIORITY, TX_SIGNING_DOMAIN_V2, transactionIdFromSignedTransactionHex, BatchCallVariant, MAX_BATCH_CALLS, MAX_BATCH_CALLDATA_BYTES, validateBatchCalls, } from './bincode.js';

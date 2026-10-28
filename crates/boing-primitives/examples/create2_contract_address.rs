@@ -104,7 +104,10 @@ fn main() {
         eprintln!("read {}: {e}", path);
         std::process::exit(2);
     });
-    let bc_raw = contents.trim().trim_start_matches("0x").trim_start_matches("0X");
+    let bc_raw = contents
+        .trim()
+        .trim_start_matches("0x")
+        .trim_start_matches("0X");
     let bytecode = hex::decode(bc_raw).unwrap_or_else(|e| {
         boing_telemetry::component_error(
             "boing_primitives::examples::create2_contract_address",
@@ -126,17 +129,22 @@ fn main() {
         std::process::exit(2);
     }
 
-    let deployer_bytes = hex::decode(deployer_hex.trim().trim_start_matches("0x").trim_start_matches("0X"))
-        .unwrap_or_else(|e| {
-            boing_telemetry::component_error(
-                "boing_primitives::examples::create2_contract_address",
-                "example",
-                "deployer_hex_invalid",
-                e.to_string(),
-            );
-            eprintln!("deployer hex: {e}");
-            std::process::exit(2);
-        });
+    let deployer_bytes = hex::decode(
+        deployer_hex
+            .trim()
+            .trim_start_matches("0x")
+            .trim_start_matches("0X"),
+    )
+    .unwrap_or_else(|e| {
+        boing_telemetry::component_error(
+            "boing_primitives::examples::create2_contract_address",
+            "example",
+            "deployer_hex_invalid",
+            e.to_string(),
+        );
+        eprintln!("deployer hex: {e}");
+        std::process::exit(2);
+    });
     if deployer_bytes.len() != 32 {
         boing_telemetry::component_error(
             "boing_primitives::examples::create2_contract_address",

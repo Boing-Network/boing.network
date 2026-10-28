@@ -50,7 +50,10 @@ pub struct ConsensusEngine {
 
 impl ConsensusEngine {
     pub fn new(validators: Vec<AccountId>) -> Self {
-        assert!(!validators.is_empty(), "Consensus requires at least 1 validator");
+        assert!(
+            !validators.is_empty(),
+            "Consensus requires at least 1 validator"
+        );
         Self {
             validators,
             round: 0,
@@ -110,7 +113,10 @@ impl ConsensusEngine {
         if self.anchors.is_empty() {
             self.votes.len()
         } else {
-            self.votes.keys().filter(|v| self.anchors.contains(v)).count()
+            self.votes
+                .keys()
+                .filter(|v| self.anchors.contains(v))
+                .count()
         }
     }
 
@@ -213,8 +219,7 @@ impl ConsensusEngine {
                 if let Some(map) = self.vrf_proofs.get(&round) {
                     let proofs: Vec<(AccountId, VrfOutput)> =
                         map.iter().map(|(id, v)| (*id, v.clone())).collect();
-                    if let Some(leader) =
-                        leader_from_ecvrf_proofs(&self.validators, round, &proofs)
+                    if let Some(leader) = leader_from_ecvrf_proofs(&self.validators, round, &proofs)
                     {
                         return leader;
                     }
@@ -237,8 +242,7 @@ impl ConsensusEngine {
                 if let Some(map) = self.vrf_proofs.get(&round) {
                     let proofs: Vec<(AccountId, VrfOutput)> =
                         map.iter().map(|(id, v)| (*id, v.clone())).collect();
-                    if let Some(leader) =
-                        leader_from_ecvrf_proofs(&self.validators, round, &proofs)
+                    if let Some(leader) = leader_from_ecvrf_proofs(&self.validators, round, &proofs)
                     {
                         if let Some((_, vrf)) = proofs.iter().find(|(id, _)| *id == leader) {
                             return Some(vrf.output);
@@ -268,7 +272,9 @@ impl ConsensusEngine {
             )));
         }
         if !self.validators.contains(&block.header.proposer) {
-            return Err(ConsensusError::InvalidBlock("Proposer not in validator set".into()));
+            return Err(ConsensusError::InvalidBlock(
+                "Proposer not in validator set".into(),
+            ));
         }
         Ok(())
     }
@@ -276,7 +282,11 @@ impl ConsensusEngine {
     fn enter_voting_phase(&mut self, block: Block) {
         self.pending_block = Some(block.clone());
         self.votes.clear();
-        info!("Consensus: round {} propose block {}", self.round, block.hash());
+        info!(
+            "Consensus: round {} propose block {}",
+            self.round,
+            block.hash()
+        );
     }
 
     /// Propose a block. Enters voting phase. Only the round leader may propose.
@@ -330,13 +340,20 @@ impl ConsensusEngine {
 
     /// Submit a vote from a validator. Returns Some(block_hash) when committed.
     /// Detects equivocation: validator voting for different blocks in same round.
-    pub fn vote(&mut self, block_hash: Hash, validator: AccountId) -> Result<Option<Hash>, ConsensusError> {
+    pub fn vote(
+        &mut self,
+        block_hash: Hash,
+        validator: AccountId,
+    ) -> Result<Option<Hash>, ConsensusError> {
         if !self.validators.contains(&validator) {
-            return Err(ConsensusError::InvalidBlock("Voter not in validator set".into()));
+            return Err(ConsensusError::InvalidBlock(
+                "Voter not in validator set".into(),
+            ));
         }
-        let block = self.pending_block.as_ref().ok_or_else(|| {
-            ConsensusError::InvalidBlock("No pending block to vote on".into())
-        })?;
+        let block = self
+            .pending_block
+            .as_ref()
+            .ok_or_else(|| ConsensusError::InvalidBlock("No pending block to vote on".into()))?;
         if block.hash() != block_hash {
             if self.votes.contains_key(&validator) {
                 boing_telemetry::component_warn(
@@ -345,13 +362,23 @@ impl ConsensusEngine {
                     "equivocation",
                     format!("validator={validator:?} round={}", self.round),
                 );
-                return Err(ConsensusError::Equivocation { validator, round: self.round });
+                return Err(ConsensusError::Equivocation {
+                    validator,
+                    round: self.round,
+                });
             }
-            return Err(ConsensusError::InvalidBlock("Vote for wrong block hash".into()));
+            return Err(ConsensusError::InvalidBlock(
+                "Vote for wrong block hash".into(),
+            ));
         }
 
         self.votes.insert(validator, block_hash);
-        debug!("Consensus: vote from {:?}, {}/{}", validator, self.votes.len(), self.quorum());
+        debug!(
+            "Consensus: vote from {:?}, {}/{}",
+            validator,
+            self.votes.len(),
+            self.quorum()
+        );
 
         if self.counted_votes() >= self.quorum() {
             let h = block.hash();
@@ -418,7 +445,7 @@ mod tests {
                 tx_root: Hash::ZERO,
                 receipts_root: Hash::ZERO,
                 state_root: Hash::ZERO,
-            blobs_root: None,
+                blobs_root: None,
             },
             transactions: vec![],
             signatures: vec![],
@@ -511,7 +538,11 @@ mod tests {
         assert!(engine.vote(block_hash, v1).unwrap().is_none());
         assert!(engine.vote(block_hash, v2).unwrap().is_none());
         let committed = engine.vote(block_hash, v3).unwrap();
-        assert_eq!(committed, Some(block_hash), "3 honest nodes should commit despite 1 Byzantine");
+        assert_eq!(
+            committed,
+            Some(block_hash),
+            "3 honest nodes should commit despite 1 Byzantine"
+        );
     }
 
     /// Follower accepts leader proposal, then three votes commit (n=4, quorum=3).
@@ -583,12 +614,18 @@ mod tests {
         engine.sync_round(1);
         let block = mk_block(1, anchor, Hash::ZERO);
         engine.propose(block.clone()).unwrap();
-        assert_eq!(engine.vote(block.hash(), anchor).unwrap(), Some(block.hash()));
+        assert_eq!(
+            engine.vote(block.hash(), anchor).unwrap(),
+            Some(block.hash())
+        );
     }
 
     #[test]
     fn open_votes_alone_never_commit_in_anchor_mode() {
-        let anchors = vec![AccountId::from_bytes([1u8; 32]), AccountId::from_bytes([2u8; 32])];
+        let anchors = vec![
+            AccountId::from_bytes([1u8; 32]),
+            AccountId::from_bytes([2u8; 32]),
+        ];
         let opens: Vec<AccountId> = (3u8..=9).map(|i| AccountId::from_bytes([i; 32])).collect();
         let mut set = anchors.clone();
         set.extend(opens.iter().copied());
@@ -603,7 +640,10 @@ mod tests {
             assert_eq!(engine.vote(block.hash(), *o).unwrap(), None);
         }
         assert_eq!(engine.vote(block.hash(), anchors[1]).unwrap(), None);
-        assert_eq!(engine.vote(block.hash(), anchors[0]).unwrap(), Some(block.hash()));
+        assert_eq!(
+            engine.vote(block.hash(), anchors[0]).unwrap(),
+            Some(block.hash())
+        );
     }
 
     #[test]
@@ -650,9 +690,7 @@ mod tests {
 
     #[test]
     fn test_vrf_leader_uses_dummy_vrf_index() {
-        let validators: Vec<_> = (1u8..=4)
-            .map(|i| AccountId::from_bytes([i; 32]))
-            .collect();
+        let validators: Vec<_> = (1u8..=4).map(|i| AccountId::from_bytes([i; 32])).collect();
         let mut engine = ConsensusEngine::new(validators.clone());
         engine.set_leader_election(LeaderElection::Vrf);
         let vrf1 = boing_primitives::dummy_vrf_output(1);

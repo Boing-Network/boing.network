@@ -21,6 +21,8 @@ import {
   mediaBlobMaxBytesAt,
   payBlobSamplePayload,
   putBlobPayload,
+  grantBlobDownloadPayload,
+  revokeBlobDownloadPayload,
   quoteBlobSampleSettle,
   recoverMediaBlobXor,
   registerBlobSampleOfferPayload,
@@ -45,6 +47,41 @@ import {
   phase13DasSuccinctProofPlan,
   PHASE11_SERVE_CHALLENGE_BOND,
   blobSampleServeChallengeBondEscrowAccount,
+  phase29EncodeSignerBitset,
+  phase29DecodeSignerBitset,
+  PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX,
+  PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED,
+  PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+  phase29DasSuccinctProofPlan,
+  phase29AdmitBlsAggregateResolveTx,
+  phase30IdentitiesFromSelfContained,
+  PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED,
+  PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+  phase30DasSuccinctProofPlan,
+  phase30AdmitBlsAggregateResolveTx,
+  encodeResolveSlashAppealBlsAggregate,
+  PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+  PHASE31_BLS_LIVE_TX32_STILL_ED25519,
+  phase31AdmitBlsAggregateResolveTx,
+  phase31DasSuccinctProofPlan,
+  PHASE32_BLS_COMMITTEE_FLIP_ENV,
+  PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+  PHASE32_BLS_LIVE_TX32_STILL_ED25519,
+  PHASE33_RESERVED_REAL_VERIFIER_WIRED,
+  PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES,
+  PHASE33_RESERVED_REAL_V1_IS_IMPLEMENTED,
+  PHASE33_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+  phase33DasSuccinctProofPlan,
+  phase33ReservedRealVerifierBackend,
+  phase33VerifyReservedRealV1Ipa,
+  phase33VerifyReservedRealV1Kzg,
+  phase33VerifyReservedRealV1Snark,
+  phase33VerifyDasSuccinctProofReservedReal,
+  phase32AdmitBlsAggregateResolveTx,
+  phase32BlsCommitteeFlipActive,
+  phase32CommitteeRequiresAttested,
+  phase32CommitteeRequiresBlsAggregate,
+  phase32DasSuccinctProofPlan,
 } from '../src/mediaBlob.js';
 import {
   blobIdHexFromBoingUri,
@@ -92,7 +129,27 @@ describe('mediaBlob', () => {
     );
     expect(() =>
       validatePutBlob({ kind: 'forever' }, '', new Uint8Array(MAX_MEDIA_BLOB_BYTES + 1)),
-    ).toThrow(/MAX_MEDIA_BLOB_BYTES/);
+    ).toThrow(/max bytes/);
+  });
+
+  it('validatePutBlob accepts Phase 7 cap via maxBytes', () => {
+    const overDefault = new Uint8Array(MAX_MEDIA_BLOB_BYTES + 1);
+    expect(() => validatePutBlob({ kind: 'forever' }, 'image/png', overDefault)).toThrow(/max bytes/);
+    expect(
+      validatePutBlob(
+        { kind: 'forever' },
+        'image/png',
+        overDefault,
+        mediaBlobMaxBytesAt(true),
+      ),
+    ).toHaveLength(32);
+    const payload = putBlobPayload({
+      retention: { kind: 'forever' },
+      contentType: 'image/png',
+      data: overDefault,
+      maxBytes: mediaBlobMaxBytesAt(true),
+    });
+    expect(payload.kind).toBe('putBlob');
   });
 
   it('Phase 6: segments (live-cap), sample match expiry, LC seed', () => {
@@ -276,6 +333,15 @@ describe('mediaBlob', () => {
     expect(ann[0]).toBe(22);
   });
 
+  it('encodes GrantBlobDownload (34) and RevokeBlobDownload (35)', () => {
+    const blobId = new Uint8Array(32).fill(9);
+    const grantee = new Uint8Array(32).fill(7);
+    const grant = encodeTransactionPayload(grantBlobDownloadPayload({ blobId, grantee }));
+    expect(grant[0]).toBe(34);
+    const revoke = encodeTransactionPayload(revokeBlobDownloadPayload({ blobId, grantee }));
+    expect(revoke[0]).toBe(35);
+  });
+
   it('NFT binding helpers expose boing://blob URIs', () => {
     const id = blobIdOf(new Uint8Array([9, 9, 9]));
     const { imageUri, metadataHash } = tokenMetadataJsonWithBlobImage({
@@ -288,5 +354,95 @@ describe('mediaBlob', () => {
     const urls = metadataHashWordToFetchUrls(hex);
     expect(urls.some((u) => u.startsWith('boing://blob/'))).toBe(true);
     expect(blobIdHexFromBoingUri(imageUri)).toBe(`0x${hex}`);
+  });
+
+  it('Phase 29 signer bitset round-trips (ascending pin index)', () => {
+    const pinned = [new Uint8Array(32).fill(1), new Uint8Array(32).fill(2), new Uint8Array(32).fill(3)];
+    const bits = phase29EncodeSignerBitset(pinned, [pinned[2]!, pinned[0]!]);
+    const decoded = phase29DecodeSignerBitset(pinned, bits);
+    expect(decoded).toHaveLength(2);
+    expect(Array.from(decoded[0]!)).toEqual(Array.from(pinned[0]!));
+    expect(Array.from(decoded[1]!)).toEqual(Array.from(pinned[2]!));
+    expect(PHASE29_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX).toBe(33);
+    expect(PHASE29_BLS_AGGREGATE_SUBMIT_LIBRARY_WIRED).toBe(true);
+    expect(PHASE29_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED).toBe(false);
+    expect(phase29DasSuccinctProofPlan().some((s) => s.includes('Phase 29'))).toBe(true);
+    expect(() => phase29AdmitBlsAggregateResolveTx()).toThrow(/CONSENSUS_WIRED=false/);
+  });
+
+  it('Phase 30 self-contained identities + encode tx 33', () => {
+    const pinned = [new Uint8Array(32).fill(1), new Uint8Array(32).fill(2)];
+    const bits = phase29EncodeSignerBitset(pinned, [pinned[0]!, pinned[1]!]);
+    const pk1 = new Uint8Array(48).fill(0xaa);
+    const pk2 = new Uint8Array(48).fill(0xbb);
+    const ids = phase30IdentitiesFromSelfContained({
+      pinned,
+      bitset: bits,
+      pubkeys: [pk1, pk2],
+    });
+    expect(ids).toHaveLength(2);
+    expect(PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED).toBe(true);
+    expect(PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED).toBe(false);
+    expect(phase30DasSuccinctProofPlan().some((s) => s.includes('self-contained'))).toBe(true);
+    expect(() => phase30AdmitBlsAggregateResolveTx()).toThrow(/CONSENSUS_WIRED=false/);
+    const enc = encodeTransactionPayload(
+      encodeResolveSlashAppealBlsAggregate({
+        appealId: 1n,
+        approved: true,
+        signerBitset: bits,
+        aggregateSignature: new Uint8Array(96).fill(7),
+        signerBlsPubkeys: [pk1, pk2],
+      }),
+    );
+    expect(enc[0]).toBe(33);
+  });
+
+  it('Phase 31 consensus admit is wired; live default still tx 32', () => {
+    expect(PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED).toBe(true);
+    expect(PHASE31_BLS_LIVE_TX32_STILL_ED25519).toBe(true);
+    expect(() => phase31AdmitBlsAggregateResolveTx()).not.toThrow();
+    expect(phase31DasSuccinctProofPlan().some((s) => s.includes('CONSENSUS_WIRED=true'))).toBe(
+      true,
+    );
+  });
+
+  it('Phase 32 opt-in BLS committee flip helpers', () => {
+    expect(PHASE32_BLS_COMMITTEE_FLIP_ENV).toBe('BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT');
+    expect(PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED).toBe(true);
+    expect(PHASE32_BLS_LIVE_TX32_STILL_ED25519).toBe(true);
+    expect(() => phase32AdmitBlsAggregateResolveTx()).not.toThrow();
+    expect(phase32BlsCommitteeFlipActive(50, null)).toBe(false);
+    expect(phase32BlsCommitteeFlipActive(99, 100)).toBe(false);
+    expect(phase32BlsCommitteeFlipActive(100, 100)).toBe(true);
+    expect(phase32CommitteeRequiresAttested(2, 50, null)).toBe(true);
+    expect(phase32CommitteeRequiresBlsAggregate(2, 50, null)).toBe(false);
+    expect(phase32CommitteeRequiresAttested(2, 100, 100)).toBe(false);
+    expect(phase32CommitteeRequiresBlsAggregate(2, 100, 100)).toBe(true);
+    expect(phase32CommitteeRequiresBlsAggregate(1, 100, 100)).toBe(false);
+    expect(phase32DasSuccinctProofPlan().some((s) => s.includes('Phase 32'))).toBe(true);
+  });
+  it('Phase 33 ReservedRealV1 stubs are NotWired; is_implemented stays false', () => {
+    expect(PHASE33_RESERVED_REAL_VERIFIER_WIRED).toBe(false);
+    expect(PHASE33_RESERVED_REAL_V1_IS_IMPLEMENTED).toBe(false);
+    expect(phase33ReservedRealVerifierBackend()).toBeNull();
+    expect([...PHASE33_RESERVED_REAL_VERIFIER_BACKEND_NAMES]).toEqual([
+      'ipaV1',
+      'kzgV1',
+      'snarkV1',
+    ]);
+    expect(() => phase33VerifyReservedRealV1Ipa({})).toThrow(/not wired/);
+    expect(() => phase33VerifyReservedRealV1Kzg({})).toThrow(/not wired/);
+    expect(() => phase33VerifyReservedRealV1Snark({})).toThrow(/not wired/);
+    expect(() => phase33VerifyDasSuccinctProofReservedReal({}, 'snarkV1')).toThrow(
+      /is_implemented\(\) remains false/,
+    );
+    expect(
+      phase33DasSuccinctProofPlan().some((s) =>
+        s.includes('PHASE33_RESERVED_REAL_VERIFIER_WIRED=false'),
+      ),
+    ).toBe(true);
+    expect(
+      phase33DasSuccinctProofPlan().some((s) => s.includes('is_implemented() remains false')),
+    ).toBe(true);
   });
 });

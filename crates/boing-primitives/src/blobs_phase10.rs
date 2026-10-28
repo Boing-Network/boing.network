@@ -70,7 +70,12 @@ pub struct BlobSampleServeChallenge {
 
 impl BlobSampleServeChallenge {
     pub fn market_key(&self) -> String {
-        serve_challenge_key(&self.blob_id, self.chunk_index, &self.provider, &self.challenger)
+        serve_challenge_key(
+            &self.blob_id,
+            self.chunk_index,
+            &self.provider,
+            &self.challenger,
+        )
     }
 }
 
@@ -276,7 +281,10 @@ mod tests {
             10,
         )
         .unwrap();
-        assert_eq!(c.deadline_height, 10 + PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS);
+        assert_eq!(
+            c.deadline_height,
+            10 + PHASE10_SERVE_CHALLENGE_WINDOW_BLOCKS
+        );
         assert_eq!(c.status, BlobSampleServeChallengeStatus::Open);
     }
 

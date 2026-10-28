@@ -4,8 +4,9 @@
 //! cargo run -p boing-execution --example measure_mint_batch_gas --release
 //! ```
 use boing_execution::{
-    encode_mint_batch_calldata, encode_owner_of_calldata, reference_nft_collection_template_bytecode,
-    Interpreter, GAS_PER_CONTRACT_CALL, MAX_REFERENCE_NFT_MINT_BATCH,
+    encode_mint_batch_calldata, encode_owner_of_calldata,
+    reference_nft_collection_template_bytecode, Interpreter, GAS_PER_CONTRACT_CALL,
+    MAX_REFERENCE_NFT_MINT_BATCH,
 };
 use boing_primitives::{Account, AccountId};
 use boing_state::StateStore;
@@ -63,13 +64,16 @@ fn measure(n: usize, with_metadata: bool) -> Result<(u64, u128), String> {
 }
 
 fn main() {
-    println!("MAX_REFERENCE_NFT_MINT_BATCH={}", MAX_REFERENCE_NFT_MINT_BATCH);
+    println!(
+        "MAX_REFERENCE_NFT_MINT_BATCH={}",
+        MAX_REFERENCE_NFT_MINT_BATCH
+    );
     println!("GAS_PER_CONTRACT_CALL={}", GAS_PER_CONTRACT_CALL);
     println!("n\tgas_owner+meta\tfee_BOING\tcalldata\tms\tgas_owner_only");
     for n in [1usize, 10, 50, 100, 200, 500] {
         let (g, us) = measure(n, true).unwrap();
         let (g0, _) = measure(n, false).unwrap();
-        let fee = (g + 20_999) / 21_000;
+        let fee = g.div_ceil(21_000);
         let cd = 96 + 64 * n;
         println!("{n}\t{g}\t{fee}\t{cd}\t{:.1}\t{g0}", us as f64 / 1000.0);
     }

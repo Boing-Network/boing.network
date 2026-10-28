@@ -142,11 +142,11 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 
 ### Method index (`boing_rpcSupportedMethods`)
 
-Current `boing-node` implements these JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
+Current `boing-node` implements these 66 JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
 
-`boing_chainHeight`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getBalance`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractCode`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLogs`, `boing_getNetworkFeePolicy`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_health`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_registerDappMetrics`, `boing_resolveSlashAppeal`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`.
+`boing_chainHeight`, `boing_checkNames`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getAccountTransactions`, `boing_getBalance`, `boing_getBlob`, `boing_getBlobAccess`, `boing_getBlobDasLightClientBatch`, `boing_getBlobDasSample`, `boing_getBlobDasSuccinctProofPlan`, `boing_getBlobMeta`, `boing_getBlobSampleServeChallenge`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractCode`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLeaderVrfOutput`, `boing_getLogs`, `boing_getMediaBlobParams`, `boing_getNameInfo`, `boing_getNetworkFeePolicy`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTransactionReceipt`, `boing_getValidators`, `boing_health`, `boing_listBlobSampleOffers`, `boing_listBlobSampleServeChallenges`, `boing_listBlsDualKeys`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_listSmtBlobSampleOffers`, `boing_matchBlobSampleOffer`, `boing_namesOwnedBy`, `boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_putBlobSampleOffer`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_quoteBlobSampleSettle`, `boing_registerBlsDualKey`, `boing_registerDappMetrics`, `boing_resolveName`, `boing_resolveSlashAppeal`, `boing_reverifySlashAppealBallots`, `boing_reverseName`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`, `boing_verifyBlobDasSuccinctProof`, `boing_verifyBlsAggregate`, `boing_verifyBlsAggregateResolve`.
 
-**Implementation:** `BOING_RPC_SUPPORTED_METHODS` in `crates/boing-node/src/rpc.rs` — keep this list, the router match arms, and this spec in sync when adding a method.
+**Implementation / single source of truth:** `BOING_RPC_SUPPORTED_METHODS` in `crates/boing-node/src/rpc.rs`. A unit test (`spec_lists_every_supported_method`) fails the build if a method in that list is missing from this file, so add a section here whenever you add a method. For exact wire formats of transactions and signatures see [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md); for the machine-readable catalog call **`boing_getRpcMethodCatalog`** / **`boing_getRpcOpenApi`**.
 
 ---
 
@@ -169,23 +169,62 @@ Submit a signed transaction to the mempool.
 
 **P2P:** When **`--p2p-listen`** is set and the tx is **admitted** to the mempool, the node also **gossips** the same `SignedTransaction` on libp2p topic **`boing/transactions`** so peers can verify and enqueue it locally ([TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3, [RUNBOOK.md](RUNBOOK.md) §8.1).
 
-**Result (success):** `{ "tx_hash": "ok" }` — current **`boing-node`** uses the literal **`"ok"`** when the tx is accepted into the mempool (not a 32-byte transaction id). Track inclusion via **`boing_getTransactionReceipt`** using **`tx_id = Transaction::id()`** (BLAKE3 of the unsigned tx bincode). Wallets (Boing Express `boing_sendTransaction`) should return **`{ "tx_hash": "ok", "tx_id": "0x…" }`** so dApps can poll receipts. Do not treat `"ok"` as a receipt key.
+**Admission order (node-side):** signature verify (chain-id v2 + optional `priority_tip`) -> duplicate check -> sender must exist with a balance (`unknown_sender`) -> nonce must not be below the account nonce (`stale_nonce`; *future* nonces are admitted and wait in the per-sender queue) -> balance must cover the failed-tx fee (`insufficient_fee`) -> native-value / open-validator / name / media-blob activation checks -> fee affordability dry run -> insert. Mempool limits: 16 txs per sender, 10,000 total (`BOING_MEMPOOL_MAX_TXS`), 4 zero-fee txs per sender. Block building drains **nonce-contiguous runs per sender, highest effective tip first**.
+
+**Rejection shapes.** All use JSON-RPC code `-32000` unless noted; branch on `error.data.reason`, not on the message text:
+
+| `data.reason` | Extra `data` fields | Meaning / client action |
+|---------------|---------------------|-------------------------|
+| `already_in_mempool` | `tx_hash` | Exact same signed payload already pending; wait. |
+| `unknown_sender` | - | Sender account has no on-chain balance; fund it (faucet/transfer) and retry. |
+| `stale_nonce` | `expected_nonce`, `got_nonce` | A tx with this nonce already executed; re-read `nonce` via `boing_getAccount` and re-sign. |
+| `insufficient_fee` | `have`, `need` (decimal strings, base units) | Balance below the protocol failed-tx fee (+ `priority_tip`). |
+| `free_pending_limit` | `limit` | Legacy zero-fee path only. |
+| `free_tx_balance_gate` | `have`, `need` | Legacy zero-fee path only. |
+| `native_value_not_active` | `active_from` | Value call before activation height. |
+| `pool_full` / `deployer_cap` | - | Codes `-32055` / `-32056` (QA pool). |
+
+Other codes: `-32602` malformed hex or undecodable transaction (clients must serialize with the same bincode layout; `priority_tip` is **omitted** from the encoding when zero, so decode with `SignedTransaction::from_bincode`, never raw `bincode::deserialize`), `-32050` QA rejected, `-32051` QA pending pool, `-32054` QA pool disabled, `-32016` rate limited.
 
 **QA pool (Unsure):** If mempool QA returns Unsure **and** governance allows the pool to accept work (`qa_pool_config`: non-zero `max_pending_items` and `public_membership`, `administrators`, or `dev_open_voting`), the node enqueues the deployment and responds with **`-32051`** and `data: { "tx_hash": "0x..." }`. The same signed deploy is **gossiped** so peers can enqueue it. With **`public_membership`**, the node also admits the deploy for inclusion so apply can register it on-chain (no contract created until quorum Allow). Voters submit a signed **`QaPoolVote`** transaction (via `boing_submitTransaction` or as the 4th param to `boing_qaPoolVote`). Hard caps (`max_pending_items`, `max_pending_per_deployer`) prevent pool congestion; when full, **`-32055`** / **`-32056`** apply instead of enqueueing.
 
-**Operator RPC (optional):** When the node process has environment variable **`BOING_OPERATOR_RPC_TOKEN`** set to a non-empty string, **`boing_operatorApplyQaPolicy`**, **`boing_operatorApplyFeePolicy`**, and **admin-only** **`boing_qaPoolVote`** require HTTP header **`X-Boing-Operator: <same token>`**. **`public_membership` QA votes do not use the operator header** — eligibility is protocol-side (signed vote tx; `-32053` if ineligible). If the variable is unset, admin-only votes match earlier releases (no header check).
+**Operator RPC (optional):** When the node process has environment variable **`BOING_OPERATOR_RPC_TOKEN`** set to a non-empty string, **`boing_operatorApplyQaPolicy`**, **`boing_operatorApplyFeePolicy`**, **admin-only** **`boing_qaPoolVote`**, **`boing_registerBlsDualKey`**, **`boing_putBlobSampleOffer`** (node-local offer book writes) and the slash-appeal operator paths require HTTP header **`X-Boing-Operator: <same token>`**. **`public_membership` QA votes do not use the operator header** — eligibility is protocol-side (signed vote tx; `-32053` if ineligible). If the variable is unset, admin-only votes match earlier releases (no header check).
 
 **Does the pool need RPC to “run”?** No. The node **owns** the pool: when QA returns Unsure and governance allows it, enqueueing happens inside normal transaction/mempool handling (`boing_submitTransaction` may return **`-32051`**). JSON-RPC is how clients *inspect and vote*—**`boing_qaPoolList`**, **`boing_qaPoolConfig`**, **`boing_qaPoolVote`**. Policy changes use **`boing_operatorApplyQaPolicy`**. Explorers and wallets are **read-and-submit clients only**; they must not scrape fees or pay voters. Voter rewards are credited in **apply** from [`PROTOCOL_TREASURY`](QUALITY-ASSURANCE-NETWORK.md).
 
 ---
 
-### boing_listSlashRecords
+### boing_listBlobSampleServeChallenges
 
-Read-only view of the node’s in-memory **`SlashRegistry`** (equivocation and liveness slashes + appeals).
+Read-only list of SMT sample-serve challenges (Phase 10+). Phase 24 adds filters and optional list-all.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Params | `[]` | No parameters |
+| Params | `[blobId]` or `[{ blobId?, status?, includeTerminal? }]` | `status`: `open`\|`responded`\|`failedServe`. `includeTerminal` defaults **true**. Omit `blobId` to list all. |
+
+Terminal rows (Responded / settled FailedServe) are pruned from consensus state after `deadline + 4096` via housekeeping; this RPC clones + display-expires Open past deadline only.
+
+---
+
+### boing_getBlobSampleServeChallenge
+
+Phase 24 get-by-key lookup for one sample-serve challenge.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[{ blobId, chunkIndex, provider, challenger }]` | All fields required |
+
+**Result:** `{ tipHeight, challenge: { … } }` or **`null`** if missing.
+
+---
+
+### boing_listSlashRecords
+
+Read-only view of the consensus **`SlashAppealRegistry`** joined with the node-local mirror (equivocation / liveness / FailedServe slashes + appeals).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[]` or `[{ reason?, slashId?, appealStatus?, includeExpired?, includeResolved? }]` | All filters optional. `appealStatus`: `pending`\|`approved`\|`rejected`\|`expired`. `includeExpired` / `includeResolved` default **true** (back-compat); set **false** to hide Expired or Approved/Rejected consensus appeals. |
 
 **Result:**
 
@@ -214,7 +253,19 @@ Read-only view of the node’s in-memory **`SlashRegistry`** (equivocation and l
 }
 ```
 
-**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth when **`BOING_OPERATOR_RPC_TOKEN`** is set). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3.
+**Notes:** When the node has a **data directory**, the registry is written to **`slash_registry.json`** and `persisted` is **`true`**. Appeal submit/resolve: **`boing_submitSlashAppeal`** / **`boing_resolveSlashAppeal`** (operator auth when **`BOING_OPERATOR_RPC_TOKEN`** is set). See [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) §12.3. Consensus book also exposes **`registryCommitment`**. For ballot crypto audit use **`boing_reverifySlashAppealBallots`**. Phase 23: Expired appeals are pruned from the book after `resolve_deadline + 4096` via housekeeping. Phase 25: Approved/Rejected prune on the same TTL; `includeResolved` lets operators hide them while retained. Phase 26–32: `boing_getMediaBlobParams` echoes `blsAggregateScaffold` / `blsAggregateWired` / `blsPopRequired` / `blsAggregateSubmitLibraryWired` / `blsAggregateSubmitConsensusWired` / `blsCommitteeFlipHeight` / `blsCommitteeFlipActiveAtTip` / dynamic `blsLiveTx32StillEd25519` (Phase 32: opt-in flip of multi-pin verify from Ed25519 **32** → BLS aggregate **33** via `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT`; unset = Phase 31 behavior). Dual-key host registry: **`boing_listBlsDualKeys`** / **`boing_registerBlsDualKey`** (`accountId`, `blsPubkey`, `blsPop`, optional `chainId`; operator auth when token set) / **`boing_verifyBlsAggregate`** / **`boing_verifyBlsAggregateResolve`**.
+
+---
+
+### boing_reverifySlashAppealBallots
+
+Phase 22/23 read-only audit of consensus slash-appeal resolve ballots (Ed25519 dual-verify V2 then V1), pin-set match, and registry commitment. **Never mutates** book state.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Params | `[{ appealId?, slashId?, includeUnattested?, includeExpired?, includeResolved?, expectedRegistryCommitment? }]` or object | All filters optional; `includeUnattested` defaults **true**; `includeExpired` / `includeResolved` default **false** (skip Expired and Approved/Rejected) |
+
+**Result (shape):** `{ chainId, registryCommitment, registryCommitmentMatch?, appeals: [{ appealId, slashId, status, pinSetMatch, okCount, invalidCount, unattestedCount, allAttestedBallotsValid, votes: [{ voter, approved, weight, status: "ok"|"invalid"|"unattested", domain? }] }] }`.
 
 ---
 
@@ -386,6 +437,8 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
   "chain_id": 6913,
   "chain_name": "Boing Testnet",
   "head_height": 42,
+  "storage_tree_v2_activation_height": null,
+  "receipt_retention_blocks": 1000000,
   "tx_signing": {
     "v2_supported": true,
     "domain": "BOING_TX_V2",
@@ -395,7 +448,16 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
     "failed_tx_fee_from_height": 900,
     "block_signatures_from_height": 920,
     "registration_proof_domain": "BOING_OPEN_VALIDATOR_REGISTER_V2",
-    "registration_proof_v2_from_height": 920
+    "registration_proof_v2_from_height": 920,
+    "priority_tips_supported": true,
+    "priority_tip_domain": "BOING_TX_PRIORITY"
+  },
+  "client_hints": {
+    "min_wallet_version": "0.1.18",
+    "recommended_wallet_version": "0.1.22",
+    "recommended_sdk": "0.5.38",
+    "sdk_npm_package": "@boing-network/boing-sdk",
+    "note": "Advisory only ..."
   },
   "rpc_surface": {
     "jsonrpc_batch_max": 32,
@@ -423,6 +485,11 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
 - **`chain_id` / `chain_name`:** **`null`** when the corresponding env var is unset or invalid (same as **`boing_getNetworkInfo`**).
 - **`rpc_surface`:** Operator-facing snapshot of limits (same sources as env vars **`BOING_RPC_MAX_BATCH`**, **`BOING_RPC_WS_MAX_CONNECTIONS`**, **`BOING_RPC_MAX_BODY_MB`**, node **`RateLimitConfig.requests_per_sec`**, **`BOING_RPC_READY_MIN_PEERS`**, plus fixed **`boing_getLogs`** bounds). **`ready_min_peers`** is **`null`** when no minimum is configured.
 - **`rpc_metrics`:** Cumulative counters since process start (best-effort diagnostics).
+- **`client_hints`:** Advisory version hints, also returned by **`boing_getNetworkInfo`**. **`min_wallet_version`** is the oldest Boing Express release that signs correctly for the network and displays amounts correctly (chain-bound v2 signing domain: 0.1.15; chain-bound validator-registration proof: 0.1.16; height-aware 18-decimal BOING amounts at `native_currency.base_units_from_height`: 0.1.18); **`recommended_wallet_version`** and **`recommended_sdk`** are the latest tested releases of Boing Express and `@boing-network/boing-sdk`. Compare as semver and show an upgrade prompt; the node never enforces them. Operators can override with **`BOING_MIN_WALLET_VERSION`**, **`BOING_RECOMMENDED_WALLET_VERSION`** and **`BOING_RECOMMENDED_SDK_VERSION`** so hints follow a release without rebuilding the node. Added in an additive, backwards-compatible way: clients that ignore unknown fields are unaffected.
+- **`storage_tree_v2_activation_height` / `receipt_retention_blocks`:** Additive protocol parameters, returned identically by **`boing_health`** and **`boing_getNetworkInfo`** (older nodes omit them; treat a missing key as unknown). Explorers and indexers should read them instead of hardcoding.
+  - **`storage_tree_v2_activation_height`** - JSON integer or **`null`**. **`null`** = not configured on this node: contract-storage trees use legacy 64-bit key routing and all state roots are unchanged (the default). An integer **H** means blocks at height **>= H** compute contract-storage roots with full 256-bit key routing ([STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md)). It comes from **`BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT`** / **`--storage-tree-v2-activation-height`**, is not persisted, and must be identical on every node of a network; it reflects this node's configuration, not on-chain consensus state. A client that recomputes roots uses 256-bit routing exactly when `height >= storage_tree_v2_activation_height`.
+  - **`receipt_retention_blocks`** - JSON integer or **`null`**. The number of most recent blocks whose receipts this node serves from **`boing_getTransactionReceipt`**, **`includeReceipts`**, **`boing_getLogs`** and the account tx index (`BOING_RECEIPT_RETENTION_BLOCKS`, default **1000000**). **`null`** = unbounded (the env value **`0`**). For a transaction older than `head_height - receipt_retention_blocks + 1`, **`boing_getTransactionReceipt`** returns **`null`**; backfill from blocks instead. Pruning runs every 256 blocks, so the cut-off is approximate by up to that many blocks.
+- **`tx_signing.priority_tips_supported` / `priority_tip_domain`:** Wallets can discover that a non-zero `priority_tip` is signed under the **`BOING_TX_PRIORITY`** domain (see [Priority tips and block signatures](#priority-tips-and-block-signatures-stable-spec)).
 
 ---
 
@@ -464,6 +531,8 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
 {
   "chain_id": 6913,
   "chain_name": "Boing Testnet",
+  "storage_tree_v2_activation_height": null,
+  "receipt_retention_blocks": 1000000,
   "head_height": 42,
   "finalized_height": 42,
   "latest_block_hash": "0x...",
@@ -472,6 +541,12 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
   "consensus": {
     "validator_count": 4,
     "model": "hotstuff_bft"
+  },
+  "client_hints": {
+    "min_wallet_version": "0.1.18",
+    "recommended_wallet_version": "0.1.22",
+    "recommended_sdk": "0.5.38",
+    "sdk_npm_package": "@boing-network/boing-sdk"
   },
   "native_currency": {
     "symbol": "BOING",
@@ -537,6 +612,7 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
 
 - **`developer.dex_discovery_methods`:** Stable list of L1 native DEX discovery JSON-RPC method names (same triple as `docs/HANDOFF_Boing_Network_Global_Token_Discovery.md`). Clients may merge this with `boing_rpcSupportedMethods` / `boing_getRpcMethodCatalog` for capability detection.
 - **`end_user`:** Wallet-facing strings and optional **32-byte hex** hints when operators set the matching **`BOING_CANONICAL_NATIVE_*`** env vars on the node: **`canonical_native_cp_pool`**, **`canonical_native_dex_factory`**, **`canonical_native_dex_multihop_swap_router`**, **`canonical_native_dex_ledger_router_v2`**, **`canonical_native_dex_ledger_router_v3`**, **`canonical_native_amm_lp_vault`**, **`canonical_native_lp_share_token`**. Omitted keys are JSON **`null`**. **`boing-sdk`** **`mergeNativeDexIntegrationDefaults`** merges these with app overrides; historical embedded **6913** constants apply **only** when network info is omitted (offline). A live snapshot with null canonical fields means the hosted chain has not published those contracts ([BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md), [dApp network discovery](#dapp-network-discovery)).
+- **`storage_tree_v2_activation_height` / `receipt_retention_blocks`:** Same fields and semantics as on **`boing_health`** (see the bullet there).
 - **`chain_id` / `chain_name`:** From **`BOING_CHAIN_ID`** / **`BOING_CHAIN_NAME`** when set on the node process; **`chain_id`** is **`null`** when not configured.
 - **`validator_count`:** Size of this node’s in-process validator set (HotStuff BFT); not a network-wide discovery endpoint for all operators.
 - **`native_currency`:** Native BOING has **18 decimals** (1 BOING = 10^18 base units; [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md)). **`decimals`** is the unit of the amounts this node returns *now*: **18** (base units) on chains without history and on testnet from **`base_units_from_height`** (1050), **0** (whole BOING) on testnet before it. **`base_units_from_height`** is **`null`** when the chain is in base units from genesis. Blocks below **`base_units_from_height`** carry whole-BOING amounts; format historical blocks with the unit of their height. **`gas_price_base_units`**: fee per gas in base units from the switch. Same object in **`boing_health`**.
@@ -648,11 +724,13 @@ Get a block by height.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Params | `[height]` or `[height, include_receipts]` | Block height (u64); optional boolean — when `true`, adds `receipts` array (same order as `transactions`, `null` if no receipt cached). |
+| Params | `[height]` or `[height, include_receipts]` or `[height, include_receipts, include_code]` | Block height (u64); optional booleans — `include_receipts` (default `false`) adds `receipts`; `include_code` (default `true`) controls large byte fields (see below). |
 
 **Result:** Block object or `null` if not found. `header` includes `receipts_root` (hex-encoded 32-byte Merkle root over execution receipts; see protocol spec). Optional `hash` field (hex) is added for convenience. With `include_receipts: true`, each entry matches **`boing_getTransactionReceipt`** shape or `null`.
 
-**Off-chain deploy registry:** indexers that need a **chain-wide list of predicted `ContractDeploy*` contract addresses** (and BLAKE3 **transaction ids**) can call this method with **`include_receipts: false`** and parse **`transactions`**. The TypeScript SDK exposes **`extractUniversalContractDeploymentsFromBlock`** and related helpers (`boing-sdk`, **`universalContractDeployIndex.ts`**). An optional Cloudflare Worker materializes rows into D1 and serves HTTP/SSE; see [HANDOFF_Universal_Contract_Deploy_Indexer.md](HANDOFF_Universal_Contract_Deploy_Indexer.md).
+**Byte fields (bytecode, calldata, blob `data`, evidence, …):** emitted as **`0x` + hex** (same style as receipt `return_data` / logs), **not** as JSON number arrays. Account ids / 32-byte hashes in the block JSON are also `0x` hex. When **`include_code: false`**, those heavy vectors are replaced with `{ "omitted": true, "size": <bytes>, "hash": "0x…" }` (BLAKE3 of the omitted bytes) so explorers can sample tip windows without multi‑MiB payloads. Use **`boing_getContractCode`** when the full deployed bytecode is needed.
+
+**Off-chain deploy registry:** indexers that need a **chain-wide list of predicted `ContractDeploy*` contract addresses** (and BLAKE3 **transaction ids**) can call this method with **`include_receipts: false`** and **`include_code: true`** (default) and parse **`transactions`**. The TypeScript SDK exposes **`extractUniversalContractDeploymentsFromBlock`** and related helpers (`boing-sdk`, **`universalContractDeployIndex.ts`**). An optional Cloudflare Worker materializes rows into D1 and serves HTTP/SSE; see [HANDOFF_Universal_Contract_Deploy_Indexer.md](HANDOFF_Universal_Contract_Deploy_Indexer.md).
 
 ---
 
@@ -708,7 +786,7 @@ Get a block by hash.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| Params | `[hex_block_hash]` or `[hex_block_hash, include_receipts]` | Optional boolean — same as `boing_getBlockByHeight`. |
+| Params | `[hex_block_hash]` or `[hex_block_hash, include_receipts]` or `[hex_block_hash, include_receipts, include_code]` | Optional booleans — same as `boing_getBlockByHeight`. |
 
 **Result:** Block object or `null` if not found.
 
@@ -951,9 +1029,6 @@ Names are normalized: trimmed, lowercased, optional `.boing` suffix stripped; 3-
 | `boing_resolveName` | `[name]` | `null` or `{ name, display, owner, target, registered_at, expires_at, status }` (only **active** names resolve; names in grace do not) |
 | `boing_reverseName` | `[address]` | `null` or `{ name, display, address, verified: true }`; only returned when the primary name is active and still resolves to `address` |
 | `boing_getNameInfo` | `[name]` | `{ input, name, display, valid, reserved, available, status, rent_per_year, record?, registry, head_height }` |
-| `boing_getMediaBlobParams` | `[]` | Caps / activation / gas knobs for L1 media blobs ([BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)) |
-| `boing_getBlobMeta` | `[blobId]` | Metadata object or `null` (`blobId`: `0x…` / hex / `boing://blob/0x…`) |
-| `boing_getBlob` | `[blobId]` | `{ meta, dataHex }` or `null` |
 | `boing_checkNames` | `[[name, ...]]` (1-25) | `{ registry, results: [ <same shape as getNameInfo without record> ] }` |
 | `boing_namesOwnedBy` | `[address]` | array of records (active and grace) owned by `address` |
 
@@ -968,6 +1043,32 @@ After `expires_at` a name has a grace period (`grace_blocks`) during which only 
 CLI: `boing name resolve|reverse|info|check|owned|claim|renew|transfer|set-target|set-primary|release`
 (`claim` runs commit → register, optionally `--primary`; signing commands take `--secret-hex` or `BOING_SECRET_HEX`, and `--dry-run`).
 SDK: `boing-sdk` `boingNames` helpers (`resolveBoingRecipient`, `commitBoingName`, `registerBoingName`, ...) and `BoingClient.resolveName` / `reverseName` / `getNameInfo` / `checkNames` / `namesOwnedBy`.
+## Priority tips and block signatures (stable spec)
+
+Machine-readable copy: `boing_getRpcMethodCatalog` -> `protocol_specs` (source `crates/boing-node/schemas/developer_api.json`). These rules are stable and additive-only.
+
+### Priority tips
+
+- **Units:** `priority_tip` is a `u128` in ledger units (base units; 1 BOING = 10^18). In JSON it is a decimal string.
+- **Wire:** `SignedTransaction.priority_tip` is appended after the signature as 16 bytes little-endian and is **omitted entirely when `0`**, so untipped transactions keep their historical bytes. Always decode with `SignedTransaction::from_bincode`, never a plain bincode deserialize.
+- **Signing digest:** `priority_tip == 0` uses the v2 digest (`BOING_TX_V2`). Otherwise `BLAKE3("BOING_TX_PRIORITY" || chain_id_le8 || nonce_le8 || sender32 || bincode(payload) || bincode(access_list) || tip_le16)`. The tip is signed, so a relay cannot add or change it. Golden vectors: [`fixtures/tx-signing-golden-vectors.json`](fixtures/tx-signing-golden-vectors.json).
+- **Admission:** balance must cover the failed-tx fee plus the tip (`insufficient_fee`).
+- **Settlement:** split by the fee policy (`tip_proposer_bps`, `tip_treasury_bps`, `tip_burn_bps` in `boing_getNetworkInfo.treasury.fee_policy`); default 100% to the block proposer.
+- **Ordering:** block building drains nonce-contiguous runs per sender, highest effective tip first; the lowest tip is evicted first when the pool is full. See [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md).
+
+### Block signatures
+
+`Block` is `{ header, transactions, signatures?, priority_tips? }` (bincode); `signatures` and `priority_tips` are each omitted when empty and are **not** part of the header or block hash.
+
+- **`signatures[i]`** is the sender's Ed25519 signature over `transactions[i]`, in the format required at that height (v2 chain-bound after the v2 activation).
+- **Required from** `boing_health.tx_signing.block_signatures_from_height` (testnet 920; genesis on new chains): exactly one signature per transaction, verified by every importing node. A missing, forged, legacy-format or other-chain signature rejects the block.
+- **`priority_tips[i]`** is the tip committed by `signatures[i]`; empty means every tip is `0`, otherwise its length must equal `transactions.len()`.
+- Decode with `Block::from_bincode`; layouts differ across eras.
+
+### Chain metadata file
+
+[`chain-metadata.json`](chain-metadata.json) lists chain ids (testnet 6913, mainnet 6914 planned), native currency, explorer, faucet and RPC URLs, signing-domain pointers and where to read the live fee policy. `boing_getNetworkInfo.developer.chain_metadata_url` points at it. Live values (heights, fee policy) always come from the node.
+
 ## Error Codes
 
 | Code | Meaning |
@@ -984,8 +1085,39 @@ SDK: `boing-sdk` `boingNames` helpers (`resolveBoingRecipient`, `commitBoingName
 | -32054 | **QA pool disabled** — Governance has not enabled the pool (`max_pending_items` is 0, or none of `public_membership` / `dev_open_voting` / `administrators`). |
 | -32055 | **QA pool full** — Global `max_pending_items` reached; optional `data.reason: "pool_full"`. |
 | -32056 | **QA pool deployer cap** — Sender exceeded `max_pending_per_deployer`; optional `data.reason: "deployer_cap"`. |
-| -32057 | **Operator RPC auth** — `boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`, or **admin-only** `boing_qaPoolVote` called without valid `X-Boing-Operator` while `BOING_OPERATOR_RPC_TOKEN` is set. |
+| -32057 | **Operator RPC auth** — `boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`, `boing_registerBlsDualKey`, `boing_putBlobSampleOffer`, or **admin-only** `boing_qaPoolVote` called without valid `X-Boing-Operator` while `BOING_OPERATOR_RPC_TOKEN` is set. |
+
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+### Media blobs, data availability (DAS) and BLS dual keys
+
+L1 media blobs (see [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) for semantics, caps and phases). Most reads need the node's **media blob store** (a data directory); without one they return `-32000 "media blob store unavailable (no data dir)"`. `blobId` accepts `0x<64 hex>`, bare hex, or `boing://blob/0x...`. Handlers: `crates/boing-node/src/media_blobs_rpc.rs`.
+
+| Method | Params | Result |
+|--------|--------|--------|
+| `boing_getMediaBlobParams` | `[]` | Caps / activation / gas knobs for L1 media blobs. |
+| `boing_getBlobMeta` | `[blobId]` | Metadata object or `null`. |
+| `boing_getBlobAccess` | `[blobId]` | `null` or `{ blobId, publisher, grantees[], epoch, aclActive, aclActivationHeight, note }` (Phase 34 download ACL; see [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md)). |
+| `boing_getBlob` | `[blobId]` | `{ meta, dataHex }` or `null`. When **`BOING_BLOB_GET_REQUIRE_AUTH=1`** the operator / download token credentials are required (same as the HTTP download); otherwise open. Prefer **`GET /v1/media/blob?id={blobId}`** for large raw downloads. |
+| `boing_getBlobDasSample` | `[blobId, chunkIndex]` | `{ blobId, chunkIndex, chunkCount, chunkHash, chunksRoot, siblings[], parityChunkHex, originalLen }` (Merkle sample; does not return the data chunk). **Not** covered by `BOING_BLOB_GET_REQUIRE_AUTH`; the node re-reads the blob per call, so front public nodes with rate limits. |
+| `boing_getBlobDasLightClientBatch` | `[blobId, sampleCount?, vrfOutput?]` or object with optional `useLeaderVrf` | Batch of samples (`sampleCount` 1..`PHASE6_MAX_DAS_LIGHT_CLIENT_SAMPLES`, default 8) with `seedMode` = `vrf` / `leaderVrf` / `height`. The `StubBlake3V0` proof is a hash stub, **not** a SNARK. |
+| `boing_getBlobDasSuccinctProofPlan` | `[]` | Supported proof kinds (`stubBlake3V0`, `reservedRealV1`), size caps and phase notes. |
+| `boing_verifyBlobDasSuccinctProof` | object `{ blobId, sampleCount?, ... proof }` | Verification result; `reservedRealV1` is rejected until a real succinct system is wired. |
+| `boing_getLeaderVrfOutput` | `[round?]` (default: chain height) | `{ round, leaderElection, vrfOutput\|null, note }`; `null` under RoundRobin election. |
+| `boing_putBlobSampleOffer` | `{ blobId, chunkIndex, chunkCount, provider, askFee, expiresAtHeight? }` | Adds a **node-local** (non-consensus) sample offer. **Operator-gated** (`-32057` when `BOING_OPERATOR_RPC_TOKEN` is set). |
+| `boing_listBlobSampleOffers` | `[blobId, chunkIndex?, source?]` (`source` = `all`/`local`/`onChain`) | Offers from the local book and the on-chain registry. |
+| `boing_listSmtBlobSampleOffers` | `[blobId, chunkIndex?]` | Consensus (SMT-resident) offers with `registeredAtHeight`, `escrowedAsk`. |
+| `boing_matchBlobSampleOffer` | `{ blobId, chunkIndex, ... }` | Best matching offer (on-chain preferred, then local) or `-32000 "no matching sample offer"`. |
+| `boing_quoteBlobSampleSettle` | `{ blobId, chunkIndex, protocolSampleFee? }` | `{ source, offer, quote }` settle quote for the best offer. |
+| `boing_listBlobSampleServeChallenges` | `[blobId]` or `{ blobId?, status?, includeTerminal? }` | Phase 24 serve challenges. |
+| `boing_getBlobSampleServeChallenge` | `{ blobId, chunkIndex, provider, challenger }` | One serve challenge or `null`. |
+| `boing_listBlsDualKeys` | `[]` | `{ count, file, wired, popRequired, liveTx32StillEd25519, entries: [{ accountId, blsPubkey }] }`. |
+| `boing_registerBlsDualKey` | `[accountId, blsPubkey, blsPop, chainId?]` or object (`accountId`, `blsPubkey`, `blsPop`) | Registers a BLS key with proof-of-possession. **Operator-gated.** |
+| `boing_verifyBlsAggregate` | object | Dry-run verification of a BLS aggregate (library/RPC only; not consensus-admitted). |
+| `boing_verifyBlsAggregateResolve` | object | Dry-run of an aggregate-attested slash-appeal resolve (tx 33 is **not** consensus-admitted; committee nets use tx 32). |
+
+**HTTP media download (non-JSON-RPC):** **`GET /v1/media/blob?id={blobId}`** returns raw bytes (`Content-Disposition: attachment`). Auth: operator/download shared secrets (**`X-Boing-Operator`** / **`X-Boing-Blob-Download`** / **`Authorization: Bearer`**) and/or Phase 34 publisher/grantee proof headers (**`X-Boing-Blob-Downloader`**, **`Expires`**, **`Nonce`**, **`Signature`**). **`BOING_BLOB_ACL_ACTIVATION_HEIGHT`** makes download private-by-default. See [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) and [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md).
+---
+
+*Boing Network — Quality, enforced by the protocol.*

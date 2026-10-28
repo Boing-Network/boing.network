@@ -84,7 +84,10 @@ fn main() {
             "deployer_wrong_length",
             format!("got {} bytes", raw.len()),
         );
-        eprintln!("deployer must be 32 bytes (64 hex chars), got {} bytes", raw.len());
+        eprintln!(
+            "deployer must be 32 bytes (64 hex chars), got {} bytes",
+            raw.len()
+        );
         std::process::exit(2);
     }
     let mut bytes = [0u8; 32];

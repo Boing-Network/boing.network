@@ -56,7 +56,11 @@ fn main() {
         eprintln!(
             "verify_canonical_cp_pool_create2_drift: CREATE2 prediction does not match published canonical pool id (see JSON above)."
         );
-        if std::env::var("BOING_STRICT_CP_POOL_CREATE2").ok().as_deref() == Some("1") {
+        if std::env::var("BOING_STRICT_CP_POOL_CREATE2")
+            .ok()
+            .as_deref()
+            == Some("1")
+        {
             std::process::exit(1);
         }
     }

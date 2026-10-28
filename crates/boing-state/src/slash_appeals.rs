@@ -1,4 +1,4 @@
-//! Consensus slash + appeal book (Phase 14/15/16/17/18/19/20/21).
+//! Consensus slash + appeal book (Phase 14/15/16/17/18/19/20/21/22/23/24/25).
 //!
 //! FailedServe settle and equivocation/liveness slash-apply insert rows with consensus-allocated
 //! `slash_id`s; `SubmitSlashAppeal` / `ResolveSlashAppeal` / `ResolveSlashAppealAttested` txs
@@ -9,12 +9,15 @@
 //! Phase 18: optional Ed25519 ballot on votes; registry commitment domain V3.
 //! Phase 20: electorate W (+ pin-set commitment) snapshotted at Submit; domain V4.
 //! Phase 21: `resolve_deadline` at Submit; Pending → Expired after deadline; domain V5.
+//! Phase 23: prune Expired appeals after `resolve_deadline + 4096` (row deletion; stay V5).
+//! Phase 25: prune Approved/Rejected after `resolve_deadline + 4096` (row deletion; stay V5).
 
 use std::collections::BTreeMap;
 
 use boing_primitives::{
     hasher, phase17_resolve_threshold_met, phase21_resolve_deadline, phase21_resolve_expired,
-    AccountId, SlashAppealBallotSignature, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+    phase23_expired_appeal_prunable, phase25_resolved_appeal_prunable, AccountId,
+    SlashAppealBallotSignature, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
     PHASE20_LEGACY_ELECTORATE_W_SENTINEL, PHASE20_LEGACY_PIN_SET_COMMITMENT,
 };
 use serde::{Deserialize, Serialize};
@@ -295,7 +298,9 @@ impl SlashAppealRegistry {
     }
 
     /// Migrate Phase 16 bool votes → weighted records with `weight = 0`, no ballot.
-    pub fn migrate_bool_votes(votes: BTreeMap<AccountId, bool>) -> BTreeMap<AccountId, ResolveVote> {
+    pub fn migrate_bool_votes(
+        votes: BTreeMap<AccountId, bool>,
+    ) -> BTreeMap<AccountId, ResolveVote> {
         votes
             .into_iter()
             .map(|(id, approved)| {
@@ -351,8 +356,7 @@ impl SlashAppealRegistry {
 
     /// Build a registry from a Phase 20 V4 envelope payload (no resolve_deadline).
     pub fn from_legacy_phase20_v4(legacy: &[u8]) -> Result<Self, String> {
-        let leg: LegacyPhase20Registry =
-            bincode::deserialize(legacy).map_err(|e| e.to_string())?;
+        let leg: LegacyPhase20Registry = bincode::deserialize(legacy).map_err(|e| e.to_string())?;
         let mut reg = Self {
             slashes: leg.slashes,
             appeals: BTreeMap::new(),
@@ -395,8 +399,7 @@ impl SlashAppealRegistry {
 
     /// Build a registry from a Phase 18 V3 envelope payload (ballots; no electorate snapshot).
     pub fn from_legacy_phase18_v3(legacy: &[u8]) -> Result<Self, String> {
-        let leg: LegacyPhase18Registry =
-            bincode::deserialize(legacy).map_err(|e| e.to_string())?;
+        let leg: LegacyPhase18Registry = bincode::deserialize(legacy).map_err(|e| e.to_string())?;
         let mut reg = Self {
             slashes: leg.slashes,
             appeals: BTreeMap::new(),
@@ -440,8 +443,7 @@ impl SlashAppealRegistry {
 
     /// Build a registry from a Phase 17 V2 envelope payload (weighted votes, no ballot).
     pub fn from_legacy_phase17_v2(legacy: &[u8]) -> Result<Self, String> {
-        let leg: LegacyPhase17Registry =
-            bincode::deserialize(legacy).map_err(|e| e.to_string())?;
+        let leg: LegacyPhase17Registry = bincode::deserialize(legacy).map_err(|e| e.to_string())?;
         let mut reg = Self {
             slashes: leg.slashes,
             appeals: BTreeMap::new(),
@@ -476,8 +478,7 @@ impl SlashAppealRegistry {
 
     /// Build a registry from a legacy Phase 16 bare-bincode decode (bool votes → weight 0).
     pub fn from_legacy_phase16(legacy: &[u8]) -> Result<Self, String> {
-        let leg: LegacyPhase16Registry =
-            bincode::deserialize(legacy).map_err(|e| e.to_string())?;
+        let leg: LegacyPhase16Registry = bincode::deserialize(legacy).map_err(|e| e.to_string())?;
         let mut reg = Self {
             slashes: leg.slashes,
             appeals: BTreeMap::new(),
@@ -507,8 +508,7 @@ impl SlashAppealRegistry {
 
     /// Build a registry from a legacy Phase 14/15 bare-bincode decode (no votes → empty).
     pub fn from_legacy_phase14(legacy: &[u8]) -> Result<Self, String> {
-        let leg: LegacyPhase14Registry =
-            bincode::deserialize(legacy).map_err(|e| e.to_string())?;
+        let leg: LegacyPhase14Registry = bincode::deserialize(legacy).map_err(|e| e.to_string())?;
         let mut reg = Self {
             slashes: leg.slashes,
             appeals: BTreeMap::new(),
@@ -681,6 +681,38 @@ impl SlashAppealRegistry {
         n
     }
 
+    /// Phase 23: remove Expired appeals past retention
+    /// (`tip > resolve_deadline + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS`).
+    ///
+    /// Does **not** prune Pending / Approved / Rejected. Does **not** delete slash
+    /// records. Idempotent. Registry domain stays **V5** (row deletion only).
+    pub fn prune_expired_appeals(&mut self, tip_height: u64) -> usize {
+        let before = self.appeals.len();
+        self.appeals.retain(|_, a| {
+            if a.status != ConsensusAppealStatus::Expired {
+                return true;
+            }
+            !phase23_expired_appeal_prunable(tip_height, a.resolve_deadline)
+        });
+        before.saturating_sub(self.appeals.len())
+    }
+
+    /// Phase 25: remove Approved / Rejected appeals past retention
+    /// (`tip > resolve_deadline + PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS`).
+    ///
+    /// Does **not** prune Pending (or Expired — use [`Self::prune_expired_appeals`]).
+    /// Does **not** delete slash records. Idempotent. Registry domain stays **V5**.
+    pub fn prune_resolved_appeals(&mut self, tip_height: u64) -> usize {
+        let before = self.appeals.len();
+        self.appeals.retain(|_, a| match a.status {
+            ConsensusAppealStatus::Approved | ConsensusAppealStatus::Rejected => {
+                !phase25_resolved_appeal_prunable(tip_height, a.resolve_deadline)
+            }
+            ConsensusAppealStatus::Pending | ConsensusAppealStatus::Expired => true,
+        });
+        before.saturating_sub(self.appeals.len())
+    }
+
     /// Phase 21: gate Resolve before cast. If past deadline and still Pending → Expired and
     /// `ResolveWindowClosed`. Already Expired/Approved/Rejected → `AppealAlreadyResolved`.
     pub fn gate_resolve_window(
@@ -715,6 +747,26 @@ impl SlashAppealRegistry {
         electorate_w: u128,
         ballot_signature: Option<SlashAppealBallotSignature>,
     ) -> Result<CastResolveOutcome, SlashAppealError> {
+        self.cast_resolve_votes_batch(
+            appeal_id,
+            &[(voter, approved, voter_weight, ballot_signature)],
+            electorate_w,
+        )
+    }
+
+    /// Cast many resolve votes atomically (Phase 31 BLS aggregate path).
+    ///
+    /// All entries share the same `approved` polarity in practice (one aggregate ballot).
+    /// Inserts every vote first, then evaluates ⌈2W/3⌉ once so mid-batch finalize cannot
+    /// drop later signers from the audit trail. Fails if any voter already voted or appeal
+    /// is not Pending. `ballot_signature` is typically `None` for BLS aggregates (proof is
+    /// on the tx body).
+    pub fn cast_resolve_votes_batch(
+        &mut self,
+        appeal_id: u64,
+        votes: &[(AccountId, bool, u128, Option<SlashAppealBallotSignature>)],
+        electorate_w: u128,
+    ) -> Result<CastResolveOutcome, SlashAppealError> {
         let slash_id = {
             let appeal = self
                 .appeals
@@ -723,21 +775,24 @@ impl SlashAppealRegistry {
             if appeal.status != ConsensusAppealStatus::Pending {
                 return Err(SlashAppealError::AppealAlreadyResolved);
             }
-            if appeal.votes.contains_key(&voter) {
-                return Err(SlashAppealError::AlreadyVoted);
+            for (voter, approved, voter_weight, ballot_signature) in votes {
+                if appeal.votes.contains_key(voter) {
+                    return Err(SlashAppealError::AlreadyVoted);
+                }
+                appeal.votes.insert(
+                    *voter,
+                    ResolveVote {
+                        approved: *approved,
+                        weight: *voter_weight,
+                        ballot_signature: *ballot_signature,
+                    },
+                );
             }
-            appeal.votes.insert(
-                voter,
-                ResolveVote {
-                    approved,
-                    weight: voter_weight,
-                    ballot_signature,
-                },
-            );
             appeal.slash_id
         };
 
-        let (approve_weight, reject_weight) = self.weight_tallies(appeal_id).expect("appeal present");
+        let (approve_weight, reject_weight) =
+            self.weight_tallies(appeal_id).expect("appeal present");
 
         if phase17_resolve_threshold_met(approve_weight, electorate_w) {
             self.finalize_appeal(appeal_id, slash_id, true)?;
@@ -1086,15 +1141,8 @@ mod tests {
     #[test]
     fn serde_roundtrip() {
         let mut reg = SlashAppealRegistry::new();
-        reg.record_slash_with_id(
-            9,
-            acct(9),
-            42,
-            ConsensusSlashReason::Equivocation,
-            1,
-            10,
-        )
-        .unwrap();
+        reg.record_slash_with_id(9, acct(9), 42, ConsensusSlashReason::Equivocation, 1, 10)
+            .unwrap();
         let aid = reg
             .submit_appeal(
                 9,
@@ -1105,18 +1153,27 @@ mod tests {
                 [0xCDu8; 32],
             )
             .unwrap();
-        reg.cast_resolve_vote(aid, acct(1), true, 50, 300, None).unwrap();
+        reg.cast_resolve_vote(aid, acct(1), true, 50, 300, None)
+            .unwrap();
         let bytes = bincode::serialize(&reg).unwrap();
         let back: SlashAppealRegistry = bincode::deserialize(&bytes).unwrap();
         assert_eq!(back.list_slashes().len(), 1);
         assert_eq!(back.list_appeals().len(), 1);
         assert_eq!(back.get_appeal(aid).unwrap().votes.len(), 1);
         assert_eq!(
-            back.get_appeal(aid).unwrap().votes.get(&acct(1)).unwrap().weight,
+            back.get_appeal(aid)
+                .unwrap()
+                .votes
+                .get(&acct(1))
+                .unwrap()
+                .weight,
             50
         );
         assert_eq!(back.get_appeal(aid).unwrap().electorate_w_snapshot, 300);
-        assert_eq!(back.get_appeal(aid).unwrap().pin_set_commitment, [0xCDu8; 32]);
+        assert_eq!(
+            back.get_appeal(aid).unwrap().pin_set_commitment,
+            [0xCDu8; 32]
+        );
         assert_eq!(
             back.get_appeal(aid).unwrap().resolve_deadline,
             phase21_resolve_deadline(1)
@@ -1126,15 +1183,8 @@ mod tests {
     #[test]
     fn empty_votes_roundtrip() {
         let mut reg = SlashAppealRegistry::new();
-        reg.record_slash_with_id(
-            1,
-            acct(1),
-            10,
-            ConsensusSlashReason::BlobFailedServe,
-            1,
-            10,
-        )
-        .unwrap();
+        reg.record_slash_with_id(1, acct(1), 10, ConsensusSlashReason::BlobFailedServe, 1, 10)
+            .unwrap();
         let aid = reg
             .submit_appeal(
                 1,
@@ -1202,10 +1252,7 @@ mod tests {
                 [0x22u8; 32],
             )
             .unwrap();
-        assert_eq!(
-            reg.get_appeal(aid).unwrap().resolve_deadline,
-            1100
-        );
+        assert_eq!(reg.get_appeal(aid).unwrap().resolve_deadline, 1100);
     }
 
     #[test]
@@ -1250,6 +1297,142 @@ mod tests {
         assert!(!reg.is_reversed(8));
         // Second housekeeping is a no-op.
         assert_eq!(reg.expire_pending_appeals(2000), 0);
+    }
+
+    #[test]
+    fn phase23_prune_expired_after_retention_only() {
+        use boing_primitives::PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS;
+        let mut reg = SlashAppealRegistry::new();
+        let aid = seed_appeal(&mut reg, 9);
+        // seed_appeal tip 150 → deadline 1150
+        assert_eq!(reg.expire_pending_appeals(1151), 1);
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            ConsensusAppealStatus::Expired
+        );
+        // Still within retention: tip == deadline + retention → keep
+        assert_eq!(
+            reg.prune_expired_appeals(1150 + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS),
+            0
+        );
+        assert!(reg.get_appeal(aid).is_some());
+        // Past retention → remove appeal row; slash stays.
+        assert_eq!(
+            reg.prune_expired_appeals(1150 + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS + 1),
+            1
+        );
+        assert!(reg.get_appeal(aid).is_none());
+        assert!(reg.get_slash(9).is_some());
+        assert_eq!(reg.prune_expired_appeals(u64::MAX), 0);
+    }
+
+    #[test]
+    fn phase23_prune_skips_pending_approved_rejected() {
+        use boing_primitives::PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS;
+        let mut reg = SlashAppealRegistry::new();
+        // Pending
+        let pending = seed_appeal(&mut reg, 10);
+        // Approved
+        let approved = seed_appeal(&mut reg, 11);
+        reg.cast_resolve_vote(approved, acct(1), true, 200, 300, None)
+            .unwrap();
+        assert_eq!(
+            reg.get_appeal(approved).unwrap().status,
+            ConsensusAppealStatus::Approved
+        );
+        // Rejected
+        let rejected = seed_appeal(&mut reg, 12);
+        reg.cast_resolve_vote(rejected, acct(1), false, 200, 300, None)
+            .unwrap();
+        assert_eq!(
+            reg.get_appeal(rejected).unwrap().status,
+            ConsensusAppealStatus::Rejected
+        );
+        let tip = 1150 + PHASE23_EXPIRED_APPEAL_RETENTION_BLOCKS + 10_000;
+        assert_eq!(reg.prune_expired_appeals(tip), 0);
+        assert!(reg.get_appeal(pending).is_some());
+        assert!(reg.get_appeal(approved).is_some());
+        assert!(reg.get_appeal(rejected).is_some());
+    }
+
+    #[test]
+    fn phase25_prune_resolved_after_retention_only() {
+        use boing_primitives::PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS;
+        let mut reg = SlashAppealRegistry::new();
+        let approved = seed_appeal(&mut reg, 20);
+        reg.cast_resolve_vote(approved, acct(1), true, 200, 300, None)
+            .unwrap();
+        assert_eq!(
+            reg.get_appeal(approved).unwrap().status,
+            ConsensusAppealStatus::Approved
+        );
+        let rejected = seed_appeal(&mut reg, 21);
+        reg.cast_resolve_vote(rejected, acct(1), false, 200, 300, None)
+            .unwrap();
+        assert_eq!(
+            reg.get_appeal(rejected).unwrap().status,
+            ConsensusAppealStatus::Rejected
+        );
+        // seed_appeal tip 150 → deadline 1150
+        assert_eq!(
+            reg.prune_resolved_appeals(1150 + PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS),
+            0
+        );
+        assert!(reg.get_appeal(approved).is_some());
+        assert!(reg.get_appeal(rejected).is_some());
+        assert_eq!(
+            reg.prune_resolved_appeals(1150 + PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS + 1),
+            2
+        );
+        assert!(reg.get_appeal(approved).is_none());
+        assert!(reg.get_appeal(rejected).is_none());
+        assert!(reg.get_slash(20).is_some());
+        assert!(reg.get_slash(21).is_some());
+        assert_eq!(reg.prune_resolved_appeals(u64::MAX), 0);
+    }
+
+    #[test]
+    fn phase25_prune_skips_pending_and_expired() {
+        use boing_primitives::PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS;
+        let mut reg = SlashAppealRegistry::new();
+        let expired = seed_appeal(&mut reg, 22);
+        // Expire only this appeal via resolve gate (deadline 1150).
+        assert!(matches!(
+            reg.gate_resolve_window(expired, 1151),
+            Err(SlashAppealError::ResolveWindowClosed)
+        ));
+        assert_eq!(
+            reg.get_appeal(expired).unwrap().status,
+            ConsensusAppealStatus::Expired
+        );
+        // Fresh Pending with a far-future resolve_deadline so it stays Pending at the prune tip.
+        reg.record_slash_with_id(
+            23,
+            acct(1),
+            1000,
+            ConsensusSlashReason::BlobFailedServe,
+            50_000,
+            100_000,
+        )
+        .unwrap();
+        let pending = reg
+            .submit_appeal(
+                23,
+                b"evidence".to_vec(),
+                50_000,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                300,
+                [0xABu8; 32],
+            )
+            .unwrap();
+        let tip = 1150 + PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS + 10_000;
+        assert_eq!(reg.prune_resolved_appeals(tip), 0);
+        assert!(reg.get_appeal(pending).is_some());
+        assert!(reg.get_appeal(expired).is_some());
+        assert_eq!(
+            reg.get_appeal(pending).unwrap().status,
+            ConsensusAppealStatus::Pending
+        );
     }
 
     #[test]
@@ -1388,7 +1571,10 @@ mod tests {
         .unwrap();
         let reg = SlashAppealRegistry::from_legacy_phase18_v3(&bytes).unwrap();
         let a = reg.get_appeal(1).unwrap();
-        assert_eq!(a.electorate_w_snapshot, PHASE20_LEGACY_ELECTORATE_W_SENTINEL);
+        assert_eq!(
+            a.electorate_w_snapshot,
+            PHASE20_LEGACY_ELECTORATE_W_SENTINEL
+        );
         assert_eq!(a.pin_set_commitment, PHASE20_LEGACY_PIN_SET_COMMITMENT);
         assert_eq!(a.votes.get(&acct(2)).unwrap().weight, 50);
         // Phase 21: pre-V5 migrate derives resolve_deadline from slash.appeal_deadline.
@@ -1542,23 +1728,11 @@ mod tests {
         }
         assert_eq!(reg.peek_next_slash_id(), 4);
         let id = reg
-            .record_slash(
-                acct(9),
-                50,
-                ConsensusSlashReason::Equivocation,
-                2,
-                1000,
-            )
+            .record_slash(acct(9), 50, ConsensusSlashReason::Equivocation, 2, 1000)
             .unwrap();
         assert_eq!(id, 4);
         let id2 = reg
-            .record_slash(
-                acct(8),
-                20,
-                ConsensusSlashReason::Liveness,
-                3,
-                1000,
-            )
+            .record_slash(acct(8), 20, ConsensusSlashReason::Liveness, 3, 1000)
             .unwrap();
         assert_eq!(id2, 5);
         assert_eq!(reg.list_slashes().len(), 5);
@@ -1568,22 +1742,10 @@ mod tests {
     fn record_slash_allocates_monotonic_ids() {
         let mut reg = SlashAppealRegistry::new();
         let a = reg
-            .record_slash(
-                acct(1),
-                100,
-                ConsensusSlashReason::Equivocation,
-                1,
-                10,
-            )
+            .record_slash(acct(1), 100, ConsensusSlashReason::Equivocation, 1, 10)
             .unwrap();
         let b = reg
-            .record_slash(
-                acct(2),
-                200,
-                ConsensusSlashReason::Liveness,
-                2,
-                10,
-            )
+            .record_slash(acct(2), 200, ConsensusSlashReason::Liveness, 2, 10)
             .unwrap();
         assert_eq!(a, 1);
         assert_eq!(b, 2);

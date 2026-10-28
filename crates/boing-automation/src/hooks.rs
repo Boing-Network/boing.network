@@ -74,10 +74,8 @@ impl TriggerRegistry {
     pub fn register(&mut self, condition: TriggerCondition, action_id: u64) -> u64 {
         let id = self.next_id;
         self.next_id = self.next_id.saturating_add(1);
-        self.triggers.insert(
-            id,
-            Trigger::new(id, condition, action_id),
-        );
+        self.triggers
+            .insert(id, Trigger::new(id, condition, action_id));
         id
     }
 

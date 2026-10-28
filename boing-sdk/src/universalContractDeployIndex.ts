@@ -60,6 +60,11 @@ function u8FromJsonByteVec(v: unknown): Uint8Array {
   if (typeof v === 'string' && v.startsWith('0x')) {
     return hexToBytes(ensureEvenHexBytes(v));
   }
+  if (v && typeof v === 'object' && (v as { omitted?: unknown }).omitted === true) {
+    throw new Error(
+      'Block was fetched with include_code=false (bytecode omitted); refetch with include_code=true'
+    );
+  }
   throw new Error('Expected bytecode as u8 array or hex string');
 }
 
@@ -72,6 +77,10 @@ function ensureEvenHexBytes(h: string): string {
 function optSaltFromJson(v: unknown): Uint8Array | null {
   if (v == null) return null;
   if (Array.isArray(v) && v.length === 32) return Uint8Array.from(v as number[]);
+  if (typeof v === 'string' && v.startsWith('0x')) {
+    const bytes = hexToBytes(ensureEvenHexBytes(v));
+    return bytes.length === 32 ? bytes : null;
+  }
   return null;
 }
 
@@ -111,14 +120,18 @@ export function rpcTransactionJsonToTransactionInput(txJson: unknown): Transacti
       if (typeof pc !== 'string') throw new Error('purpose_category');
       const dh = obj.description_hash;
       let descriptionHash: Uint8Array | null = null;
-      if (Array.isArray(dh) && dh.length > 0) descriptionHash = Uint8Array.from(dh as number[]);
+      if (dh != null && !(typeof dh === 'object' && (dh as { omitted?: unknown }).omitted === true)) {
+        descriptionHash = u8FromJsonByteVec(dh);
+      }
       return { kind: 'contractDeployWithPurpose', bytecode, purposeCategory: pc, descriptionHash, create2Salt: salt };
     }
     const pc = obj.purpose_category;
     if (typeof pc !== 'string') throw new Error('purpose_category');
     const dh = obj.description_hash;
     let descriptionHash: Uint8Array | null = null;
-    if (Array.isArray(dh) && dh.length > 0) descriptionHash = Uint8Array.from(dh as number[]);
+    if (dh != null && !(typeof dh === 'object' && (dh as { omitted?: unknown }).omitted === true)) {
+      descriptionHash = u8FromJsonByteVec(dh);
+    }
     const assetName = typeof obj.asset_name === 'string' ? obj.asset_name : null;
     const assetSymbol = typeof obj.asset_symbol === 'string' ? obj.asset_symbol : null;
     return {

@@ -23,14 +23,18 @@ fn node_with_accounts() -> BoingNode {
         state: AccountState {
             balance: 1_000_000,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
     state.insert(Account {
         id: AccountId(k128),
         state: AccountState {
             balance: 500,
             nonce: 1,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
     let native_aggregates = state.compute_native_aggregates();
     BoingNode {
@@ -50,8 +54,8 @@ fn node_with_accounts() -> BoingNode {
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
-    validator_signing_key: None,
-    pending_commit: None,
+        validator_signing_key: None,
+        pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
         slashed_equivocations: HashMap::new(),
@@ -64,6 +68,7 @@ fn node_with_accounts() -> BoingNode {
         anchor_fallback_wait: None,
         last_local_vote_round: None,
         media_blob_store: None,
+        bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
     }
 }
 

@@ -70,6 +70,11 @@ export {
   formatSupportHint,
 } from './dappUiHelpers.js';
 export {
+  storageTreeV2ActiveAt,
+  firstServedReceiptHeight,
+  type ChainParametersSource,
+} from './chainParameters.js';
+export {
   mergeRpcSurface,
   clampGetLogsBlockSpan,
   suggestedReadSpacingMs,
@@ -118,7 +123,12 @@ export type {
   QaPoolVoteResult,
   NetworkFeePolicyResult,
   NetworkTreasuryInfo,
+  ListSlashRecordsParams,
   ListSlashRecordsResult,
+  ReverifySlashAppealBallotsParams,
+  ReverifySlashAppealBallotsResult,
+  ReverifySlashAppealBallotAppeal,
+  ReverifySlashAppealBallotVote,
   SlashAppealSummary,
   SlashRecordSummary,
   SubmitSlashAppealResult,
@@ -130,6 +140,8 @@ export type {
   SyncState,
   NetworkInfo,
   BoingHealth,
+  BoingChainParameters,
+  BoingClientHints,
   BoingTxSigningInfo,
   BoingHealthRpcSurface,
   BoingRpcMetrics,
@@ -465,6 +477,8 @@ export {
 export {
   ipfsUriToGatewayUrl,
   extractHttpOrIpfsUrl,
+  extractBoingBlobUri,
+  blobIdHexFromBoingUri,
   resolveImageUrlFromMetadataJson,
   resolveImageUrlFromSources,
   metadataHashWordToFetchUrls,

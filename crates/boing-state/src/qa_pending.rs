@@ -50,10 +50,7 @@ impl QaPendingRecord {
 }
 
 /// Counted Allow/Reject (and optional Abstain) voters that have not yet been paid.
-pub fn unpaid_counted_voters(
-    record: &QaPendingRecord,
-    pay_abstain: bool,
-) -> Vec<AccountId> {
+pub fn unpaid_counted_voters(record: &QaPendingRecord, pay_abstain: bool) -> Vec<AccountId> {
     record
         .votes
         .iter()

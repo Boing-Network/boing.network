@@ -49,7 +49,10 @@ pub fn sample_offer_market_key(blob_id: &BlobId, chunk_index: u32, provider: &Ac
 /// When leader election falls back to [`crate::dummy_vrf_output`], pass that stub's `.output` so
 /// LC clients match the engine. Callers with real ECVRF must verify before trusting the bytes.
 #[must_use]
-pub fn das_light_client_seed_from_leader_vrf(blob_id: &BlobId, leader_vrf_output: &[u8; 32]) -> u64 {
+pub fn das_light_client_seed_from_leader_vrf(
+    blob_id: &BlobId,
+    leader_vrf_output: &[u8; 32],
+) -> u64 {
     das_light_client_seed_from_vrf(blob_id, leader_vrf_output)
 }
 
@@ -82,10 +85,7 @@ mod tests {
         let c8 = phase8_cap_activation_checklist(None);
         let c9 = phase9_cap_activation_checklist(None);
         assert!(c9.len() > c8.len());
-        assert_eq!(
-            PHASE9_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
-            256 * 1024 * 1024
-        );
+        assert_eq!(PHASE9_ACTIVATED_MAX_MEDIA_BLOB_BYTES, 256 * 1024 * 1024);
     }
 
     #[test]

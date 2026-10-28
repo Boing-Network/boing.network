@@ -164,7 +164,9 @@ impl Transaction {
             TransactionPayload::ContractCall { contract, .. } => {
                 format!("Call contract {}", hex::encode(&contract.0[..8]))
             }
-            TransactionPayload::ContractCallWithValue { contract, value, .. } => {
+            TransactionPayload::ContractCallWithValue {
+                contract, value, ..
+            } => {
                 format!(
                     "Call contract {} with {} BOING",
                     hex::encode(&contract.0[..8]),
@@ -321,6 +323,25 @@ impl Transaction {
                 appeal_id,
                 if *approved { "approve" } else { "reject" }
             ),
+            TransactionPayload::ResolveSlashAppealBlsAggregate {
+                appeal_id,
+                approved,
+                ..
+            } => format!(
+                "Resolve slash appeal {} BLS aggregate ({})",
+                appeal_id,
+                if *approved { "approve" } else { "reject" }
+            ),
+            TransactionPayload::GrantBlobDownload { blob_id, grantee } => format!(
+                "Grant blob download {} → {}",
+                hex::encode(&blob_id[..8]),
+                hex::encode(&grantee.0[..8])
+            ),
+            TransactionPayload::RevokeBlobDownload { blob_id, grantee } => format!(
+                "Revoke blob download {} → {}",
+                hex::encode(&blob_id[..8]),
+                hex::encode(&grantee.0[..8])
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -343,7 +364,9 @@ impl Transaction {
                         BatchCall::ContractCall { contract, .. } => {
                             format!("Call contract {}", hex::encode(&contract.0[..8]))
                         }
-                        BatchCall::ContractCallWithValue { contract, value, .. } => format!(
+                        BatchCall::ContractCallWithValue {
+                            contract, value, ..
+                        } => format!(
                             "Call contract {} with {} BOING",
                             hex::encode(&contract.0[..8]),
                             crate::format_boing(*value)
@@ -422,6 +445,9 @@ impl Transaction {
             | TransactionPayload::SubmitSlashAppeal { .. }
             | TransactionPayload::ResolveSlashAppeal { .. }
             | TransactionPayload::ResolveSlashAppealAttested { .. }
+            | TransactionPayload::ResolveSlashAppealBlsAggregate { .. }
+            | TransactionPayload::GrantBlobDownload { .. }
+            | TransactionPayload::RevokeBlobDownload { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
@@ -666,6 +692,28 @@ pub enum TransactionPayload {
         appeal_id: u64,
         approved: bool,
         ballot_signature: crate::SlashAppealBallotSignature,
+    },
+    /// BLS aggregate resolve of a pending consensus slash appeal (index **33**, Phase 30/31).
+    /// Self-contained G1 pubkeys + pin-set signer bitset + aggregate G2 signature.
+    /// Phase 31: consensus-admitted when `PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED=true`.
+    /// Multi-pin committee **default** remains Ed25519 **32** until a later opt-in flip.
+    ResolveSlashAppealBlsAggregate {
+        appeal_id: u64,
+        approved: bool,
+        signer_bitset: Vec<u8>,
+        aggregate_signature: crate::BlsSignatureG2,
+        /// Ordered with decoded bitset (ascending pin index).
+        signer_bls_pubkeys: Vec<crate::BlsPublicKeyG1>,
+    },
+    /// Grant download access for a media blob (index **34**, Phase 34). Sender must be publisher.
+    GrantBlobDownload {
+        blob_id: crate::BlobId,
+        grantee: AccountId,
+    },
+    /// Revoke download access for a media blob (index **35**, Phase 34). Sender must be publisher.
+    RevokeBlobDownload {
+        blob_id: crate::BlobId,
+        grantee: AccountId,
     },
 }
 
@@ -1387,15 +1435,31 @@ mod block_encoding_tests {
         let tx = Transaction {
             nonce: 0,
             sender: AccountId([2; 32]),
-            payload: TransactionPayload::Transfer { to: AccountId([3; 32]), amount: 1 },
+            payload: TransactionPayload::Transfer {
+                to: AccountId([3; 32]),
+                amount: 1,
+            },
             access_list: AccessList::default(),
         };
-        let b = Block { header: header(), transactions: vec![tx], signatures: vec![Signature([5; 64])], priority_tips: vec![] };
+        let b = Block {
+            header: header(),
+            transactions: vec![tx],
+            signatures: vec![Signature([5; 64])],
+            priority_tips: vec![],
+        };
         let enc = bincode::serialize(&b).unwrap();
         assert_eq!(Block::from_bincode(&enc).unwrap(), b);
         let back: Block = serde_json::from_str(&serde_json::to_string(&b).unwrap()).unwrap();
         assert_eq!(back, b);
-        assert_eq!(b.hash(), Block { signatures: vec![], ..b.clone() }.hash(), "signatures are not in the hash");
+        assert_eq!(
+            b.hash(),
+            Block {
+                signatures: vec![],
+                ..b.clone()
+            }
+            .hash(),
+            "signatures are not in the hash"
+        );
     }
 }
 

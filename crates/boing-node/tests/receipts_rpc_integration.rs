@@ -70,6 +70,7 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         anchor_fallback_wait: None,
         last_local_vote_round: None,
         media_blob_store: None,
+        bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
     }
 }
 
@@ -313,7 +314,10 @@ async fn rpc_get_network_info_shape() {
     let bal = rpc_call(&mut app, "boing_getBalance", serde_json::json!([me])).await;
     assert_eq!(bal["result"]["balance_boing"], "1000000");
     assert_eq!(cn.get("account_count"), Some(&serde_json::json!(1)));
-    assert_eq!(cn.get("total_balance"), Some(&serde_json::json!("1000000000000000000000000")));
+    assert_eq!(
+        cn.get("total_balance"),
+        Some(&serde_json::json!("1000000000000000000000000"))
+    );
     assert_eq!(cn.get("total_stake"), Some(&serde_json::json!("0")));
     assert_eq!(
         cn.get("total_native_held"),
@@ -326,7 +330,7 @@ async fn rpc_get_network_info_shape() {
         .expect("developer");
     assert_eq!(
         dev.get("sdk_npm_package"),
-        Some(&serde_json::json!("boing-sdk"))
+        Some(&serde_json::json!("@boing-network/boing-sdk"))
     );
     assert_eq!(
         dev.get("websocket")
@@ -632,6 +636,7 @@ async fn rpc_client_version_and_supported_methods() {
     assert!(names.contains(&"boing_getRpcMethodCatalog"));
     assert!(names.contains(&"boing_getRpcOpenApi"));
     assert!(names.contains(&"boing_listSlashRecords"));
+    assert!(names.contains(&"boing_reverifySlashAppealBallots"));
     for m in boing_node::names_rpc::NAME_RPC_METHODS {
         assert!(
             names.contains(m),
@@ -699,6 +704,44 @@ async fn rpc_catalog_and_openapi_embedded() {
     assert!(paths.contains_key("/ready"));
     assert!(paths.contains_key("/openapi.json"));
     assert!(paths.contains_key("/.well-known/boing-rpc"));
+}
+
+#[tokio::test]
+async fn protocol_params_are_published_additively() {
+    let expected_retention = serde_json::json!(boing_node::receipt_retention::window_for_rpc(
+        boing_node::receipt_retention::retention_blocks()
+    ));
+
+    // Default: storage-tree v2 is not configured -> null (legacy routing, roots unchanged).
+    let signing_key = SigningKey::generate(&mut OsRng);
+    let node = Arc::new(RwLock::new(node_with_proposer_key(&signing_key, 1_000_000)));
+    let mut app = rpc_router(node.clone(), &RateLimitConfig::default(), None, None, None);
+    for method in ["boing_getNetworkInfo", "boing_health"] {
+        let v = rpc_call(&mut app, method, serde_json::json!([])).await;
+        let r = v.get("result").expect("result").as_object().unwrap();
+        assert_eq!(
+            r.get("storage_tree_v2_activation_height"),
+            Some(&serde_json::Value::Null),
+            "{method}: unset activation must be null"
+        );
+        assert_eq!(
+            r.get("receipt_retention_blocks"),
+            Some(&expected_retention),
+            "{method}"
+        );
+    }
+
+    // Configured: the same height the state tree uses is published as a JSON integer.
+    node.write().await.enable_storage_tree_v2(123_456);
+    for method in ["boing_getNetworkInfo", "boing_health"] {
+        let v = rpc_call(&mut app, method, serde_json::json!([])).await;
+        let r = v.get("result").expect("result").as_object().unwrap();
+        assert_eq!(
+            r.get("storage_tree_v2_activation_height"),
+            Some(&serde_json::json!(123_456)),
+            "{method}"
+        );
+    }
 }
 
 #[tokio::test]

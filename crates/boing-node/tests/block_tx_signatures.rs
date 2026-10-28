@@ -44,23 +44,40 @@ fn net() -> (BoingNode, BoingNode, SigningKey, SigningKey) {
         for id in [idk(&victim), vid] {
             n.state.insert(Account {
                 id,
-                state: AccountState { balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING, ..Default::default() },
+                state: AccountState {
+                    balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
+                    ..Default::default()
+                },
             });
         }
         n
     };
-    (mk(vid, Some(v.clone())), mk(AccountId([0x77; 32]), None), v, victim)
+    (
+        mk(vid, Some(v.clone())),
+        mk(AccountId([0x77; 32]), None),
+        v,
+        victim,
+    )
 }
 
 /// Build a block on `leader`'s tip with correctly computed roots for `txs` (what a malicious
 /// proposer can always do) and the given signatures.
-fn craft(leader: &BoingNode, txs: Vec<Transaction>, signatures: Vec<boing_primitives::Signature>) -> Block {
+fn craft(
+    leader: &BoingNode,
+    txs: Vec<Transaction>,
+    signatures: Vec<boing_primitives::Signature>,
+) -> Block {
     let height = leader.chain.height() + 1;
     let proposer = leader.consensus.leader(height);
     let exec = BlockExecutor::new();
     let mut state = leader.state.snapshot();
-    let (_g, receipts) = exec.execute_block(height, 1, &txs, &mut state, proposer).unwrap();
-    let reward = boing_tokenomics::block_emission_validators_in(height, boing_tokenomics::Denomination::BaseUnits);
+    let (_g, receipts) = exec
+        .execute_block(height, 1, &txs, &mut state, proposer)
+        .unwrap();
+    let reward = boing_tokenomics::block_emission_validators_in(
+        height,
+        boing_tokenomics::Denomination::BaseUnits,
+    );
     if reward > 0 {
         state.get_mut(&proposer).unwrap().balance += reward;
     }
@@ -86,11 +103,19 @@ fn craft(leader: &BoingNode, txs: Vec<Transaction>, signatures: Vec<boing_primit
 fn honest_blocks_carry_signatures_and_import() {
     let (mut leader, mut follower, _v, victim) = net();
     let tx = transfer(idk(&victim), 0, AccountId([2; 32]), 5);
-    leader.submit_transaction(SignedTransaction::new(tx, &victim)).unwrap();
+    leader
+        .submit_transaction(SignedTransaction::new(tx, &victim))
+        .unwrap();
     leader.produce_block_if_ready().expect("block");
     let b = leader.chain.get_block_by_height(1).unwrap();
-    assert_eq!(b.signatures.len(), 1, "produced blocks carry the tx signatures");
-    follower.import_network_block_catchup(&b).expect("honest block imports");
+    assert_eq!(
+        b.signatures.len(),
+        1,
+        "produced blocks carry the tx signatures"
+    );
+    follower
+        .import_network_block_catchup(&b)
+        .expect("honest block imports");
     assert_eq!(follower.chain.latest_hash(), leader.chain.latest_hash());
     // Signatures survive the bincode wire/disk encoding.
     let enc = bincode::serialize(&b).unwrap();
@@ -118,10 +143,17 @@ fn malicious_proposer_forged_tx_is_rejected() {
     let unsigned = craft(&leader, vec![steal.clone()], vec![]);
     assert!(matches!(
         follower.import_network_block_catchup(&unsigned),
-        Err(BlockValidationError::MissingTxSignatures { expected: 1, found: 0 })
+        Err(BlockValidationError::MissingTxSignatures {
+            expected: 1,
+            found: 0
+        })
     ));
     // Garbage signature bytes.
-    let garbage = craft(&leader, vec![steal], vec![boing_primitives::Signature([0u8; 64])]);
+    let garbage = craft(
+        &leader,
+        vec![steal],
+        vec![boing_primitives::Signature([0u8; 64])],
+    );
     assert!(follower.import_network_block_catchup(&garbage).is_err());
     // An honest-looking first tx does not help a forged second one.
     let ok = transfer(victim_id, 0, AccountId([2; 32]), 1);
@@ -129,7 +161,10 @@ fn malicious_proposer_forged_tx_is_rejected() {
     let mixed = craft(
         &leader,
         vec![ok.clone(), steal2.clone()],
-        vec![boing_primitives::sign_transaction(&ok, &victim), boing_primitives::sign_transaction(&steal2, &v)],
+        vec![
+            boing_primitives::sign_transaction(&ok, &victim),
+            boing_primitives::sign_transaction(&steal2, &v),
+        ],
     );
     assert!(matches!(
         follower.import_network_block_catchup(&mixed),

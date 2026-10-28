@@ -115,6 +115,32 @@ Use **`BOING_RATE_PROFILE=mainnet`** to force the strict profile even if **`--de
 
 You can still override only the mempool cap: `--dev-rate-limits --pending-txs-per-sender 128`. **Do not** use the dev profile on public mainnet RPC endpoints.
 
+### Environment variables and hardening checklist
+
+Every `BOING_*` variable, its default and the default ports are listed in [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md). For any node whose RPC port is reachable beyond localhost:
+
+- Set **`BOING_OPERATOR_RPC_TOKEN`**. Without it, operator-only methods (`boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_submitSlashAppeal`, `boing_resolveSlashAppeal`, `boing_registerBlsDualKey`, `boing_putBlobSampleOffer`, and `boing_qaPoolVote` unless the QA pool has public membership) accept any caller.
+- Keep the rate profile at `mainnet` (default); never use `--dev-rate-limits` on public RPC.
+- Never pass `--faucet-enable` on mainnet; the faucet key is public. **Enforced:** when `BOING_CHAIN_ID=6914` (mainnet) the node exits at startup if `BOING_OPERATOR_RPC_TOKEN` is unset/blank, or if `--faucet-enable` is passed (also checked against the installed network history's chain id). Testnet (6913), devnets and unset chain ids behave as before: the operator token stays optional (but recommended) and the faucet may be enabled.
+- Keep `BOING_VALIDATOR_KEY` in a secret store (Fly secrets), not in `fly.toml` or shell history.
+- Public RPC: the node's HTTP rate limit is one global bucket, so per-IP limits, a method allow-list and origin lock-down belong at the edge. The rules are config-as-code in `ops/cloudflare/public-rpc/`: `node scripts/public-rpc-edge.mjs check` (drift check), `node scripts/public-rpc-edge.mjs apply` (dry run), `CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ZONE_ID=... node scripts/public-rpc-edge.mjs apply --apply` (applies; `--remove --apply` rolls back). The zone rate-limit rules depend on the Cloudflare plan (`zone_rules.plan` in `policy.json`, default **free**: one rule, 100 requests / 10 s per IP on path `/`, block; or `--plan pro|business|enterprise`); per-method-class limits live in the gateway Worker. After upgrading the plan, change `zone_rules.plan` and re-run generate + apply. Numbers, rationale and rollout order: [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md#implemented-edge-policy-config-as-code).
+
+### Storage-tree v2 activation (testnet only for now)
+
+Off by default; mainnet unset. The testnet rollout (proposed height, script, per-node verification via `boing_getNetworkInfo.storage_tree_v2_activation_height`, rollback and the mainnet gate) is in [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md#testnet-rollout-chain-6913-only). Compute the height with `node scripts/compute-activation-height.mjs`; the variable must be on **every** node before the head reaches it.
+
+Day-of checklist (what to check in logs and state roots, the last moment to roll back, what a fork looks like): [OPERATIONS-WATCHLIST.md](OPERATIONS-WATCHLIST.md#1-testnet-4400-crossing-watch-storage-tree-v2-chain-6913).
+
+### Gossip limits and rollout (P2P)
+
+- Max gossip frame is configurable and defaults to **17 MiB** (libp2p's own default is 64 KiB). Peers still on the old 64 KiB default drop larger frames, so a block bigger than 64 KiB only reaches upgraded peers. **Upgrade every validator and bootnode to this build before relying on large blocks**; mixed networks keep working for small blocks.
+- Each forwarding peer is limited by token buckets (default **500 msgs/s** and **64 MiB/s**, burst 2 s; `0` = unlimited). Excess messages are ignored (not relayed, logged as `gossip_peer_rate_limited`). Received messages are validated and reported to gossipsub as Accept / Reject / Ignore so peers that relay invalid data lose score.
+- Variables: `BOING_P2P_MAX_GOSSIP_MESSAGE_BYTES`, `BOING_P2P_GOSSIP_MAX_*_PER_PEER`, `BOING_P2P_PEER_SCORING` in [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md).
+
+### Receipt retention
+
+The node keeps transaction receipts for a window of recent blocks (default **1,000,000**, pruned every 256 blocks; `0` = keep everything). `boing_getTransactionReceipt` returns `null` for transactions older than the window; older receipts stay on disk but are not served. Indexers that backfill from genesis should set `BOING_RECEIPT_RETENTION_BLOCKS=0` or backfill from blocks instead.
+
 ### JSON-RPC surface (stale binary or proxy)
 
 If **`boing_chainHeight`** works but other **`boing_*`** calls return **`-32601` Method not found**, the process on the RPC port is almost certainly an **older `boing-node` build** or a **proxy that drops unknown methods**. Rebuild from the current repository (`cargo build -p boing-node --release`) and restart. To see which read-only methods the URL exposes, run **`npm run build`** then **`npm run probe-rpc`** in **`boing-sdk`**, or **`npm run probe-rpc`** from the repository root (prints a **`diagnosis`** when methods are missing). **No SDK build:** from the repo root run **`npm run rpc-endpoint-check`** for a raw JSON-RPC table. **Windows — who owns port 8545:** `netstat -ano | findstr :8545`, then `tasklist /FI "PID eq <pid>" /V` (ensure the image is the **`boing-node`** you just built, not an old `cargo install` path). The tutorial package also exposes **`npm run probe-rpc`**. See [RPC-API-SPEC.md](RPC-API-SPEC.md) § Diagnosing `-32601`.
@@ -126,6 +152,8 @@ If **`boing_chainHeight`** works but other **`boing_*`** calls return **`-32601`
 ---
 
 ## 3. RPC Endpoints
+
+Common methods only; the complete list (66 methods, params, errors, rejection reasons) is [RPC-API-SPEC.md](RPC-API-SPEC.md).
 
 | Method | Params | Description |
 |--------|--------|-------------|
@@ -383,4 +411,4 @@ For full setup steps, see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md). If
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

@@ -5,7 +5,8 @@ use std::time::{Duration, Instant};
 
 use boing_node::node::BoingNode;
 use boing_primitives::{
-    AccessList, Account, AccountId, AccountState, SignedTransaction, Transaction, TransactionPayload,
+    AccessList, Account, AccountId, AccountState, SignedTransaction, Transaction,
+    TransactionPayload,
 };
 use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
@@ -74,6 +75,7 @@ fn node_with_validators(
         anchor_fallback_wait: None,
         last_local_vote_round: None,
         media_blob_store: None,
+        bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
     }
 }
 
@@ -84,7 +86,11 @@ fn leader_timeout_slash_after_miss_threshold() {
     let v2 = AccountId([2u8; 32]);
     let v3 = AccountId([3u8; 32]);
     let v4 = AccountId([4u8; 32]);
-    let mut node = node_with_validators(vec![v1, v2, v3, v4], &[(v2, 10_000)], Some(local_key.clone()));
+    let mut node = node_with_validators(
+        vec![v1, v2, v3, v4],
+        &[(v2, 10_000)],
+        Some(local_key.clone()),
+    );
 
     // Pending work so idle networks do not false-positive.
     let to = AccountId([9u8; 32]);
@@ -104,7 +110,8 @@ fn leader_timeout_slash_after_miss_threshold() {
     for _ in 0..boing_tokenomics::LIVENESS_MISS_THRESHOLD {
         node.leader_wait_started = Some((
             next_h,
-            Instant::now() - Duration::from_secs(boing_tokenomics::LIVENESS_LEADER_TIMEOUT_SECS + 1),
+            Instant::now()
+                - Duration::from_secs(boing_tokenomics::LIVENESS_LEADER_TIMEOUT_SECS + 1),
         ));
         node.tick_liveness();
     }
@@ -128,8 +135,10 @@ fn leader_timeout_slash_after_miss_threshold() {
         .slash_appeals()
         .list_slashes()
         .iter()
-        .any(|s| matches!(s.reason, boing_state::ConsensusSlashReason::Liveness)
-            && s.amount == 1_000));
+        .any(
+            |s| matches!(s.reason, boing_state::ConsensusSlashReason::Liveness)
+                && s.amount == 1_000
+        ));
 }
 
 #[test]

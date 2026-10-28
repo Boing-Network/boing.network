@@ -7,11 +7,34 @@ on:
       - "boing-sdk/**"
       - "examples/native-boing-tutorial/**"
       - ".github/workflows/boing-sdk.yml"
+      - "scripts/public-rpc-edge.mjs"
+      - "scripts/compute-activation-height.mjs"
+      - "scripts/lib/**"
+      - "ops/cloudflare/**"
+      - "workers/public-rpc-gateway/**"
+      - "crates/boing-node/src/rpc.rs"
+      - "crates/boing-node/schemas/developer_api.json"
+      - "docs/chain-metadata.json"
+      - "docs/RPC-API-SPEC.md"
+      - "docs/ENVIRONMENT-VARIABLES.md"
   pull_request:
     paths:
       - "boing-sdk/**"
       - "examples/native-boing-tutorial/**"
       - ".github/workflows/boing-sdk.yml"
+      - "scripts/public-rpc-edge.mjs"
+      - "scripts/compute-activation-height.mjs"
+      - "scripts/lib/**"
+      - "ops/cloudflare/**"
+      - "workers/public-rpc-gateway/**"
+      - "crates/boing-node/src/rpc.rs"
+      - "crates/boing-node/schemas/developer_api.json"
+      - "docs/chain-metadata.json"
+      - "docs/RPC-API-SPEC.md"
+      - "docs/ENVIRONMENT-VARIABLES.md"
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:
@@ -22,10 +45,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
           cache: npm
@@ -44,6 +67,33 @@ jobs:
             echo "::error::boing-sdk dist/ is out of sync with src/. Run: cd boing-sdk && npm run build && git add dist && git commit"
             exit 1
           }
+
+      - name: Test
+        run: npm test
+
+  gateway-worker:
+    name: public-rpc-gateway (typecheck + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/public-rpc-gateway
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: workers/public-rpc-gateway/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
 
       - name: Test
         run: npm test

@@ -12,12 +12,13 @@ use std::time::{Duration, Instant};
 use axum::body::Body;
 use axum::body::Bytes;
 use axum::extract::Request as IncomingRequest;
-use axum::http::header::{ACCEPT, CONTENT_TYPE};
+use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::Method;
 use axum::http::Uri;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Request as HttpRequest, StatusCode};
 use axum::{
     extract::DefaultBodyLimit,
+    extract::Query,
     extract::State,
     middleware::{self, Next},
     response::IntoResponse,
@@ -83,6 +84,13 @@ pub struct RpcState {
     /// **admin-only** `boing_qaPoolVote` require header `X-Boing-Operator: <token>`.
     /// Public-membership QA votes do not use this header.
     pub operator_rpc_token: Option<Arc<str>>,
+    /// Extra shared secrets that authorize media-blob byte download
+    /// (`GET /v1/media/blob?id=…` and optionally `boing_getBlob`). From
+    /// **`BOING_BLOB_DOWNLOAD_TOKENS`** (comma-separated).
+    pub blob_download_tokens: Arc<Vec<String>>,
+    /// When true **and** download auth is configured, `boing_getBlob` requires the same
+    /// credentials as the HTTP download path (`BOING_BLOB_GET_REQUIRE_AUTH=1`).
+    pub blob_get_require_auth: bool,
     /// Broadcast channel for WebSocket **`/ws`** **newHeads** subscribers (clone per connection).
     pub head_broadcast: Option<broadcast::Sender<serde_json::Value>>,
     /// Concurrent **`GET /ws`** connections (increment on accept, decrement on close). `ws_max_connections == 0` = unlimited.
@@ -104,6 +112,20 @@ pub struct RpcHttpMetrics {
     pub websocket_cap_rejects: AtomicU64,
 }
 
+/// Constant-time (for equal lengths) string comparison for shared secrets. The length itself is not
+/// secret (tokens are fixed-size operator-chosen strings), but contents never short-circuit.
+pub(crate) fn secret_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    std::hint::black_box(diff) == 0
+}
+
 impl RpcState {
     fn operator_authorized(&self, headers: &HeaderMap) -> bool {
         match &self.operator_rpc_token {
@@ -111,9 +133,283 @@ impl RpcState {
             Some(expected) => headers
                 .get("x-boing-operator")
                 .and_then(|v| v.to_str().ok())
-                .is_some_and(|v| v == expected.as_ref()),
+                .is_some_and(|v| secret_eq(v, expected.as_ref())),
         }
     }
+
+    /// True when operator and/or dedicated download tokens are configured.
+    fn blob_download_auth_configured(&self) -> bool {
+        self.operator_rpc_token.is_some() || !self.blob_download_tokens.is_empty()
+    }
+
+    fn presented_blob_download_secrets<'a>(&self, headers: &'a HeaderMap) -> Vec<&'a str> {
+        let mut out = Vec::with_capacity(3);
+        if let Some(v) = headers
+            .get("x-boing-blob-download")
+            .and_then(|v| v.to_str().ok())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            out.push(v);
+        }
+        if let Some(v) = headers
+            .get("x-boing-operator")
+            .and_then(|v| v.to_str().ok())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            out.push(v);
+        }
+        if let Some(v) = headers
+            .get(AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .map(str::trim)
+        {
+            let bearer = v
+                .strip_prefix("Bearer ")
+                .or_else(|| v.strip_prefix("bearer "))
+                .map(str::trim)
+                .filter(|s| !s.is_empty());
+            if let Some(t) = bearer {
+                out.push(t);
+            }
+        }
+        out
+    }
+
+    fn secret_matches_download_auth(&self, presented: &str) -> bool {
+        if let Some(op) = &self.operator_rpc_token {
+            if secret_eq(presented, op.as_ref()) {
+                return true;
+            }
+        }
+        self.blob_download_tokens
+            .iter()
+            .fold(false, |acc, t| secret_eq(t, presented) | acc)
+    }
+
+    /// Break-glass: matching operator / download shared secret.
+    fn blob_download_secret_authorized(&self, headers: &HeaderMap) -> bool {
+        self.presented_blob_download_secrets(headers)
+            .into_iter()
+            .any(|s| self.secret_matches_download_auth(s))
+    }
+
+    /// Authorize media-blob byte downloads for a specific blob.
+    /// - Operator / download shared secrets (break-glass) always allow when configured.
+    /// - Publisher / ACL grantee may present a short-lived Ed25519 download proof.
+    /// - Open (no auth) only when secrets are unset **and** Phase 34 ACL is not active at tip.
+    fn blob_download_authorized_for(
+        &self,
+        headers: &HeaderMap,
+        blob_id: &boing_primitives::BlobId,
+        tip: u64,
+        store: &crate::media_blob_store::MediaBlobStore,
+    ) -> bool {
+        if self.blob_download_auth_configured() && self.blob_download_secret_authorized(headers) {
+            return true;
+        }
+        if blob_download_proof_authorized(headers, blob_id, tip, store) {
+            return true;
+        }
+        if !self.blob_download_auth_configured()
+            && !boing_primitives::phase34_blob_acl_active_at_tip(tip)
+        {
+            return true;
+        }
+        false
+    }
+}
+
+fn parse_hex_header_bytes(headers: &HeaderMap, name: &str, expected_len: usize) -> Option<Vec<u8>> {
+    let raw = headers.get(name).and_then(|v| v.to_str().ok())?.trim();
+    let hex = raw.strip_prefix("0x").unwrap_or(raw);
+    let bytes = hex::decode(hex).ok()?;
+    if bytes.len() != expected_len {
+        return None;
+    }
+    Some(bytes)
+}
+
+/// Phase 34 signed download proof headers:
+/// `X-Boing-Blob-Downloader`, `X-Boing-Blob-Expires`, `X-Boing-Blob-Nonce`, `X-Boing-Blob-Signature`.
+fn blob_download_proof_authorized(
+    headers: &HeaderMap,
+    blob_id: &boing_primitives::BlobId,
+    _tip: u64,
+    store: &crate::media_blob_store::MediaBlobStore,
+) -> bool {
+    let Some(downloader_bytes) = parse_hex_header_bytes(headers, "x-boing-blob-downloader", 32)
+    else {
+        return false;
+    };
+    let mut downloader = [0u8; 32];
+    downloader.copy_from_slice(&downloader_bytes);
+    let signer = boing_primitives::AccountId(downloader);
+
+    let expires = headers
+        .get("x-boing-blob-expires")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.trim().parse::<u64>().ok());
+    let Some(expires_at_unix) = expires else {
+        return false;
+    };
+    let Some(nonce_bytes) = parse_hex_header_bytes(headers, "x-boing-blob-nonce", 32) else {
+        return false;
+    };
+    let mut nonce = [0u8; 32];
+    nonce.copy_from_slice(&nonce_bytes);
+    let Some(sig) = parse_hex_header_bytes(headers, "x-boing-blob-signature", 64) else {
+        return false;
+    };
+
+    let chain_id = crate::network_preset::configured_chain_id()
+        .or_else(|| {
+            std::env::var("BOING_CHAIN_ID")
+                .ok()
+                .and_then(|s| s.trim().parse().ok())
+        })
+        .or_else(boing_primitives::default_signing_chain_id)
+        .unwrap_or(6913);
+
+    let now_unix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    if !boing_primitives::verify_blob_download_proof(
+        &signer,
+        chain_id,
+        blob_id,
+        expires_at_unix,
+        &nonce,
+        &sig,
+        now_unix,
+    ) {
+        return false;
+    }
+    store.may_download(blob_id, &signer)
+}
+
+fn parse_blob_download_tokens_env() -> Arc<Vec<String>> {
+    let raw = std::env::var("BOING_BLOB_DOWNLOAD_TOKENS").unwrap_or_default();
+    let tokens: Vec<String> = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect();
+    Arc::new(tokens)
+}
+
+fn blob_get_require_auth_env() -> bool {
+    matches!(
+        std::env::var("BOING_BLOB_GET_REQUIRE_AUTH")
+            .ok()
+            .as_deref()
+            .map(str::trim),
+        Some("1") | Some("true") | Some("TRUE") | Some("yes") | Some("YES")
+    )
+}
+
+#[derive(Debug, Deserialize)]
+struct MediaBlobDownloadQuery {
+    /// Blob id: `0x…` / hex / `boing://blob/0x…`
+    id: Option<String>,
+}
+
+/// **`GET /v1/media/blob?id=<blobId>`** — raw media bytes (bypasses JSON-RPC hex inflation).
+/// Auth: operator/download shared secrets (break-glass), or Phase 34 publisher/grantee
+/// Ed25519 download proof headers. When `BOING_BLOB_ACL_ACTIVATION_HEIGHT` is reached,
+/// download is private-by-default (proof or operator secret required).
+async fn http_media_blob_download(
+    State(state): State<RpcState>,
+    Query(query): Query<MediaBlobDownloadQuery>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(raw_id) = query.id.as_deref().map(str::trim).filter(|s| !s.is_empty()) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"missing id query parameter","hint":"GET /v1/media/blob?id=0x…"}"#,
+        )
+            .into_response();
+    };
+
+    let Some(id) = boing_primitives::parse_media_blob_id(raw_id) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"invalid blob id"}"#,
+        )
+            .into_response();
+    };
+
+    let n = state.node.read().await;
+    let tip = n.chain.height();
+    let Some(store) = n.media_blob_store() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"media blob store unavailable (no data dir)"}"#,
+        )
+            .into_response();
+    };
+
+    if !state.blob_download_authorized_for(&headers, &id, tip, store) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"blob download authentication required","hint":"operator/download token, or Phase 34 proof headers X-Boing-Blob-Downloader / Expires / Nonce / Signature (publisher or ACL grantee)"}"#,
+        )
+            .into_response();
+    }
+
+    let meta = store.get_meta(&id);
+    let bytes = match store.get_bytes(&id) {
+        Ok(b) => b,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(CONTENT_TYPE, "application/json")],
+                format!(r#"{{"error":"failed to read blob: {}"}}"#, e),
+            )
+                .into_response();
+        }
+    };
+
+    let Some(data) = bytes else {
+        return (
+            StatusCode::NOT_FOUND,
+            [(CONTENT_TYPE, "application/json")],
+            r#"{"error":"blob not found"}"#,
+        )
+            .into_response();
+    };
+
+    let content_type = meta
+        .as_ref()
+        .map(|m| m.content_type.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("application/octet-stream");
+    let id_hex = format!("0x{}", hex::encode(id));
+    let filename = format!("boing-blob-{}.bin", &id_hex[2..10]);
+    let disposition = format!("attachment; filename=\"{filename}\"");
+
+    let mut res = Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, content_type)
+        .header(CONTENT_DISPOSITION, disposition)
+        .header("x-boing-blob-id", id_hex)
+        .header("x-boing-blob-size", data.len().to_string());
+    if let Some(m) = &meta {
+        res = res.header(
+            "x-boing-blob-publisher",
+            format!("0x{}", hex::encode(m.publisher)),
+        );
+    }
+    res.body(Body::from(data))
+        .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
 
 #[derive(Debug, Deserialize)]
@@ -254,6 +550,7 @@ async fn http_root_get() -> impl IntoResponse {
             "Discovery: GET /openapi.json, GET /.well-known/boing-rpc.\n",
             "Probes: GET /live, GET /ready (JSON: /live.json, /ready.json, or Accept: application/json).\n",
             "WebSocket: GET /ws (newHeads).\n",
+            "Media blob download: GET /v1/media/blob?id=<blobId> (auth when download/operator tokens are set).\n",
             "See boing_getNetworkInfo.developer and docs/RPC-API-SPEC.md\n",
         ),
     )
@@ -450,6 +747,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getContractStorage",
     "boing_getDexToken",
     "boing_getBlob",
+    "boing_getBlobAccess",
     "boing_getBlobDasLightClientBatch",
     "boing_getBlobDasSample",
     "boing_getBlobMeta",
@@ -461,6 +759,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getLeaderVrfOutput",
     "boing_listSmtBlobSampleOffers",
     "boing_listBlobSampleServeChallenges",
+    "boing_getBlobSampleServeChallenge",
     "boing_getBlobDasSuccinctProofPlan",
     "boing_getLogs",
     "boing_getMediaBlobParams",
@@ -478,6 +777,11 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_listDexPools",
     "boing_listDexTokens",
     "boing_listSlashRecords",
+    "boing_listBlsDualKeys",
+    "boing_registerBlsDualKey",
+    "boing_verifyBlsAggregate",
+    "boing_verifyBlsAggregateResolve",
+    "boing_reverifySlashAppealBallots",
     "boing_namesOwnedBy",
     "boing_operatorApplyFeePolicy",
     "boing_operatorApplyQaPolicy",
@@ -570,14 +874,436 @@ mod json_lossless_tests {
             b: u64,
             s: &'static str,
         }
-        let v = super::json_value_lossless(&T { a: 10u128.pow(30), b: 7, s: "é x\\\"99999999999999999999999" });
+        let v = super::json_value_lossless(&T {
+            a: 10u128.pow(30),
+            b: 7,
+            s: "é x\\\"99999999999999999999999",
+        });
         assert_eq!(v["a"], serde_json::json!("1000000000000000000000000000000"));
         assert_eq!(v["b"], serde_json::json!(7));
-        let w = super::json_value_lossless(&T { a: 9_007_199_254_740_992, b: 9_007_199_254_740_991, s: "" });
-        assert_eq!(w["a"], serde_json::json!("9007199254740992"), "above 2^53 - 1 is quoted");
+        let w = super::json_value_lossless(&T {
+            a: 9_007_199_254_740_992,
+            b: 9_007_199_254_740_991,
+            s: "",
+        });
+        assert_eq!(
+            w["a"],
+            serde_json::json!("9007199254740992"),
+            "above 2^53 - 1 is quoted"
+        );
         assert_eq!(w["b"], serde_json::json!(9_007_199_254_740_991u64));
         assert_eq!(v["s"], serde_json::json!("é x\\\"99999999999999999999999"));
     }
+}
+
+#[cfg(test)]
+mod phase22_reverify_tests {
+    use super::build_reverify_slash_appeal_ballots;
+    use boing_primitives::{
+        phase20_pin_set_commitment, sign_slash_appeal_resolve_ballot_v1,
+        sign_slash_appeal_resolve_ballot_v2, AccountId, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+    };
+    use boing_state::{ConsensusSlashReason, SlashAppealRegistry};
+    use ed25519_dalek::SigningKey;
+
+    #[test]
+    fn reverify_reports_ok_invalid_unattested() {
+        let key_ok = SigningKey::from_bytes(&[31u8; 32]);
+        let key_bad = SigningKey::from_bytes(&[32u8; 32]);
+        let key_un = SigningKey::from_bytes(&[33u8; 32]);
+        let v_ok = AccountId(key_ok.verifying_key().to_bytes());
+        let v_bad = AccountId(key_bad.verifying_key().to_bytes());
+        let v_un = AccountId(key_un.verifying_key().to_bytes());
+        let provider = AccountId([40u8; 32]);
+        let chain_id = 6913u64;
+        let pin = phase20_pin_set_commitment(&[v_ok, v_bad, v_un]);
+
+        let mut reg = SlashAppealRegistry::default();
+        reg.record_slash_with_id(
+            7,
+            provider,
+            100,
+            ConsensusSlashReason::BlobFailedServe,
+            1,
+            10_000,
+        )
+        .unwrap();
+        // Large W so three weight-100 votes stay Pending (needed for mixed statuses).
+        let electorate_w = 1000u128;
+        let aid = reg
+            .submit_appeal(
+                7,
+                vec![],
+                2,
+                PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+                electorate_w,
+                pin,
+            )
+            .unwrap();
+
+        let sig_ok = sign_slash_appeal_resolve_ballot_v2(chain_id, aid, 7, true, &key_ok, &pin);
+        reg.cast_resolve_vote(aid, v_ok, true, 100, electorate_w, Some(sig_ok))
+            .unwrap();
+
+        // Invalid: V2 signed under wrong pin.
+        let wrong = phase20_pin_set_commitment(&[AccountId([9u8; 32])]);
+        let sig_bad = sign_slash_appeal_resolve_ballot_v2(chain_id, aid, 7, true, &key_bad, &wrong);
+        reg.cast_resolve_vote(aid, v_bad, true, 100, electorate_w, Some(sig_bad))
+            .unwrap();
+
+        // Unattested (tx 31 style).
+        reg.cast_resolve_vote(aid, v_un, true, 100, electorate_w, None)
+            .unwrap();
+
+        let out = build_reverify_slash_appeal_ballots(
+            &reg,
+            Some(&[v_ok, v_bad, v_un]),
+            chain_id,
+            Some(aid),
+            None,
+            true,
+            false,
+            true, // include_resolved — Pending audit trail still present
+            Some(reg.commitment()),
+        );
+        assert_eq!(out["registryCommitmentMatch"], true);
+        assert_eq!(out["appeals"][0]["pinSetMatch"], true);
+        assert_eq!(out["appeals"][0]["okCount"], 1);
+        assert_eq!(out["appeals"][0]["invalidCount"], 1);
+        assert_eq!(out["appeals"][0]["unattestedCount"], 1);
+        assert_eq!(out["appeals"][0]["allAttestedBallotsValid"], false);
+        let votes = out["appeals"][0]["votes"].as_array().unwrap();
+        let statuses: Vec<&str> = votes.iter().filter_map(|v| v["status"].as_str()).collect();
+        assert!(statuses.contains(&"ok"));
+        assert!(statuses.contains(&"invalid"));
+        assert!(statuses.contains(&"unattested"));
+        // V1 historical also reports ok when dual-verified.
+        let key_v1 = SigningKey::from_bytes(&[34u8; 32]);
+        let v1 = AccountId(key_v1.verifying_key().to_bytes());
+        let mut reg2 = SlashAppealRegistry::default();
+        reg2.record_slash_with_id(
+            8,
+            provider,
+            100,
+            ConsensusSlashReason::BlobFailedServe,
+            1,
+            10_000,
+        )
+        .unwrap();
+        let pin2 = phase20_pin_set_commitment(&[v1]);
+        let aid2 = reg2
+            .submit_appeal(8, vec![], 2, PHASE14_MAX_APPEAL_EVIDENCE_BYTES, 100, pin2)
+            .unwrap();
+        let sig_v1 = sign_slash_appeal_resolve_ballot_v1(chain_id, aid2, 8, true, &key_v1);
+        reg2.cast_resolve_vote(aid2, v1, true, 100, 100, Some(sig_v1))
+            .unwrap();
+        let out2 = build_reverify_slash_appeal_ballots(
+            &reg2,
+            Some(&[v1]),
+            chain_id,
+            None,
+            None,
+            true,
+            false,
+            true, // finalized Approved still listed when include_resolved
+            None,
+        );
+        assert_eq!(out2["appeals"][0]["okCount"], 1);
+        assert_eq!(out2["appeals"][0]["votes"][0]["domain"], "v1");
+        assert_eq!(out2["appeals"][0]["allAttestedBallotsValid"], true);
+    }
+
+    #[test]
+    fn reverify_skips_expired_by_default() {
+        let mut reg = SlashAppealRegistry::default();
+        let provider = AccountId([40u8; 32]);
+        reg.record_slash_with_id(
+            9,
+            provider,
+            100,
+            ConsensusSlashReason::BlobFailedServe,
+            1,
+            10_000,
+        )
+        .unwrap();
+        let pin = phase20_pin_set_commitment(&[]);
+        let aid = reg
+            .submit_appeal(9, vec![], 2, PHASE14_MAX_APPEAL_EVIDENCE_BYTES, 1, pin)
+            .unwrap();
+        assert_eq!(reg.expire_pending_appeals(10_000), 1);
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            boing_state::ConsensusAppealStatus::Expired
+        );
+        let skip = build_reverify_slash_appeal_ballots(
+            &reg, None, 6913, None, None, true, false, false, None,
+        );
+        assert!(skip["appeals"].as_array().unwrap().is_empty());
+        let keep = build_reverify_slash_appeal_ballots(
+            &reg, None, 6913, None, None, true, true, false, None,
+        );
+        assert_eq!(keep["appeals"].as_array().unwrap().len(), 1);
+        assert_eq!(keep["appeals"][0]["status"], "expired");
+    }
+
+    #[test]
+    fn reverify_skips_resolved_by_default() {
+        let mut reg = SlashAppealRegistry::default();
+        let provider = AccountId([40u8; 32]);
+        let voter_key = SigningKey::from_bytes(&[35u8; 32]);
+        let voter = AccountId(voter_key.verifying_key().to_bytes());
+        reg.record_slash_with_id(
+            10,
+            provider,
+            100,
+            ConsensusSlashReason::BlobFailedServe,
+            1,
+            10_000,
+        )
+        .unwrap();
+        let pin = phase20_pin_set_commitment(&[voter]);
+        let aid = reg
+            .submit_appeal(10, vec![], 2, PHASE14_MAX_APPEAL_EVIDENCE_BYTES, 100, pin)
+            .unwrap();
+        reg.cast_resolve_vote(aid, voter, true, 100, 100, None)
+            .unwrap();
+        assert_eq!(
+            reg.get_appeal(aid).unwrap().status,
+            boing_state::ConsensusAppealStatus::Approved
+        );
+        let skip = build_reverify_slash_appeal_ballots(
+            &reg, None, 6913, None, None, true, false, false, None,
+        );
+        assert!(skip["appeals"].as_array().unwrap().is_empty());
+        let keep = build_reverify_slash_appeal_ballots(
+            &reg, None, 6913, None, None, true, false, true, None,
+        );
+        assert_eq!(keep["appeals"].as_array().unwrap().len(), 1);
+        assert_eq!(keep["appeals"][0]["status"], "approved");
+    }
+}
+
+/// Parse optional `0x`-prefixed or raw hex into 32 bytes.
+fn parse_hex32_opt(s: &str) -> Option<[u8; 32]> {
+    let s = s.trim();
+    let hex = s
+        .strip_prefix("0x")
+        .or_else(|| s.strip_prefix("0X"))
+        .unwrap_or(s);
+    let bytes = hex::decode(hex).ok()?;
+    if bytes.len() != 32 {
+        return None;
+    }
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&bytes);
+    Some(out)
+}
+
+/// Phase 22/23/25: read-only batch re-verify of consensus slash-appeal ballots.
+///
+/// Never mutates book state. Dual-verifies stored Ed25519 ballots (V2 then V1),
+/// reports pin-set match vs live pins, and echoes registry commitment.
+/// Phase 23: when `include_expired` is false (default for RPC), skip Expired appeals.
+/// Phase 25: when `include_resolved` is false (default for RPC), skip Approved/Rejected.
+pub(crate) fn build_reverify_slash_appeal_ballots(
+    reg: &boing_state::SlashAppealRegistry,
+    live_pinned: Option<&[boing_primitives::AccountId]>,
+    chain_id: u64,
+    filter_appeal_id: Option<u64>,
+    filter_slash_id: Option<u64>,
+    include_unattested: bool,
+    include_expired: bool,
+    include_resolved: bool,
+    expected_registry_commitment: Option<[u8; 32]>,
+) -> serde_json::Value {
+    use boing_primitives::{
+        phase20_is_legacy_electorate_snapshot, phase20_pin_set_commitment,
+        verify_slash_appeal_resolve_ballot_dual,
+    };
+
+    let registry_commitment = reg.commitment();
+    let registry_commitment_hex = format!("0x{}", hex::encode(registry_commitment));
+    let registry_commitment_match =
+        expected_registry_commitment.map(|exp| exp == registry_commitment);
+
+    let live_pin_commit = match live_pinned {
+        Some(set) => phase20_pin_set_commitment(set),
+        None => phase20_pin_set_commitment(&[]),
+    };
+
+    let mut appeals_out = Vec::new();
+    for a in reg.list_appeals() {
+        if filter_appeal_id.map(|id| a.id == id) == Some(false) {
+            continue;
+        }
+        if filter_slash_id.map(|id| a.slash_id == id) == Some(false) {
+            continue;
+        }
+        if !include_expired && a.status == boing_state::ConsensusAppealStatus::Expired {
+            continue;
+        }
+        if !include_resolved
+            && matches!(
+                a.status,
+                boing_state::ConsensusAppealStatus::Approved
+                    | boing_state::ConsensusAppealStatus::Rejected
+            )
+        {
+            continue;
+        }
+        let status = match a.status {
+            boing_state::ConsensusAppealStatus::Pending => "pending",
+            boing_state::ConsensusAppealStatus::Approved => "approved",
+            boing_state::ConsensusAppealStatus::Rejected => "rejected",
+            boing_state::ConsensusAppealStatus::Expired => "expired",
+        };
+        let legacy =
+            phase20_is_legacy_electorate_snapshot(a.electorate_w_snapshot, &a.pin_set_commitment);
+        let (pin_set_match, pin_set_note): (serde_json::Value, Option<&str>) = if legacy {
+            (
+                serde_json::Value::Null,
+                Some("legacy pin sentinel — pinSetMatch not applicable"),
+            )
+        } else {
+            (
+                serde_json::json!(a.pin_set_commitment == live_pin_commit),
+                None,
+            )
+        };
+
+        let mut ok = 0u64;
+        let mut invalid = 0u64;
+        let mut unattested = 0u64;
+        let mut votes_out = Vec::new();
+        for (voter, v) in &a.votes {
+            match v.ballot_signature {
+                None => {
+                    if !include_unattested {
+                        continue;
+                    }
+                    unattested += 1;
+                    votes_out.push(serde_json::json!({
+                        "voter": format!("0x{}", hex::encode(voter.0)),
+                        "approved": v.approved,
+                        "weight": v.weight.to_string(),
+                        "status": "unattested",
+                    }));
+                }
+                Some(sig) => {
+                    match verify_slash_appeal_resolve_ballot_dual(
+                        chain_id,
+                        a.id,
+                        a.slash_id,
+                        v.approved,
+                        voter,
+                        &a.pin_set_commitment,
+                        &sig,
+                    ) {
+                        Ok(domain) => {
+                            ok += 1;
+                            votes_out.push(serde_json::json!({
+                                "voter": format!("0x{}", hex::encode(voter.0)),
+                                "approved": v.approved,
+                                "weight": v.weight.to_string(),
+                                "status": "ok",
+                                "domain": domain.as_str(),
+                            }));
+                        }
+                        Err(_) => {
+                            invalid += 1;
+                            votes_out.push(serde_json::json!({
+                                "voter": format!("0x{}", hex::encode(voter.0)),
+                                "approved": v.approved,
+                                "weight": v.weight.to_string(),
+                                "status": "invalid",
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+        // True when every attested ballot verified and at least one attested vote exists.
+        // Unattested (tx 31 / migrated) votes are ignored for this flag.
+        let all_attested_ballots_valid = invalid == 0 && ok > 0;
+        let mut appeal_obj = serde_json::json!({
+            "appealId": a.id,
+            "slashId": a.slash_id,
+            "status": status,
+            "electorateWSnapshot": a.electorate_w_snapshot.to_string(),
+            "pinSetCommitment": format!("0x{}", hex::encode(a.pin_set_commitment)),
+            "pinSetMatch": pin_set_match,
+            "resolveDeadline": a.resolve_deadline,
+            "okCount": ok,
+            "invalidCount": invalid,
+            "unattestedCount": unattested,
+            "allAttestedBallotsValid": all_attested_ballots_valid,
+            "votes": votes_out,
+        });
+        if let Some(note) = pin_set_note {
+            appeal_obj
+                .as_object_mut()
+                .unwrap()
+                .insert("pinSetNote".into(), serde_json::json!(note));
+        }
+        appeals_out.push(appeal_obj);
+    }
+
+    let mut out = serde_json::json!({
+        "chainId": chain_id,
+        "registryCommitment": registry_commitment_hex,
+        "appeals": appeals_out,
+        "note": "Read-only Phase 22 audit: dual-verifies stored Ed25519 resolve ballots (V2 then V1); does not expire, restore, or mutate state.",
+    });
+    if let Some(m) = registry_commitment_match {
+        out.as_object_mut()
+            .unwrap()
+            .insert("registryCommitmentMatch".into(), serde_json::json!(m));
+    }
+    out
+}
+
+/// Additive protocol parameters shared by `boing_health` and `boing_getNetworkInfo`:
+/// `storage_tree_v2_activation_height` (`null` = not configured, legacy 64-bit routing) and
+/// `receipt_retention_blocks` (`null` = unbounded). Read-only; never affects consensus.
+pub(crate) fn protocol_params_json(
+    n: &crate::node::BoingNode,
+) -> (serde_json::Value, serde_json::Value) {
+    (
+        serde_json::json!(n.state.storage_tree_v2_activation()),
+        serde_json::json!(crate::receipt_retention::window_for_rpc(
+            crate::receipt_retention::retention_blocks()
+        )),
+    )
+}
+
+/// Wallet / SDK version hints for `boing_health.client_hints` and `boing_getNetworkInfo.client_hints`.
+///
+/// Purely advisory and additive: clients compare their own version and may show an upgrade prompt;
+/// nothing is enforced by the node. Operators can override every value with env vars so a hint can
+/// follow a wallet or SDK release without rebuilding the node.
+/// 0.1.18 is the first release that shows height-aware 18-decimal BOING amounts (the base_units_from_height
+/// cut-over) and 0.1.16 the first that signs the chain-bound validator-registration proof; 0.1.15 only
+/// had the v2 transaction domain, so it would mis-display amounts on testnet from that height.
+const DEFAULT_MIN_WALLET_VERSION: &str = "0.1.18";
+const DEFAULT_RECOMMENDED_WALLET_VERSION: &str = "0.1.22";
+const DEFAULT_RECOMMENDED_SDK_VERSION: &str = "0.5.38";
+
+fn env_or_default(var: &str, default: &str) -> String {
+    std::env::var(var)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| default.to_string())
+}
+
+fn client_version_hints() -> serde_json::Value {
+    serde_json::json!({
+        "min_wallet_version": env_or_default("BOING_MIN_WALLET_VERSION", DEFAULT_MIN_WALLET_VERSION),
+        "recommended_wallet_version": env_or_default("BOING_RECOMMENDED_WALLET_VERSION", DEFAULT_RECOMMENDED_WALLET_VERSION),
+        "recommended_sdk": env_or_default("BOING_RECOMMENDED_SDK_VERSION", DEFAULT_RECOMMENDED_SDK_VERSION),
+        "sdk_npm_package": "@boing-network/boing-sdk",
+        "note": "Advisory only (never enforced by the node). min_wallet_version is the oldest Boing Express release that signs with the chain-bound v2 domain and shows height-aware 18-decimal BOING amounts; recommended_* are the latest tested releases. Compare as semver.",
+    })
 }
 
 /// Advertised signing rules (security review #2/#3), so wallets know to sign with the chain id.
@@ -588,6 +1314,8 @@ fn tx_signing_info(n: &crate::node::BoingNode) -> serde_json::Value {
     serde_json::json!({
         "v2_supported": chain_id.is_some(),
         "domain": "BOING_TX_V2",
+        "priority_tips_supported": true,
+        "priority_tip_domain": "BOING_TX_PRIORITY",
         "chain_id": chain_id,
         "v2_from_height": chain_id.map(|_| crate::network_preset::tx_v2_from(history)),
         "v2_required": policy.require_v2,
@@ -631,6 +1359,7 @@ fn network_info_developer_hints() -> serde_json::Value {
         "repository_url": repository_url,
         "rpc_spec_url": rpc_spec_url,
         "dapp_integration_doc_url": dapp_integration_doc_url,
+        "chain_metadata_url": format!("{}/blob/main/docs/chain-metadata.json", base),
         "sdk_npm_package": "@boing-network/boing-sdk",
         "websocket": {
             "path": "/ws",
@@ -724,7 +1453,11 @@ const DEFAULT_WS_MAX_CONNECTIONS: usize = 512;
 /// Max concurrent **`GET /ws`** connections: **`BOING_RPC_WS_MAX_CONNECTIONS`**, default
 /// [`DEFAULT_WS_MAX_CONNECTIONS`]; an explicit **0** means unlimited.
 fn max_ws_connections() -> usize {
-    parse_ws_max_connections(std::env::var("BOING_RPC_WS_MAX_CONNECTIONS").ok().as_deref())
+    parse_ws_max_connections(
+        std::env::var("BOING_RPC_WS_MAX_CONNECTIONS")
+            .ok()
+            .as_deref(),
+    )
 }
 
 fn parse_ws_max_connections(raw: Option<&str>) -> usize {
@@ -773,7 +1506,10 @@ fn faucet_window_admit(
     if max == 0 {
         return true;
     }
-    while recent.front().is_some_and(|t| now.duration_since(*t) >= window) {
+    while recent
+        .front()
+        .is_some_and(|t| now.duration_since(*t) >= window)
+    {
         recent.pop_front();
     }
     if recent.len() >= max {
@@ -878,6 +1614,8 @@ fn well_known_boing_rpc_document() -> serde_json::Value {
         "ready_plain_path": "/ready",
         "ready_json_path": "/ready.json",
         "websocket_path": "/ws",
+        "media_blob_download_path": "/v1/media/blob?id={blobId}",
+        "media_blob_download_auth": "Operator/download tokens (break-glass) and/or Phase 34 proof headers X-Boing-Blob-Downloader|Expires|Nonce|Signature. BOING_BLOB_ACL_ACTIVATION_HEIGHT makes HTTP download private-by-default.",
     })
 }
 
@@ -937,12 +1675,146 @@ fn end_user_network_hints_from(get: impl Fn(&str) -> Option<String>) -> serde_js
 mod abuse_limit_tests {
     use super::*;
 
+    /// Keeps `docs/RPC-API-SPEC.md` (the public source of truth for the RPC surface) in sync with the router.
+    #[test]
+    fn spec_lists_every_supported_method() {
+        let spec = include_str!("../../../docs/RPC-API-SPEC.md");
+        let missing: Vec<&&str> = BOING_RPC_SUPPORTED_METHODS
+            .iter()
+            .filter(|m| !spec.contains(&format!("`{m}`")))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "docs/RPC-API-SPEC.md does not document: {missing:?}"
+        );
+    }
+
+    fn is_semver(s: &str) -> bool {
+        let parts: Vec<&str> = s.split('.').collect();
+        parts.len() == 3
+            && parts
+                .iter()
+                .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+    }
+
+    #[test]
+    fn client_hints_are_semver_and_documented() {
+        let hints = client_version_hints();
+        for key in [
+            "min_wallet_version",
+            "recommended_wallet_version",
+            "recommended_sdk",
+        ] {
+            let v = hints[key].as_str().unwrap_or_default();
+            assert!(is_semver(v), "{key} must be semver, got {v:?}");
+        }
+        let spec = include_str!("../../../docs/RPC-API-SPEC.md");
+        // The documented examples must carry the real defaults, so docs cannot drift from the node.
+        let meta = include_str!("../../../docs/chain-metadata.json");
+        for (key, value) in [
+            ("min_wallet_version", DEFAULT_MIN_WALLET_VERSION),
+            (
+                "recommended_wallet_version",
+                DEFAULT_RECOMMENDED_WALLET_VERSION,
+            ),
+            ("recommended_sdk", DEFAULT_RECOMMENDED_SDK_VERSION),
+        ] {
+            let line = format!("\"{key}\": \"{value}\"");
+            assert!(
+                spec.matches(&line).count() >= 2,
+                "RPC-API-SPEC.md must show {line} in both client_hints examples"
+            );
+            assert!(
+                meta.contains(&line),
+                "docs/chain-metadata.json client_hints_defaults must carry {line}"
+            );
+        }
+        for needle in [
+            "client_hints",
+            "min_wallet_version",
+            "recommended_sdk",
+            "priority_tip_domain",
+            "Priority tips and block signatures",
+            "storage_tree_v2_activation_height",
+            "receipt_retention_blocks",
+        ] {
+            assert!(
+                spec.contains(needle),
+                "RPC-API-SPEC.md must mention {needle}"
+            );
+        }
+    }
+
+    #[test]
+    fn developer_api_publishes_protocol_specs() {
+        let specs = &developer_api_document()["method_catalog"]["protocol_specs"];
+        assert!(specs["priority_tips"]["signing_digest"]["tip_nonzero"]
+            .as_str()
+            .unwrap()
+            .contains("BOING_TX_PRIORITY"));
+        assert!(specs["block_signatures"]["signatures"]["required_from_height"].is_string());
+        let cp = &specs["chain_parameters"];
+        assert!(cp["storage_tree_v2_activation_height"]["null_means"].is_string());
+        assert!(cp["receipt_retention_blocks"]["null_means"].is_string());
+        let meta = include_str!("../../../docs/chain-metadata.json");
+        assert!(
+            meta.contains("storage_tree_v2_activation_height")
+                && meta.contains("receipt_retention_blocks")
+        );
+    }
+
+    #[test]
+    fn chain_metadata_matches_node_constants() {
+        let meta: serde_json::Value =
+            serde_json::from_str(include_str!("../../../docs/chain-metadata.json"))
+                .expect("docs/chain-metadata.json must parse");
+        assert_eq!(meta["native_currency"]["symbol"], "BOING");
+        assert_eq!(
+            meta["native_currency"]["decimals"].as_u64(),
+            Some(boing_primitives::BOING_DECIMALS as u64)
+        );
+        let ids: Vec<u64> = meta["networks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n["chain_id"].as_u64().unwrap())
+            .collect();
+        assert_eq!(
+            ids,
+            vec![
+                crate::network_preset::BOING_TESTNET_CHAIN_ID,
+                crate::network_preset::BOING_MAINNET_CHAIN_ID
+            ]
+        );
+        assert_eq!(
+            meta["signing"]["priority_tip_signing_domain"]
+                .as_str()
+                .unwrap()
+                .as_bytes(),
+            boing_primitives::TX_SIGNING_DOMAIN_PRIORITY
+        );
+        assert_eq!(
+            meta["signing"]["tx_signing_domain"]
+                .as_str()
+                .unwrap()
+                .as_bytes(),
+            boing_primitives::TX_SIGNING_DOMAIN_V2
+        );
+    }
+
     #[test]
     fn ws_cap_defaults_to_bounded() {
         assert_eq!(parse_ws_max_connections(None), DEFAULT_WS_MAX_CONNECTIONS);
         assert_eq!(parse_ws_max_connections(Some("64")), 64);
-        assert_eq!(parse_ws_max_connections(Some("0")), 0, "explicit 0 = unlimited");
-        assert_eq!(parse_ws_max_connections(Some("junk")), DEFAULT_WS_MAX_CONNECTIONS);
+        assert_eq!(
+            parse_ws_max_connections(Some("0")),
+            0,
+            "explicit 0 = unlimited"
+        );
+        assert_eq!(
+            parse_ws_max_connections(Some("junk")),
+            DEFAULT_WS_MAX_CONNECTIONS
+        );
     }
 
     #[test]
@@ -951,12 +1823,44 @@ mod abuse_limit_tests {
         let t0 = Instant::now();
         let w = Duration::from_secs(60);
         for i in 0..3 {
-            assert!(faucet_window_admit(&mut recent, t0 + Duration::from_secs(i), 3, w));
+            assert!(faucet_window_admit(
+                &mut recent,
+                t0 + Duration::from_secs(i),
+                3,
+                w
+            ));
         }
-        assert!(!faucet_window_admit(&mut recent, t0 + Duration::from_secs(30), 3, w));
-        assert!(faucet_window_admit(&mut recent, t0 + Duration::from_secs(60), 3, w), "oldest expired");
-        assert!(!faucet_window_admit(&mut recent, t0 + Duration::from_secs(60), 3, w));
+        assert!(!faucet_window_admit(
+            &mut recent,
+            t0 + Duration::from_secs(30),
+            3,
+            w
+        ));
+        assert!(
+            faucet_window_admit(&mut recent, t0 + Duration::from_secs(60), 3, w),
+            "oldest expired"
+        );
+        assert!(!faucet_window_admit(
+            &mut recent,
+            t0 + Duration::from_secs(60),
+            3,
+            w
+        ));
         assert!(faucet_window_admit(&mut recent, t0, 0, w), "0 = unlimited");
+    }
+}
+
+#[cfg(test)]
+mod secret_eq_tests {
+    use super::secret_eq;
+
+    #[test]
+    fn compares_exactly() {
+        assert!(secret_eq("", ""));
+        assert!(secret_eq("s3cret-token", "s3cret-token"));
+        assert!(!secret_eq("s3cret-token", "s3cret-tokeN"));
+        assert!(!secret_eq("s3cret-token", "s3cret-toke"));
+        assert!(!secret_eq("a", ""));
     }
 }
 
@@ -1418,6 +2322,7 @@ async fn dispatch_jsonrpc_request(
                                 -32000,
                                 format!("insufficient balance for fee: have {have}, need {need}"),
                                 serde_json::json!({
+                                    "reason": "insufficient_fee",
                                     "have": have.to_string(),
                                     "need": need.to_string(),
                                     "hint": "Request testnet BOING from the faucet and retry. Need = protocol fee (micro base by default) + optional priority_tip.",
@@ -1500,6 +2405,26 @@ async fn dispatch_jsonrpc_request(
                                 "QA pool deployer pending limit exceeded.".into(),
                                 serde_json::json!({ "reason": "deployer_cap" }),
                             ),
+                            Err(MempoolError::StaleNonce { expected, got }) => rpc_error_with_data(
+                                id,
+                                -32000,
+                                format!("stale nonce: account nonce is {expected}, tx nonce is {got}"),
+                                serde_json::json!({
+                                    "reason": "stale_nonce",
+                                    "expected_nonce": expected,
+                                    "got_nonce": got,
+                                    "hint": "A transaction with this nonce has already executed. Re-read the account nonce (boing_getAccount returns `nonce`) and re-sign.",
+                                }),
+                            ),
+                            Err(MempoolError::UnknownSender) => rpc_error_with_data(
+                                id,
+                                -32000,
+                                "unknown sender: account has no on-chain balance; fund it before sending".into(),
+                                serde_json::json!({
+                                    "reason": "unknown_sender",
+                                    "hint": "The sender account does not exist on chain yet. Fund it (faucet or transfer) and retry.",
+                                }),
+                            ),
                             Err(e) => rpc_error(id, -32000, format!("{}", e)),
                         }
                     }
@@ -1536,6 +2461,26 @@ async fn dispatch_jsonrpc_request(
                 .as_ref()
                 .and_then(|o| o.get("slashId").or_else(|| o.get("slash_id")))
                 .and_then(|v| v.as_u64());
+            // Phase 23/25: optional appealStatus (pending|approved|rejected|expired),
+            // includeExpired (default true), includeResolved (default true).
+            let filter_appeal_status = filter_obj
+                .as_ref()
+                .and_then(|o| o.get("appealStatus").or_else(|| o.get("appeal_status")))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_ascii_lowercase());
+            let include_expired = filter_obj
+                .as_ref()
+                .and_then(|o| o.get("includeExpired").or_else(|| o.get("include_expired")))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+            let include_resolved = filter_obj
+                .as_ref()
+                .and_then(|o| {
+                    o.get("includeResolved")
+                        .or_else(|| o.get("include_resolved"))
+                })
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
             let n = node.read().await;
             // Prefer consensus slash-appeal book (Phase 14); keep localMirror rows for ids not in consensus.
             let consensus_ids: std::collections::HashSet<u64> = n
@@ -1596,9 +2541,7 @@ async fn dispatch_jsonrpc_request(
                     boing_governance::SlashReason::Equivocation => "equivocation".to_string(),
                     boing_governance::SlashReason::Liveness => "liveness".to_string(),
                     boing_governance::SlashReason::Fraud => "fraud".to_string(),
-                    boing_governance::SlashReason::BlobFailedServe => {
-                        "blobFailedServe".to_string()
-                    }
+                    boing_governance::SlashReason::BlobFailedServe => "blobFailedServe".to_string(),
                     boing_governance::SlashReason::Other(x) => format!("other:{x}"),
                 };
                 if let Some(ref want) = filter_reason {
@@ -1636,6 +2579,30 @@ async fn dispatch_jsonrpc_request(
                 .list_appeals()
                 .into_iter()
                 .filter(|a| filter_slash_id.map(|id| a.slash_id == id).unwrap_or(true))
+                .filter(|a| {
+                    let status = match a.status {
+                        boing_state::ConsensusAppealStatus::Pending => "pending",
+                        boing_state::ConsensusAppealStatus::Approved => "approved",
+                        boing_state::ConsensusAppealStatus::Rejected => "rejected",
+                        boing_state::ConsensusAppealStatus::Expired => "expired",
+                    };
+                    if a.status == boing_state::ConsensusAppealStatus::Expired && !include_expired {
+                        return false;
+                    }
+                    if !include_resolved
+                        && matches!(
+                            a.status,
+                            boing_state::ConsensusAppealStatus::Approved
+                                | boing_state::ConsensusAppealStatus::Rejected
+                        )
+                    {
+                        return false;
+                    }
+                    if let Some(ref want) = filter_appeal_status {
+                        return status == want.as_str();
+                    }
+                    true
+                })
                 .map(|a| {
                     let status = match a.status {
                         boing_state::ConsensusAppealStatus::Pending => "pending",
@@ -1660,14 +2627,15 @@ async fn dispatch_jsonrpc_request(
                         _ => 1u128,
                     };
                     // Phase 20: prefer frozen snapshot for display when present (non-legacy).
-                    let electorate_weight = if boing_primitives::phase20_is_legacy_electorate_snapshot(
-                        a.electorate_w_snapshot,
-                        &a.pin_set_commitment,
-                    ) {
-                        live_electorate_weight
-                    } else {
-                        a.electorate_w_snapshot
-                    };
+                    let electorate_weight =
+                        if boing_primitives::phase20_is_legacy_electorate_snapshot(
+                            a.electorate_w_snapshot,
+                            &a.pin_set_commitment,
+                        ) {
+                            live_electorate_weight
+                        } else {
+                            a.electorate_w_snapshot
+                        };
                     let votes: Vec<serde_json::Value> = a
                         .votes
                         .iter()
@@ -1717,6 +2685,11 @@ async fn dispatch_jsonrpc_request(
                     boing_governance::AppealStatus::Approved => "approved",
                     boing_governance::AppealStatus::Rejected => "rejected",
                 };
+                if let Some(ref want) = filter_appeal_status {
+                    if status != want.as_str() {
+                        continue;
+                    }
+                }
                 appeals.push(serde_json::json!({
                     "id": a.id,
                     "slash_id": a.slash_id,
@@ -1733,9 +2706,84 @@ async fn dispatch_jsonrpc_request(
                     "slashes": slashes,
                     "appeals": appeals,
                     "persisted": persisted,
-                    "note": "Optional params: { reason, slashId }. Prefer consensus Submit/Resolve txs (30/31) for FailedServe / equivocation / liveness; operator RPC is secondary. source=consensus|localMirror.",
+                    "registryCommitment": format!(
+                        "0x{}",
+                        hex::encode(n.state.slash_appeals().commitment())
+                    ),
+                    "note": "Optional params: { reason, slashId, appealStatus, includeExpired, includeResolved }. includeExpired / includeResolved default true (back-compat); appealStatus filters consensus appeals (pending|approved|rejected|expired). Prefer consensus Submit/Resolve txs (30/31) for FailedServe / equivocation / liveness; operator RPC is secondary. source=consensus|localMirror.",
                 }),
             )
+        }
+        "boing_reverifySlashAppealBallots" => {
+            // Phase 22/23/25 read-only audit. Params object (optional filters):
+            // { appealId?, slashId?, includeUnattested?, includeExpired?, includeResolved?, expectedRegistryCommitment? }
+            let filter_obj = req.params.as_ref().and_then(|p| {
+                if let Some(o) = p.as_object() {
+                    Some(o.clone())
+                } else {
+                    p.as_array()
+                        .and_then(|a| a.first())
+                        .and_then(|v| v.as_object())
+                        .cloned()
+                }
+            });
+            let filter_appeal_id = filter_obj.as_ref().and_then(|o| {
+                o.get("appealId")
+                    .or_else(|| o.get("appeal_id"))
+                    .and_then(|v| v.as_u64())
+            });
+            let filter_slash_id = filter_obj.as_ref().and_then(|o| {
+                o.get("slashId")
+                    .or_else(|| o.get("slash_id"))
+                    .and_then(|v| v.as_u64())
+            });
+            let include_unattested = filter_obj
+                .as_ref()
+                .and_then(|o| {
+                    o.get("includeUnattested")
+                        .or_else(|| o.get("include_unattested"))
+                })
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+            // Phase 23: default false — skip Expired.
+            let include_expired = filter_obj
+                .as_ref()
+                .and_then(|o| o.get("includeExpired").or_else(|| o.get("include_expired")))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            // Phase 25: default false — auditors focus Pending (and optional Expired).
+            let include_resolved = filter_obj
+                .as_ref()
+                .and_then(|o| {
+                    o.get("includeResolved")
+                        .or_else(|| o.get("include_resolved"))
+                })
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let expected_registry_commitment = filter_obj.as_ref().and_then(|o| {
+                o.get("expectedRegistryCommitment")
+                    .or_else(|| o.get("expected_registry_commitment"))
+                    .and_then(|v| v.as_str())
+                    .and_then(parse_hex32_opt)
+            });
+            let n = node.read().await;
+            let chain_id =
+                crate::network_preset::effective_chain_id(n.executor.execution_history())
+                    .or_else(crate::network_preset::configured_chain_id)
+                    .unwrap_or(0);
+            let pinned: Option<Vec<_>> = n.state.slash_appeal_resolvers().map(|s| s.to_vec());
+            let result = build_reverify_slash_appeal_ballots(
+                n.state.slash_appeals(),
+                pinned.as_deref(),
+                chain_id,
+                filter_appeal_id,
+                filter_slash_id,
+                include_unattested,
+                include_expired,
+                include_resolved,
+                expected_registry_commitment,
+            );
+            rpc_ok(id, result)
         }
         "boing_submitSlashAppeal" => {
             if !state.operator_authorized(headers) {
@@ -1879,7 +2927,7 @@ async fn dispatch_jsonrpc_request(
                         "restored": restored.to_string(),
                         "deprecatedForFailedServe": true,
                         "deprecatedForEquivocationLiveness": true,
-                        "preferTx": "ResolveSlashAppealAttested (index 32); committee nets (|pinned|>1) must use 32; ResolveSlashAppeal (31) only for solo/unpinned/|pinned|≤1",
+                        "preferTx": "ResolveSlashAppealAttested (index 32) until BLS committee flip; when flip active (|pinned|>1) use ResolveSlashAppealBlsAggregate (33); ResolveSlashAppeal (31) only for solo/unpinned/|pinned|≤1",
                     }),
                 ),
                 Err(e) => rpc_error(id, -32061, e.to_string()),
@@ -1981,7 +3029,7 @@ async fn dispatch_jsonrpc_request(
                     Ok(b) => b,
                     Err(e) => return (StatusCode::OK, rpc_error(id, -32602, e.to_string())),
                 };
-                let signed: SignedTransaction = match bincode::deserialize(&bytes) {
+                let signed: SignedTransaction = match SignedTransaction::from_bincode(&bytes) {
                     Ok(s) => s,
                     Err(e) => {
                         return (
@@ -2036,6 +3084,7 @@ async fn dispatch_jsonrpc_request(
                                 -32000,
                                 format!("insufficient balance for fee: have {have}, need {need}"),
                                 serde_json::json!({
+                                    "reason": "insufficient_fee",
                                     "have": have.to_string(),
                                     "need": need.to_string(),
                                 }),
@@ -2188,6 +3237,8 @@ async fn dispatch_jsonrpc_request(
             let p2p_handle = node.read().await.p2p.clone();
             let p2p_status = p2p_handle.status().await;
             let n = node.read().await;
+            let (storage_tree_v2_activation_height, receipt_retention_blocks) =
+                protocol_params_json(&n);
             let chain_id = std::env::var("BOING_CHAIN_ID")
                 .ok()
                 .and_then(|s| s.trim().parse::<u64>().ok());
@@ -2199,6 +3250,8 @@ async fn dispatch_jsonrpc_request(
                 id,
                 serde_json::json!({
                     "ok": true,
+                    "storage_tree_v2_activation_height": storage_tree_v2_activation_height,
+                    "receipt_retention_blocks": receipt_retention_blocks,
                     "client_version": format!("boing-node/{}", env!("CARGO_PKG_VERSION")),
                     "chain_id": chain_id,
                     "chain_name": chain_name,
@@ -2210,6 +3263,7 @@ async fn dispatch_jsonrpc_request(
                     },
                     "tx_signing": tx_signing_info(&n),
                     "native_currency": native_currency_json(&n),
+                    "client_hints": client_version_hints(),
                     "rpc_surface": rpc_surface_capabilities(state),
                     "rpc_metrics": rpc_metrics_snapshot(state),
                 }),
@@ -2297,6 +3351,7 @@ async fn dispatch_jsonrpc_request(
         }
         "boing_getBlob"
         | "boing_getBlobMeta"
+        | "boing_getBlobAccess"
         | "boing_getMediaBlobParams"
         | "boing_getBlobDasSample"
         | "boing_getBlobDasLightClientBatch"
@@ -2308,7 +3363,65 @@ async fn dispatch_jsonrpc_request(
         | "boing_getLeaderVrfOutput"
         | "boing_listSmtBlobSampleOffers"
         | "boing_listBlobSampleServeChallenges"
-        | "boing_getBlobDasSuccinctProofPlan" => {
+        | "boing_getBlobSampleServeChallenge"
+        | "boing_getBlobDasSuccinctProofPlan"
+        | "boing_listBlsDualKeys"
+        | "boing_verifyBlsAggregate"
+        | "boing_verifyBlsAggregateResolve" => {
+            // The node-local sample-offer book is an unauthenticated disk write otherwise (each call
+            // rewrites `sample_offers.bin`; 1,024 slots can be squatted). Gate it like other operator
+            // writes. With no `BOING_OPERATOR_RPC_TOKEN` configured behavior is unchanged (open).
+            if req.method == "boing_putBlobSampleOffer" && !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            if req.method == "boing_getBlob" && state.blob_get_require_auth {
+                let params = req
+                    .params
+                    .clone()
+                    .unwrap_or(serde_json::Value::Array(vec![]));
+                let n = node.read().await;
+                let tip = n.chain.height();
+                let blob_id = params
+                    .get(0)
+                    .and_then(|v| v.as_str())
+                    .or_else(|| params.get("blobId").and_then(|v| v.as_str()))
+                    .or_else(|| params.get("id").and_then(|v| v.as_str()))
+                    .and_then(boing_primitives::parse_media_blob_id);
+                let denied = match (blob_id, n.media_blob_store()) {
+                    (Some(bid), Some(store)) => {
+                        !state.blob_download_authorized_for(headers, &bid, tip, store)
+                    }
+                    _ => {
+                        state.blob_download_auth_configured()
+                            && !state.blob_download_secret_authorized(headers)
+                            || boing_primitives::phase34_blob_acl_active_at_tip(tip)
+                                && !state.blob_download_secret_authorized(headers)
+                    }
+                };
+                if denied {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(
+                            id,
+                            -32057,
+                            "Blob download authentication required: operator/download token or Phase 34 proof headers (BOING_BLOB_GET_REQUIRE_AUTH)."
+                                .into(),
+                        ),
+                    );
+                }
+                match n.media_blobs_rpc(req.method.as_str(), &params) {
+                    Ok(v) => return (StatusCode::OK, rpc_ok(id, v)),
+                    Err((code, msg)) => return (StatusCode::OK, rpc_error(id, code, msg)),
+                }
+            }
             let params = req
                 .params
                 .clone()
@@ -2317,6 +3430,160 @@ async fn dispatch_jsonrpc_request(
             match n.media_blobs_rpc(req.method.as_str(), &params) {
                 Ok(v) => rpc_ok(id, v),
                 Err((code, msg)) => rpc_error(id, code, msg),
+            }
+        }
+        "boing_registerBlsDualKey" => {
+            if !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            let params = req.params.unwrap_or(serde_json::Value::Null);
+            let (account_hex, pk_hex, pop_hex, chain_id_param) = match &params {
+                serde_json::Value::Array(arr) if arr.len() >= 3 => (
+                    arr[0].as_str().unwrap_or("").to_string(),
+                    arr[1].as_str().unwrap_or("").to_string(),
+                    arr[2].as_str().unwrap_or("").to_string(),
+                    arr.get(3).and_then(|v| {
+                        v.as_u64()
+                            .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                    }),
+                ),
+                serde_json::Value::Object(map) => (
+                    map.get("accountId")
+                        .or_else(|| map.get("account"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    map.get("blsPubkey")
+                        .or_else(|| map.get("blsPublicKey"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    map.get("blsPop")
+                        .or_else(|| map.get("popSignature"))
+                        .or_else(|| map.get("pop"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    map.get("chainId").and_then(|v| {
+                        v.as_u64()
+                            .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                    }),
+                ),
+                _ => (String::new(), String::new(), String::new(), None),
+            };
+            if account_hex.is_empty() || pk_hex.is_empty() {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32602,
+                        "Invalid params: expected [accountId, blsPubkey, blsPop, chainId?] or {accountId, blsPubkey, blsPop, chainId?}"
+                            .into(),
+                    ),
+                );
+            }
+            if pop_hex.is_empty() && boing_primitives::PHASE28_BLS_POP_REQUIRED {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32602,
+                        "blsPop required (Phase 28 BLS dual-key proof-of-possession)".into(),
+                    ),
+                );
+            }
+            let acct_bytes = match hex::decode(account_hex.trim_start_matches("0x")) {
+                Ok(b) if b.len() == 32 => {
+                    let mut a = [0u8; 32];
+                    a.copy_from_slice(&b);
+                    a
+                }
+                _ => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "accountId must be 32-byte hex".into()),
+                    );
+                }
+            };
+            let pk_bytes = match hex::decode(pk_hex.trim_start_matches("0x")) {
+                Ok(b) => b,
+                Err(e) => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, format!("blsPubkey hex: {e}")),
+                    );
+                }
+            };
+            let pk = match boing_primitives::phase27_parse_bls_pubkey(&pk_bytes) {
+                Ok(pk) => pk,
+                Err(e) => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, format!("invalid blsPubkey: {e}")),
+                    );
+                }
+            };
+            let pop_bytes = match hex::decode(pop_hex.trim_start_matches("0x")) {
+                Ok(b) => b,
+                Err(e) => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, format!("blsPop hex: {e}")),
+                    );
+                }
+            };
+            let pop = match boing_primitives::BlsSignatureG2::try_from_slice(&pop_bytes) {
+                Ok(s) => s,
+                Err(e) => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, format!("invalid blsPop: {e}")),
+                    );
+                }
+            };
+            let mut n = node.write().await;
+            let chain_id = chain_id_param.or_else(|| {
+                crate::network_preset::effective_chain_id(n.executor.execution_history())
+            });
+            let Some(chain_id) = chain_id else {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32602,
+                        "chainId required for BLS dual-key PoP (pass chainId or set BOING_CHAIN_ID / network history)"
+                            .into(),
+                    ),
+                );
+            };
+            match n.register_bls_dual_key_with_pop(
+                chain_id,
+                boing_primitives::AccountId(acct_bytes),
+                pk,
+                &pop,
+            ) {
+                Ok(()) => rpc_ok(
+                    id,
+                    serde_json::json!({
+                        "ok": true,
+                        "accountId": format!("0x{}", hex::encode(acct_bytes)),
+                        "blsPubkey": format!("0x{}", hex::encode(pk.as_bytes())),
+                        "chainId": chain_id,
+                        "popVerified": true,
+                        "count": n.bls_dual_key_registry.len(),
+                        "file": boing_primitives::PHASE28_BLS_DUAL_KEY_REGISTRY_FILE,
+                        "liveTx32StillEd25519": true,
+                    }),
+                ),
+                Err(e) => rpc_error(id, -32000, e.to_string()),
             }
         }
         "boing_getSyncState" => {
@@ -2344,9 +3611,13 @@ async fn dispatch_jsonrpc_request(
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty());
             let agg = &n.native_aggregates;
+            let (storage_tree_v2_activation_height, receipt_retention_blocks) =
+                protocol_params_json(&n);
             rpc_ok(
                 id,
                 serde_json::json!({
+                    "storage_tree_v2_activation_height": storage_tree_v2_activation_height,
+                    "receipt_retention_blocks": receipt_retention_blocks,
                     "chain_id": chain_id,
                     "chain_name": chain_name,
                     "head_height": head_height,
@@ -2372,6 +3643,7 @@ async fn dispatch_jsonrpc_request(
                         "fee_policy": fee_policy_json(n.executor.fee_policy()),
                     },
                     "developer": network_info_developer_hints(),
+                    "client_hints": client_version_hints(),
                     "rpc_surface": rpc_surface_capabilities(state),
                     "end_user": end_user_network_hints(),
                     "rpc": {
@@ -2495,7 +3767,11 @@ async fn dispatch_jsonrpc_request(
                 None => {
                     return (
                         StatusCode::OK,
-                        rpc_error(id, -32602, "Invalid params: expected [hex_contract_id]".into()),
+                        rpc_error(
+                            id,
+                            -32602,
+                            "Invalid params: expected [hex_contract_id]".into(),
+                        ),
                     );
                 }
             };
@@ -2504,7 +3780,11 @@ async fn dispatch_jsonrpc_request(
                 _ => {
                     return (
                         StatusCode::OK,
-                        rpc_error(id, -32602, "Invalid contract id: expected 32 bytes hex".into()),
+                        rpc_error(
+                            id,
+                            -32602,
+                            "Invalid contract id: expected 32 bytes hex".into(),
+                        ),
                     )
                 }
             };
@@ -2984,8 +4264,8 @@ async fn dispatch_jsonrpc_request(
                         rpc_error(
                             id,
                             -32602,
-                            "Invalid params: expected [height] or [height, include_receipts]"
-                                .into(),
+                                "Invalid params: expected [height] or [height, include_receipts] or [height, include_receipts, include_code]"
+                                    .into(),
                         ),
                     );
                 }
@@ -3004,13 +4284,21 @@ async fn dispatch_jsonrpc_request(
                 .and_then(|v| v.get(1))
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
+            // Third param: include_code (default true). When false, large byte fields
+            // (bytecode/calldata/blob data) become {omitted,size,hash} stubs.
+            let include_code = params
+                .as_ref()
+                .and_then(|v| v.get(2))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
             let n = node.read().await;
             match n.chain.get_block_by_height(height) {
                 Some(block) => {
                     let hash = block.hash();
-                    let block_json =
-                        json_value_lossless(&block);
-                    let mut obj = block_json.as_object().cloned().unwrap_or_default();
+                    let mut block_json =
+                        crate::rpc_block_json::block_to_rpc_json(&block, include_code);
+                    let obj = block_json.as_object_mut().expect("block object");
+                    // Historical: `hash` is bare hex (no 0x); tip helpers use 0x-prefixed forms.
                     obj.insert("hash".to_string(), serde_json::json!(hex::encode(hash.0)));
                     if include_receipts {
                         let arr: Vec<serde_json::Value> = block
@@ -3026,7 +4314,7 @@ async fn dispatch_jsonrpc_request(
                             .collect();
                         obj.insert("receipts".to_string(), serde_json::Value::Array(arr));
                     }
-                    rpc_ok(id, serde_json::Value::Object(obj))
+                    rpc_ok(id, block_json)
                 }
                 None => rpc_ok(id, serde_json::Value::Null),
             }
@@ -3182,7 +4470,7 @@ async fn dispatch_jsonrpc_request(
                         return (StatusCode::OK, rpc_error(
                                 id,
                                 -32602,
-                                "Invalid params: expected [hex_block_hash] or [hex_block_hash, include_receipts]"
+                                "Invalid params: expected [hex_block_hash] or [hex_block_hash, include_receipts] or [hex_block_hash, include_receipts, include_code]"
                                     .into(),
                             ),
                         );
@@ -3192,7 +4480,7 @@ async fn dispatch_jsonrpc_request(
                     return (StatusCode::OK, rpc_error(
                             id,
                             -32602,
-                            "Invalid params: expected [hex_block_hash] or [hex_block_hash, include_receipts]"
+                            "Invalid params: expected [hex_block_hash] or [hex_block_hash, include_receipts] or [hex_block_hash, include_receipts, include_code]"
                                 .into(),
                         ),
                     );
@@ -3203,6 +4491,11 @@ async fn dispatch_jsonrpc_request(
                 .and_then(|v| v.get(1))
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
+            let include_code = params
+                .as_ref()
+                .and_then(|v| v.get(2))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
             let bytes = match hex::decode(hex_hash.trim_start_matches("0x")) {
                 Ok(b) if b.len() == 32 => b,
                 Ok(_) => {
@@ -3224,9 +4517,9 @@ async fn dispatch_jsonrpc_request(
             let n = node.read().await;
             match n.chain.get_block_by_hash(&hash) {
                 Some(block) => {
-                    let block_json =
-                        json_value_lossless(&block);
-                    let mut obj = block_json.as_object().cloned().unwrap_or_default();
+                    let mut block_json =
+                        crate::rpc_block_json::block_to_rpc_json(&block, include_code);
+                    let obj = block_json.as_object_mut().expect("block object");
                     obj.insert(
                         "hash".to_string(),
                         serde_json::json!(hex::encode(block.hash().0)),
@@ -3245,7 +4538,7 @@ async fn dispatch_jsonrpc_request(
                             .collect();
                         obj.insert("receipts".to_string(), serde_json::Value::Array(arr_r));
                     }
-                    rpc_ok(id, serde_json::Value::Object(obj))
+                    rpc_ok(id, block_json)
                 }
                 None => rpc_ok(id, serde_json::Value::Null),
             }
@@ -3502,7 +4795,8 @@ async fn dispatch_jsonrpc_request(
                         rpc_error(
                             id,
                             -32016,
-                            "Faucet is busy (node-wide limit reached); try again in a minute.".into(),
+                            "Faucet is busy (node-wide limit reached); try again in a minute."
+                                .into(),
                         ),
                     );
                 }
@@ -3712,7 +5006,9 @@ fn build_rpc_cors_layer() -> CorsLayer {
         .allow_methods([Method::GET, Method::HEAD, Method::POST, Method::OPTIONS])
         .allow_headers([
             CONTENT_TYPE,
+            AUTHORIZATION,
             HeaderName::from_static("x-boing-operator"),
+            HeaderName::from_static("x-boing-blob-download"),
             HeaderName::from_static("x-request-id"),
             HeaderName::from_static("sec-websocket-protocol"),
             HeaderName::from_static("sec-websocket-version"),
@@ -3722,6 +5018,9 @@ fn build_rpc_cors_layer() -> CorsLayer {
         ])
         .expose_headers([
             HeaderName::from_static("x-boing-rpc-version"),
+            HeaderName::from_static("x-boing-blob-id"),
+            HeaderName::from_static("x-boing-blob-size"),
+            HeaderName::from_static("x-boing-blob-publisher"),
             HeaderName::from_static("x-request-id"),
             HeaderName::from_static("retry-after"),
         ])
@@ -3770,6 +5069,19 @@ pub fn rpc_router(
 
     let rate_limit_requests_per_sec = rate_limit.requests_per_sec;
     let rpc_metrics = Arc::new(RpcHttpMetrics::default());
+    let blob_download_tokens = parse_blob_download_tokens_env();
+    let blob_get_require_auth = blob_get_require_auth_env();
+    if !blob_download_tokens.is_empty() {
+        tracing::info!(
+            tokens = blob_download_tokens.len(),
+            "BOING_BLOB_DOWNLOAD_TOKENS is set: GET /v1/media/blob?id=… accepts X-Boing-Blob-Download / Bearer"
+        );
+    }
+    if blob_get_require_auth {
+        tracing::info!(
+            "BOING_BLOB_GET_REQUIRE_AUTH is set: boing_getBlob requires download/operator credentials when configured"
+        );
+    }
 
     Router::new()
         .route(
@@ -3785,6 +5097,7 @@ pub fn rpc_router(
         .route("/live.json", get(http_live).head(http_head_live))
         .route("/ready", get(http_ready).head(http_head_ready))
         .route("/ready.json", get(http_ready).head(http_head_ready))
+        .route("/v1/media/blob", get(http_media_blob_download))
         .route("/ws", get(crate::rpc_ws::ws_new_heads_upgrade))
         .layer(
             ServiceBuilder::new()
@@ -3807,6 +5120,8 @@ pub fn rpc_router(
             faucet_cooldown,
             faucet_submit_lock,
             operator_rpc_token,
+            blob_download_tokens,
+            blob_get_require_auth,
             head_broadcast,
             ws_active,
             ws_max_connections,

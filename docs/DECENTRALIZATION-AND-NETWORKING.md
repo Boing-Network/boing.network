@@ -261,4 +261,4 @@ WebRTC requires a **signaling** process to exchange network information (IP addr
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

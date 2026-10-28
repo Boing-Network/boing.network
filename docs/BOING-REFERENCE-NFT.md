@@ -7,7 +7,7 @@
 
 This document defines a **recommended** calldata layout for NFT-style contracts on the **Boing VM**. It is **not** a consensus-enforced transaction type: deployers use ordinary `ContractDeploy` / `ContractCall` with bytecode that may implement this ABI. All deploys still pass **protocol QA** (`boing-qa`). Use purpose category **`NFT`** / **`nft`** when declaring deploys (see `QUALITY-ASSURANCE-NETWORK.md`).
 
-> **Ops / testnet (6913):** Template **v3** raises `mint_batch` to **n ≤ 500** and needs **`GAS_PER_CONTRACT_CALL = 40_000_000`** on the node. After merge to **`boing.network` `main`**, public Fly apps **`boing-testnet-1` / `boing-testnet-2`** must be **redeployed** before n≈500 works on `https://testnet-rpc.boing.network/`. Older 3M-budget nodes `OutOfGas` on full v3 batches; v2 collections stay capped at **n = 50**. This is **not** JSON-RPC HTTP batching (`BOING_RPC_MAX_BATCH`).
+> **Ops / testnet (6913):** Template **v3** raises `mint_batch` to **n ≤ 500** and needs **`GAS_PER_CONTRACT_CALL = 40_000_000`** on the node. After merge to **`boing.network` `main`**, public Fly app **`boing-testnet-1`** must be **redeployed** before n≈500 works on `https://testnet-rpc.boing.network/`. Older 3M-budget nodes `OutOfGas` on full v3 batches; v2 collections stay capped at **n = 50**. This is **not** JSON-RPC HTTP batching (`BOING_RPC_MAX_BATCH`).
 
 ## Principles
 

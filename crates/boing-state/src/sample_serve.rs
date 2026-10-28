@@ -1,16 +1,17 @@
-//! SMT-resident sample-serve challenge registry (Phase 10/11).
+//! SMT-resident sample-serve challenge registry (Phase 10/11/24).
 //!
 //! After settle, a challenger can open a window for the provider to prove availability
 //! via a DAS merkle sample. Phase 11 escrows a challenger bond and settles FailedServe
 //! (bond refund + provider penalty) in the VM / end-of-block hook.
+//! Phase 24: prune terminal Responded / settled FailedServe after deadline + 4096.
 
 use std::collections::BTreeMap;
 
 use boing_primitives::{
-    blob_id_hex, hasher, open_serve_challenge_with_bond, serve_challenge_key,
-    validate_respond_blob_sample_serve, AccountId, BlobError, BlobId, BlobSampleServeChallenge,
-    BlobSampleServeChallengeStatus, MediaBlobDasSample, PHASE10_MAX_SERVE_CHALLENGES,
-    PHASE10_SERVE_CHALLENGE_REGISTRY_DOMAIN,
+    blob_id_hex, hasher, open_serve_challenge_with_bond, phase24_terminal_serve_challenge_prunable,
+    serve_challenge_key, validate_respond_blob_sample_serve, AccountId, BlobError, BlobId,
+    BlobSampleServeChallenge, BlobSampleServeChallengeStatus, MediaBlobDasSample,
+    PHASE10_MAX_SERVE_CHALLENGES, PHASE10_SERVE_CHALLENGE_REGISTRY_DOMAIN,
 };
 use serde::{Deserialize, Serialize};
 
@@ -76,8 +77,12 @@ impl SampleServeChallengeRegistry {
         provider: &AccountId,
         challenger: &AccountId,
     ) -> Option<&BlobSampleServeChallenge> {
-        self.challenges
-            .get(&serve_challenge_key(blob_id, chunk_index, provider, challenger))
+        self.challenges.get(&serve_challenge_key(
+            blob_id,
+            chunk_index,
+            provider,
+            challenger,
+        ))
     }
 
     pub fn get_mut(
@@ -87,8 +92,12 @@ impl SampleServeChallengeRegistry {
         provider: &AccountId,
         challenger: &AccountId,
     ) -> Option<&mut BlobSampleServeChallenge> {
-        self.challenges
-            .get_mut(&serve_challenge_key(blob_id, chunk_index, provider, challenger))
+        self.challenges.get_mut(&serve_challenge_key(
+            blob_id,
+            chunk_index,
+            provider,
+            challenger,
+        ))
     }
 
     pub fn list_for_blob(
@@ -105,6 +114,26 @@ impl SampleServeChallengeRegistry {
                     && tip_height > c.deadline_height)
             })
             .collect()
+    }
+
+    /// All challenges (Phase 24 list UX). Does not auto-expire Open rows.
+    pub fn list_all(&self) -> Vec<&BlobSampleServeChallenge> {
+        self.challenges.values().collect()
+    }
+
+    /// Phase 24: remove terminal Responded / settled FailedServe past retention
+    /// (`tip > deadline + 4096`). Never drops Open or unsettled FailedServe.
+    pub fn prune_terminal_challenges(&mut self, tip_height: u64) -> usize {
+        let before = self.challenges.len();
+        self.challenges.retain(|_, c| {
+            !phase24_terminal_serve_challenge_prunable(
+                tip_height,
+                c.deadline_height,
+                c.status,
+                c.bond_settled,
+            )
+        });
+        before.saturating_sub(self.challenges.len())
     }
 
     /// Open a new challenge with bond / penalty amounts. Rejects duplicate open keys.
@@ -283,18 +312,9 @@ mod tests {
             0,
         )
         .unwrap();
-        r.respond(
-            &bundle.blob_id,
-            0,
-            &provider,
-            &challenger,
-            2,
-            &sample,
-        )
-        .unwrap();
-        let c = r
-            .get(&bundle.blob_id, 0, &provider, &challenger)
+        r.respond(&bundle.blob_id, 0, &provider, &challenger, 2, &sample)
             .unwrap();
+        let c = r.get(&bundle.blob_id, 0, &provider, &challenger).unwrap();
         assert_eq!(c.status, BlobSampleServeChallengeStatus::Responded);
     }
 
@@ -320,6 +340,67 @@ mod tests {
             r.get(&[9u8; 32], 0, &AccountId([2u8; 32]), &AccountId([3u8; 32]))
                 .unwrap()
                 .status,
+            BlobSampleServeChallengeStatus::FailedServe
+        );
+    }
+
+    #[test]
+    fn phase24_prune_terminal_after_retention() {
+        use boing_primitives::PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+        let mut r = SampleServeChallengeRegistry::default();
+        let provider = AccountId([2u8; 32]);
+        let challenger = AccountId([3u8; 32]);
+        let blob = [9u8; 32];
+        r.challenge(blob, 0, 1, provider, challenger, 1, 10, 20)
+            .unwrap();
+        // Fail + settle
+        let _ = r.take_newly_failed(10_000);
+        r.mark_bond_settled(&blob, 0, &provider, &challenger);
+        let deadline = r
+            .get(&blob, 0, &provider, &challenger)
+            .unwrap()
+            .deadline_height;
+        assert_eq!(
+            r.prune_terminal_challenges(
+                deadline + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS
+            ),
+            0
+        );
+        assert!(r.get(&blob, 0, &provider, &challenger).is_some());
+        assert_eq!(
+            r.prune_terminal_challenges(
+                deadline + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS + 1
+            ),
+            1
+        );
+        assert!(r.get(&blob, 0, &provider, &challenger).is_none());
+    }
+
+    #[test]
+    fn phase24_prune_skips_open_and_unsettled() {
+        use boing_primitives::PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS;
+        let mut r = SampleServeChallengeRegistry::default();
+        let p = AccountId([2u8; 32]);
+        let c_open = AccountId([3u8; 32]);
+        let c_fail = AccountId([4u8; 32]);
+        let open_blob = [8u8; 32];
+        let fail_blob = [7u8; 32];
+        // Unsettled FailedServe (old deadline).
+        r.challenge(fail_blob, 0, 1, p, c_fail, 1, 10, 20).unwrap();
+        let _ = r.take_newly_failed(10_000);
+        assert!(!r.get(&fail_blob, 0, &p, &c_fail).unwrap().bond_settled);
+        // Fresh Open at a high tip so it remains Open past retention of the FailedServe.
+        let tip = 1 + 256 + PHASE24_TERMINAL_SERVE_CHALLENGE_RETENTION_BLOCKS + 100;
+        r.challenge(open_blob, 0, 1, p, c_open, tip, 10, 20)
+            .unwrap();
+        assert_eq!(r.prune_terminal_challenges(tip), 0);
+        assert_eq!(r.len(), 2);
+        assert_eq!(
+            r.get(&open_blob, 0, &p, &c_open).unwrap().status,
+            BlobSampleServeChallengeStatus::Open
+        );
+        assert_eq!(
+            r.get(&fail_blob, 0, &p, &c_fail).unwrap().status,
             BlobSampleServeChallengeStatus::FailedServe
         );
     }

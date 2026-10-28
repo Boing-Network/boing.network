@@ -21,7 +21,9 @@ fn unsure_deploy_only_governance_admin_can_admit() {
         state: AccountState {
             balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let admin = AccountId([42u8; 32]);
@@ -79,7 +81,9 @@ fn production_pool_config_enqueues_unsure_with_public_membership() {
         state: AccountState {
             balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     node.set_qa_policy(

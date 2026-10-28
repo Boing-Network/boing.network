@@ -86,7 +86,7 @@ Complete these **before** running bootnodes. See [BOING-NETWORK-ESSENTIALS.md](B
 
 | Step | Action | Done |
 |------|--------|------|
-| 1.1 | Run at least **2** `boing-node` with stable public IPs, P2P enabled | ☑ Fly `/ip4/169.155.48.188/tcp/4001` + `/ip4/109.105.220.118/tcp/4001` |
+| 1.1 | Run at least **1** hosted `boing-node` with stable public IP, P2P enabled (add more as capacity grows) | ☑ Fly `/ip4/169.155.48.188/tcp/4001` (`boing-testnet-1`; former t2 retired) |
 | 1.2 | Open TCP 4001 (P2P) and optionally 8545 (RPC) | ☐ verify firewall on operator host |
 | 1.3 | Record multiaddrs (e.g. `/ip4/1.2.3.4/tcp/4001`) | ☑ listed in [TESTNET.md](TESTNET.md) §6 |
 
@@ -141,4 +141,4 @@ cargo test
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

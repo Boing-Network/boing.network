@@ -112,7 +112,7 @@ Use the **Boing JSON-RPC API** as the source of truth. Key methods:
 | Method | Params | Returns | Use in explorer |
 |--------|--------|--------|------------------|
 | `boing_chainHeight` | `[]` | `u64` | Latest block number, “chain tip” indicator. |
-| `boing_getBlockByHeight` | `[height]` or `[height, include_receipts]` | Block object or `null`; optional **`receipts[]`** when `include_receipts` is `true` | Block list/detail; batch receipt ingest for indexers ([INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md)). |
+| `boing_getBlockByHeight` | `[height]` or `[height, include_receipts]` or `[height, include_receipts, include_code]` | Block object or `null`; optional **`receipts[]`**; **`include_code: false`** stubs large bytecode/calldata as `{omitted,size,hash}` (hex when included) | Block list/detail; explorer home uses receipts + `include_code: false`; indexers that need deploy bytecode keep the default ([INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md)). |
 | `boing_getBlockByHash` | `[hex_block_hash]` (32 bytes hex) | Block object or `null` | Block detail by hash. |
 | `boing_getBalance` | `[hex_account_id]` | `{ balance: string }` (u128 as decimal string) | Account balance. |
 | `boing_getAccount` | `[hex_account_id]` | `{ balance, nonce, stake }` (strings/numbers) | Account page: balance, nonce, stake. |
@@ -164,7 +164,7 @@ Boing’s **automated quality assurance** is a core differentiator: **no asset d
 
 - QA is one of Boing’s six pillars; the explorer should communicate that the network enforces quality at the protocol layer.
 - Every `ContractDeploy` transaction included in a block has already passed the automated QA gate (otherwise it would have been rejected and never mined).
-- Users should understand that Boing is not “deploy anything” — there is a protocol-level gate for specs and purpose (no scams, legitimate use).
+- Users should understand that Boing is not “deploy anything” — there is a protocol-level gate for specs and purpose (designed to reduce malicious and deceptive deployments).
 
 **Reference:** `docs/QUALITY-ASSURANCE-NETWORK.md` — full QA design (Allow/Reject/Unsure, community pool, blocklist, meme leniency, etc.).
 
@@ -173,7 +173,7 @@ Boing’s **automated quality assurance** is a core differentiator: **no asset d
 | Element | Where | What to show |
 |--------|--------|---------------|
 | **ContractDeploy badge** | Block detail page, transaction list rows | For each `ContractDeploy` tx: a badge such as “Protocol QA Passed” or “QA Gate Passed” (with tooltip: “This deployment passed the automated QA gate before inclusion in the block”). |
-| **QA explainer section** | Footer, About page, or persistent info panel | Short copy: “All contract deployments on Boing pass the automated QA gate before they are included. No scams. No deploy-first-fix-later.” Link to `QUALITY-ASSURANCE-NETWORK.md` or a public URL (e.g. boing.network/docs) for full details. |
+| **QA explainer section** | Footer, About page, or persistent info panel | Short copy: The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. Automated checks handle clear cases; a decentralized community pool reviews edge cases. Link to `QUALITY-ASSURANCE-NETWORK.md` or a public URL (e.g. boing.network/docs) for full details. |
 | **QA in nav or header** | Global nav or sidebar | A small “Quality Assured” or “Protocol QA” link/indicator that opens the explainer or an `/about#qa` section. |
 | **Transaction type + QA** | Transaction detail view | When showing a `ContractDeploy` payload, add a clear line: “Deployment passed protocol QA (Allow)” — reinforcing that inclusion in the block implies approval. |
 
@@ -193,7 +193,7 @@ Implement in this order:
 3. **Block detail page** — URL pattern: e.g. `/block/:height` or `/block/:hash`. Show: block hash, height, timestamp (convert to local time), proposer (AccountId with link to account page), parent hash (link to block), state root, tx root. List of transactions in the block with: tx type (Transfer/Bond/Unbond/ContractCall/ContractDeploy), sender, key payload fields, and link to account(s). **For each `ContractDeploy` transaction:** show a “Protocol QA Passed” (or similar) badge — inclusion in a block means it passed the automated QA gate. If transaction hash is available (derived or from RPC), show it and optionally a future `/tx/:txHash` page.
 4. **Account page** — URL pattern: `/account/:address` (address = 32-byte hex, 64 chars, optional `0x`). Show: balance (from `boing_getBalance` or `boing_getAccount`), nonce, stake (from `boing_getAccount`). Optional: list of recent transactions involving this account (if you have an index or can derive from recent blocks).
 5. **Search** — Input: block height (number), block hash (64 hex), or account address (64 hex). Dispatch to: block by height, block by hash, or account page.
-6. **QA pillar visibility** — Footer or About section: short explainer that “All contract deployments on Boing pass the automated QA gate before inclusion. No scams. No deploy-first-fix-later.” with link to QA docs. Optional: “Quality Assured” or “Protocol QA” link in nav/header that surfaces this.
+6. **QA pillar visibility** — Footer or About section: short explainer that The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. Automated checks handle clear cases; a decentralized community pool reviews edge cases. with link to QA docs. Optional: “Quality Assured” or “Protocol QA” link in nav/header that surfaces this.
 7. **Config and env** — **Testnet RPC URL** and **Mainnet RPC URL** from environment or config (e.g. `NEXT_PUBLIC_TESTNET_RPC`, `NEXT_PUBLIC_MAINNET_RPC` or similar). No hardcoded production RPC URLs in the repo; use placeholders in `.env.example`.
 
 ### 6. Tech stack suggestions (flexible)
@@ -255,11 +255,11 @@ MVP features:
 4. For each ContractDeploy transaction: show a "Protocol QA Passed" badge (inclusion in a block means it passed the QA gate).
 5. Account page: balance, nonce, stake for a 32-byte hex address.
 6. Search: by block height, block hash, or account address.
-7. QA explainer in footer or About: "All contract deployments on Boing pass the automated QA gate before inclusion. No scams. No deploy-first-fix-later." with link to QA docs.
+7. QA explainer in footer or About: "The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. Automated checks handle clear cases; a decentralized community pool reviews edge cases." with link to QA docs.
 
 Please scaffold the project (e.g. Next.js or Astro), add config for TESTNET_RPC and MAINNET_RPC, and implement the above pages, search, and QA visuals. Use the RPC spec in the repo for exact request/response shapes.
 ```
 
 ---
 
-*Boing Network — Authentic. Decentralized. Optimal. Sustainable.*
+*Boing Network — Quality, enforced by the protocol.*

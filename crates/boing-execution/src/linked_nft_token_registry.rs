@@ -126,7 +126,11 @@ fn append_sstore_pair_field(code: &mut Vec<u8>, mem_idx: u64, field: u8, calldat
 }
 
 /// Abort if `SLOAD(calldata[asset_off] ^ CLAIMER_XOR) != CALLER`.
-fn append_require_caller_is_claimer(code: &mut Vec<u8>, asset_off: u64, fix_aborts: &mut Vec<usize>) {
+fn append_require_caller_is_claimer(
+    code: &mut Vec<u8>,
+    asset_off: u64,
+    fix_aborts: &mut Vec<usize>,
+) {
     push32(code, &word_u64(asset_off));
     code.push(Opcode::MLoad as u8);
     push32(code, &LINKED_NFT_TOKEN_CLAIMER_XOR);
@@ -199,7 +203,10 @@ pub fn encode_get_asset_claimer_calldata(asset: &AccountId) -> Vec<u8> {
 }
 
 #[must_use]
-pub fn encode_transfer_asset_claimer_calldata(asset: &AccountId, new_claimer: &AccountId) -> Vec<u8> {
+pub fn encode_transfer_asset_claimer_calldata(
+    asset: &AccountId,
+    new_claimer: &AccountId,
+) -> Vec<u8> {
     let mut v = selector_word(SELECTOR_TRANSFER_ASSET_CLAIMER).to_vec();
     v.extend_from_slice(&asset.0);
     v.extend_from_slice(&new_claimer.0);
@@ -542,7 +549,12 @@ mod tests {
 
     use crate::interpreter::Interpreter;
 
-    fn run(state: &mut StateStore, registry: AccountId, caller: AccountId, calldata: &[u8]) -> Interpreter {
+    fn run(
+        state: &mut StateStore,
+        registry: AccountId,
+        caller: AccountId,
+        calldata: &[u8],
+    ) -> Interpreter {
         let mut it = Interpreter::new(linked_nft_token_registry_bytecode(), 8_000_000);
         it.run(caller, registry, calldata, state).unwrap();
         it
@@ -568,8 +580,18 @@ mod tests {
         );
         assert!(it.logs.is_empty());
 
-        run(&mut state, registry, alice, &encode_claim_asset_calldata(&coll));
-        run(&mut state, registry, alice, &encode_claim_asset_calldata(&tok));
+        run(
+            &mut state,
+            registry,
+            alice,
+            &encode_claim_asset_calldata(&coll),
+        );
+        run(
+            &mut state,
+            registry,
+            alice,
+            &encode_claim_asset_calldata(&tok),
+        );
 
         // bob still cannot register (not claimer)
         let it = run(
@@ -603,7 +625,12 @@ mod tests {
         want.extend_from_slice(&tok.0);
         assert_eq!(it.return_data.as_deref(), Some(want.as_slice()));
 
-        let it = run(&mut state, registry, alice, &encode_get_asset_claimer_calldata(&coll));
+        let it = run(
+            &mut state,
+            registry,
+            alice,
+            &encode_get_asset_claimer_calldata(&coll),
+        );
         assert_eq!(it.return_data.as_deref(), Some(&alice.0[..]));
 
         // bob cannot unlink

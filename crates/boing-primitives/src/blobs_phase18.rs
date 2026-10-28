@@ -12,6 +12,8 @@
 //! - Cap env unset → 16 MiB; do not change `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`.
 //! - Submit/Resolve/Attested (30/31/32) remain always admitted.
 //! - True BLS aggregate of resolve ballots is still later (19+).
+//! - Phase 22+ cast / re-verify callers use [`crate::verify_slash_appeal_resolve_ballot_dual`]
+//!   (V2 then V1); keep these V1 helpers working for historical ballots and dual-verify.
 
 use ed25519_dalek::{Signature as Ed25519Signature, Signer, SigningKey, VerifyingKey};
 use serde::de::{SeqAccess, Visitor};
@@ -270,8 +272,14 @@ mod tests {
         assert!(plan
             .iter()
             .any(|s| s.contains("ReservedRealV1 verify still rejects")));
-        assert!(plan.iter().any(|s| s.contains("ResolveSlashAppealAttested") || s.contains("(32)")));
-        assert!(plan.iter().any(|s| s.contains("not BLS") || s.contains("still later")));
-        assert!(plan.iter().any(|s| s.contains("V3") || s.contains("slash_appeals_registry")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("ResolveSlashAppealAttested") || s.contains("(32)")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("not BLS") || s.contains("still later")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("V3") || s.contains("slash_appeals_registry")));
     }
 }

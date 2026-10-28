@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 const terms = [
-  ['Boing L1 / Boing Network', 'The Boing blockchain itself: its own VM, Ed25519 signatures, and native BOING. Not an EVM chain.'],
+  ['Boing L1 / Boing Network', 'Boing Network itself, an independent Layer 1: its own VM, Ed25519 signatures, and native BOING. Not an EVM chain.'],
   ['BOING', 'The native coin. Integer units (1 unit = 1 BOING). Pays fees; testnet BOING comes from the faucet.'],
   ['Address (account address)', 'Your 32-byte account identifier, shown as 0x + 64 hex characters. It is your Ed25519 public key. Older docs and APIs call it the account ID; same thing.'],
   ['Private key', 'The 32-byte secret that signs for your address. Shown once at wallet creation and in Boing Express under Wallet → Reveal private key. Never share it.'],
@@ -11,7 +11,7 @@ const terms = [
   ['Testnet / Mainnet', 'Testnet chain ID 6913 (0x1b01), free coins from the faucet. Mainnet chain ID 6914 (0x1b02).'],
   ['Faucet', 'Free testnet BOING at boing.network/faucet, one request per account every 60 seconds.'],
   ['Nonce', 'Per-account transaction counter. Wallets and the CLI fill it in for you.'],
-  ['Reference token', 'The canonical fungible token template used by boing.finance, the boing token CLI and boing-sdk. Fixed supply (one mint); the first caller is admin.'],
+  ['Reference token', 'The canonical fungible token template used by boing.finance, the boing token CLI and @boing-network/boing-sdk. Fixed supply (one mint); the first caller is admin.'],
   ['QA (deploy-time quality assurance)', 'Rules every contract deploy is checked against before it is accepted; deploys declare a purpose such as token.'],
 ];
 ---

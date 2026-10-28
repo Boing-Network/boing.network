@@ -11,3 +11,7 @@ serde = { version = "1", features = ["derive"] }
 bincode = "1.3"
 tracing = "0.1"
 thiserror = "1"
+
+[[bench]]
+name = "state_root"
+harness = false

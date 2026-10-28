@@ -270,7 +270,10 @@ mod tests {
         let p = network_fee_policy_from_json(raw).unwrap();
         assert_eq!(p.extra_fixed_fee, 2);
         assert_eq!(p.transfer_amount_bps, 5);
-        assert_eq!(p.execution_gas_fee_bps, 10_000, "omitted field keeps full gas fee");
+        assert_eq!(
+            p.execution_gas_fee_bps, 10_000,
+            "omitted field keeps full gas fee"
+        );
     }
 
     #[test]

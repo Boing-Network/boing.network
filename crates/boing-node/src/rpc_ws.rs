@@ -39,9 +39,7 @@ pub async fn ws_new_heads_upgrade(
                 .rpc_metrics
                 .websocket_cap_rejects
                 .fetch_add(1, Ordering::Relaxed);
-            let rid = headers
-                .get("x-request-id")
-                .and_then(|v| v.to_str().ok());
+            let rid = headers.get("x-request-id").and_then(|v| v.to_str().ok());
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
                 [(
@@ -86,7 +84,8 @@ async fn ws_new_heads_socket(
     let Ok(v) = serde_json::from_str::<Value>(&first) else {
         let _ = sender
             .send(Message::Text(
-                json!({"type":"error","code":"invalid_json","message":"expected JSON text frame"}).to_string(),
+                json!({"type":"error","code":"invalid_json","message":"expected JSON text frame"})
+                    .to_string(),
             ))
             .await;
         let _ = sender.close().await;

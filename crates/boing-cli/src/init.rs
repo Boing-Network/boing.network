@@ -45,12 +45,7 @@ const TEMPLATE_CONFIG: &str = r#"{
 /// Project name must be a valid directory/crate name: alphanumeric, hyphen, underscore.
 fn validate_project_name(name: &str) -> anyhow::Result<()> {
     if name.is_empty() {
-        boing_telemetry::component_warn(
-            "boing_cli::init",
-            "cli",
-            "invalid_project_name",
-            "empty",
-        );
+        boing_telemetry::component_warn("boing_cli::init", "cli", "invalid_project_name", "empty");
         anyhow::bail!("Project name cannot be empty");
     }
     if name.len() > 64 {
@@ -99,9 +94,13 @@ pub fn run(name: Option<String>, output: Option<String>) -> anyhow::Result<()> {
     if out.exists()
         && out
             .read_dir()
-            .map_err(|e| {
-                boing_telemetry::component_warn("boing_cli::init", "cli", "read_output_dir_failed", &e);
-                e
+            .inspect_err(|e| {
+                boing_telemetry::component_warn(
+                    "boing_cli::init",
+                    "cli",
+                    "read_output_dir_failed",
+                    e,
+                );
             })?
             .next()
             .is_some()
@@ -118,40 +117,34 @@ pub fn run(name: Option<String>, output: Option<String>) -> anyhow::Result<()> {
         );
     }
 
-    fs::create_dir_all(out).map_err(|e| {
-        boing_telemetry::component_warn("boing_cli::init", "cli", "create_dir_failed", &e);
-        e
+    fs::create_dir_all(out).inspect_err(|e| {
+        boing_telemetry::component_warn("boing_cli::init", "cli", "create_dir_failed", e);
     })?;
-    fs::create_dir_all(out.join("src")).map_err(|e| {
-        boing_telemetry::component_warn("boing_cli::init", "cli", "create_src_dir_failed", &e);
-        e
+    fs::create_dir_all(out.join("src")).inspect_err(|e| {
+        boing_telemetry::component_warn("boing_cli::init", "cli", "create_src_dir_failed", e);
     })?;
 
     let crate_name = proj_name.replace('-', "_");
     let cargo_content = TEMPLATE_CARGO.replace("{{name}}", &crate_name);
-    fs::write(out.join("Cargo.toml"), cargo_content).map_err(|e| {
-        boing_telemetry::component_warn("boing_cli::init", "cli", "write_cargo_toml_failed", &e);
-        e
+    fs::write(out.join("Cargo.toml"), cargo_content).inspect_err(|e| {
+        boing_telemetry::component_warn("boing_cli::init", "cli", "write_cargo_toml_failed", e);
     })?;
     fs::write(
         out.join("README.md"),
         TEMPLATE_README.replace("My Boing dApp", &proj_name),
     )
-    .map_err(|e| {
-        boing_telemetry::component_warn("boing_cli::init", "cli", "write_readme_failed", &e);
-        e
+    .inspect_err(|e| {
+        boing_telemetry::component_warn("boing_cli::init", "cli", "write_readme_failed", e);
     })?;
-    fs::write(out.join("boing.json"), TEMPLATE_CONFIG).map_err(|e| {
-        boing_telemetry::component_warn("boing_cli::init", "cli", "write_boing_json_failed", &e);
-        e
+    fs::write(out.join("boing.json"), TEMPLATE_CONFIG).inspect_err(|e| {
+        boing_telemetry::component_warn("boing_cli::init", "cli", "write_boing_json_failed", e);
     })?;
     fs::write(
         out.join("src").join("lib.rs"),
         "//! Boing dApp contract\n\n// Add your contract logic here\n",
     )
-    .map_err(|e| {
-        boing_telemetry::component_warn("boing_cli::init", "cli", "write_lib_rs_failed", &e);
-        e
+    .inspect_err(|e| {
+        boing_telemetry::component_warn("boing_cli::init", "cli", "write_lib_rs_failed", e);
     })?;
 
     info!("Created project {} at {}", proj_name, out.display());

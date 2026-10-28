@@ -9,8 +9,10 @@ use boing_execution::{BlockExecutor, TransactionScheduler, Vm};
 use boing_governance::{SlashReason, SlashRegistry, SlashingError};
 use boing_p2p::{P2pEvent, P2pNode};
 use boing_primitives::{
-    Account, AccountId, AccountState, Block, ConsensusVote, EquivocationEvidence, ExecutionReceipt,
-    Hash, QaPoolVoteKind, SignedTransaction, TransactionPayload, VrfProofGossip,
+    phase28_register_with_pop, Account, AccountId, AccountState, Block, BlsDualKeyRegistry,
+    BlsPublicKeyG1, BlsSignatureG2, ConsensusVote, EquivocationEvidence, ExecutionReceipt, Hash,
+    Phase27BlsError, Phase28BlsError, QaPoolVoteKind, SignedTransaction, TransactionPayload,
+    VrfProofGossip,
 };
 use boing_qa::pool::{PendingQaQueue, PoolError, PoolResolution, QaPoolVote};
 use boing_qa::{QaPoolGovernanceConfig, RuleRegistry};
@@ -102,6 +104,8 @@ pub struct BoingNode {
     pub last_local_vote_round: Option<u64>,
     /// Sidecar for L1 media blob bytes (`data/blobs/`). Required for `boing_getBlob` serving.
     pub media_blob_store: Option<MediaBlobStore>,
+    /// Phase 27 host-local BLS dual-key registry (`bls_dual_key_registry.bin`; not slash V5).
+    pub bls_dual_key_registry: BlsDualKeyRegistry,
 }
 
 /// Default wait before an anchor proposes in place of an offline open-validator leader.
@@ -204,6 +208,7 @@ impl BoingNode {
             anchor_fallback_wait: None,
             last_local_vote_round: None,
             media_blob_store: None,
+            bls_dual_key_registry: BlsDualKeyRegistry::new(),
         }
     }
 
@@ -436,7 +441,12 @@ impl BoingNode {
                 }
                 let height = node.chain.height();
                 node.consensus.sync_round(height.saturating_add(1));
-                for h in 0..=height {
+                // Only the retention window is kept resident (older receipts stay on disk).
+                let first_receipt_height = crate::receipt_retention::first_retained_height(
+                    height,
+                    crate::receipt_retention::retention_blocks(),
+                );
+                for h in first_receipt_height..=height {
                     if let Some(list) = persistence.load_receipts_for_height(h)? {
                         for r in list {
                             node.receipts.insert(r.tx_id, r);
@@ -477,6 +487,13 @@ impl BoingNode {
                 node.slash_registry = slash_reg;
                 node.rebuild_slashed_equivocations_from_registry();
             }
+            if let Some(ref p) = node.persistence {
+                match p.load_bls_dual_key_registry() {
+                    Ok(Some(reg)) => node.bls_dual_key_registry = reg,
+                    Ok(None) => {}
+                    Err(e) => logging::log_persistence_warn("load_bls_dual_key_registry", &e),
+                }
+            }
         }
 
         node.refresh_native_aggregates();
@@ -502,6 +519,46 @@ impl BoingNode {
         }
     }
 
+    fn persist_bls_dual_key_registry(&self) {
+        if let Some(ref p) = self.persistence {
+            if let Err(e) = p.save_bls_dual_key_registry(&self.bls_dual_key_registry) {
+                logging::log_persistence_warn("save_bls_dual_key_registry", &e);
+            }
+        }
+    }
+
+    /// Register a host-local dual-key binding (curve-validated). Persists when a data dir is set.
+    ///
+    /// Phase 27 helper kept for tests; production RPC uses [`Self::register_bls_dual_key_with_pop`].
+    pub fn register_bls_dual_key(
+        &mut self,
+        account: AccountId,
+        bls_pubkey: BlsPublicKeyG1,
+    ) -> Result<(), Phase27BlsError> {
+        self.bls_dual_key_registry.register(account, bls_pubkey)?;
+        self.persist_bls_dual_key_registry();
+        Ok(())
+    }
+
+    /// Phase 28: register only after a valid chain-bound BLS proof-of-possession.
+    pub fn register_bls_dual_key_with_pop(
+        &mut self,
+        chain_id: u64,
+        account: AccountId,
+        bls_pubkey: BlsPublicKeyG1,
+        pop: &BlsSignatureG2,
+    ) -> Result<(), Phase28BlsError> {
+        phase28_register_with_pop(
+            &mut self.bls_dual_key_registry,
+            chain_id,
+            account,
+            bls_pubkey,
+            pop,
+        )?;
+        self.persist_bls_dual_key_registry();
+        Ok(())
+    }
+
     /// Apply QA registry + pool config without writing disk (used when loading from persistence).
     fn apply_qa_policy_without_persist(
         &mut self,
@@ -511,7 +568,11 @@ impl BoingNode {
         self.mempool.set_qa_registry(registry.clone());
         let fee = self.executor.fee_policy().clone();
         let history = self.executor.execution_history().cloned();
-        self.executor = with_chain_id_rules(BlockExecutor::with_policies(registry.clone(), pool_config.clone(), fee));
+        self.executor = with_chain_id_rules(BlockExecutor::with_policies(
+            registry.clone(),
+            pool_config.clone(),
+            fee,
+        ));
         self.executor.set_execution_history(history);
         self.vm = Vm::with_qa_policies(registry, pool_config.clone());
         self.qa_pool.set_governance_config(pool_config);
@@ -597,7 +658,10 @@ impl BoingNode {
     ) {
         if let Some(ref store) = self.media_blob_store {
             if let Err(e) = store.ingest_block_txs(block.header.height, &block.transactions) {
-                tracing::warn!("media blob store: ingest height {}: {e}", block.header.height);
+                tracing::warn!(
+                    "media blob store: ingest height {}: {e}",
+                    block.header.height
+                );
             } else {
                 let _ = store.prune_expired(block.header.height);
             }
@@ -618,6 +682,25 @@ impl BoingNode {
         }
     }
 
+    /// Drop in-memory receipts older than the retention window (see [`crate::receipt_retention`]).
+    fn prune_receipts_if_due(&mut self, height: u64) {
+        if crate::receipt_retention::prune_due(height) {
+            let removed = crate::receipt_retention::prune(
+                &mut self.receipts,
+                height,
+                crate::receipt_retention::retention_blocks(),
+            );
+            if removed > 0 {
+                tracing::debug!(
+                    removed,
+                    kept = self.receipts.len(),
+                    height,
+                    "pruned in-memory receipts"
+                );
+            }
+        }
+    }
+
     /// Append a quorum-committed block: update tip state, receipts, persistence, and round.
     fn commit_pending(&mut self, pending: PendingCommit) -> Hash {
         let hash = pending.block.hash();
@@ -630,6 +713,7 @@ impl BoingNode {
             self.receipts.insert(r.tx_id, r.clone());
         }
         self.persist_block_and_state(&pending.block, &pending.receipts);
+        self.prune_receipts_if_due(height);
         self.pending_commit = None;
         self.early_votes
             .retain(|(r, _), _| *r >= height.saturating_add(1));
@@ -716,7 +800,10 @@ impl BoingNode {
         }
         // `min_stake` is configured in whole BOING; compare in ledger units.
         let mut cfg = cfg;
-        cfg.min_stake = self.executor.denomination_at(committed_height).scale(cfg.min_stake);
+        cfg.min_stake = self
+            .executor
+            .denomination_at(committed_height)
+            .scale(cfg.min_stake);
         let next = crate::stake_validator_set::next_validator_set(
             &self.state,
             &cfg,
@@ -1127,6 +1214,7 @@ impl BoingNode {
             self.receipts.insert(r.tx_id, r.clone());
         }
         self.persist_block_and_state(block, &receipts);
+        self.prune_receipts_if_due(block.header.height);
         self.refresh_native_aggregates();
         self.emit_head_subscriber_event();
         self.maybe_refresh_stake_validators(block.header.height);
@@ -1152,15 +1240,117 @@ impl BoingNode {
         self.intent_pool.submit(signed)
     }
 
+    /// State-free-of-clone admission gates, run before any snapshot-based dry run so that spam from
+    /// throwaway keys costs a hash lookup instead of an O(state) clone + VM execution:
+    ///
+    /// * the sender must have an account (the VM answers `AccountNotFound` otherwise: such a tx
+    ///   occupies a mempool / block slot and can neither pay a fee nor consume its nonce);
+    /// * the tx nonce must not be below the account nonce (it can never execute; future nonces stay
+    ///   admitted and queue behind earlier txs);
+    /// * once the failed-tx fee is active, the balance must cover that fee (otherwise the tx cannot
+    ///   pay for a failed execution either).
+    ///
+    /// Skipped at the redenomination height (balances change unit there; the full dry run handles it).
+    fn precheck_sender_viable(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
+        let next = self.chain.height().saturating_add(1);
+        let Some(acct) = self.state.get(&signed.tx.sender) else {
+            return Err(MempoolError::UnknownSender);
+        };
+        if signed.tx.nonce < acct.nonce {
+            return Err(MempoolError::StaleNonce {
+                expected: acct.nonce,
+                got: signed.tx.nonce,
+            });
+        }
+        if self.executor.redenomination_height() != Some(next)
+            && self.executor.failed_tx_fee_active(next)
+        {
+            let (policy, _) = self.executor.fee_rule_at(next);
+            let need = boing_execution::failed_tx_fee_amount_in(
+                &policy,
+                self.executor.denomination_at(next),
+            );
+            if acct.balance < need {
+                return Err(MempoolError::InsufficientFee {
+                    have: acct.balance,
+                    need,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// Transfer admission without a state clone. Same decision as
+    /// [`Self::precheck_sender_can_pay_fee_full`] (covered by a differential test): a transfer the VM
+    /// would reject for nonce / amount is admitted (it fails in-block and pays the failed-tx fee);
+    /// one that would execute must leave the sender able to pay the fee + tip.
+    #[doc(hidden)] // public only so the differential test in tests/admission_gates.rs can call it
+    pub fn precheck_transfer_fast(
+        &self,
+        signed: &SignedTransaction,
+        to: &AccountId,
+        amount: u128,
+    ) -> Result<(), MempoolError> {
+        let next = self.chain.height().saturating_add(1);
+        let (nonce, have) = self
+            .state
+            .get(&signed.tx.sender)
+            .map(|s| (Some(s.nonce), s.balance))
+            .unwrap_or((None, 0));
+        let policy = self.executor.fee_policy();
+        if signed.priority_tip == 0
+            && policy.execution_gas_waived()
+            && policy.free_tx_min_balance > 0
+            && have < policy.free_tx_min_balance
+        {
+            return Err(MempoolError::FreeTxBalanceGate {
+                have,
+                need: policy.free_tx_min_balance,
+            });
+        }
+        if nonce != Some(signed.tx.nonce) || have < amount {
+            return Ok(()); // the VM rejects it: admitted, fails in-block
+        }
+        let need = self
+            .executor
+            .network_fee_at(boing_execution::GAS_PER_TRANSFER, &signed.tx.payload, next)
+            .saturating_add(signed.priority_tip);
+        let remaining = if *to == signed.tx.sender {
+            have
+        } else {
+            have - amount
+        };
+        if remaining < need {
+            return Err(MempoolError::InsufficientFee { have, need });
+        }
+        Ok(())
+    }
+
     /// Dry-run execution fee vs committed balance so underfunded deploys are rejected at submit
     /// instead of stalling block production.
     fn precheck_sender_can_pay_fee(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
         if self.mempool.contains_tx_id(&signed.tx.id()) {
             return Err(MempoolError::Duplicate);
         }
+        if let TransactionPayload::Transfer { to, amount } = &signed.tx.payload {
+            if self.executor.redenomination_height() != Some(self.chain.height().saturating_add(1))
+            {
+                return self.precheck_transfer_fast(signed, to, *amount);
+            }
+        }
+        self.precheck_sender_can_pay_fee_full(signed)
+    }
+
+    /// Reference (snapshot + VM dry run) form of [`Self::precheck_sender_can_pay_fee`].
+    #[doc(hidden)]
+    pub fn precheck_sender_can_pay_fee_full(
+        &self,
+        signed: &SignedTransaction,
+    ) -> Result<(), MempoolError> {
         let mut state_copy = self.state.snapshot();
         let height = self.chain.height();
-        self.executor.prepare_state_for_height(height.saturating_add(1), &mut state_copy);
+        self.executor
+            .prepare_state_for_height(height.saturating_add(1), &mut state_copy);
         let have = state_copy
             .get(&signed.tx.sender)
             .map(|s| s.balance)
@@ -1178,23 +1368,20 @@ impl BoingNode {
         };
         let policy = self.executor.fee_policy();
         // Free-path balance gate (anti-spam): zero-tip txs when execution gas is waived.
-        if signed.priority_tip == 0 && policy.execution_gas_waived() && policy.free_tx_min_balance > 0
+        if signed.priority_tip == 0
+            && policy.execution_gas_waived()
+            && policy.free_tx_min_balance > 0
+            && have < policy.free_tx_min_balance
         {
-            if have < policy.free_tx_min_balance {
-                return Err(MempoolError::FreeTxBalanceGate {
-                    have,
-                    need: policy.free_tx_min_balance,
-                });
-            }
+            return Err(MempoolError::FreeTxBalanceGate {
+                have,
+                need: policy.free_tx_min_balance,
+            });
         }
         if let Ok(out) = vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
             let need = self
                 .executor
-                .network_fee_at(
-                    out.gas_used,
-                    &signed.tx.payload,
-                    height.saturating_add(1),
-                )
+                .network_fee_at(out.gas_used, &signed.tx.payload, height.saturating_add(1))
                 .saturating_add(signed.priority_tip);
             let remaining = state_copy
                 .get(&signed.tx.sender)
@@ -1370,7 +1557,11 @@ impl BoingNode {
                 }
                 let tip = self.chain.height();
                 // Prefer SMT-resident book (Phase 9); soft-fallback to sidecar replay book.
-                if let Some(o) = self.state.sample_offers().get(blob_id, *chunk_index, provider) {
+                if let Some(o) = self
+                    .state
+                    .sample_offers()
+                    .get(blob_id, *chunk_index, provider)
+                {
                     if o.chunk_count != *chunk_count {
                         return Err(MempoolError::MediaBlobRejected(
                             "settle chunk_count does not match registered offer".into(),
@@ -1500,20 +1691,112 @@ impl BoingNode {
                         "ResolveSlashAppeal requires a consensus validator".into(),
                     ));
                 }
-                // Phase 19: reject unattested 31 early when multi-pin committee is configured.
-                if let Some(set) = self.state.slash_appeal_resolvers() {
-                    if boing_primitives::phase19_committee_requires_attested(set.len()) {
-                        return Err(MempoolError::MediaBlobRejected(
-                            "ResolveSlashAppeal (31) rejected when |slash_appeal_resolvers| > 1; use ResolveSlashAppealAttested (32)"
-                                .into(),
-                        ));
-                    }
+                // Phase 19/31/32: reject unattested 31 early when multi-pin requires attested
+                // or BLS aggregate (flip active).
+                let next = self.chain.height().saturating_add(1);
+                let flip_from = self.executor.vm().bls_committee_flip_from();
+                let pinned_len = self
+                    .state
+                    .slash_appeal_resolvers()
+                    .map(|s| s.len())
+                    .unwrap_or(0);
+                if boing_primitives::phase32_committee_requires_bls_aggregate(
+                    pinned_len, next, flip_from,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppeal (31) rejected when BLS committee flip active and |slash_appeal_resolvers| > 1; use ResolveSlashAppealBlsAggregate (33)"
+                            .into(),
+                    ));
+                }
+                if boing_primitives::phase32_committee_requires_attested(
+                    pinned_len, next, flip_from,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppeal (31) rejected when |slash_appeal_resolvers| > 1; use ResolveSlashAppealAttested (32)"
+                            .into(),
+                    ));
                 }
             }
             TransactionPayload::ResolveSlashAppealAttested { .. } => {
                 if !self.consensus.validators().contains(&signed.tx.sender) {
                     return Err(MempoolError::MediaBlobRejected(
                         "ResolveSlashAppeal requires a consensus validator".into(),
+                    ));
+                }
+                // Phase 32: when flip active, multi-pin must use BLS aggregate 33 (not Ed25519 32).
+                let next = self.chain.height().saturating_add(1);
+                let flip_from = self.executor.vm().bls_committee_flip_from();
+                let pinned_len = self
+                    .state
+                    .slash_appeal_resolvers()
+                    .map(|s| s.len())
+                    .unwrap_or(0);
+                if boing_primitives::phase32_committee_requires_bls_aggregate(
+                    pinned_len, next, flip_from,
+                ) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppealAttested (32) rejected when BLS committee flip active and |slash_appeal_resolvers| > 1; use ResolveSlashAppealBlsAggregate (33)"
+                            .into(),
+                    ));
+                }
+            }
+            TransactionPayload::ResolveSlashAppealBlsAggregate { .. } => {
+                // Phase 31/32: BLS aggregate path is consensus-admitted.
+                // Unset flip ⇒ optional; flip active + multi-pin ⇒ required (enforced by rejecting 31/32).
+                if !boing_primitives::PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppealBlsAggregate (33) consensus admit not wired; use ResolveSlashAppealAttested (32)"
+                            .into(),
+                    ));
+                }
+                if let Err(e) = boing_primitives::phase32_admit_bls_aggregate_resolve_tx() {
+                    return Err(MempoolError::MediaBlobRejected(e.to_string()));
+                }
+                if !self.consensus.validators().contains(&signed.tx.sender) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ResolveSlashAppealBlsAggregate requires a consensus validator submitter"
+                            .into(),
+                    ));
+                }
+            }
+            TransactionPayload::GrantBlobDownload { blob_id, grantee } => {
+                require_active()?;
+                let Some(store) = self.media_blob_store() else {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "media blob store unavailable".into(),
+                    ));
+                };
+                let Some(meta) = store.get_meta(blob_id) else {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "grant target blob not in sidecar".into(),
+                    ));
+                };
+                if meta.publisher != signed.tx.sender.0 {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "only the blob publisher may grant download access".into(),
+                    ));
+                }
+                if grantee.0 == meta.publisher {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "publisher already has download access".into(),
+                    ));
+                }
+            }
+            TransactionPayload::RevokeBlobDownload { blob_id, .. } => {
+                require_active()?;
+                let Some(store) = self.media_blob_store() else {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "media blob store unavailable".into(),
+                    ));
+                };
+                let Some(meta) = store.get_meta(blob_id) else {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "revoke target blob not in sidecar".into(),
+                    ));
+                };
+                if meta.publisher != signed.tx.sender.0 {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "only the blob publisher may revoke download access".into(),
                     ));
                 }
             }
@@ -1560,6 +1843,14 @@ impl BoingNode {
         self.state.set_name_registry_params(Some(params));
     }
 
+    /// Switch every per-contract storage tree to full 256-bit routing from block `height` (storage-tree
+    /// v2: closes the 64-bit-prefix collision). Consensus-critical: all nodes must agree, and on a live
+    /// chain `height` must be in the future. Nothing changes before `height`; see
+    /// `docs/STORAGE-TREE-V2-ACTIVATION.md`. Call after loading persisted state.
+    pub fn enable_storage_tree_v2(&mut self, height: u64) {
+        self.state.set_storage_tree_v2_activation(Some(height));
+    }
+
     /// Enable L1 media blobs (PutBlob) from `activation_height`. All nodes must agree.
     /// Opens / keeps the sidecar when `data_dir` was configured; for in-memory tests call
     /// [`Self::attach_media_blob_store`] first if RPC getBlob is needed.
@@ -1579,6 +1870,18 @@ impl BoingNode {
 
     pub fn media_blobs_phase7_cap_activation_height(&self) -> Option<u64> {
         self.executor.vm().media_blobs_phase7_cap_from()
+    }
+
+    /// Phase 32: flip multi-pin committee verify from Ed25519 tx 32 → BLS aggregate tx 33.
+    /// Unset / unused keeps Phase 31 policy (multi-pin default Ed25519 **32**).
+    pub fn enable_bls_committee_flip(&mut self, activation_height: u64) {
+        self.executor
+            .set_bls_committee_flip_from(Some(activation_height));
+        self.vm.set_bls_committee_flip_from(Some(activation_height));
+    }
+
+    pub fn bls_committee_flip_height(&self) -> Option<u64> {
+        self.executor.vm().bls_committee_flip_from()
     }
 
     /// Phase 3: pin `blobs_root` into produced / validated headers from `activation_height`.
@@ -1647,7 +1950,10 @@ impl BoingNode {
         self.state = state;
         if let Some(p) = &self.persistence {
             if changed {
-                if let Err(e) = p.save_block(&genesis).and_then(|_| p.save_chain_meta(0, genesis.hash())) {
+                if let Err(e) = p
+                    .save_block(&genesis)
+                    .and_then(|_| p.save_chain_meta(0, genesis.hash()))
+                {
                     tracing::warn!("Persistence: could not rewrite genesis: {e}");
                 }
             }
@@ -1684,6 +1990,7 @@ impl BoingNode {
         vm.set_media_blobs_from(self.executor.vm().media_blobs_from());
         vm.set_blobs_root_header_from(self.executor.vm().blobs_root_header_from());
         vm.set_media_blobs_phase7_cap_from(self.executor.vm().media_blobs_phase7_cap_from());
+        vm.set_bls_committee_flip_from(self.executor.vm().bls_committee_flip_from());
         vm
     }
 
@@ -1720,6 +2027,13 @@ impl BoingNode {
 
     pub fn submit_transaction(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
         self.refresh_tx_sig_policy();
+        // Cheapest checks first: signature, duplicate, then account-level gates; the snapshot-based
+        // dry runs below only ever run for authenticated txs from funded, non-stale senders.
+        Mempool::verify_signature(&signed)?;
+        if self.mempool.contains_tx_id(&signed.tx.id()) {
+            return Err(MempoolError::Duplicate);
+        }
+        self.precheck_sender_viable(&signed)?;
         self.precheck_native_value_tx(&signed)?;
         self.precheck_open_validator_tx(&signed)?;
         self.precheck_name_tx(&signed)?;
@@ -1774,8 +2088,8 @@ impl BoingNode {
             PoolResolution::Pending => Ok(QaPoolVoteResult::Pending),
             PoolResolution::Reject => Ok(QaPoolVoteResult::Rejected),
             PoolResolution::Allow(bytes) => {
-                let signed: SignedTransaction =
-                    bincode::deserialize(&bytes).map_err(|_| PoolError::Deserialization)?;
+                let signed = SignedTransaction::from_bincode(&bytes)
+                    .map_err(|_| PoolError::Deserialization)?;
                 match self.mempool.insert_after_pool_allow(signed) {
                     Ok(()) => Ok(QaPoolVoteResult::AllowedAdmitted),
                     Err(MempoolError::Duplicate) => Ok(QaPoolVoteResult::AllowedAlreadyInMempool),
@@ -1804,7 +2118,7 @@ impl BoingNode {
     fn apply_qa_pool_expirations(&self) {
         for (_h, res) in self.qa_pool.prune_expired() {
             if let PoolResolution::Allow(bytes) = res {
-                if let Ok(signed) = bincode::deserialize::<SignedTransaction>(&bytes) {
+                if let Ok(signed) = SignedTransaction::from_bincode(&bytes) {
                     let _ = self.mempool.insert_after_pool_allow(signed);
                 }
             }

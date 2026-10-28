@@ -102,9 +102,7 @@ mod tests {
         assert!(plan
             .iter()
             .any(|s| s.contains("ReservedRealV1 verify still rejects")));
-        assert!(plan
-            .iter()
-            .any(|s| s.contains("equivocation/liveness")));
+        assert!(plan.iter().any(|s| s.contains("equivocation/liveness")));
         assert!(plan.iter().any(|s| s.contains("always admitted")));
         assert!(plan.iter().any(|s| s.contains("ops/validator-approved")));
     }

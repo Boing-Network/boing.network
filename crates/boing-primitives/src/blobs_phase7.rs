@@ -162,7 +162,10 @@ mod tests {
     #[test]
     fn cap_gate_defaults_to_16mib() {
         assert_eq!(media_blob_max_bytes_at(0, None), MAX_MEDIA_BLOB_BYTES);
-        assert_eq!(media_blob_max_bytes_at(1_000_000, None), MAX_MEDIA_BLOB_BYTES);
+        assert_eq!(
+            media_blob_max_bytes_at(1_000_000, None),
+            MAX_MEDIA_BLOB_BYTES
+        );
         assert!(!phase7_cap_active(10, None));
         assert_eq!(media_blob_max_bytes_at(99, Some(100)), MAX_MEDIA_BLOB_BYTES);
         assert_eq!(

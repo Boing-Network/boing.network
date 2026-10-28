@@ -394,34 +394,43 @@ mod tests {
         state.set_contract_code(token, code.clone());
 
         let mut it = Interpreter::new(code.clone(), 10_000_000);
-        it.run(admin, token, &encode_lp_share_set_minter_once_calldata(&minter), &mut state)
-            .unwrap();
+        it.run(
+            admin,
+            token,
+            &encode_lp_share_set_minter_once_calldata(&minter),
+            &mut state,
+        )
+        .unwrap();
 
         let mut it2 = Interpreter::new(code.clone(), 10_000_000);
-        it2
-            .run(
-                minter,
-                token,
-                &encode_lp_share_mint_calldata(&alice, 1_000),
-                &mut state,
-            )
-            .unwrap();
+        it2.run(
+            minter,
+            token,
+            &encode_lp_share_mint_calldata(&alice, 1_000),
+            &mut state,
+        )
+        .unwrap();
         assert_eq!(
             tail_u128(&state.get_contract_storage(&token, &bal_key(&alice))),
             1_000
         );
 
         let mut it3 = Interpreter::new(code.clone(), 10_000_000);
-        it3
-            .run(
-                alice,
-                token,
-                &encode_lp_share_transfer_calldata(&bob, 400),
-                &mut state,
-            )
-            .unwrap();
-        assert_eq!(tail_u128(&state.get_contract_storage(&token, &bal_key(&alice))), 600);
-        assert_eq!(tail_u128(&state.get_contract_storage(&token, &bal_key(&bob))), 400);
+        it3.run(
+            alice,
+            token,
+            &encode_lp_share_transfer_calldata(&bob, 400),
+            &mut state,
+        )
+        .unwrap();
+        assert_eq!(
+            tail_u128(&state.get_contract_storage(&token, &bal_key(&alice))),
+            600
+        );
+        assert_eq!(
+            tail_u128(&state.get_contract_storage(&token, &bal_key(&bob))),
+            400
+        );
     }
 
     #[test]

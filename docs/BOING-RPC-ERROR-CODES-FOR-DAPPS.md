@@ -25,7 +25,7 @@ Canonical definitions live in [RPC-API-SPEC.md](RPC-API-SPEC.md). This page is a
 
 | Code | When | `data` (when applicable) |
 |------|------|-------------------------|
-| -32000 | Generic server error (serialization, faucet empty, etc.) | varies |
+| -32000 | Generic server error (serialization, faucet empty, tx admission rejection, etc.). For `boing_submitTransaction` branch on `data.reason`: `already_in_mempool`, `unknown_sender`, `stale_nonce` (`expected_nonce`, `got_nonce`: refetch via `boing_getAccount` and re-sign), `insufficient_fee` (`have`, `need`), `free_pending_limit`, `free_tx_balance_gate`, `native_value_not_active`. Full table: [RPC-API-SPEC.md](RPC-API-SPEC.md). | varies |
 | -32016 | Faucet rate limit | — |
 | -32050 | **QA: deployment rejected** | `{ rule_id: string, message: string }` |
 | -32051 | **QA: Unsure → governance pool** | `{ tx_hash: string }` |
@@ -34,7 +34,7 @@ Canonical definitions live in [RPC-API-SPEC.md](RPC-API-SPEC.md). This page is a
 | -32054 | QA pool disabled by governance | — |
 | -32055 | QA pool full (global cap) | optional `{ reason: "pool_full" }` |
 | -32056 | QA pool: per-deployer cap | optional `{ reason: "deployer_cap" }` |
-| -32057 | Operator RPC: missing/invalid `X-Boing-Operator` | — |
+| -32057 | Operator RPC: missing/invalid `X-Boing-Operator` (only when the node sets `BOING_OPERATOR_RPC_TOKEN`; includes `boing_putBlobSampleOffer`) | — |
 
 ---
 

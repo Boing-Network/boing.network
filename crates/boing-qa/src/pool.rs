@@ -175,7 +175,11 @@ impl PendingQaQueue {
     }
 
     fn deployer_pending_count(inner: &PendingQaQueueInner, deployer: AccountId) -> usize {
-        inner.items.values().filter(|i| i.deployer == deployer).count()
+        inner
+            .items
+            .values()
+            .filter(|i| i.deployer == deployer)
+            .count()
     }
 
     /// Add an item that received Unsure from automation.
@@ -367,10 +371,8 @@ impl PendingQaQueue {
     }
 }
 
-fn deploy_metadata_from_bincode(
-    bytes: &[u8],
-) -> (Option<String>, Option<String>, Option<String>) {
-    let Ok(signed) = bincode::deserialize::<SignedTransaction>(bytes) else {
+fn deploy_metadata_from_bincode(bytes: &[u8]) -> (Option<String>, Option<String>, Option<String>) {
+    let Ok(signed) = SignedTransaction::from_bincode(bytes) else {
         return (None, None, None);
     };
     match signed.tx.payload.as_contract_deploy() {
@@ -466,31 +468,54 @@ mod tests {
         queue.add(item).unwrap();
 
         queue
-            .vote(tx_hash, AccountId::from_bytes([1u8; 32]), QaPoolVote::Allow, None)
+            .vote(
+                tx_hash,
+                AccountId::from_bytes([1u8; 32]),
+                QaPoolVote::Allow,
+                None,
+            )
             .unwrap();
         queue
-            .vote(tx_hash, AccountId::from_bytes([2u8; 32]), QaPoolVote::Allow, None)
+            .vote(
+                tx_hash,
+                AccountId::from_bytes([2u8; 32]),
+                QaPoolVote::Allow,
+                None,
+            )
             .unwrap();
         queue
-            .vote(tx_hash, AccountId::from_bytes([3u8; 32]), QaPoolVote::Reject, None)
+            .vote(
+                tx_hash,
+                AccountId::from_bytes([3u8; 32]),
+                QaPoolVote::Reject,
+                None,
+            )
             .unwrap();
 
         let r = queue.resolve(tx_hash);
         assert!(matches!(r, PoolResolution::Allow(_)));
         if let PoolResolution::Allow(bytes) = r {
-            let back: SignedTransaction = bincode::deserialize(&bytes).unwrap();
+            let back = SignedTransaction::from_bincode(&bytes).unwrap();
             assert_eq!(back.tx.id(), tx_hash);
         }
     }
 
     #[test]
     fn open_voting_when_dev_flag_and_no_admins() {
-        let queue = PendingQaQueue::from_governance_config(QaPoolGovernanceConfig::development_default());
+        let queue =
+            PendingQaQueue::from_governance_config(QaPoolGovernanceConfig::development_default());
         let signed = sample_deploy_tx();
         let tx_hash = signed.tx.id();
-        queue.add(PendingQaItem::from_signed(&signed).unwrap()).unwrap();
         queue
-            .vote(tx_hash, AccountId::from_bytes([9u8; 32]), QaPoolVote::Allow, None)
+            .add(PendingQaItem::from_signed(&signed).unwrap())
+            .unwrap();
+        queue
+            .vote(
+                tx_hash,
+                AccountId::from_bytes([9u8; 32]),
+                QaPoolVote::Allow,
+                None,
+            )
             .unwrap();
         assert!(matches!(queue.resolve(tx_hash), PoolResolution::Allow(_)));
     }
@@ -503,12 +528,16 @@ mod tests {
         let a = sample_deploy_tx();
         let b = sample_deploy_tx();
         queue.add(PendingQaItem::from_signed(&a).unwrap()).unwrap();
-        assert_eq!(queue.add(PendingQaItem::from_signed(&b).unwrap()), Err(PoolError::PoolFull));
+        assert_eq!(
+            queue.add(PendingQaItem::from_signed(&b).unwrap()),
+            Err(PoolError::PoolFull)
+        );
     }
 
     #[test]
     fn production_default_accepts_pending_with_public_membership() {
-        let queue = PendingQaQueue::from_governance_config(QaPoolGovernanceConfig::production_default());
+        let queue =
+            PendingQaQueue::from_governance_config(QaPoolGovernanceConfig::production_default());
         let signed = sample_deploy_tx();
         queue
             .add(PendingQaItem::from_signed(&signed).unwrap())

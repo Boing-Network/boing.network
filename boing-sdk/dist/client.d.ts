@@ -1,7 +1,7 @@
 /**
  * Boing JSON-RPC client — typed methods for all node RPCs.
  */
-import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, ContractCode, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, NetworkFeePolicyResult, JsonRpcBatchResponseItem } from './types.js';
+import type { AccountBalance, AccountProof, AccountState, Block, ExecutionReceipt, GetLogsFilter, RpcLogEntry, FaucetResult, QaCheckResponse, QaPoolConfigResult, QaPoolListResult, QaPoolVoteResult, ListSlashRecordsParams, ListSlashRecordsResult, ReverifySlashAppealBallotsParams, ReverifySlashAppealBallotsResult, SubmitSlashAppealResult, ResolveSlashAppealResult, RegisterDappResult, SimulateResult, SubmitIntentResult, SubmitTransactionResult, SyncState, NetworkInfo, BoingHealth, RpcMethodCatalog, RpcOpenApiDocument, BoingRpcPreflightResult, ContractStorageWord, ContractCode, DexPoolListPage, DexTokenListPage, DexTokenListRow, VerifyProofResult, OperatorApplyQaPolicyResult, QaRegistryResult, NetworkFeePolicyResult, JsonRpcBatchResponseItem } from './types.js';
 /**
  * Default UA for Node/CLI calls to public RPC (some CDN/WAF edges return HTTP 403 for empty/bot UA).
  * Overridable via {@link BoingClientConfig.extraHeaders}.
@@ -176,8 +176,25 @@ export declare class BoingClient {
     getLeaderVrfOutput(round?: number): Promise<Record<string, unknown>>;
     /** SMT-resident sample offers (`boing_listSmtBlobSampleOffers`). */
     listSmtBlobSampleOffers(blobId: string | Uint8Array, chunkIndex?: number): Promise<Record<string, unknown>>;
-    /** Sample-serve challenges (`boing_listBlobSampleServeChallenges`). */
-    listBlobSampleServeChallenges(blobId: string | Uint8Array): Promise<Record<string, unknown>>;
+    /**
+     * Sample-serve challenges (`boing_listBlobSampleServeChallenges`).
+     * Phase 24: pass string/bytes blobId, or `{ blobId?, status?, includeTerminal? }`.
+     */
+    listBlobSampleServeChallenges(blobIdOrFilters?: string | Uint8Array | {
+        blobId?: string;
+        status?: 'open' | 'responded' | 'failedServe';
+        includeTerminal?: boolean;
+    }): Promise<Record<string, unknown>>;
+    /**
+     * Phase 24 get-by-key (`boing_getBlobSampleServeChallenge`).
+     * Returns null when missing.
+     */
+    getBlobSampleServeChallenge(params: {
+        blobId: string;
+        chunkIndex: number;
+        provider: string;
+        challenger: string;
+    }): Promise<Record<string, unknown> | null>;
     /** Succinct DAS proof roadmap (`boing_getBlobDasSuccinctProofPlan`). */
     getBlobDasSuccinctProofPlan(): Promise<Record<string, unknown>>;
     /** Availability + yearly rent for 1-25 names (`boing_checkNames`). */
@@ -203,8 +220,13 @@ export declare class BoingClient {
     getBalance(hexAccountId: string): Promise<AccountBalance>;
     /** Get full account state (balance, nonce, stake). Params: 32-byte account ID (hex). */
     getAccount(hexAccountId: string): Promise<AccountState>;
-    /** Get block by height. Returns null if not found. */
-    getBlockByHeight(height: number, includeReceipts?: boolean): Promise<Block | null>;
+    /**
+     * Get block by height. Returns null if not found.
+     * @param includeReceipts when true, include per-tx receipts
+     * @param includeCode when false, large byte fields (bytecode/calldata/blob data) are
+     *   `{ omitted, size, hash }` stubs — preferred for explorer tip windows
+     */
+    getBlockByHeight(height: number, includeReceipts?: boolean, includeCode?: boolean): Promise<Block | null>;
     /** Receipt for an included tx (`Transaction.id` hex), or `null` if unknown. */
     getTransactionReceipt(hexTxId: string): Promise<ExecutionReceipt | null>;
     /**
@@ -212,8 +234,8 @@ export declare class BoingClient {
      * Optional `address` is normalized to 32-byte hex when provided.
      */
     getLogs(filter: GetLogsFilter): Promise<RpcLogEntry[]>;
-    /** Get block by hash. Params: 32-byte block hash (hex). */
-    getBlockByHash(hexBlockHash: string, includeReceipts?: boolean): Promise<Block | null>;
+    /** Get block by hash. Params: 32-byte block hash (hex). See {@link getBlockByHeight} for flags. */
+    getBlockByHash(hexBlockHash: string, includeReceipts?: boolean, includeCode?: boolean): Promise<Block | null>;
     /** Get Merkle proof for an account. Params: 32-byte account ID (hex). */
     getAccountProof(hexAccountId: string): Promise<AccountProof>;
     /** Verify an account Merkle proof. Params: hex proof, hex state root. */
@@ -291,8 +313,16 @@ export declare class BoingClient {
      */
     /** List pending governance QA pool items. */
     qaPoolList(): Promise<QaPoolListResult>;
-    /** Read-only: slash/appeal registry (equivocation + liveness). */
-    listSlashRecords(): Promise<ListSlashRecordsResult>;
+    /**
+     * Read-only: slash/appeal registry (consensus + local mirror).
+     * Phase 23/25: optional `{ reason, slashId, appealStatus, includeExpired, includeResolved }`.
+     */
+    listSlashRecords(filters?: ListSlashRecordsParams): Promise<ListSlashRecordsResult>;
+    /**
+     * Phase 22 read-only audit: dual-verify stored Ed25519 resolve ballots,
+     * pin-set match, and registry commitment (`boing_reverifySlashAppealBallots`).
+     */
+    reverifySlashAppealBallots(filters?: ReverifySlashAppealBallotsParams): Promise<ReverifySlashAppealBallotsResult>;
     /**
      * Submit a slash appeal. Requires operator header when the node sets `BOING_OPERATOR_RPC_TOKEN`.
      * `evidenceHex` is optional hex (with or without `0x`); empty string = empty evidence.

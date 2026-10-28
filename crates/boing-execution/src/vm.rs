@@ -3,26 +3,28 @@
 use boing_primitives::{
     blob_sample_ask_escrow_account, blob_sample_serve_challenge_bond_escrow_account,
     contract_deploy_init_body, contract_deploy_uses_init_code, create2_contract_address,
-    default_signing_chain_id, media_blob_gas, media_blob_max_bytes_at, media_blob_max_das_chunks_at,
-    media_blob_meta_tx_gas, nonce_derived_contract_address, validate_batch_calls,
-    validate_blob_announce_with_cap, validate_challenge_requires_settle, validate_pay_blob_sample,
-    validate_pay_blob_sample_with_max_chunks, validate_put_blob_with_cap,
+    default_signing_chain_id, media_blob_gas, media_blob_max_bytes_at,
+    media_blob_max_das_chunks_at, media_blob_meta_tx_gas, nonce_derived_contract_address,
+    phase20_is_legacy_electorate_snapshot, phase20_pin_set_commitment,
+    phase20_snapshot_electorate_w, phase32_admit_bls_aggregate_resolve_tx,
+    phase32_committee_requires_attested, phase32_committee_requires_bls_aggregate,
+    phase32_decode_signer_bitset, phase32_verify_aggregate_resolve_self_contained,
+    validate_batch_calls, validate_blob_announce_with_cap, validate_challenge_requires_settle,
+    validate_pay_blob_sample, validate_pay_blob_sample_with_max_chunks, validate_put_blob_with_cap,
     validate_register_blob_sample_offer, validate_renew_media_blob_pin,
-    validate_settle_blob_sample_match, verify_slash_appeal_resolve_ballot,
-    phase19_committee_requires_attested, phase20_is_legacy_electorate_snapshot,
-    phase20_pin_set_commitment, phase20_snapshot_electorate_w, AccountId, AccountState,
-    BatchCall, BlobId, BlobRetention, ExecutionLog, Hash, MediaBlobDasSample, QaPoolVoteKind,
-    Transaction, TransactionPayload, PHASE11_FAILED_SERVE_PENALTY, PHASE11_SERVE_CHALLENGE_BOND,
+    validate_settle_blob_sample_match, verify_slash_appeal_resolve_ballot_dual, AccountId,
+    AccountState, BatchCall, BlobId, BlobRetention, BlsAggregateResolveSelfContainedPayload,
+    ExecutionLog, Hash, MediaBlobDasSample, QaPoolVoteKind, Transaction, TransactionPayload,
+    PHASE11_FAILED_SERVE_PENALTY, PHASE11_SERVE_CHALLENGE_BOND,
     PHASE14_FAILED_SERVE_APPEAL_WINDOW_BLOCKS, PHASE14_MAX_APPEAL_EVIDENCE_BYTES,
+    PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
 };
-use boing_state::SettledSampleMatch;
 use boing_qa::{
     check_contract_deploy_full, check_contract_deploy_full_with_metadata, QaPoolGovernanceConfig,
     QaQuorumDecision, QaResult, RuleRegistry,
 };
-use boing_state::{
-    unpaid_counted_voters, EscrowedSampleOffer, QaPendingRecord, StateStore,
-};
+use boing_state::SettledSampleMatch;
+use boing_state::{unpaid_counted_voters, EscrowedSampleOffer, QaPendingRecord, StateStore};
 
 use super::interpreter::{Interpreter, VmExecutionContext};
 use crate::gas::base;
@@ -117,6 +119,9 @@ pub struct Vm {
     blobs_root_header_from: Option<u64>,
     /// Phase 7: raise Put/Announce max toward 256 MiB from this height. `None` = stay at 16 MiB.
     media_blobs_phase7_cap_from: Option<u64>,
+    /// Phase 32: flip multi-pin committee from Ed25519 tx 32 → BLS aggregate tx 33.
+    /// `None` = Phase 31 policy (multi-pin default stays 32).
+    bls_committee_flip_from: Option<u64>,
 }
 
 impl Vm {
@@ -159,6 +164,15 @@ impl Vm {
 
     pub fn media_blobs_phase7_cap_from(&self) -> Option<u64> {
         self.media_blobs_phase7_cap_from
+    }
+
+    /// Phase 32 BLS multi-pin committee flip (`None` keeps Ed25519 tx 32 default).
+    pub fn set_bls_committee_flip_from(&mut self, from: Option<u64>) {
+        self.bls_committee_flip_from = from;
+    }
+
+    pub fn bls_committee_flip_from(&self) -> Option<u64> {
+        self.bls_committee_flip_from
     }
 
     pub fn media_blob_max_bytes(&self, height: u64) -> usize {
@@ -226,10 +240,16 @@ impl Vm {
         (self.registration_chain_id, self.registration_v2_from)
     }
 
-    fn registration_proof_ok(&self, height: u64, owner: &AccountId, node_id: &AccountId, sig: &[u8]) -> bool {
-        let v2 = self
-            .registration_chain_id
-            .is_some_and(|c| boing_primitives::verify_validator_registration_v2(owner, node_id, sig, c));
+    fn registration_proof_ok(
+        &self,
+        height: u64,
+        owner: &AccountId,
+        node_id: &AccountId,
+        sig: &[u8],
+    ) -> bool {
+        let v2 = self.registration_chain_id.is_some_and(|c| {
+            boing_primitives::verify_validator_registration_v2(owner, node_id, sig, c)
+        });
         match self.registration_chain_id {
             Some(_) if height >= self.registration_v2_from => v2,
             _ => v2 || boing_primitives::verify_validator_registration(owner, node_id, sig),
@@ -249,6 +269,7 @@ impl Vm {
             media_blobs_from: None,
             blobs_root_header_from: None,
             media_blobs_phase7_cap_from: None,
+            bls_committee_flip_from: None,
         }
     }
 
@@ -266,6 +287,7 @@ impl Vm {
             media_blobs_from: None,
             blobs_root_header_from: None,
             media_blobs_phase7_cap_from: None,
+            bls_committee_flip_from: None,
         }
     }
 
@@ -286,6 +308,7 @@ impl Vm {
             media_blobs_from: None,
             blobs_root_header_from: None,
             media_blobs_phase7_cap_from: None,
+            bls_committee_flip_from: None,
         }
     }
 
@@ -484,8 +507,15 @@ impl Vm {
             } => {
                 let mut params = open_validator_params_at(state, exec_ctx.block_height)?;
                 // The configured bond is whole BOING; the record and the debit are ledger units.
-                params.bond = self.denomination_at(exec_ctx.block_height).scale(params.bond);
-                if !self.registration_proof_ok(exec_ctx.block_height, &tx.sender, node_id, node_signature) {
+                params.bond = self
+                    .denomination_at(exec_ctx.block_height)
+                    .scale(params.bond);
+                if !self.registration_proof_ok(
+                    exec_ctx.block_height,
+                    &tx.sender,
+                    node_id,
+                    node_signature,
+                ) {
                     return Err(VmError::OpenValidator(
                         boing_state::OpenValidatorError::InvalidNodeSignature.to_string(),
                     ));
@@ -549,15 +579,13 @@ impl Vm {
             | TransactionPayload::NameTransfer { .. }
             | TransactionPayload::NameSetTarget { .. }
             | TransactionPayload::NameSetPrimary { .. }
-            | TransactionPayload::NameRelease { .. } => {
-                execute_name_tx(
-                    state,
-                    tx,
-                    exec_ctx.block_height,
-                    exec_ctx.block_height >= self.security_v4_from,
-                    self.denomination_at(exec_ctx.block_height).unit(),
-                )?
-            }
+            | TransactionPayload::NameRelease { .. } => execute_name_tx(
+                state,
+                tx,
+                exec_ctx.block_height,
+                exec_ctx.block_height >= self.security_v4_from,
+                self.denomination_at(exec_ctx.block_height).unit(),
+            )?,
             TransactionPayload::PutBlob {
                 retention,
                 content_type,
@@ -736,6 +764,40 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::ResolveSlashAppealBlsAggregate {
+                appeal_id,
+                approved,
+                signer_bitset,
+                aggregate_signature,
+                signer_bls_pubkeys,
+            } => {
+                return self.execute_resolve_slash_appeal_bls_aggregate(
+                    state,
+                    tx,
+                    *appeal_id,
+                    *approved,
+                    signer_bitset,
+                    *aggregate_signature,
+                    signer_bls_pubkeys,
+                    exec_ctx.block_height,
+                );
+            }
+            TransactionPayload::GrantBlobDownload { blob_id, .. } => {
+                return self.execute_blob_download_acl_tx(
+                    state,
+                    tx,
+                    blob_id,
+                    exec_ctx.block_height,
+                );
+            }
+            TransactionPayload::RevokeBlobDownload { blob_id, .. } => {
+                return self.execute_blob_download_acl_tx(
+                    state,
+                    tx,
+                    blob_id,
+                    exec_ctx.block_height,
+                );
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -803,6 +865,31 @@ impl Vm {
         let gas_used = media_blob_gas(size as usize, retention);
         Ok(VmExecutionResult {
             gas_used,
+            return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    /// Phase 34: Grant/RevokeBlobDownload — meter + nonce; ACL lives in the node sidecar.
+    fn execute_blob_download_acl_tx(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        blob_id: &BlobId,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.media_blobs_active(height) {
+            return Err(VmError::MediaBlobsNotActive {
+                from: self.media_blobs_from,
+            });
+        }
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
             return_data: blob_id.to_vec(),
             logs: Vec::new(),
         })
@@ -1066,16 +1153,15 @@ impl Vm {
         apply_media_blob_block_housekeeping(state, height)?;
 
         // Phase 12: challenger must have previously settled a match with this provider.
-        let has_receipt = state.sample_offers().has_settle_receipt(
-            blob_id,
-            chunk_index,
-            provider,
-            &tx.sender,
-        );
-        validate_challenge_requires_settle(has_receipt)
-            .map_err(|e| VmError::MediaBlob(format!(
+        let has_receipt =
+            state
+                .sample_offers()
+                .has_settle_receipt(blob_id, chunk_index, provider, &tx.sender);
+        validate_challenge_requires_settle(has_receipt).map_err(|e| {
+            VmError::MediaBlob(format!(
                 "challenge requires prior SettleBlobSampleMatch: {e}"
-            )))?;
+            ))
+        })?;
 
         let bond = PHASE11_SERVE_CHALLENGE_BOND;
         let penalty = PHASE11_FAILED_SERVE_PENALTY;
@@ -1135,7 +1221,7 @@ impl Vm {
         challenger: &AccountId,
         chunk_hash: [u8; 32],
         chunks_root: [u8; 32],
-        siblings: &[ [u8; 32] ],
+        siblings: &[[u8; 32]],
         height: u64,
     ) -> Result<VmExecutionResult, VmError> {
         if !self.media_blobs_active(height) {
@@ -1212,8 +1298,7 @@ impl Vm {
     ) -> Result<VmExecutionResult, VmError> {
         // Phase 15: always-on — equivocation/liveness appeals must work when media is inactive.
         // Phase 20: snapshot electorate W (+ pin-set commitment) at Submit for frozen ⌈2W/3⌉.
-        let pinned: Option<Vec<AccountId>> =
-            state.slash_appeal_resolvers().map(|s| s.to_vec());
+        let pinned: Option<Vec<AccountId>> = state.slash_appeal_resolvers().map(|s| s.to_vec());
         let (electorate_w_snapshot, pin_set_commitment) = match pinned.as_deref() {
             Some(set) if !set.is_empty() => {
                 let stakes: Vec<u128> = set
@@ -1273,42 +1358,57 @@ impl Vm {
             .slash_appeals_mut()
             .gate_resolve_window(appeal_id, height)
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
-        // Phase 18 attested path: look up pending appeal slash_id and verify ballot
-        // against tx.sender + chain_id before casting.
-        // Phase 19: when |pinned slash_appeal_resolvers| > 1, unattested 31 is rejected
-        // before cast (committee nets must use 32). Historical unattested votes already
-        // recorded keep their weight mid-tally — this gate is admission-only.
+        // Phase 18/22 attested path: look up pending appeal slash_id + pin_set_commitment
+        // and dual-verify ballot (V2 preferred, then V1) against tx.sender + chain_id.
+        // Phase 19/31: when |pinned| > 1 and flip unset, unattested 31 is rejected
+        // (committee nets must use 32). Phase 32: when flip active and |pinned| > 1,
+        // reject both 31 and 32 — use ResolveSlashAppealBlsAggregate (33).
+        // Historical unattested votes already recorded keep their weight mid-tally —
+        // this gate is admission-only. Phase 22: new casts should sign V2 (pin-bound).
+        let pinned_len = state.slash_appeal_resolvers().map(|s| s.len()).unwrap_or(0);
+        if phase32_committee_requires_bls_aggregate(
+            pinned_len,
+            height,
+            self.bls_committee_flip_from,
+        ) {
+            return Err(VmError::MediaBlob(
+                "ResolveSlashAppeal / ResolveSlashAppealAttested (31/32) rejected when BLS committee flip active and |slash_appeal_resolvers| > 1; use ResolveSlashAppealBlsAggregate (33)"
+                    .into(),
+            ));
+        }
         let ballot_to_store = if let Some(sig) = ballot_signature {
-            let slash_id = state
+            let (slash_id, pin_set_commitment) = state
                 .slash_appeals()
                 .get_appeal(appeal_id)
                 .filter(|a| a.status == boing_state::ConsensusAppealStatus::Pending)
-                .map(|a| a.slash_id)
+                .map(|a| (a.slash_id, a.pin_set_commitment))
                 .ok_or_else(|| {
-                    VmError::MediaBlob("appeal not found or not pending for attested resolve".into())
+                    VmError::MediaBlob(
+                        "appeal not found or not pending for attested resolve".into(),
+                    )
                 })?;
             let chain_id = self
                 .registration_chain_id
                 .or_else(default_signing_chain_id)
                 .unwrap_or(0);
-            verify_slash_appeal_resolve_ballot(
+            verify_slash_appeal_resolve_ballot_dual(
                 chain_id,
                 appeal_id,
                 slash_id,
                 approved,
                 &tx.sender,
+                &pin_set_commitment,
                 &sig,
             )
             .map_err(|e| VmError::MediaBlob(format!("invalid resolve ballot: {e}")))?;
             Some(sig)
         } else {
-            if let Some(set) = state.slash_appeal_resolvers() {
-                if phase19_committee_requires_attested(set.len()) {
-                    return Err(VmError::MediaBlob(
-                        "ResolveSlashAppeal (31) rejected when |slash_appeal_resolvers| > 1; use ResolveSlashAppealAttested (32)"
-                            .into(),
-                    ));
-                }
+            if phase32_committee_requires_attested(pinned_len, height, self.bls_committee_flip_from)
+            {
+                return Err(VmError::MediaBlob(
+                    "ResolveSlashAppeal (31) rejected when |slash_appeal_resolvers| > 1; use ResolveSlashAppealAttested (32)"
+                        .into(),
+                ));
             }
             None
         };
@@ -1316,8 +1416,7 @@ impl Vm {
         // Submit-height snapshot when present; pre-V4 legacy rows (sentinel 0 + zero
         // pin commit) recompute live W each cast so mid-upgrade tallies do not strand.
         // Unpinned / empty pin → effective W=1 (solo-dev one-shot). W=0 never finalizes.
-        let pinned: Option<Vec<AccountId>> =
-            state.slash_appeal_resolvers().map(|s| s.to_vec());
+        let pinned: Option<Vec<AccountId>> = state.slash_appeal_resolvers().map(|s| s.to_vec());
         let appeal_snap = state
             .slash_appeals()
             .get_appeal(appeal_id)
@@ -1328,36 +1427,34 @@ impl Vm {
             Some(set) if !set.is_empty() => phase20_pin_set_commitment(set),
             _ => phase20_pin_set_commitment(&[]),
         };
-        let (voter_weight, electorate_w) = if phase20_is_legacy_electorate_snapshot(
-            electorate_w_snapshot,
-            &pin_set_commitment,
-        ) {
-            // Legacy pre-V4 Pending: live recompute (Phase 17 behavior).
-            match pinned.as_deref() {
-                Some(set) if !set.is_empty() => {
-                    let mut w = 0u128;
-                    for id in set {
-                        w = w.saturating_add(state.get(id).map(|a| a.stake).unwrap_or(0));
+        let (voter_weight, electorate_w) =
+            if phase20_is_legacy_electorate_snapshot(electorate_w_snapshot, &pin_set_commitment) {
+                // Legacy pre-V4 Pending: live recompute (Phase 17 behavior).
+                match pinned.as_deref() {
+                    Some(set) if !set.is_empty() => {
+                        let mut w = 0u128;
+                        for id in set {
+                            w = w.saturating_add(state.get(id).map(|a| a.stake).unwrap_or(0));
+                        }
+                        let voter_w = state.get(&tx.sender).map(|a| a.stake).unwrap_or(0);
+                        (voter_w, w)
                     }
-                    let voter_w = state.get(&tx.sender).map(|a| a.stake).unwrap_or(0);
-                    (voter_w, w)
+                    _ => (1u128, 1u128),
                 }
-                _ => (1u128, 1u128),
-            }
-        } else {
-            if current_pin_commit != pin_set_commitment {
-                return Err(VmError::MediaBlob(
-                    "slash appeal pin set changed since submit".into(),
-                ));
-            }
-            let voter_w = match pinned.as_deref() {
-                Some(set) if !set.is_empty() => {
-                    state.get(&tx.sender).map(|a| a.stake).unwrap_or(0)
+            } else {
+                if current_pin_commit != pin_set_commitment {
+                    return Err(VmError::MediaBlob(
+                        "slash appeal pin set changed since submit".into(),
+                    ));
                 }
-                _ => 1u128,
+                let voter_w = match pinned.as_deref() {
+                    Some(set) if !set.is_empty() => {
+                        state.get(&tx.sender).map(|a| a.stake).unwrap_or(0)
+                    }
+                    _ => 1u128,
+                };
+                (voter_w, electorate_w_snapshot)
             };
-            (voter_w, electorate_w_snapshot)
-        };
         let outcome = state
             .slash_appeals_mut()
             .cast_resolve_vote(
@@ -1399,6 +1496,149 @@ impl Vm {
             };
             let _ = restored;
         }
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: appeal_id.to_le_bytes().to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    /// Phase 31/32: BLS aggregate resolve (tx 33). Verifies self-contained aggregate,
+    /// then stake-weighted-casts each bitset signer. Optional until Phase 32 flip; required
+    /// for multi-pin when `bls_committee_flip_from` is active.
+    fn execute_resolve_slash_appeal_bls_aggregate(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        appeal_id: u64,
+        approved: bool,
+        signer_bitset: &[u8],
+        aggregate_signature: boing_primitives::BlsSignatureG2,
+        signer_bls_pubkeys: &[boing_primitives::BlsPublicKeyG1],
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        phase32_admit_bls_aggregate_resolve_tx().map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        if !PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED {
+            return Err(VmError::MediaBlob(
+                "ResolveSlashAppealBlsAggregate (33) consensus admit not wired; use ResolveSlashAppealAttested (32)"
+                    .into(),
+            ));
+        }
+        state
+            .slash_appeals_mut()
+            .gate_resolve_window(appeal_id, height)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
+        let (slash_id, pin_set_commitment, electorate_w_snapshot) = state
+            .slash_appeals()
+            .get_appeal(appeal_id)
+            .filter(|a| a.status == boing_state::ConsensusAppealStatus::Pending)
+            .map(|a| (a.slash_id, a.pin_set_commitment, a.electorate_w_snapshot))
+            .ok_or_else(|| {
+                VmError::MediaBlob(
+                    "appeal not found or not pending for BLS aggregate resolve".into(),
+                )
+            })?;
+
+        let pinned: Vec<AccountId> = state
+            .slash_appeal_resolvers()
+            .map(|s| s.to_vec())
+            .unwrap_or_default();
+        if pinned.is_empty() {
+            return Err(VmError::MediaBlob(
+                "empty slash_appeal_resolvers pin set — cannot execute BLS aggregate resolve"
+                    .into(),
+            ));
+        }
+        let current_pin_commit = phase20_pin_set_commitment(&pinned);
+        if !phase20_is_legacy_electorate_snapshot(electorate_w_snapshot, &pin_set_commitment)
+            && current_pin_commit != pin_set_commitment
+        {
+            return Err(VmError::MediaBlob(
+                "slash appeal pin set changed since submit".into(),
+            ));
+        }
+
+        let chain_id = self
+            .registration_chain_id
+            .or_else(default_signing_chain_id)
+            .unwrap_or(0);
+        let payload = BlsAggregateResolveSelfContainedPayload {
+            appeal_id,
+            approved,
+            signer_bitset: signer_bitset.to_vec(),
+            aggregate_signature,
+            signer_bls_pubkeys: signer_bls_pubkeys.to_vec(),
+        };
+        phase32_verify_aggregate_resolve_self_contained(
+            chain_id,
+            slash_id,
+            &pin_set_commitment,
+            &pinned,
+            &payload,
+        )
+        .map_err(|e| VmError::MediaBlob(format!("invalid BLS aggregate resolve: {e}")))?;
+
+        let signers = phase32_decode_signer_bitset(&pinned, signer_bitset)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
+        let electorate_w =
+            if phase20_is_legacy_electorate_snapshot(electorate_w_snapshot, &pin_set_commitment) {
+                let mut w = 0u128;
+                for id in &pinned {
+                    w = w.saturating_add(state.get(id).map(|a| a.stake).unwrap_or(0));
+                }
+                w
+            } else {
+                electorate_w_snapshot
+            };
+
+        let mut batch: Vec<(
+            AccountId,
+            bool,
+            u128,
+            Option<boing_primitives::SlashAppealBallotSignature>,
+        )> = Vec::with_capacity(signers.len());
+        for voter in &signers {
+            let voter_w = state.get(voter).map(|a| a.stake).unwrap_or(0);
+            batch.push((*voter, approved, voter_w, None));
+        }
+
+        let outcome = state
+            .slash_appeals_mut()
+            .cast_resolve_votes_batch(appeal_id, &batch, electorate_w)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+
+        if matches!(
+            outcome,
+            boing_state::CastResolveOutcome::Finalized { approved: true }
+        ) {
+            let slash = state
+                .slash_appeals()
+                .get_slash(slash_id)
+                .cloned()
+                .ok_or_else(|| VmError::MediaBlob("slash not found after finalize".into()))?;
+            let _ = match slash.reason {
+                boing_state::ConsensusSlashReason::BlobFailedServe => {
+                    boing_tokenomics::restore_failed_serve_penalty(
+                        state,
+                        &slash.account,
+                        slash.amount,
+                    )
+                }
+                _ => boing_tokenomics::restore_equivocation_slash(
+                    state,
+                    &slash.account,
+                    slash.amount,
+                ),
+            };
+        }
+
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce
@@ -1572,7 +1812,10 @@ impl Vm {
             .ok_or(VmError::NonceOverflow)?;
 
         let pay_abstain = self.qa_pool_config.pay_abstain;
-        let reward_each = self.qa_pool_config.reward_per_counted_vote.saturating_mul(unit);
+        let reward_each = self
+            .qa_pool_config
+            .reward_per_counted_vote
+            .saturating_mul(unit);
         let (decision, unpaid) = {
             let record = state
                 .qa_pending_mut(&subject)
@@ -1910,7 +2153,9 @@ fn sender_may_resolve_slash_appeal(state: &StateStore, sender: &AccountId) -> bo
     state.get(sender).is_some_and(|s| s.stake > 0)
 }
 
-/// Housekeeping: settle FailedServe + prune stale settle receipts + expire overdue appeals.
+/// Housekeeping: settle FailedServe + prune stale settle receipts + expire overdue
+/// appeals + prune Expired / ancient Approved·Rejected appeals + prune terminal
+/// serve challenges past retention.
 pub fn apply_media_blob_block_housekeeping(
     state: &mut StateStore,
     height: u64,
@@ -1919,6 +2164,12 @@ pub fn apply_media_blob_block_housekeeping(
     let _ = state.sample_offers_mut().prune_settle_receipts(height);
     // Phase 21: stuck Pending (W=0 / incomplete tallies) → Expired; no restore.
     let _ = state.slash_appeals_mut().expire_pending_appeals(height);
+    // Phase 23: drop Expired past resolve_deadline + 4096; slash rows stay.
+    let _ = state.slash_appeals_mut().prune_expired_appeals(height);
+    // Phase 25: drop Approved / Rejected past resolve_deadline + 4096; slash rows stay.
+    let _ = state.slash_appeals_mut().prune_resolved_appeals(height);
+    // Phase 24: drop Responded / settled FailedServe past deadline + 4096.
+    let _ = state.sample_serve_mut().prune_terminal_challenges(height);
     Ok(settled)
 }
 
@@ -2505,6 +2756,12 @@ fn open_validator_params_at(
     Ok(params)
 }
 
+/// Hard cap on one VM frame's linear memory. Memory growth is not separately metered, so without a
+/// cap a tiny contract (`PUSH <2^40> MSTORE`) makes the node try to allocate terabytes (abort) or hit
+/// `Vec` capacity-overflow panics. Real contracts use kilobytes; calldata/return buffers are already
+/// bounded far below this.
+pub const MAX_VM_MEMORY_BYTES: usize = 8 * 1024 * 1024;
+
 #[derive(Debug, thiserror::Error)]
 pub enum VmError {
     #[error("Account not found")]
@@ -2540,6 +2797,8 @@ pub enum VmError {
     CallDepthExceeded,
     #[error("CALL input or output buffer exceeds protocol limit")]
     CallBufferTooLarge,
+    #[error("VM memory limit exceeded (max {MAX_VM_MEMORY_BYTES} bytes per frame)")]
+    MemoryLimitExceeded,
     #[error("QA rejected: {rule_id} — {message}")]
     QaRejected { rule_id: String, message: String },
     #[error("QA pool vote ineligible: {0}")]
@@ -2665,23 +2924,41 @@ mod registration_proof_rule_tests {
         let v2 = boing_primitives::sign_validator_registration_v2(&owner, &node, 6913);
         let other = boing_primitives::sign_validator_registration_v2(&owner, &node, 6914);
         let mut vm = Vm::new();
-        assert!(vm.registration_proof_ok(5, &owner, &node_id, &v1), "no chain id: v1");
+        assert!(
+            vm.registration_proof_ok(5, &owner, &node_id, &v1),
+            "no chain id: v1"
+        );
         assert!(!vm.registration_proof_ok(5, &owner, &node_id, &v2));
         vm.set_registration_proof_rule(Some(6913), 10);
-        assert!(vm.registration_proof_ok(9, &owner, &node_id, &v1), "v1 before activation");
-        assert!(vm.registration_proof_ok(9, &owner, &node_id, &v2), "v2 before activation");
+        assert!(
+            vm.registration_proof_ok(9, &owner, &node_id, &v1),
+            "v1 before activation"
+        );
+        assert!(
+            vm.registration_proof_ok(9, &owner, &node_id, &v2),
+            "v2 before activation"
+        );
         assert!(!vm.registration_proof_ok(9, &owner, &node_id, &other));
-        assert!(!vm.registration_proof_ok(10, &owner, &node_id, &v1), "v1 rejected from activation");
+        assert!(
+            !vm.registration_proof_ok(10, &owner, &node_id, &v1),
+            "v1 rejected from activation"
+        );
         assert!(vm.registration_proof_ok(10, &owner, &node_id, &v2));
-        assert!(!vm.registration_proof_ok(10, &owner, &node_id, &other), "other chain rejected");
-        assert!(!vm.registration_proof_ok(10, &AccountId([8u8; 32]), &node_id, &v2), "bound to owner");
+        assert!(
+            !vm.registration_proof_ok(10, &owner, &node_id, &other),
+            "other chain rejected"
+        );
+        assert!(
+            !vm.registration_proof_ok(10, &AccountId([8u8; 32]), &node_id, &v2),
+            "bound to owner"
+        );
     }
 }
 
 #[cfg(test)]
 mod slash_appeal_phase14_tests {
     use super::*;
-    use boing_primitives::{Account, AccessList, PHASE14_MAX_APPEAL_EVIDENCE_BYTES};
+    use boing_primitives::{AccessList, Account, PHASE14_MAX_APPEAL_EVIDENCE_BYTES};
     use boing_state::ConsensusSlashReason;
 
     fn fund(state: &mut StateStore, id: AccountId, balance: u128, stake: u128, nonce: u64) {
@@ -2737,7 +3014,8 @@ mod slash_appeal_phase14_tests {
             },
             access_list: AccessList::new(vec![provider], vec![provider]),
         };
-        vm.execute_with_context(&submit, &mut state, ctx(50)).unwrap();
+        vm.execute_with_context(&submit, &mut state, ctx(50))
+            .unwrap();
         assert_eq!(state.slash_appeals().list_appeals().len(), 1);
 
         let resolve = Transaction {
@@ -2749,7 +3027,8 @@ mod slash_appeal_phase14_tests {
             },
             access_list: AccessList::new(vec![validator], vec![validator]),
         };
-        vm.execute_with_context(&resolve, &mut state, ctx(51)).unwrap();
+        vm.execute_with_context(&resolve, &mut state, ctx(51))
+            .unwrap();
         assert!(state.slash_appeals().is_reversed(7));
         assert_eq!(state.get(&provider).unwrap().balance, 1_100);
         assert_eq!(state.get(&provider).unwrap().stake, 50);
@@ -2786,7 +3065,8 @@ mod slash_appeal_phase14_tests {
             },
             access_list: AccessList::new(vec![provider], vec![provider]),
         };
-        vm.execute_with_context(&submit, &mut state, ctx(2)).unwrap();
+        vm.execute_with_context(&submit, &mut state, ctx(2))
+            .unwrap();
         let resolve = Transaction {
             nonce: 0,
             sender: validator,
@@ -2796,7 +3076,8 @@ mod slash_appeal_phase14_tests {
             },
             access_list: AccessList::new(vec![validator], vec![validator]),
         };
-        vm.execute_with_context(&resolve, &mut state, ctx(3)).unwrap();
+        vm.execute_with_context(&resolve, &mut state, ctx(3))
+            .unwrap();
         assert!(!state.slash_appeals().is_reversed(1));
         assert_eq!(state.get(&provider).unwrap().balance, 100);
     }
@@ -2834,7 +3115,9 @@ mod slash_appeal_phase14_tests {
             },
             access_list: AccessList::new(vec![provider], vec![provider]),
         };
-        assert!(vm.execute_with_context(&oversize, &mut state, ctx(2)).is_err());
+        assert!(vm
+            .execute_with_context(&oversize, &mut state, ctx(2))
+            .is_err());
 
         let submit = Transaction {
             nonce: 0,
@@ -2845,7 +3128,8 @@ mod slash_appeal_phase14_tests {
             },
             access_list: AccessList::new(vec![provider], vec![provider]),
         };
-        vm.execute_with_context(&submit, &mut state, ctx(2)).unwrap();
+        vm.execute_with_context(&submit, &mut state, ctx(2))
+            .unwrap();
 
         let bad = Transaction {
             nonce: 0,
@@ -2856,7 +3140,9 @@ mod slash_appeal_phase14_tests {
             },
             access_list: AccessList::new(vec![outsider], vec![outsider]),
         };
-        let err = vm.execute_with_context(&bad, &mut state, ctx(3)).unwrap_err();
+        let err = vm
+            .execute_with_context(&bad, &mut state, ctx(3))
+            .unwrap_err();
         assert!(format!("{err}").contains("consensus validator"));
     }
 
@@ -2905,10 +3191,13 @@ mod slash_appeal_phase14_tests {
             },
             access_list: AccessList::new(vec![validator], vec![validator]),
         };
-        vm.execute_with_context(&resolve, &mut state, ctx(3)).unwrap();
+        vm.execute_with_context(&resolve, &mut state, ctx(3))
+            .unwrap();
         let mut resolve2 = resolve.clone();
         resolve2.nonce = 1;
-        assert!(vm.execute_with_context(&resolve2, &mut state, ctx(4)).is_err());
+        assert!(vm
+            .execute_with_context(&resolve2, &mut state, ctx(4))
+            .is_err());
     }
 
     #[test]
@@ -2967,10 +3256,7 @@ mod slash_appeal_phase14_tests {
         assert!(state.slash_appeals().is_reversed(slash_id));
         assert_eq!(state.get(&offender).unwrap().stake, 10_000);
         assert_eq!(
-            state
-                .get(&boing_tokenomics::FEE_BURN_SINK)
-                .unwrap()
-                .balance,
+            state.get(&boing_tokenomics::FEE_BURN_SINK).unwrap().balance,
             0
         );
     }
@@ -3210,7 +3496,12 @@ mod slash_appeal_phase14_tests {
                 || err.to_string().contains("ballot"),
             "got {err}"
         );
-        assert!(state.slash_appeals().get_appeal(1).unwrap().votes.is_empty());
+        assert!(state
+            .slash_appeals()
+            .get_appeal(1)
+            .unwrap()
+            .votes
+            .is_empty());
 
         // Two valid attested approves → finalize.
         let sig1 = sign_slash_appeal_resolve_ballot(chain_id, 1, 55, true, &key1);
@@ -3260,6 +3551,107 @@ mod slash_appeal_phase14_tests {
         .unwrap();
         assert!(state.slash_appeals().is_reversed(55));
         assert_eq!(state.get(&provider).unwrap().balance, 1_100);
+    }
+
+    #[test]
+    fn phase31_bls_aggregate_33_finalizes_and_keeps_32_path() {
+        use boing_primitives::{
+            phase27_aggregate_bls_signatures, phase27_bls_pubkey_from_ikm, phase27_bls_sign,
+            phase31_bls_aggregate_ballot_preimage, phase31_encode_signer_bitset,
+            phase31_pin_set_commitment, PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED,
+            PHASE31_BLS_LIVE_TX32_STILL_ED25519,
+        };
+
+        assert!(PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED);
+        assert!(PHASE31_BLS_LIVE_TX32_STILL_ED25519);
+
+        let provider = AccountId([0x61; 32]);
+        let a1 = AccountId([0x62; 32]);
+        let a2 = AccountId([0x63; 32]);
+        let a3 = AccountId([0x64; 32]);
+        let chain_id = 6913u64;
+        let ikm1 = [0x71u8; 32];
+        let ikm2 = [0x72u8; 32];
+        let pk1 = phase27_bls_pubkey_from_ikm(&ikm1).unwrap();
+        let pk2 = phase27_bls_pubkey_from_ikm(&ikm2).unwrap();
+
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, a1, 1_000_000, 100, 0);
+        fund(&mut state, a2, 1_000_000, 100, 0);
+        fund(&mut state, a3, 1_000_000, 100, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                610,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                1_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![a1, a2, a3]));
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.set_registration_proof_rule(Some(chain_id), 0);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 610,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(2),
+        )
+        .unwrap();
+
+        let pinned = [a1, a2, a3];
+        let pin_commit = phase31_pin_set_commitment(&pinned);
+        assert_eq!(
+            state
+                .slash_appeals()
+                .get_appeal(1)
+                .unwrap()
+                .pin_set_commitment,
+            pin_commit
+        );
+        let msg = phase31_bls_aggregate_ballot_preimage(chain_id, 1, 610, true, &pin_commit);
+        let s1 = phase27_bls_sign(&ikm1, &msg).unwrap();
+        let s2 = phase27_bls_sign(&ikm2, &msg).unwrap();
+        let agg = phase27_aggregate_bls_signatures(&[s1, s2]).unwrap();
+        let bits = phase31_encode_signer_bitset(&pinned, &[a1, a2]).unwrap();
+
+        // Submitter a1 (validator committee member) relays the aggregate.
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: a1,
+                payload: TransactionPayload::ResolveSlashAppealBlsAggregate {
+                    appeal_id: 1,
+                    approved: true,
+                    signer_bitset: bits,
+                    aggregate_signature: agg,
+                    signer_bls_pubkeys: vec![pk1, pk2],
+                },
+                access_list: AccessList::new(vec![a1], vec![a1]),
+            },
+            &mut state,
+            ctx(3),
+        )
+        .unwrap();
+        assert!(state.slash_appeals().is_reversed(610));
+        assert_eq!(state.get(&provider).unwrap().balance, 1_100);
+        assert_eq!(
+            state.slash_appeals().get_appeal(1).unwrap().votes.len(),
+            2,
+            "both bitset signers recorded"
+        );
     }
 
     #[test]
@@ -3383,7 +3775,12 @@ mod slash_appeal_phase14_tests {
                 || err.to_string().contains("|slash_appeal_resolvers| > 1"),
             "got {err}"
         );
-        assert!(state.slash_appeals().get_appeal(1).unwrap().votes.is_empty());
+        assert!(state
+            .slash_appeals()
+            .get_appeal(1)
+            .unwrap()
+            .votes
+            .is_empty());
         assert!(!state.slash_appeals().is_reversed(88));
     }
 
@@ -3724,7 +4121,11 @@ mod slash_appeal_phase14_tests {
         .unwrap();
         assert!(state.slash_appeals().is_reversed(200));
         assert_eq!(
-            state.slash_appeals().get_appeal(1).unwrap().electorate_w_snapshot,
+            state
+                .slash_appeals()
+                .get_appeal(1)
+                .unwrap()
+                .electorate_w_snapshot,
             300
         );
     }
@@ -3790,10 +4191,7 @@ mod slash_appeal_phase14_tests {
                 ctx(3),
             )
             .unwrap_err();
-        assert!(
-            err.to_string().contains("pin set changed"),
-            "got {err}"
-        );
+        assert!(err.to_string().contains("pin set changed"), "got {err}");
     }
 
     #[test]
@@ -4015,7 +4413,11 @@ mod slash_appeal_phase14_tests {
         )
         .unwrap();
         assert_eq!(
-            state.slash_appeals().get_appeal(1).unwrap().resolve_deadline,
+            state
+                .slash_appeals()
+                .get_appeal(1)
+                .unwrap()
+                .resolve_deadline,
             1010
         );
         let err = vm
@@ -4041,7 +4443,12 @@ mod slash_appeal_phase14_tests {
             state.slash_appeals().get_appeal(1).unwrap().status,
             boing_state::ConsensusAppealStatus::Expired
         );
-        assert!(state.slash_appeals().get_appeal(1).unwrap().votes.is_empty());
+        assert!(state
+            .slash_appeals()
+            .get_appeal(1)
+            .unwrap()
+            .votes
+            .is_empty());
         assert!(!state.slash_appeals().is_reversed(211));
     }
 
@@ -4141,11 +4548,19 @@ mod slash_appeal_phase14_tests {
         )
         .unwrap();
         assert_eq!(
-            state.slash_appeals().get_appeal(1).unwrap().electorate_w_snapshot,
+            state
+                .slash_appeals()
+                .get_appeal(1)
+                .unwrap()
+                .electorate_w_snapshot,
             300
         );
         assert_eq!(
-            state.slash_appeals().get_appeal(1).unwrap().resolve_deadline,
+            state
+                .slash_appeals()
+                .get_appeal(1)
+                .unwrap()
+                .resolve_deadline,
             1002
         );
         // Unattested 31 still rejected for multi-pin (Phase 19).
@@ -4205,5 +4620,133 @@ mod slash_appeal_phase14_tests {
             state.slash_appeals().get_appeal(1).unwrap().status,
             boing_state::ConsensusAppealStatus::Approved
         );
+    }
+
+    #[test]
+    fn phase22_v2_cast_ok_wrong_pin_rejected_v1_dual_ok() {
+        use boing_primitives::{
+            sign_slash_appeal_resolve_ballot_v1, sign_slash_appeal_resolve_ballot_v2,
+        };
+        use ed25519_dalek::SigningKey;
+
+        let provider = AccountId([120u8; 32]);
+        let key1 = SigningKey::from_bytes(&[121u8; 32]);
+        let key2 = SigningKey::from_bytes(&[122u8; 32]);
+        let key3 = SigningKey::from_bytes(&[123u8; 32]);
+        let v1 = AccountId(key1.verifying_key().to_bytes());
+        let v2 = AccountId(key2.verifying_key().to_bytes());
+        let v3 = AccountId(key3.verifying_key().to_bytes());
+        let chain_id = 6913u64;
+        let mut state = StateStore::new();
+        fund(&mut state, provider, 100, 0, 0);
+        fund(&mut state, v1, 1_000_000, 100, 0);
+        fund(&mut state, v2, 1_000_000, 100, 0);
+        fund(&mut state, v3, 1_000_000, 100, 0);
+        fund(&mut state, boing_tokenomics::FEE_BURN_SINK, 1_000, 0, 0);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                220,
+                provider,
+                1_000,
+                ConsensusSlashReason::BlobFailedServe,
+                1,
+                5_000,
+            )
+            .unwrap();
+        state.set_slash_appeal_resolvers(Some(vec![v1, v2, v3]));
+        let mut vm = Vm::new();
+        vm.set_media_blobs_from(Some(0));
+        vm.set_registration_proof_rule(Some(chain_id), 0);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: provider,
+                payload: TransactionPayload::SubmitSlashAppeal {
+                    slash_id: 220,
+                    evidence: vec![],
+                },
+                access_list: AccessList::new(vec![provider], vec![provider]),
+            },
+            &mut state,
+            ctx(2),
+        )
+        .unwrap();
+        let pin = state
+            .slash_appeals()
+            .get_appeal(1)
+            .unwrap()
+            .pin_set_commitment;
+
+        // Wrong pin bind (V2 over different commitment) → reject.
+        let wrong_pin = phase20_pin_set_commitment(&[AccountId([9u8; 32])]);
+        assert_ne!(wrong_pin, pin);
+        let bad = sign_slash_appeal_resolve_ballot_v2(chain_id, 1, 220, true, &key1, &wrong_pin);
+        let err = vm
+            .execute_with_context(
+                &Transaction {
+                    nonce: 0,
+                    sender: v1,
+                    payload: TransactionPayload::ResolveSlashAppealAttested {
+                        appeal_id: 1,
+                        approved: true,
+                        ballot_signature: bad,
+                    },
+                    access_list: AccessList::new(vec![v1], vec![v1]),
+                },
+                &mut state,
+                ctx(3),
+            )
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("invalid resolve ballot"),
+            "got {err}"
+        );
+
+        // V2 cast with correct pin → ok.
+        let sig_v2 = sign_slash_appeal_resolve_ballot_v2(chain_id, 1, 220, true, &key1, &pin);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: v1,
+                payload: TransactionPayload::ResolveSlashAppealAttested {
+                    appeal_id: 1,
+                    approved: true,
+                    ballot_signature: sig_v2,
+                },
+                access_list: AccessList::new(vec![v1], vec![v1]),
+            },
+            &mut state,
+            ctx(4),
+        )
+        .unwrap();
+        assert!(state
+            .slash_appeals()
+            .get_appeal(1)
+            .unwrap()
+            .votes
+            .get(&v1)
+            .unwrap()
+            .ballot_signature
+            .is_some());
+
+        // Historical V1 still dual-verifies for mid-upgrade cast.
+        let sig_v1 = sign_slash_appeal_resolve_ballot_v1(chain_id, 1, 220, true, &key2);
+        vm.execute_with_context(
+            &Transaction {
+                nonce: 0,
+                sender: v2,
+                payload: TransactionPayload::ResolveSlashAppealAttested {
+                    appeal_id: 1,
+                    approved: true,
+                    ballot_signature: sig_v1,
+                },
+                access_list: AccessList::new(vec![v2], vec![v2]),
+            },
+            &mut state,
+            ctx(5),
+        )
+        .unwrap();
+        assert!(state.slash_appeals().is_reversed(220));
     }
 }

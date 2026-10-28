@@ -32,7 +32,6 @@ impl HdPath {
     pub fn boing(index: u32) -> Self {
         Self::new(44, Self::BOING_COIN_TYPE, 0, 0, index)
     }
-
 }
 
 impl std::fmt::Display for HdPath {

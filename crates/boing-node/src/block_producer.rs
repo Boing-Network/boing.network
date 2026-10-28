@@ -106,7 +106,8 @@ impl BlockProducer {
             return None;
         }
         let txs: Vec<Transaction> = signed_txs.iter().map(|s| s.tx.clone()).collect();
-        let signatures: Vec<boing_primitives::Signature> = signed_txs.iter().map(|s| s.signature).collect();
+        let signatures: Vec<boing_primitives::Signature> =
+            signed_txs.iter().map(|s| s.signature).collect();
         let priority_tips: Vec<u128> = signed_txs.iter().map(|s| s.priority_tip).collect();
         // Omit all-zero tip vector from the block encoding (historical wire compatibility).
         let priority_tips_field: Vec<u128> = if priority_tips.iter().any(|&t| t != 0) {
@@ -157,7 +158,9 @@ impl BlockProducer {
                         state: AccountState {
                             balance: reward,
                             nonce: 0,
-                            stake: 0, ..Default::default() },
+                            stake: 0,
+                            ..Default::default()
+                        },
                     });
                 }
             }
@@ -178,7 +181,7 @@ impl BlockProducer {
 
         state.apply_open_validator_block_hook(height, self.proposer);
 
-        let state_root = state.state_root();
+        let state_root = state.state_root_at_height(height);
         let rr = receipts_root(&receipts);
         let blobs_root = if self
             .blobs_root_header_from
@@ -207,11 +210,7 @@ impl BlockProducer {
 
         let new_state = state.snapshot();
         state.revert(checkpoint);
-        info!(
-            "Block proposed: height={} hash={:?}",
-            height,
-            block.hash()
-        );
+        info!("Block proposed: height={} hash={:?}", height, block.hash());
         Some(ProducedProposal {
             block,
             receipts,

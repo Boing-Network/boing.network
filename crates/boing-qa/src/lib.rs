@@ -90,10 +90,43 @@ fn is_valid_opcode_with(b: u8, native_value: bool) -> bool {
 fn is_valid_opcode(b: u8) -> bool {
     matches!(
         b,
-        0x00 | 0x01 | 0x02 | 0x03 | 0x04 | 0x06 | 0x08 | 0x09 | 0x10 | 0x11 | 0x14 | 0x15 | 0x16 | 0x17
-            | 0x18 | 0x19 | 0x1b | 0x1c | 0x1d
-            | 0x30 | 0x33 | 0x40 | 0x41 | 0x80 | 0xa0 | 0xa1 | 0xa2 | 0xa3 | 0xa4 | 0x51
-            | 0x52 | 0x54 | 0x55 | 0x56 | 0x57 | 0xf1 | 0xf3 | 0xf5
+        0x00 | 0x01
+            | 0x02
+            | 0x03
+            | 0x04
+            | 0x06
+            | 0x08
+            | 0x09
+            | 0x10
+            | 0x11
+            | 0x14
+            | 0x15
+            | 0x16
+            | 0x17
+            | 0x18
+            | 0x19
+            | 0x1b
+            | 0x1c
+            | 0x1d
+            | 0x30
+            | 0x33
+            | 0x40
+            | 0x41
+            | 0x80
+            | 0xa0
+            | 0xa1
+            | 0xa2
+            | 0xa3
+            | 0xa4
+            | 0x51
+            | 0x52
+            | 0x54
+            | 0x55
+            | 0x56
+            | 0x57
+            | 0xf1
+            | 0xf3
+            | 0xf5
     ) || (0x60..=0x7f).contains(&b)
 }
 
@@ -106,7 +139,10 @@ fn push_immediate_size(b: u8) -> Option<u8> {
 }
 
 /// Validation error: (offset, is_invalid_opcode, message)
-fn check_well_formed(bytecode: &[u8], native_value: bool) -> Result<(), (usize, bool, &'static str)> {
+fn check_well_formed(
+    bytecode: &[u8],
+    native_value: bool,
+) -> Result<(), (usize, bool, &'static str)> {
     let mut pc = 0;
     while pc < bytecode.len() {
         let op = bytecode[pc];
@@ -140,8 +176,16 @@ pub const MAX_ASSET_SYMBOL_LEN: usize = 32;
 
 /// Valid purpose categories per QUALITY-ASSURANCE-NETWORK.md §5.3, §10 (meme leniency).
 pub const VALID_PURPOSE_CATEGORIES: &[&str] = &[
-    "dapp", "dApp", "token", "nft", "NFT", "meme", "community", "entertainment",
-    "tooling", "other",
+    "dapp",
+    "dApp",
+    "token",
+    "nft",
+    "NFT",
+    "meme",
+    "community",
+    "entertainment",
+    "tooling",
+    "other",
 ];
 
 fn is_valid_purpose_category(s: &str) -> bool {
@@ -224,7 +268,11 @@ pub fn check_contract_deploy_full_with_metadata(
         if name.len() > MAX_ASSET_NAME_LEN {
             return QaResult::Reject(QaReject::new(
                 RuleId(RuleId::METADATA_TOO_LONG.to_string()),
-                format!("asset_name length {} exceeds max {}", name.len(), MAX_ASSET_NAME_LEN),
+                format!(
+                    "asset_name length {} exceeds max {}",
+                    name.len(),
+                    MAX_ASSET_NAME_LEN
+                ),
             ));
         }
     }
@@ -232,7 +280,11 @@ pub fn check_contract_deploy_full_with_metadata(
         if sym.len() > MAX_ASSET_SYMBOL_LEN {
             return QaResult::Reject(QaReject::new(
                 RuleId(RuleId::METADATA_TOO_LONG.to_string()),
-                format!("asset_symbol length {} exceeds max {}", sym.len(), MAX_ASSET_SYMBOL_LEN),
+                format!(
+                    "asset_symbol length {} exceeds max {}",
+                    sym.len(),
+                    MAX_ASSET_SYMBOL_LEN
+                ),
             ));
         }
     }
@@ -250,7 +302,8 @@ pub fn check_contract_deploy_full_with_metadata(
 
     // Scam patterns: byte sequences that if found → Reject
     for pattern in registry.scam_patterns() {
-        if pattern.len() <= bytecode.len() && bytecode.windows(pattern.len()).any(|w| w == pattern) {
+        if pattern.len() <= bytecode.len() && bytecode.windows(pattern.len()).any(|w| w == pattern)
+        {
             return QaResult::Reject(QaReject::new(
                 RuleId(RuleId::SCAM_PATTERN_MATCH.to_string()),
                 "Bytecode contains known scam/malware pattern".to_string(),
@@ -259,7 +312,9 @@ pub fn check_contract_deploy_full_with_metadata(
     }
 
     // Content policy: vulgarity / offensiveness blocklist (governance-mutable)
-    if let Some(reject) = check_content_policy(asset_name, asset_symbol, registry.content_blocklist()) {
+    if let Some(reject) =
+        check_content_policy(asset_name, asset_symbol, registry.content_blocklist())
+    {
         return QaResult::Reject(reject);
     }
 
@@ -371,13 +426,18 @@ pub fn check_contract_deploy_with_blocklist(
     }
 
     let wellformed = contract_deploy_init_body(bytecode);
-    if let Err((offset, invalid_opcode, reason)) = check_well_formed(wellformed, native_value_opcodes) {
+    if let Err((offset, invalid_opcode, reason)) =
+        check_well_formed(wellformed, native_value_opcodes)
+    {
         let rule_id = if invalid_opcode {
             RuleId(RuleId::INVALID_OPCODE.to_string())
         } else {
             RuleId(RuleId::MALFORMED_BYTECODE.to_string())
         };
-        return QaResult::Reject(QaReject::new(rule_id, format!("{} at offset {}", reason, offset)));
+        return QaResult::Reject(QaReject::new(
+            rule_id,
+            format!("{} at offset {}", reason, offset),
+        ));
     }
 
     // Blocklist: compare BLAKE3 hash of bytecode against known-bad hashes.
@@ -473,7 +533,10 @@ impl RuleRegistry {
         self
     }
 
-    pub fn with_always_review_categories(mut self, categories: impl IntoIterator<Item = String>) -> Self {
+    pub fn with_always_review_categories(
+        mut self,
+        categories: impl IntoIterator<Item = String>,
+    ) -> Self {
         self.always_review_categories = categories.into_iter().collect();
         self
     }
@@ -497,13 +560,19 @@ impl RuleRegistry {
     }
 
     pub fn add_always_review_category(&mut self, category: impl Into<String>) {
-        self.always_review_categories.insert(category.into().to_lowercase());
+        self.always_review_categories
+            .insert(category.into().to_lowercase());
     }
 
     /// Add a forbidden term to the content blocklist (governance-mutable). Case-insensitive.
     pub fn add_forbidden_content(&mut self, term: impl Into<String>) {
         let t = term.into().trim().to_string();
-        if !t.is_empty() && !self.content_blocklist.iter().any(|s| s.eq_ignore_ascii_case(&t)) {
+        if !t.is_empty()
+            && !self
+                .content_blocklist
+                .iter()
+                .any(|s| s.eq_ignore_ascii_case(&t))
+        {
             self.content_blocklist.push(t);
         }
     }
@@ -511,7 +580,11 @@ impl RuleRegistry {
     /// Remove a term from the content blocklist. Returns true if removed.
     pub fn remove_forbidden_content(&mut self, term: &str) -> bool {
         let lower = term.trim().to_lowercase();
-        if let Some(pos) = self.content_blocklist.iter().position(|s| s.to_lowercase() == lower) {
+        if let Some(pos) = self
+            .content_blocklist
+            .iter()
+            .position(|s| s.to_lowercase() == lower)
+        {
             self.content_blocklist.remove(pos);
             true
         } else {
@@ -572,7 +645,9 @@ mod tests {
             None,
             DEFAULT_MAX_BYTECODE_SIZE,
         );
-        assert!(matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::MALFORMED_BYTECODE));
+        assert!(
+            matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::MALFORMED_BYTECODE)
+        );
     }
 
     #[test]
@@ -612,7 +687,9 @@ mod tests {
     fn reject_truncated_push() {
         // PUSH2 needs 2 bytes of immediate; we only have 1
         let r = check_contract_deploy(&[0x61, 0x00], None, None, DEFAULT_MAX_BYTECODE_SIZE);
-        assert!(matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::MALFORMED_BYTECODE));
+        assert!(
+            matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::MALFORMED_BYTECODE)
+        );
     }
 
     #[test]
@@ -631,7 +708,9 @@ mod tests {
     #[test]
     fn reject_invalid_purpose() {
         let r = check_contract_deploy(&[0x00], Some("scam"), None, DEFAULT_MAX_BYTECODE_SIZE);
-        assert!(matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::PURPOSE_DECLARATION_INVALID));
+        assert!(
+            matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::PURPOSE_DECLARATION_INVALID)
+        );
     }
 
     #[test]
@@ -647,7 +726,9 @@ mod tests {
         let bytecode = vec![0x00, 0x00, 0x01, 0x00, 0x00]; // contains pattern
         let reg = RuleRegistry::new().with_scam_patterns(vec![pattern]);
         let r = check_contract_deploy_full(&bytecode, None, None, &reg);
-        assert!(matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::SCAM_PATTERN_MATCH));
+        assert!(
+            matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::SCAM_PATTERN_MATCH)
+        );
     }
 
     #[test]
@@ -684,7 +765,9 @@ mod tests {
             None,
             &reg,
         );
-        assert!(matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::METADATA_TOO_LONG));
+        assert!(
+            matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::METADATA_TOO_LONG)
+        );
     }
 
     #[test]
@@ -698,7 +781,9 @@ mod tests {
             None,
             &reg,
         );
-        assert!(matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::CONTENT_POLICY_VIOLATION));
+        assert!(
+            matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::CONTENT_POLICY_VIOLATION)
+        );
     }
 
     #[test]
@@ -740,6 +825,8 @@ mod tests {
             None,
             &reg,
         );
-        assert!(matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::CONTENT_POLICY_VIOLATION));
+        assert!(
+            matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::CONTENT_POLICY_VIOLATION)
+        );
     }
 }

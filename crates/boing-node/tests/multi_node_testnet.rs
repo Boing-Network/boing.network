@@ -21,7 +21,10 @@ fn node_with_p2p_and_block_provider(
     signing_key: &SigningKey,
     balance: u128,
     p2p_listen: &str,
-) -> (BoingNode, tokio::sync::mpsc::UnboundedReceiver<boing_p2p::P2pEvent>) {
+) -> (
+    BoingNode,
+    tokio::sync::mpsc::UnboundedReceiver<boing_p2p::P2pEvent>,
+) {
     let proposer = AccountId(signing_key.verifying_key().to_bytes());
     let genesis = ChainState::genesis(proposer);
     let chain = ChainState::from_genesis(genesis.clone());
@@ -42,7 +45,9 @@ fn node_with_p2p_and_block_provider(
         state: AccountState {
             balance: balance * boing_primitives::BASE_UNITS_PER_BOING,
             nonce: 0,
-            stake: 0, ..Default::default() },
+            stake: 0,
+            ..Default::default()
+        },
     });
 
     let native_aggregates = state.compute_native_aggregates();
@@ -77,6 +82,7 @@ fn node_with_p2p_and_block_provider(
         anchor_fallback_wait: None,
         last_local_vote_round: None,
         media_blob_store: None,
+        bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
     };
     (node, event_rx)
 }

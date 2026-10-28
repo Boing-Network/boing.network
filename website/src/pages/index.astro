@@ -1,81 +1,216 @@
 ---
 import Layout from '../layouts/Layout.astro';
 ---
-
 <Layout
   title="Boing Network"
-  description="Boing Network — Authentic. Decentralized. Optimal. Quality-Assured. Authentic L1 blockchain built from first principles. Swap, stake, and build on the Boing ecosystem."
+  description="Boing is an independent Layer 1 where quality is enforced by the protocol, with transparent deployment checks and open participation for users, developers and validators. Public testnet; mainnet not live."
   canonical="/"
 >
   <!-- Hero -->
   <section class="hero" id="hero">
-    <!-- Robot hero: extracted Boing robot (from hero image) with 3D motion over environment background -->
-    <div class="hero-robot-wrap" aria-hidden="true">
-      <div class="hero-robot-3d">
-        <img src="/assets/mascot-excited.png" alt="" class="hero-robot-img" width="480" height="480" />
-      </div>
-    </div>
-    <div class="hero-gradient-overlay" aria-hidden="true"></div>
-    <div class="hero-bg" aria-hidden="true">
-      <div class="hero-orb hero-orb-1"></div>
-      <div class="hero-orb hero-orb-2"></div>
-      <div class="hero-orb hero-orb-3"></div>
-      <div class="float-particle float-particle-1"></div>
-      <div class="float-particle float-particle-2"></div>
-      <div class="float-particle float-particle-3"></div>
-      <div class="float-particle float-particle-4"></div>
-      <div class="float-particle float-particle-5"></div>
-      <div class="shooting-star shooting-star-1"><div class="shooting-star-line line-1"></div></div>
-      <div class="shooting-star shooting-star-2"><div class="shooting-star-line line-2"></div></div>
-      <div class="shooting-star shooting-star-3"><div class="shooting-star-line line-3"></div></div>
-      <div class="shooting-star shooting-star-4"><div class="shooting-star-line line-4"></div></div>
-      <div class="shooting-star shooting-star-5"><div class="shooting-star-line line-5"></div></div>
-      <div class="shooting-star shooting-star-6"><div class="shooting-star-line line-6"></div></div>
-      <div class="shooting-star shooting-star-7"><div class="shooting-star-line line-7"></div></div>
-      <div class="shooting-star shooting-star-8"><div class="shooting-star-line line-8"></div></div>
-    </div>
+    <div class="hero-grid" aria-hidden="true"></div>
     <div class="hero-content">
-      <span class="stage-badge" aria-hidden="true">Testnet</span>
-      <img src="/logo.svg" alt="Boing Network" class="hero-logo-img" width="120" height="120" />
-      <h1 class="hero-title font-display font-extrabold text-neon-cyan text-shadow-glow animate-pulse-glow">Boing Network</h1>
-      <p class="hero-slogan text-neon-cyan/95 font-display font-semibold text-lg md:text-xl text-shadow-glow">The DeFi that always bounces back!</p>
-      <p class="tagline text-soft-white/90 text-xl md:text-2xl">Secure. Scalable. Decentralized. Authentic. Transparent. Quality-Assured.</p>
-      <p class="hero-stage">We're in <strong>Testnet</strong> — join now, run a node, and help shape the network.</p>
-      <div class="hero-highlights">
-        <span class="hero-highlight"><span class="hl-icon">🔐</span> Security</span>
-        <span class="hero-highlight"><span class="hl-icon">⚡</span> Scalability</span>
-        <span class="hero-highlight"><span class="hl-icon">🌐</span> Decentralization</span>
-        <span class="hero-highlight"><span class="hl-icon">✓</span> Authenticity</span>
-        <span class="hero-highlight"><span class="hl-icon">📋</span> Transparency</span>
-        <span class="hero-highlight"><span class="hl-icon">🛡</span> Quality Assurance</span>
-      </div>
+      <span class="stage-badge">Public testnet &mdash; mainnet not live</span>
+      <img src="/logo.svg" alt="Boing Network" class="hero-logo-img" width="96" height="96" />
+      <h1 class="hero-title font-display">Quality, enforced by the protocol.</h1>
+      <p class="hero-brandline">Boing Network &mdash; the quality-assured Layer 1</p>
+      <p class="tagline">Boing is an independent Layer 1 built from first principles, with transparent deployment checks and open participation for users, developers and validators.</p>
       <div class="cta">
-        <a href="https://boing.express" class="btn btn-testnet" target="_blank" rel="noopener">Get a wallet</a>
-        <a href="/faucet" class="btn btn-secondary">Get testnet BOING</a>
-        <a href="/developers/quickstart" class="btn btn-outline">Build</a>
+        <a href="/testnet" class="btn btn-primary">Explore the testnet</a>
+        <a href="/developers/quickstart" class="btn btn-secondary">Build on Boing</a>
         <a href="/testnet/join" class="btn btn-outline">Run a node</a>
+      </div>
+      <ul class="proof-chips" aria-label="Proof points">
+        <li>Public testnet and faucet</li>
+        <li>Purpose-built VM, not EVM-compatible</li>
+        <li>~2-second target blocks</li>
+        <li>Open validator and node participation</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- The problem -->
+  <section class="section" id="problem">
+    <h2 class="section-reveal">Blockchains make it easy to deploy. Boing adds a quality gate.</h2>
+    <p class="section-lead section-reveal delay-1">The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. Automated checks handle clear cases; a decentralized community pool reviews edge cases.</p>
+    <div class="problem-grid">
+      <div class="info-card section-reveal delay-2">
+        <h3>What it is</h3>
+        <p>Boing introduces protocol-level deployment checks designed to identify and restrict deployments that fail transparent quality criteria before they are accepted on-chain.</p>
+      </div>
+      <div class="info-card section-reveal delay-3">
+        <h3>What it is designed to do</h3>
+        <p>Designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks. The rules are public, and outcomes remain visible.</p>
+      </div>
+      <div class="info-card section-reveal delay-4">
+        <h3>What it does not claim</h3>
+        <p>No gate can prevent every kind of abuse. The Quality Gate reduces risk and makes decisions auditable; it does not replace your own review of an application. <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">Read the QA design (PDF)</a>.</p>
       </div>
     </div>
   </section>
 
-  <!-- The Pillars of the Boing Network -->
-  <section class="section section-alt" id="pillars">
-    <h2 class="display-title font-display font-bold text-neon-cyan text-shadow-glow section-reveal">The Pillars of the Boing Network</h2>
-    <p class="section-lead section-reveal delay-1">Six foundational principles that define who we are. <a href="/pdfs/SIX-PILLARS.pdf" target="_blank" rel="noopener">Read the written pillars (PDF)</a> or see them on <a href="/about">About</a>.</p>
-    <div class="pillars-grid">
-      <div class="pillar-card bg-gradient-ocean border border-cyan-transparent section-reveal delay-2"><img src="/assets/pillar-security.svg" alt="" class="pillar-img" width="200" height="280" loading="lazy" decoding="async" /><h3 class="text-neon-cyan font-display font-bold">Security</h3><p>Safety and correctness first — always over speed.</p></div>
-      <div class="pillar-card bg-gradient-ocean border border-cyan-transparent section-reveal delay-3"><img src="/assets/pillar-scalability.svg" alt="" class="pillar-img" width="200" height="280" loading="lazy" decoding="async" /><h3 class="text-neon-cyan font-display font-bold">Scalability</h3><p>High throughput without compromising the other pillars.</p></div>
-      <div class="pillar-card bg-gradient-ocean border border-cyan-transparent section-reveal delay-4"><img src="/assets/pillar-decentralization.svg" alt="" class="pillar-img" width="200" height="280" loading="lazy" decoding="async" /><h3 class="text-neon-cyan font-display font-bold">Decentralization</h3><p>Anyone can participate. No one can shut the door.</p></div>
-      <div class="pillar-card bg-gradient-ocean border border-cyan-transparent section-reveal delay-5"><img src="/assets/pillar-authenticity.svg" alt="" class="pillar-img" width="200" height="280" loading="lazy" decoding="async" /><h3 class="text-neon-cyan font-display font-bold">Authenticity</h3><p>One chain, one identity — authentic and independent.</p></div>
-      <div class="pillar-card bg-gradient-ocean border border-cyan-transparent section-reveal delay-6"><img src="/assets/pillar-transparency.svg" alt="" class="pillar-img" width="200" height="280" loading="lazy" decoding="async" /><h3 class="text-neon-cyan font-display font-bold">Transparency</h3><p>100% open — design, governance, operations. Trust through verifiability.</p></div>
-      <div class="pillar-card bg-gradient-ocean border border-cyan-transparent section-reveal delay-7"><img src="/assets/pillar-quality.svg" alt="" class="pillar-img" width="200" height="280" loading="lazy" decoding="async" /><h3 class="text-neon-cyan font-display font-bold">True Quality Assurance</h3><p>Only quality assets on-chain. Automated checks; community pool for edge cases. No scams, no single gatekeeper.</p></div>
+  <!-- How it works -->
+  <section class="section section-alt" id="how">
+    <h2 class="section-reveal">How the Quality Gate works</h2>
+    <p class="section-lead section-reveal delay-1">Five steps from submission to a public, auditable outcome.</p>
+    <ol class="gate-steps">
+      <li class="section-reveal delay-2"><span class="gate-num">1</span><div><h3>Deployment submitted</h3><p>A developer submits contract bytecode with a declared purpose.</p></div></li>
+      <li class="section-reveal delay-3"><span class="gate-num">2</span><div><h3>Automated checks evaluate it</h3><p>Transparent rules cover bytecode, size, opcodes and declared purpose.</p></div></li>
+      <li class="section-reveal delay-4"><span class="gate-num">3</span><div><h3>Clear cases are decided by the protocol</h3><p>Deployments that clearly meet or clearly fail the rules are accepted or rejected, with the rule that applied.</p></div></li>
+      <li class="section-reveal delay-5"><span class="gate-num">4</span><div><h3>Edge cases go to the community pool</h3><p>When the rules cannot decide, a decentralized pool of reviewers does.</p></div></li>
+      <li class="section-reveal delay-6"><span class="gate-num">5</span><div><h3>Outcomes remain visible and auditable</h3><p>Decisions are observable in <a href="https://boing.observer/qa" target="_blank" rel="noopener">Boing Observer</a>, not hidden in a private process.</p></div></li>
+    </ol>
+  </section>
+
+  <!-- Built from first principles -->
+  <section class="section" id="principles">
+    <h2 class="section-reveal">Built from first principles</h2>
+    <p class="section-lead section-reveal delay-1">An independent chain with its own stack, not a fork or an EVM-compatibility layer.</p>
+    <div class="spec-grid">
+      <div class="spec section-reveal delay-2"><strong>Rust</strong><span>Protocol and node implementation</span></div>
+      <div class="spec section-reveal delay-2"><strong>HotStuff PoS</strong><span>Proof-of-stake consensus</span></div>
+      <div class="spec section-reveal delay-3"><strong>Ed25519</strong><span>Signatures</span></div>
+      <div class="spec section-reveal delay-3"><strong>BLAKE3</strong><span>Hashing</span></div>
+      <div class="spec section-reveal delay-4"><strong>Purpose-built VM</strong><span>Not EVM-compatible</span></div>
+      <div class="spec section-reveal delay-4"><strong>~2 s blocks</strong><span>Target block time</span></div>
     </div>
-    <div class="pillars-unique section-reveal delay-8">
-      <h3 class="pillars-unique-title">The Boing difference</h3>
-      <p class="pillars-unique-lead">Boing Network is the first L1 where <strong>quality assurance is enforced at the protocol layer</strong>. No other major chain blocks low-quality or malicious deployments before they reach the ledger — we do. Automated rules and a decentralized community pool ensure only assets that meet our bar are accepted, reducing scams, congestion, and compliance risk in one move.</p>
-      <p class="pillars-unique-adoption">That same protocol-level QA makes Boing a natural fit for <strong>government and institutional adoption</strong>: verifiable rules, transparent outcomes, and a clear answer to “who decides what goes on-chain.” We’re building the infrastructure for a chain that regulators and enterprises can trust.</p>
+    <div class="grid pillars-secondary">
+      <div class="card section-reveal delay-5"><h3>Secure by design</h3><p>Rust, HotStuff proof of stake, Ed25519 and BLAKE3.</p></div>
+      <div class="card section-reveal delay-6"><h3>Open participation</h3><p>Permissionless for users, developers and validators.</p></div>
+      <div class="card section-reveal delay-7"><h3>Transparent by default</h3><p>Observable rules, deployments and outcomes.</p></div>
+      <div class="card section-reveal delay-8"><h3>Built for real applications</h3><p>Native accounts, adaptive gas and cross-chain liquidity.</p></div>
     </div>
   </section>
+
+  <!-- Choose your role -->
+  <section class="section section-alt" id="roles">
+    <h2 class="section-reveal">Choose your role</h2>
+    <p class="section-lead section-reveal delay-1">Start where you are. Everything below runs on the public testnet.</p>
+    <div class="roles-grid">
+      <article class="role-card section-reveal delay-2">
+        <h3>Use the network</h3>
+        <p class="role-line">A safer way to explore on-chain applications.</p>
+        <ul>
+          <li>Create a wallet with Boing Express</li>
+          <li>Get testnet BOING from the faucet</li>
+          <li>Send and receive</li>
+          <li>Explore accounts, blocks and transactions in Boing Observer</li>
+          <li>Connect to applications</li>
+        </ul>
+        <div class="role-links"><a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a><a href="/faucet">Faucet</a><a href="https://boing.observer" target="_blank" rel="noopener">Boing Observer</a></div>
+      </article>
+      <article class="role-card section-reveal delay-3">
+        <h3>Build an application</h3>
+        <p class="role-line">Build on an independent chain with native account and application primitives.</p>
+        <ul>
+          <li>JSON-RPC and the Boing SDK</li>
+          <li>Purpose-built VM</li>
+          <li>Native account abstraction, session keys and social recovery</li>
+          <li>Adaptive gas</li>
+          <li>Deployment QA requirements</li>
+          <li>Clear testnet docs</li>
+        </ul>
+        <div class="role-links"><a href="/developers/quickstart">Quickstart</a><a href="/docs/rpc-api">RPC API</a><a href="/docs">Docs</a></div>
+      </article>
+      <article class="role-card section-reveal delay-4">
+        <h3>Run a node</h3>
+        <p class="role-line">Help operate an open network with transparent participation rules.</p>
+        <ul>
+          <li>Rust node with HotStuff consensus</li>
+          <li>Public testnet and node setup guides</li>
+          <li>Validator registration</li>
+          <li>Slashing and appeals rules</li>
+          <li>Launch-partner pathway</li>
+          <li>Mainnet readiness milestones</li>
+        </ul>
+        <div class="role-links"><a href="/testnet/join">Run a node</a><a href="/testnet/operators">Operators</a><a href="/bootnodes">Bootnodes</a></div>
+      </article>
+    </div>
+    <p class="institution-note section-reveal delay-5">For institutions: Boing is designed for verifiability and institutional review, with transparent, rule-based infrastructure for applications that require verifiable deployment standards. Audits, genesis, incident response and mainnet readiness are still open items; see the roadmap below.</p>
+  </section>
+
+  <!-- Honest roadmap -->
+  <section class="section" id="roadmap">
+    <h2 class="section-reveal">Honest roadmap</h2>
+    <p class="section-lead section-reveal delay-1">Testnet status is a strength: here is what exists, what is being built, and what must be true before mainnet.</p>
+    <div class="road-grid">
+      <div class="road-col section-reveal delay-2">
+        <span class="road-tag road-live">Live on testnet</span>
+        <ul>
+          <li>Public testnet RPC and faucet</li>
+          <li>Quality Gate deployment checks, with a published rule registry</li>
+          <li>Boing Express wallet (web and Chrome extension)</li>
+          <li>Boing Observer explorer, including QA visibility</li>
+          <li>Node, CLI and SDK tooling</li>
+        </ul>
+      </div>
+      <div class="road-col section-reveal delay-3">
+        <span class="road-tag road-dev">In development</span>
+        <ul>
+          <li>Community review pool for edge cases</li>
+          <li>Validator set growth and production hardening</li>
+          <li>Cross-chain liquidity routes in Boing Finance</li>
+          <li>Incentivized testnet programme</li>
+        </ul>
+      </div>
+      <div class="road-col section-reveal delay-4">
+        <span class="road-tag road-req">Required before mainnet</span>
+        <ul>
+          <li>Independent security audits</li>
+          <li>Genesis and launch-partner validator readiness</li>
+          <li>Finalized slashing and appeals process</li>
+          <li>Incident-response process</li>
+          <li>Published mainnet readiness milestones met</li>
+        </ul>
+      </div>
+      <div class="road-col section-reveal delay-5">
+        <span class="road-tag road-no">Not yet complete</span>
+        <ul>
+          <li>Mainnet: not live</li>
+          <li>Independent audits: not complete</li>
+          <li>Institutional review materials</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ecosystem -->
+  <section class="section section-alt" id="ecosystem">
+    <h2 class="section-reveal">The Boing ecosystem</h2>
+    <p class="section-lead section-reveal delay-1">Four products, one network. Start on the public testnet in three steps.</p>
+    <ol class="first-steps section-reveal delay-2" aria-label="First steps on the Boing testnet">
+      <li><a href="https://boing.express" target="_blank" rel="noopener"><strong>1. Get a wallet</strong><span>Create a Boing Express wallet (web or Chrome extension).</span></a></li>
+      <li><a href="/faucet"><strong>2. Get testnet BOING</strong><span>Request free testnet BOING for fees.</span></a></li>
+      <li><a href="https://boing.observer" target="_blank" rel="noopener"><strong>3. Send and verify</strong><span>Send your first transaction, then find it in Boing Observer.</span></a></li>
+    </ol>
+    <div class="apps-row">
+      <a href="/docs/getting-started" class="app-card section-reveal delay-3">
+        <h3>Boing Network</h3>
+        <p class="app-tag">The quality-assured Layer 1</p>
+        <p>The core protocol and ecosystem: docs, faucet, node setup and the Quality Gate.</p>
+        <span class="app-status live">Public testnet</span>
+      </a>
+      <a href="https://boing.express" class="app-card section-reveal delay-4" target="_blank" rel="noopener">
+        <h3>Boing Express</h3>
+        <p class="app-tag">Your gateway to Boing</p>
+        <p>A non-custodial wallet designed for the Boing ecosystem, for the web and Chrome.</p>
+        <span class="app-status live">Public testnet</span>
+      </a>
+      <a href="https://boing.observer" class="app-card section-reveal delay-5" target="_blank" rel="noopener">
+        <h3>Boing Observer</h3>
+        <p class="app-tag">See what happens on-chain</p>
+        <p>An explorer with integrated QA transparency: blocks, transactions, accounts and Quality Gate decisions.</p>
+        <span class="app-status live">Public testnet</span>
+      </a>
+      <a href="https://boing.finance" class="app-card section-reveal delay-6" target="_blank" rel="noopener">
+        <h3>Boing Finance</h3>
+        <p class="app-tag">Move liquidity across chains</p>
+        <p>A cross-chain liquidity interface spanning Boing and external networks.</p>
+        <span class="app-status build">Evolving</span>
+      </a>
+    </div>
+  </section>
+
 
   <!-- Tokenomics -->
   <section class="section section-alt" id="tokenomics">
@@ -135,69 +270,19 @@ import Layout from '../layouts/Layout.astro';
     </div>
     <p class="value-loop section-reveal delay-8"><strong>Usage ↑</strong> → Fees ↑ → Validators & Treasury ↑ → Security & Ecosystem ↑ → <strong>Value ↑</strong></p>
   </section>
-
-  <!-- Roadmap & Ecosystem (merged) -->
-  <section class="section section-alt" id="roadmap">
-    <h2 class="section-reveal">Roadmap</h2>
-    <p class="section-lead section-reveal delay-1">Phased build from first principles.</p>
-    <div class="timeline-compact">
-      <div class="t-item complete section-reveal delay-2"><span class="t-marker">✓</span><span>Foundation</span></div>
-      <div class="t-item complete section-reveal delay-3"><span class="t-marker">✓</span><span>Networking</span></div>
-      <div class="t-item complete section-reveal delay-4"><span class="t-marker">✓</span><span>Verkle & VM</span></div>
-      <div class="t-item in-progress section-reveal delay-5"><span class="t-marker">●</span><span>PoS & Production</span></div>
-      <div class="t-item in-progress section-reveal delay-6"><span class="t-marker">●</span><span>UX & Automation</span></div>
-      <div class="t-item planned section-reveal delay-7"><span class="t-marker">○</span><span>Cross-chain</span></div>
-      <div class="t-item planned section-reveal delay-8"><span class="t-marker">○</span><span>Testnet & Mainnet</span></div>
-    </div>
-    <h2 class="section-subtitle section-reveal delay-9">Ecosystem</h2>
-    <p class="section-lead section-reveal delay-10">Applications building on Boing Network.</p>
-    <ol class="first-steps section-reveal delay-10" aria-label="First steps on Boing Testnet">
-      <li><a href="https://boing.express" target="_blank" rel="noopener"><strong>1. Get a wallet</strong><span>Create a Boing Express wallet (web or Chrome extension).</span></a></li>
-      <li><a href="/faucet"><strong>2. Get testnet BOING</strong><span>Request free testnet BOING for fees.</span></a></li>
-      <li><a href="https://boing.observer" target="_blank" rel="noopener"><strong>3. Send and verify</strong><span>Send your first transaction, then find it on Boing Observer.</span></a></li>
-    </ol>
-    <div class="apps-row">
-      <a href="https://boing.express" class="app-card section-reveal delay-11" target="_blank" rel="noopener">
-        <h3>Boing Express</h3>
-        <p>Get a wallet: non-custodial Boing wallet for the web and Chrome. Send BOING, use the faucet, connect dApps.</p>
-        <span class="app-status live">Live</span>
-      </a>
-      <a href="https://boing.observer" class="app-card section-reveal delay-11" target="_blank" rel="noopener">
-        <h3>Boing Observer</h3>
-        <p>Explore the chain: blocks, transactions, accounts, and tokens on Boing.</p>
-        <span class="app-status live">Live</span>
-      </a>
-      <a href="https://boing.finance" class="app-card featured section-reveal delay-11" target="_blank" rel="noopener">
-        <h3>boing.finance</h3>
-        <p>Swap, bridge, deploy tokens, and manage liquidity—native Boing L1 plus bridged networks where boing.finance routes.</p>
-        <span class="app-status live">Live</span>
-      </a>
-      <a href="/docs/getting-started" class="app-card section-reveal delay-12">
-        <h3>Boing Network</h3>
-        <p>Run a node, stake, participate in governance. The foundation layer.</p>
-        <span class="app-status live">Live</span>
-      </a>
-      <a href="/developers/quickstart" class="app-card section-reveal delay-13">
-        <h3>Build on Boing</h3>
-        <p>Native AA, adaptive gas, success-based incentives for developers.</p>
-        <span class="app-status build">Build</span>
-      </a>
-    </div>
-  </section>
-
   <!-- Build & Resources (merged: innovations, testnet CTA, CTA banner, resources) -->
   <section class="section" id="build">
-    <h2 class="section-reveal">Unique Innovations</h2>
-    <p class="section-lead section-reveal delay-1">Protocol-level features that set Boing apart.</p>
+    <h2 class="section-reveal">Built for real applications</h2>
+    <p class="section-lead section-reveal delay-1">Native accounts, adaptive gas and cross-chain liquidity as supporting capabilities.</p>
     <div class="grid">
       <div class="card section-reveal delay-2"><h3>Native Account Abstraction</h3><p>Gasless txs, social recovery, session keys — built into the protocol.</p></div>
       <div class="card section-reveal delay-3"><h3>Adaptive Gas Model</h3><p>Dynamic gas that responds to network conditions with predictable caps.</p></div>
-      <div class="card section-reveal delay-4"><h3>Cross-Chain DeFi Hub</h3><p>Protocol-level primitives for liquidity routing across chains.</p></div>
+      <div class="card section-reveal delay-4"><h3>Cross-chain liquidity</h3><p>Protocol-level primitives for liquidity routing across chains.</p></div>
       <div class="card section-reveal delay-5"><h3>Transparent Slashing</h3><p>Auditable slashing conditions and appeal mechanisms.</p></div>
     </div>
     <div class="build-banners-row">
       <div class="testnet-banner section-reveal delay-6">
-        <h3>🌐 Join the Testnet</h3>
+        <h3>Join the testnet</h3>
         <p>Run a node, get testnet BOING from the faucet, and help secure the network. Single node for local dev or multi-node to join the public testnet.</p>
         <div class="testnet-banner-btns">
           <a href="/testnet/join" class="btn btn-testnet">Join Testnet</a>
@@ -205,8 +290,8 @@ import Layout from '../layouts/Layout.astro';
         </div>
       </div>
       <div class="cta-banner section-reveal delay-7">
-        <h3>🚀 Build on Boing Network</h3>
-        <p>Authentic L1 blockchain built from first principles. Native AA, adaptive gas, cross-chain DeFi hub.</p>
+        <h3>Build on Boing</h3>
+        <p>An independent Layer 1 with native account abstraction, adaptive gas and transparent deployment checks. Public testnet; mainnet not live.</p>
         <div class="cta-banner-links">
           <a href="/testnet/join">Join Testnet</a>
           <span class="sep">•</span>
@@ -214,7 +299,7 @@ import Layout from '../layouts/Layout.astro';
           <span class="sep">•</span>
           <a href="/developers/quickstart">Developers</a>
           <span class="sep">•</span>
-          <a href="https://boing.finance" target="_blank" rel="noopener">boing.finance</a>
+          <a href="https://boing.finance" target="_blank" rel="noopener">Boing Finance</a>
         </div>
       </div>
     </div>
@@ -232,14 +317,15 @@ import Layout from '../layouts/Layout.astro';
       <a href="/community" class="link-3d">Community</a>
     </div>
     <footer class="section-footer">
-      <p>Boing Network — Authentic. Decentralized. Optimal. Quality-Assured. <strong>Currently in Testnet.</strong></p>
+      <p>Boing Network — Quality, enforced by the protocol. <strong>Public testnet — mainnet not live.</strong></p>
       <div class="footer-links">
         <a href="/testnet">Dashboard</a>
         <a href="/resources">Resources</a>
         <a href="/testnet/join">Join Testnet</a>
         <a href="/faucet">Faucet</a>
         <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://boing.finance" target="_blank" rel="noopener">boing.finance</a>
+        <a href="https://discord.gg/K3w9nbUw4N" target="_blank" rel="noopener">Discord</a>
+        <a href="https://boing.finance" target="_blank" rel="noopener">Boing Finance</a>
         <a href="/docs">Documentation</a>
       </div>
     </footer>
@@ -247,6 +333,53 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <style>
+  /* Boing rebrand: hero, Quality Gate sections, roles, roadmap. Tokens: BRAND.md */
+  .hero { position: relative; text-align: center; padding: 5rem 1.5rem 4rem; overflow: hidden; display: grid; place-items: center; min-height: 85vh; background: radial-gradient(ellipse at 50% 30%, rgba(var(--boing-accent-rgb), 0.14), transparent 60%); }
+  @media (max-width: 480px) { .hero { padding: 3rem 1rem; min-height: 80vh; } }
+  .hero-grid { position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(var(--boing-accent-rgb), 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--boing-accent-rgb), 0.08) 1px, transparent 1px); background-size: 48px 48px; -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 15%, transparent 72%); mask-image: radial-gradient(ellipse at 50% 40%, #000 15%, transparent 72%); }
+  .hero-content { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; }
+  .hero-title { font-size: clamp(2.1rem, 5.5vw, 3.75rem); line-height: 1.1; font-weight: 800; margin: 0.5rem 0 0.75rem; color: var(--boing-text); letter-spacing: -0.01em; }
+  .hero-brandline { margin: 0 0 1rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.85rem; color: var(--boing-accent-soft); }
+  .hero .tagline { font-size: clamp(1.05rem, 2.2vw, 1.3rem); color: var(--text-secondary); max-width: 40rem; margin: 0 auto 1.75rem; line-height: 1.55; }
+  .hero .stage-badge { display: inline-block; margin-bottom: 1rem; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: var(--boing-warning); border: 1px solid rgba(251, 191, 36, 0.45); background: rgba(251, 191, 36, 0.08); }
+  .hero .btn-primary { background: var(--boing-accent); color: var(--boing-accent-ink); }
+  .hero .btn-primary:hover { background: var(--boing-accent-soft); filter: none; }
+  .proof-chips { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 0.75rem; padding: 0; margin: 2rem 0 0; }
+  .proof-chips li { padding: 0.35rem 0.8rem; border-radius: 999px; font-size: 0.85rem; color: var(--text-secondary); border: 1px solid var(--boing-line); background: rgba(16, 26, 56, 0.6); }
+  .problem-grid, .roles-grid, .road-grid { display: grid; gap: 1.25rem; }
+  .problem-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .roles-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .road-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .info-card, .role-card, .road-col { background: rgba(16, 26, 56, 0.88); border: 1px solid var(--boing-line); border-radius: 1rem; padding: 1.35rem; }
+  .info-card h3, .role-card h3 { margin: 0 0 0.5rem; font-size: 1.05rem; color: var(--text-primary); }
+  .info-card p, .role-card li, .road-col li { color: var(--text-secondary); font-size: 0.92rem; line-height: 1.5; }
+  .info-card p { margin: 0; }
+  .info-card a, .role-links a { color: var(--boing-accent-soft); }
+  .gate-steps { list-style: none; padding: 0; margin: 0 auto; max-width: 760px; display: grid; gap: 0.9rem; counter-reset: gate; }
+  .gate-steps li { display: flex; gap: 1rem; align-items: flex-start; padding: 1rem 1.25rem; border: 1px solid var(--boing-line); border-left: 3px solid var(--boing-accent); border-radius: 0.75rem; background: rgba(16, 26, 56, 0.88); }
+  .gate-num { flex: none; width: 2rem; height: 2rem; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: var(--boing-accent-ink); background: var(--boing-accent); }
+  .gate-steps h3 { margin: 0 0 0.2rem; font-size: 1rem; color: var(--text-primary); }
+  .gate-steps p { margin: 0; font-size: 0.9rem; color: var(--text-secondary); }
+  .gate-steps a { color: var(--boing-accent-soft); }
+  .spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.9rem; margin-bottom: 2rem; }
+  .spec { display: flex; flex-direction: column; gap: 0.2rem; padding: 1rem 1.1rem; border: 1px solid var(--boing-line); border-radius: 0.75rem; background: rgba(10, 17, 40, 0.9); font-family: var(--font-mono); }
+  .spec strong { color: var(--boing-accent-soft); font-size: 1rem; }
+  .spec span { color: var(--text-secondary); font-size: 0.8rem; }
+  .role-line { font-weight: 600; color: var(--boing-text); font-size: 0.95rem; margin: 0 0 0.75rem; }
+  .role-card ul, .road-col ul { margin: 0 0 1rem; padding-left: 1.1rem; }
+  .role-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.9rem; }
+  .institution-note { max-width: 760px; margin: 1.75rem auto 0; text-align: center; font-size: 0.85rem; color: var(--text-tertiary, var(--text-secondary)); }
+  .road-tag { display: inline-block; margin-bottom: 0.75rem; padding: 0.2rem 0.65rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid currentColor; }
+  .road-live { color: var(--boing-success); }
+  .road-dev { color: var(--boing-accent-soft); }
+  .road-req { color: var(--boing-warning); }
+  .road-no { color: var(--boing-danger); }
+  .road-col ul { margin-bottom: 0; }
+  .app-tag { font-weight: 600; color: var(--boing-accent-soft) !important; margin-bottom: 0.35rem !important; }
+  .pillars-secondary { margin-top: 0.5rem; }
+  @media (prefers-reduced-motion: reduce) { .hero-grid { opacity: 0.6; } }
+
+
   /* Section-by-section scroll (homepage). Smooth scroll, no mandatory snap. */
   :global(html.page-home) { scroll-snap-type: y proximity; scroll-behavior: smooth; }
   :global(html.page-home) .hero,
@@ -255,115 +388,6 @@ import Layout from '../layouts/Layout.astro';
   :global(html.page-home) .section { content-visibility: auto; contain-intrinsic-size: auto 80vh; }
 
   /* Hero + animation */
-  .hero { position: relative; text-align: center; padding: 5rem 2rem; overflow: hidden; display: grid; grid-template-columns: 1fr; grid-template-rows: auto auto; align-items: center; justify-items: center; min-height: 85vh; gap: 1rem; }
-  @media (max-width: 480px) {
-    .hero { padding: 3rem 1rem; min-height: 80vh; }
-  }
-  .hero-content { order: 1; }
-  .hero-robot-wrap { order: 2; }
-  @media (min-width: 900px) {
-    .hero { grid-template-columns: 1fr auto; grid-template-rows: 1fr; gap: 2rem; text-align: left; }
-    .hero-content { order: unset; margin: 0; max-width: 520px; justify-self: end; }
-    .hero-robot-wrap { order: unset; }
-    .hero-highlights { justify-content: flex-start; }
-    .cta { justify-content: flex-start; }
-  }
-  .hero-robot-wrap {
-    position: relative;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: none; z-index: 2;
-    perspective: 1400px;
-  }
-  @media (min-width: 900px) {
-    .hero-robot-wrap { position: absolute; right: 0; bottom: 0; top: 0; left: 45%; }
-  }
-  .hero-robot-3d {
-    transform-style: preserve-3d;
-    animation: hero-robot-float 7s ease-in-out infinite;
-    filter: drop-shadow(0 0 40px rgba(0, 229, 204, 0.2)) drop-shadow(0 20px 40px rgba(0, 0, 0, 0.3));
-    will-change: transform;
-  }
-  .hero-robot-wrap .hero-robot-3d {
-    position: relative;
-    width: min(55vw, 420px);
-    height: min(55vw, 420px);
-    max-width: 480px;
-    max-height: 75vh;
-  }
-  @media (min-width: 900px) {
-    .hero-robot-wrap .hero-robot-3d { width: min(42vw, 480px); height: min(42vw, 480px); }
-  }
-  .hero-robot-img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    object-position: center bottom;
-    animation: hero-robot-glow 4s ease-in-out infinite;
-  }
-  @keyframes hero-robot-float {
-    0%, 100% { transform: translateY(0) rotateY(-6deg) rotateX(3deg); }
-    50% { transform: translateY(-14px) rotateY(4deg) rotateX(-2deg); }
-  }
-  @keyframes hero-robot-glow {
-    0%, 100% { filter: drop-shadow(0 0 40px rgba(0, 229, 204, 0.2)); opacity: 1; }
-    50% { filter: drop-shadow(0 0 56px rgba(0, 229, 204, 0.35)); opacity: 0.98; }
-  }
-  .hero-gradient-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 1;
-    background: linear-gradient(to bottom, transparent 0%, rgba(12, 16, 24, 0.55) 50%, var(--bg-primary) 100%);
-  }
-  .hero-bg {
-    position: absolute; inset: 0; pointer-events: none; z-index: 0;
-    will-change: transform;
-  }
-  .hero-orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; animation: float 20s ease-in-out infinite; will-change: transform; }
-  .hero-orb-1 { width: 400px; height: 400px; background: radial-gradient(circle, var(--accent-teal) 0%, transparent 70%); top: -20%; left: 10%; animation-delay: 0s; }
-  .hero-orb-2 { width: 300px; height: 300px; background: radial-gradient(circle, var(--accent-cyan) 0%, transparent 70%); bottom: -10%; right: 15%; animation-delay: -7s; }
-  .hero-orb-3 { width: 250px; height: 250px; background: radial-gradient(circle, var(--accent-teal) 0%, transparent 70%); top: 30%; right: 5%; animation-delay: -14s; }
-  @keyframes float { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(30px, -20px) scale(1.05); } 66% { transform: translate(-20px, 15px) scale(0.95); } }
-  /* Shooting stars — gradient lines inspired by boing.finance */
-  .shooting-star { position: absolute; width: 0; height: 0; overflow: visible; will-change: transform; }
-  .shooting-star-line {
-    position: absolute; width: 128px; height: 2px; left: 0; top: 0;
-    border-radius: 1px;
-    transform-origin: left center;
-  }
-  /* Each line rotation matches keyframe movement. Angles: 0°=right, 90°=down, 180°=left. vw units preserve angle. */
-  .line-1 { background: linear-gradient(to right, transparent, var(--glow-cyan), var(--accent-teal)); box-shadow: 0 0 8px var(--glow-cyan); transform: rotate(-16deg); }
-  .line-2 { background: linear-gradient(to left, transparent, var(--glow-blue), var(--accent-cyan)); box-shadow: 0 0 8px var(--glow-blue); transform-origin: right center; transform: rotate(-55deg); }
-  .line-3 { background: linear-gradient(to right, transparent, var(--glow-cyan), var(--accent-cyan)); box-shadow: 0 0 8px var(--glow-cyan); transform: rotate(45deg); }
-  .line-4 { background: linear-gradient(to left, transparent, var(--glow-cyan), var(--accent-teal)); box-shadow: 0 0 6px var(--glow-cyan-subtle); transform-origin: right center; transform: rotate(45deg); }
-  .line-5 { background: linear-gradient(to right, transparent, var(--glow-cyan), var(--accent-teal)); box-shadow: 0 0 6px var(--glow-cyan-subtle); transform: rotate(-10deg); }
-  .line-6 { background: linear-gradient(to left, transparent, var(--glow-blue), var(--accent-cyan)); box-shadow: 0 0 6px var(--glow-blue); transform-origin: right center; transform: rotate(-17deg); }
-  .line-7 { background: linear-gradient(to right, transparent, var(--glow-cyan), var(--accent-cyan)); box-shadow: 0 0 6px var(--glow-cyan-subtle); transform: rotate(35deg); }
-  .line-8 { background: linear-gradient(to left, transparent, var(--glow-cyan), var(--accent-teal)); box-shadow: 0 0 6px var(--glow-cyan-subtle); transform-origin: right center; transform: rotate(45deg); }
-  .shooting-star-1 { top: 25%; left: 0; animation: shoot1 8s linear infinite; opacity: 0.6; }
-  .shooting-star-2 { top: 33%; right: 0; animation: shoot2 12s linear infinite; animation-delay: -2s; opacity: 0.5; }
-  .shooting-star-3 { bottom: 25%; left: 25%; animation: shoot3 10s linear infinite; animation-delay: -4s; opacity: 0.4; }
-  .shooting-star-4 { top: 50%; right: 33%; animation: shoot4 15s linear infinite; animation-delay: -7s; opacity: 0.3; }
-  .shooting-star-5 { top: 17%; right: 25%; animation: shoot5 6s linear infinite; animation-delay: -1s; opacity: 0.5; }
-  .shooting-star-6 { bottom: 33%; left: 33%; animation: shoot6 9s linear infinite; animation-delay: -5s; opacity: 0.45; }
-  .shooting-star-7 { top: 40%; left: 17%; animation: shoot7 11s linear infinite; animation-delay: -6s; opacity: 0.4; }
-  .shooting-star-8 { top: 75%; right: 17%; animation: shoot8 14s linear infinite; animation-delay: -9s; opacity: 0.35; }
-  .float-particle { position: absolute; border-radius: 50%; background: linear-gradient(to right, var(--accent-teal), var(--accent-cyan)); box-shadow: 0 0 6px var(--glow-cyan); animation: floatSlow 6s ease-in-out infinite, pulseFade 3s ease-in-out infinite; will-change: transform; }
-  .float-particle-1 { width: 4px; height: 4px; top: 15%; left: 20%; animation-delay: 0s, 0s; }
-  .float-particle-2 { width: 2px; height: 2px; top: 65%; right: 25%; animation-delay: -2s, -0.5s; }
-  .float-particle-3 { width: 2px; height: 2px; bottom: 30%; left: 50%; animation-delay: -4s, -1s; }
-  .float-particle-4 { width: 3px; height: 3px; top: 40%; left: 25%; background: linear-gradient(to right, var(--accent-cyan), var(--accent-teal)); box-shadow: 0 0 6px var(--glow-blue); animation-delay: -1s, -0.3s; }
-  .float-particle-5 { width: 2px; height: 2px; top: 75%; right: 15%; animation-delay: -3s, -0.8s; }
-  /* Movement (dx,dy) uses vw so angle stays consistent. dx:dy ratio = tan(angle). */
-  @keyframes shoot1 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(100vw, -28vw); opacity: 0; } } /* -16° */
-  @keyframes shoot2 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.5; } 90% { opacity: 0.5; } 100% { transform: translate(-100vw, 143vw); opacity: 0; } } /* 125° dy/dx=tan(125°)=1.43 */
-  @keyframes shoot3 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.4; } 90% { opacity: 0.4; } 100% { transform: translate(100vw, 100vw); opacity: 0; } } /* 45° */
-  @keyframes shoot4 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.3; } 90% { opacity: 0.3; } 100% { transform: translate(-80vw, -80vw); opacity: 0; } } /* 225° */
-  @keyframes shoot5 { 0% { transform: translate(0, 0); opacity: 0; } 5% { opacity: 0.5; } 95% { opacity: 0.5; } 100% { transform: translate(100vw, -18vw); opacity: 0; } } /* -10° */
-  @keyframes shoot6 { 0% { transform: translate(0, 0); opacity: 0; } 8% { opacity: 0.45; } 92% { opacity: 0.45; } 100% { transform: translate(-90vw, 27vw); opacity: 0; } } /* 163° tan≈0.3 */
-  @keyframes shoot7 { 0% { transform: translate(0, 0); opacity: 0; } 12% { opacity: 0.4; } 88% { opacity: 0.4; } 100% { transform: translate(100vw, 70vw); opacity: 0; } } /* 35° */
-  @keyframes shoot8 { 0% { transform: translate(0, 0); opacity: 0; } 7% { opacity: 0.35; } 93% { opacity: 0.35; } 100% { transform: translate(-60vw, -60vw); opacity: 0; } } /* 225° */
   .hero-content {
     position: relative;
     z-index: 3;
@@ -393,7 +417,7 @@ import Layout from '../layouts/Layout.astro';
   }
   .hero-stage strong { color: #FFB800; }
   .hero-highlights { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; justify-content: center; margin: 1.5rem 0 2rem; }
-  .hero-highlight { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.75rem; border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); background: rgba(18, 24, 41, 0.85); border: 1px solid var(--border-color); transition: border-color 0.2s ease-out, transform 0.2s ease-out, box-shadow 0.2s ease-out, color 0.2s ease-out; transition-delay: 0; }
+  .hero-highlight { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.75rem; border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); background: rgba(16, 26, 56, 0.85); border: 1px solid var(--border-color); transition: border-color 0.2s ease-out, transform 0.2s ease-out, box-shadow 0.2s ease-out, color 0.2s ease-out; transition-delay: 0; }
   .hero-highlight:hover { border-color: var(--border-hover); transform: scale(1.05); box-shadow: 0 4px 16px var(--glow-cyan); color: var(--text-primary); }
   .hl-icon { font-size: 1rem; }
   .cta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
@@ -465,38 +489,6 @@ import Layout from '../layouts/Layout.astro';
   }
   .section-footer a { color: var(--accent-neon); }
 
-  /* Pillars */
-  .pillars-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem; margin-top: 1rem; }
-  @media (max-width: 380px) {
-    .pillars-grid { grid-template-columns: 1fr; }
-  }
-  .pillar-card { background: rgba(18, 24, 41, 0.88); border: 1px solid var(--border-color); border-radius: 16px; padding: 0.875rem 1rem; text-align: center; transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out, transform 0.2s ease-out; transition-delay: 0; display: flex; flex-direction: column; align-items: center; }
-  .pillar-card:hover { border-color: var(--border-hover); box-shadow: 0 4px 30px var(--glow-cyan); transform: translateY(-2px); }
-  .pillar-img {
-    width: 100%;
-    height: auto;
-    max-height: 168px;
-    object-fit: contain;
-    object-position: center;
-    border-radius: 10px;
-    display: block;
-    margin: 0 auto 0.5rem;
-    filter: drop-shadow(0 0 14px rgba(0, 217, 255, 0.12));
-  }
-  .pillar-card h3 { font-size: 0.95rem; margin: 0 0 0.25rem; color: var(--text-primary); }
-  .pillar-card p { font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.35; }
-  .pillars-unique { margin-top: 2.5rem; padding: 1.75rem 1.5rem; background: rgba(18, 24, 41, 0.88); border: 1px solid var(--border-color); border-radius: 16px; max-width: 800px; margin-left: auto; margin-right: auto; }
-  @media (max-width: 640px) {
-    .pillars-unique { padding: 1.25rem 1rem; margin-top: 2rem; }
-  }
-  @media (max-width: 375px) {
-    .pillars-unique { padding: 1rem 0.75rem; }
-  }
-  .pillars-unique-title { font-size: 1.1rem; margin: 0 0 0.75rem; color: var(--accent-teal); text-align: center; }
-  .pillars-unique-lead { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin: 0 0 1rem; }
-  .pillars-unique-adoption { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
-  .pillars-unique strong { color: var(--text-primary); }
-
   /* Section reveal: stronger entrance with stagger */
   .section-reveal { opacity: 0; transform: translateY(28px); animation: section-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
   .section-reveal.delay-1 { animation-delay: 0.06s; }
@@ -551,7 +543,7 @@ import Layout from '../layouts/Layout.astro';
 
   /* Tokenomics */
   .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
-  .stat-card { background: rgba(18, 24, 41, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; text-align: center; transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out; transition-delay: 0; }
+  .stat-card { background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; text-align: center; transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out; transition-delay: 0; }
   .stat-card:hover { box-shadow: 0 8px 24px var(--glow-cyan); border-color: var(--border-hover); }
   .stat-value { display: block; font-size: 1.5rem; font-weight: 700; color: var(--accent-teal); }
   .stat-label { font-size: 0.85rem; color: var(--text-secondary); }
@@ -565,7 +557,7 @@ import Layout from '../layouts/Layout.astro';
   @media (max-width: 320px) {
     .charts-row { grid-template-columns: 1fr; gap: 1rem; }
   }
-  .chart-card { background: rgba(18, 24, 41, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
+  .chart-card { background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
   .chart-card:hover { border-color: var(--border-hover); box-shadow: 0 8px 24px var(--glow-cyan); }
   .chart-card h3 { font-size: 1rem; margin: 0 0 0.75rem; color: var(--text-primary); }
   .chart-wrapper { position: relative; width: 100%; height: 220px; min-height: 220px; }
@@ -581,14 +573,14 @@ import Layout from '../layouts/Layout.astro';
   .stroke-success { stroke: var(--success-color); }
   .value-loop { text-align: center; font-family: var(--font-mono); color: var(--accent-teal); background: var(--bg-tertiary); border: 1px solid var(--border-color); padding: 1rem; border-radius: 0.5rem; font-size: 0.95rem; }
 
-  .t-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: rgba(18, 24, 41, 0.85); border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); transition: transform 0.2s ease-out, border-color 0.2s ease-out; transition-delay: 0; }
+  .t-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: rgba(16, 26, 56, 0.85); border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); transition: transform 0.2s ease-out, border-color 0.2s ease-out; transition-delay: 0; }
   .t-item.complete { border-color: rgba(16,185,129,0.4); color: var(--success-color); }
   .t-item.in-progress { border-color: var(--accent-teal); color: var(--accent-teal); }
   .t-marker { font-size: 0.75rem; }
 
   /* Ecosystem */
   .apps-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
-  .app-card { background: rgba(18, 24, 41, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; text-decoration: none; color: inherit; transition: transform 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
+  .app-card { background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; text-decoration: none; color: inherit; transition: transform 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
   .app-card:hover { border-color: var(--border-hover); box-shadow: 0 12px 32px var(--glow-cyan); }
   .app-card.featured { border-color: var(--accent-cyan); }
   .app-card h3 { font-size: 1rem; margin: 0 0 0.5rem; color: var(--text-primary); }
@@ -598,27 +590,27 @@ import Layout from '../layouts/Layout.astro';
   .app-status.build { color: var(--accent-teal); }
 
   .first-steps { list-style: none; padding: 0; margin: 0 0 1.25rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
-  .first-steps a { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.9rem 1rem; border-radius: 0.75rem; border: 1px dashed var(--accent-teal); color: inherit; text-decoration: none; background: rgba(18, 24, 41, 0.6); }
+  .first-steps a { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.9rem 1rem; border-radius: 0.75rem; border: 1px dashed var(--accent-teal); color: inherit; text-decoration: none; background: rgba(16, 26, 56, 0.6); }
   .first-steps a:hover, .first-steps a:focus-visible { border-style: solid; box-shadow: 0 8px 24px var(--glow-cyan); }
   .first-steps strong { color: var(--text-primary); font-size: 0.95rem; }
   .first-steps span { color: var(--text-secondary); font-size: 0.85rem; }
 
   /* Innovations grid */
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
-  .card { padding: 1.25rem; background: rgba(18, 24, 41, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; transition: transform 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
+  .card { padding: 1.25rem; background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; transition: transform 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
   .card:hover { border-color: var(--border-hover); box-shadow: 0 10px 28px var(--glow-cyan); }
   .card h3 { font-size: 0.95rem; margin: 0 0 0.5rem; color: var(--text-primary); }
   .card p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
 
   /* Testnet CTA banner */
-  .testnet-banner { padding: 1.75rem 2rem; border-radius: 1rem; background: rgba(18, 24, 41, 0.88); border: 1px solid var(--border-hover); text-align: center; }
+  .testnet-banner { padding: 1.75rem 2rem; border-radius: 1rem; background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-hover); text-align: center; }
   .testnet-banner h3 { margin: 0 0 0.5rem; font-size: 1.2rem; color: var(--text-primary); }
   .testnet-banner p { margin: 0 0 1.25rem; font-size: 0.95rem; color: var(--text-secondary); line-height: 1.45; }
   .testnet-banner-btns { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
   .testnet-banner-btns .btn { padding: 0.6rem 1.25rem; font-size: 0.95rem; }
 
   /* CTA Banner */
-  .cta-banner { padding: 1.5rem 2rem; border-radius: 1rem; background: rgba(18, 24, 41, 0.88); border: 1px solid var(--border-color); text-align: center; }
+  .cta-banner { padding: 1.5rem 2rem; border-radius: 1rem; background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-color); text-align: center; }
   .cta-banner h3 { margin: 0 0 0.5rem; font-size: 1.1rem; color: var(--text-primary); }
   .cta-banner p { margin: 0 0 1rem; font-size: 0.9rem; color: var(--text-secondary); }
   .cta-banner-links { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; align-items: center; font-size: 0.9rem; }
@@ -628,7 +620,7 @@ import Layout from '../layouts/Layout.astro';
 
   /* Links */
   .link-grid { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
-  .link-grid a { padding: 0.5rem 1rem; border-radius: 0.5rem; background: rgba(18, 24, 41, 0.85); border: 1px solid var(--border-color); transition: border-color 0.2s ease-out, color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
+  .link-grid a { padding: 0.5rem 1rem; border-radius: 0.5rem; background: rgba(16, 26, 56, 0.85); border: 1px solid var(--border-color); transition: border-color 0.2s ease-out, color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
   .link-grid a:hover { border-color: var(--border-hover); color: var(--accent-teal); box-shadow: 0 4px 12px var(--glow-cyan); }
   .link-grid a.link-highlight { border-color: var(--border-hover); background: var(--bg-tertiary); font-weight: 600; }
   .link-grid a.link-highlight:hover { border-color: var(--accent-teal); box-shadow: 0 0 12px var(--glow-cyan); }
@@ -647,11 +639,6 @@ import Layout from '../layouts/Layout.astro';
   }
   .t-item:hover { transform: scale(1.02); }
   @media (prefers-reduced-motion: reduce) {
-    .hero-orb, .shooting-star, .float-particle { animation: none; }
-    .hero-orb { opacity: 0.25; }
-    .shooting-star, .float-particle { display: none; }
-    .hero-robot-3d { animation: none; transform: translateY(0) rotateY(-4deg) rotateX(2deg); }
-    .hero-robot-img { animation: none; }
     .card:hover, .app-card:hover, .stat-card:hover, .t-item:hover { transform: none; }
   }
 </style>

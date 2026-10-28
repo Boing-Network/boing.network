@@ -1,7 +1,9 @@
 //! Tests for Bond, Unbond (delayed), and ClaimUnbond staking transactions.
 
 use boing_execution::{Vm, VmError, VmExecutionContext};
-use boing_primitives::{AccessList, Account, AccountId, AccountState, Transaction, TransactionPayload};
+use boing_primitives::{
+    AccessList, Account, AccountId, AccountState, Transaction, TransactionPayload,
+};
 use boing_state::StateStore;
 use boing_tokenomics::UNBONDING_DELAY_BLOCKS;
 

@@ -43,12 +43,39 @@ export interface BoingHealth {
     /** From `BOING_CHAIN_NAME` when set; otherwise `null`. */
     chain_name: string | null;
     head_height: number;
+    /** See {@link BoingChainParameters.storage_tree_v2_activation_height}. Omitted by older nodes. */
+    storage_tree_v2_activation_height?: number | null;
+    /** See {@link BoingChainParameters.receipt_retention_blocks}. Omitted by older nodes. */
+    receipt_retention_blocks?: number | null;
+    /** Advisory wallet/SDK version hints; omitted by older nodes. */
+    client_hints?: BoingClientHints;
     /** Present on current `boing-node`; omit on older binaries. */
     rpc_surface?: BoingHealthRpcSurface;
     /** Present on current `boing-node`; omit on older binaries. */
     rpc_metrics?: BoingRpcMetrics;
     /** Signing rules (security fixes #2/#3); omitted by older nodes (legacy signing only). */
     tx_signing?: BoingTxSigningInfo;
+}
+/**
+ * Additive protocol parameters returned identically by `boing_health` and `boing_getNetworkInfo`.
+ * Both keys are absent on older nodes (treat as unknown) and never affect consensus.
+ */
+export interface BoingChainParameters {
+    /**
+     * `null`: not configured on the node (legacy 64-bit contract-storage key routing, roots unchanged).
+     * Integer H: blocks at height >= H use 256-bit routing for contract-storage roots.
+     */
+    storage_tree_v2_activation_height?: number | null;
+    /** Receipts served for the most recent N blocks; `null` = unbounded. */
+    receipt_retention_blocks?: number | null;
+}
+/** Advisory version hints (`client_hints`); never enforced by the node. */
+export interface BoingClientHints {
+    min_wallet_version: string;
+    recommended_wallet_version: string;
+    recommended_sdk: string;
+    sdk_npm_package: string;
+    note?: string;
 }
 export interface BoingTxSigningInfo {
     /** Node knows its chain id and verifies v2 (chain-bound) signatures. */
@@ -290,7 +317,9 @@ export interface RpcMethodCatalog {
 /** Result of `boing_getRpcOpenApi` — minimal OpenAPI 3.1 for `POST /`, `GET /ws`, `GET /live`, `GET /ready`. */
 export type RpcOpenApiDocument = Record<string, unknown>;
 /** Result of `boing_getNetworkInfo` — dApp discovery; see RPC-API-SPEC.md. */
-export interface NetworkInfo {
+export interface NetworkInfo extends BoingChainParameters {
+    /** Advisory wallet/SDK version hints; omitted by older nodes. */
+    client_hints?: BoingClientHints;
     /** Present when the node process sets `BOING_CHAIN_ID` (decimal). */
     chain_id: number | null;
     /** Present when `BOING_CHAIN_NAME` is set. */
@@ -525,8 +554,19 @@ export interface SlashRecordSummary {
 export interface SlashAppealSummary {
     id: number;
     slash_id: number;
-    status: 'pending' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected' | 'expired';
     evidence_len: number;
+}
+/** Optional filters for `boing_listSlashRecords` (Phase 23/25). */
+export interface ListSlashRecordsParams {
+    reason?: string;
+    slashId?: number;
+    /** Filter consensus appeals by status. */
+    appealStatus?: 'pending' | 'approved' | 'rejected' | 'expired';
+    /** Default true (back-compat). Set false to hide Expired appeals. */
+    includeExpired?: boolean;
+    /** Phase 25: default true (back-compat). Set false to hide Approved/Rejected. */
+    includeResolved?: boolean;
 }
 /** Result of `boing_listSlashRecords`. */
 export interface ListSlashRecordsResult {
@@ -534,6 +574,53 @@ export interface ListSlashRecordsResult {
     appeals: SlashAppealSummary[];
     /** `true` when the node has a data directory and persists `slash_registry.json`. */
     persisted: boolean;
+    /** Hex commitment of the consensus slash-appeals registry (Phase 22). */
+    registryCommitment?: string;
+}
+/** Optional filters for `boing_reverifySlashAppealBallots`. */
+export interface ReverifySlashAppealBallotsParams {
+    appealId?: number;
+    slashId?: number;
+    /** Default true: report `ballot_signature=None` votes as `unattested`. */
+    includeUnattested?: boolean;
+    /** Phase 23: default false — skip Expired appeals. */
+    includeExpired?: boolean;
+    /** Phase 25: default false — skip Approved/Rejected appeals. */
+    includeResolved?: boolean;
+    /** Optional client check against `registryCommitment`. */
+    expectedRegistryCommitment?: string;
+}
+/** Per-vote row from `boing_reverifySlashAppealBallots`. */
+export interface ReverifySlashAppealBallotVote {
+    voter: string;
+    approved: boolean;
+    weight: string;
+    status: 'ok' | 'invalid' | 'unattested';
+    domain?: 'v1' | 'v2';
+}
+/** Per-appeal row from `boing_reverifySlashAppealBallots`. */
+export interface ReverifySlashAppealBallotAppeal {
+    appealId: number;
+    slashId: number;
+    status: string;
+    electorateWSnapshot: string;
+    pinSetCommitment: string;
+    pinSetMatch: boolean | null;
+    pinSetNote?: string;
+    resolveDeadline: number;
+    okCount: number;
+    invalidCount: number;
+    unattestedCount: number;
+    allAttestedBallotsValid: boolean;
+    votes: ReverifySlashAppealBallotVote[];
+}
+/** Result of `boing_reverifySlashAppealBallots`. */
+export interface ReverifySlashAppealBallotsResult {
+    chainId: number;
+    registryCommitment: string;
+    registryCommitmentMatch?: boolean;
+    appeals: ReverifySlashAppealBallotAppeal[];
+    note?: string;
 }
 /** Result of `boing_submitSlashAppeal`. */
 export interface SubmitSlashAppealResult {

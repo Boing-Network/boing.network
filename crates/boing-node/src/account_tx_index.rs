@@ -52,7 +52,7 @@ pub fn touched_accounts(tx: &Transaction, log_topics: &[[u8; 32]]) -> Vec<Accoun
     for t in log_topics {
         out.push(AccountId(*t));
     }
-    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out.sort_by_key(|a| a.0);
     out.dedup();
     out
 }
@@ -139,7 +139,11 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
         TransactionPayload::ContractCall { contract, calldata } => {
             json!({"kind":"contract_call","contract":hex0x(&contract.0),"calldata_len":calldata.len()})
         }
-        TransactionPayload::ContractCallWithValue { contract, calldata, value } => {
+        TransactionPayload::ContractCallWithValue {
+            contract,
+            calldata,
+            value,
+        } => {
             json!({"kind":"contract_call","contract":hex0x(&contract.0),"calldata_len":calldata.len(),"value":value.to_string(),"value_boing":boing_primitives::format_boing(*value)})
         }
         TransactionPayload::ContractDeploy { .. }
@@ -317,7 +321,10 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "slash_id":slash_id,
             "evidence_len":evidence.len(),
         }),
-        TransactionPayload::ResolveSlashAppeal { appeal_id, approved } => json!({
+        TransactionPayload::ResolveSlashAppeal {
+            appeal_id,
+            approved,
+        } => json!({
             "kind":"resolve_slash_appeal",
             "appeal_id":appeal_id,
             "approved":approved,
@@ -330,6 +337,25 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "kind":"resolve_slash_appeal_attested",
             "appeal_id":appeal_id,
             "approved":approved,
+        }),
+        TransactionPayload::ResolveSlashAppealBlsAggregate {
+            appeal_id,
+            approved,
+            ..
+        } => json!({
+            "kind":"resolve_slash_appeal_bls_aggregate",
+            "appeal_id":appeal_id,
+            "approved":approved,
+        }),
+        TransactionPayload::GrantBlobDownload { blob_id, grantee } => json!({
+            "kind":"grant_blob_download",
+            "blob_id":hex0x(blob_id),
+            "grantee":hex0x(&grantee.0),
+        }),
+        TransactionPayload::RevokeBlobDownload { blob_id, grantee } => json!({
+            "kind":"revoke_blob_download",
+            "blob_id":hex0x(blob_id),
+            "grantee":hex0x(&grantee.0),
         }),
     }
 }

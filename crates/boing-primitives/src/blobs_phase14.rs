@@ -84,7 +84,9 @@ mod tests {
         assert!(phase14_cap_activation_checklist(None).len() >= 16);
         let plan = phase14_das_succinct_proof_plan();
         assert!(plan.len() >= 10);
-        assert!(plan.iter().any(|s| s.contains("ReservedRealV1 verify still rejects")));
+        assert!(plan
+            .iter()
+            .any(|s| s.contains("ReservedRealV1 verify still rejects")));
         assert!(plan.iter().any(|s| s.contains("ops/validator-approved")));
     }
 }

@@ -8,19 +8,27 @@ TypeScript/JavaScript client for [Boing Network](https://github.com/Boing-Networ
 
 ```mermaid
 flowchart LR
-  App[dApp / finance / explorer] --> SDK[boing-sdk]
+  App[dApp / finance / explorer] --> SDK["@boing-network/boing-sdk"]
   SDK --> RPC[boing_chainHeight / getAccount / qaCheck / listDex*]
   SDK --> Wallet[window.boing helpers]
 ```
 
 ## Install
 
+**Consumers (npm):**
+
+```bash
+npm install @boing-network/boing-sdk
+```
+
+Current registry latest: **`0.5.24`**. Package page: [npmjs.com/package/@boing-network/boing-sdk](https://www.npmjs.com/package/@boing-network/boing-sdk). Do **not** install unscoped [`boing-sdk`](https://www.npmjs.com/package/boing-sdk) — that name is abandoned/locked and is not updated by this repo.
+
+**Monorepo / contributors** (this directory):
+
 ```bash
 npm install
 npm run build
 ```
-
-Or from a parent repo (when published): `npm install @boing-network/boing-sdk`.
 
 ### Consuming via `file:` (e.g. [boing.finance](https://github.com/Boing-Network/boing.finance))
 
@@ -32,18 +40,9 @@ When you change SDK **source** (`src/`), run `npm run build` in `boing-sdk` and 
 
 ### Publish to npm (CI)
 
-Package name on the registry: **`@boing-network/boing-sdk`** (scoped). Unscoped `boing-sdk` is owned by a locked npm account and is **not** updated by this workflow.
+Package name on the registry: **`@boing-network/boing-sdk`** (scoped). Unscoped `boing-sdk` remains abandoned/locked and is **not** published from this workflow.
 
-Do **not** use interactive `npm login` / OTP for routine publishes. Use the **Publish boing-sdk** GitHub Action (`.github/workflows/boing-sdk-publish.yml`), which publishes on tags `boing-sdk/v*` with an npm **Automation** (or granular publish) token for the **`boing-network`** org.
-
-**One-time (org `boing-network`):**
-
-1. Sign in at [npmjs.com](https://www.npmjs.com/) as **`boing-network`** (auth app / recovery is enough to create a token; you do **not** paste OTP into chat or into CI).
-2. **Access Tokens** → generate an **Automation** token (preferred) or a granular token with **publish** on `@boing-network/boing-sdk` and **bypass 2FA**. Automation tokens skip OTP on each `npm publish`.
-3. In GitHub → `Boing-Network/boing.network` → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**:
-   - Name: `NPM_TOKEN`
-   - Value: the token (never commit it)
-4. Confirm the secret exists before tagging.
+Scoped publish is live (`latest` = **0.5.24**). Routine releases use the **Publish boing-sdk** GitHub Action (`.github/workflows/boing-sdk-publish.yml`) on tags `boing-sdk/v*` with repository secret **`NPM_TOKEN`** (npm Automation or granular publish token for org **`boing-network`**, with bypass-2FA / Automation so CI does not need interactive OTP).
 
 **Each release** (after `package.json` version + `CHANGELOG` + committed `dist/` are on `main`):
 
@@ -54,9 +53,7 @@ git tag -a "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")"
 git push origin "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")"
 ```
 
-Watch **Actions → Publish boing-sdk**. Then: `npm view @boing-network/boing-sdk version`.
-
-If you cannot sign in to npm at all (no auth app, no recovery), CI cannot publish either — restore npm account access first. GitHub Packages is not the default path for FreshMint (`npm install @boing-network/boing-sdk`).
+Watch **Actions → Publish boing-sdk**. Then: `npm view @boing-network/boing-sdk version`. Prefer registry installs for FreshMint and other apps (`npm install @boing-network/boing-sdk`); GitHub `path:/boing-sdk` pins are not the preferred consumer path.
 
 ## Tests
 

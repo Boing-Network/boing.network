@@ -1,6 +1,6 @@
 # Native Boing tutorial (SDK only — no foreign chain client)
 
-End-to-end examples for **Boing L1** using only **`boing-sdk`**: transfer, reference-token `contract_call`, and a minimal `contract_deploy` with QA. For **browser + Boing Express**, use the same RPC helpers and `window.boing.request({ method: 'boing_sendTransaction', params: [...] })` per [BOING-EXPRESS-WALLET.md](../../docs/BOING-EXPRESS-WALLET.md).
+End-to-end examples for **Boing L1** using only **`@boing-network/boing-sdk`** (via `file:../../boing-sdk`): transfer, reference-token `contract_call`, and a minimal `contract_deploy` with QA. For **browser + Boing Express**, use the same RPC helpers and `window.boing.request({ method: 'boing_sendTransaction', params: [...] })` per [BOING-EXPRESS-WALLET.md](../../docs/BOING-EXPRESS-WALLET.md).
 
 **Form-parity deploy (pinned bytecode + `contract_deploy_meta`):** [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](../../docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md) and **`boing-sdk`** `buildContractDeployMetaTx` / `resolveReferenceFungibleTemplateBytecodeHex`. Hex dump: `cargo run -p boing-execution --example dump_reference_token_artifacts` (line **1** = smoke tests only; line **2** = fungible template; line **3** = NFT collection).
 

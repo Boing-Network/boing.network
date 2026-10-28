@@ -92,7 +92,7 @@ function maybeUpgradeStaleOfficialBoingZipUrl(url) {
 }
 
 /** Default bootnodes (keep in sync with website/src/config/testnet.ts fallbacks). */
-const DEFAULT_BOOTNODES = ['/ip4/169.155.48.188/tcp/4001', '/ip4/109.105.220.118/tcp/4001'];
+const DEFAULT_BOOTNODES = ['/ip4/169.155.48.188/tcp/4001'];
 
 const DEVNET_BASE = {
   rpc_url: 'https://testnet-rpc.boing.network/',
@@ -120,6 +120,7 @@ function buildNetworksMeta() {
       wallet_url: 'https://boing.express',
       explorer_url: 'https://boing.observer',
       website_url: DEVNET_BASE.website,
+      discord_url: 'https://discord.gg/K3w9nbUw4N',
       wallet_docs: githubBlobMain('docs/BOING-EXPRESS-WALLET.md'),
       explorer_and_wallet_spec: githubBlobMain('docs/BOING-OBSERVER-AND-EXPRESS.md'),
       three_codebase_alignment: githubBlobMain('docs/THREE-CODEBASE-ALIGNMENT.md'),

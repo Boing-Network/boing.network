@@ -159,20 +159,20 @@
 .btn-primary {
   background: var(--accent-teal);
   color: var(--bg-primary);
-  box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
+  box-shadow: 0 0 20px rgba(59, 140, 255, 0.6);
   font-family: var(--font-display);
 }
 .btn-primary:hover {
-  box-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
+  box-shadow: 0 0 30px rgba(59, 140, 255, 0.8);
   transform: translateY(-2px);
 }
 .btn-secondary {
   background: transparent;
-  color: var(--accent-electric, #0099FF);
-  border: 2px solid var(--accent-electric, #0099FF);
+  color: var(--accent-electric, #2563EB);
+  border: 2px solid var(--accent-electric, #2563EB);
 }
 .btn-secondary:hover {
-  background: var(--accent-electric, #0099FF);
+  background: var(--accent-electric, #2563EB);
   color: var(--color-soft-white, #F0F4F8);
 }
 .btn-secondary:focus-visible {
@@ -199,7 +199,7 @@
 .hub-developer .steps-list--numbered li {
   padding-left: 0.5rem;
   margin-bottom: 0.75rem;
-  border-left: 3px solid rgba(0, 217, 255, 0.4);
+  border-left: 3px solid rgba(59, 140, 255, 0.4);
   padding-left: 0.75rem;
   margin-left: -0.25rem;
 }
@@ -213,7 +213,7 @@
 .hub-operator .steps-list--numbered li {
   padding-left: 0.5rem;
   margin-bottom: 0.75rem;
-  border-left: 3px solid rgba(0, 153, 255, 0.5);
+  border-left: 3px solid rgba(37, 99, 235, 0.5);
   padding-left: 0.75rem;
   margin-left: -0.25rem;
 }
@@ -302,7 +302,7 @@
   }
 }
 .hub-metric-card {
-  background: linear-gradient(168deg, var(--stone-deep, #06080c) 0%, var(--stone-mid, #0c1018) 100%);
+  background: linear-gradient(168deg, var(--stone-deep, #040814) 0%, var(--stone-mid, #0A1128) 100%);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1rem;
@@ -310,8 +310,8 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .hub-metric-card:hover {
-  border-color: rgba(0, 217, 255, 0.4);
-  box-shadow: 0 0 20px rgba(0, 217, 255, 0.15);
+  border-color: rgba(59, 140, 255, 0.4);
+  box-shadow: 0 0 20px rgba(59, 140, 255, 0.15);
 }
 .hub-metric-card:focus-within {
   outline: 2px solid var(--accent-teal);
@@ -365,7 +365,7 @@
   transition: background-color 0.2s ease;
 }
 .leaderboard-table tbody tr:hover {
-  background: rgba(0, 217, 255, 0.08);
+  background: rgba(59, 140, 255, 0.08);
 }
 .leaderboard-placeholder-note {
   background: linear-gradient(180deg, rgba(10, 30, 46, 0.5) 0%, rgba(13, 46, 66, 0.5) 100%);
@@ -501,9 +501,9 @@
   transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 .resources-list li:hover {
-  border-color: rgba(0, 217, 255, 0.4);
+  border-color: rgba(59, 140, 255, 0.4);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 0 16px rgba(0, 217, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 0 16px rgba(59, 140, 255, 0.1);
 }
 @media (prefers-reduced-motion: reduce) {
   .resources-list li:hover { transform: none; }
@@ -556,7 +556,7 @@
 .testnet-progress-bar__fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #00D9FF, #00FF88);
+  background: linear-gradient(90deg, #3B8CFF, #34D399);
   width: calc(var(--progress, 0) * 1%);
   max-width: 100%;
   transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -644,7 +644,7 @@
   left: 16.666%;
   right: 16.666%;
   height: 2px;
-  background: linear-gradient(90deg, rgba(0, 217, 255, 0.4), rgba(0, 217, 255, 0.6));
+  background: linear-gradient(90deg, rgba(59, 140, 255, 0.4), rgba(59, 140, 255, 0.6));
   border-radius: 1px;
   opacity: 0;
   animation: testnet-connector-draw 0.6s ease-out 0.4s forwards;
@@ -684,7 +684,7 @@
   font-weight: 700;
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
-  box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
+  box-shadow: 0 0 20px rgba(59, 140, 255, 0.6);
 }
 .testnet-step__title {
   font-size: 1rem;
@@ -707,7 +707,7 @@
   margin: 1.25rem 0;
 }
 .testnet-glance__card {
-  background: linear-gradient(168deg, var(--stone-deep, #06080c) 0%, var(--stone-mid, #0c1018) 100%);
+  background: linear-gradient(168deg, var(--stone-deep, #040814) 0%, var(--stone-mid, #0A1128) 100%);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1.25rem;
@@ -715,8 +715,8 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .testnet-glance__card:hover {
-  border-color: rgba(0, 217, 255, 0.4);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 20px rgba(0, 217, 255, 0.1);
+  border-color: rgba(59, 140, 255, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 20px rgba(59, 140, 255, 0.1);
 }
 .testnet-glance__value {
   font-size: 1.75rem;
@@ -773,12 +773,12 @@
   color: var(--bg-primary);
   background: var(--accent-teal);
   border-radius: 8px;
-  box-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
+  box-shadow: 0 0 20px rgba(59, 140, 255, 0.6);
   animation: hub-rank-pulse 2s ease-in-out infinite;
 }
 @keyframes hub-rank-pulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(0, 217, 255, 0.6); }
-  50% { box-shadow: 0 0 30px rgba(0, 217, 255, 0.8); }
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 140, 255, 0.6); }
+  50% { box-shadow: 0 0 30px rgba(59, 140, 255, 0.8); }
 }
 @media (prefers-reduced-motion: reduce) {
   .hub-rank-badge { animation: none; }

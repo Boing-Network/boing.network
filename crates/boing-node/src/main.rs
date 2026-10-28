@@ -160,10 +160,22 @@ struct Args {
     #[arg(long)]
     media_blobs_phase7_cap_activation_height: Option<u64>,
 
+    /// Phase 32: flip multi-pin committee verify from Ed25519 tx 32 → BLS aggregate tx 33 from this
+    /// height (all nodes must agree). Overrides **`BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT`**.
+    /// Unset = keep Phase 31 policy (multi-pin default Ed25519 **32**).
+    #[arg(long)]
+    media_blobs_bls_committee_flip_height: Option<u64>,
+
     /// Honor reduced `execution_gas_fee_bps` (micro fee / waive) from this height. Overrides
     /// **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`**. Below it, gas is always the full historical schedule.
     #[arg(long)]
     micro_fees_activation_height: Option<u64>,
+
+    /// Storage-tree v2: route per-contract storage trees on all 256 key bits from this block height
+    /// (all nodes must agree; set only in the future on a live chain). Overrides
+    /// **`BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT`**. Unset = off (default; roots unchanged).
+    #[arg(long)]
+    storage_tree_v2_activation_height: Option<u64>,
 
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
@@ -187,6 +199,19 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let args = Args::parse();
+    {
+        // Fail fast, before opening any data dir or socket.
+        let operator_token_set = std::env::var("BOING_OPERATOR_RPC_TOKEN")
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+        let chain_id = boing_node::network_preset::configured_chain_id();
+        boing_node::network_preset::check_mainnet_guards(
+            chain_id,
+            operator_token_set,
+            args.faucet_enable,
+        )
+        .map_err(|e| anyhow::anyhow!(e))?;
+    }
     let name_params =
         boing_node::name_config::resolve_name_registry_params(args.name_registry_activation_height)
             .map_err(|e| anyhow::anyhow!("name registry config: {e}"))?;
@@ -212,6 +237,16 @@ async fn main() -> anyhow::Result<()> {
             boing_primitives::MAX_MEDIA_BLOB_INLINE_PREFER_BYTES
         );
     }
+    let storage_tree_v2_from = boing_node::media_blob_config::resolve_storage_tree_v2_activation(
+        args.storage_tree_v2_activation_height,
+    )
+    .map_err(|e| anyhow::anyhow!("storage tree v2 config: {e}"))?;
+    if let Some(h) = storage_tree_v2_from {
+        tracing::warn!(
+            "Storage tree v2 (consensus): per-contract storage trees use full-key routing from height={h}. \
+             Every node must run the same value; see docs/STORAGE-TREE-V2-ACTIVATION.md"
+        );
+    }
     let blobs_root_header_from =
         boing_node::media_blob_config::resolve_blobs_root_header_activation(
             args.blobs_root_header_activation_height,
@@ -223,15 +258,25 @@ async fn main() -> anyhow::Result<()> {
             h
         );
     }
-    let phase7_cap_from =
-        boing_node::media_blob_config::resolve_media_blobs_phase7_cap_activation(
-            args.media_blobs_phase7_cap_activation_height,
-        )
-        .map_err(|e| anyhow::anyhow!("media blobs phase7 cap config: {e}"))?;
+    let phase7_cap_from = boing_node::media_blob_config::resolve_media_blobs_phase7_cap_activation(
+        args.media_blobs_phase7_cap_activation_height,
+    )
+    .map_err(|e| anyhow::anyhow!("media blobs phase7 cap config: {e}"))?;
     if let Some(h) = phase7_cap_from {
         tracing::info!(
             "Media blobs Phase 7: raised Put/Announce cap ({} bytes) from height={} — all validators must agree",
             boing_primitives::PHASE7_ACTIVATED_MAX_MEDIA_BLOB_BYTES,
+            h
+        );
+    }
+    let bls_committee_flip_from =
+        boing_node::media_blob_config::resolve_media_blobs_bls_committee_flip_activation(
+            args.media_blobs_bls_committee_flip_height,
+        )
+        .map_err(|e| anyhow::anyhow!("media blobs BLS committee flip config: {e}"))?;
+    if let Some(h) = bls_committee_flip_from {
+        tracing::info!(
+            "Media blobs Phase 32: BLS multi-pin committee flip (tx 32→33) from height={} — all validators must agree",
             h
         );
     }
@@ -352,11 +397,17 @@ async fn main() -> anyhow::Result<()> {
             if let Some(h) = media_blobs_from {
                 n.enable_media_blobs(h);
             }
+            if let Some(h) = storage_tree_v2_from {
+                n.enable_storage_tree_v2(h);
+            }
             if let Some(h) = blobs_root_header_from {
                 n.enable_blobs_root_header(h);
             }
             if let Some(h) = phase7_cap_from {
                 n.enable_media_blobs_phase7_cap(h);
+            }
+            if let Some(h) = bls_committee_flip_from {
+                n.enable_bls_committee_flip(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -432,7 +483,9 @@ async fn main() -> anyhow::Result<()> {
                                 let peers = p2p_fetch.connected_peers().await;
                                 if let Some(peer) = peers.choose(&mut rand::rngs::OsRng) {
                                     let next = block.header.height.saturating_add(1);
-                                    if let Err(e) = p2p_fetch.request_block(*peer, BlockRequest::ByHeight(next)) {
+                                    if let Err(e) =
+                                        p2p_fetch.request_block(*peer, BlockRequest::ByHeight(next))
+                                    {
                                         logging::log_p2p_event_warn("sync_block_request", &e);
                                     }
                                 }
@@ -457,14 +510,20 @@ async fn main() -> anyhow::Result<()> {
                             }
                         }
                         boing_p2p::P2pEvent::TransactionReceived(signed) => {
-                            node_clone.read().await.refresh_tx_sig_policy();
-                            if let Err(e) = signed.verify() {
-                                logging::log_p2p_event_warn("gossip_tx_bad_signature", &e);
-                                continue;
-                            }
-                            let n = node_clone.write().await;
+                            // `submit_transaction` verifies the signature first (cheapest reject) and
+                            // takes `&self`, so a shared read lock is enough: gossip floods no longer
+                            // block RPC readers or block production behind a write lock.
+                            let n = node_clone.read().await;
+                            n.refresh_tx_sig_policy();
                             match n.submit_transaction(signed) {
                                 Ok(()) => tracing::debug!("P2P: gossip tx admitted to mempool"),
+                                Err(boing_node::mempool::MempoolError::InvalidSignature)
+                                | Err(boing_node::mempool::MempoolError::LegacySignature) => {
+                                    logging::log_p2p_event_warn(
+                                        "gossip_tx_bad_signature",
+                                        &"invalid or legacy-rejected signature",
+                                    )
+                                }
                                 Err(e) => {
                                     logging::log_p2p_event_warn("gossip_tx_mempool_reject", &e)
                                 }
@@ -563,11 +622,17 @@ async fn main() -> anyhow::Result<()> {
             if let Some(h) = media_blobs_from {
                 n.enable_media_blobs(h);
             }
+            if let Some(h) = storage_tree_v2_from {
+                n.enable_storage_tree_v2(h);
+            }
             if let Some(h) = blobs_root_header_from {
                 n.enable_blobs_root_header(h);
             }
             if let Some(h) = phase7_cap_from {
                 n.enable_media_blobs_phase7_cap(h);
+            }
+            if let Some(h) = bls_committee_flip_from {
+                n.enable_bls_committee_flip(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -625,10 +690,20 @@ async fn main() -> anyhow::Result<()> {
         let faucet_id = faucet::testnet_faucet_account_id();
         let key = faucet::testnet_faucet_signing_key();
         let mut n = node.write().await;
+        // Second check against the chain id of the installed network history (not only BOING_CHAIN_ID).
+        boing_node::network_preset::check_mainnet_guards(
+            boing_node::network_preset::effective_chain_id(n.executor.execution_history()),
+            true,
+            true,
+        )
+        .map_err(|e| anyhow::anyhow!(e))?;
         if n.state.get(&faucet_id).is_none() {
             // Whole BOING scaled to the ledger unit at the tip (base units on chains without history).
             let tip = n.chain.height();
-            let initial = n.executor.denomination_at(tip).scale(faucet::FAUCET_INITIAL_BALANCE);
+            let initial = n
+                .executor
+                .denomination_at(tip)
+                .scale(faucet::FAUCET_INITIAL_BALANCE);
             n.state.insert(Account {
                 id: faucet_id,
                 state: AccountState {
@@ -656,7 +731,16 @@ async fn main() -> anyhow::Result<()> {
         .map(|s| -> Arc<str> { s.into() });
     if operator_rpc_token.is_some() {
         tracing::info!(
-            "BOING_OPERATOR_RPC_TOKEN is set: boing_operatorApplyQaPolicy / boing_operatorApplyFeePolicy require X-Boing-Operator; boing_qaPoolVote requires it only when public_membership is false"
+            "BOING_OPERATOR_RPC_TOKEN is set: boing_operatorApplyQaPolicy / boing_operatorApplyFeePolicy require X-Boing-Operator; boing_qaPoolVote requires it only when public_membership is false; GET /v1/media/blob?id=… also accepts this token"
+        );
+    }
+    if std::env::var("BOING_BLOB_DOWNLOAD_TOKENS")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .is_some()
+    {
+        tracing::info!(
+            "BOING_BLOB_DOWNLOAD_TOKENS is set: dedicated media-blob download credentials accepted on GET /v1/media/blob?id=…"
         );
     }
 

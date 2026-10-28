@@ -27,7 +27,11 @@ pub const VALIDATOR_REGISTRATION_DOMAIN_V2: &[u8] = b"BOING_OPEN_VALIDATOR_REGIS
 
 /// BLAKE3(`domain_v2 || chain_id_le8 || owner || node_id`): the v2 message, bound to one chain so a
 /// proof made for testnet cannot be replayed on another network.
-pub fn validator_registration_message_v2(owner: &AccountId, node_id: &AccountId, chain_id: u64) -> [u8; 32] {
+pub fn validator_registration_message_v2(
+    owner: &AccountId,
+    node_id: &AccountId,
+    chain_id: u64,
+) -> [u8; 32] {
     let mut h = hasher();
     h.update(VALIDATOR_REGISTRATION_DOMAIN_V2);
     h.update(&chain_id.to_le_bytes());
@@ -37,14 +41,32 @@ pub fn validator_registration_message_v2(owner: &AccountId, node_id: &AccountId,
 }
 
 /// Sign the v2 (chain-bound) registration proof with the node's consensus key.
-pub fn sign_validator_registration_v2(owner: &AccountId, node_key: &SigningKey, chain_id: u64) -> Vec<u8> {
+pub fn sign_validator_registration_v2(
+    owner: &AccountId,
+    node_key: &SigningKey,
+    chain_id: u64,
+) -> Vec<u8> {
     let node_id = AccountId(node_key.verifying_key().to_bytes());
-    node_key.sign(&validator_registration_message_v2(owner, &node_id, chain_id)).to_bytes().to_vec()
+    node_key
+        .sign(&validator_registration_message_v2(
+            owner, &node_id, chain_id,
+        ))
+        .to_bytes()
+        .to_vec()
 }
 
 /// Verify a v2 proof for `chain_id`.
-pub fn verify_validator_registration_v2(owner: &AccountId, node_id: &AccountId, node_signature: &[u8], chain_id: u64) -> bool {
-    verify_msg(node_id, node_signature, &validator_registration_message_v2(owner, node_id, chain_id))
+pub fn verify_validator_registration_v2(
+    owner: &AccountId,
+    node_id: &AccountId,
+    node_signature: &[u8],
+    chain_id: u64,
+) -> bool {
+    verify_msg(
+        node_id,
+        node_signature,
+        &validator_registration_message_v2(owner, node_id, chain_id),
+    )
 }
 
 fn verify_msg(node_id: &AccountId, node_signature: &[u8], msg: &[u8; 32]) -> bool {
@@ -56,7 +78,8 @@ fn verify_msg(node_id: &AccountId, node_signature: &[u8], msg: &[u8; 32]) -> boo
     };
     let mut arr = [0u8; 64];
     arr.copy_from_slice(node_signature);
-    pk.verify_strict(msg, &Ed25519Signature::from_bytes(&arr)).is_ok()
+    pk.verify_strict(msg, &Ed25519Signature::from_bytes(&arr))
+        .is_ok()
 }
 
 /// Sign the registration proof with the node's consensus key.
@@ -67,7 +90,11 @@ pub fn sign_validator_registration(owner: &AccountId, node_key: &SigningKey) -> 
 }
 
 /// Verify `node_signature` was produced by `node_id` for `owner`.
-pub fn verify_validator_registration(owner: &AccountId, node_id: &AccountId, node_signature: &[u8]) -> bool {
+pub fn verify_validator_registration(
+    owner: &AccountId,
+    node_id: &AccountId,
+    node_signature: &[u8],
+) -> bool {
     if node_signature.len() != 64 {
         return false;
     }
@@ -108,11 +135,22 @@ mod tests {
         let node_id = AccountId(node.verifying_key().to_bytes());
         let owner = AccountId([9u8; 32]);
         let sig = sign_validator_registration_v2(&owner, &node, 6913);
-        assert!(verify_validator_registration_v2(&owner, &node_id, &sig, 6913));
-        assert!(!verify_validator_registration_v2(&owner, &node_id, &sig, 6914), "other chain");
-        assert!(!verify_validator_registration(&owner, &node_id, &sig), "not a v1 proof");
+        assert!(verify_validator_registration_v2(
+            &owner, &node_id, &sig, 6913
+        ));
+        assert!(
+            !verify_validator_registration_v2(&owner, &node_id, &sig, 6914),
+            "other chain"
+        );
+        assert!(
+            !verify_validator_registration(&owner, &node_id, &sig),
+            "not a v1 proof"
+        );
         let v1 = sign_validator_registration(&owner, &node);
-        assert!(!verify_validator_registration_v2(&owner, &node_id, &v1, 6913), "v1 is not v2");
+        assert!(
+            !verify_validator_registration_v2(&owner, &node_id, &v1, 6913),
+            "v1 is not v2"
+        );
         // Golden vector shared with the SDK and Boing Express.
         assert_eq!(
             hex::encode(validator_registration_message_v2(&owner, &node_id, 6913)),
@@ -132,7 +170,10 @@ mod tests {
             "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c"
         );
         assert_eq!(
-            hex::encode(validator_registration_message(&AccountId([9u8; 32]), &node_id)),
+            hex::encode(validator_registration_message(
+                &AccountId([9u8; 32]),
+                &node_id
+            )),
             "f8bbe9cbc961743405a6154a8dd07192efa73a3e9368271ec4b11dd0b66562b5"
         );
     }

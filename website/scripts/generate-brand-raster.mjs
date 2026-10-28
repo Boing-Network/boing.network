@@ -13,7 +13,7 @@ const publicDir = join(root, 'public')
 const assetsDir = join(publicDir, 'assets')
 const logoSvgPath = join(publicDir, 'logo.svg')
 
-const BRAND_RGB = { r: 10, g: 30, b: 46 }
+const BRAND_RGB = { r: 10, g: 17, b: 40 } // navy 900 (see BRAND.md)
 
 async function loadLogoSvg() {
   return readFile(logoSvgPath)
@@ -135,9 +135,9 @@ function ogTextOverlaySvg() {
 
   return Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="680" height="400" viewBox="0 0 680 400">
-  <text x="0" y="52" fill="#22d3ee" font-family="Segoe UI,system-ui,-apple-system,sans-serif" font-size="52" font-weight="700">${esc('Boing Network')}</text>
-  <text x="0" y="118" fill="#94a3b8" font-family="Segoe UI,system-ui,-apple-system,sans-serif" font-size="26">${esc('The DeFi that always bounces back!')}</text>
-  <text x="0" y="168" fill="#64748b" font-family="Segoe UI,system-ui,-apple-system,sans-serif" font-size="22">${esc('boing.network')}</text>
+  <text x="0" y="52" fill="#3B8CFF" font-family="Segoe UI,system-ui,-apple-system,sans-serif" font-size="52" font-weight="700">${esc('Boing Network')}</text>
+  <text x="0" y="118" fill="#94a3b8" font-family="Segoe UI,system-ui,-apple-system,sans-serif" font-size="26">${esc('Quality, enforced by the protocol.')}</text>
+  <text x="0" y="168" fill="#64748b" font-family="Segoe UI,system-ui,-apple-system,sans-serif" font-size="22">${esc('boing.network  ·  Public testnet, mainnet not live')}</text>
 </svg>`,
     'utf8',
   )
