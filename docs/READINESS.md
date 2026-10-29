@@ -56,7 +56,7 @@ flowchart LR
 | [RUNBOOK.md](RUNBOOK.md) | Node setup, RPC, CLI, monitoring |
 | [RPC-API-SPEC.md](RPC-API-SPEC.md) | Full RPC reference |
 | [TESTNET.md](TESTNET.md) | Single vs multi-node, bootnodes, faucet |
-| [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) | One-click mining integration |
+| [NETWORKS-API.md](NETWORKS-API.md) | Public node listing API (`/api/networks`) |
 | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Bootnodes, Cloudflare tunnel |
 
 ---
@@ -80,7 +80,7 @@ Complete these **before** running bootnodes. See [BOING-NETWORK-ESSENTIALS.md](B
 
 **Operator go-live order** (RPC tunnel, verification, faucet, QA policy): [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3.
 
-**Why VibeMiner shows "no nodes":** Bootnodes and public RPC must be running. Until then, VibeMiner, terminal validators, and boing.observer cannot use the testnet.
+**Why clients show "no nodes":** Bootnodes and public RPC must be running. Until then, terminal validators, boing.express, and boing.observer cannot use the testnet.
 
 ### 3.1 Run Bootnodes
 
@@ -113,7 +113,7 @@ Complete these **before** running bootnodes. See [BOING-NETWORK-ESSENTIALS.md](B
 
 After steps 1–3:
 
-- **VibeMiner** — Should connect to bootnodes and sync (`GET https://boing.network/api/networks`)
+- **Node listing** — `GET https://boing.network/api/networks` returns the current bootnodes and release tag
 - **Faucet** — [boing.network/faucet](https://boing.network/faucet) succeeds
 - **boing.observer** — [boing.observer](https://boing.observer) shows blocks when RPC is synced; `/qa` shows live registry
 - **Terminal** — `boing-node --bootnodes <LIST> --validator` syncs

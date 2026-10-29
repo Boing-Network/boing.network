@@ -213,7 +213,7 @@ Implement in this order:
 - **RPC spec:** `docs/RPC-API-SPEC.md` — methods, params, errors.
 - **Design system:** `docs/BOING-DESIGN-SYSTEM.md` — colors, typography, card style.
 - **Quality assurance:** `docs/QUALITY-ASSURANCE-NETWORK.md` — sixth pillar, Allow/Reject/Unsure, community pool, blocklist; use for copy and links.
-- **Testnet/mainnet:** `docs/TESTNET.md`, `docs/VIBEMINER-INTEGRATION.md` — RPC URLs, bootnodes, faucet (testnet only).
+- **Testnet/mainnet:** `docs/TESTNET.md`, `docs/NETWORKS-API.md` — RPC URLs, bootnodes, faucet (testnet only).
 - **Essentials:** `docs/BOING-NETWORK-ESSENTIALS.md` — chain overview, tech stack, address format.
 - **Existing website:** `website/` in the same repo is the main Boing site (boing.network); explorer is a **separate app** (boing.observer) but can reuse design tokens and patterns.
 

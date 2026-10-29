@@ -7,7 +7,7 @@
 > **Incentivized testnet status:** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Running a testnet node is currently not incentivized.
 
 **Purpose:** Single guide for joining the testnet, using the Testnet Portal, and the design notes for a future incentivized testnet program (readiness, promotion, mainnet migration).  
-**References:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) (single map: testnet ops + public RPC + infra), [RUNBOOK.md](RUNBOOK.md), [READINESS.md](READINESS.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md)
+**References:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) (single map: testnet ops + public RPC + infra), [RUNBOOK.md](RUNBOOK.md), [READINESS.md](READINESS.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [NETWORKS-API.md](NETWORKS-API.md)
 
 ```mermaid
 flowchart LR
@@ -26,7 +26,7 @@ flowchart LR
 |---|---|
 | 👛 Use the chain today | [boing.express](https://boing.express) → [faucet](https://boing.network/faucet) → [explorer](https://boing.observer) |
 | 📡 Call JSON-RPC | `POST https://testnet-rpc.boing.network/` with `boing_health` / `boing_chainHeight` |
-| 🖥️ One-click node | [VibeMiner](VIBEMINER-INTEGRATION.md) using `GET https://boing.network/api/networks` |
+| 📦 Node packages | Release zips and defaults via `GET https://boing.network/api/networks` ([NETWORKS-API.md](NETWORKS-API.md)) |
 | 🛰️ Join as a validator | Part 1 below: P2P listen + hosted bootnodes + faucet + Bond |
 
 Hosted bootnode: `/ip4/169.155.48.188/tcp/4001` (`boing-testnet-1`). Canonical public RPC hostname is the Worker gateway — **not** a home Cloudflare Tunnel. (`boing-testnet-2` / `/ip4/109.105.220.118/tcp/4001` retired 2026-10-24.)
@@ -162,7 +162,7 @@ The in-ledger **MVP constant-product pool** is a normal **32-byte contract `Acco
 Public testnet connectivity (as of **2026-08-24**):
 
 - **Website:** [boing.network/testnet/join](https://boing.network/testnet/join) and [Bootnodes](https://boing.network/bootnodes) (`website/src/config/testnet.ts` or env **`PUBLIC_BOOTNODES`**)
-- **Networks API:** `GET https://boing.network/api/networks` — VibeMiner sync
+- **Networks API:** `GET https://boing.network/api/networks` — release tag, bootnodes and download listing for clients
 - **RPC:** `https://testnet-rpc.boing.network/` — smoke: **`npm run preflight-rpc`**, **`npm run verify-public-testnet-rpc`**, **`npm run verify-qa-alignment`**
 - **Explorer:** [boing.observer](https://boing.observer) — token/NFT metadata on `/asset/:address` and `/tokens`
 
@@ -193,9 +193,9 @@ Public testnet connectivity (as of **2026-08-24**):
   --rpc-port 8546
 ```
 
-## 7. One-click mining / validator UI (VibeMiner)
+## 7. Two-node setup on Windows
 
-For users who prefer a **desktop UI** instead of the terminal, Boing testnet can be used with **VibeMiner**, which provides one-click mining/validating. See [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) for how networks (including Boing) integrate and how to run a node via VibeMiner.
+For a validator on one PC and a full node on another, see [OPS-PUBLIC-TESTNET-TWO-NODE.md](OPS-PUBLIC-TESTNET-TWO-NODE.md).
 
 ## 8. Incentivized testnet (summary)
 
@@ -225,11 +225,11 @@ GitHub Actions builds **`release-{linux-x86_64,macos-aarch64,windows-x86_64}.zip
    # or: cd website && node scripts/network-listings-release-sql.mjs testnet-v0.1.8 [--apply]
    ```
 
-6. Bump **`BOING_TESTNET_DOWNLOAD_TAG`** in **`website/functions/api/networks.js`** (and **`BOING_ZIP_SHA`**; also extend **`STALE_TESTNET_TAG_RE`** to include the previous tag, otherwise D1 rows still on that tag keep serving its URL and SHA) so **`GET /api/networks`** returns the new **`meta.boing_testnet_download_tag`**. Deploy **boing.network**. Then align **VibeMiner** defaults with **`meta`** — [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §6.
+6. Bump **`BOING_TESTNET_DOWNLOAD_TAG`** in **`website/functions/api/networks.js`** (and **`BOING_ZIP_SHA`**; also extend **`STALE_TESTNET_TAG_RE`** to include the previous tag, otherwise D1 rows still on that tag keep serving its URL and SHA) so **`GET /api/networks`** returns the new **`meta.boing_testnet_download_tag`**. Deploy **boing.network**; see [NETWORKS-API.md](NETWORKS-API.md).
 
 ### 9.1 Release checklist (ordered)
 
-Use when shipping a new **`testnet-v0.1.x`** so **VibeMiner** downloads, **`GET /api/networks`**, and D1 listings stay aligned.
+Use when shipping a new **`testnet-v0.1.x`** so release downloads, **`GET /api/networks`**, and D1 listings stay aligned.
 
 **0. CI permissions** — If **Release binaries** builds zips but the release job fails with **HTTP 403**, ensure [`.github/workflows/release.yml`](../.github/workflows/release.yml) has **`permissions: contents: write`**. One-off recovery: `gh release create <tag> release-*.zip` from failed run artifacts.
 
@@ -256,18 +256,15 @@ node scripts/network-listings-release-sql.mjs testnet-v0.1.8
 # optional: --apply
 ```
 
-Paste the three zip hashes into **`website/functions/api/networks.js`** — `BOING_ZIP_SHA` — and **`packages/shared/src/boing-testnet-node.ts`** in **VibeMiner** (`BOING_TESTNET_ZIP_SHA256_*`). Empty or non-64-hex values skip integrity verification.
+Paste the three zip hashes into **`website/functions/api/networks.js`** — `BOING_ZIP_SHA`. Empty or non-64-hex values skip integrity verification.
 
 **3. D1 / listings**
 
 - **boing.network:** apply generated SQL (e.g. **`website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql`**) on **`boing-network-db`**.
-- **VibeMiner:** apply matching migration on **`vibeminer-db`** so listings upgrade from older tags.
 
-**4. Deploy** — Deploy **boing.network** (Workers / Pages) and **VibeMiner** web/API so **`/api/networks`** and app defaults match.
+**4. Deploy** — Deploy **boing.network** (Workers / Pages) so **`/api/networks`** matches the release.
 
 **5. Public RPC (separate)** — Updating listing URLs does **not** upgrade **`https://testnet-rpc.boing.network`**. Deploy the same **`boing-node`** build behind public RPC per [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
-
-**6. Local binary (optional)** — **`VIBEMINER_BOING_NODE_EXE`** bypasses zip download (see VibeMiner **`docs/NODE_RUNNING.md`**).
 
 **Also:** [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md).
 
@@ -318,7 +315,7 @@ The **Join Testnet** hub is at `/testnet/join` (bootnodes, faucet, single-vs-mul
 
 ### Node operators
 
-- **Community page:** `/testnet/operators` — How to run a node, bootnodes, VibeMiner, leaderboard. **Dashboard:** Validator metrics (blocks, uptime when available), leaderboard. **Rewards:** Testnet BOING (blocks) + leaderboard/uptime; mainnet allocation or NFT for top N (capped).
+- **Community page:** `/testnet/operators` — How to run a node, bootnodes, leaderboard. **Dashboard:** Validator metrics (blocks, uptime when available), leaderboard. **Rewards:** Testnet BOING (blocks) + leaderboard/uptime; mainnet allocation or NFT for top N (capped).
 
 ## 2.4 Data Model (D1)
 
@@ -430,7 +427,7 @@ Readiness, promotion, and mainnet migration design for a possible future incenti
 
 ### Current Status
 
-VibeMiner shows "no nodes" until bootnodes and public RPC are live. Complete [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 and [READINESS.md](READINESS.md) §3 before announcing the incentivized testnet.
+Clients show "no nodes" until bootnodes and public RPC are live. Complete [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 and [READINESS.md](READINESS.md) §3 before announcing the incentivized testnet.
 
 ### Duration
 
@@ -487,7 +484,7 @@ Document caps and eligibility in a single "Incentivized Testnet Rules" page.
 
 **One-liner:** "Earn testnet BOING and qualify for mainnet BOING. Run a validator, build a dApp, or complete quests — rewards from our Community & Grants pool."
 
-**Channels and timeline:** Teaser 2–3 weeks before; publish full rules 1 week before; announce on launch day; link testnet, faucet, rules. Promote via Twitter/X, Discord, Telegram, blog, website, VibeMiner/partners. Link to the **Testnet Portal** (`/testnet`) for registration and dashboards.
+**Channels and timeline:** Teaser 2–3 weeks before; publish full rules 1 week before; announce on launch day; link testnet, faucet, rules. Promote via Twitter/X, Discord, Telegram, blog, website, partners. Link to the **Testnet Portal** (`/testnet`) for registration and dashboards.
 
 ## 3.3 Mainnet Migration
 
@@ -501,15 +498,17 @@ Document caps and eligibility in a single "Incentivized Testnet Rules" page.
 
 **Do not post this while the incentivized testnet is not running.** It is kept for a possible future program. Use this draft to promote the incentivized testnet on Reddit. Fill in **[PLACEHOLDERS]** (dates, links) before posting. Check each subreddit's rules and use the right flair.
 
+> **Template only — not a current announcement.** The titles and body below are hypothetical wording for a possible future program. They do not describe anything that is running today.
+
 ### Title options (pick one or adapt)
 
-- **Boing Network — Incentivized testnet is live: earn testnet BOING as validator, developer, or user (L1 with protocol-enforced QA)**
-- **We're running an incentivized testnet for Boing Network — an L1 where only quality deployments are accepted on-chain. Validators, devs, and users can earn rewards.**
-- **Boing Network incentivized testnet: 2–4 weeks to run a validator, build a dApp, or complete quests — rewards from our Community & Grants pool**
+- **[Template] Boing Network — Incentivized testnet is live: earn testnet BOING as validator, developer, or user (L1 with protocol-enforced QA)**
+- **[Template] We're running an incentivized testnet for Boing Network — an L1 where only quality deployments are accepted on-chain. Validators, devs, and users can earn rewards.**
+- **[Template] Boing Network incentivized testnet: 2–4 weeks to run a validator, build a dApp, or complete quests — rewards from our Community & Grants pool**
 
 ### Post body (short)
 
-**Boing Network** is an L1 blockchain built from first principles with **protocol-enforced quality assurance**. We're the first chain where only deployments that meet defined security and compliance rules are accepted on-chain. We're launching our **incentivized testnet** and invite validators, developers, and users to participate. **Validators:** Earn testnet BOING for blocks and uptime; top performers can qualify for mainnet recognition. **Developers:** Testnet BOING, bug bounties, dApp recognition, grant eligibility. **Users:** Faucet, quests, feedback; optional rewards per rules. All rewards from our **Community & Grants pool**. Timeline: Start [DATE], End [DATE], 2–4 weeks. **How to start:** [boing.network/testnet/join](https://boing.network/testnet/join) · [boing.network/faucet](https://boing.network/faucet) · Build from source or use **VibeMiner** for one-click validator. Rules & rewards: [Link to Incentivized Testnet Rules when live]. Tech: Rust, HotStuff BFT, libp2p, custom VM, Sparse Merkle. CLI: `boing init`, `boing dev`, `boing deploy`; TypeScript SDK. Questions welcome below.
+**Boing Network** is an L1 blockchain built from first principles with **protocol-enforced quality assurance**. We're the first chain where only deployments that meet defined security and compliance rules are accepted on-chain. We're launching our **incentivized testnet** and invite validators, developers, and users to participate. **Validators:** Earn testnet BOING for blocks and uptime; top performers can qualify for mainnet recognition. **Developers:** Testnet BOING, bug bounties, dApp recognition, grant eligibility. **Users:** Faucet, quests, feedback; optional rewards per rules. All rewards from our **Community & Grants pool**. Timeline: Start [DATE], End [DATE], 2–4 weeks. **How to start:** [boing.network/testnet/join](https://boing.network/testnet/join) · [boing.network/faucet](https://boing.network/faucet) · Build from source (see the validator guide). Rules & rewards: [Link to Incentivized Testnet Rules when live]. Tech: Rust, HotStuff BFT, libp2p, custom VM, Sparse Merkle. CLI: `boing init`, `boing dev`, `boing deploy`; TypeScript SDK. Questions welcome below.
 
 ### Links to include
 

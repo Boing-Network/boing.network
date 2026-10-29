@@ -2,7 +2,7 @@
 
 > 👋 **Everyday users:** skip this — it is an engineering backlog. Use [boing.express](https://boing.express) and [boing.observer](https://boing.observer).  
 > 🛠️ **Developers on wallet / explorer / finance:** this is the **shared checklist** of what the protocol repo already ships vs what each app should do next.  
-> 🛰️ **Operators:** SDK + tutorial verification commands are in §5 of this file and [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md).
+> 🛰️ **Operators:** SDK + tutorial verification commands are in §5 of this file and [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md).
 
 Product capability matrix (EVM | Solana | Boing-native): **[BOING-NATIVE-PRODUCT-CAPABILITY-MATRIX.md](BOING-NATIVE-PRODUCT-CAPABILITY-MATRIX.md)**.
 
@@ -101,7 +101,7 @@ BOING_RPC_URL=https://testnet-rpc.boing.network \
   node scripts/print-native-dex-routes.mjs
 ```
 
-Cross-repo smoke: public RPC + **`preflight-rpc`**, **`check-testnet-rpc`** ([PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md)).
+Cross-repo smoke: public RPC + **`preflight-rpc`**, **`check-testnet-rpc`** ([NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md)).
 
 ---
 

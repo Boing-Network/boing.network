@@ -1058,7 +1058,7 @@ body,
   color: var(--text-primary);
 }
 
-/* VibeMiner-style: full-screen blur + centered card */
+/* Full-screen blur + centered card */
 .update-overlay--card {
   background: rgba(12, 14, 18, 0.95);
   backdrop-filter: blur(8px);

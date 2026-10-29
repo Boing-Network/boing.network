@@ -24,15 +24,15 @@ flowchart TB
 | You need… | Start here |
 |-----------|------------|
 | **User-facing testnet** (join, faucet, bootnodes) | [TESTNET.md](TESTNET.md) |
-| **Copy-paste commands** (`cargo`, `boing-node`, tutorial `npm run`) | [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md) |
+| **Copy-paste commands** (`cargo`, `boing-node`, tutorial `npm run`) | [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md) |
 | **Two-machine bootnode + tunnel + website secrets** | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) |
 | **Hosted testnet on Fly.io** | [FLY-IO.md](FLY-IO.md) (`./scripts/fly-deploy-testnet.sh`) |
 | **Beta readiness / six pillars** | [READINESS.md](READINESS.md) |
 | **Upgrade / restart the node behind public RPC** | [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) |
 | **JSON-RPC methods, errors, canonical pool hex** | [RPC-API-SPEC.md](RPC-API-SPEC.md) |
 | **Canonical native CP pool (OPS-1) + rotations** | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published |
-| **Self-hosted RPC + deploy pool (VibeMiner)** | [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md) |
-| **VibeMiner listings + two-node Windows layout** | [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) |
+| **Self-hosted RPC + deploy pool** | [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md) |
+| **Node listing API + two-node Windows layout** | [NETWORKS-API.md](NETWORKS-API.md), [OPS-PUBLIC-TESTNET-TWO-NODE.md](OPS-PUBLIC-TESTNET-TWO-NODE.md) |
 | **Node flags, tunnel 530/1033, incidents** | [RUNBOOK.md](RUNBOOK.md) |
 | **QA protocol + content blocklist** | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md); apply policy: `npm run apply-public-testnet-qa-policy` |
 | **Backlog / future work index** | [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) |
@@ -83,11 +83,11 @@ Cloudflare **Bot Fight Mode** (`fight_mode`) on zone `boing.network` returns **H
    npm run preflight-rpc
    ```
 
-   Or **`npm run check-testnet-rpc`** only; optional **`BOING_PROBE_FULL=1`**. See [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md).
+   Or **`npm run check-testnet-rpc`** only; optional **`BOING_PROBE_FULL=1`**. See [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md).
 
 6. **Faucet** — Node behind the public URL runs with **`--faucet-enable`**; confirm via [boing.network/faucet](https://boing.network/faucet).
 7. **Website / portal env** — [READINESS.md](READINESS.md) §3.3, [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md): `PUBLIC_BOOTNODES`, `PUBLIC_TESTNET_RPC_URL`.
-8. **VibeMiner** — [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md); app reads **`GET https://boing.network/api/networks`**.
+8. **Node listing API** — [NETWORKS-API.md](NETWORKS-API.md); clients read **`GET https://boing.network/api/networks`**.
 9. **Optional: native DEX full stack** — **`npm run deploy-native-dex-full-stack`** from [examples/native-boing-tutorial](../examples/native-boing-tutorial/) after **`boing-sdk`** build. For **public** testnet, publish canonical pool id per [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) (**OPS-1**).
 10. **Optional: QA content policy** — Edit [`docs/config/qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json), then **`npm run apply-public-testnet-qa-policy`** (requires **`BOING_OPERATOR_RPC_TOKEN`** on the node and the matching `X-Boing-Operator` header; operator methods are rejected with `-32057` when the token is unset). Restart nodes after upgrading **`boing-node`** so **`boing_qaCheck`** uses the live registry.
 11. **Micro fee market (recommended)** — Product target is Solana-like micro fees, not gasless. Set **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`** on public nodes (current tip or tip+1), then **`npm run apply-micro-fee-policy`** (loads [`docs/config/network_fee_config.canonical.json`](config/network_fee_config.canonical.json) via **`boing_operatorApplyFeePolicy`**). Confirm with **`boing_getNetworkFeePolicy`**. Details: [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md), [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
@@ -124,7 +124,7 @@ Cloudflare returns **530** when a **Tunnel** hostname cannot reach its connector
 
 | Layer | Check |
 |-------|--------|
-| **RPC from internet** | `npm run preflight-rpc` or `check-testnet-rpc` ([PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md)) |
+| **RPC from internet** | `npm run preflight-rpc` or `check-testnet-rpc` ([NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md)) |
 | **Canonical pool** | `npm run check-canonical-pool` — CI: [canonical-pool-public-rpc.yml](../.github/workflows/canonical-pool-public-rpc.yml) |
 | **QA alignment** | `npm run verify-qa-alignment`, `npm run verify-public-testnet-rpc` |
 | **QA vulgarity smoke** | `boing_qaCheck` with blocked `asset_name` → **`reject`** / **`CONTENT_POLICY_VIOLATION`** (after node binary includes registry fix) |

@@ -20,7 +20,7 @@ flowchart LR
 
 **Public testnet:** `https://testnet-rpc.boing.network/`. Local default: `http://127.0.0.1:8545/`.
 
-If `boing_chainHeight` works but newer methods return **`-32601`**, the process is an **older binary** or a gateway allowlist — upgrading VibeMiner on your laptop does **not** change the public explorer. See [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) §2.1.
+If `boing_chainHeight` works but newer methods return **`-32601`**, the process is an **older binary** or a gateway allowlist — upgrading the `boing-node` binary on your laptop does **not** change the public explorer. See [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) §2.1.
 
 ---
 

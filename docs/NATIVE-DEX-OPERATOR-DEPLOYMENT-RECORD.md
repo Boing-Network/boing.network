@@ -150,7 +150,7 @@ Created by the same deployer with `boing token deploy` (v2) and [`scripts/create
 
 ### B.1 — `boing-node` RPC hints (`BOING_CANONICAL_NATIVE_*`)
 
-Paste on operators / VibeMiner-injected env so **`boing_getNetworkInfo`**.**`end_user`** matches this deploy (see [RPC-API-SPEC.md](RPC-API-SPEC.md)):
+Paste on operators' process env so **`boing_getNetworkInfo`**.**`end_user`** matches this deploy (see [RPC-API-SPEC.md](RPC-API-SPEC.md)):
 
 ```bash
 BOING_CANONICAL_NATIVE_CP_POOL=0x7247ddc3180fdc4d3fd1e716229bfa16bad334a07d28aa9fda9ad1bfa7bdacc3

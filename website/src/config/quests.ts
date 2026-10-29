@@ -36,7 +36,7 @@ export const QUESTS: Quest[] = [
     id: 'validator_connect',
     name: 'Join the network',
     description: 'Run a node connected to testnet bootnodes.',
-    howToComplete: 'Run boing-node with --p2p-listen and --bootnodes, or use VibeMiner. Submit your node ID or a screenshot.',
+    howToComplete: 'Run boing-node with --p2p-listen and --bootnodes (see the validator guide). Submit your node ID or a screenshot.',
     verificationType: 'manual',
     rewardTier: 'validator',
   },

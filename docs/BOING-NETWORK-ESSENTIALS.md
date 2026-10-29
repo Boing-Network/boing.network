@@ -111,7 +111,7 @@ When trade-offs arise, the network applies this order:
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Sixth pillar: QA rules, automation, community pool, meme leniency, no malice |
 | [BUILD-ROADMAP.md](BUILD-ROADMAP.md) | Implementation phases and progress |
 | [RUNBOOK.md](RUNBOOK.md) | Running nodes, RPC, CLI, monitoring, incidents |
-| [TESTNET.md](TESTNET.md) | Join testnet, Testnet Portal (registration, quests), incentivized testnet |
+| [TESTNET.md](TESTNET.md) | Join testnet, Testnet Portal (registration, quests), notes on a possible future incentivized testnet |
 | [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC methods and error codes |
 | [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) | Protocol, network, application, and operational security |
 | [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md) | SDK, automation, vision; network-wide enhancements |

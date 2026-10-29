@@ -102,12 +102,13 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 |-----|----------------|
 | [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) | **Operator hub:** go-live order, env matrix, verification |
 | [TESTNET.md](TESTNET.md) | Join testnet; **§9.1** node zip release checklist |
-| [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md) | Copy/paste RPC smoke and tutorial `npm run` commands |
-| [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Bootnodes, Cloudflare tunnel, VibeMiner alignment |
+| [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md) | Copy/paste RPC smoke and tutorial `npm run` commands |
+| [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Bootnodes, Cloudflare tunnel |
 | [FLY-IO.md](FLY-IO.md) | Hosted two-node testnet on Fly.io + public RPC Worker |
 | [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) | Upgrade the node behind public JSON-RPC |
 | [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md) | Self-hosted RPC + deploy native DEX stack |
-| [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) | One-click node; `/api/networks`; Appendix A two-node Windows |
+| [NETWORKS-API.md](NETWORKS-API.md) | Public node listing API: `/api/networks`, `meta` fields, D1 refresh |
+| [OPS-PUBLIC-TESTNET-TWO-NODE.md](OPS-PUBLIC-TESTNET-TWO-NODE.md) | Validator + full node on two Windows PCs |
 | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) | Published canonical pool (**OPS-1**) |
 | [OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md](OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md) | Predicted CREATE2 aux addresses |
 | [OPS-FRESH-TESTNET-BOOTSTRAP.md](OPS-FRESH-TESTNET-BOOTSTRAP.md) | Fresh chain + new operator key |

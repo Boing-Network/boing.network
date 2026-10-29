@@ -11,7 +11,7 @@
 
 **Lost signing seed / chain reset:** [OPS-FRESH-TESTNET-BOOTSTRAP.md](OPS-FRESH-TESTNET-BOOTSTRAP.md) — new `BOING_SECRET_HEX`, CREATE2 manifest, repo sync, redeploy.
 
-**Context:** See [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md). **VibeMiner** users run **`boing-node`** locally for JSON-RPC but do not set the pool id in the app — see [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §5.2.
+**Context:** See [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md). Operators who run **`boing-node`** locally get JSON-RPC from their own node; the node does not store a pool id. Deploying a pool is a normal **contract deploy** + **`boing_submitTransaction`** flow ([NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md)).
 
 ## Published (canonical public testnet)
 

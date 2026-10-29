@@ -135,7 +135,7 @@ Use the output `database_id` in `wrangler.toml`. Example schema: see `website/sc
 wrangler d1 execute boing-network-db --file=./website/schema.sql
 ```
 
-**VibeMiner / node listing rows (`network_listings`):** After publishing new `boing-node` release zips, refresh URLs and zip SHA-256 in D1 from `website/`. **Order of operations** (tag → GitHub release → D1 → `networks.js` → VibeMiner): [TESTNET.md](TESTNET.md) §9.
+**Node listing rows (`network_listings`):** After publishing new `boing-node` release zips, refresh URLs and zip SHA-256 in D1 from `website/`. **Order of operations** (tag → GitHub release → D1 → `networks.js`): [TESTNET.md](TESTNET.md) §9.
 
 ```bash
 cd website

@@ -9,7 +9,7 @@
 
 This spec is for **off-chain indexers** (Workers, daemons, explorer backends) that want **strong** visibility into **execution results** and **events**. The **canonical replay path** remains **blocks + receipts**; **`boing_getLogs`** is an optional, bounded shortcut (see below).
 
-Before wiring a long-running indexer, a quick **RPC smoke** (height + optional sync state) from **`examples/native-boing-tutorial`**: **`npm run preflight-rpc`** with **`BOING_RPC_URL`** — [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md).
+Before wiring a long-running indexer, a quick **RPC smoke** (height + optional sync state) from **`examples/native-boing-tutorial`**: **`npm run preflight-rpc`** with **`BOING_RPC_URL`** — [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md).
 
 ---
 

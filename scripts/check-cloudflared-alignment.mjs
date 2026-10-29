@@ -58,10 +58,10 @@ Cloudflare dashboard:
 }
 
 console.log(`OK: ${PUBLIC_HOST} and local :8545 appear in ${path.basename(configPath)}.`);
-console.log(`VibeMiner default tunnel name matches repo scripts: "${EXPECT_TUNNEL_NAME}" (Settings → Tunnel name).`);
+console.log(`Default tunnel name matches repo scripts: "${EXPECT_TUNNEL_NAME}".`);
 console.log(`
 If https://${PUBLIC_HOST}/ still returns HTTP 405 for POST:
-  - cloudflared must be RUNNING (VibeMiner tunnel start, or: cloudflared tunnel --config ... run ${EXPECT_TUNNEL_NAME})
+  - cloudflared must be RUNNING (scripts/start-cloudflare-tunnel, or: cloudflared tunnel --config ... run ${EXPECT_TUNNEL_NAME})
   - Cloudflare → DNS: only ONE record for testnet-rpc — the tunnel CNAME (*.cfargotunnel.com). Delete extras.
   - Zero Trust → Tunnels → this tunnel → confirm public hostname ${PUBLIC_HOST} → http://127.0.0.1:8545
   - WAF / Transform rules: allow POST for this hostname

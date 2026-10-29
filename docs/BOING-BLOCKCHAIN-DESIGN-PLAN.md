@@ -521,7 +521,7 @@ Emission curve:
 
 | Mechanism | How It Works | Why It's Sustainable |
 |-----------|--------------|----------------------|
-| **Testnet incentive program** | Tokens or NFTs for validators, bug hunters, early builders. Non-dilutive (testnet tokens) or small mainnet allocation. | Does not inflate mainnet supply. Builds community and tests infra. |
+| **Testnet incentive program** (planned; not currently running) | Possible future design: tokens or NFTs for validators, bug hunters, early builders. Non-dilutive (testnet tokens) or small mainnet allocation. | Does not inflate mainnet supply. Builds community and tests infra. |
 | **Fair launch / no pre-mine** | All BOING enters via block rewards and fees. No large pre-allocations. | Fair distribution; long-term alignment. |
 | **Validator grants (one-time)** | Ecosystem fund grants to early validators for hardware or hosting — capped, one-time. | Helps bootstrap; not perpetual subsidy. |
 | **Fee buyback / burn** | Optional: portion of fees used to buy and burn BOING. Reduces supply as usage grows. | Usage → deflationary pressure → value accrual. |
@@ -540,7 +540,7 @@ If fee revenue consistently exceeds validator costs, the network is **self-susta
 
 | Phase | Validator Support | Sustainability Check |
 |-------|-------------------|----------------------|
-| **Testnet** | Testnet tokens, small grants for early validators | No mainnet dilution |
+| **Testnet** (incentives planned for the future; none currently running) | Possible testnet tokens, small grants for early validators | No mainnet dilution |
 | **Mainnet launch** | Higher initial block rewards (declining curve) | Emissions programmed to decrease |
 | **Growth** | Fee revenue grows; block rewards decrease | Fee share > emission share |
 | **Maturity** | Fees dominant; low inflation floor | Network pays for itself |

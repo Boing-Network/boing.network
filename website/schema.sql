@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS portal_auth_nonces (
 
 CREATE INDEX IF NOT EXISTS idx_portal_auth_nonces_expires ON portal_auth_nonces(expires_at);
 
--- VibeMiner / node runners: D1 overrides for public network listings (merged by GET /api/networks).
+-- Node listing: D1 overrides for public network listings (merged by GET /api/networks).
 -- ids: boing-devnet (Windows), boing-devnet-linux, boing-devnet-macos (see migrations/insert-boing-devnet-listing.sql)
 CREATE TABLE IF NOT EXISTS network_listings (
   id TEXT PRIMARY KEY,

@@ -1,6 +1,6 @@
 # Boing Network — Operational Runbook
 
-> 👋 **Everyday users:** you probably want the [faucet](https://boing.network/faucet) and [VibeMiner](VIBEMINER-INTEGRATION.md), not this file.  
+> 👋 **Everyday users:** you probably want the [faucet](https://boing.network/faucet) and the [validator guide](TESTNET.md), not this file.  
 > 🛠️ **Developers:** local node is `cargo run -p boing-node` on port **8545**.  
 > 🛰️ **Operators:** this is the runbook — setup, RPC, CLI, monitoring, incidents, testnet ops.
 
@@ -178,7 +178,7 @@ Common methods only; the complete list (66 methods, params, errors, rejection re
 - **`boing_getLogs` is more expensive than single-block reads** (each call scans up to **128** committed heights and may return up to **2048** log rows). On **shared** or **rate-limited** endpoints, operators should **document** whether the method is enabled and any **extra limits** (e.g. lower QPS than `boing_chainHeight`).
 - If you need to protect the node, prefer **global RPC rate limits** (see `RateLimitConfig` / node defaults) or a **reverse proxy** rule; disabling the method is a last resort and breaks indexers that rely on it—see [INDEXER-RECEIPT-AND-LOG-INGESTION.md](INDEXER-RECEIPT-AND-LOG-INGESTION.md).
 - **Indexer clients:** use **`boing-sdk`** **`getLogsChunked`** (or equivalent chunking) so each RPC stays within the **128**-block cap; default **`maxConcurrent: 1`** on wide backfills is polite on public tiers. For full block + receipt replay, **`fetchBlocksWithReceiptsForHeightRange`** and **`planIndexerCatchUp`** are documented in the same indexer guide and in [examples/native-boing-tutorial](../examples/native-boing-tutorial/) (`npm run indexer-ingest-tick`).
-- **Internet-facing smoke (no keys):** from the tutorial package, **`npm run preflight-rpc`** with public **`BOING_RPC_URL`** exercises **`check-testnet-rpc`** plus a one-shot **`getSyncState`** sample; command matrix: [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md).
+- **Internet-facing smoke (no keys):** from the tutorial package, **`npm run preflight-rpc`** with public **`BOING_RPC_URL`** exercises **`check-testnet-rpc`** plus a one-shot **`getSyncState`** sample; command matrix: [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md).
 
 Example (curl):
 
@@ -306,7 +306,7 @@ cargo build
 
 ## 8. Testnet Operations
 
-When running the **public incentivized testnet**, the following operations keep bootnodes and the faucet available. See [TESTNET.md](TESTNET.md) Part 3 for the full launch checklist.
+If a **public incentivized testnet** is run in the future (none is running today), the following operations keep bootnodes and the faucet available. See [TESTNET.md](TESTNET.md) Part 3 for the full launch checklist.
 
 ### 8.1 Running a bootnode
 

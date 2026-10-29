@@ -21,7 +21,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DOCS_TO_PDF = [
   'Executive-Summary-Pitch-Deck.md',
   'TESTNET.md',
-  'VIBEMINER-INTEGRATION.md',
   'RUNBOOK.md',
   'SIX-PILLARS.md',
   'BOING-NETWORK-ESSENTIALS.md',

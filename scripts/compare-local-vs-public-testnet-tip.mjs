@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Compare local VibeMiner (or any) JSON-RPC tip vs public testnet — no boing-sdk build.
+ * Compare a local JSON-RPC node tip vs public testnet — no boing-sdk build.
  *
  *   npm run compare-local-public-tip
  *
@@ -34,7 +34,7 @@ async function main() {
           phase: 'local_chainHeight',
           url: localUrl,
           message: e instanceof Error ? e.message : String(e),
-          hint: 'Start VibeMiner node on this machine or set BOING_LOCAL_RPC_URL to your full node (http://IP:8545).',
+          hint: 'Start a node on this machine or set BOING_LOCAL_RPC_URL to your full node (http://IP:8545).',
         },
         null,
         2

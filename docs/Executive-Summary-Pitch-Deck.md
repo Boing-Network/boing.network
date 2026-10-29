@@ -117,7 +117,7 @@ Testnet live • SDK & CLI ready
 
 | Phase | Actions |
 |-------|---------|
-| **1. Testnet** | Public testnet, bootnodes, faucet, RPC; docs, CLI, SDK; incentivized testnet (2–4 weeks) for validators & devs |
+| **1. Testnet** | Public testnet, bootnodes, faucet, RPC; docs, CLI, SDK; a possible future incentivized testnet for validators & devs (not currently running) |
 | **2. Mainnet** | Audits, verification, infra hardening; validator bootstrap; developer grants & hackathons; boing.finance integration |
 | **3. Ecosystem** | Success-based dApp incentives; community QA pool; governance-driven evolution; accelerator/VC and community outreach |
 
@@ -138,7 +138,7 @@ Testnet live • SDK & CLI ready
 
 - **Technical:** Core protocol implemented (consensus, execution, state, P2P); node runs single/multi-node; CLI & SDK; QA design (opcode whitelist, blocklist, known-bad byte patterns); tests & fuzz.  
 - **Operational:** Testnet design (bootnodes, faucet, RPC); runbooks, API spec, testnet docs; boing.network live.  
-- **Market:** Six-pillar philosophy and tokenomics documented; design aligned with user pain; incentivized testnet plan in place. **Next:** Bootnode launch, public testnet, early validator/developer feedback.
+- **Market:** Six-pillar philosophy and tokenomics documented; design aligned with user pain; an incentivized testnet is planned for the future (not currently running). **Next:** Continued public testnet operation, early validator/developer feedback.
 
 ---
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { HubEngraveBackground } from "./HubEngraveBackground";
 
-/** Match VibeMiner splash minimum display time (SPLASH_MIN_MS) */
+/** Minimum time the intro splash stays visible */
 const INTRO_DURATION_MS = 1800;
 const FADE_OUT_MS = 400;
 

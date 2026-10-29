@@ -5,7 +5,7 @@
 > 🛰️ **Operators:** treat the sections below as the working spec for this topic.
 
 
-Use this when you run your own **validator + full node** (e.g. **VibeMiner**) with a **public JSON-RPC URL**, you have **devnet BOING** (native balance for fees), and **nothing is deployed yet**. It complements [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) (canonical **public** testnet) and [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) (browser path).
+Use this when you run your own **validator + full node** with a **public JSON-RPC URL**, you have **devnet BOING** (native balance for fees), and **nothing is deployed yet**. It complements [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) (canonical **public** testnet) and [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) (browser path).
 
 ---
 
@@ -14,7 +14,7 @@ Use this when you run your own **validator + full node** (e.g. **VibeMiner**) wi
 ### How do I know which chain ID my devnet uses?
 
 - **Boing L1 block headers do not contain a chain ID field** — the numbers **`0x1b01` (6913)** testnet and **`0x1b02` (6914)** mainnet are **wallet / dApp conventions** ([THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) §3), not something `boing_getBlockByHeight` exposes today.
-- **Default:** If you run **unmodified** `boing-node` from this repo and join the **same network** as public testnet (bootnodes / genesis from [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) / `GET https://boing.network/api/networks`), treat the chain as **6913** unless your operator docs say otherwise.
+- **Default:** If you run **unmodified** `boing-node` from this repo and join the **same network** as public testnet (bootnodes / genesis from [TESTNET.md](TESTNET.md) / `GET https://boing.network/api/networks`), treat the chain as **6913** unless your operator docs say otherwise.
 - **Private / forked genesis:** Whoever published the devnet should state the chain ID they configured in **wallet and dApp builds**. If it is not **6913**, you need **custom** Boing Express + boing.finance (or other dApps) with that ID — hosted apps will not match.
 - **Boing Express (web + extension):** The dashboard shows **Chain ID** (hex + decimal) for the selected network — that is what the wallet reports via **`boing_chainId`** to connected sites. RPC override changes the JSON-RPC URL only, not that reported ID.
 
@@ -161,7 +161,7 @@ Until those are set, the hosted **boing.finance** site will keep talking to **de
 
 ## 8. Optional checks
 
-- **`BOING_INTEGRATION_RPC_URL=<your RPC> npm run verify`** in **`boing-sdk`** — runs live RPC integration tests ([PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md) §6).
+- **`BOING_INTEGRATION_RPC_URL=<your RPC> npm run verify`** in **`boing-sdk`** — runs live RPC integration tests ([NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md) §6).
 - **`BOING_POOL_HEX=... npm run fetch-native-amm-logs`** — **`Log2`** after successful swap / add / remove.
 
 ---

@@ -46,7 +46,7 @@ Existing L1s generally permit any bytecode deployment. Quality assurance, when i
 
 ### Go-to-market (200 words max)
 
-**Phase 1—Testnet:** Public testnet with bootnodes, faucet, and RPC. Developer docs, CLI, SDK, and one-click validator integration (VibeMiner). Incentivized testnet (2–4 weeks) rewards validators, developers, and users—qualifying participants for mainnet recognition. **Phase 2—Mainnet:** Security audits, formal verification, infrastructure hardening. Validator bootstrap via early incentives and hardware grants (capped). Developer grants and hackathons. boing.finance integration for cross-chain swap, bridge, and liquidity routing. **Phase 3—Ecosystem:** Success-based dApp incentives with per-dApp caps; community QA pool; governance-driven parameter evolution. Messaging: “Only quality assets on-chain. No other L1 enforces deployment standards at the protocol layer.” Channels: GitHub, Discord, docs, accelerator/VC outreach.
+**Phase 1—Testnet:** Public testnet with bootnodes, faucet, and RPC. Developer docs, CLI, SDK, and validator setup guides. An incentivized testnet is not currently running; we hope to run one in the future (planned as roughly 2–4 weeks, rewarding validators, developers, and users), and will announce it on our official channels. **Phase 2—Mainnet:** Security audits, formal verification, infrastructure hardening. Validator bootstrap via early incentives and hardware grants (capped). Developer grants and hackathons. boing.finance integration for cross-chain swap, bridge, and liquidity routing. **Phase 3—Ecosystem:** Success-based dApp incentives with per-dApp caps; community QA pool; governance-driven parameter evolution. Messaging: “Only quality assets on-chain. No other L1 enforces deployment standards at the protocol layer.” Channels: GitHub, Discord, docs, accelerator/VC outreach.
 
 ### How you generate value (200 words max)
 
@@ -54,7 +54,7 @@ BOING tokens are used for staking, governance, fees, and validator incentives. F
 
 ### Validation steps (200 words max)
 
-**Technical:** Core protocol implemented—consensus (HotStuff), execution (custom VM), state (Sparse Merkle), P2P (libp2p). Node binary runs in single- and multi-node modes. Developer tools (CLI, SDK) scaffold and deploy dApps. Protocol QA design includes opcode whitelist, blocklist, scam patterns; community pool for edge cases. Build and tests pass; fuzz harness for primitives. **Operational:** Testnet infrastructure designed—bootnodes, faucet, public RPC. Documentation (RUNBOOK, RPC-API-SPEC, TESTNET, READINESS) supports validators and developers. boing.network site live with docs, faucet, and investor materials. **Market:** Design aligns with user pain (scams, congestion, opacity). Six-pillar philosophy documented. Tokenomics and governance designed for sustainability. Incentivized testnet plan ([TESTNET.md](TESTNET.md) Part 3) outlines validator/developer incentives. Next: bootnode launch, public testnet, early validator/developer feedback.
+**Technical:** Core protocol implemented—consensus (HotStuff), execution (custom VM), state (Sparse Merkle), P2P (libp2p). Node binary runs in single- and multi-node modes. Developer tools (CLI, SDK) scaffold and deploy dApps. Protocol QA design includes opcode whitelist, blocklist, scam patterns; community pool for edge cases. Build and tests pass; fuzz harness for primitives. **Operational:** Testnet infrastructure designed—bootnodes, faucet, public RPC. Documentation (RUNBOOK, RPC-API-SPEC, TESTNET, READINESS) supports validators and developers. boing.network site live with docs, faucet, and investor materials. **Market:** Design aligns with user pain (scams, congestion, opacity). Six-pillar philosophy documented. Tokenomics and governance designed for sustainability. A possible future incentivized testnet ([TESTNET.md](TESTNET.md) Part 3, planning notes only; not currently running) outlines validator/developer incentives. Next: continued public testnet operation and early validator/developer feedback.
 
 ---
 
@@ -84,7 +84,7 @@ The core protocol is written and maintained by the founding team. Full codebase:
 
 **Draft (≈970 characters):**
 
-**Most important metric:** Protocol completeness and testnet readiness (nodes running, RPC, faucet, docs). **Progress:** Core protocol implemented: consensus (HotStuff), execution (custom VM), state (Sparse Merkle), P2P (libp2p). Node binary runs in single- and multi-node modes; CLI and TypeScript SDK support init, dev, and deploy. Testnet infrastructure is in place (bootnodes, faucet, public RPC at testnet-rpc.boing.network). Explorer (boing.observer) and wallet (boing.express) exist. Full documentation (specs, RUNBOOK, TESTNET, READINESS) supports validators and developers. **How we make money:** BOING is used for staking, governance, and fees; 70–80% of fees go to validators, 20–30% to treasury. Treasury funds audits, grants, and ecosystem growth. Cross-chain DeFi via boing.finance will generate swap/liquidity fees. **Users:** Testnet phase—early validators and developers; user counts will grow with incentivized testnet and mainnet launch. We are at MVP stage with a live testnet and clear path to mainnet.
+**Most important metric:** Protocol completeness and testnet readiness (nodes running, RPC, faucet, docs). **Progress:** Core protocol implemented: consensus (HotStuff), execution (custom VM), state (Sparse Merkle), P2P (libp2p). Node binary runs in single- and multi-node modes; CLI and TypeScript SDK support init, dev, and deploy. Testnet infrastructure is in place (bootnodes, faucet, public RPC at testnet-rpc.boing.network). Explorer (boing.observer) and wallet (boing.express) exist. Full documentation (specs, RUNBOOK, TESTNET, READINESS) supports validators and developers. **How we make money:** BOING is used for staking, governance, and fees; 70–80% of fees go to validators, 20–30% to treasury. Treasury funds audits, grants, and ecosystem growth. Cross-chain DeFi via boing.finance will generate swap/liquidity fees. **Users:** Testnet phase—early validators and developers; we hope user counts will grow with a future incentivized testnet (not currently running) and mainnet launch. We are at MVP stage with a live testnet and clear path to mainnet.
 
 ---
 
@@ -177,10 +177,10 @@ Boing Network is an independent L1 built from first principles with **protocol-e
 • **Developer tooling:** CLI for init, dev, and deploy; TypeScript SDK; comprehensive docs (technical spec, RUNBOOK, TESTNET, READINESS).  
 • **Ecosystem apps:** Block explorer (boing.observer), non-custodial wallet (boing.express).  
 • **Website & materials:** boing.network live with docs, faucet, and investor deck (boing.network/investors/).  
-• **Validator integration:** Node specs and command templates documented for one-click listing (e.g. VibeMiner-style integration).
+• **Validator integration:** Node specs, release packages and command templates documented for operators (public node listing API).
 
 **Partnerships / ecosystem:**  
-• Testnet infrastructure in place for validator onboarding; incentivized testnet and mainnet migration path defined. Cross-chain DeFi (boing.finance) planned for post-mainnet. No formal partnerships to announce yet; seeking accelerator support for go-to-market, validator intros, and ecosystem development.
+• Testnet infrastructure in place for validator onboarding; a possible future incentivized testnet (not currently running) and mainnet migration path are planned. Cross-chain DeFi (boing.finance) planned for post-mainnet. No formal partnerships to announce yet; seeking accelerator support for go-to-market, validator intros, and ecosystem development.
 
 ---
 
@@ -300,7 +300,7 @@ Choose **one** of:
 
 **Draft (copy-paste and edit as needed):**
 
-BOING is the native token of Boing Network (staking, governance, fees). Testnet BOING is live for faucet and validator testing. **Mainnet TGE** is planned at or shortly after mainnet launch: initial distribution aligned with our tokenomics (emission, validator rewards, treasury, community/ecosystem). We will follow a phased approach—incentivized testnet participants may qualify for mainnet recognition per our READINESS and TESTNET docs—and will ensure compliance with applicable regulations. Exact date and mechanics will be set after security audits and mainnet readiness; we are open to accelerator/advisor input on timing and structure.
+BOING is the native token of Boing Network (staking, governance, fees). Testnet BOING is live for faucet and validator testing. **Mainnet TGE** is planned at or shortly after mainnet launch: initial distribution aligned with our tokenomics (emission, validator rewards, treasury, community/ecosystem). We will follow a phased approach—if a future incentivized testnet is run (none is running today), its participants might qualify for mainnet recognition under rules to be published—and will ensure compliance with applicable regulations. Exact date and mechanics will be set after security audits and mainnet readiness; we are open to accelerator/advisor input on timing and structure.
 
 *Short version (if character limit):*  
 *BOING is the native token; testnet live. Mainnet TGE at or after mainnet launch, with distribution per tokenomics and compliance. Timing to be finalized post-audits and with accelerator/advisor input.*

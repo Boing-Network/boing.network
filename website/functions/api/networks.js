@@ -4,8 +4,7 @@
  *
  * **IDs:** `boing-devnet` (Windows zip), `boing-devnet-linux`, `boing-devnet-macos` — clients pick by `platform`.
  * This matches three D1 rows (see `website/migrations/insert-boing-devnet-listing.sql` and
- * `scripts/network-listings-release-sql.mjs`). `@vibeminer/shared` instead exposes one static `boing-devnet`
- * row with `nodePresets` for Windows / Linux / macOS — equivalent coverage, different shape.
+ * `scripts/network-listings-release-sql.mjs`).
  */
 
 const CORS = {
@@ -34,10 +33,10 @@ function isAllowedDownloadUrl(urlString) {
   }
 }
 
-/** Canonical GitHub org/repo for protocol releases and docs (align with VibeMiner `patchBlockchainNetworkJsonForBoing`). */
+/** Canonical GitHub org/repo for protocol releases and docs. */
 const CANONICAL_GH_REPO = 'Boing-Network/boing.network';
 
-/** Pinned testnet tag for official zips (keep in sync with VibeMiner `BOING_TESTNET_DEFAULT_DOWNLOAD_TAG`). */
+/** Pinned testnet tag for official zips. */
 const BOING_TESTNET_DOWNLOAD_TAG = 'testnet-v0.1.19';
 
 /** SHA-256 of each official zip for `BOING_TESTNET_DOWNLOAD_TAG` (refresh via `network-listings-release-sql.mjs`). */
@@ -103,11 +102,10 @@ const DEVNET_BASE = {
 };
 
 /**
- * Machine-readable defaults for desktop clients (e.g. VibeMiner). Safe to extend with new keys;
+ * Machine-readable defaults for clients (e.g. boing.express). Safe to extend with new keys;
  * clients should ignore unknown fields.
  *
- * **Sync:** `boing_testnet_download_tag` must match VibeMiner’s `BOING_TESTNET_DEFAULT_DOWNLOAD_TAG` (or
- * equivalent). See docs/VIBEMINER-INTEGRATION.md §6.
+ * See docs/NETWORKS-API.md.
  */
 function buildNetworksMeta() {
   return {
@@ -127,8 +125,8 @@ function buildNetworksMeta() {
       three_codebase_alignment: githubBlobMain('docs/THREE-CODEBASE-ALIGNMENT.md'),
     },
     docs: {
-      vibeminer_integration: githubBlobMain('docs/VIBEMINER-INTEGRATION.md'),
-      pre_vibeminer_commands: githubBlobMain('docs/PRE-VIBEMINER-NODE-COMMANDS.md'),
+      networks_api: githubBlobMain('docs/NETWORKS-API.md'),
+      node_operator_commands: githubBlobMain('docs/NODE-OPERATOR-COMMANDS.md'),
       /** Operator template: chain metadata, `BOING_CANONICAL_NATIVE_*`, and `BOING_DEX_*` discovery tuning. */
       boing_node_public_env_example: githubBlobMain('tools/boing-node-public-testnet.env.example'),
     },

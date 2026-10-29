@@ -17,7 +17,7 @@
     "check-observer-readiness": "node scripts/check-observer-readiness.mjs",
     "check-testnet-rpc": "npm run check-testnet-rpc --prefix examples/native-boing-tutorial",
     "compare-local-public-tip": "node scripts/compare-local-vs-public-testnet-tip.mjs",
-    "vibeminer-public-testnet-preflight": "node scripts/vibeminer-public-testnet-preflight.mjs",
+    "public-testnet-node-preflight": "node scripts/public-testnet-node-preflight.mjs",
     "contract-call": "npm run contract-call --prefix examples/native-boing-tutorial",
     "deploy-minimal": "npm run deploy-minimal --prefix examples/native-boing-tutorial",
     "deploy-native-amm-pool": "npm run deploy-native-amm-pool --prefix examples/native-boing-tutorial",

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Automated checks for VibeMiner-style public testnet nodes (see docs/VIBEMINER-INTEGRATION.md).
+ * Automated checks for public testnet nodes (see docs/OPS-PUBLIC-TESTNET-TWO-NODE.md).
  *
- *   npm run vibeminer-public-testnet-preflight
+ *   npm run public-testnet-node-preflight
  *
  * Env:
  *   BOING_LOCAL_RPC_URL       — default http://127.0.0.1:8545
@@ -166,7 +166,7 @@ async function main() {
     report.steps.binary_hint = {
       official_zip_tag: meta.boing_testnet_download_tag,
       local_boing_clientVersion: localVer,
-      note: 'Compare your VibeMiner / listing zip tag with official_zip_tag; clientVersion is the running binary.',
+      note: 'Compare your downloaded zip tag with official_zip_tag; clientVersion is the running binary.',
     };
   }
 
@@ -183,7 +183,7 @@ async function main() {
       url: localUrl,
       message: e instanceof Error ? e.message : String(e),
     };
-    report.hints.push('Start the VibeMiner node or set BOING_LOCAL_RPC_URL.');
+    report.hints.push('Start your node or set BOING_LOCAL_RPC_URL.');
     console.error(JSON.stringify(report, null, 2));
     scheduleExit(1);
     return;
@@ -233,7 +233,7 @@ async function main() {
     report.ok = false;
     report.steps.chain_tip.reason = 'local_too_far_behind';
     report.hints.push(
-      'See docs/VIBEMINER-INTEGRATION.md § Manual follow-ups — bootnodes, binary tag, P2P reachability.'
+      'See docs/OPS-PUBLIC-TESTNET-TWO-NODE.md — bootnodes, binary tag, P2P reachability.'
     );
     console.error(JSON.stringify(report, null, 2));
     scheduleExit(2);

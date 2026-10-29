@@ -1,4 +1,4 @@
--- VibeMiner /api/networks D1 overrides (merged with static entries in functions/api/networks.js).
+-- /api/networks D1 overrides (merged with static entries in functions/api/networks.js).
 -- Canonical ids: boing-devnet (Windows), boing-devnet-linux, boing-devnet-macos.
 --
 -- Prefer regenerating from: `node scripts/network-listings-release-sql.mjs <tag>`, or copy the latest

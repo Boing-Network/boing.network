@@ -61,7 +61,7 @@ export async function syncState(base) {
 }
 
 /**
- * Parse `/ip4/a.b.c.d/tcp/port` multiaddrs from a comma-separated CLI/VibeMiner string.
+ * Parse `/ip4/a.b.c.d/tcp/port` multiaddrs from a comma-separated CLI string.
  * @param {string} raw
  * @returns {{ host: string, port: number }[]}
  */

@@ -79,7 +79,7 @@ jobs:
         with:
           files: artifacts/*
           generate_release_notes: true
-          # Draft releases have no public /releases/download/... URLs — breaks SHA refresh scripts and VibeMiner.
+          # Draft releases have no public /releases/download/... URLs — breaks the SHA refresh scripts and the node listing downloads.
           # Publish testnet tags immediately; keep `v*` as draft for manual review before mainnet drops.
           draft: ${{ !startsWith(github.ref_name, 'testnet') }}
         env:

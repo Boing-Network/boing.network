@@ -70,7 +70,7 @@ If the JSON-RPC endpoint is reachable from the open internet, set a long random 
 
 **Read-only transparency:** **`boing_getQaRegistry`**, **`boing_qaPoolList`**, and **`boing_qaPoolConfig`** do not use the operator token — they are intended for public explorers (e.g. [boing.observer/qa](https://boing.observer/qa)). Canonical baseline JSON for docs lives under [docs/config/CANONICAL-QA-REGISTRY.md](config/CANONICAL-QA-REGISTRY.md).
 
-The **`boing-node` process behind your Cloudflare tunnel** (the one listening on `localhost:8545`) must be a build that includes these methods, or explorers will show **Method not found** even when users run a newer binary locally (e.g. via VibeMiner). See [THREE-CODEBASE-ALIGNMENT.md §2.1](THREE-CODEBASE-ALIGNMENT.md#21-qa-registry-rpc-boing_getqaregistry--two-different-surfaces).
+The **`boing-node` process behind your Cloudflare tunnel** (the one listening on `localhost:8545`) must be a build that includes these methods, or explorers will show **Method not found** even when users run a newer binary locally (e.g. a locally downloaded release). See [THREE-CODEBASE-ALIGNMENT.md §2.1](THREE-CODEBASE-ALIGNMENT.md#21-qa-registry-rpc-boing_getqaregistry--two-different-surfaces).
 
 ## Prerequisites
 
@@ -153,7 +153,7 @@ curl -s -X POST https://testnet-rpc.boing.network/ \
 
 Explorers (e.g. **boing.observer/qa**) and tooling call these read-only methods on **the same public URL** (`https://testnet-rpc.boing.network/`). They are implemented in **current `boing-node`** in this repo (`crates/boing-node/src/rpc.rs`). If the public URL returns **Method not found**, the process behind the tunnel is an **older binary** (or not this codebase’s node)—**not** a DNS or “wrong URL in the website” problem.
 
-**You do not need to buy a new domain.** `testnet-rpc.boing.network` must be a **DNS record in your existing `boing.network` zone** (Cloudflare) pointing at your **Cloudflare Tunnel** (public hostname → `http://127.0.0.1:8545`). VibeMiner’s tunnel button only starts `cloudflared` on **your** PC; it does not create that DNS record for you.
+**You do not need to buy a new domain.** `testnet-rpc.boing.network` must be a **DNS record in your existing `boing.network` zone** (Cloudflare) pointing at your **Cloudflare Tunnel** (public hostname → `http://127.0.0.1:8545`). Starting `cloudflared` on **your** PC does not create that DNS record for you.
 
 **Operator checklist (primary machine — the one that runs the tunnel):**
 
@@ -235,7 +235,7 @@ Once both bootnodes and the tunnel are running:
 **Verify:**
 
 1. **Faucet:** Visit [boing.network/faucet](https://boing.network/faucet); enter a 32-byte hex account ID; request testnet BOING.
-2. **VibeMiner:** Should show nodes once the website is deployed with `PUBLIC_BOOTNODES`.
+2. **Join page:** [boing.network/testnet/join](https://boing.network/testnet/join) should list the bootnodes once the website is deployed with `PUBLIC_BOOTNODES`.
 3. **Terminal validator:** `boing-node --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes <LIST> --validator --rpc-port 8545`
 
 ---
@@ -257,9 +257,9 @@ Pointing **`testnet-rpc.boing.network`** only at **Cloudflare Pages**, a **Worke
 1. **Cloudflare Tunnel** (`cloudflared`) with a **public hostname** `testnet-rpc.boing.network` → `http://127.0.0.1:8545`
 2. **DNS** for `testnet-rpc` owned by that tunnel (CNAME to `*.cfargotunnel.com` as shown in Zero Trust)
 
-### VibeMiner alignment
+### Tunnel alignment
 
-VibeMiner uses the same flow as `scripts/start-cloudflare-tunnel.bat`:
+The supported flow is the same as `scripts/start-cloudflare-tunnel.bat`:
 
 ```text
 cloudflared tunnel --config %USERPROFILE%\.cloudflared\config.yml run boing-testnet-rpc
@@ -267,7 +267,7 @@ cloudflared tunnel --config %USERPROFILE%\.cloudflared\config.yml run boing-test
 
 | Piece | Value |
 |--------|--------|
-| Tunnel **name** in Cloudflare / config | `boing-testnet-rpc` (default in VibeMiner **Settings → Public RPC tunnel**) |
+| Tunnel **name** in Cloudflare / config | `boing-testnet-rpc` (default used by the repo scripts) |
 | **config.yml** location | `%USERPROFILE%\.cloudflared\config.yml` (Windows) or `~/.cloudflared/config.yml` |
 | **ingress** | `hostname: testnet-rpc.boing.network` → `service: http://127.0.0.1:8545` |
 
@@ -279,7 +279,7 @@ Template: **[cloudflared-config.example.yml](./cloudflared-config.example.yml)**
 2. **Zero Trust → Tunnels** — Create or open tunnel **`boing-testnet-rpc`**. Under **Public hostname**: subdomain **`testnet-rpc.boing.network`**, service **`http://127.0.0.1:8545`**. Save; let Cloudflare create/update the DNS record.
 3. **Local `config.yml`** — After `cloudflared tunnel create boing-testnet-rpc`, ensure the config contains the tunnel UUID, `credentials-file`, and **ingress** for that hostname → `http://127.0.0.1:8545`. Merge from the example file if the dashboard did not write it.
 4. **Verify locally** — `node scripts/check-cloudflared-alignment.mjs` and `curl -X POST http://127.0.0.1:8545` with `boing_chainHeight` (see Step 2 above).
-5. **Start tunnel** — `scripts/start-cloudflare-tunnel.bat` / `.sh`, VibeMiner “link tunnel”, or Zero Trust **Start**.
+5. **Start tunnel** — `scripts/start-cloudflare-tunnel.bat` / `.sh`, or Zero Trust **Start**.
 6. **Verify public** — `node scripts/verify-public-testnet-rpc.mjs`.
 
 **Related:** [RUNBOOK.md](RUNBOOK.md) §8.3 (HTTP **530** / tunnel origin down).
@@ -295,7 +295,7 @@ Template: **[cloudflared-config.example.yml](./cloudflared-config.example.yml)**
 | CORS errors in browser | Node must be rebuilt with CORS support (included in boing-node); redeploy |
 | **boing.finance** shows “Testnet RPC unreachable” | Often **CORS**: browser blocks `fetch` if the node build predates `boing.finance` in the allow list — rebuild `boing-node`, restart the **primary** RPC process, confirm `OPTIONS` from that origin returns `access-control-allow-origin`. |
 | Faucet: “Faucet not enabled on this node.” | The RPC URL hits a node **without** `--faucet-enable`. Use `--faucet-enable` on the **same** node the tunnel forwards to (see `start-bootnode-1` scripts). A secondary full node alone cannot serve the public faucet. |
-| "No nodes" in VibeMiner | Website built with `PUBLIC_BOOTNODES` and `PUBLIC_TESTNET_RPC_URL`; config redeployed |
+| "No nodes" on the join page | Website built with `PUBLIC_BOOTNODES` and `PUBLIC_TESTNET_RPC_URL`; config redeployed |
 | **Method not found:** `boing_getQaRegistry` / `boing_qaPoolConfig` on public URL | Tunnel points to **8545**, but the **boing-node binary** there is too old. Rebuild from this repo on the primary, restart node, keep tunnel. Run `node scripts/verify-public-testnet-rpc.mjs`. |
 | **HTTP 405** on `https://testnet-rpc.boing.network/` (verify script or `curl -X POST`) | **POST is not reaching boing-node.** Usually wrong DNS (hostname points to Pages/static host, not the tunnel), duplicate DNS records, or tunnel ingress missing this hostname. `curl -X POST http://127.0.0.1:8545` on the node PC must succeed first. JSON-RPC **requires POST**; GET-only frontends return 405. |
 

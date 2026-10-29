@@ -154,7 +154,7 @@ flowchart TB
 | Channel | Use |
 |---------|-----|
 | **Security advisories** | [GitHub Security Advisories](https://github.com/Boing-Network/boing.network/security/advisories/new) — for responsible disclosure of vulnerabilities |
-| **Bug bounty** | *TBD — program to be announced with incentivized testnet* |
+| **Bug bounty** | *TBD — program to be announced; no incentivized testnet is currently running* |
 | **Incident response** | See [RUNBOOK.md](RUNBOOK.md) §6; severity-driven communication |
 
 **For vulnerabilities:** Please report via GitHub Security Advisories. Do not open public issues for security-sensitive findings.

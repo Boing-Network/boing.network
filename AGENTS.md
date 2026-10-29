@@ -17,4 +17,4 @@
 - Contract deploy QA (`crates/boing-qa`) can reject bytecode via governance-configured deploy-bytecode hash lists and byte-pattern checks, and optional metadata content rules on deploy `asset_name` / `asset_symbol`; default registries ship with empty lists until configured.
 - Browser-facing apps that call the public RPC over HTTPS require correct CORS configuration on the RPC or its tunnel or proxy; missing headers commonly show up as blocked fetches from sites like the explorer.
 - Canonical public testnet RPC is `https://testnet-rpc.boing.network/` via `workers/public-rpc-gateway` (Cloudflare Worker → Fly `boing-testnet-1`). Do not point that hostname at a home Cloudflare Tunnel. Hosted bootnode is `/ip4/169.155.48.188/tcp/4001` ([docs/FLY-IO.md](docs/FLY-IO.md)). `boing-testnet-2` was retired 2026-10-24.
-- VibeMiner-related network listing and operator expectations are documented in `docs/VIBEMINER-INTEGRATION.md`.
+- The public node listing API (`GET /api/networks`) and operator expectations are documented in `docs/NETWORKS-API.md`.

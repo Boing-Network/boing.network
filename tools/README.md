@@ -10,7 +10,7 @@
 | [`boing-node-public-testnet.kubernetes.example.yaml`](./boing-node-public-testnet.kubernetes.example.yaml) | **Kubernetes** `ConfigMap` + **`Deployment`** with **`envFrom`**. |
 | [Fly.io hosted testnet](../docs/FLY-IO.md) | **`Dockerfile`** + [`deploy/fly/`](../deploy/fly/) + [`scripts/fly-deploy-testnet.sh`](../scripts/fly-deploy-testnet.sh) + [`workers/public-rpc-gateway`](../workers/public-rpc-gateway/). |
 
-**VibeMiner / public testnet checks (repo root `package.json`):** **`npm run vibeminer-public-testnet-preflight`**, **`npm run compare-local-public-tip`** — see [docs/VIBEMINER-INTEGRATION.md](../docs/VIBEMINER-INTEGRATION.md).
+**Public testnet checks (repo root `package.json`):** **`npm run public-testnet-node-preflight`**, **`npm run compare-local-public-tip`** — see [docs/OPS-PUBLIC-TESTNET-TWO-NODE.md](../docs/OPS-PUBLIC-TESTNET-TWO-NODE.md).
 
 Docs: [docs/PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](../docs/PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md), [docs/RUNBOOK.md](../docs/RUNBOOK.md) § public RPC.
 

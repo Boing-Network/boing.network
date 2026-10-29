@@ -99,4 +99,4 @@ Adjust **`BOING_RPC_URL`** if you are not hitting public testnet.
 
 - [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) — published pool checklist (after you freeze a new id)  
 - [OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md](OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md) — DEX aux predictions  
-- [PRE-VIBEMINER-NODE-COMMANDS.md](PRE-VIBEMINER-NODE-COMMANDS.md) — script index
+- [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md) — script index

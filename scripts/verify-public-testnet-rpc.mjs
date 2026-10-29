@@ -104,7 +104,7 @@ Checklist:
      that only serves GET.
   2) Duplicate records: Remove any extra A/AAAA/CNAME for testnet-rpc that point elsewhere.
   3) Tunnel ingress: cloudflared config must map **https://testnet-rpc.boing.network** → **http://127.0.0.1:8545**
-     (the process where boing-node listens). VibeMiner's tunnel uses YOUR local config — if the public
+     (the process where boing-node listens). A tunnel started locally uses YOUR local config — if the public
      hostname is not in that config, global DNS can still point to a different target → 405.
   4) Prove local RPC: on the PC running the node:
        curl -s -X POST http://127.0.0.1:8545 -H "Content-Type: application/json" \\
