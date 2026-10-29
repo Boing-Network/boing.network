@@ -342,6 +342,11 @@ impl Transaction {
                 hex::encode(&blob_id[..8]),
                 hex::encode(&grantee.0[..8])
             ),
+            TransactionPayload::ReportEquivocation { evidence } => format!(
+                "Report equivocation by {} in round {}",
+                hex::encode(&evidence.validator().0[..8]),
+                evidence.round()
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -450,6 +455,10 @@ impl Transaction {
             | TransactionPayload::RevokeBlobDownload { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
+            }
+            TransactionPayload::ReportEquivocation { evidence } => {
+                let ids = vec![self.sender, evidence.validator()];
+                AccessList::new(ids.clone(), ids)
             }
             TransactionPayload::Batch { calls } => {
                 let mut ids = vec![self.sender];
@@ -714,6 +723,11 @@ pub enum TransactionPayload {
     RevokeBlobDownload {
         blob_id: crate::BlobId,
         grantee: AccountId,
+    },
+    /// Report consensus equivocation (index **36**). Any sender; the slash is applied during block
+    /// execution, once per (offender, round), so every node reaches the same state root.
+    ReportEquivocation {
+        evidence: crate::EquivocationEvidence,
     },
 }
 

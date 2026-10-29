@@ -798,6 +798,14 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::ReportEquivocation { evidence } => {
+                return self.execute_report_equivocation(
+                    state,
+                    tx,
+                    evidence,
+                    exec_ctx.block_height,
+                );
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -1326,6 +1334,59 @@ impl Vm {
                 pin_set_commitment,
             )
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: media_blob_meta_tx_gas(),
+            return_data: slash_id.to_le_bytes().to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    /// Apply an equivocation slash from block-ordered evidence: both votes verify, the offender
+    /// has active stake, and (offender, round) has not been slashed before. The appeal window
+    /// starts at the block that includes the report.
+    fn execute_report_equivocation(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        evidence: &boing_primitives::EquivocationEvidence,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        evidence
+            .verify()
+            .map_err(|e| VmError::Equivocation(e.to_string()))?;
+        let offender = evidence.validator();
+        let round = evidence.round();
+        if state
+            .slash_appeals()
+            .equivocation_slash_id(&offender, round)
+            .is_some()
+        {
+            return Err(VmError::Equivocation(
+                "already slashed for this round".into(),
+            ));
+        }
+        if state.get(&offender).map(|a| a.stake).unwrap_or(0) == 0 {
+            return Err(VmError::Equivocation("offender has no active stake".into()));
+        }
+        let burned = boing_tokenomics::slash_equivocation_stake(state, &offender);
+        let window = height
+            .saturating_sub(round)
+            .saturating_add(boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS);
+        let slash_id = state
+            .slash_appeals_mut()
+            .record_slash(
+                offender,
+                burned,
+                boing_state::ConsensusSlashReason::Equivocation,
+                round,
+                window,
+            )
+            .map_err(|e| VmError::Equivocation(e.to_string()))?;
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
             .nonce
@@ -2827,6 +2888,8 @@ pub enum VmError {
     MediaBlobsNotActive { from: Option<u64> },
     #[error("Media blob: {0}")]
     MediaBlob(String),
+    #[error("Equivocation report: {0}")]
+    Equivocation(String),
 }
 
 /// Apply CREATE2-style deploy from inside a contract: QA, address derivation, account insert, optional init, runtime install.

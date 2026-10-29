@@ -80,7 +80,7 @@ fn node_with_validators(
 }
 
 #[test]
-fn leader_timeout_slash_after_miss_threshold() {
+fn leader_timeout_does_not_mutate_committed_state() {
     let local_key = SigningKey::generate(&mut OsRng);
     let v1 = AccountId(local_key.verifying_key().to_bytes());
     let v2 = AccountId([2u8; 32]);
@@ -103,6 +103,7 @@ fn leader_timeout_slash_after_miss_threshold() {
     node.submit_transaction(SignedTransaction::new(tx, &local_key))
         .unwrap();
 
+    let root_before = node.state.state_root();
     let next_h = node.chain.height() + 1;
     assert_eq!(node.consensus.leader(next_h), v2);
     assert_ne!(node.producer.proposer(), v2);
@@ -116,29 +117,13 @@ fn leader_timeout_slash_after_miss_threshold() {
         node.tick_liveness();
     }
 
-    assert_eq!(node.state.get(&v2).unwrap().stake, 9_000); // 10% of 10_000
-    assert_eq!(
-        node.state
-            .get(&boing_tokenomics::FEE_BURN_SINK)
-            .unwrap()
-            .balance,
-        1_000
-    );
-    assert!(node
-        .slash_registry
-        .list_slashes()
-        .iter()
-        .any(|s| s.reason == boing_governance::SlashReason::Liveness && s.amount == 1_000));
-    // Phase 15: consensus book seeded for liveness as well.
-    assert!(node
-        .state
-        .slash_appeals()
-        .list_slashes()
-        .iter()
-        .any(
-            |s| matches!(s.reason, boing_state::ConsensusSlashReason::Liveness)
-                && s.amount == 1_000
-        ));
+    // Leader timeouts are node-local observations: no stake change, no slash record, same root.
+    assert_eq!(node.state.get(&v2).unwrap().stake, 10_000);
+    assert!(node.state.get(&boing_tokenomics::FEE_BURN_SINK).is_none());
+    assert!(node.slash_registry.list_slashes().is_empty());
+    assert!(node.state.slash_appeals().list_slashes().is_empty());
+    assert_eq!(node.state.state_root(), root_before);
+    assert_eq!(node.liveness_miss_streak.get(&v2), Some(&0));
 }
 
 #[test]
