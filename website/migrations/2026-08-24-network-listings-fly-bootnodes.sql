@@ -1,4 +1,4 @@
--- Point VibeMiner command templates at the hosted Fly bootnodes.
+-- Point node command templates at the hosted Fly bootnodes.
 -- Apply (from website/): wrangler d1 execute boing-network-db --remote --file=./migrations/2026-08-24-network-listings-fly-bootnodes.sql
 
 UPDATE network_listings
