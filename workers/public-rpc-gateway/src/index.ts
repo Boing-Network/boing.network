@@ -354,6 +354,83 @@ async function proxySubmitFanout(origins: string[], req: Request, body: ArrayBuf
 type Note = { value: string | null };
 
 /**
+ * Immutable lookups (a block at a given height/hash) whose upstream answer was over MAX_RESPONSE_BYTES.
+ * Detecting "too large" costs a full 6 MiB stream read: Cloudflare re-requests the origin compressed, so
+ * Content-Length is gone and the read + decompress alone blows the Free-plan 10 ms CPU budget (error 1102,
+ * HTTP 503). Wallet block scans hit the same huge blob blocks (testnet 1311-1317) every refresh, so remember
+ * them: per-isolate Map plus the free Cache API, keyed by method + params.
+ */
+const OVERSIZE_CACHEABLE = new Set(["boing_getBlockByHeight", "boing_getBlockByHash"]);
+const OVERSIZE_TTL_SECS = 86_400;
+const oversizeLocal = new Map<string, number>();
+
+/** Test hook: forget remembered oversize lookups. */
+export function resetOversizeMemo(): void {
+  oversizeLocal.clear();
+}
+
+function oversizeKey(body: ArrayBuffer | null): string | null {
+  if (!body || body.byteLength === 0 || body.byteLength > 4096) return null;
+  try {
+    const o = JSON.parse(new TextDecoder().decode(body)) as { method?: unknown; params?: unknown };
+    if (Array.isArray(o) || typeof o.method !== "string" || !OVERSIZE_CACHEABLE.has(o.method)) return null;
+    const params = Array.isArray(o.params) ? o.params : [];
+    // "latest"/tip-relative params are not immutable.
+    if (params.length === 0 || typeof params[0] !== "number" && typeof params[0] !== "string") return null;
+    return `https://oversize.boing-gateway.invalid/${o.method}/${encodeURIComponent(JSON.stringify(params))}`;
+  } catch {
+    return null;
+  }
+}
+
+function cacheApi(): Cache | null {
+  const c = (globalThis as { caches?: { default?: Cache } }).caches;
+  return c?.default ?? null;
+}
+
+async function isKnownOversize(key: string): Promise<boolean> {
+  const t = oversizeLocal.get(key);
+  if (t && Date.now() - t < OVERSIZE_TTL_SECS * 1000) return true;
+  const cache = cacheApi();
+  if (!cache) return false;
+  try {
+    const hit = await cache.match(key);
+    if (hit) {
+      oversizeLocal.set(key, Date.now());
+      return true;
+    }
+  } catch {
+    /* cache unavailable */
+  }
+  return false;
+}
+
+function rememberOversize(key: string | null, ctx?: { waitUntil(p: Promise<unknown>): void }): void {
+  if (!key) return;
+  if (oversizeLocal.size > 1000) oversizeLocal.clear();
+  oversizeLocal.set(key, Date.now());
+  const cache = cacheApi();
+  if (!cache) return;
+  const put = cache
+    .put(key, new Response("1", { headers: { "Cache-Control": `max-age=${OVERSIZE_TTL_SECS}` } }))
+    .catch(() => undefined);
+  if (ctx) ctx.waitUntil(put);
+}
+
+function requestId(body: ArrayBuffer | null): unknown {
+  try {
+    const o = JSON.parse(new TextDecoder().decode(body ?? new ArrayBuffer(0))) as { id?: unknown };
+    return o && typeof o === "object" && !Array.isArray(o) ? o.id ?? null : null;
+  } catch {
+    return null;
+  }
+}
+
+function oversizeResponse(id: unknown, detail: string): Response {
+  return json({ jsonrpc: "2.0", id, error: { code: -32000, message: detail, data: { reason: "response_too_large", limit_bytes: MAX_RESPONSE_BYTES } } }, 200);
+}
+
+/**
  * Method allow-list and per-IP class limits. Returns a Response only in enforce mode; in log mode it
  * records what would have been denied in `note` and lets the request through.
  */
@@ -385,9 +462,9 @@ async function edgeGate(req: Request, env: Env, body: ArrayBuffer | null, note: 
 }
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
     const note: Note = { value: null };
-    const res = await handle(req, env, note);
+    const res = await handle(req, env, note, ctx);
     if (!note.value) return res;
     const headers = new Headers(res.headers);
     headers.set("X-Boing-Edge-Policy", note.value);
@@ -395,7 +472,12 @@ export default {
   },
 };
 
-async function handle(req: Request, env: Env, note: Note): Promise<Response> {
+async function handle(
+  req: Request,
+  env: Env,
+  note: Note,
+  ctx?: { waitUntil(p: Promise<unknown>): void }
+): Promise<Response> {
   {
     if (req.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: withCors(new Headers()) });
@@ -437,6 +519,14 @@ async function handle(req: Request, env: Env, note: Note): Promise<Response> {
       return proxySubmitFanout(origins, req, body);
     }
 
+    const sizeKey = req.method === "POST" ? oversizeKey(body) : null;
+    if (sizeKey && (await isKnownOversize(sizeKey))) {
+      return oversizeResponse(
+        requestId(body),
+        `Upstream RPC response exceeded gateway limit (${MAX_RESPONSE_BYTES} bytes). Run your own node for blob-sized blocks.`
+      );
+    }
+
     const live = await liveMap(origins);
     const order = orderedBackends(origins, live);
     let lastStatus = 502;
@@ -456,32 +546,20 @@ async function handle(req: Request, env: Env, note: Note): Promise<Response> {
         const declaredLength = Number(upstream.headers.get("content-length") ?? "NaN");
         if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
           await upstream.body?.cancel().catch(() => undefined);
-          return json(
-            {
-              jsonrpc: "2.0",
-              id: null,
-              error: {
-                code: -32000,
-                message: `Upstream RPC response too large (${declaredLength} bytes; gateway limit ${MAX_RESPONSE_BYTES}).`,
-              },
-            },
-            200
+          rememberOversize(sizeKey, ctx);
+          return oversizeResponse(
+            requestId(body),
+            `Upstream RPC response too large (${declaredLength} bytes; gateway limit ${MAX_RESPONSE_BYTES}).`
           );
         }
 
         // Buffer (with cap) so we never forward a mid-stream truncation as HTTP 200 JSON.
         const buf = await readBodyCapped(upstream, MAX_RESPONSE_BYTES);
         if (buf === null) {
-          return json(
-            {
-              jsonrpc: "2.0",
-              id: null,
-              error: {
-                code: -32000,
-                message: `Upstream RPC response exceeded gateway limit (${MAX_RESPONSE_BYTES} bytes).`,
-              },
-            },
-            200
+          rememberOversize(sizeKey, ctx);
+          return oversizeResponse(
+            requestId(body),
+            `Upstream RPC response exceeded gateway limit (${MAX_RESPONSE_BYTES} bytes).`
           );
         }
         if (

@@ -105,6 +105,21 @@ export async function checkRates(
   return null;
 }
 
+/** Common names that do not exist on a Boing node (seen in edge logs) and what to call instead. */
+export const METHOD_HINTS: Readonly<Record<string, string>> = {
+  boing_chainId: "Wallet-provider method (Boing Express), not a node RPC. On the node use boing_getNetworkInfo (chain_id).",
+  eth_chainId: "Wallet-provider method, not a node RPC. On the node use boing_getNetworkInfo (chain_id).",
+  boing_getTransactionByHash: "Use boing_getTransactionReceipt([tx_id]) and then boing_getBlockByHeight for the full transaction.",
+  boing_getBlock: "Use boing_getBlockByHeight([height, include_receipts]) or boing_getBlockByHash([hash]).",
+  boing_getBlockByNumber: "Use boing_getBlockByHeight([height, include_receipts]).",
+  eth_getBlockByNumber: "Boing is not EVM. Use boing_getBlockByHeight([height, include_receipts]).",
+  eth_blockNumber: "Boing is not EVM. Use boing_chainHeight.",
+  boing_blockNumber: "Use boing_chainHeight.",
+  boing_getMempool: "The mempool is not exposed on the public RPC. Use boing_getSyncState or boing_health.",
+  boing_mempoolSize: "The mempool is not exposed on the public RPC. Use boing_getSyncState or boing_health.",
+  boing_pendingTransactions: "The mempool is not exposed on the public RPC.",
+};
+
 export type Denial = { status: number; body: unknown; retryAfter?: number; note: string };
 
 /** JSON-RPC error for a violation. -32601 for non-public methods, -32016 ("Rate limit exceeded", see RPC-API-SPEC) for limits. */
@@ -147,7 +162,7 @@ export function denial(v: Violation, batch: boolean): Denial {
       error: {
         code: -32601,
         message: `${v.method} is not available on the public RPC endpoint.`,
-        data: { reason: v.reason },
+        data: v.method && METHOD_HINTS[v.method] ? { reason: v.reason, hint: METHOD_HINTS[v.method] } : { reason: v.reason },
       },
     },
   };

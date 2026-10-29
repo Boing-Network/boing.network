@@ -4,7 +4,7 @@
  * (UPSTREAM_ACCEPT_ENCODING, FULL_VALIDATE_MAX_BYTES, hasJsonEnvelope).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import worker, { hasJsonEnvelope } from "../src/index";
+import worker, { hasJsonEnvelope, resetOversizeMemo } from "../src/index";
 
 type Env = Parameters<typeof worker.fetch>[1];
 
@@ -16,6 +16,7 @@ let upstreamPostHeaders: Headers[] = [];
 let respond: () => Response;
 
 beforeEach(() => {
+  resetOversizeMemo();
   upstreamPostHeaders = [];
   vi.stubGlobal(
     "fetch",
@@ -131,5 +132,27 @@ describe("hasJsonEnvelope", () => {
     expect(hasJsonEnvelope(enc("   "))).toBe(false);
     expect(hasJsonEnvelope(enc("<html></html>"))).toBe(false);
     expect(hasJsonEnvelope(enc("{"))).toBe(false);
+  });
+});
+
+describe("remembered oversize blocks (CPU 1102 on repeated wallet scans)", () => {
+  it("answers a repeat oversize block lookup without contacting the node, echoing the request id", async () => {
+    respond = () => bigJson(7 * MIB, { declare: false });
+    const first = await worker.fetch(getBlock(), env);
+    expect(((await first.json()) as { error: { message: string } }).error.message).toMatch(/exceeded gateway limit/);
+    const posts = upstreamPostHeaders.length;
+    const again = await worker.fetch(getBlock(), env);
+    const body = (await again.json()) as { id: unknown; error: { code: number; data: { reason: string } } };
+    expect(upstreamPostHeaders.length).toBe(posts);
+    expect(body.id).toBe(1);
+    expect(body.error.code).toBe(-32000);
+    expect(body.error.data.reason).toBe("response_too_large");
+  });
+
+  it("does not remember small responses", async () => {
+    respond = () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { ok: true } }), { status: 200 });
+    await worker.fetch(getBlock(), env);
+    await worker.fetch(getBlock(), env);
+    expect(upstreamPostHeaders.length).toBe(2);
   });
 });
