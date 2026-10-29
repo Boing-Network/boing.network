@@ -2,16 +2,21 @@
 
 Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / BlobAnnounce.
 
-> 🛰️ **Operators:** `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`. Optional header: `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`. Optional **gated** 256 MiB raise: `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` (**unset = stay 16 MiB — Fly-safe**). Optional BLS multi-pin committee flip: `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT` (**unset = keep Ed25519 tx 32 — Fly-safe**).
+> 🛰️ **Operators (public testnet):** admission `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT=1200`. **PHASE7 256 MiB is live** — `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT=1306` on Fly `boing-testnet-1` (`phase7CapActiveAtTip=true`, `effectiveMaxBytesAtTip=268435456`). Optional header: `BOING_BLOBS_ROOT_HEADER_ACTIVATION_HEIGHT`. Optional BLS multi-pin committee flip: `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT` (**unset = keep Ed25519 tx 32**). Phase **34** ACL: `BOING_BLOB_ACL_ACTIVATION_HEIGHT` (private-by-default HTTP download when tip ≥ H).
+>
+> 🛠️ **Developers:** publish via SDK PutBlob helpers (`@boing-network/boing-sdk`, latest **0.5.38** on npm). Multi-blob UX approvals live in **Boing Express** (`boing_requestPutBlobSession` / `putBlobSession` capability) — not in `boing-node`.
 
 ## Caps
 
 | | |
 |--|--|
-| Live default | **16 MiB** (`MAX_MEDIA_BLOB_BYTES`) |
-| Gated raise | **256 MiB** when tip ≥ `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` |
+| Protocol floor (unset PHASE7) | **16 MiB** (`MAX_MEDIA_BLOB_BYTES`) |
+| PHASE7 gated raise | **256 MiB** when tip ≥ `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` |
+| **Public testnet (Fly)** | **256 MiB consensus** active since height **1306** |
 
-**Do not** set `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` on public testnet until all validators agree.
+**Practical limits on Fly today:** consensus allows 256 MiB, but inline PutBlob through JSON-RPC hex is RAM-bound. Load-tested successful Puts reach ~**80 MiB** on ≥8 GiB RAM; **≥128 MiB** risk OOM before inclusion. The public gateway Worker still caps request bodies at **8 MiB** — large Puts must hit Fly RPC directly (or use BlobAnnounce / segmented paths). Prefer Express PutBlob sessions for multi-file dApp uploads rather than one mega-Put.
+
+New validators outside the coordinated Fly set should only set PHASE7 after agreeing on the same activation height.
 
 ## Payload indices (media-related)
 
@@ -70,41 +75,45 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 | Phase | Status |
 |-------|--------|
 | 1–31 | **Merged** (#97) |
-| 32 Opt-in BLS multi-pin committee flip (32→33) | **This PR** |
+| 32 Opt-in BLS multi-pin committee flip (32→33) | **Merged** (#99) |
+| 33 ReservedRealV1 IPA/KZG/SNARK scaffold (`NotWired`) | **Merged** (#98) — live on public testnet |
+| 34 Deployer-owned blob download ACL (Grant/Revoke) | **Shipped** — see [HANDOFF_BLOB_DOWNLOAD_ACL.md](./HANDOFF_BLOB_DOWNLOAD_ACL.md) |
+| PHASE7 256 MiB consensus cap | **Active** on Fly at height **1306** |
 
-### Remaining after Phase 33
+### Remaining
 
 - Optional Ed25519 account-side binding on a consensus dual-key / identity tx  
 - Wire a real IPA/KZG/SNARK verifier behind `ReservedRealV1` and flip `is_implemented` only when production-ready  
-- Coordinated **256 MiB** activation (`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`) — do not set on Fly until operators agree  
+- Phase **34.1** capability tickets (shareable bearer links) — coded in primitives, not yet on HTTP  
+- Non-inline data plane for multi-hundred-MiB Puts (BlobAnnounce / segments) so operators can use the full 256 MiB cap without OOM  
 
 ---
 
-## Ops / migration (Phase 32–33)
+## Ops / migration (public testnet)
 
 | Item | Guidance |
 |------|----------|
-| `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` | **Leave at 1200** (both Fly apps). Do not change. |
-| `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` | **Leave unset** (16 MiB Fly-safe). |
-| `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT` | **Leave unset** by default (Phase 31 Ed25519 **32** multi-pin default). |
+| Hosted validator | Fly **`boing-testnet-1` only** (`boing-testnet-2` retired 2026-10-24). |
+| `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` | **Leave at 1200**. Do not change. |
+| `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` | **`1306`** on Fly (active). Do not partially unset after tip ≥ H. |
+| `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT` | **Leave unset** (multi-pin default stays Ed25519 **32**). |
+| Fly RAM / body | Prefer **performance-2x / 16 GiB**; `BOING_RPC_MAX_BODY_MB=600` on the validator for large inline Puts. |
 | `slash_appeals_registry.bin` | **Do not clear.** Stay **V5**. |
 | `bls_dual_key_registry.bin` | Host-local BDKR v1; PoP still required on register. |
-| `PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED` | **true** — tx **33** admitted/executed. |
-| `PHASE32_BLS_LIVE_TX32_STILL_ED25519` | **true** compile-time default until flip; RPC field is dynamic. |
-| Clients | SDK **0.5.35**; flip helpers + encode/submit tx 33. |
-| Operators | Prefer **32** until coordinated flip; set identical flip height on all validators when ready. |
-| Account-side binding / SNARK / 256 MiB | **Not this phase** — listed under remaining. |
+| Clients | npm **`@boing-network/boing-sdk@^0.5.38`**; PutBlob **publish sessions** are Express-side. |
+| Operators | Prefer resolve **32** until coordinated BLS flip; set identical flip height on all validators when ready. |
 
 ---
 
 ## Env
 
 ```bash
-# Admission — already coordinated on Fly at 1200; do not change unless operators re-agree:
+# Admission — coordinated on Fly at 1200; do not change unless operators re-agree:
 # BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT=1200
 
-# Unset keeps 16 MiB (Fly / public testnet until coordinated):
-# BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT=…
+# Public testnet Fly: PHASE7 active at 1306 (256 MiB consensus).
+# BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT=1306
+# Unset on a fresh solo-dev node keeps the 16 MiB floor.
 
 # Unset keeps multi-pin Ed25519 tx 32 (Phase 31); set only after coordinated BLS readiness:
 # BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT=…
@@ -120,9 +129,9 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 # BOING_BLOB_ACL_ACTIVATION_HEIGHT=…
 ```
 
-## Permission-gated download
+## Permission-gated download (Phase 34)
 
-Large `PutBlob` bodies are stubbed in explorer block JSON (`include_code=false`) so public RPC stays under the ~6 MiB gateway cap. Publishers, ACL grantees, and operators fetch raw bytes via:
+Large `PutBlob` bodies are stubbed in explorer block JSON (`include_code=false`) so public RPC stays under the ~6 MiB gateway response cap. Byte fields in full block JSON are **`0x` hex** (not number arrays). Publishers, ACL grantees, and operators fetch raw bytes via:
 
 | Path | Role |
 |------|------|
@@ -133,3 +142,7 @@ Large `PutBlob` bodies are stubbed in explorer block JSON (`include_code=false`)
 | Tx **34** / **35** | `GrantBlobDownload` / `RevokeBlobDownload` (publisher-only) |
 
 See [HANDOFF_BLOB_DOWNLOAD_ACL.md](./HANDOFF_BLOB_DOWNLOAD_ACL.md). Explorer (boing.observer) supports wallet-signed download proofs plus the operator-token break-glass path, proxying over Fly-direct (not the public gateway).
+
+## PutBlob publish sessions (Express)
+
+One-approval multi-Put flows are **not** a node/RPC feature. Boing Express (extension **0.1.22+**) exposes `boing_requestPutBlobSession`, `boing_getPutBlobSession`, and `boing_endPutBlobSession`, advertised on `provider.features` as `putBlobSession`. dApps (e.g. Finance bulk NFT media) request a session from the wallet; each PutBlob still submits normally to JSON-RPC.

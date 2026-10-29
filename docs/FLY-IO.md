@@ -125,6 +125,18 @@ npm run preflight-rpc
 
 Keep **`BOING_CANONICAL_NATIVE_*`** in sync if you bootstrap DEX contracts on this chain. `boing.observer` also failsover to the Fly origins if the public hostname is down.
 
+## Media blobs / capacity (live)
+
+| Knob | Public testnet value |
+|------|----------------------|
+| Admission | `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT=1200` |
+| PHASE7 cap | `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT=1306` → **256 MiB** consensus |
+| BLS flip | unset (Ed25519 tx **32** multi-pin default) |
+| VM size | **performance-2x / 16 GiB** in `fly.testnet-1.toml` (keep ≥8 GiB; 4 GiB OOMs under tip load) |
+| Large Put body | `BOING_RPC_MAX_BODY_MB=600` on the Fly secret (gateway Worker still **8 MiB** request cap) |
+
+Phases **1–33** media + Phase **34** download ACL are documented in [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md). Block JSON uses **`0x` hex** byte fields; explorers should pass **`include_code: false`** for slim stubs under the gateway response cap.
+
 ## Ops
 
 | Action | Command |

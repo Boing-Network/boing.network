@@ -16,8 +16,11 @@ flowchart LR
   Obs --> Proxy[Same-origin /api/rpc]
   Proxy --> Public[testnet-rpc.boing.network]
   Exp --> Public
-  Public --> Fly[Fly boing-testnet-1 / 2]
+  Public --> GW[public-rpc-gateway Worker]
+  GW --> Fly[Fly boing-testnet-1]
 ```
+
+**Ops truth (2026-10):** public RPC is Worker → **`boing-testnet-1` only** (`boing-testnet-2` retired). Explorer block reads should use **`include_code: false`** (hex stubs) so tip windows stay under the ~6 MiB gateway response cap. Raw PutBlob bytes use the permission-gated download path ([HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md)). Multi-Put **publish sessions** are Express-side (`boing_requestPutBlobSession`), not node RPC.
 
 ---
 

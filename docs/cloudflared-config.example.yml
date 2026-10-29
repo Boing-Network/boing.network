@@ -1,17 +1,20 @@
-# Example ~/.cloudflared/config.yml for testnet-rpc.boing.network → local boing-node JSON-RPC.
+# Example ~/.cloudflared/config.yml for a **lab / self-hosted** RPC hostname → local boing-node.
 # Copy to %USERPROFILE%\.cloudflared\config.yml (Windows) or ~/.cloudflared/config.yml (Unix).
 #
+# Production public RPC is NOT a tunnel:
+#   https://testnet-rpc.boing.network/ → workers/public-rpc-gateway → Fly boing-testnet-1
+# Do not steal the production `testnet-rpc` DNS record for a home cloudflared process.
+#
 # 1) cloudflared tunnel login
-# 2) cloudflared tunnel create boing-testnet-rpc   # note the tunnel UUID
+# 2) cloudflared tunnel create <your-lab-tunnel>   # note the tunnel UUID
 # 3) In Zero Trust → Tunnels → this tunnel → Public hostname:
-#    testnet-rpc.boing.network → http://127.0.0.1:8545
-#    (Dashboard can auto-insert DNS; remove any conflicting A/CNAME for testnet-rpc.)
+#    rpc.example.yourdomain → http://127.0.0.1:8545
 # 4) Replace TUNNEL_UUID below and ensure credentials-file path matches ~/.cloudflared/<uuid>.json
 
 tunnel: TUNNEL_UUID
 credentials-file: C:\Users\YOUR_USER\.cloudflared\TUNNEL_UUID.json
 
 ingress:
-  - hostname: testnet-rpc.boing.network
+  - hostname: rpc.example.yourdomain
     service: http://127.0.0.1:8545
   - service: http_status:404

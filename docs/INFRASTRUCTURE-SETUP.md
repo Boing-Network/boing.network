@@ -7,15 +7,15 @@
 
 **Routing:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) places this guide next to **public RPC** and **testnet** docs in one map.
 
-**Canonical public testnet** is the hosted Fly.io pair plus the Cloudflare RPC gateway ([FLY-IO.md](FLY-IO.md)). Use this guide only when you want a **local / home-lab** two-machine layout (bootnodes + optional Cloudflare Tunnel). Do not point `testnet-rpc.boing.network` at a laptop tunnel — that hostname is the Worker in `workers/public-rpc-gateway`.
+**Canonical public testnet** is Fly **`boing-testnet-1`** plus the Cloudflare RPC gateway Worker ([FLY-IO.md](FLY-IO.md)). Use this guide only when you want a **local / home-lab** two-machine layout (bootnodes + optional private Cloudflare Tunnel). **Do not** point `testnet-rpc.boing.network` at a laptop tunnel — that hostname is the Worker in `workers/public-rpc-gateway` → Fly only (`boing-testnet-2` retired 2026-10-24).
 
 ---
 
 ## Quick Run Instructions
 
-### Computer 1 (Primary — bootnode + faucet + public RPC)
+### Computer 1 (Primary — bootnode + faucet + local RPC)
 
-**Order:** Start node first, then tunnel.
+**Order:** Start the node first. A tunnel is optional and only for a **private** hostname you control — never for the public `testnet-rpc` record.
 
 **Terminal 1 — Node:**
 ```bat
@@ -23,15 +23,15 @@ scripts\start-bootnode-1.bat
 ```
 (Linux/macOS: `./scripts/start-bootnode-1.sh`)
 
-**Terminal 2 — Cloudflare tunnel:**
+**Terminal 2 — Optional private Cloudflare tunnel** (self-hosted RPC hostname only):
 ```bat
 scripts\start-cloudflare-tunnel.bat
 ```
-(Linux/macOS: `.cloudflared/cloudflared tunnel --config ~/.cloudflared/config.yml run boing-testnet-rpc`)
+(Linux/macOS: `cloudflared tunnel --config ~/.cloudflared/config.yml run <your-tunnel-name>`)
 
-**Public RPC:** https://testnet-rpc.boing.network/
+**Canonical public RPC (do not override):** https://testnet-rpc.boing.network/ → Worker → `https://boing-testnet-1.fly.dev`
 
-Get your public IP: `curl -s ifconfig.me` — share with Computer 2.
+Get your public IP: `curl -s ifconfig.me` — share with Computer 2 for P2P.
 
 ---
 
@@ -46,14 +46,14 @@ Get your public IP: `curl -s ifconfig.me` — share with Computer 2.
 
 ### Deploy website
 
-Set in **GitHub → Settings → Secrets and variables → Actions → Variables**:
+Production website env should keep pointing at the **hosted** edge (not your home-lab tunnel):
 
 | Variable | Value |
 |----------|-------|
 | `PUBLIC_TESTNET_RPC_URL` | `https://testnet-rpc.boing.network/` |
-| `PUBLIC_BOOTNODES` | `/ip4/PRIMARY_IP/tcp/4001,/ip4/SECONDARY_IP/tcp/4001` |
+| `PUBLIC_BOOTNODES` | Hosted: `/ip4/169.155.48.188/tcp/4001` — or your lab multiaddrs for a private net |
 
-Then push to `main`; the deploy workflow will use them.
+Set via **GitHub → Settings → Secrets and variables → Actions → Variables**, then push to `main`.
 
 ---
 
@@ -70,14 +70,14 @@ If the JSON-RPC endpoint is reachable from the open internet, set a long random 
 
 **Read-only transparency:** **`boing_getQaRegistry`**, **`boing_qaPoolList`**, and **`boing_qaPoolConfig`** do not use the operator token — they are intended for public explorers (e.g. [boing.observer/qa](https://boing.observer/qa)). Canonical baseline JSON for docs lives under [docs/config/CANONICAL-QA-REGISTRY.md](config/CANONICAL-QA-REGISTRY.md).
 
-The **`boing-node` process behind your Cloudflare tunnel** (the one listening on `localhost:8545`) must be a build that includes these methods, or explorers will show **Method not found** even when users run a newer binary locally (e.g. a locally downloaded release). See [THREE-CODEBASE-ALIGNMENT.md §2.1](THREE-CODEBASE-ALIGNMENT.md#21-qa-registry-rpc-boing_getqaregistry--two-different-surfaces).
+The **`boing-node` process behind public RPC** (Fly `boing-testnet-1`, or a self-hosted origin you expose) must be a build that includes these methods, or explorers will show **Method not found** even when users run a newer binary locally. See [THREE-CODEBASE-ALIGNMENT.md §2.1](THREE-CODEBASE-ALIGNMENT.md#21-qa-registry-rpc-boing_getqaregistry--two-different-surfaces).
 
 ## Prerequisites
 
 - **Rust** 1.70+ on both machines
-- **Cloudflare account** with tunnel configured for `testnet-rpc.boing.network` → `localhost:8545`
 - **Firewall:** TCP 4001 open on both machines (P2P)
 - Same **genesis** (default; all nodes use the built-in genesis)
+- Optional: Cloudflare account for a **private** tunnel hostname → `localhost:8545` (never steal the public `testnet-rpc` DNS from the Worker)
 
 ---
 
@@ -138,45 +138,42 @@ curl -s -X POST https://testnet-rpc.boing.network/ \
 
 Expected: `{"jsonrpc":"2.0","id":1,"result":<number>}`
 
-**Verify faucet is enabled on the tunneled node** (the process listening on `8545` must be started with `--faucet-enable`, e.g. `scripts/start-bootnode-1.bat`):
+**Verify faucet on the public edge** (Fly `boing-testnet-1` must run with `--faucet-enable`):
 
 ```bash
-curl -s -X POST https://testnet-rpc.boing.network/ \
+curl -s -A boing-sdk/json-rpc -X POST https://testnet-rpc.boing.network/ \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"boing_faucetRequest","params":["0x0000000000000000000000000000000000000000000000000000000000000001"]}'
 ```
 
 - **Good:** JSON with `"result"` (`ok`, `amount`, …) or a rate-limit / balance error — faucet RPC is active.
-- **Bad:** `"message":"Faucet not enabled on this node."` — the node behind the tunnel was started **without** `--faucet-enable`, or the tunnel points at the wrong machine (e.g. secondary full node only). **Fix:** Run the primary bootnode script on the same PC as the tunnel, or add `--faucet-enable` to whichever node receives tunnel traffic on `8545`.
+- **Bad:** `"message":"Faucet not enabled on this node."` — redeploy/restart Fly with faucet enabled ([FLY-IO.md](FLY-IO.md)).
 
 ### QA transparency RPC (`boing_getQaRegistry`, `boing_qaPoolConfig`)
 
-Explorers (e.g. **boing.observer/qa**) and tooling call these read-only methods on **the same public URL** (`https://testnet-rpc.boing.network/`). They are implemented in **current `boing-node`** in this repo (`crates/boing-node/src/rpc.rs`). If the public URL returns **Method not found**, the process behind the tunnel is an **older binary** (or not this codebase’s node)—**not** a DNS or “wrong URL in the website” problem.
+Explorers (e.g. **boing.observer/qa**) and tooling call these read-only methods on **the same public URL** (`https://testnet-rpc.boing.network/`). They are implemented in **current `boing-node`**. If the public URL returns **Method not found**, the Fly process (or your self-hosted origin) is an **older binary** — not a “wrong URL in the website” problem.
 
-**You do not need to buy a new domain.** `testnet-rpc.boing.network` must be a **DNS record in your existing `boing.network` zone** (Cloudflare) pointing at your **Cloudflare Tunnel** (public hostname → `http://127.0.0.1:8545`). Starting `cloudflared` on **your** PC does not create that DNS record for you.
+**Canonical public hostname:** `testnet-rpc.boing.network` is a **proxied CNAME** to the **`boing-public-rpc-gateway`** Worker (`workers/public-rpc-gateway`), which health-checks and proxies to Fly **`boing-testnet-1`**. Do **not** re-point that DNS at `*.cfargotunnel.com` or a home laptop.
 
-**Operator checklist (primary machine — the one that runs the tunnel):**
+**Operator checklist (hosted public RPC):**
 
-1. **Cloudflare (one-time per tunnel):** Zero Trust → Tunnels → create or select tunnel (e.g. `boing-testnet-rpc`). Add a **public hostname**: `testnet-rpc.boing.network` → `http://127.0.0.1:8545`. In DNS for `boing.network`, the tunnel should own the `testnet-rpc` record (CNAME to `*.cfargotunnel.com` as shown in the dashboard).
-2. **Config file:** `cloudflared` uses `~/.cloudflared/config.yml` (Windows: `%USERPROFILE%\.cloudflared\config.yml`) with that tunnel id and ingress; see Cloudflare’s tunnel docs if you are setting this up from scratch.
-3. **Upgrade the node binary** (this fixes “Method not found” for QA methods):
-   ```bash
-   git pull
-   cargo build --release
-   ```
-   Stop the old `boing-node`, then start the new one with the **same** arguments as today (primary bootnode + `--faucet-enable` + RPC on **8545**), e.g. `scripts/start-bootnode-1.bat` or `./scripts/start-bootnode-1.sh`.
-4. **Start the tunnel** after the node is listening (second terminal): `scripts/start-cloudflare-tunnel.bat` or the `cloudflared tunnel run …` command from Step 2 above.
-5. **Verify from any machine:**
+1. Confirm DNS: `testnet-rpc` → Worker (`*.workers.dev`), proxied.
+2. Confirm Fly: `GET https://boing-testnet-1.fly.dev/live` → **200**.
+3. Confirm gateway: `GET https://testnet-rpc.boing.network/__gateway/health` → single backend, `live: true`.
+4. Upgrade the Fly node when shipping RPC changes: [FLY-IO.md](FLY-IO.md), [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
+5. Verify from any machine:
    ```bash
    node scripts/verify-public-testnet-rpc.mjs
    ```
    Or manually:
    ```bash
-   curl -s -X POST https://testnet-rpc.boing.network/ \
+   curl -s -A boing-sdk/json-rpc -X POST https://testnet-rpc.boing.network/ \
      -H "Content-Type: application/json" \
      -d '{"jsonrpc":"2.0","id":1,"method":"boing_getQaRegistry","params":[]}'
    ```
    Expect `"result":{...}` not `"error"` with **Method not found**.
+
+**Self-hosted lab RPC:** use a **different** hostname and optional Cloudflare Tunnel → `http://127.0.0.1:8545`. Keep Bot Fight Mode off (or skipped) for any JSON-RPC hostname.
 
 **Apps and env (already aligned if you use the canonical URL):**
 
@@ -185,7 +182,7 @@ Explorers (e.g. **boing.observer/qa**) and tooling call these read-only methods 
 | **boing.network** (Astro) | `PUBLIC_TESTNET_RPC_URL` at build | `https://testnet-rpc.boing.network/` (default in `website/src/config/testnet.ts` if unset) |
 | **boing.observer** | `NEXT_PUBLIC_TESTNET_RPC` | `https://testnet-rpc.boing.network` (set in Cloudflare Pages / build env for that project) |
 
-No code change is required on the website **only** to “point” at this URL—it is already the default. **boing.observer** must be **deployed** with its env var set to that URL (or rely on its own default if it matches).
+No website code change is required to “point” at this URL—it is already the default.
 
 ---
 
@@ -223,19 +220,19 @@ No code change is required on the website **only** to “point” at this URL—
 
 ## Step 4: Update Config and Deploy
 
-Once both bootnodes and the tunnel are running:
+For the **hosted** public network, website env stays on the Worker URL and hosted bootnode (even if your lab nodes are also running):
 
 | Config | Location | Value |
 |--------|----------|-------|
 | `PUBLIC_TESTNET_RPC_URL` | Website env / GitHub Actions / Cloudflare Pages | `https://testnet-rpc.boing.network/` |
 | `PUBLIC_BOOTNODES` | Website env / GitHub Actions / Cloudflare Pages | `/ip4/169.155.48.188/tcp/4001` |
 
-**TESTNET.md** §6: Bootnode table updated; set env vars for production deploy.
+**TESTNET.md** §6: Bootnode table; set env vars for production deploy.
 
 **Verify:**
 
 1. **Faucet:** Visit [boing.network/faucet](https://boing.network/faucet); enter a 32-byte hex account ID; request testnet BOING.
-2. **Join page:** [boing.network/testnet/join](https://boing.network/testnet/join) should list the bootnodes once the website is deployed with `PUBLIC_BOOTNODES`.
+2. **Join page / listings:** [boing.network/testnet/join](https://boing.network/testnet/join) and `GET /api/networks` ([NETWORKS-API.md](NETWORKS-API.md)).
 3. **Terminal validator:** `boing-node --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes <LIST> --validator --rpc-port 8545`
 
 ---
@@ -246,43 +243,33 @@ The boing-node RPC server includes CORS headers so browser-based clients (e.g. b
 
 ---
 
-## Cloudflare tunnel vs Pages-only DNS (HTTP 405)
+## Public RPC edge vs home tunnel (HTTP 405 / 530)
+
+### Canonical path (production)
+
+```text
+Client → https://testnet-rpc.boing.network/
+      → Cloudflare Worker (workers/public-rpc-gateway)
+      → https://boing-testnet-1.fly.dev  (boing-node)
+```
+
+DNS for `testnet-rpc` must be a **proxied CNAME to the Worker**, not Pages and not `*.cfargotunnel.com`. Bot Fight Mode must stay **off** (or skipped) for that hostname. Details: [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), [FLY-IO.md](FLY-IO.md).
 
 ### Why you see HTTP 405
 
-Pointing **`testnet-rpc.boing.network`** only at **Cloudflare Pages**, a **Worker**, or a **generic proxied DNS A/AAAA record** does **not** forward JSON-RPC **POST** bodies to **`boing-node`** on your machine. Those stacks often allow **GET** only for static content → **`405 Method Not Allowed`** for `curl -X POST https://testnet-rpc.boing.network/`.
+Pointing **`testnet-rpc.boing.network`** only at **Cloudflare Pages** or a **generic proxied A/AAAA** often allows **GET** for static content and returns **`405 Method Not Allowed`** for JSON-RPC **POST**. The public Worker accepts POST and proxies to Fly.
 
-**Boing JSON-RPC requires POST** to `http://127.0.0.1:8545` on the host that runs the node. The supported setup is:
+### Optional private tunnel (lab only)
 
-1. **Cloudflare Tunnel** (`cloudflared`) with a **public hostname** `testnet-rpc.boing.network` → `http://127.0.0.1:8545`
-2. **DNS** for `testnet-rpc` owned by that tunnel (CNAME to `*.cfargotunnel.com` as shown in Zero Trust)
-
-### Tunnel alignment
-
-The supported flow is the same as `scripts/start-cloudflare-tunnel.bat`:
+For a **self-hosted** RPC hostname you control (never the public `testnet-rpc` record), Cloudflare Tunnel can forward to `http://127.0.0.1:8545`:
 
 ```text
-cloudflared tunnel --config %USERPROFILE%\.cloudflared\config.yml run boing-testnet-rpc
+cloudflared tunnel --config %USERPROFILE%\.cloudflared\config.yml run <your-lab-tunnel>
 ```
 
-| Piece | Value |
-|--------|--------|
-| Tunnel **name** in Cloudflare / config | `boing-testnet-rpc` (default used by the repo scripts) |
-| **config.yml** location | `%USERPROFILE%\.cloudflared\config.yml` (Windows) or `~/.cloudflared/config.yml` |
-| **ingress** | `hostname: testnet-rpc.boing.network` → `service: http://127.0.0.1:8545` |
+Template: **[cloudflared-config.example.yml](./cloudflared-config.example.yml)** — change the hostname away from production `testnet-rpc`.
 
-Template: **[cloudflared-config.example.yml](./cloudflared-config.example.yml)**.
-
-### Checklist (do in order)
-
-1. **Remove conflicting DNS** — Cloudflare → **DNS** → zone `boing.network` → delete or disable any **`testnet-rpc`** record that points to Pages, a random IP, or anything other than the tunnel (re-add via the tunnel UI if needed).
-2. **Zero Trust → Tunnels** — Create or open tunnel **`boing-testnet-rpc`**. Under **Public hostname**: subdomain **`testnet-rpc.boing.network`**, service **`http://127.0.0.1:8545`**. Save; let Cloudflare create/update the DNS record.
-3. **Local `config.yml`** — After `cloudflared tunnel create boing-testnet-rpc`, ensure the config contains the tunnel UUID, `credentials-file`, and **ingress** for that hostname → `http://127.0.0.1:8545`. Merge from the example file if the dashboard did not write it.
-4. **Verify locally** — `node scripts/check-cloudflared-alignment.mjs` and `curl -X POST http://127.0.0.1:8545` with `boing_chainHeight` (see Step 2 above).
-5. **Start tunnel** — `scripts/start-cloudflare-tunnel.bat` / `.sh`, or Zero Trust **Start**.
-6. **Verify public** — `node scripts/verify-public-testnet-rpc.mjs`.
-
-**Related:** [RUNBOOK.md](RUNBOOK.md) §8.3 (HTTP **530** / tunnel origin down).
+**Related:** [RUNBOOK.md](RUNBOOK.md) §8.3 (HTTP **530** when a tunnel origin is down; hosted path uses Worker → Fly).
 
 ---
 

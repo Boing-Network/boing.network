@@ -1,7 +1,9 @@
 # Handoff: Phase 34 deployer-owned media blob download ACL
 
-**Status:** implemented (capability tickets deferred to Phase 34.1)  
-**Related:** [BOING-L1-MEDIA-BLOBS.md](./BOING-L1-MEDIA-BLOBS.md) · store design `docs/blob-download-acl-phase34.md`
+**Status:** implemented on node/SDK/observer (capability tickets deferred to Phase 34.1)  
+**Related:** [BOING-L1-MEDIA-BLOBS.md](./BOING-L1-MEDIA-BLOBS.md)
+
+**Not this layer:** multi-Put **publish** approvals (`boing_requestPutBlobSession`) live in **Boing Express** — download ACL below is about who may fetch raw bytes after a PutBlob lands.
 
 ## What shipped
 
@@ -13,7 +15,7 @@
 | RPC read | `boing_getBlobAccess` → publisher, grantees, epoch, activation flags |
 | HTTP download | `GET /v1/media/blob?id=` accepts operator/download secrets **or** Phase 34 proof headers |
 | Activation | `BOING_BLOB_ACL_ACTIVATION_HEIGHT` — tip ≥ H ⇒ private-by-default HTTP download |
-| SDK | `grantBlobDownloadPayload` / `revokeBlobDownloadPayload` / `blobDownloadProofPreimage` / `signBlobDownloadProof` |
+| SDK | `@boing-network/boing-sdk` (**0.5.38+**): `grantBlobDownloadPayload` / `revokeBlobDownloadPayload` / `blobDownloadProofPreimage` / `signBlobDownloadProof` |
 
 ## Download proof headers
 

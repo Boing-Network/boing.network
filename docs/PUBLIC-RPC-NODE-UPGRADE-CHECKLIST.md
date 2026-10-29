@@ -7,7 +7,7 @@
 
 **Routing:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) — where this checklist sits relative to **infra** and **testnet** guides.
 
-Use this when you are about to **replace or restart** the `boing-node` process behind **public testnet JSON-RPC** (direct or Cloudflare Tunnel). It complements [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) and [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md).
+Use this when you are about to **replace or restart** the `boing-node` process behind **public testnet JSON-RPC**. Canonical hosted path: Fly **`boing-testnet-1`** behind `https://testnet-rpc.boing.network/` ([FLY-IO.md](FLY-IO.md), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md)).
 
 ---
 
@@ -15,36 +15,46 @@ Use this when you are about to **replace or restart** the `boing-node` process b
 
 1. **Note current height** (for sanity after upgrade):  
    `curl` **`boing_chainHeight`** against the public URL or use **`npm run check-testnet-rpc`** with **`BOING_RPC_URL`**.
-2. **Build from the commit** you intend to ship: `cargo build --release -p boing-node` (or use CI artifacts).
+2. **Build from the commit** you intend to ship: `cargo build --release -p boing-node` (or use CI / Fly remote builder).
 3. **Run tests** on that tree: `cargo test` (and `boing-sdk` **`npm test`** if RPC or SDK behavior changed).
 
 ---
 
-## Deploy / restart
+## Deploy / restart (hosted Fly — preferred)
 
-1. **Same genesis / data dir** as the rest of the testnet (unless this is an intentional reset — coordinate if so).
-2. **Flags** aligned with prior ops: **`--validator`** (if this node produces blocks), **`--faucet-enable`**, **`--p2p-listen`**, **`--bootnodes`**, **`BOING_RATE_PROFILE`**, **`--pending-txs-per-sender`**, **`--max-connections-per-ip`** (P2P), etc. See [RUNBOOK.md](RUNBOOK.md) §8.1 for **signed tx gossip** and per-IP caps when P2P is enabled.
-3. **Chain metadata for dApps (required for public testnet):** set **`BOING_CHAIN_ID=6913`** and **`BOING_CHAIN_NAME=Boing Testnet`** on the **`boing-node`** process so **`boing_getNetworkInfo`** returns them ([RPC-API-SPEC.md](RPC-API-SPEC.md) § **boing_getNetworkInfo**). Copy-paste template: [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example). **Infra snippets (same env semantics):** [`tools/boing-node-public-testnet.systemd.example`](../tools/boing-node-public-testnet.systemd.example) (**`EnvironmentFile=`**), [`tools/boing-node-public-testnet.docker-compose.yml`](../tools/boing-node-public-testnet.docker-compose.yml), [`tools/boing-node-public-testnet.kubernetes.example.yaml`](../tools/boing-node-public-testnet.kubernetes.example.yaml). **systemd one-liners:** `Environment=BOING_CHAIN_ID=6913` and `Environment=BOING_CHAIN_NAME=Boing Testnet` in **`[Service]`** if you prefer not to use **`EnvironmentFile=`**.
-4. **DEX discovery env (recommended for public RPC):** set **`BOING_CANONICAL_NATIVE_DEX_FACTORY`** with the pair-directory **`AccountId`**, then optional tuning from the same template — **`BOING_DEX_TOKEN_METADATA_SCAN_BLOCKS`**, **`BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS`**, **`BOING_DEX_TOKEN_DECIMALS_JSON`** — so **`boing_listDexPools`** / **`boing_listDexTokens`** labeling and scan limits are explicit ([RPC-API-SPEC.md](RPC-API-SPEC.md) § DEX discovery).
-5. **Micro fee market (recommended):** set **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`** to the height where reduced `execution_gas_fee_bps` should take effect (use current tip or tip+1 on first enable). Load/apply **`execution_gas_fee_bps: 100`** via `network_fee_config.json` or **`boing_operatorApplyFeePolicy`** ([OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md); env template has commented keys). Confirm with **`boing_getNetworkFeePolicy`**.
-6. **Tunnel** — if using Cloudflare: confirm **`cloudflared`** still points to the RPC port where `boing-node` listens ([RUNBOOK.md](RUNBOOK.md) §8.3).
+1. Keep **`fly.testnet-1.toml`** VM size at **performance-2x / 16 GiB** (smaller sizes OOM on large tip blocks / Puts).
+2. Preserve secrets: operator token, **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT=1200`**, **`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT=1306`**, `BOING_RPC_MAX_BODY_MB` (large Puts), blob download tokens if set.
+3. Deploy: `fly deploy --config fly.testnet-1.toml --remote-only --ha=false` (see [FLY-IO.md](FLY-IO.md)).
+4. Confirm `GET /live` on Fly and `GET https://testnet-rpc.boing.network/__gateway/health` (single backend).
 
-### Replace `boing-node` from the official GitHub zip (CLI only, on the tunnel origin)
+Env/flag reminders that still apply on Fly (`[env]` / secrets):
 
-**Important:** No Cloudflare **API** or **`cloudflared`** subcommand installs or upgrades **`boing-node`**. The tunnel only forwards to a **local** TCP port; the binary lives on **that host**. You avoid the Zero Trust **dashboard** by using **`cloudflared tunnel run`** with a local **`config.yml`** (see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)); upgrading RPC still means **replacing the process binary on the same machine**, then restarting **`boing-node`**.
+- **`BOING_CHAIN_ID=6913`**, **`BOING_CHAIN_NAME=Boing Testnet`**
+- DEX discovery: **`BOING_CANONICAL_NATIVE_DEX_FACTORY`**, scan/decimals knobs ([RPC-API-SPEC.md](RPC-API-SPEC.md))
+- Micro fees: **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`** + apply policy ([OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md))
 
-From a clone of **`Boing-Network/boing.network`** on the **primary** machine (same layout as [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) — `target/release/boing-node` / `boing-node.exe`):
+Template: [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example).
+
+---
+
+## Self-hosted / lab restart (optional)
+
+1. **Same genesis / data dir** as the rest of your lab net (unless this is an intentional reset).
+2. **Flags** aligned with prior ops: **`--validator`**, **`--faucet-enable`**, **`--p2p-listen`**, **`--bootnodes`**, **`BOING_RATE_PROFILE`**, etc. ([RUNBOOK.md](RUNBOOK.md) §8.1).
+3. If you expose a **private** hostname via Cloudflare Tunnel, confirm **`cloudflared`** still points at the RPC port — **do not** retarget production `testnet-rpc` ([INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)).
+
+### Replace `boing-node` from the official GitHub zip (CLI, on the lab host)
+
+No Cloudflare **API** or **`cloudflared`** subcommand installs **`boing-node`**. Upgrade means replacing the binary on the host that listens on **8545**, then restarting the process.
+
+From a clone of **`Boing-Network/boing.network`**:
 
 1. **Stop** the running node (and free the exe on Windows if needed).
-2. **Windows (PowerShell):**  
-   `.\scripts\upgrade-boing-node-from-release.ps1`  
-   Optional: `-WithCli`, `-Force`, or another `-Tag` with `-ExpectedSha256` (zip SHA256 from `website/scripts/network-listings-release-sql.mjs <tag>`).
-3. **Linux x86_64 / macOS Apple Silicon (bash):**  
-   `chmod +x scripts/upgrade-boing-node-from-release.sh && ./scripts/upgrade-boing-node-from-release.sh`  
-   Optional: `BOING_WITH_CLI=1 BOING_FORCE=1` or `BOING_EXPECT_SHA256=…` for tags without a built-in pin in the script.
-4. **Restart** the node (e.g. **`scripts/start-bootnode-1.bat`** / **`.sh`**). **`cloudflared`** does not need a restart if the RPC port is still **8545**.
+2. **Windows (PowerShell):** `.\scripts\upgrade-boing-node-from-release.ps1` (optional `-WithCli`, `-Force`, `-Tag` + `-ExpectedSha256`).
+3. **Linux x86_64 / macOS Apple Silicon:** `./scripts/upgrade-boing-node-from-release.sh` (optional `BOING_WITH_CLI=1`, `BOING_FORCE=1`, `BOING_EXPECT_SHA256=…`).
+4. **Restart** (e.g. **`scripts/start-bootnode-1.bat`** / **`.sh`**).
 
-Alternatively: **`cargo build --release -p boing-node`** (and **`--no-default-features`** on Windows per bootnode scripts) instead of the zip flow.
+Alternatively: **`cargo build --release -p boing-node`**.
 
 ---
 
@@ -53,7 +63,7 @@ Alternatively: **`cargo build --release -p boing-node`** (and **`--no-default-fe
 1. **`npm run preflight-rpc`** from repo root (or **`examples/native-boing-tutorial`**) with **`BOING_RPC_URL=https://your-public-rpc/`** — runs **`check-testnet-rpc`** plus a one-shot **`boing_chainHeight` / `boing_getSyncState`** sample. Optional **`BOING_PROBE_FULL=1`**. Or run **`npm run check-testnet-rpc`** only.
 2. **`boing_getNetworkInfo`** — confirm **`result.chain_id`** is **6913** and **`chain_name`** matches your operator string ( **`curl`** JSON-RPC or **`npm run rpc-endpoint-check`** from repo root).
 3. **Smoke methods** you rely on (faucet, **`boing_getLogs`**, receipts) — see [RPC-API-SPEC.md](RPC-API-SPEC.md).
-4. If **HTTP 530** / **error code 1033** appears, the problem is **tunnel or origin**, not clients — [RUNBOOK.md](RUNBOOK.md) §8.3.
+4. If **HTTP 530** / **error code 1033** appears, check Worker DNS + Fly `/live` (not clients) — [RUNBOOK.md](RUNBOOK.md) §8.3.
 
 ---
 

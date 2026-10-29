@@ -72,7 +72,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md) | Pinned fungible / NFT bytecode |
 | [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) | Reference fungible |
 | [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) | Reference NFT (v3 `mint_batch` `0x06`, n≤500) |
-| [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) | On-chain media blobs (PutBlob, 256 KiB MVP, `boing_getBlob`, NFT `metadata_hash` binding) |
+| [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) | L1 media blobs (Phases 1–34, PHASE7 256 MiB on testnet, PutBlob / ACL download, Express publish sessions) |
 | [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) | Enforced on-chain NFT↔token registry (live testnet AccountId, selectors `0xE0`–`0xE6`) |
 | [BOING-BUILDER-ATTESTATION.md](BOING-BUILDER-ATTESTATION.md) | On-chain builder attestation registry (live testnet AccountId, selectors `0xE0`–`0xE6`; builder signal, not companions) |
 | [E2-PARTNER-APP-NATIVE-BOING.md](E2-PARTNER-APP-NATIVE-BOING.md) | Partner native Boing apps |
@@ -103,8 +103,8 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) | **Operator hub:** go-live order, env matrix, verification |
 | [TESTNET.md](TESTNET.md) | Join testnet; **§9.1** node zip release checklist |
 | [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md) | Copy/paste RPC smoke and tutorial `npm run` commands |
-| [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Bootnodes, Cloudflare tunnel |
-| [FLY-IO.md](FLY-IO.md) | Hosted two-node testnet on Fly.io + public RPC Worker |
+| [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Optional home-lab bootnodes; public RPC is Fly + Worker |
+| [FLY-IO.md](FLY-IO.md) | Hosted Fly `boing-testnet-1` + public RPC Worker |
 | [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) | Upgrade the node behind public JSON-RPC |
 | [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md) | Self-hosted RPC + deploy native DEX stack |
 | [NETWORKS-API.md](NETWORKS-API.md) | Public node listing API: `/api/networks`, `meta` fields, D1 refresh |

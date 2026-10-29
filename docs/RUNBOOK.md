@@ -372,17 +372,19 @@ The **faucet** is an RPC method (`boing_faucetRequest`) on a node started with `
 5. **Rate limit:** The faucet allows 1 request per 60 seconds per account; no extra config needed.
 6. **Genesis:** The faucet account is funded at genesis with 10,000,000 testnet BOING (see `boing-node/src/faucet.rs`). Ensure all testnet nodes use the same genesis so the faucet balance exists.
 
-### 8.3 Cloudflare Tunnel (testnet-rpc.boing.network)
+### 8.3 Public RPC edge (`testnet-rpc.boing.network`)
 
-For full setup steps, see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md). If you use Cloudflare Tunnel to expose the RPC at `https://testnet-rpc.boing.network/`:
+**Canonical path:** Cloudflare Worker [`workers/public-rpc-gateway`](../workers/public-rpc-gateway/) → Fly **`boing-testnet-1` only** ([FLY-IO.md](FLY-IO.md)). DNS must CNAME to the Worker — **not** a home `*.cfargotunnel.com` origin. `boing-testnet-2` was retired 2026-10-24.
 
-- **"Failed to initialize DNS local resolver"** — This cloudflared log message is usually harmless. The tunnel has already registered; traffic forwarding works. It occurs when cloudflared cannot reach `region1.v2.argotunnel.com` for optional region/metrics. You can ignore it. If it bothers you, try a different DNS (e.g. 1.1.1.1) or firewall rules that allow outbound DNS.
+- **HTTP 530 / body `error code: 1033`** — Usually means the hostname still points at a **dead Tunnel**, or Cloudflare cannot reach the configured origin. Confirm `GET /__gateway/health` (Worker backends) and `GET https://boing-testnet-1.fly.dev/live`. This is **not** a JSON-RPC/SDK bug. Point clients at Fly-direct or fix DNS/Worker routing.
+- **HTTP 403 + `cf-mitigated: challenge`** — Bot Fight Mode on the zone; keep it off (or skipped) for `testnet-rpc.boing.network` ([TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md)).
+- **Oversized block JSON** — Use `include_code: false` on `boing_getBlockByHeight` / `ByHash`; gateway response bodies are capped (~6 MiB). Raw blobs: [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md).
 
-- **HTTP 530 / body `error code: 1033` (or similar) from `https://testnet-rpc.boing.network/`** — Cloudflare is up, but the **tunnel origin** (the machine running `cloudflared` + `boing-node` RPC) is **unreachable** or the tunnel process is down. This is **not** a JSON-RPC or SDK bug: no `boing_qaCheck` / `boing_chainHeight` will succeed until ops restores the tunnel or you point clients at a **working** RPC (e.g. local `http://127.0.0.1:8545`). The **boing-sdk** surfaces the response body in the error message when the status is non-2xx.
+Optional **lab** tunnels (private hostname only): [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md). Harmless cloudflared log `"Failed to initialize DNS local resolver"` can be ignored when using a lab tunnel.
 
 ### 8.4 Monitoring the testnet
 
-- **Upgrading the RPC binary:** [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) (build, test, tunnel, post-deploy **`check-testnet-rpc`**).
+- **Upgrading the RPC binary:** [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) (Fly deploy for hosted; post-deploy **`check-testnet-rpc`**).
 - **Chain height:** Call `boing_chainHeight` on the public RPC periodically; alert if growth stops while transactions are pending (an idle chain with no transactions does not advance, which is normal). Tutorial **`BOING_POLL_ONCE=1 node scripts/observer-chain-tip-poll.mjs`** emits one JSON sample (see [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3).
 - **Faucet balance:** Check the faucet account balance via `boing_getBalance` with the faucet account ID; refill or alert when low (genesis funding is 10M; **20** BOING per request in current builds; the public node sends 10 until redeployed).
 - **Bootnode reachability:** Ensure ports 4001 (P2P) and 8545 (RPC, if exposed) are reachable from the internet; use a simple TCP check or your monitoring stack.

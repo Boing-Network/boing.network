@@ -4,7 +4,7 @@
 > 🛠️ **Developers:** this is the **operator hub** — bootnodes, env matrix, QA apply, monitoring.  
 > 🛰️ **Operators:** start here before specialist VM/RPC specs.
 
-**Audience:** Operators and integrators who need **bootnodes**, **public JSON-RPC**, **Cloudflare tunnel / website env**, **canonical native AMM**, **QA policy**, and **monitoring** in one place.
+**Audience:** Operators and integrators who need **bootnodes**, **public JSON-RPC**, **website env**, **canonical native AMM**, **QA policy**, and **monitoring** in one place. Canonical public RPC is the Cloudflare Worker → Fly path — not a home tunnel.
 
 Specialist guides (RPC methods, VM calldata, security) stay in their own files; this page is the **operator hub**.
 
@@ -39,19 +39,22 @@ flowchart TB
 
 ---
 
-## 2. Current status snapshot (2026-08-24)
+## 2. Current status snapshot (2026-10-25)
 
 | Surface | Status | Verify |
 |---------|--------|--------|
-| **Public testnet RPC** | **Hosted** — Cloudflare Worker → Fly `boing-testnet-1` / `-2` at `https://testnet-rpc.boing.network/` | `npm run preflight-rpc`; `GET /__gateway/health` |
+| **Public testnet RPC** | **Hosted** — Cloudflare Worker → Fly **`boing-testnet-1` only** at `https://testnet-rpc.boing.network/` (`boing-testnet-2` retired 2026-10-24) | `npm run preflight-rpc`; `GET /__gateway/health` (single backend) |
 | **QA transparency RPC** | **Live** — registry + pool config | `npm run verify-public-testnet-rpc` |
 | **QA content policy** | **132-term** `content_blocklist` on public RPC (when applied) | `boing_getQaRegistry`; `npm run apply-public-testnet-qa-policy` after edits |
-| **Canonical CP pool** | **Not published** on the hosted Fly ledger (`end_user.canonical_native_cp_pool` is `null`) | `boing_getNetworkInfo`; re-run full-stack deploy then `npm run check-canonical-pool` |
+| **Media blobs** | Phases **1–33** live; **PHASE7 256 MiB** active at H≥**1306**; Phase **34** download ACL shipped | [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) |
+| **Block JSON** | Byte fields as **`0x` hex**; optional **`include_code: false`** slim stubs for explorers | [RPC-API-SPEC.md](RPC-API-SPEC.md) |
+| **SDK** | **`@boing-network/boing-sdk@^0.5.38`** on npm | `npm view @boing-network/boing-sdk version` |
+| **Canonical CP / DEX** | Treat live **`boing_getNetworkInfo.end_user`** as source of truth (factory/pool may be published after full-stack + `register_pair`) | `boing_getNetworkInfo`; `npm run check-canonical-pool` |
 | **QA registry vs docs** | Baseline in `docs/config/`; live may differ after operator apply | `npm run verify-qa-alignment` |
 | **Explorer** | **Live** — [boing.observer](https://boing.observer) | `/qa`, `/tokens`, `/dex/pools` |
-| **Chain tip** | Hosted Fly cluster (resets if volumes are wiped) | `npm run observer-chain-tip-poll` |
+| **Chain tip** | Fly `boing-testnet-1` (resets if the volume is wiped) | `npm run observer-chain-tip-poll` |
 
-`boing.finance` **Deploy submitted** is mempool accept, not explorer listing. `/tokens` indexes **included** `ContractDeploy*` txs; `/dex/tokens` needs a published factory (`end_user.canonical_native_dex_factory`). The public gateway fans out **`boing_submitTransaction`** to both Fly nodes so deploys are not stranded on the non-validator.
+`boing.finance` **Deploy submitted** is mempool accept, not explorer listing. `/tokens` indexes **included** `ContractDeploy*` txs; `/dex/tokens` needs a published factory (`end_user.canonical_native_dex_factory`). With a single Fly backend, the gateway proxies (and fans out submit) to **`boing-testnet-1` only**.
 
 Native token deploys still **meter** ~200k–400k **gas**, but the fee is **`ceil(gas_used / 21_000)` BOING** (~10–20 BOING), not one token per gas. The testnet faucet dispenses **20** BOING per request in current node builds (**10** on the public node until it is redeployed) (native integer units; may need a second request for a deploy; not enough for min validator stake). Underfunded deploys fail that tx (nonce consumed) without aborting the block; a retry of the identical signed payload still returns **Duplicate transaction** while it sits in the mempool.
 
@@ -74,7 +77,7 @@ Cloudflare **Bot Fight Mode** (`fight_mode`) on zone `boing.network` returns **H
 1. **Same genesis everywhere** — All validators and full nodes share one genesis (faucet account, chain id, etc.).
 2. **Bootnodes** — At least two stable P2P listeners (or one host today); publish multiaddrs on the website and in [TESTNET.md](TESTNET.md) §6. See [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md).
 3. **Validators / block production** — Enough stake and connectivity that height advances.
-4. **Public RPC** — Hosted Fly cluster + Cloudflare Worker at `https://testnet-rpc.boing.network/` ([FLY-IO.md](FLY-IO.md)). Set **`BOING_CHAIN_ID=6913`**, **`BOING_CHAIN_NAME=Boing Testnet`**, and optional **`BOING_CANONICAL_NATIVE_*`** from [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example). See [RUNBOOK.md](RUNBOOK.md) §8.
+4. **Public RPC** — Fly **`boing-testnet-1`** + Cloudflare Worker at `https://testnet-rpc.boing.network/` ([FLY-IO.md](FLY-IO.md)). DNS for `testnet-rpc` must CNAME to the Worker — **not** `*.cfargotunnel.com`. Set **`BOING_CHAIN_ID=6913`**, **`BOING_CHAIN_NAME=Boing Testnet`**, and optional **`BOING_CANONICAL_NATIVE_*`** from [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example). See [RUNBOOK.md](RUNBOOK.md) §8.
 5. **Verify RPC from the internet** — Before announcing “testnet is up”:
 
    ```bash
@@ -114,7 +117,7 @@ Cloudflare returns **530** when a **Tunnel** hostname cannot reach its connector
 
 ## 5. Canonical native AMM pool (integration contract)
 
-1. **Source of truth:** live **`boing_getNetworkInfo.end_user`** on `https://testnet-rpc.boing.network/`. The hosted Fly chain currently has **null** canonical native DEX fields until ops bootstraps them ([FLY-IO.md](FLY-IO.md)). Historical hex **`0x7247ddc3…`** is the previous tunnel ledger (published **2026-05-21**).
+1. **Source of truth:** live **`boing_getNetworkInfo.end_user`** on `https://testnet-rpc.boing.network/` ([FLY-IO.md](FLY-IO.md)). Re-check after any volume wipe or full-stack redeploy; historical hex **`0x7247ddc3…`** was the previous tunnel ledger (published **2026-05-21**).
 2. **Procedure:** [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md).
 3. **SDK constant:** **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** in **`boing-sdk`**.
 
