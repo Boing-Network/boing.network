@@ -1,0 +1,25 @@
+---
+/**
+ * Shown on testnet portal and registration pages while no incentivized testnet is running.
+ * Keep the wording in sync with docs/TESTNET.md (Part 3 status note) and docs/TESTNET-VALIDATOR-GUIDE.md.
+ */
+---
+<aside class="incentive-notice" role="note" aria-label="Incentivized testnet status">
+  <strong>The incentivized testnet is not currently running.</strong>
+  We hope to run one in the future; announcements will be posted on our official channels.
+</aside>
+
+<style>
+  .incentive-notice {
+    margin: 1rem 0 1.25rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color, rgba(148, 163, 184, 0.35));
+    border-left: 3px solid var(--accent-teal, #22d3ee);
+    border-radius: 0.5rem;
+    background: var(--bg-tertiary, rgba(148, 163, 184, 0.08));
+    color: var(--text-secondary, inherit);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  .incentive-notice strong { color: var(--text-primary, inherit); }
+</style>

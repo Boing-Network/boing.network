@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import BoingLoader from '../../../components/BoingLoader.astro';
@@ -16,6 +17,7 @@ import '../../../styles/hub-common.css';
     <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Operator Hub', href: '/testnet/operators' }, { label: 'Leaderboard' }]} />
     <div class="hub-page-main">
     <HubNav hub="operator" current="leaderboard" />
+    <IncentivizedTestnetNotice />
     <section class="section fade-in-up">
       <h1>Leaderboard</h1>
       <p class="muted">Blocks proposed and uptime will appear here once the testnet indexer is live. <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/INDEXER-OPERATOR-STATS.md" target="_blank" rel="noopener">What to build to enable live stats</a>. <a href="/testnet/register/operator">Register as node operator</a> to be counted.</p>

@@ -1,10 +1,11 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 ---
 
 <Layout
   title="Register as node operator — Testnet Portal"
-  description="Register as a node operator or miner on the Boing Network testnet. Run a validator, join the leaderboard."
+  description="Register as a node operator or miner on the Boing Network testnet. Run a validator and appear on the operator leaderboard."
 >
   <article class="portal-page register-page">
     <script is:inline src="/portal-session.js"></script>
@@ -21,10 +22,11 @@ import Layout from '../../../layouts/Layout.astro';
     <div class="register-header fade-in-up">
       <h1>Register as a node operator</h1>
       <p class="lead">
-        Register your node to appear on the leaderboard and qualify for testnet BOING rewards. Add your node multiaddr so we can attribute blocks to you once the indexer is live.
+        Register your node to appear on the leaderboard. Running a testnet node is currently not incentivized. Add your node multiaddr so we can attribute blocks to you once the indexer is live.
       </p>
     </div>
 
+    <IncentivizedTestnetNotice />
     <form id="register-form" class="register-form fade-in-up delay-1">
       <input type="hidden" name="role" value="node_operator" />
 

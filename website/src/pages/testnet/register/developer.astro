@@ -1,10 +1,11 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 ---
 
 <Layout
   title="Register as developer — Testnet Portal"
-  description="Register as a developer on the Boing Network testnet. Build dApps, track incentives, qualify for grants."
+  description="Register as a developer on the Boing Network testnet. Build dApps and register contracts."
 >
   <article class="portal-page register-page">
     <script is:inline src="/portal-session.js"></script>
@@ -21,10 +22,11 @@ import Layout from '../../../layouts/Layout.astro';
     <div class="register-header fade-in-up">
       <h1>Register as a developer</h1>
       <p class="lead">
-        Create your developer profile to track dApps, qualify for grants, and get recognized in the <strong>dApp incentive pool</strong> at mainnet. One account, one registration.
+        Create your developer profile to track your dApps on the testnet. One account, one registration.
       </p>
     </div>
 
+    <IncentivizedTestnetNotice />
     <form id="register-form" class="register-form fade-in-up delay-1">
       <input type="hidden" name="role" value="developer" />
 

@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../components/IncentivizedTestnetNotice.astro';
 ---
 
 <Layout
@@ -30,20 +31,21 @@ import Layout from '../../layouts/Layout.astro';
       </div>
     </header>
     <div class="page-wrap-inner register-content">
+    <IncentivizedTestnetNotice />
       <div class="register-role-cards">
         <a href="/testnet/register/developer" class="role-option">
           <span class="role-title">Developer</span>
-          <span class="role-desc">Build dApps, register contracts, qualify for grants and the dApp incentive pool.</span>
+          <span class="role-desc">Build dApps and register contracts.</span>
           <span class="role-cta">Register as developer →</span>
         </a>
         <a href="/testnet/register/user" class="role-option">
           <span class="role-title">User</span>
-          <span class="role-desc">Use the faucet, complete quests, share feedback. Earn user rewards.</span>
+          <span class="role-desc">Use the faucet, complete quests, share feedback.</span>
           <span class="role-cta">Register as user →</span>
         </a>
         <a href="/testnet/register/operator" class="role-option">
           <span class="role-title">Node operator / Miner</span>
-          <span class="role-desc">Run a validator, join the leaderboard, earn testnet BOING and mainnet recognition.</span>
+          <span class="role-desc">Run a validator and appear on the operator leaderboard.</span>
           <span class="role-cta">Register as operator →</span>
         </a>
       </div>

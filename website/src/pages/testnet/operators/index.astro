@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import '../../../styles/hub-common.css';
@@ -7,17 +8,18 @@ import '../../../styles/hub-common.css';
 
 <Layout
   title="Operator Hub — Testnet Portal"
-  description="Boing Network testnet: run a validator, join the leaderboard, and earn testnet rewards."
+  description="Boing Network testnet: run a validator and view the operator leaderboard."
 >
   <article class="portal-page role-hub operators-hub hub-page hub-operator" data-hub="node_operator">
     <script is:inline src="/portal-session.js"></script>
     <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Operator Hub' }]} />
     <div class="hub-page-main">
     <HubNav hub="operator" current="index" />
+    <IncentivizedTestnetNotice />
     <div class="hub-hero fade-in-up">
       <h1>Operator Hub</h1>
       <p class="lead">
-        Run a validator or miner, connect to the testnet with bootnodes or VibeMiner. This hub is for <strong>node operators and miners</strong> only. Compete on the leaderboard and earn testnet BOING; qualify for mainnet recognition (e.g. allocation or NFT for top N).
+        Run a validator or miner, connect to the testnet with bootnodes or VibeMiner. This hub is for <strong>node operators and miners</strong> only. Operator activity appears on the leaderboard. Running a testnet node is currently not incentivized.
       </p>
       <div class="hub-ctas" id="hub-ctas">
         <a href="/testnet/register/operator" class="btn btn-primary">Register as operator</a>

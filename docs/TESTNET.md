@@ -4,7 +4,9 @@
 > 🛠️ **Developers:** public RPC is `https://testnet-rpc.boing.network/`. Smoke with `npm run preflight-rpc` from the tutorial package.  
 > 🛰️ **Operators:** Part 1 (nodes + bootnodes), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), and §9 release tags.
 
-**Purpose:** Single guide for joining the testnet, using the Testnet Portal, and the incentivized testnet program (readiness, promotion, mainnet migration).  
+> **Incentivized testnet status:** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Running a testnet node is currently not incentivized.
+
+**Purpose:** Single guide for joining the testnet, using the Testnet Portal, and the design notes for a future incentivized testnet program (readiness, promotion, mainnet migration).  
 **References:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) (single map: testnet ops + public RPC + infra), [RUNBOOK.md](RUNBOOK.md), [READINESS.md](READINESS.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md)
 
 ```mermaid
@@ -223,7 +225,7 @@ GitHub Actions builds **`release-{linux-x86_64,macos-aarch64,windows-x86_64}.zip
    # or: cd website && node scripts/network-listings-release-sql.mjs testnet-v0.1.8 [--apply]
    ```
 
-6. Bump **`BOING_TESTNET_DOWNLOAD_TAG`** in **`website/functions/api/networks.js`** (and **`BOING_ZIP_SHA`** if you use URL rewrite helpers) so **`GET /api/networks`** returns the new **`meta.boing_testnet_download_tag`**. Deploy **boing.network**. Then align **VibeMiner** defaults with **`meta`** — [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §6.
+6. Bump **`BOING_TESTNET_DOWNLOAD_TAG`** in **`website/functions/api/networks.js`** (and **`BOING_ZIP_SHA`**; also extend **`STALE_TESTNET_TAG_RE`** to include the previous tag, otherwise D1 rows still on that tag keep serving its URL and SHA) so **`GET /api/networks`** returns the new **`meta.boing_testnet_download_tag`**. Deploy **boing.network**. Then align **VibeMiner** defaults with **`meta`** — [VIBEMINER-INTEGRATION.md](VIBEMINER-INTEGRATION.md) §6.
 
 ### 9.1 Release checklist (ordered)
 
@@ -312,7 +314,7 @@ The **Join Testnet** hub is at `/testnet/join` (bootnodes, faucet, single-vs-mul
 
 ### Users
 
-- **Community page:** `/testnet/users` — Quests, faucet link, feedback. **Dashboard:** Quest progress, faucet/first tx badges. **Rewards:** Faucet + quests + feedback; optional capped NFT/mainnet recognition per Incentivized Testnet Rules.
+- **Community page:** `/testnet/users` — Quests, faucet link, feedback. **Dashboard:** Quest progress, faucet/first tx badges. **Rewards:** None currently; the incentivized testnet is not running. The text below is design notes for a future program.
 
 ### Node operators
 
@@ -420,7 +422,9 @@ Define incentive rules on a single **Incentivized Testnet Rules** page (e.g. `/i
 
 # Part 3 — Incentivized Testnet
 
-Readiness, promotion, and mainnet migration for an incentivized testnet where validators, developers, and users can earn rewards. References: [READINESS.md](READINESS.md), [RUNBOOK.md](RUNBOOK.md), [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md).
+> **Status: not currently running.** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Everything in this part is planning material for a possible future program. It is not an offer, and no rewards, dates or amounts are committed.
+
+Readiness, promotion, and mainnet migration design for a possible future incentivized testnet where validators, developers, and users could earn rewards. References: [READINESS.md](READINESS.md), [RUNBOOK.md](RUNBOOK.md), [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md).
 
 ## 3.1 Readiness & Launch
 
@@ -495,7 +499,7 @@ Document caps and eligibility in a single "Incentivized Testnet Rules" page.
 
 ## 3.4 Appendix A — Reddit Post Draft (Promotion)
 
-Use this draft to promote the incentivized testnet on Reddit. Fill in **[PLACEHOLDERS]** (dates, links) before posting. Check each subreddit's rules and use the right flair.
+**Do not post this while the incentivized testnet is not running.** It is kept for a possible future program. Use this draft to promote the incentivized testnet on Reddit. Fill in **[PLACEHOLDERS]** (dates, links) before posting. Check each subreddit's rules and use the right flair.
 
 ### Title options (pick one or adapt)
 

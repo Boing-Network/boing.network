@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import '../../../styles/hub-common.css';
@@ -14,6 +15,7 @@ import '../../../styles/hub-common.css';
     <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Developer Hub', href: '/testnet/developers' }, { label: 'My Dashboard' }]} />
     <div class="hub-page-main">
     <HubNav hub="developer" current="dashboard" />
+    <IncentivizedTestnetNotice />
     <section class="section fade-in-up">
       <h1>Your dashboard</h1>
       <p class="muted">Register with your testnet account to see your registered dApps here. On mainnet, use <code>boing_registerDappMetrics</code> and the chain indexer for live metrics.</p>
@@ -35,7 +37,7 @@ import '../../../styles/hub-common.css';
       <div id="dashboard-loaded" class="dashboard-loaded" style="display: none;"></div>
       <div id="dapp-register" class="subsection">
         <h2>Register a dApp (testnet)</h2>
-        <p>Add a contract address to track it for testnet incentives. Enter your account address (owner) if you're not logged in. At mainnet, use the RPC method <code>boing_registerDappMetrics</code>.</p>
+        <p>Add a contract address to track it on the testnet. Enter your account address (owner) if you're not logged in. At mainnet, use the RPC method <code>boing_registerDappMetrics</code>.</p>
         <form id="dapp-form" class="compact-form">
           <input id="dapp-owner" type="text" aria-label="Your account address (optional if signed in)" placeholder="Your account address (0x..., optional if session exists)" title="32-byte hex account address" />
           <input id="dapp-contract" type="text" aria-label="Contract address (0x…)" placeholder="Contract address (0x...)" required />

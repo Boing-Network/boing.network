@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import '../../../styles/hub-common.css';
@@ -7,17 +8,18 @@ import '../../../styles/hub-common.css';
 
 <Layout
   title="Developers — Testnet Portal"
-  description="Boing Network testnet: developer community, dApp registration, and success-based dApp incentive pool."
+  description="Boing Network testnet: developer community and dApp registration."
 >
   <article class="portal-page role-hub developers-hub hub-page hub-developer" data-hub="developer">
     <script is:inline src="/portal-session.js"></script>
     <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Developer Hub' }]} />
     <div class="hub-page-main">
     <HubNav hub="developer" current="index" />
+    <IncentivizedTestnetNotice />
     <div class="hub-hero fade-in-up">
       <h1>Developer Hub</h1>
       <p class="lead">
-        Build dApps on testnet, register for incentive tracking, and qualify for grants. This hub is for <strong>developers</strong> only. At mainnet, a dedicated portion of the ecosystem pool rewards successful dApps (success-based, value cap per dApp).
+        Build dApps on testnet and register contracts for tracking. This hub is for <strong>developers</strong> only. The protocol design includes a success-based dApp incentive pool for mainnet (value cap per dApp); it is not active today.
       </p>
       <div class="hub-ctas" id="hub-ctas">
         <a href="/testnet/register/developer" class="btn btn-primary">Register as developer</a>
@@ -50,14 +52,14 @@ import '../../../styles/hub-common.css';
           Pinned **token** bytecode (minimal and secured), SDK helpers, and env overrides:
           <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md" target="_blank" rel="noopener">BOING-CANONICAL-DEPLOY-ARTIFACTS.md</a>.
         </li>
-        <li><strong>Register your dApp</strong> — Add your contract on the <a href="/testnet/developers/dashboard">Dashboard</a> (or use <code>boing_registerDappMetrics</code> at mainnet) to track it for incentives.</li>
+        <li><strong>Register your dApp</strong> — Add your contract on the <a href="/testnet/developers/dashboard">Dashboard</a> (or use <code>boing_registerDappMetrics</code> at mainnet) to track it.</li>
       </ol>
     </section>
 
     <section class="section fade-in-up delay-2">
       <h2>dApp incentive pool</h2>
       <p>
-        A portion of the <strong>Community & Grants</strong> allocation is reserved for <strong>successful dApps</strong>: rewards are based on usage (e.g. fees generated), with a <strong>per-dApp value cap</strong> per epoch. Testnet participation qualifies you for grants and for inclusion in this ecosystem at mainnet. See
+        A portion of the <strong>Community & Grants</strong> allocation is reserved for <strong>successful dApps</strong>: rewards are based on usage (e.g. fees generated), with a <strong>per-dApp value cap</strong> per epoch. This describes the protocol design; no dApp incentive pool is currently active. See
         <a href="/pdfs/BOING-BLOCKCHAIN-DESIGN-PLAN.pdf" target="_blank" rel="noopener">BOING-BLOCKCHAIN-DESIGN-PLAN (PDF)</a>
         and
         <a href="/pdfs/DEVELOPMENT-AND-ENHANCEMENTS.pdf" target="_blank" rel="noopener">DEVELOPMENT-AND-ENHANCEMENTS (PDF)</a>.

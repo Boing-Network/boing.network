@@ -135,12 +135,12 @@ Boing exposes a small JSON list for node runners (used alongside `@vibeminer/sha
 
 ```bash
 cd website
-node scripts/network-listings-release-sql.mjs testnet-v0.1.10
+node scripts/network-listings-release-sql.mjs testnet-v0.1.19
 # Optional: apply (use CLOUDFLARE_API_TOKEN if OAuth fails on D1 import)
-node scripts/network-listings-release-sql.mjs testnet-v0.1.10 --apply
+node scripts/network-listings-release-sql.mjs testnet-v0.1.19 --apply
 ```
 
-Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.sql](../website/migrations/insert-boing-devnet-listing.sql). Example tag refresh migration: [website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql](../website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql). For new tags, regenerate with **`node scripts/network-listings-release-sql.mjs testnet-v0.1.10`** (see [TESTNET.md](TESTNET.md) §9.1).
+Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.sql](../website/migrations/insert-boing-devnet-listing.sql). Example tag refresh migration: [website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql](../website/migrations/2026-04-08-network-listings-boing-testnet-v0-1-8.sql). For new tags, regenerate with **`node scripts/network-listings-release-sql.mjs testnet-v0.1.19`** (see [TESTNET.md](TESTNET.md) §9.1).
 
 ---
 
@@ -214,14 +214,14 @@ Use these values to list **Boing Network** in the VibeMiner request listing form
 | **Algorithm description** | PoS + HotStuff BFT for consensus; Ed25519 for signing; BLAKE3 for hashing. Validators stake BOING and produce blocks; no traditional mining. |
 | **Mining pool** | *Leave empty / omit* — Boing is PoS/node-only; no pool required. |
 | **Website (optional)** | https://boing.network |
-| **Reward rate (optional)** | Variable (block rewards to validators; testnet faucet for users) |
+| **Reward rate (optional)** | None currently (the incentivized testnet is not running); testnet faucet for users |
 | **Min. payout (optional)** | N/A (PoS; no pool payouts) |
 
 ### Node support (optional but recommended)
 
 | Field | Value |
 |-------|--------|
-| **Node download URL (HTTPS)** | `https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.10/release-windows-x86_64.zip` (Linux/macOS: `release-linux-x86_64.zip` / `release-macos-aarch64.zip`; see [TESTNET.md](TESTNET.md) §9.1) |
+| **Node download URL (HTTPS)** | `https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.19/release-windows-x86_64.zip` (Linux/macOS: `release-linux-x86_64.zip` / `release-macos-aarch64.zip`; see [TESTNET.md](TESTNET.md) §9.1) |
 | **Command template** | `boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/169.155.48.188/tcp/4001 --rpc-port 8545 --faucet-enable` (add `--validator` for validator preset; Linux/macOS use `boing-node-linux-x86_64` / `boing-node-macos-aarch64`) |
 | **Disk (GB)** | 10 |
 | **RAM (MB)** | 2048 |

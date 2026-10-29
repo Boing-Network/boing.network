@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../components/IncentivizedTestnetNotice.astro';
 import Icon from '../../components/Icon.astro';
 import '../../styles/hub-common.css';
 ---
@@ -22,9 +23,10 @@ import '../../styles/hub-common.css';
       </div>
     </div>
 
+    <IncentivizedTestnetNotice />
     <section class="section section-how-it-works fade-in-up delay-1" id="how-it-works">
       <h2>How it works</h2>
-      <p class="muted">Get started in three steps. Choose your role, register once, then use your hub to track progress and earn.</p>
+      <p class="muted">Get started in three steps. Choose your role, register once, then use your hub to track progress.</p>
       <div class="testnet-how-it-works">
         <div class="testnet-how-it-works__connector" aria-hidden="true"></div>
         <div class="testnet-how-it-works__steps">

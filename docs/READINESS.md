@@ -2,11 +2,11 @@
 
 > 👋 **Everyday users:** “is testnet usable?” — wallet, faucet, explorer, public RPC. Details below are the launch checklist.  
 > 🛠️ **Developers:** beta + six-pillar readiness + launch-blocking path.  
-> 🛰️ **Operators:** incentivized testnet design is [TESTNET.md](TESTNET.md) Part 3.
+> 🛰️ **Operators:** future incentivized testnet design notes are in [TESTNET.md](TESTNET.md) Part 3 (not currently running).
 
 **Purpose:** Single checklist for beta, six-pillar readiness, and launch-blocking items.  
 **References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [RUNBOOK.md](RUNBOOK.md), [TESTNET.md](TESTNET.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md).  
-**Incentivized testnet:** See [TESTNET.md](TESTNET.md) Part 3 for incentive design, promotion, and mainnet migration.
+**Incentivized testnet:** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. [TESTNET.md](TESTNET.md) Part 3 holds planning notes only.
 
 ```mermaid
 flowchart LR
@@ -36,7 +36,7 @@ flowchart LR
 | | `boing dev [--port 8545]` | Start local chain |
 | | `boing deploy [path]` | Verify RPC reachability (prints the `boing_submitTransaction` flow) |
 | | `boing token deploy/mint/transfer/balance` | Native reference fungible token ([BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md)) |
-| | `boing metrics register` | Register dApp for incentive tracking |
+| | `boing metrics register` | Register dApp for tracking |
 | | `boing completions <shell>` | Shell completion |
 | | `boing --version` | Report CLI version |
 
@@ -136,7 +136,7 @@ cargo test
 ## 5. Next Steps
 
 - **Beta:** Iterate on RUNBOOK and docs from common questions.
-- **Incentivized testnet:** Use [TESTNET.md](TESTNET.md) Part 3 for full launch checklist, incentive design, and promotion.
+- **Incentivized testnet:** Not currently running. [TESTNET.md](TESTNET.md) Part 3 holds planning notes (launch checklist, incentive design, promotion) for a possible future program.
 - **Engineering backlog (enhancements, optimizations, infra / CI):** [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) — pairs with [BUILD-ROADMAP.md](BUILD-ROADMAP.md) and [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md).
 
 ---

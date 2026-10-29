@@ -1,5 +1,5 @@
 /**
- * Community quest definitions for the incentivized testnet.
+ * Community quest definitions for the testnet portal (no rewards are offered while the incentivized testnet is not running).
  * Used by testnet portal user hub (dashboard, community, quests). See docs/TESTNET.md Part 2 §2.7 (Community Quests).
  */
 

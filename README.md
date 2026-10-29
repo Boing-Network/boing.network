@@ -112,7 +112,7 @@ All project documentation lives in **[docs/](docs/)**. Start at the **[docs inde
 | [RPC-API-SPEC.md](docs/RPC-API-SPEC.md) | JSON-RPC reference (source of truth, all methods) |
 | [BOING-SIGNED-TRANSACTION-ENCODING.md](docs/BOING-SIGNED-TRANSACTION-ENCODING.md) | Tx / block wire format and signing domains (source of truth) |
 | [ENVIRONMENT-VARIABLES.md](docs/ENVIRONMENT-VARIABLES.md) | All `BOING_*` environment variables and default ports |
-| [TESTNET.md](docs/TESTNET.md) | Join testnet, portal, incentivized program |
+| [TESTNET.md](docs/TESTNET.md) | Join testnet, portal, and design notes for a future incentivized program (not currently running) |
 | [RUNBOOK.md](docs/RUNBOOK.md) | Operational runbook for node operators |
 | [BOING-DAPP-INTEGRATION.md](docs/BOING-DAPP-INTEGRATION.md) | dApp checklist + SDK patterns |
 | [BOING-LINKED-NFT-TOKEN.md](docs/BOING-LINKED-NFT-TOKEN.md) | On-chain companions (NFT↔token) registry |

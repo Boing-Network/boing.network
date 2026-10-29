@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../../config/testnet';
@@ -15,6 +16,7 @@ import '../../../styles/hub-common.css';
     <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Operator Hub', href: '/testnet/operators' }, { label: 'My Dashboard' }]} />
     <div class="hub-page-main">
       <HubNav hub="operator" current="dashboard" />
+    <IncentivizedTestnetNotice />
       <section class="section fade-in-up">
         <h1>My Dashboard</h1>
         <p class="muted">Your contribution as a node operator or miner. Load your account to see registration and stats. For the full operator leaderboard, see <a href="/testnet/operators/leaderboard">Community Leaderboard</a>.</p>

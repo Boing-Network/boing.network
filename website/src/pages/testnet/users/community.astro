@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import BoingLoader from '../../../components/BoingLoader.astro';
@@ -17,6 +18,7 @@ import '../../../styles/hub-common.css';
 
     <div class="hub-page-main">
       <HubNav hub="user" current="community" />
+    <IncentivizedTestnetNotice />
       <section class="section fade-in-up">
         <h1>Community Hub</h1>
         <p class="muted">Hub-wide progress: quest completions, leaderboard, and distribution. For your own progress, go to <a href="/testnet/users/dashboard">My Dashboard</a>.</p>

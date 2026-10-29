@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import { QUESTS, EXTERNAL_QUEST_FORM_URL } from '../../../config/quests';
@@ -15,9 +16,10 @@ import '../../../styles/hub-common.css';
     <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Community Hub', href: '/testnet/users' }, { label: 'Quests' }]} />
     <div class="hub-page-main">
     <HubNav hub="user" current="quests" />
+    <IncentivizedTestnetNotice />
     <section class="section fade-in-up">
       <h1>Community quests</h1>
-      <p class="muted">Complete these to qualify for rewards. Rewards and caps are in the <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">Testnet doc (PDF)</a> rules.</p>
+      <p class="muted">Quests track participation on the testnet. No rewards are currently offered.</p>
       <div class="hub-metrics" style="margin-bottom: 1rem;">
         <div class="hub-metric-card"><span class="value">{QUESTS.length}</span><span class="label">Quests available</span></div>
       </div>
@@ -30,7 +32,7 @@ import '../../../styles/hub-common.css';
             <p class="quest-how"><strong>How:</strong> {q.howToComplete}</p>
             <p class="quest-meta">
               <span class="badge">{q.verificationType === 'on_chain' ? 'Auto' : 'Manual'}</span>
-              <span class="badge tier">{q.rewardTier}</span>
+              
             </p>
           </li>
         ))}

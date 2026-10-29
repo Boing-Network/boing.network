@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import BoingLoader from '../../../components/BoingLoader.astro';
@@ -16,6 +17,7 @@ import '../../../styles/hub-common.css';
 
     <div class="hub-page-main">
       <HubNav hub="developer" current="community" />
+    <IncentivizedTestnetNotice />
       <section class="section fade-in-up">
         <h1>Developer Community</h1>
         <p class="muted">Hub-wide progress: published dApps, distribution, and leaderboard. For your own dApps and registration, go to <a href="/testnet/developers/dashboard">My Dashboard</a>.</p>
@@ -38,7 +40,7 @@ import '../../../styles/hub-common.css';
 
       <section class="section fade-in-up delay-2">
         <h2>Distribution progress</h2>
-        <p class="muted">dApp incentive pool allocation and distribution will appear here once mainnet and the indexer are live. Testnet participation qualifies you for the ecosystem pool at mainnet.</p>
+        <p class="muted">dApp incentive pool allocation and distribution will appear here once mainnet and the indexer are live. No dApp incentive pool is currently active.</p>
         <div class="hub-metrics">
           <div class="hub-metric-card">
             <span class="value">—</span>

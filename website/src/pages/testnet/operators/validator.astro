@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import CodeBlock from '../../../components/CodeBlock.astro';
 import HubNav from '../../../components/HubNav.astro';
@@ -73,6 +74,7 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
     <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Operator Hub', href: '/testnet/operators' }, { label: 'Run a validator' }]} />
     <div class="hub-page-main">
     <HubNav hub="operator" current="validator" />
+    <IncentivizedTestnetNotice />
     <section class="section fade-in-up">
       <h1>Run a testnet validator</h1>
       <p class="lead">

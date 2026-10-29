@@ -1,10 +1,11 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 ---
 
 <Layout
   title="Register as user — Testnet Portal"
-  description="Register as a user on the Boing Network testnet. Use the faucet, complete quests, earn rewards."
+  description="Register as a user on the Boing Network testnet. Use the faucet, complete quests, share feedback."
 >
   <article class="portal-page register-page">
     <script is:inline src="/portal-session.js"></script>
@@ -21,10 +22,11 @@ import Layout from '../../../layouts/Layout.astro';
     <div class="register-header fade-in-up">
       <h1>Register as a user</h1>
       <p class="lead">
-        Join the testnet as a user to complete quests, use the faucet, and share feedback. Track your progress and qualify for rewards from the <strong>Community & Grants</strong> pool.
+        Join the testnet as a user to complete quests, use the faucet, and share feedback. Track your progress. No rewards are currently offered.
       </p>
     </div>
 
+    <IncentivizedTestnetNotice />
     <form id="register-form" class="register-form fade-in-up delay-1">
       <input type="hidden" name="role" value="user" />
 
