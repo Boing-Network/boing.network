@@ -25,17 +25,19 @@ RPC port **8545** only needs to be public if you want to serve RPC to others.
 > **A fresh node needs a build that includes the testnet network preset with micro fees and media blobs
 > (heights 1188, 1200, 1306).** No release up to and including `testnet-v0.1.18` has it: those binaries
 > sync normally up to block 1187 and then stop with `block 1188 ... state root mismatch` (a state-root
-> mismatch from the fee rule, not a network problem). Use the first testnet release after
-> `testnet-v0.1.18` (the release notes name it), or build `main` from source (below). An already-synced
-> node is unaffected by this. See "Older binaries" in section 5 for what a pre-fix source build needs.
+> mismatch from the fee rule, not a network problem). Use **`testnet-v0.1.19`** or newer, or build `main`
+> from source (below). An already-synced node is unaffected by this. See "Older binaries" in section 5 for what a pre-fix source build needs.
 
-**Release binaries:** from the first release that contains the preset (see the note above) at
-<https://github.com/Boing-Network/boing.network/releases>. The zip contains `boing-node-<platform>` and
+**Release binaries:** `testnet-v0.1.19` is the first release that contains the preset (see the note above); download it from
+<https://github.com/Boing-Network/boing.network/releases/tag/testnet-v0.1.19> (all releases:
+<https://github.com/Boing-Network/boing.network/releases>). The zip contains `boing-node-<platform>` and
 `boing-<platform>`, so rename them after unzipping (there is no `--version` flag; use `./boing-node --help`):
 
 ```bash
-# Replace <tag> with that release (for example the tag that follows testnet-v0.1.18):
-curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/<tag>/release-linux-x86_64.zip
+# testnet-v0.1.19 or newer (replace the tag when a newer testnet release is published):
+curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.19/release-linux-x86_64.zip
+# Expected SHA-256 (testnet-v0.1.19 linux zip): 687e90680d3302f03f7aebdc6ce095db0d845cad16e43781b896060af8130aa3
+sha256sum release-linux-x86_64.zip
 unzip release-linux-x86_64.zip && mv boing-node-linux-x86_64 boing-node && mv boing-linux-x86_64 boing && chmod +x boing-node boing
 ./boing validator --help
 ```
@@ -179,7 +181,7 @@ export BOING_MICRO_FEES_ACTIVATION_HEIGHT=1188 \
 ```
 
 Releases up to `testnet-v0.1.18` do not contain micro fees or media blobs at all and cannot sync past
-block 1187. A node stuck at 1187 or 1312: stop it, replace the binary with a current build and start it
+block 1187. A node stuck at 1187 or 1312: stop it, replace the binary with `testnet-v0.1.19` or newer and start it
 again on the same data directory (it continues from its stored height; if it does not, delete the data
 directory and sync again).
 
