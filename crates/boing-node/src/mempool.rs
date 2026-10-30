@@ -138,10 +138,18 @@ impl Mempool {
         self.qa_registry = registry;
     }
 
-    /// Ed25519 signature check under the current tx-verify policy (see `set_tx_verify_policy`).
-    /// Cheap relative to state-dependent admission checks, so callers run it first.
+    /// Ed25519 signature check under the current process-wide tx-verify policy.
+    /// Prefer [`Self::verify_signature_with`] on admission paths (issue #61 item 34).
     pub fn verify_signature(signed: &SignedTransaction) -> Result<(), MempoolError> {
-        signed.verify().map_err(|e| match e {
+        Self::verify_signature_with(signed, boing_primitives::tx_verify_policy())
+    }
+
+    /// Ed25519 signature check under an explicit policy (avoids TOCTOU vs process-wide atomics).
+    pub fn verify_signature_with(
+        signed: &SignedTransaction,
+        policy: boing_primitives::TxSigPolicy,
+    ) -> Result<(), MempoolError> {
+        signed.verify_with(policy).map_err(|e| match e {
             boing_primitives::SignatureError::LegacySignatureRejected => {
                 MempoolError::LegacySignature
             }
@@ -151,18 +159,37 @@ impl Mempool {
 
     /// Insert a signed transaction. Rejects duplicates, invalid nonces, per-sender cap, and ContractDeploy that fail QA.
     pub fn insert(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
-        self.insert_inner(signed, false)
+        self.insert_with_policy(signed, boing_primitives::tx_verify_policy())
+    }
+
+    /// Like [`Self::insert`], but verifies under `policy` instead of the process-wide value.
+    pub fn insert_with_policy(
+        &self,
+        signed: SignedTransaction,
+        policy: boing_primitives::TxSigPolicy,
+    ) -> Result<(), MempoolError> {
+        self.insert_inner(signed, false, policy)
     }
 
     /// Insert after community QA pool approved (`Unsure` path). Skips deploy-time registry QA so the tx does not loop as Unsure.
     pub fn insert_after_pool_allow(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
-        self.insert_inner(signed, true)
+        self.insert_after_pool_allow_with_policy(signed, boing_primitives::tx_verify_policy())
+    }
+
+    /// Like [`Self::insert_after_pool_allow`] with an explicit signature policy.
+    pub fn insert_after_pool_allow_with_policy(
+        &self,
+        signed: SignedTransaction,
+        policy: boing_primitives::TxSigPolicy,
+    ) -> Result<(), MempoolError> {
+        self.insert_inner(signed, true, policy)
     }
 
     fn insert_inner(
         &self,
         signed: SignedTransaction,
         skip_deploy_qa: bool,
+        policy: boing_primitives::TxSigPolicy,
     ) -> Result<(), MempoolError> {
         self.insert_with_qa_mode(
             signed,
@@ -171,6 +198,7 @@ impl Mempool {
             } else {
                 DeployQaMode::Enforce
             },
+            policy,
         )
     }
 
@@ -179,15 +207,25 @@ impl Mempool {
         &self,
         signed: SignedTransaction,
     ) -> Result<(), MempoolError> {
-        self.insert_with_qa_mode(signed, DeployQaMode::AdmitUnsure)
+        self.insert_unsure_for_inclusion_with_policy(signed, boing_primitives::tx_verify_policy())
+    }
+
+    /// Like [`Self::insert_unsure_for_inclusion`] with an explicit signature policy.
+    pub fn insert_unsure_for_inclusion_with_policy(
+        &self,
+        signed: SignedTransaction,
+        policy: boing_primitives::TxSigPolicy,
+    ) -> Result<(), MempoolError> {
+        self.insert_with_qa_mode(signed, DeployQaMode::AdmitUnsure, policy)
     }
 
     fn insert_with_qa_mode(
         &self,
         signed: SignedTransaction,
         qa_mode: DeployQaMode,
+        policy: boing_primitives::TxSigPolicy,
     ) -> Result<(), MempoolError> {
-        self.insert_checked(signed, qa_mode, false)
+        self.insert_checked(signed, qa_mode, false, policy)
     }
 
     /// `restoring`: txs that were already in the pool (re-inserted after a failed block) skip the global
@@ -197,8 +235,9 @@ impl Mempool {
         signed: SignedTransaction,
         qa_mode: DeployQaMode,
         restoring: bool,
+        policy: boing_primitives::TxSigPolicy,
     ) -> Result<(), MempoolError> {
-        Self::verify_signature(&signed)?;
+        Self::verify_signature_with(&signed, policy)?;
         signed
             .tx
             .payload
@@ -395,8 +434,9 @@ impl Mempool {
     /// Re-insert signed transactions (e.g. after block production or consensus failure).
     /// Duplicates are skipped; invalid signatures are skipped. Used to restore txs when a block is not committed.
     pub fn reinsert(&self, signed_txs: Vec<SignedTransaction>) {
+        let policy = boing_primitives::tx_verify_policy();
         for signed in signed_txs {
-            let _ = self.insert_checked(signed, DeployQaMode::Skip, true);
+            let _ = self.insert_checked(signed, DeployQaMode::Skip, true, policy);
         }
     }
 

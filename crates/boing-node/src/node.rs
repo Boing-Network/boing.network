@@ -1111,7 +1111,8 @@ impl BoingNode {
             ),
         };
         let signed = SignedTransaction::new(tx, sk);
-        match self.mempool.insert(signed) {
+        let policy = self.refresh_tx_sig_policy();
+        match self.mempool.insert_with_policy(signed, policy) {
             Ok(()) => {
                 info!(
                     "Equivocation report tx queued: validator={} round={}",
@@ -2149,10 +2150,12 @@ impl BoingNode {
         signed: SignedTransaction,
         gossip_expensive_limiter: Option<&crate::security::GossipPrecheckLimiter>,
     ) -> Result<(), MempoolError> {
-        self.refresh_tx_sig_policy();
+        // Snapshot policy once for this admission so height-boundary checks are not TOCTOU
+        // against the process-wide atomics (issue #61 item 34).
+        let policy = self.refresh_tx_sig_policy();
         // Cheapest checks first: signature, duplicate, then account-level gates; the snapshot-based
         // dry runs below only ever run for authenticated txs from funded, non-stale senders.
-        Mempool::verify_signature(&signed)?;
+        Mempool::verify_signature_with(&signed, policy)?;
         if self.mempool.contains_tx_id(&signed.tx.id()) {
             return Err(MempoolError::Duplicate);
         }
@@ -2170,7 +2173,7 @@ impl BoingNode {
             }
         }
         self.precheck_sender_can_pay_fee(&signed)?;
-        match self.mempool.insert(signed.clone()) {
+        match self.mempool.insert_with_policy(signed.clone(), policy) {
             Ok(()) => {
                 if let TransactionPayload::QaPoolVote { subject, vote } = signed.tx.payload {
                     let _ = self.note_on_chain_qa_vote(subject, signed.tx.sender, vote);
@@ -2190,7 +2193,9 @@ impl BoingNode {
                     Err(e) => return Err(MempoolError::QaPoolEnqueue(e.to_string())),
                 }
                 if self.qa_pool.governance_config().public_membership {
-                    let _ = self.mempool.insert_unsure_for_inclusion(signed);
+                    let _ = self
+                        .mempool
+                        .insert_unsure_for_inclusion_with_policy(signed, policy);
                 }
                 Err(MempoolError::QaPendingPool(tx_hash))
             }
@@ -2221,7 +2226,11 @@ impl BoingNode {
             PoolResolution::Allow(bytes) => {
                 let signed = SignedTransaction::from_bincode(&bytes)
                     .map_err(|_| PoolError::Deserialization)?;
-                match self.mempool.insert_after_pool_allow(signed) {
+                let policy = self.refresh_tx_sig_policy();
+                match self
+                    .mempool
+                    .insert_after_pool_allow_with_policy(signed, policy)
+                {
                     Ok(()) => Ok(QaPoolVoteResult::AllowedAdmitted),
                     Err(MempoolError::Duplicate) => Ok(QaPoolVoteResult::AllowedAlreadyInMempool),
                     Err(e) => Ok(QaPoolVoteResult::AllowedMempoolFailed(e.to_string())),
@@ -2247,10 +2256,13 @@ impl BoingNode {
     }
 
     fn apply_qa_pool_expirations(&self) {
+        let policy = self.refresh_tx_sig_policy();
         for (_h, res) in self.qa_pool.prune_expired() {
             if let PoolResolution::Allow(bytes) = res {
                 if let Ok(signed) = SignedTransaction::from_bincode(&bytes) {
-                    let _ = self.mempool.insert_after_pool_allow(signed);
+                    let _ = self
+                        .mempool
+                        .insert_after_pool_allow_with_policy(signed, policy);
                 }
             }
         }
