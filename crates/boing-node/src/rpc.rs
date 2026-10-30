@@ -1275,6 +1275,21 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
 /// Additive protocol parameters shared by `boing_health` and `boing_getNetworkInfo`:
 /// `storage_tree_v2_activation_height` (`null` = not configured, legacy 64-bit routing) and
 /// `receipt_retention_blocks` (`null` = unbounded). Read-only; never affects consensus.
+/// `(account_tree_v3_activation_height, vm_hardening_activation_height)` for health / network info.
+/// Account tree: `null` = off. VM hardening: `0` when no execution history is configured (from genesis).
+pub(crate) fn gate_heights_json(
+    n: &crate::node::BoingNode,
+) -> (serde_json::Value, serde_json::Value) {
+    (
+        serde_json::json!(n.state.account_tree_v3_activation()),
+        serde_json::json!(n
+            .executor
+            .execution_history()
+            .map(|h| h.vm_hardening_from)
+            .unwrap_or(0)),
+    )
+}
+
 pub(crate) fn protocol_params_json(
     n: &crate::node::BoingNode,
 ) -> (serde_json::Value, serde_json::Value) {
@@ -3298,6 +3313,8 @@ async fn dispatch_jsonrpc_request(
                 serde_json::json!({
                     "ok": true,
                     "storage_tree_v2_activation_height": storage_tree_v2_activation_height,
+                    "account_tree_v3_activation_height": gate_heights_json(&n).0,
+                    "vm_hardening_activation_height": gate_heights_json(&n).1,
                     "receipt_retention_blocks": receipt_retention_blocks,
                     "client_version": format!("boing-node/{}", env!("CARGO_PKG_VERSION")),
                     "chain_id": chain_id,
@@ -3664,6 +3681,8 @@ async fn dispatch_jsonrpc_request(
                 id,
                 serde_json::json!({
                     "storage_tree_v2_activation_height": storage_tree_v2_activation_height,
+                    "account_tree_v3_activation_height": gate_heights_json(&n).0,
+                    "vm_hardening_activation_height": gate_heights_json(&n).1,
                     "receipt_retention_blocks": receipt_retention_blocks,
                     "chain_id": chain_id,
                     "chain_name": chain_name,

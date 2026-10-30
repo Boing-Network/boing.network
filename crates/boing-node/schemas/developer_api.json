@@ -48,6 +48,19 @@
           "source": "BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT / --storage-tree-v2-activation-height; node configuration, not persisted; must match on every node",
           "doc": "docs/STORAGE-TREE-V2-ACTIVATION.md"
         },
+        "account_tree_v3_activation_height": {
+          "type": ["integer", "null"],
+          "null_means": "not configured: legacy 64-bit account-tree routing",
+          "integer_means": "blocks at height >= value commit the account tree with full 256-bit routing (testnet 6913 preset: 1500)",
+          "source": "testnet preset, overridden by BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT / --account-tree-v3-activation-height; must match on every node",
+          "doc": "docs/ACCOUNT-TREE-V3-ACTIVATION.md"
+        },
+        "vm_hardening_activation_height": {
+          "type": "integer",
+          "integer_means": "blocks at height >= value apply the VM hardening rules (0 = from genesis; testnet 6913 preset: 1500)",
+          "source": "testnet preset, overridden by BOING_VM_HARDENING_ACTIVATION_HEIGHT / --vm-hardening-activation-height; must match on every node",
+          "doc": "docs/TESTNET-VALIDATOR-GUIDE.md"
+        },
         "receipt_retention_blocks": {
           "type": ["integer", "null"],
           "null_means": "unbounded (BOING_RECEIPT_RETENTION_BLOCKS=0)",
