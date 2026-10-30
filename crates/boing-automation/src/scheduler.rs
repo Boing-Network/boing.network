@@ -59,17 +59,21 @@ impl Scheduler {
     }
 
     /// Run scheduler loop; calls `on_tick(block_height, elapsed_secs)` each tick.
-    pub async fn run<F>(&self, mut on_tick: F)
+    ///
+    /// `current_height` is polled each tick (e.g. from RPC / node tip). Hardcoding height `0`
+    /// previously made block-modulo schedules never fire (audit #61 item 41).
+    pub async fn run<F, H>(&self, mut current_height: H, mut on_tick: F)
     where
         F: FnMut(u64, u64),
+        H: FnMut() -> u64,
     {
         let mut interval = interval(self.tick_interval);
         let mut elapsed = 0u64;
-        let block_height = 0u64; // In real impl, fetch from chain
 
         loop {
             interval.tick().await;
             elapsed += 1;
+            let block_height = current_height();
             if self.schedule.should_run(block_height, elapsed) {
                 tracing::info!(
                     target = "boing_automation::scheduler",
@@ -82,5 +86,19 @@ impl Scheduler {
                 on_tick(block_height, elapsed);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn block_modulo_uses_live_height() {
+        let s = CronSchedule::every_blocks(10);
+        assert!(s.should_run(0, 1)); // 0 % 10 == 0
+        assert!(s.should_run(10, 1));
+        assert!(s.should_run(20, 1));
+        assert!(!s.should_run(11, 1));
     }
 }

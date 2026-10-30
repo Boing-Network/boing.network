@@ -85,14 +85,20 @@ impl TriggerRegistry {
     }
 
     /// Evaluate all triggers against an event; returns action IDs that should run.
-    pub fn evaluate(&self, _event: &ChainEvent, ctx: &EvalContext) -> Vec<u64> {
+    ///
+    /// [`TriggerCondition::BlockHeight`] is latched after the first fire so it does not
+    /// re-fire on every later block (audit #61 item 48).
+    pub fn evaluate(&mut self, _event: &ChainEvent, ctx: &EvalContext) -> Vec<u64> {
         let mut fired = Vec::new();
-        for trigger in self.triggers.values() {
+        for trigger in self.triggers.values_mut() {
             let balance = match &trigger.condition {
                 TriggerCondition::BalanceExceeds { account, .. } => ctx.balance_for(account),
                 _ => None,
             };
             if trigger.is_satisfied(ctx.block_height, balance, ctx.timestamp_secs) {
+                if matches!(trigger.condition, TriggerCondition::BlockHeight(_)) {
+                    trigger.fired = true;
+                }
                 fired.push(trigger.action_id);
             }
         }
@@ -100,7 +106,7 @@ impl TriggerRegistry {
     }
 
     /// Process a chain event; returns action IDs to execute.
-    pub fn on_event(&self, event: &ChainEvent, ctx: &EvalContext) -> Vec<u64> {
+    pub fn on_event(&mut self, event: &ChainEvent, ctx: &EvalContext) -> Vec<u64> {
         self.evaluate(event, ctx)
     }
 
@@ -118,5 +124,26 @@ impl TriggerRegistry {
 impl Default for TriggerRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn block_height_trigger_fires_once() {
+        let mut reg = TriggerRegistry::new();
+        let id = reg.register(TriggerCondition::BlockHeight(5), 42);
+        assert_eq!(id, 0);
+        let ctx = EvalContext::new(5, 0);
+        let ev = ChainEvent::BlockImported {
+            height: 5,
+            hash: Hash::ZERO,
+            proposer: AccountId([0u8; 32]),
+            tx_count: 0,
+        };
+        assert_eq!(reg.on_event(&ev, &ctx), vec![42]);
+        assert_eq!(reg.on_event(&ev, &EvalContext::new(6, 0)), Vec::<u64>::new());
     }
 }

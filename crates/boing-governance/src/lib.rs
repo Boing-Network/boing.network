@@ -2,6 +2,12 @@
 //!
 //! Proposal → Cooling → Execution phases allow community response.
 //! Includes transparent slashing with appeal mechanism.
+//!
+//! **Wiring status (audit #61 item 41):** [`SlashRegistry`] is used by `boing-node` (local mirror +
+//! persistence). The phased [`Governance`] engine (`propose` / `advance_to_cooling` / `execute`) is a
+//! **library primitive** — live policy changes today go through operator RPC
+//! (`boing_operatorApplyFeePolicy` / `boing_operatorApplyQaPolicy`) or consensus txs, not an
+//! automatic quorum vote inside the node.
 
 pub mod slashing_appeal;
 
