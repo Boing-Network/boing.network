@@ -496,6 +496,9 @@ pub enum MempoolError {
     /// Native value on contract calls before the activation height.
     #[error("native value on contract calls is not active until height {from}")]
     NativeValueNotActive { from: u64 },
+    /// Gossip path refused an expensive VM precheck under load (issue #61 item 18).
+    #[error("gossip precheck throttled; try again later")]
+    GossipPrecheckThrottled,
 }
 
 #[cfg(test)]

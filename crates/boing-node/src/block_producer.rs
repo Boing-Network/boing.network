@@ -116,10 +116,17 @@ impl BlockProducer {
             Vec::new()
         };
 
-        let block_timestamp = std::time::SystemTime::now()
+        // Prefer wall-clock, but never emit a timestamp ≤ parent (issue #61 item 15). On clock
+        // failure, advance from the parent rather than silently using the Unix epoch (0).
+        let parent_ts = chain
+            .get_block_by_height(chain.height())
+            .map(|b| b.header.timestamp)
+            .unwrap_or(0);
+        let now_ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let block_timestamp = now_ts.max(parent_ts.saturating_add(1));
         let tx_root = tx_root(&txs);
 
         let checkpoint = state.checkpoint();

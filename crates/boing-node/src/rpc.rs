@@ -1,7 +1,7 @@
 //! Simple JSON-RPC over HTTP for Boing node.
 //!
 //! Supports boing_submitTransaction for submitting signed transactions.
-//! Optional global rate limiting when RateLimitConfig.requests_per_sec > 0.
+//! Optional per-IP rate limiting when RateLimitConfig.requests_per_sec > 0.
 //! Optional testnet faucet (boing_faucetRequest) when --faucet-enable.
 
 use std::collections::HashMap;
@@ -17,6 +17,7 @@ use axum::http::Method;
 use axum::http::Uri;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Request as HttpRequest, StatusCode};
 use axum::{
+    extract::connect_info::ConnectInfo,
     extract::DefaultBodyLimit,
     extract::Query,
     extract::State,
@@ -26,9 +27,8 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use governor::{Quota, RateLimiter};
 use serde::{Deserialize, Serialize};
-use std::num::NonZeroU32;
+use std::net::{IpAddr, SocketAddr};
 use tokio::sync::{broadcast, Mutex as TokioMutex, RwLock};
 use tower::ServiceBuilder;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -44,7 +44,7 @@ use tracing::Level;
 use crate::faucet::{self, testnet_faucet_account_id};
 use crate::mempool::MempoolError;
 use crate::node::{BoingNode, QaPoolVoteResult};
-use crate::security::RateLimitConfig;
+use crate::security::{IpRateLimiter, RateLimitConfig};
 use boing_primitives::{
     create2_contract_address, nonce_derived_contract_address, AccessList, Account, AccountId,
     AccountState, ExecutionLog, ExecutionReceipt, Hash, QaPoolVoteKind, SignedIntent,
@@ -75,7 +75,8 @@ pub type FaucetSubmitLock = Arc<TokioMutex<()>>;
 #[derive(Clone)]
 pub struct RpcState {
     pub node: NodeState,
-    pub rate_limiter: Option<Arc<governor::DefaultDirectRateLimiter>>,
+    /// Per-peer-IP HTTP JSON-RPC rate limiter (issue #61 item 16).
+    pub rate_limiter: Option<Arc<IpRateLimiter>>,
     /// When set, enables boing_faucetRequest (testnet only).
     pub faucet_signer: Option<Arc<ed25519_dalek::SigningKey>>,
     pub faucet_cooldown: Option<FaucetCooldown>,
@@ -2214,13 +2215,46 @@ fn parse_qa_pool_vote(s: &str) -> Result<QaPoolVote, String> {
     }
 }
 
-async fn handle_rpc(State(state): State<RpcState>, headers: HeaderMap, body: Bytes) -> Response {
+fn client_ip_from_headers_or_connect(
+    headers: &HeaderMap,
+    connect: Option<&ConnectInfo<SocketAddr>>,
+) -> IpAddr {
+    // Prefer the TCP peer (always present when the server uses ConnectInfo). Optional
+    // X-Forwarded-For is only consulted when BOING_RPC_TRUST_FORWARDED=1 so clients cannot
+    // spoof their way into another bucket on a public RPC.
+    let trust_fwd = std::env::var("BOING_RPC_TRUST_FORWARDED")
+        .map(|v| {
+            let t = v.trim();
+            t == "1" || t.eq_ignore_ascii_case("true")
+        })
+        .unwrap_or(false);
+    if trust_fwd {
+        if let Some(xff) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
+            if let Some(first) = xff.split(',').next() {
+                if let Ok(ip) = first.trim().parse::<IpAddr>() {
+                    return ip;
+                }
+            }
+        }
+    }
+    connect
+        .map(|c| c.0.ip())
+        .unwrap_or_else(|| IpAddr::from([127, 0, 0, 1]))
+}
+
+async fn handle_rpc(
+    State(state): State<RpcState>,
+    connect: Option<ConnectInfo<SocketAddr>>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
     let hdr_request_id = headers
         .get(HeaderName::from_static("x-request-id"))
         .and_then(|v| v.to_str().ok());
 
     if let Some(ref limiter) = state.rate_limiter {
-        if limiter.check().is_err() {
+        let ip = client_ip_from_headers_or_connect(&headers, connect.as_ref());
+        if !limiter.check(ip) {
             state
                 .rpc_metrics
                 .rate_limited
@@ -4857,8 +4891,14 @@ async fn dispatch_jsonrpc_request(
             let to_id = AccountId(arr);
 
             const COOLDOWN: Duration = Duration::from_secs(60);
+
+            // Serialize per-node faucet work *before* cooldown / window checks so two concurrent
+            // requests for the same address cannot both pass the cooldown (issue #61 item 17).
+            let faucet_id = testnet_faucet_account_id();
+            let _faucet_gate = submit_lock.lock().await;
+
             {
-                let map = cooldown.lock().unwrap();
+                let map = cooldown.lock().unwrap_or_else(|e| e.into_inner());
                 if let Some(&last) = map.get(&to_id) {
                     if last.elapsed() < COOLDOWN {
                         return (
@@ -4895,9 +4935,6 @@ async fn dispatch_jsonrpc_request(
                     );
                 }
             }
-
-            let faucet_id = testnet_faucet_account_id();
-            let _faucet_gate = submit_lock.lock().await;
 
             let n = node.write().await;
             let tip_height = n.chain.height();
@@ -5121,7 +5158,7 @@ fn build_rpc_cors_layer() -> CorsLayer {
 }
 
 /// Build the RPC router.
-/// When `rate_limit` has `requests_per_sec > 0`, applies global rate limiting.
+/// When `rate_limit` has `requests_per_sec > 0`, applies per-IP rate limiting.
 /// When `faucet_signer` is Some, enables boing_faucetRequest (testnet only).
 /// When `head_broadcast` is Some, WebSocket **`GET /ws`** streams **newHeads** (see `network_info_developer_hints`).
 pub fn rpc_router(
@@ -5132,12 +5169,7 @@ pub fn rpc_router(
     head_broadcast: Option<broadcast::Sender<serde_json::Value>>,
 ) -> Router {
     let rate_limiter = if rate_limit.requests_per_sec > 0 {
-        let rps = NonZeroU32::new(rate_limit.requests_per_sec.max(1))
-            .unwrap_or_else(|| NonZeroU32::new(1).unwrap());
-        let burst =
-            NonZeroU32::new(rate_limit.requests_per_sec.saturating_mul(2).max(10)).unwrap_or(rps);
-        let quota = Quota::per_second(rps).allow_burst(burst);
-        Some(Arc::new(RateLimiter::direct(quota)))
+        Some(Arc::new(IpRateLimiter::new(rate_limit.requests_per_sec)))
     } else {
         None
     };
