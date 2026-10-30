@@ -163,6 +163,10 @@ existing 8 MiB per-frame cap) and fails a frame whose operand stack grows past *
 5000 execute exactly as before. Every validator and RPC node must run a build with this rule before the chain
 reaches 5000; an older build computes different results for the first block that hits one of the new limits.
 
+**Not in the preset: account-tree v3** (`BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT`, off by default; audit #61
+item 30). Like storage-tree v2 it is an opt-in consensus height: when the network announces one, every node
+must set the same value before the chain reaches it. See [ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md).
+
 The micro-fee rule needs both the height and the 100 bps policy; either one alone fails at 1188. An
 environment variable or flag you set still overrides the preset (a wrong value breaks sync), and a
 `network_fee_config.json` already in your data directory (or `--network-fee-config`) is used instead of the

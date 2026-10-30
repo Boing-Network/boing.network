@@ -47,6 +47,16 @@ pub fn resolve_storage_tree_v2_activation(cli: Option<u64>) -> Result<Option<u64
     parse_optional_u64_env("BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT")
 }
 
+/// Resolve the account-tree v3 activation height (**`BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT`**).
+/// `None` = off (default): the account tree keeps the legacy 64-bit routing and every state root
+/// is unchanged.
+pub fn resolve_account_tree_v3_activation(cli: Option<u64>) -> Result<Option<u64>, String> {
+    if let Some(h) = cli {
+        return Ok(Some(h));
+    }
+    parse_optional_u64_env("BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT")
+}
+
 /// Resolve Phase 7 raised Put/Announce cap activation. `None` = keep **16 MiB** (Fly-safe).
 pub fn resolve_media_blobs_phase7_cap_activation(cli: Option<u64>) -> Result<Option<u64>, String> {
     if let Some(h) = cli {

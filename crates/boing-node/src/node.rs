@@ -1868,6 +1868,14 @@ impl BoingNode {
         self.state.set_storage_tree_v2_activation(Some(height));
     }
 
+    /// Switch the global account tree to full 256-bit routing from block `height` (account-tree v3,
+    /// audit #61 item 30: closes the 64-bit-prefix collision between account ids). Consensus-critical:
+    /// all nodes must agree, and on a live chain `height` must be in the future. Nothing changes
+    /// before `height`; see `docs/ACCOUNT-TREE-V3-ACTIVATION.md`. Call after loading persisted state.
+    pub fn enable_account_tree_v3(&mut self, height: u64) {
+        self.state.set_account_tree_v3_activation(Some(height));
+    }
+
     /// Enable L1 media blobs (PutBlob) from `activation_height`. All nodes must agree.
     /// Opens / keeps the sidecar when `data_dir` was configured; for in-memory tests call
     /// [`Self::attach_media_blob_store`] first if RPC getBlob is needed.

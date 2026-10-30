@@ -186,6 +186,12 @@ struct Args {
     #[arg(long)]
     storage_tree_v2_activation_height: Option<u64>,
 
+    /// Account-tree v3: route the global account tree on all 256 key bits from this block height
+    /// (all nodes must agree; set only in the future on a live chain). Overrides
+    /// **`BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT`**. Unset = off (default; roots unchanged).
+    #[arg(long)]
+    account_tree_v3_activation_height: Option<u64>,
+
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
@@ -250,6 +256,16 @@ async fn main() -> anyhow::Result<()> {
         args.storage_tree_v2_activation_height,
     )
     .map_err(|e| anyhow::anyhow!("storage tree v2 config: {e}"))?;
+    let account_tree_v3_from = boing_node::media_blob_config::resolve_account_tree_v3_activation(
+        args.account_tree_v3_activation_height,
+    )
+    .map_err(|e| anyhow::anyhow!("account tree v3 config: {e}"))?;
+    if let Some(h) = account_tree_v3_from {
+        tracing::warn!(
+            "Account tree v3 (consensus): the account tree uses full-key routing from height={h}. \
+             Every node must run the same value; see docs/ACCOUNT-TREE-V3-ACTIVATION.md"
+        );
+    }
     if let Some(h) = storage_tree_v2_from {
         tracing::warn!(
             "Storage tree v2 (consensus): per-contract storage trees use full-key routing from height={h}. \
@@ -414,6 +430,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = storage_tree_v2_from {
                 n.enable_storage_tree_v2(h);
+            }
+            if let Some(h) = account_tree_v3_from {
+                n.enable_account_tree_v3(h);
             }
             if let Some(h) = blobs_root_header_from {
                 n.enable_blobs_root_header(h);
@@ -645,6 +664,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = storage_tree_v2_from {
                 n.enable_storage_tree_v2(h);
+            }
+            if let Some(h) = account_tree_v3_from {
+                n.enable_account_tree_v3(h);
             }
             if let Some(h) = blobs_root_header_from {
                 n.enable_blobs_root_header(h);

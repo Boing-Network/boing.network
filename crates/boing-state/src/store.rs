@@ -86,6 +86,13 @@ pub struct StateStore {
     /// True while the per-contract storage trees are built at full depth (derived from
     /// `storage_tree_v2_from` and the height passed to [`StateStore::state_root_at_height`]).
     storage_tree_deep: bool,
+    /// Account-tree v3 activation height (node config, not committed; `None` = never, the default).
+    /// From this block height the global account SMT (accounts, QA records, registries) routes on
+    /// all 256 key bits instead of the first 64, so account ids that share an 8-byte prefix are all
+    /// committed (audit #61 item 30). See `docs/ACCOUNT-TREE-V3-ACTIVATION.md`.
+    account_tree_v3_from: Option<u64>,
+    /// True while the account tree is built at full depth (derived like `storage_tree_deep`).
+    account_tree_deep: bool,
     /// True once `tree`/`storage_trees` mirror the committed state up to the `dirty_*` sets below.
     /// Cleared by bulk replacements (e.g. `load_qa_pending`); the next `state_root` rebuilds fully.
     root_synced: bool,
@@ -250,6 +257,30 @@ impl StateStore {
         }
     }
 
+    fn account_depth(&self) -> u32 {
+        if self.account_tree_deep {
+            DEEP_MAX_DEPTH
+        } else {
+            LEGACY_MAX_DEPTH
+        }
+    }
+
+    /// Configure the account-tree v3 activation height (`None` = off). Consensus-critical: every
+    /// node must use the same value, and it must be in the future when set on a live chain.
+    pub fn set_account_tree_v3_activation(&mut self, from: Option<u64>) {
+        self.account_tree_v3_from = from;
+    }
+
+    /// The configured account-tree v3 activation height, if any.
+    pub fn account_tree_v3_activation(&self) -> Option<u64> {
+        self.account_tree_v3_from
+    }
+
+    /// Whether the account tree is currently built at full (v3) depth.
+    pub fn account_tree_v3_active(&self) -> bool {
+        self.account_tree_deep
+    }
+
     /// Configure the storage-tree v2 activation height (`None` = off). Consensus-critical: every
     /// node must use the same value, and it must be in the future when set on a live chain.
     pub fn set_storage_tree_v2_activation(&mut self, from: Option<u64>) {
@@ -274,6 +305,11 @@ impl StateStore {
         if want != self.storage_tree_deep {
             self.storage_tree_deep = want;
             self.root_synced = false; // full rebuild at the new depth (one-time, at activation)
+        }
+        let want = self.account_tree_v3_from.is_some_and(|from| height >= from);
+        if want != self.account_tree_deep {
+            self.account_tree_deep = want;
+            self.root_synced = false;
         }
         self.state_root()
     }
@@ -353,7 +389,7 @@ impl StateStore {
         let mut ids: HashSet<AccountId> = self.accounts.keys().copied().collect();
         ids.extend(self.contract_code.keys().copied());
         ids.extend(storage_trees.keys().copied());
-        let mut tree = SparseMerkleTree::new();
+        let mut tree = SparseMerkleTree::with_max_depth(self.account_depth());
         for id in ids {
             let storage_root = storage_trees
                 .get_mut(&id)
@@ -476,6 +512,8 @@ impl StateStore {
             storage_trees: self.storage_trees.clone(),
             storage_tree_v2_from: self.storage_tree_v2_from,
             storage_tree_deep: self.storage_tree_deep,
+            account_tree_v3_from: self.account_tree_v3_from,
+            account_tree_deep: self.account_tree_deep,
             root_synced: self.root_synced,
             dirty_accounts: self.dirty_accounts.clone(),
             dirty_slots: self.dirty_slots.clone(),
