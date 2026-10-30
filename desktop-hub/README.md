@@ -9,7 +9,7 @@ All-in-one **desktop application** for the Boing Network ecosystem, built with *
 
 Users get a single window with a sidebar to switch between these apps, each loaded in an embedded view (iframe) pointing to the live sites. No need to open multiple browser tabs.
 
-**Desktop app experience:** On launch, the app shows a short intro animation (optional “Don’t show intro on next launch”), then checks for updates (with progress if an update is downloading). If the user has not yet dismissed the welcome screen, they see **Sign in**, **Register**, or **Continue without account**; otherwise they go straight to the home dashboard. In the sidebar footer: **Sign in** (when not signed in) opens the welcome screen again; **Sign out** clears session and returns to welcome; **Settings** offers “Show welcome on next launch”, “Show intro on next launch”, and “Check for updates”. The process plugin is used to relaunch the app after an update is installed.
+**Desktop app experience:** On launch, the app shows a short intro animation (optional “Don’t show intro on next launch”), then checks for updates (with progress if an update is downloading). If the user has not yet dismissed the welcome screen, they see **Open wallet**, **Register on testnet**, or **Continue exploring** (navigation helpers — the hub does not authenticate accounts); otherwise they go straight to the home dashboard. In the sidebar footer: **Welcome** reopens that screen; **Settings** offers “Show welcome on next launch”, “Show intro on next launch”, “RPC & diagnostics”, and “Check for updates”. The optional QA operator token is kept in the OS credential store. The process plugin is used to relaunch the app after an update is installed.
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ If on Windows you see **"An Application Control policy has blocked this file" (o
 
 ## Quick start
 
-The hub depends on **`boing-sdk`** via `file:../boing-sdk`. Build the SDK first (it is not pre-built in git), then install the hub:
+The hub depends on **`boing-sdk`** via `file:../boing-sdk`. The SDK’s `dist/` is committed in this monorepo (`!boing-sdk/dist/` in the root `.gitignore`); still run `npm run build` in `boing-sdk` after SDK source changes so Node resolves a fresh build, then install the hub:
 
 ```bash
 cd boing-sdk && npm install && npm run build && cd ../desktop-hub
@@ -74,7 +74,7 @@ desktop-hub/
   src/                 # Vite + React frontend (hub shell)
     config.ts          # App URLs
     App.tsx            # Phase flow (intro → update → welcome/app) + sidebar
-    lib/               # Storage helpers (welcome, signed-in, show intro)
+    lib/               # Storage helpers (welcome, intro) + RPC/keychain config
     components/        # Intro, UpdateOverlay, HubFooter, AppIcons
     hooks/             # useUpdateCheck
     views/             # Home, Embed, Welcome

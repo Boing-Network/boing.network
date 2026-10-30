@@ -2,8 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { APP_VERSION } from "../config";
 
 type Props = {
-  signedIn: boolean;
-  onSignOut: () => void;
   onShowWelcome: () => void;
   showIntroNextLaunch: boolean;
   onShowIntroNextLaunchChange: (show: boolean) => void;
@@ -12,8 +10,6 @@ type Props = {
 };
 
 export function HubFooter({
-  signedIn,
-  onSignOut,
   onShowWelcome,
   showIntroNextLaunch,
   onShowIntroNextLaunchChange,
@@ -43,25 +39,13 @@ export function HubFooter({
     <div className="hub-footer">
       <span className="hub-footer-text">Alt+1–5 · Esc Home</span>
       <div className="hub-footer-links">
-        {signedIn ? (
-          <span className="hub-footer-auth" aria-label="Signed in">Signed in</span>
-        ) : (
-          <button
-            type="button"
-            className="hub-footer-link"
-            onClick={onShowWelcome}
-            aria-label="Sign in or register"
-          >
-            Sign in
-          </button>
-        )}
         <button
           type="button"
           className="hub-footer-link"
-          onClick={onSignOut}
-          aria-label="Sign out and show welcome screen"
+          onClick={onShowWelcome}
+          aria-label="Show welcome screen"
         >
-          Sign out
+          Welcome
         </button>
         <div className="hub-footer-settings" ref={menuRef}>
           <button
@@ -85,7 +69,11 @@ export function HubFooter({
               >
                 Show welcome on next launch
               </button>
-              <label className="hub-footer-settings-item hub-footer-settings-item--checkbox" role="menuitemcheckbox" aria-checked={showIntroNextLaunch}>
+              <label
+                className="hub-footer-settings-item hub-footer-settings-item--checkbox"
+                role="menuitemcheckbox"
+                aria-checked={showIntroNextLaunch}
+              >
                 <input
                   type="checkbox"
                   checked={showIntroNextLaunch}

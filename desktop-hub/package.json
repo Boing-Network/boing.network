@@ -12,11 +12,12 @@
     "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@boing-network/boing-sdk": "file:../boing-sdk",
+    "@fontsource/comfortaa": "^5.3.0",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.0.0",
     "@tauri-apps/plugin-updater": "^2.10.0",
-    "@boing-network/boing-sdk": "file:../boing-sdk",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.4"

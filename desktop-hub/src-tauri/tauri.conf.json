@@ -11,7 +11,21 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
+    "security": {
+      "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "'self' ipc: http://ipc.localhost https://ipc.localhost http://127.0.0.1:* http://localhost:* https://testnet-rpc.boing.network https://*.boing.network https://boing.network https://boing.express https://boing.observer https://boing.finance",
+        "font-src": "'self' data:",
+        "img-src": "'self' asset: http://asset.localhost https://asset.localhost data: blob: https:",
+        "style-src": "'self' 'unsafe-inline'",
+        "script-src": "'self'",
+        "frame-src": "'self' https://boing.observer https://boing.express https://boing.finance https://boing.network https://*.boing.network http://localhost:* http://127.0.0.1:*",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'self'"
+      }
+    },
     "windows": [
       {
         "label": "main",
@@ -52,7 +66,7 @@
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
-      "timestampUrl": "http://timestamp.digicert.com",
+      "timestampUrl": "https://timestamp.digicert.com",
       "wix": null,
       "nsis": {
         "installerHooks": "./windows/installer-hooks.nsh"
@@ -69,7 +83,7 @@
   },
   "plugins": {
     "shell": {
-      "open": true
+      "open": "^https://([a-z0-9-]+\\.)*boing\\.(network|express|observer|finance)(/.*)?$|^https?://(localhost|127\\.0\\.0\\.1)(:\\d+)?(/.*)?$"
     },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEzRDM3QTMzNTA1RjM3RTUKUldUbE4xOVFNM3JURTVPNS9PVTRPNEkzNzFxdlZYUll0WXBBR3NTL3J2QmRHWkdVcFZSbUtQWU4K",
