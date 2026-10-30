@@ -29,6 +29,12 @@ export const REFERENCE_FUNGIBLE_BALANCE_XOR = (() => {
     return out;
 })();
 export const BOING_TOKEN_DEFAULT_VERSION = 2;
+/** Refuse known-broken v1 for new deploys. */
+export function assertBoingTokenDeployable(version = BOING_TOKEN_DEFAULT_VERSION) {
+    if (version === 1) {
+        throw new Error('token template v1 is retired (known self-transfer mint bug); deploy with version 2');
+    }
+}
 /** `REF_FUNGIBLE_ALLOWANCE_XOR`: ASCII `BOING_REFFUNGIBLE_ALW2` zero-padded to 32 bytes. */
 export const REFERENCE_FUNGIBLE_ALLOWANCE_XOR = (() => {
     const out = new Uint8Array(32);
@@ -158,6 +164,9 @@ async function resolveNonce(client, senderHex, nonce) {
 }
 /** `boing token deploy`: deploy the reference template, optionally minting the fixed supply. */
 export async function deployBoingToken(client, secretKey32, input = {}) {
+    if (!input.allowRetired) {
+        assertBoingTokenDeployable(input.version ?? BOING_TOKEN_DEFAULT_VERSION);
+    }
     validateBoingTokenMetadata(input.name, input.symbol);
     const deployerHex = await senderHexFromSecretKey(secretKey32);
     const nonce = await resolveNonce(client, deployerHex, input.nonce);

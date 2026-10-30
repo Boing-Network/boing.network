@@ -16,6 +16,10 @@ export declare const BOING_POOL_PURPOSE = "dapp";
 /** v9 = v8 whose swap returns `amount_out` (custody-router intermediate hops). */
 export type BoingPoolVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 export declare const BOING_POOL_DEFAULT_VERSION: BoingPoolVersion;
+/** Lowest pool template allowed for new `createBoingPool` deploys (custody-safe). */
+export declare const BOING_POOL_MIN_DEPLOYABLE_VERSION: BoingPoolVersion;
+/** Refuse ledger-only v1..v7 for new deploys (fake-deposit drain; audit #61 item 24). */
+export declare function assertBoingPoolDeployable(version?: BoingPoolVersion): void;
 export declare const boingPoolHasTokenHooks: (v: BoingPoolVersion) => boolean;
 export declare const boingPoolHasStorageFee: (v: BoingPoolVersion) => boolean;
 export declare const boingPoolHasFeeAdmin: (v: BoingPoolVersion) => boolean;
@@ -107,6 +111,11 @@ export interface CreateBoingPoolInput extends BoingPoolSendOptions {
     tokenBHex?: string;
     feeBps?: bigint;
     feeAdminHex?: string;
+    /**
+     * Opt-in for historical v1..v7 signing vectors / forensics. Default creates refuse those
+     * versions (ledger-only fake-deposit drain; audit #61 item 24).
+     */
+    allowRetired?: boolean;
 }
 /** `boing pool create`: deploy, then optional set_tokens -> set_fee_admin -> set_swap_fee_bps (nonce+1..). */
 export declare function createBoingPool(client: BoingClient | null, secretKey32: Ed25519SecretKey32, input?: CreateBoingPoolInput): Promise<{

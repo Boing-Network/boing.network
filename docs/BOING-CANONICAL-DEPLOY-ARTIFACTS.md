@@ -28,7 +28,7 @@ Signing **always** uses **Boing Express** (or another native signer). MetaMask d
 | **Reference calldata** | **Defined** — `transfer` / `mint_first` ([BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md)) |
 | **SDK encoders** | **Shipped** — `encodeReferenceTransferCalldata`, `encodeReferenceMintFirstCalldata` |
 | **Canonical deploy bytecode (balances token)** | **Shipped** — `reference_fungible_template_bytecode()` (`boing-execution` / `reference_token.rs`), purpose **`token`** |
-| **Secured fungible (`0xFD` init + runtime)** | **Shipped** — `reference_fungible_secured_pinned_default_deploy_bytecode()` (`boing-execution` / `reference_fungible_secured.rs`), purpose **`token`**; init sets admin + optional enforcement flags ([BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) § Secured template) |
+| **Secured fungible (`0xFD` init + runtime)** | **Shipped (v2 default)** — `reference_fungible_secured_pinned_default_deploy_bytecode_v2()` (`boing-execution` / `reference_fungible_secured.rs`), purpose **`token`**; init sets admin + optional enforcement flags; v1 retired (self-transfer mint bug; audit #61 item 24) ([BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) § Secured template) |
 
 ### Versioning (fungible)
 
@@ -42,9 +42,10 @@ Signing **always** uses **Boing Express** (or another native signer). MetaMask d
 
 | Version | Artifact id | BLAKE3 (deploy payload) | Notes |
 |---------|-------------|-------------------------|--------|
-| **1** | `boing.reference_fungible_secured.v0` | Run `cargo run -p boing-execution --example dump_reference_token_artifacts` and hash the **fourth** `0x` line | **`0xFD`** init bootstraps storage (admin = deployer, flags, caps, anti-bot window, cooldown, pause, etc.) and **`RETURN`s** the runtime. Same **96-byte** `transfer` / `mint_first` calldata as the minimal template; extra **admin** selectors **`0x03`–`0x07`** (deny, pause, renounce, transfer-unlock). Default pinned config has enforcement flags **off** (same rough UX as minimal fungible). **`buildReferenceFungibleSecuredDeployMetaTx`** with **`nativeTokenSecurity`** builds matching init bytecode on-chain; pass **`chainContext.chainHeight`** when **`timelock`** is enabled. |
+| **2** (current default) | `boing.reference_fungible_secured.v0` | Run `cargo run -p boing-execution --example dump_reference_token_artifacts` and hash the **fourth** `0x` line | **`0xFD`** init + secured **v2** runtime (self-transfer is a no-op). Same admin / flag UX as v1. **`buildReferenceFungibleSecuredDeployMetaTx`** with **`nativeTokenSecurity`** builds matching init bytecode; pass **`chainContext.chainHeight`** when **`timelock`** is enabled. |
+| **1** (retired) | `boing.reference_fungible_secured.v0` | Historical | Self-transfer mint bug (same class as reference fungible v1). Do not use for new deploys (audit #61 item 24). |
 
-**SDK:** `resolveReferenceFungibleSecuredTemplateBytecodeHex`, `buildReferenceFungibleSecuredDeployMetaTx` (optional `nativeTokenSecurity`, `chainContext`, `mintFirstTotalSupplyWei`), `referenceFungibleSecuredConfigFromNativeTokenSecurity`, `DEFAULT_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX`, `DEFAULT_REFERENCE_FUNGIBLE_SECURED_RUNTIME_BYTECODE_HEX` (fifth stdout line; init builder), `REFERENCE_FUNGIBLE_SECURED_TEMPLATE_VERSION` = **`1`**. Regenerate TS hex: `node boing-sdk/scripts/embed-reference-fungible-secured-template-hex.mjs`.
+**SDK:** `resolveReferenceFungibleSecuredTemplateBytecodeHex`, `buildReferenceFungibleSecuredDeployMetaTx` (optional `nativeTokenSecurity`, `chainContext`, `mintFirstTotalSupplyWei`), `referenceFungibleSecuredConfigFromNativeTokenSecurity`, `DEFAULT_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX`, `DEFAULT_REFERENCE_FUNGIBLE_SECURED_RUNTIME_BYTECODE_HEX` (fifth stdout line; init builder), `REFERENCE_FUNGIBLE_SECURED_TEMPLATE_VERSION` = **`2`**. Regenerate TS hex: `node boing-sdk/scripts/embed-reference-fungible-secured-template-hex.mjs`.
 
 **Env (optional override):** `BOING_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX`, `VITE_BOING_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX`, `REACT_APP_BOING_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX`.
 

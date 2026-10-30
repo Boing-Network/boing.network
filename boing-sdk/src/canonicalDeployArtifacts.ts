@@ -24,7 +24,7 @@ export const REFERENCE_FUNGIBLE_TEMPLATE_VERSION = '1' as const;
 export const REFERENCE_FUNGIBLE_SECURED_TEMPLATE_ARTIFACT_ID = 'boing.reference_fungible_secured.v0' as const;
 
 /** Bump when default pinned secured hex in this package changes. */
-export const REFERENCE_FUNGIBLE_SECURED_TEMPLATE_VERSION = '1' as const;
+export const REFERENCE_FUNGIBLE_SECURED_TEMPLATE_VERSION = '2' as const;
 
 /** Logical id for the NFT collection template. */
 export const REFERENCE_NFT_COLLECTION_TEMPLATE_ARTIFACT_ID = 'boing.reference_nft_collection.v0' as const;

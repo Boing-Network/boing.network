@@ -55,7 +55,7 @@ describe('canonicalDeployArtifacts', () => {
   });
 
   it('REFERENCE_FUNGIBLE_SECURED_TEMPLATE_VERSION matches pinned default', () => {
-    expect(REFERENCE_FUNGIBLE_SECURED_TEMPLATE_VERSION).toBe('1');
+    expect(REFERENCE_FUNGIBLE_SECURED_TEMPLATE_VERSION).toBe('2');
   });
 
   it('resolveReferenceFungibleSecuredTemplateBytecodeHex returns embedded default (starts with 0xfd)', () => {

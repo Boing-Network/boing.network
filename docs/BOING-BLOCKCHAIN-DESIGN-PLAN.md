@@ -662,7 +662,9 @@ An uncapped supply is often frowned upon, but it **can work** if the system is d
 
 ### Chosen Model: Uncapped Supply with Floor-Triggered Waves
 
-Boing uses an **uncapped supply** with a **floor-triggered rebalancing** mechanism:
+> **Implementation note (audit #61 item 40):** shipped tokenomics enforce a **hard cap** of [`MAX_SUPPLY`](../crates/boing-tokenomics/src/lib.rs) (1 billion BOING). Block emission is clamped so total native held (`balance + stake`) cannot exceed the cap. The floor emission formula remains nonzero on paper, but minting stops at the cap. The historical “uncapped / floor-triggered waves” design below is retained for context; mainnet parameters may still evolve via governance.
+
+Boing’s earlier design used an **uncapped supply** with a **floor-triggered rebalancing** mechanism:
 
 | Phase | Description |
 |-------|--------------|

@@ -54,6 +54,17 @@ export const BOING_POOL_PURPOSE = 'dapp';
 /** v9 = v8 whose swap returns `amount_out` (custody-router intermediate hops). */
 export type BoingPoolVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 export const BOING_POOL_DEFAULT_VERSION: BoingPoolVersion = 8;
+/** Lowest pool template allowed for new `createBoingPool` deploys (custody-safe). */
+export const BOING_POOL_MIN_DEPLOYABLE_VERSION: BoingPoolVersion = 8;
+
+/** Refuse ledger-only v1..v7 for new deploys (fake-deposit drain; audit #61 item 24). */
+export function assertBoingPoolDeployable(version: BoingPoolVersion = BOING_POOL_DEFAULT_VERSION): void {
+  if (version < BOING_POOL_MIN_DEPLOYABLE_VERSION) {
+    throw new Error(
+      `pool template v${version} is retired for new deploys (ledger-only / fake-deposit drain); use version 8 or higher`,
+    );
+  }
+}
 
 export const boingPoolHasTokenHooks = (v: BoingPoolVersion): boolean => v === 2 || v >= 4;
 export const boingPoolHasStorageFee = (v: BoingPoolVersion): boolean => v >= 3;
@@ -339,6 +350,11 @@ export interface CreateBoingPoolInput extends BoingPoolSendOptions {
   tokenBHex?: string;
   feeBps?: bigint;
   feeAdminHex?: string;
+  /**
+   * Opt-in for historical v1..v7 signing vectors / forensics. Default creates refuse those
+   * versions (ledger-only fake-deposit drain; audit #61 item 24).
+   */
+  allowRetired?: boolean;
 }
 
 /** `boing pool create`: deploy, then optional set_tokens -> set_fee_admin -> set_swap_fee_bps (nonce+1..). */
@@ -348,6 +364,9 @@ export async function createBoingPool(
   input: CreateBoingPoolInput = {},
 ): Promise<{ deployerHex: string; poolHex: string; txs: BoingPoolSignedTx[] }> {
   const v = input.version ?? BOING_POOL_DEFAULT_VERSION;
+  if (!input.allowRetired) {
+    assertBoingPoolDeployable(v);
+  }
   if ((input.tokenAHex == null) !== (input.tokenBHex == null)) throw new Error('pass both tokenAHex and tokenBHex (or neither)');
   if (input.tokenAHex && !boingPoolHasTokenHooks(v)) throw new Error(`pool v${v} has no token hooks`);
   if (boingPoolPullsTokens(v) && !input.tokenAHex) throw new Error('pool v8 needs tokenAHex and tokenBHex (reference fungible v2 tokens)');

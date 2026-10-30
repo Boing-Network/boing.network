@@ -19,9 +19,14 @@ export declare const BOING_TOKEN_MAX_NAME_BYTES = 256;
 export declare const BOING_TOKEN_MAX_SYMBOL_BYTES = 32;
 /** `REF_FUNGIBLE_BALANCE_XOR`: ASCII `BOING_REFFUNGIBLE_BAL1` zero-padded to 32 bytes. */
 export declare const REFERENCE_FUNGIBLE_BALANCE_XOR: Uint8Array;
-/** Template version: `2` (default, like the CLI: approve / transfer_from / allowance) or `1`. */
+/**
+ * Template version: `2` (default / only deployable) or `1` (retired: self-transfer mint bug).
+ * `bytecode` helpers still accept `1` for forensics; deploy builders refuse it (audit #61 item 24).
+ */
 export type BoingTokenVersion = 1 | 2;
 export declare const BOING_TOKEN_DEFAULT_VERSION: BoingTokenVersion;
+/** Refuse known-broken v1 for new deploys. */
+export declare function assertBoingTokenDeployable(version?: BoingTokenVersion): void;
 /** `REF_FUNGIBLE_ALLOWANCE_XOR`: ASCII `BOING_REFFUNGIBLE_ALW2` zero-padded to 32 bytes. */
 export declare const REFERENCE_FUNGIBLE_ALLOWANCE_XOR: Uint8Array;
 /** v2 storage key of `allowance[owner][spender]`: `(owner[0..16] ‖ spender[0..16]) ^ ALLOWANCE_XOR`. */
@@ -77,6 +82,11 @@ export interface DeployBoingTokenInput extends BoingTokenSendOptions {
     mintToHex?: string;
     /** Template version (default 2, like `boing token deploy`). */
     version?: BoingTokenVersion;
+    /**
+     * Opt-in for historical v1 signing vectors / forensics. Default deploys refuse v1
+     * (self-transfer mint bug; audit #61 item 24).
+     */
+    allowRetired?: boolean;
 }
 export interface DeployBoingTokenResult {
     deployerHex: string;

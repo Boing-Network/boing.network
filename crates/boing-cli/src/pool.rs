@@ -5,10 +5,9 @@
 //! Nothing here changes pool bytecode: transactions are Boing VM calls (bincode `SignedTransaction`,
 //! Ed25519) submitted via `boing_submitTransaction`; state is read with `boing_getContractStorage`.
 //!
-//! **Custody caveat (all v1..v7 templates):** `add_liquidity` and the swap input are *ledger-only* --
-//! the pool credits reserves from calldata and never pulls tokens. Pools with token hooks (v2, v4..v7)
-//! pay swap output / LP removals out of the pool's own reference-token balance. Treat these pools as
-//! trusted/demo liquidity; see `docs/NATIVE-AMM-CLI.md` (custody gap + proposed v8 design).
+//! **New deploys:** only **v8+** (real custody via reference-token v2 `transfer_from`). v1..v7 are
+//! **retired** for `boing pool create` (ledger-only fake-deposit drain; audit #61 item 24). Existing
+//! v1..v7 pools remain operable via liquidity/swap helpers; bytecode dump still works for forensics.
 
 use crate::token::{
     account_of, build_approve_tx, hex_account, nonce_for, parse_account, resolve_signing_key, rpc,
@@ -38,7 +37,10 @@ use serde_json::{json, Value};
 /// QA purpose category for pool deploys (same default as `deploy-native-amm-pool.mjs`).
 pub const POOL_PURPOSE: &str = "dapp";
 
-/// Pool template version (`v1`..`v8`, see `NATIVE-AMM-CALLDATA.md`).
+/// Lowest pool template version allowed for **new** `boing pool create` deploys (custody-safe).
+pub const MIN_DEPLOYABLE_POOL_VERSION: u8 = 8;
+
+/// Pool template version (`v1`..`v10`, see `NATIVE-AMM-CALLDATA.md`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PoolVersion(pub u8);
 
@@ -59,6 +61,17 @@ impl std::str::FromStr for PoolVersion {
 }
 
 impl PoolVersion {
+    /// Refuse ledger-only v1..v7 for new deploys (fake-deposit drain; audit #61 item 24).
+    pub fn assert_deployable(self) -> anyhow::Result<()> {
+        if self.0 < MIN_DEPLOYABLE_POOL_VERSION {
+            anyhow::bail!(
+                "pool template v{} is retired for new deploys (ledger-only / fake-deposit drain); use --version v8 or higher",
+                self.0
+            );
+        }
+        Ok(())
+    }
+
     pub fn bytecode(self) -> Vec<u8> {
         match self.0 {
             1 => constant_product_pool_bytecode(),
@@ -382,6 +395,7 @@ pub async fn create(rpc_url: &str, s: Signer, a: CreateArgs) -> anyhow::Result<(
     let key = resolve_signing_key(s.secret.clone())?;
     let me = account_of(&key);
     let v = a.version;
+    v.assert_deployable()?;
     let tokens = match (&a.token_a, &a.token_b) {
         (None, None) => None,
         (Some(x), Some(y)) => {
@@ -726,6 +740,12 @@ pub async fn reserves(
 }
 
 pub fn print_bytecode(version: PoolVersion) {
+    if version.0 < MIN_DEPLOYABLE_POOL_VERSION {
+        eprintln!(
+            "warning: pool template v{} is retired for new deploys (ledger-only); use v8+",
+            version.0
+        );
+    }
     println!("0x{}", hex::encode(version.bytecode()));
 }
 
@@ -805,6 +825,10 @@ mod tests {
         assert_eq!("v9".parse::<PoolVersion>().unwrap(), PoolVersion(9));
         assert_eq!("v10".parse::<PoolVersion>().unwrap(), PoolVersion(10));
         assert!("v11".parse::<PoolVersion>().is_err());
+        assert!(PoolVersion(7).assert_deployable().is_err());
+        assert!(PoolVersion(1).assert_deployable().is_err());
+        assert!(PoolVersion(8).assert_deployable().is_ok());
+        assert!(PoolVersion(10).assert_deployable().is_ok());
         assert_eq!(
             PoolVersion(10).bytecode(),
             boing_execution::constant_product_pool_bytecode_v10()

@@ -41,14 +41,15 @@ if (!hexRuntime?.startsWith('0x')) {
 
 const tsDeploy =
   '/**\n' +
-  ' * Pinned `reference_fungible_secured_pinned_default_deploy_bytecode()` from `boing-execution`.\n' +
+  ' * Pinned `reference_fungible_secured_pinned_default_deploy_bytecode_v2()` from `boing-execution`.\n' +
+  ' * (v1 secured template retired — self-transfer mint bug; audit #61 item 24.)\n' +
   ' * Regenerate: `node boing-sdk/scripts/embed-reference-fungible-secured-template-hex.mjs`\n' +
   ' */\n' +
   `export const DEFAULT_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX = \`${hexDeploy}\` as const;\n`;
 
 const tsRuntime =
   '/**\n' +
-  ' * Pinned `reference_fungible_secured_runtime_bytecode()` from `boing-execution`.\n' +
+  ' * Pinned `reference_fungible_secured_runtime_bytecode_v2()` from `boing-execution`.\n' +
   ' * Regenerate: `node boing-sdk/scripts/embed-reference-fungible-secured-template-hex.mjs`\n' +
   ' */\n' +
   `export const DEFAULT_REFERENCE_FUNGIBLE_SECURED_RUNTIME_BYTECODE_HEX = \`${hexRuntime}\` as const;\n`;

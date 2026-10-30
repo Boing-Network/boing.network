@@ -21,6 +21,14 @@ import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 /** QA purpose category for pool deploys (CLI `POOL_PURPOSE`). */
 export const BOING_POOL_PURPOSE = 'dapp';
 export const BOING_POOL_DEFAULT_VERSION = 8;
+/** Lowest pool template allowed for new `createBoingPool` deploys (custody-safe). */
+export const BOING_POOL_MIN_DEPLOYABLE_VERSION = 8;
+/** Refuse ledger-only v1..v7 for new deploys (fake-deposit drain; audit #61 item 24). */
+export function assertBoingPoolDeployable(version = BOING_POOL_DEFAULT_VERSION) {
+    if (version < BOING_POOL_MIN_DEPLOYABLE_VERSION) {
+        throw new Error(`pool template v${version} is retired for new deploys (ledger-only / fake-deposit drain); use version 8 or higher`);
+    }
+}
 export const boingPoolHasTokenHooks = (v) => v === 2 || v >= 4;
 export const boingPoolHasStorageFee = (v) => v >= 3;
 export const boingPoolHasFeeAdmin = (v) => v >= 6;
@@ -213,6 +221,9 @@ async function extrasWithTokens(client, poolHex, version, extras, isOffline) {
 /** `boing pool create`: deploy, then optional set_tokens -> set_fee_admin -> set_swap_fee_bps (nonce+1..). */
 export async function createBoingPool(client, secretKey32, input = {}) {
     const v = input.version ?? BOING_POOL_DEFAULT_VERSION;
+    if (!input.allowRetired) {
+        assertBoingPoolDeployable(v);
+    }
     if ((input.tokenAHex == null) !== (input.tokenBHex == null))
         throw new Error('pass both tokenAHex and tokenBHex (or neither)');
     if (input.tokenAHex && !boingPoolHasTokenHooks(v))

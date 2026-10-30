@@ -15,8 +15,39 @@ use boing_primitives::{Account, AccountId, AccountState, TransactionPayload};
 pub use boing_primitives::{Denomination, BASE_UNITS_PER_BOING, BOING_DECIMALS};
 use boing_state::StateStore;
 
-/// Max supply (1 billion BOING). Hard cap; no infinite inflation.
+/// Max supply (1 billion BOING). Hard cap on total native held (`balance + stake`);
+/// block emission is clamped so minting cannot push past this (audit #61 item 40).
 pub const MAX_SUPPLY: u128 = 1_000_000_000;
+
+/// [`MAX_SUPPLY`] in the ledger unit `denom`.
+#[inline]
+pub fn max_supply_in(denom: Denomination) -> u128 {
+    match denom {
+        Denomination::WholeBoing => MAX_SUPPLY,
+        Denomination::BaseUnits => MAX_SUPPLY.saturating_mul(BASE_UNITS_PER_BOING),
+    }
+}
+
+/// Clamp a proposed block emission so total native held never exceeds [`MAX_SUPPLY`].
+///
+/// `total_native_held` is [`boing_state::ChainNativeAggregates::total_native_held`] (sum of all
+/// account balances and stakes). Fee moves and burns do not mint; only emission increases the total.
+#[inline]
+pub fn clamp_emission_to_hard_cap(
+    emission: u128,
+    total_native_held: u128,
+    denom: Denomination,
+) -> u128 {
+    if emission == 0 {
+        return 0;
+    }
+    let max = max_supply_in(denom);
+    if total_native_held >= max {
+        0
+    } else {
+        emission.min(max - total_native_held)
+    }
+}
 
 /// Target block time in seconds.
 pub const BLOCK_TIME_SECS: u64 = 2;
@@ -774,11 +805,35 @@ mod tests {
             1_000_000_000u128 * BASE_UNITS_PER_BOING * 100 / 10_000 / BLOCKS_PER_YEAR as u128
                 * 7_000
                 / 10_000;
-        assert_eq!(far, floor, "floor is not zero in base units");
+        assert_eq!(far, floor, "floor formula stays nonzero; hard cap stops minting");
         assert!(far > 0);
         assert_eq!(
             block_emission_validators_in(5, Denomination::WholeBoing),
             block_emission_validators(5)
+        );
+    }
+
+    #[test]
+    fn emission_hard_cap_clamps_and_zeros_at_max_supply() {
+        let d = Denomination::BaseUnits;
+        let max = max_supply_in(d);
+        let uncapped = block_emission_validators_in(1, d);
+        assert!(uncapped > 0);
+        assert_eq!(clamp_emission_to_hard_cap(uncapped, 0, d), uncapped);
+        assert_eq!(
+            clamp_emission_to_hard_cap(uncapped, max - 1, d),
+            1,
+            "last remaining unit is mintable"
+        );
+        assert_eq!(clamp_emission_to_hard_cap(uncapped, max, d), 0);
+        assert_eq!(clamp_emission_to_hard_cap(uncapped, max + 1, d), 0);
+        assert_eq!(
+            clamp_emission_to_hard_cap(uncapped, MAX_SUPPLY - 1, Denomination::WholeBoing),
+            1
+        );
+        assert_eq!(
+            clamp_emission_to_hard_cap(uncapped, MAX_SUPPLY, Denomination::WholeBoing),
+            0
         );
     }
 
