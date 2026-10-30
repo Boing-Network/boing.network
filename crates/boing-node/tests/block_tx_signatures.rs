@@ -69,10 +69,11 @@ fn craft(
 ) -> Block {
     let height = leader.chain.height() + 1;
     let proposer = leader.consensus.leader(height);
+    let timestamp = leader.chain.tip_timestamp().saturating_add(1);
     let exec = BlockExecutor::new();
     let mut state = leader.state.snapshot();
     let (_g, receipts) = exec
-        .execute_block(height, 1, &txs, &mut state, proposer)
+        .execute_block(height, timestamp, &txs, &mut state, proposer)
         .unwrap();
     let reward = boing_tokenomics::block_emission_validators_in(
         height,
@@ -86,7 +87,7 @@ fn craft(
         header: BlockHeader {
             parent_hash: leader.chain.latest_hash(),
             height,
-            timestamp: 1,
+            timestamp,
             proposer,
             tx_root: tx_root(&txs),
             receipts_root: receipts_root(&receipts),

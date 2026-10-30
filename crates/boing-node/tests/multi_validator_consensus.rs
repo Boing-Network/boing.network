@@ -245,11 +245,12 @@ async fn four_validators_quorum_commit_via_votes() {
         .find(|v| *v != real_leader)
         .unwrap();
     let parent = victim.read().await.chain.latest_hash();
+    let parent_ts = victim.read().await.chain.tip_timestamp();
     let forged = boing_primitives::Block {
         header: boing_primitives::BlockHeader {
             parent_hash: parent,
             height: next_h,
-            timestamp: 1,
+            timestamp: parent_ts.saturating_add(1),
             proposer: wrong,
             tx_root: boing_primitives::Hash::ZERO,
             receipts_root: boing_primitives::Hash::ZERO,
