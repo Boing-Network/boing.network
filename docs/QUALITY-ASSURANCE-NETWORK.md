@@ -270,7 +270,7 @@ Native **transaction fees are protocol-level**, not observer- or wallet-side:
 | Item | Value |
 |------|--------|
 | **Treasury account** | `PROTOCOL_TREASURY` = ASCII `"TREASURY"` + zeros + `0x01` = **`0x5452454153555259000000000000000000000000000000000000000000000001`** |
-| **Fee formula** | `fee = ceil(gas_used × GAS_PRICE / 21000) + extra_fixed_fee + (transfer_amount × transfer_amount_bps / 10000)` |
+| **Fee formula** | Fee market v1: `(gas_used × price) × execution_gas_fee_bps / 10000 + extra_fixed_fee + transfer bps + blob fees` ([NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md), [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md)); full schedule transfer ≈ **0.021 BOING**, micro ≈ **0.00021 BOING** |
 | **Default split** | **100% of `fee` to the treasury** (`fee_validators_bps=0`, `fee_treasury_bps=10000`, `fee_burn_bps=0`). Remainder of any BPS split also goes to treasury. |
 | **Fail closed** | Apply reverts (nonce consumed) if the payer cannot cover **fee + transfer**. |
 | **Mining vs gas** | **Block emission** still credits the round **proposer**. **Gas/tx fees** default to the treasury (governance can restore a proposer share via `network_fee_config`). |
@@ -497,7 +497,7 @@ The following enhancements would further strengthen the QA pillar. They are not 
 | Enhancement | Benefit |
 |-------------|---------|
 | **Local QA in SDK/CLI** | Run the same QA checks **locally** before submit (e.g. `boing deploy --dry-run` or SDK `qaCheck(bytecode, declaration)`). Developers see "Rejected: bytecode exceeds MAX_SIZE" or "Would be allowed" without hitting the network. Fewer failed submissions and faster iteration. |
-| **Structured rejection payload** | Every Reject returns a **rule_id**, **human-readable message**, and optional **doc link** (e.g. "MAX_BYTECODE_SIZE: Bytecode exceeds 32 KiB. See [QA rules](…)."). Wallets and CLIs can display clear, actionable feedback. |
+| **Structured rejection payload** | Every Reject returns a **rule_id**, **human-readable message**, and optional **doc link** (e.g. "MAX_BYTECODE_SIZE: Bytecode exceeds 32 KiB. See [QA-GATE-RULES.md](QA-GATE-RULES.md)."). Wallets and CLIs can display clear, actionable feedback. |
 | **Deployer checklist / one-pager** | A short "How to pass QA" doc: valid purpose categories, max bytecode size, declaration format, how to avoid blocklist. Reduces edge cases caused by confusion and improves first-time success. |
 
 ### 16.2 Transparency and governance

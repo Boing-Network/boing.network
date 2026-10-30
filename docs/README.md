@@ -61,9 +61,15 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | Doc | What you get |
 |-----|----------------|
 | [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) | Connect `window.boing`, simulate, submit, native DEX |
-| [RPC-API-SPEC.md](RPC-API-SPEC.md) | **Source of truth** for the JSON-RPC surface (all 66 methods, errors, rejection reasons, DEX discovery, media blobs, HTTP probes); enforced by a unit test |
+| [RPC-API-SPEC.md](RPC-API-SPEC.md) | **Source of truth** for the JSON-RPC surface (all 68 methods, errors, rejection reasons, DEX discovery, media blobs, HTTP probes); enforced by a unit test |
 | [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) | Crypto, bincode, VM, gas, QA rules |
 | [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md) | Micro base fee (~0.00021 BOING/transfer) + optional priority tips |
+| [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md) | 18-decimal ledger units, fee schedule, faucet amounts |
+| [NATIVE-BATCH-TRANSACTIONS.md](NATIVE-BATCH-TRANSACTIONS.md) | Native batch payload |
+| [NATIVE-VALUE-AND-WBOING.md](NATIVE-VALUE-AND-WBOING.md) | Contract-call value + wrapped BOING |
+| [BOING-MINI-IR.md](BOING-MINI-IR.md) | Mini-IR for Boing VM tooling |
+| [INTERFACE-REGISTRY.md](INTERFACE-REGISTRY.md) | Interface / selector registry |
+| [BOING-NATIVE-PRODUCT-CAPABILITY-MATRIX.md](BOING-NATIVE-PRODUCT-CAPABILITY-MATRIX.md) | Product capability matrix |
 | [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md) | Error codes wallets and UIs should map |
 | [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) | **Source of truth** for the tx / block bincode layout, signing domains (v2, priority tip), payload indices |
 | [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md) | Every `BOING_*` environment variable, defaults, ports |
@@ -74,7 +80,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) | Reference fungible |
 | [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) | Reference NFT (v3 `mint_batch` `0x06`, n≤500) |
 | [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) | L1 media blobs (Phases 1–34, PHASE7 256 MiB on testnet, PutBlob / ACL download, Express publish sessions) |
-| [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) | Enforced on-chain NFT↔token registry (live testnet AccountId, selectors `0xE0`–`0xE6`) |
+| [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) | Enforced on-chain NFT↔token registry (live testnet AccountId, selectors `0xE0`–`0xE8`) |
 | [BOING-BUILDER-ATTESTATION.md](BOING-BUILDER-ATTESTATION.md) | On-chain builder attestation registry (live testnet AccountId, selectors `0xE0`–`0xE6`; builder signal, not companions) |
 | [E2-PARTNER-APP-NATIVE-BOING.md](E2-PARTNER-APP-NATIVE-BOING.md) | Partner native Boing apps |
 
@@ -85,6 +91,9 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-NATIVE-DEX-CAPABILITY.md](BOING-NATIVE-DEX-CAPABILITY.md) | What ships today vs EVM-shaped gaps |
 | [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) | End-to-end integration + manual E2E smoke |
 | [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) | Pool selectors, storage, Log2, CREATE2 salts |
+| [NATIVE-AMM-CLI.md](NATIVE-AMM-CLI.md) | CLI helpers for native AMM |
+| [NATIVE-DEX-CUSTODY-ROUTER.md](NATIVE-DEX-CUSTODY-ROUTER.md) | Custody router for v8/v9 pools |
+| [NATIVE-LP-VAULT-V2.md](NATIVE-LP-VAULT-V2.md) | LP vault v2 (token-pair pools) |
 | [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) | Pair directory VM |
 | [NATIVE-DEX-LEDGER-ROUTER.md](NATIVE-DEX-LEDGER-ROUTER.md) | Ledger forwarders v1–v3 |
 | [NATIVE-DEX-SWAP2-ROUTER.md](NATIVE-DEX-SWAP2-ROUTER.md) | Two-hop router |
@@ -103,6 +112,10 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 |-----|----------------|
 | [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) | **Operator hub:** go-live order, env matrix, verification |
 | [TESTNET.md](TESTNET.md) | Join testnet; **§9.1** node zip release checklist |
+| [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md) | Open validator registration, bond, liveness |
+| [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md) | WAF / edge guidance for public RPC |
+| [OPERATIONS-WATCHLIST.md](OPERATIONS-WATCHLIST.md) | Operator watchlist |
+| [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md) | Blob download ACL (Phase 34) |
 | [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md) | Copy/paste RPC smoke and tutorial `npm run` commands |
 | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Optional home-lab bootnodes; public RPC is Fly + Worker |
 | [FLY-IO.md](FLY-IO.md) | Hosted Fly `boing-testnet-1` + public RPC Worker |

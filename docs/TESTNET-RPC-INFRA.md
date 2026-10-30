@@ -56,7 +56,7 @@ flowchart TB
 
 `boing.finance` **Deploy submitted** is mempool accept, not explorer listing. `/tokens` indexes **included** `ContractDeploy*` txs; `/dex/tokens` needs a published factory (`end_user.canonical_native_dex_factory`). With a single Fly backend, the gateway proxies (and fans out submit) to **`boing-testnet-1` only**.
 
-Native token deploys still **meter** ~200k–400k **gas**, but the fee is **`ceil(gas_used / 21_000)` BOING** (~10–20 BOING), not one token per gas. The testnet faucet dispenses **20** BOING per request in current node builds (**10** on the public node until it is redeployed) (native integer units; may need a second request for a deploy; not enough for min validator stake). Underfunded deploys fail that tx (nonce consumed) without aborting the block; a retry of the identical signed payload still returns **Duplicate transaction** while it sits in the mempool.
+Native token deploys still **meter** ~200k–400k **gas**, but the fee is fee market v1: at full schedule a ~200k–400k gas deploy is about **0.2–0.4 BOING** (micro ≈ **0.002–0.004 BOING**), not one BOING per 21k gas. The faucet dispenses **20** BOING per request (`FAUCET_DISPENSE_AMOUNT`; may need a second request for a large deploy; not enough for min validator stake). Underfunded deploys fail that tx (nonce consumed) without aborting the block; a retry of the identical signed payload still returns **Duplicate transaction** while it sits in the mempool.
 
 After a chain reset, **`head_height`** may be **0** while prior bootstrap contracts remain readable. Treat **`boing_getNetworkInfo.end_user`** as the live contract hint source.
 
@@ -117,7 +117,7 @@ Cloudflare returns **530** when a **Tunnel** hostname cannot reach its connector
 
 ## 5. Canonical native AMM pool (integration contract)
 
-1. **Source of truth:** live **`boing_getNetworkInfo.end_user`** on `https://testnet-rpc.boing.network/` ([FLY-IO.md](FLY-IO.md)). Re-check after any volume wipe or full-stack redeploy; historical hex **`0x7247ddc3…`** was the previous tunnel ledger (published **2026-05-21**).
+1. **Source of truth:** live **`boing_getNetworkInfo.end_user`** on `https://testnet-rpc.boing.network/` ([FLY-IO.md](FLY-IO.md)). Re-check after any volume wipe or full-stack redeploy; historical published hex **`0x5b60d6f8…`** ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md); SDK `CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`) is **not** currently advertised on hosted Fly `end_user`.
 2. **Procedure:** [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md).
 3. **SDK constant:** **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** in **`boing-sdk`**.
 

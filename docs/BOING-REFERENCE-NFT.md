@@ -70,7 +70,7 @@ Total size: **`96 + 64n`**. Bytecode hard cap:
 
 ### Gas scaling (production meters)
 
-`SSTORE` = 20 000, `SLOAD` = 100. Production call budget for **v3** is **`GAS_PER_CONTRACT_CALL = 40_000_000`**. Fees are `ceil(gas_used / 21_000)` BOING. Measured owner+metadata `mint_batch` on the v3 template (release interpreter, `--release`):
+`SSTORE` = 20 000, `SLOAD` = 100. Production call budget for **v3** is **`GAS_PER_CONTRACT_CALL = 40_000_000`**. Fees use fee market v1 (full schedule ≈ **0.021 BOING** per 21k gas; micro ≈ **0.00021 BOING** — [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md)). Measured owner+metadata `mint_batch` on the v3 template (release interpreter, `--release`):
 
 | n | gas (owner+meta) | fee (BOING) | calldata (`96+64n`) | ~interpreter ms |
 |---|------------------|-------------|---------------------|-----------------|

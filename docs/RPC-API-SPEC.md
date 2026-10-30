@@ -142,7 +142,7 @@ Wallets and observers that need a single number for “how deep is my tx” can 
 
 ### Method index (`boing_rpcSupportedMethods`)
 
-Current `boing-node` implements these 66 JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
+Current `boing-node` implements these 68 JSON-RPC methods (same set returned by **`boing_rpcSupportedMethods`**, sorted alphabetically):
 
 `boing_chainHeight`, `boing_checkNames`, `boing_clientVersion`, `boing_faucetRequest`, `boing_getAccount`, `boing_getAccountProof`, `boing_getAccountTransactions`, `boing_getBalance`, `boing_getBlob`, `boing_getBlobAccess`, `boing_getBlobDasLightClientBatch`, `boing_getBlobDasSample`, `boing_getBlobDasSuccinctProofPlan`, `boing_getBlobMeta`, `boing_getBlobSampleServeChallenge`, `boing_getBlockByHash`, `boing_getBlockByHeight`, `boing_getContractCode`, `boing_getContractStorage`, `boing_getDexToken`, `boing_getLeaderVrfOutput`, `boing_getLogs`, `boing_getMediaBlobParams`, `boing_getNameInfo`, `boing_getNetworkFeePolicy`, `boing_getNetworkInfo`, `boing_getQaRegistry`, `boing_getRpcMethodCatalog`, `boing_getRpcOpenApi`, `boing_getSyncState`, `boing_getTokenMetadata`, `boing_getTransactionReceipt`, `boing_getValidators`, `boing_health`, `boing_listBlobSampleOffers`, `boing_listBlobSampleServeChallenges`, `boing_listBlsDualKeys`, `boing_listDexPools`, `boing_listDexTokens`, `boing_listSlashRecords`, `boing_listSmtBlobSampleOffers`, `boing_listTokens`, `boing_matchBlobSampleOffer`, `boing_namesOwnedBy`, `boing_operatorApplyFeePolicy`, `boing_operatorApplyQaPolicy`, `boing_putBlobSampleOffer`, `boing_qaCheck`, `boing_qaPoolConfig`, `boing_qaPoolList`, `boing_qaPoolVote`, `boing_quoteBlobSampleSettle`, `boing_registerBlsDualKey`, `boing_registerDappMetrics`, `boing_resolveName`, `boing_resolveSlashAppeal`, `boing_reverifySlashAppealBallots`, `boing_reverseName`, `boing_rpcSupportedMethods`, `boing_simulateContractCall`, `boing_simulateTransaction`, `boing_submitIntent`, `boing_submitSlashAppeal`, `boing_submitTransaction`, `boing_verifyAccountProof`, `boing_verifyBlobDasSuccinctProof`, `boing_verifyBlsAggregate`, `boing_verifyBlsAggregateResolve`.
 
@@ -757,7 +757,7 @@ Receipt: `{ tx_id, block_height, tx_index, success, gas_used, return_data, logs,
 **Failed transactions** (security review #3; testnet from height 900, mainnet from genesis): a tx that
 passes admission (signature, nonce, fee balance) but fails in execution is still included. Its state
 changes are reverted, the sender's nonce advances, and the sender pays the failed-tx fee
-(`fee_for_gas(21000)` + any fixed fee, capped at the balance; 1 BOING today). The receipt has
+(`fee_for_gas(21000)` + any fixed fee, capped at the balance; ≈ **0.021 BOING** at full fee schedule, ≈ **0.00021 BOING** under recommended micro fees — [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md)). The receipt has
 `success: false`, `error`, and `gas_used: 21000`. A failing Native Batch reverts every step and pays the
 fee once. Below the activation height a failed tx paid nothing (`gas_used: 0`).
 
@@ -1038,6 +1038,7 @@ Committed transactions that touch an account, newest first. A transaction touche
 Each row: `tx_id`, `block_height`, `tx_index`, `timestamp`, `sender`, `nonce`, `direction` (`out` when the account sent it, else `in`), `roles`, `payload` (`kind` plus `to` / `amount` / `contract` / `steps`; a contract call or batch step that carries native BOING adds `value` (base units) and `value_boing`, testnet-v0.1.18+), `success`, `error`, `gas_used`.
 
 Paging is deterministic: rows are ordered by `(block_height, tx_index)` descending; pass `next_cursor` (opaque `"<height>:<index>"`, meaning strictly older) to fetch the next page. `limit` is clamped to 1..100 (default 25). The index is built in memory from committed blocks and caught up on each call (rebuilt after a restart).
+
 ### boing_getValidators
 
 List the current validator set and (in open mode) every registered validator.
@@ -1054,7 +1055,7 @@ List the current validator set and (in open mode) every registered validator.
 
 ### Name registry (`.boing` names)
 
-Native name registry (see `NAME-REGISTRY-PROPOSAL.md`). Disabled unless the node is started with
+Native name registry (this section is the RPC surface; activation via `--name-registry-activation-height` / `BOING_NAME_REGISTRY_ACTIVATION_HEIGHT`). Disabled unless the node is started with
 `--name-registry-activation-height <H>` or `BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=<H>`; before height `H`
 name transactions are rejected and these reads return `null` / `[]` / `"registry": {"enabled": false}`.
 All reads are evaluated at `head + 1` (the height a transaction submitted now would execute at).

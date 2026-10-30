@@ -412,7 +412,8 @@ After a successful transaction, the executor charges (whole-BOING era):
 ```text
 fee = ceil(gas_used × GAS_PRICE / GAS_UNITS_PER_BOING)
 // GAS_PRICE = 1, GAS_UNITS_PER_BOING = 21_000 (boing-tokenomics)
-// A Transfer (21_000 gas) costs 1 BOING. Native token init (~200k–400k gas) costs ~10–20 BOING.
+// Whole-BOING era only (testnet blocks < 1050): Transfer (21_000 gas) = 1 BOING; token init ~10–20 BOING.
+// From height 1050 / new chains: 0.021 BOING per transfer at full schedule (see §8.4 intro).
 ```
 
 Optional governance extras (`network_fee_config.json`): **`extra_fixed_fee`** (u128) and **`transfer_amount_bps`** on Transfer amounts. Full charged amount:

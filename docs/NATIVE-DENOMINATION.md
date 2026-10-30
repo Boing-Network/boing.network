@@ -47,7 +47,7 @@ GAS_PRICE_BASE_UNITS = 10^12 base units per gas = 0.000001 BOING/gas
 | Contract call (typical) | 30k–150k | 0.03–0.15 BOING |
 | Contract deploy | 200k–400k | 0.2–0.4 BOING |
 
-Fees are exact (no rounding up to a whole BOING). The old whole-unit rule
+Fees are exact (no rounding up to a whole BOING). Operators should also read [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md): fee market **v1** scales the full schedule by `execution_gas_fee_bps` (recommended **100** → ≈ **0.00021 BOING** per transfer). The old whole-unit rule
 `ceil(gas_used / 21_000)` BOING (a transfer cost 1 BOING, a deploy 10–20) still applies to blocks below
 1050 on testnet. The price is about 50× cheaper than the old rule for a transfer while keeping spam cost
 non-trivial (1M transfers ≈ 21,000 BOING); it is a single constant in `boing-tokenomics` and can be
