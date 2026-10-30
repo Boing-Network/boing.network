@@ -270,6 +270,9 @@ pub enum FeeRemainder {
 }
 
 /// Split `fee` per `policy`, sending the rounding remainder to `remainder`.
+///
+/// Callers should [`NetworkFeePolicy::validate`] first. If fee BPS sum to more than 10_000, this
+/// helper refuses to over-allocate and routes the whole fee to the treasury (issue #61 item 45).
 pub fn split_fee_with_remainder(
     fee: u128,
     policy: &NetworkFeePolicy,
@@ -279,7 +282,11 @@ pub fn split_fee_with_remainder(
     let treasury = fee.saturating_mul(policy.fee_treasury_bps as u128) / 10_000;
     let burn = fee.saturating_mul(policy.fee_burn_bps as u128) / 10_000;
     let allocated = validators.saturating_add(treasury).saturating_add(burn);
-    let rest = fee.saturating_sub(allocated);
+    if allocated > fee {
+        // Invalid / over-subscribed policy: never mint more than `fee` across sinks.
+        return (0, fee, 0);
+    }
+    let rest = fee - allocated;
     match remainder {
         FeeRemainder::Treasury => (validators, treasury.saturating_add(rest), burn),
         FeeRemainder::Validators => (validators.saturating_add(rest), treasury, burn),
@@ -375,8 +382,14 @@ pub fn charge_priority_tip(
     let allocated = to_proposer
         .saturating_add(to_treasury)
         .saturating_add(to_burn);
-    let rest = tip.saturating_sub(allocated);
-    credit_account(state, *fee_recipient, to_proposer.saturating_add(rest));
+    // Mirror fee-split defense: over-subscribed tip BPS pay the whole tip to the proposer.
+    let (to_proposer, to_treasury, to_burn) = if allocated > tip {
+        (tip, 0, 0)
+    } else {
+        let rest = tip - allocated;
+        (to_proposer.saturating_add(rest), to_treasury, to_burn)
+    };
+    credit_account(state, *fee_recipient, to_proposer);
     credit_account(state, PROTOCOL_TREASURY, to_treasury);
     credit_account(state, FEE_BURN_SINK, to_burn);
     Ok(())
@@ -875,6 +888,18 @@ mod tests {
                 assert_eq!(b, 0);
             }
         }
+    }
+
+    #[test]
+    fn split_fee_oversubscribed_bps_does_not_over_allocate() {
+        let mut policy = NetworkFeePolicy::treasury_default();
+        policy.fee_validators_bps = 10_000;
+        policy.fee_treasury_bps = 10_000;
+        policy.fee_burn_bps = 10_000;
+        let fee = 10_000u128;
+        let (v, t, b) = split_fee_with_remainder(fee, &policy, FeeRemainder::Treasury);
+        assert_eq!(v + t + b, fee);
+        assert_eq!((v, t, b), (0, fee, 0));
     }
 
     #[test]
