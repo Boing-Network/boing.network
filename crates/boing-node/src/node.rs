@@ -102,6 +102,10 @@ pub struct BoingNode {
     pub anchor_fallback_wait: Option<(u64, Instant)>,
     /// Round in which this node last cast its own vote (never vote twice in one round).
     pub last_local_vote_round: Option<u64>,
+    /// When the current [`Self::pending_commit`] was installed (proposal-timeout pacemaker).
+    pub pending_since: Option<Instant>,
+    /// Abandon a non-committing proposal after this duration and advance the consensus view.
+    pub proposal_timeout: Duration,
     /// Sidecar for L1 media blob bytes (`data/blobs/`). Required for `boing_getBlob` serving.
     pub media_blob_store: Option<MediaBlobStore>,
     /// Phase 27 host-local BLS dual-key registry (`bls_dual_key_registry.bin`; not slash V5).
@@ -110,6 +114,13 @@ pub struct BoingNode {
 
 /// Default wait before an anchor proposes in place of an offline open-validator leader.
 pub const DEFAULT_ANCHOR_FALLBACK_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Default wait before abandoning a stuck proposal and advancing the consensus view.
+///
+/// Matches [`boing_tokenomics::LIVENESS_LEADER_TIMEOUT_SECS`] (3× block time) so a non-quorum
+/// proposal does not block `produce_block_if_ready` indefinitely (audit #61 item 4).
+pub const DEFAULT_PROPOSAL_TIMEOUT: Duration =
+    Duration::from_secs(boing_tokenomics::LIVENESS_LEADER_TIMEOUT_SECS);
 
 /// Result of recording a vote and resolving the pool item when possible.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -207,6 +218,8 @@ impl BoingNode {
             anchor_fallback_timeout: DEFAULT_ANCHOR_FALLBACK_TIMEOUT,
             anchor_fallback_wait: None,
             last_local_vote_round: None,
+            pending_since: None,
+            proposal_timeout: DEFAULT_PROPOSAL_TIMEOUT,
             media_blob_store: None,
             bls_dual_key_registry: BlsDualKeyRegistry::new(),
         }
@@ -729,6 +742,7 @@ impl BoingNode {
         self.persist_block_and_state(&pending.block, &pending.receipts);
         self.prune_receipts_if_due(height);
         self.pending_commit = None;
+        self.pending_since = None;
         self.early_votes
             .retain(|(r, _), _| *r >= height.saturating_add(1));
         self.refresh_native_aggregates();
@@ -1189,11 +1203,22 @@ impl BoingNode {
             return Err(BlockValidationError::ExecutionFailed(e.to_string()));
         }
 
+        // A higher-view replacement supersedes any prior pending vote at this height.
+        if self.last_local_vote_round == Some(block.header.height)
+            && self
+                .pending_commit
+                .as_ref()
+                .map(|p| p.block.hash() != block.hash())
+                .unwrap_or(false)
+        {
+            self.last_local_vote_round = None;
+        }
         self.pending_commit = Some(PendingCommit {
             block: block.clone(),
             receipts,
             new_state,
         });
+        self.pending_since = Some(Instant::now());
 
         let block_hash = block.hash();
         if let Some(h) = self.vote_locally_and_maybe_broadcast(block_hash) {
@@ -1224,6 +1249,7 @@ impl BoingNode {
         self.consensus
             .sync_round(block.header.height.saturating_add(1));
         self.pending_commit = None;
+        self.pending_since = None;
         for r in &receipts {
             self.receipts.insert(r.tx_id, r.clone());
         }
@@ -2163,6 +2189,63 @@ impl BoingNode {
         }
     }
 
+    /// Abandon a stuck pending proposal and advance the consensus pacemaker view.
+    ///
+    /// Clears [`Self::pending_commit`] so [`Self::produce_block_if_ready`] can propose again, and
+    /// clears [`Self::last_local_vote_round`] so this node may vote for the new view's proposal
+    /// without equivocating on the abandoned hash.
+    fn abandon_stuck_proposal(&mut self) {
+        let round = self.consensus.round();
+        let view_before = self.consensus.view();
+        let abandoned_hash = self.pending_commit.as_ref().map(|p| p.block.hash());
+        self.pending_commit = None;
+        self.pending_since = None;
+        self.last_local_vote_round = None;
+        if let Some(h) = abandoned_hash {
+            self.early_votes.remove(&(round, h));
+        }
+        self.consensus.abandon_proposal();
+        boing_telemetry::component_warn(
+            "boing_node::node",
+            "consensus",
+            "proposal_timeout",
+            format!(
+                "abandoned stuck proposal at height={} view={}→{} hash={}",
+                round,
+                view_before,
+                self.consensus.view(),
+                abandoned_hash
+                    .map(|h| hex::encode(h.0))
+                    .unwrap_or_else(|| "none".into())
+            ),
+        );
+    }
+
+    /// Pacemaker: if a pending proposal has not reached quorum within [`Self::proposal_timeout`],
+    /// abandon it and advance the consensus view so another validator can propose at the same height.
+    ///
+    /// Call from the validator loop alongside [`Self::tick_liveness`] / [`Self::produce_block_if_ready`].
+    /// No-op when nothing is pending or the timeout has not elapsed. Single-validator commits are
+    /// immediate, so this path is effectively multi-validator only.
+    pub fn tick_proposal_timeout(&mut self) {
+        if self.pending_commit.is_none() {
+            self.pending_since = None;
+            return;
+        }
+        let since = match self.pending_since {
+            Some(t) => t,
+            None => {
+                // Pending without a timer (legacy / test setup) — start the clock now.
+                self.pending_since = Some(Instant::now());
+                return;
+            }
+        };
+        if Instant::now().duration_since(since) < self.proposal_timeout {
+            return;
+        }
+        self.abandon_stuck_proposal();
+    }
+
     /// Tick liveness observations (local wall-clock / mempool heuristic).
     ///
     /// **Does not mutate committed [`StateStore`].** Wall-clock leader-timeout stake burns were
@@ -2237,6 +2320,7 @@ impl BoingNode {
     /// single-validator).
     pub fn produce_block_if_ready(&mut self) -> Option<boing_primitives::Hash> {
         self.apply_qa_pool_expirations();
+        self.tick_proposal_timeout();
         // Do not start a new proposal while one is pending votes.
         if self.pending_commit.is_some() {
             return None;
@@ -2273,6 +2357,7 @@ impl BoingNode {
             receipts: proposal.receipts,
             new_state: proposal.new_state,
         });
+        self.pending_since = Some(Instant::now());
 
         if let Some(h) = self.vote_locally_and_maybe_broadcast(block_hash) {
             return Some(h);

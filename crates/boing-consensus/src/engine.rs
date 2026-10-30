@@ -29,6 +29,9 @@ pub struct ConsensusEngine {
     validators: Vec<AccountId>,
     /// Current round number.
     round: u64,
+    /// Pacemaker view within [`Self::round`]. Increments on proposal timeout so a different
+    /// validator can propose at the same height (view-change). Reset to 0 on commit / sync.
+    view: u64,
     /// Pending block awaiting votes.
     pending_block: Option<Block>,
     /// Votes for pending block: validator → block_hash (to detect equivocation).
@@ -40,10 +43,13 @@ pub struct ConsensusEngine {
     /// Verified ECVRF outputs keyed by round → validator (VRF leader mode).
     vrf_proofs: HashMap<u64, HashMap<AccountId, VrfOutput>>,
     /// Anchor validators (open validator-set mode), sorted. When non-empty:
-    /// - the commit quorum is a BFT quorum over **anchors only** (`floor((a+f_a)/2)+1` of the `a`
-    ///   anchors, `f_a = (a-1)/3`), so open validators can never stall commits however many are offline;
-    /// - the designated fallback anchor for a round (`anchors[round % a]`) may propose in place of
-    ///   the scheduled leader (exactly one fallback proposer per height, so anchors never compete);
+    /// - the commit quorum is a BFT quorum over **active** anchors only (`floor((a+f_a)/2)+1` of the
+    ///   `a` anchors in the current validator set, `f_a = (a-1)/3`), so open validators can never
+    ///   stall commits however many are offline;
+    /// - if anchors are configured but none remain in the validator set, quorum falls back to the
+    ///   classic 2f+1 over all validators (avoids a fabricated quorum of 1 with zero countable votes);
+    /// - the designated fallback anchor for a round (`anchors[(round+view) % a]`) may propose in place
+    ///   of the scheduled leader (exactly one fallback proposer per height+view, so anchors never compete);
     /// - that fallback proposal supersedes a pending non-anchor proposal at the same height.
     anchors: Vec<AccountId>,
 }
@@ -57,6 +63,7 @@ impl ConsensusEngine {
         Self {
             validators,
             round: 0,
+            view: 0,
             pending_block: None,
             votes: HashMap::new(),
             leader_election: LeaderElection::RoundRobin,
@@ -83,13 +90,80 @@ impl ConsensusEngine {
             .collect()
     }
 
-    /// The single anchor allowed to propose at `round` when the scheduled leader does not.
-    pub fn fallback_anchor(&self, round: u64) -> Option<AccountId> {
+    /// Pacemaker view within the current round/height.
+    pub fn view(&self) -> u64 {
+        self.view
+    }
+
+    /// Round-robin index for `round` at pacemaker `view`.
+    fn round_robin_index_at(&self, round: u64, view: u64) -> usize {
+        let n = self.validators.len().max(1);
+        ((round as usize).wrapping_add(view as usize)) % n
+    }
+
+    /// Leader at a specific pacemaker view (does not mutate engine state).
+    fn leader_at(&self, round: u64, view: u64) -> AccountId {
+        match self.leader_election {
+            LeaderElection::RoundRobin => self.validators[self.round_robin_index_at(round, view)],
+            LeaderElection::Vrf => {
+                // View 0 uses VRF / dummy-VRF; after a timeout, rotate round-robin so progress does
+                // not depend on a fresh full ECVRF proof set for the new view.
+                if view == 0 {
+                    if let Some(map) = self.vrf_proofs.get(&round) {
+                        let proofs: Vec<(AccountId, VrfOutput)> =
+                            map.iter().map(|(id, v)| (*id, v.clone())).collect();
+                        if let Some(leader) =
+                            leader_from_ecvrf_proofs(&self.validators, round, &proofs)
+                        {
+                            return leader;
+                        }
+                    }
+                    let vrf = dummy_vrf_output(round);
+                    leader_from_vrf(&self.validators, &vrf).expect("non-empty validator set")
+                } else {
+                    self.validators[self.round_robin_index_at(round, view)]
+                }
+            }
+        }
+    }
+
+    /// Fallback anchor at a specific pacemaker view.
+    fn fallback_anchor_at(&self, round: u64, view: u64) -> Option<AccountId> {
         let a = self.active_anchors();
         if a.is_empty() {
             return None;
         }
-        Some(a[(round as usize) % a.len()])
+        Some(a[((round as usize).wrapping_add(view as usize)) % a.len()])
+    }
+
+    /// Whether `who` may propose at `round` for the given view.
+    fn may_propose_at(&self, round: u64, view: u64, who: &AccountId) -> bool {
+        if !self.validators.contains(who) {
+            return false;
+        }
+        self.leader_at(round, view) == *who || self.fallback_anchor_at(round, view) == Some(*who)
+    }
+
+    /// Smallest view `>= self.view` at which `who` is an eligible proposer for `round`.
+    fn earliest_eligible_view(&self, round: u64, who: &AccountId) -> Option<u64> {
+        if !self.validators.contains(who) {
+            return None;
+        }
+        let bound = (self.validators.len().max(1) as u64)
+            .saturating_mul(2)
+            .max(8);
+        for delta in 0..bound {
+            let v = self.view.saturating_add(delta);
+            if self.may_propose_at(round, v, who) {
+                return Some(v);
+            }
+        }
+        None
+    }
+
+    /// The single anchor allowed to propose at `round` when the scheduled leader does not.
+    pub fn fallback_anchor(&self, round: u64) -> Option<AccountId> {
+        self.fallback_anchor_at(round, self.view)
     }
 
     pub fn anchors(&self) -> &[AccountId] {
@@ -102,22 +176,32 @@ impl ConsensusEngine {
 
     /// Whether `who` may propose at `round`: the scheduled leader, or (anchor mode) the round's fallback anchor.
     pub fn may_propose(&self, round: u64, who: &AccountId) -> bool {
-        if !self.validators.contains(who) {
-            return false;
-        }
-        self.leader(round) == *who || self.fallback_anchor(round) == Some(*who)
+        self.may_propose_at(round, self.view, who)
     }
 
     /// Count of current votes that count toward the quorum.
     fn counted_votes(&self) -> usize {
-        if self.anchors.is_empty() {
+        let active = self.active_anchors();
+        // No anchors configured, or none remain in the set → every validator vote counts.
+        if self.anchors.is_empty() || active.is_empty() {
             self.votes.len()
         } else {
-            self.votes
-                .keys()
-                .filter(|v| self.anchors.contains(v))
-                .count()
+            self.votes.keys().filter(|v| active.contains(v)).count()
         }
+    }
+
+    /// Abandon the pending proposal and advance the pacemaker view (proposal timeout / view-change).
+    ///
+    /// Does not advance [`Self::round`] (height). Callers clear any local pending-commit state and
+    /// may re-propose or accept a proposal from the new view's leader.
+    pub fn abandon_proposal(&mut self) {
+        self.pending_block = None;
+        self.votes.clear();
+        self.view = self.view.saturating_add(1);
+        info!(
+            "Consensus: abandoned proposal at round {} → view {}",
+            self.round, self.view
+        );
     }
 
     /// Create a single-validator engine for local testing.
@@ -159,6 +243,7 @@ impl ConsensusEngine {
         self.validators = new_validators;
         self.pending_block = None;
         self.votes.clear();
+        self.view = 0;
         self.last_committed_voters.clear();
         self.vrf_proofs.clear();
     }
@@ -199,35 +284,25 @@ impl ConsensusEngine {
 
     /// Quorum size (2f+1). In anchor mode: `floor((a + f_a) / 2) + 1` over the `a` anchors in the set,
     /// which keeps any two quorums intersecting in an honest anchor for every `a` (1→1, 2→2, 3→2, 4→3).
+    ///
+    /// When anchors are configured but none are in the current validator set, falls back to classic
+    /// 2f+1 over all validators — otherwise `.max(1)` would invent a quorum of 1 while
+    /// [`Self::counted_votes`] could never reach it.
     fn quorum(&self) -> usize {
         if self.anchors.is_empty() {
             return 2 * self.f() + 1;
         }
-        let a = self.active_anchors().len().max(1);
+        let a = self.active_anchors().len();
+        if a == 0 {
+            return 2 * self.f() + 1;
+        }
         let f = (a - 1) / 3;
         (a + f) / 2 + 1
     }
 
-    /// Leader for round `r`.
+    /// Leader for round `r` at the current pacemaker [`Self::view`].
     pub fn leader(&self, round: u64) -> AccountId {
-        match self.leader_election {
-            LeaderElection::RoundRobin => {
-                let n = self.validators.len();
-                self.validators[(round as usize) % n]
-            }
-            LeaderElection::Vrf => {
-                if let Some(map) = self.vrf_proofs.get(&round) {
-                    let proofs: Vec<(AccountId, VrfOutput)> =
-                        map.iter().map(|(id, v)| (*id, v.clone())).collect();
-                    if let Some(leader) = leader_from_ecvrf_proofs(&self.validators, round, &proofs)
-                    {
-                        return leader;
-                    }
-                }
-                let vrf = dummy_vrf_output(round);
-                leader_from_vrf(&self.validators, &vrf).expect("non-empty validator set")
-            }
-        }
+        self.leader_at(round, self.view)
     }
 
     /// VRF **output** bytes used for leader election at `round` (Phase 9 DAS LC wiring).
@@ -254,27 +329,24 @@ impl ConsensusEngine {
         }
     }
 
-    /// Shared proposal checks: height, round-leader proposer, validator membership.
-    fn validate_proposal(&self, block: &Block) -> Result<(), ConsensusError> {
+    /// Shared proposal checks for the **current** view: height, eligible proposer, membership.
+    fn validate_proposal_current_view(&self, block: &Block) -> Result<(), ConsensusError> {
         if block.header.height != self.round {
             return Err(ConsensusError::InvalidBlock(format!(
                 "Block height {} != expected round {}",
                 block.header.height, self.round
             )));
         }
-        let expected_leader = self.leader(self.round);
-        if block.header.proposer != expected_leader
-            && self.fallback_anchor(self.round) != Some(block.header.proposer)
-        {
-            return Err(ConsensusError::InvalidBlock(format!(
-                "Proposer {:?} is not the round leader {:?}",
-                block.header.proposer, expected_leader
-            )));
-        }
         if !self.validators.contains(&block.header.proposer) {
             return Err(ConsensusError::InvalidBlock(
                 "Proposer not in validator set".into(),
             ));
+        }
+        if !self.may_propose(self.round, &block.header.proposer) {
+            return Err(ConsensusError::InvalidBlock(format!(
+                "Proposer {:?} is not eligible at round {} view {}",
+                block.header.proposer, self.round, self.view
+            )));
         }
         Ok(())
     }
@@ -283,42 +355,86 @@ impl ConsensusEngine {
         self.pending_block = Some(block.clone());
         self.votes.clear();
         info!(
-            "Consensus: round {} propose block {}",
+            "Consensus: round {} view {} propose block {}",
             self.round,
+            self.view,
             block.hash()
         );
     }
 
-    /// Propose a block. Enters voting phase. Only the round leader may propose.
+    /// Propose a block. Enters voting phase. Only an eligible proposer for the current view may.
     pub fn propose(&mut self, block: Block) -> Result<(), ConsensusError> {
-        self.validate_proposal(&block)?;
+        self.validate_proposal_current_view(&block)?;
         self.enter_voting_phase(block);
         Ok(())
     }
 
     /// Accept a proposal from the round leader (follower path).
     ///
-    /// Same height / proposer-in-set / round-leader checks as [`Self::propose`], but intended for
-    /// non-leader validators that received a block over the network and need to enter the voting
-    /// phase without being the proposer.
+    /// Same height / proposer-in-set checks as [`Self::propose`], but also accepts a proposal from a
+    /// **later** pacemaker view (view-change): advances [`Self::view`] and replaces any stuck
+    /// pending block. Same-view competing proposals are rejected unless an anchor fallback
+    /// supersedes a non-anchor leader's proposal.
     pub fn accept_proposal(&mut self, block: Block) -> Result<(), ConsensusError> {
-        self.validate_proposal(&block)?;
-        // If we already have this pending block, keep existing votes (idempotent re-gossip).
-        if let Some(pending) = &self.pending_block {
-            if pending.hash() == block.hash() {
-                return Ok(());
-            }
-            // Anchor fallback proposal replaces a (late / offline) non-anchor leader's proposal.
-            if self.fallback_anchor(self.round) == Some(block.header.proposer)
-                && !self.is_anchor(&pending.header.proposer)
-            {
-                self.enter_voting_phase(block);
-                return Ok(());
-            }
+        if block.header.height != self.round {
+            return Err(ConsensusError::InvalidBlock(format!(
+                "Block height {} != expected round {}",
+                block.header.height, self.round
+            )));
+        }
+        if !self.validators.contains(&block.header.proposer) {
             return Err(ConsensusError::InvalidBlock(
-                "Different pending block already in voting phase".into(),
+                "Proposer not in validator set".into(),
             ));
         }
+        let Some(eligible_view) = self.earliest_eligible_view(self.round, &block.header.proposer)
+        else {
+            return Err(ConsensusError::InvalidBlock(format!(
+                "Proposer {:?} is not eligible at round {} (view≥{})",
+                block.header.proposer, self.round, self.view
+            )));
+        };
+
+        // Pacemaker: only follow the *next* view without a local timeout. Jumping further would
+        // let any validator who leads a distant view interrupt the current one immediately.
+        if eligible_view > self.view.saturating_add(1) {
+            return Err(ConsensusError::InvalidBlock(format!(
+                "Proposal view {eligible_view} is ahead of local view {} (accept view+1 only)",
+                self.view
+            )));
+        }
+
+        if let Some(pending) = &self.pending_block {
+            if pending.hash() == block.hash() {
+                if eligible_view > self.view {
+                    self.view = eligible_view;
+                }
+                return Ok(());
+            }
+            if eligible_view < self.view {
+                return Err(ConsensusError::InvalidBlock(
+                    "Stale-view proposal while a newer view is pending".into(),
+                ));
+            }
+            if eligible_view == self.view {
+                // Same view: only anchor fallback may replace a non-anchor leader's proposal.
+                if self.fallback_anchor_at(self.round, self.view) == Some(block.header.proposer)
+                    && !self.is_anchor(&pending.header.proposer)
+                {
+                    self.enter_voting_phase(block);
+                    return Ok(());
+                }
+                return Err(ConsensusError::InvalidBlock(
+                    "Different pending block already in voting phase".into(),
+                ));
+            }
+            // eligible_view == self.view + 1: view-change supersede of the stuck proposal.
+            self.view = eligible_view;
+            self.enter_voting_phase(block);
+            return Ok(());
+        }
+
+        self.view = eligible_view;
         self.enter_voting_phase(block);
         Ok(())
     }
@@ -382,9 +498,13 @@ impl ConsensusEngine {
 
         if self.counted_votes() >= self.quorum() {
             let h = block.hash();
-            info!("Consensus: committed block {} at round {}", h, self.round);
+            info!(
+                "Consensus: committed block {} at round {} view {}",
+                h, self.round, self.view
+            );
             self.last_committed_voters = self.votes.keys().copied().collect();
             self.round += 1;
+            self.view = 0;
             self.pending_block = None;
             self.votes.clear();
             return Ok(Some(h));
@@ -404,6 +524,7 @@ impl ConsensusEngine {
     /// or `block.header.height + 1` right after appending that block).
     pub fn sync_round(&mut self, next_block_height: u64) {
         self.round = next_block_height;
+        self.view = 0;
         self.pending_block = None;
         self.votes.clear();
         // Catch-up / sync does not preserve live vote sets — clear so liveness is not inferred.
@@ -569,11 +690,15 @@ mod tests {
     fn test_accept_proposal_rejects_non_leader() {
         let v1 = AccountId::from_bytes([1u8; 32]);
         let v2 = AccountId::from_bytes([2u8; 32]);
-        let validators = vec![v1, v2];
+        let v3 = AccountId::from_bytes([3u8; 32]);
+        let validators = vec![v1, v2, v3];
         let mut engine = ConsensusEngine::new(validators);
-        let block = mk_block(0, v2, Hash::ZERO); // v1 is leader for round 0
+        // v1 leads view 0; v2 would be view+1 (allowed as view-change). v3 is view+2 — reject.
+        let block = mk_block(0, v3, Hash::ZERO);
         let result = engine.accept_proposal(block);
         assert!(matches!(result, Err(ConsensusError::InvalidBlock(_))));
+        assert_eq!(engine.view(), 0);
+        assert!(engine.pending_block().is_none());
     }
 
     #[test]
@@ -686,6 +811,75 @@ mod tests {
         e2.set_anchors(vec![anchor]);
         e2.sync_round(0); // leader(0) = anchor
         assert!(e2.propose(mk_block(0, open, Hash::ZERO)).is_err());
+    }
+
+    /// Audit #61 item 5: anchors configured but none in the validator set must not invent quorum=1.
+    #[test]
+    fn orphan_anchors_fall_back_to_classic_quorum() {
+        let orphan = AccountId::from_bytes([9u8; 32]);
+        let v1 = AccountId::from_bytes([1u8; 32]);
+        let v2 = AccountId::from_bytes([2u8; 32]);
+        let v3 = AccountId::from_bytes([3u8; 32]);
+        let v4 = AccountId::from_bytes([4u8; 32]);
+        let mut engine = ConsensusEngine::new(vec![v1, v2, v3, v4]);
+        engine.set_anchors(vec![orphan]);
+        // n=4 → classic quorum 3 (not the bogus `.max(1)` → quorum 1).
+        assert_eq!(engine.quorum_size(), 3);
+        assert!(engine.fallback_anchor(0).is_none());
+        let block = mk_block(0, v1, Hash::ZERO);
+        engine.propose(block.clone()).unwrap();
+        let h = block.hash();
+        assert!(engine.vote(h, v1).unwrap().is_none());
+        assert!(engine.vote(h, v2).unwrap().is_none());
+        assert_eq!(engine.vote(h, v3).unwrap(), Some(h));
+    }
+
+    /// Audit #61 item 4: abandoning a stuck proposal advances the view and rotates the leader.
+    #[test]
+    fn abandon_proposal_advances_view_and_rotates_leader() {
+        let v1 = AccountId::from_bytes([1u8; 32]);
+        let v2 = AccountId::from_bytes([2u8; 32]);
+        let v3 = AccountId::from_bytes([3u8; 32]);
+        let v4 = AccountId::from_bytes([4u8; 32]);
+        let mut engine = ConsensusEngine::new(vec![v1, v2, v3, v4]);
+        assert_eq!(engine.view(), 0);
+        assert_eq!(engine.leader(0), v1);
+        let stuck = mk_block(0, v1, Hash::ZERO);
+        engine.propose(stuck).unwrap();
+        assert!(engine.pending_block().is_some());
+        engine.abandon_proposal();
+        assert_eq!(engine.view(), 1);
+        assert!(engine.pending_block().is_none());
+        assert_eq!(engine.leader(0), v2);
+        let next = mk_block(0, v2, Hash::ZERO);
+        engine.propose(next.clone()).unwrap();
+        let h = next.hash();
+        assert!(engine.vote(h, v2).unwrap().is_none());
+        assert!(engine.vote(h, v3).unwrap().is_none());
+        assert_eq!(engine.vote(h, v4).unwrap(), Some(h));
+        assert_eq!(engine.view(), 0); // reset on commit
+        assert_eq!(engine.round(), 1);
+    }
+
+    /// Audit #61 item 4: a later-view proposal replaces a stuck same-height pending block.
+    #[test]
+    fn accept_proposal_higher_view_supersedes_stuck() {
+        let v1 = AccountId::from_bytes([1u8; 32]);
+        let v2 = AccountId::from_bytes([2u8; 32]);
+        let v3 = AccountId::from_bytes([3u8; 32]);
+        let v4 = AccountId::from_bytes([4u8; 32]);
+        let mut follower = ConsensusEngine::new(vec![v1, v2, v3, v4]);
+        let stuck = mk_block(0, v1, Hash::ZERO);
+        follower.accept_proposal(stuck).unwrap();
+        assert_eq!(follower.view(), 0);
+        // Leader of view 1 proposes without the follower having timed out locally.
+        let replacement = mk_block(0, v2, Hash([7u8; 32]));
+        follower.accept_proposal(replacement.clone()).unwrap();
+        assert_eq!(follower.view(), 1);
+        assert_eq!(
+            follower.pending_block().map(|b| b.hash()),
+            Some(replacement.hash())
+        );
     }
 
     #[test]
