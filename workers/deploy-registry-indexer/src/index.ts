@@ -3,7 +3,7 @@
  *
  * - **Cron:** scans `boing_getBlockByHeight` from a persisted cursor through tip (bounded blocks/tick).
  * - **GET /v1/deployments** — cursor pagination by monotonic `id`.
- * - **GET /v1/deployments/stream** — **SSE** (`text/event-stream`): emits JSON rows for new deploys and `ping` when idle (clients reconnect as needed).
+ * - **GET /v1/deployments/stream** — **SSE** (`text/event-stream`): emits JSON rows for new deploys and `ping` when idle (clients reconnect as needed). Soft per-isolate concurrent connection cap (`DEPLOY_REGISTRY_MAX_SSE`, default 32).
  * - **GET /v1/status** — ingest cursor, chain tip, pending block count, effective config.
  * - **GET /v1/contract/{0x…64}** — single-row lookup by predicted contract id.
  * - **POST /v1/sync** — optional one-shot ingest (requires `DEPLOY_REGISTRY_SYNC_SECRET` + `Authorization: Bearer …`).
@@ -27,9 +27,21 @@ type Env = {
   DEPLOY_REGISTRY_MAX_BLOCKS_PER_TICK?: string;
   /** Concurrent `getBlockByHeight` calls per tick (1–16). */
   DEPLOY_REGISTRY_PARALLEL_FETCHES?: string;
+  /** Soft per-isolate cap on concurrent `/v1/deployments/stream` SSE clients (default 32). */
+  DEPLOY_REGISTRY_MAX_SSE?: string;
   /** If set, `POST /v1/sync` with matching `Authorization: Bearer …` runs one bounded ingest pass. */
   DEPLOY_REGISTRY_SYNC_SECRET?: string;
 };
+
+/** Soft per-isolate SSE concurrency (issue #61 item 72). */
+const DEFAULT_MAX_SSE = 32;
+let activeSseConnections = 0;
+
+function maxSseConnections(env: Env): number {
+  const n = parseInt(String(env.DEPLOY_REGISTRY_MAX_SSE || ''), 10);
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_MAX_SSE;
+  return Math.min(256, Math.floor(n));
+}
 
 const cors: Record<string, string> = {
   'Content-Type': 'application/json',
@@ -439,14 +451,31 @@ export default {
     }
 
     if (url.pathname === '/v1/deployments/stream' && req.method === 'GET') {
+      const limit = maxSseConnections(env);
+      if (activeSseConnections >= limit) {
+        return json(
+          { error: 'too_many_sse_connections', limit, active: activeSseConnections },
+          503,
+        );
+      }
+
       const sinceRaw = url.searchParams.get('since_id');
       let lastId = sinceRaw != null && sinceRaw !== '' ? parseInt(sinceRaw, 10) : 0;
       if (!Number.isFinite(lastId)) lastId = 0;
+
+      activeSseConnections += 1;
+      let released = false;
+      const release = () => {
+        if (released) return;
+        released = true;
+        activeSseConnections = Math.max(0, activeSseConnections - 1);
+      };
 
       const signal = req.signal;
       const stream = new ReadableStream<Uint8Array>({
         async pull(controller) {
           if (signal.aborted) {
+            release();
             try {
               controller.close();
             } catch {
@@ -478,6 +507,7 @@ export default {
             );
           }
           if (signal.aborted) {
+            release();
             try {
               controller.close();
             } catch {
@@ -486,6 +516,9 @@ export default {
             return;
           }
           await new Promise((res) => setTimeout(res, hadRows ? 100 : 2500));
+        },
+        cancel() {
+          release();
         },
       });
 
