@@ -11,7 +11,7 @@ This folder holds **reference JSON** that matches the **default governance shape
 
 | File | Meaning |
 |------|--------|
-| [`qa_registry.canonical.json`](qa_registry.canonical.json) | Default **rule registry** (`RuleRegistry::new()`): bytecode size cap (32 KiB), empty blocklists and pattern lists. Live nodes may differ after governance or operator updates. |
+| [`qa_registry.canonical.json`](qa_registry.canonical.json) | Recommended **rule registry** baseline: bytecode size cap (32 KiB), English `content_blocklist` from [`qa_content_blocklist.en.json`](qa_content_blocklist.en.json), empty deploy-hash blocklist / scam patterns until curated. Fresh `RuleRegistry::new()` in code is still minimal (size/opcodes only) until an operator applies this JSON via `boing_operatorApplyQaPolicy` / `npm run apply-public-testnet-qa-policy`. |
 | [`qa_content_blocklist.en.json`](qa_content_blocklist.en.json) | English **content policy** terms for `asset_name` / `asset_symbol` (vulgarity, slurs, hate). Merged into the registry by `npm run apply-public-testnet-qa-policy`. |
 | [`qa_pool_config.public-testnet.json`](qa_pool_config.public-testnet.json) | Open testnet pool governance (dev voting, generous caps) — applied together with the public registry. |
 | [`qa_pool_config.canonical.json`](qa_pool_config.canonical.json) | Default **production-style pool governance** (`QaPoolGovernanceConfig::production_default()`): **`public_membership`**, bounded queue, 3-vote quorum floor, 1 BOING per counted vote, 7-day review window. |
