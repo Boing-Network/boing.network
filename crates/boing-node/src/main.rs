@@ -477,6 +477,10 @@ async fn main() -> anyhow::Result<()> {
             }
 
             let p2p_fetch = p2p.clone();
+            let gossip_expensive_limiter =
+                std::sync::Arc::new(boing_node::security::GossipPrecheckLimiter::new(
+                    boing_node::security::DEFAULT_GOSSIP_EXPENSIVE_PRECHECK_PER_SEC,
+                ));
             tokio::spawn(async move {
                 while let Some(ev) = p2p_rx.recv().await {
                     match ev {
@@ -544,18 +548,26 @@ async fn main() -> anyhow::Result<()> {
                             }
                         }
                         boing_p2p::P2pEvent::TransactionReceived(signed) => {
-                            // `submit_transaction` verifies the signature first (cheapest reject) and
-                            // takes `&self`, so a shared read lock is enough: gossip floods no longer
-                            // block RPC readers or block production behind a write lock.
+                            // `submit_transaction_from_gossip` verifies the signature first (cheapest
+                            // reject) and takes `&self`, so a shared read lock is enough. Expensive
+                            // VM fee prechecks are token-bucketed (issue #61 item 18).
                             let n = node_clone.read().await;
                             n.refresh_tx_sig_policy();
-                            match n.submit_transaction(signed) {
+                            match n
+                                .submit_transaction_from_gossip(signed, &gossip_expensive_limiter)
+                            {
                                 Ok(()) => tracing::debug!("P2P: gossip tx admitted to mempool"),
                                 Err(boing_node::mempool::MempoolError::InvalidSignature)
                                 | Err(boing_node::mempool::MempoolError::LegacySignature) => {
                                     logging::log_p2p_event_warn(
                                         "gossip_tx_bad_signature",
                                         &"invalid or legacy-rejected signature",
+                                    )
+                                }
+                                Err(boing_node::mempool::MempoolError::GossipPrecheckThrottled) => {
+                                    logging::log_p2p_event_warn(
+                                        "gossip_tx_precheck_throttled",
+                                        &"expensive gossip precheck budget exhausted",
                                     )
                                 }
                                 Err(e) => {
@@ -818,7 +830,11 @@ async fn main() -> anyhow::Result<()> {
         operator_rpc_token,
         Some(head_broadcast_tx),
     );
-    let server = axum::serve(listener, app);
+    // ConnectInfo is required for per-IP HTTP JSON-RPC rate limiting (issue #61 item 16).
+    let server = axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    );
 
     if args.validator {
         let node_clone = node.clone();

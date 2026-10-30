@@ -1207,6 +1207,7 @@ impl BoingNode {
         block: &boing_primitives::Block,
     ) -> Result<Option<Hash>, BlockValidationError> {
         let (latest_hash, height) = (self.chain.latest_hash(), self.chain.height());
+        let parent_timestamp = self.chain.tip_timestamp();
         let (new_state, receipts) = import_block(
             block,
             latest_hash,
@@ -1214,6 +1215,7 @@ impl BoingNode {
             &self.state,
             &self.consensus,
             &self.executor,
+            parent_timestamp,
         )?;
 
         if let Err(e) = self.consensus.accept_proposal(block.clone()) {
@@ -1251,6 +1253,7 @@ impl BoingNode {
         block: &boing_primitives::Block,
     ) -> Result<(), BlockValidationError> {
         let (latest_hash, height) = (self.chain.latest_hash(), self.chain.height());
+        let parent_timestamp = self.chain.tip_timestamp();
         let (new_state, receipts) = import_block(
             block,
             latest_hash,
@@ -1258,6 +1261,7 @@ impl BoingNode {
             &self.state,
             &self.consensus,
             &self.executor,
+            parent_timestamp,
         )?;
         self.state = new_state;
         self.chain
@@ -1381,6 +1385,16 @@ impl BoingNode {
             return Err(MempoolError::InsufficientFee { have, need });
         }
         Ok(())
+    }
+
+    /// True when fee admission needs a state snapshot + VM dry-run (not the transfer fast path).
+    fn fee_precheck_is_expensive(&self, signed: &SignedTransaction) -> bool {
+        match &signed.tx.payload {
+            TransactionPayload::Transfer { .. } => {
+                self.executor.redenomination_height() == Some(self.chain.height().saturating_add(1))
+            }
+            _ => true,
+        }
     }
 
     /// Dry-run execution fee vs committed balance so underfunded deploys are rejected at submit
@@ -2117,6 +2131,24 @@ impl BoingNode {
     }
 
     pub fn submit_transaction(&self, signed: SignedTransaction) -> Result<(), MempoolError> {
+        self.submit_transaction_inner(signed, None)
+    }
+
+    /// Gossip admission path: same gates as [`Self::submit_transaction`], but expensive
+    /// snapshot+VM fee prechecks are token-bucketed so a peer flood cannot peg CPU (issue #61 item 18).
+    pub fn submit_transaction_from_gossip(
+        &self,
+        signed: SignedTransaction,
+        expensive_limiter: &crate::security::GossipPrecheckLimiter,
+    ) -> Result<(), MempoolError> {
+        self.submit_transaction_inner(signed, Some(expensive_limiter))
+    }
+
+    fn submit_transaction_inner(
+        &self,
+        signed: SignedTransaction,
+        gossip_expensive_limiter: Option<&crate::security::GossipPrecheckLimiter>,
+    ) -> Result<(), MempoolError> {
         self.refresh_tx_sig_policy();
         // Cheapest checks first: signature, duplicate, then account-level gates; the snapshot-based
         // dry runs below only ever run for authenticated txs from funded, non-stale senders.
@@ -2129,6 +2161,14 @@ impl BoingNode {
         self.precheck_open_validator_tx(&signed)?;
         self.precheck_name_tx(&signed)?;
         self.precheck_media_blob_tx(&signed)?;
+        if gossip_expensive_limiter.is_some() && self.fee_precheck_is_expensive(&signed) {
+            let Some(limiter) = gossip_expensive_limiter else {
+                unreachable!("checked is_some");
+            };
+            if !limiter.try_admit() {
+                return Err(MempoolError::GossipPrecheckThrottled);
+            }
+        }
         self.precheck_sender_can_pay_fee(&signed)?;
         match self.mempool.insert(signed.clone()) {
             Ok(()) => {

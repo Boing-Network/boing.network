@@ -2,10 +2,13 @@
 
 use boing_consensus::ConsensusEngine;
 use boing_execution::BlockExecutor;
-use boing_node::block_validation::{chains_to, import_block, validate_and_execute_block};
+use boing_node::block_validation::{
+    chains_to, import_block, validate_and_execute_block, BlockValidationError,
+    MAX_BLOCK_TIMESTAMP_FUTURE_SECS,
+};
 use boing_node::chain::ChainState;
 use boing_primitives::{
-    receipts_root, tx_root, AccessList, Account, AccountId, AccountState, Block, BlockHeader,
+    receipts_root, tx_root, AccessList, Account, AccountId, AccountState, Block, BlockHeader, Hash,
     Transaction, TransactionPayload,
 };
 use boing_state::StateStore;
@@ -111,7 +114,7 @@ fn test_validate_and_execute_block() {
     };
 
     let validators = vec![proposer];
-    let result = validate_and_execute_block(&block, &parent, &validators, proposer, &exec);
+    let result = validate_and_execute_block(&block, &parent, &validators, proposer, &exec, 0);
     assert!(result.is_ok());
     let (new_state, receipts) = result.unwrap();
     assert_eq!(receipts.len(), 1);
@@ -197,6 +200,85 @@ fn test_import_block() {
         &parent,
         &consensus,
         &exec,
+        0,
     );
     assert!(result.is_ok());
+}
+
+#[test]
+fn reject_block_timestamp_before_parent() {
+    let proposer = AccountId(key().verifying_key().to_bytes());
+    let mut parent = StateStore::new();
+    parent.insert(Account {
+        id: proposer,
+        state: AccountState {
+            balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
+            nonce: 0,
+            stake: 0,
+            ..Default::default()
+        },
+    });
+    let exec = BlockExecutor::new();
+    let block = Block {
+        header: BlockHeader {
+            parent_hash: Hash::ZERO,
+            height: 1,
+            timestamp: 4, // before parent_timestamp=5
+            proposer,
+            tx_root: tx_root(&[]),
+            receipts_root: receipts_root(&[]),
+            state_root: Hash::ZERO,
+            blobs_root: None,
+        },
+        signatures: vec![],
+        priority_tips: vec![],
+        transactions: vec![],
+    };
+    match validate_and_execute_block(&block, &parent, &[proposer], proposer, &exec, 5) {
+        Err(BlockValidationError::TimestampBeforeParent { .. }) => {}
+        Err(e) => panic!("earlier timestamp must fail, got error: {e}"),
+        Ok(_) => panic!("earlier timestamp must fail"),
+    }
+}
+
+#[test]
+fn reject_block_timestamp_too_far_in_future() {
+    let proposer = AccountId(key().verifying_key().to_bytes());
+    let mut parent = StateStore::new();
+    parent.insert(Account {
+        id: proposer,
+        state: AccountState {
+            balance: 1_000_000 * boing_primitives::BASE_UNITS_PER_BOING,
+            nonce: 0,
+            stake: 0,
+            ..Default::default()
+        },
+    });
+    let exec = BlockExecutor::new();
+    let far_future = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        .saturating_add(MAX_BLOCK_TIMESTAMP_FUTURE_SECS)
+        .saturating_add(60);
+    let block = Block {
+        header: BlockHeader {
+            parent_hash: Hash::ZERO,
+            height: 1,
+            timestamp: far_future,
+            proposer,
+            tx_root: tx_root(&[]),
+            receipts_root: receipts_root(&[]),
+            state_root: Hash::ZERO,
+            blobs_root: None,
+        },
+        signatures: vec![],
+        priority_tips: vec![],
+        transactions: vec![],
+    };
+    match validate_and_execute_block(&block, &parent, &[proposer], proposer, &exec, 0) {
+        Err(BlockValidationError::TimestampTooFarInFuture { .. }) => {}
+        Err(e) => panic!("far-future timestamp must fail, got error: {e}"),
+        Ok(_) => panic!("far-future timestamp must fail"),
+    }
 }

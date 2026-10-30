@@ -84,6 +84,17 @@ impl ChainState {
         self.inner.read().unwrap().height
     }
 
+    /// Tip block timestamp (0 if tip is missing — should not happen after genesis).
+    pub fn tip_timestamp(&self) -> u64 {
+        self.inner
+            .read()
+            .unwrap()
+            .latest_block
+            .as_ref()
+            .map(|b| b.header.timestamp)
+            .unwrap_or(0)
+    }
+
     pub fn latest_hash(&self) -> Hash {
         self.inner.read().unwrap().latest_hash
     }

@@ -1,5 +1,7 @@
 //! Block import and validation — validate blocks from peers.
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use boing_consensus::ConsensusEngine;
 use boing_execution::{apply_media_blob_block_housekeeping, BlockExecutor};
 use boing_primitives::{
@@ -7,6 +9,15 @@ use boing_primitives::{
     ExecutionReceipt, Hash,
 };
 use boing_state::StateStore;
+
+/// How far ahead of wall-clock a block timestamp may be (seconds).
+///
+/// Keeps imported blocks from jumping far into the future while allowing modest clock skew
+/// between producers and importers (issue #61 item 15).
+/// Sized for burst production in the same second (`max(now, parent+1)` advances by one per
+/// block): catch-up and name-registry tests can produce hundreds of blocks faster than wall
+/// clock, so a few minutes of skew is required.
+pub const MAX_BLOCK_TIMESTAMP_FUTURE_SECS: u64 = 600;
 
 /// Validate and execute a block. Returns updated state and per-tx receipts on success.
 /// Caller must ensure block chains to parent (parent_hash, height).
@@ -16,7 +27,11 @@ pub fn validate_and_execute_block(
     validator_set: &[AccountId],
     expected_leader: AccountId,
     executor: &BlockExecutor,
+    parent_timestamp: u64,
 ) -> Result<(StateStore, Vec<ExecutionReceipt>), BlockValidationError> {
+    // 0. Timestamp ordering + future skew (issue #61 item 15).
+    validate_block_timestamp(block, parent_timestamp)?;
+
     // 1. Tx root
     let expected_tx_root = tx_root(&block.transactions);
     if block.header.tx_root != expected_tx_root {
@@ -169,6 +184,34 @@ pub fn chains_to(block: &Block, our_latest_hash: Hash, our_height: u64) -> bool 
     block.header.parent_hash == our_latest_hash && block.header.height == our_height + 1
 }
 
+/// Enforce non-decreasing timestamps vs parent (except genesis) and reject far-future clocks.
+///
+/// Equal timestamps are allowed: recorded testnet history (and same-second production) reuse the
+/// parent second. Strict `>` would reject valid historical blocks on replay.
+pub fn validate_block_timestamp(
+    block: &Block,
+    parent_timestamp: u64,
+) -> Result<(), BlockValidationError> {
+    if block.header.height > 0 && block.header.timestamp < parent_timestamp {
+        return Err(BlockValidationError::TimestampBeforeParent {
+            parent: parent_timestamp,
+            got: block.header.timestamp,
+        });
+    }
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let max_allowed = now.saturating_add(MAX_BLOCK_TIMESTAMP_FUTURE_SECS);
+    if block.header.timestamp > max_allowed {
+        return Err(BlockValidationError::TimestampTooFarInFuture {
+            got: block.header.timestamp,
+            max_allowed,
+        });
+    }
+    Ok(())
+}
+
 /// Full import: validate block and return new state + receipts if it chains and is valid.
 pub fn import_block(
     block: &Block,
@@ -177,6 +220,7 @@ pub fn import_block(
     parent_state: &StateStore,
     consensus: &ConsensusEngine,
     executor: &BlockExecutor,
+    parent_timestamp: u64,
 ) -> Result<(StateStore, Vec<ExecutionReceipt>), BlockValidationError> {
     if !chains_to(block, our_latest_hash, our_height) {
         return Err(BlockValidationError::DoesNotChain);
@@ -197,6 +241,7 @@ pub fn import_block(
         validator_set,
         expected_leader,
         executor,
+        parent_timestamp,
     )
 }
 
@@ -204,6 +249,10 @@ pub fn import_block(
 pub enum BlockValidationError {
     #[error("Block does not chain to our tip")]
     DoesNotChain,
+    #[error("Block timestamp {got} is before parent timestamp {parent}")]
+    TimestampBeforeParent { parent: u64, got: u64 },
+    #[error("Block timestamp {got} is too far in the future (max allowed {max_allowed})")]
+    TimestampTooFarInFuture { got: u64, max_allowed: u64 },
     #[error("Invalid tx root")]
     InvalidTxRoot,
     #[error("Invalid receipts root: expected {expected:?}, computed {computed:?}")]

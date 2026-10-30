@@ -72,6 +72,25 @@ pub fn decode_bincode_limited<T: serde::de::DeserializeOwned>(
         .map_err(|e| PersistenceError::Serialization(e.to_string()))
 }
 
+/// Write `bytes` to `path` via a same-directory temp file + rename (crash-safe).
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), PersistenceError> {
+    let tmp = path.with_extension(format!(
+        "{}.tmp",
+        path.extension().and_then(|e| e.to_str()).unwrap_or("bin")
+    ));
+    // Prefer "*.bin.tmp" style when the path already ends in .bin (matches existing callers).
+    let tmp = if path.extension().and_then(|e| e.to_str()) == Some("bin") {
+        path.with_extension("bin.tmp")
+    } else if path.extension().and_then(|e| e.to_str()) == Some("json") {
+        path.with_extension("json.tmp")
+    } else {
+        tmp
+    };
+    std::fs::write(&tmp, bytes)?;
+    std::fs::rename(&tmp, path)?;
+    Ok(())
+}
+
 const CHAIN_DIR: &str = "chain";
 const BLOCKS_DIR: &str = "blocks";
 const CHAIN_META_FILE: &str = "meta.bin";
@@ -267,7 +286,7 @@ impl Persistence {
             .join(format!("{}.bin", block.header.height));
         let bytes = bincode::serialize(block)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
-        std::fs::write(path, bytes)?;
+        write_atomic(&path, &bytes)?;
         Ok(())
     }
 
@@ -315,7 +334,7 @@ impl Persistence {
         let path = self.blocks_dir().join(format!("receipts_{}.bin", height));
         let bytes = bincode::serialize(receipts)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
-        std::fs::write(path, bytes)?;
+        write_atomic(&path, &bytes)?;
         Ok(())
     }
 
@@ -344,7 +363,7 @@ impl Persistence {
         let path = self.chain_dir().join(CHAIN_META_FILE);
         let bytes = bincode::serialize(&meta)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
-        std::fs::write(path, bytes)?;
+        write_atomic(&path, &bytes)?;
         Ok(())
     }
 
@@ -360,11 +379,11 @@ impl Persistence {
         let path = self.state_dir().join(STATE_FILE);
         let bytes = bincode::serialize(&persisted)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
-        std::fs::write(path, bytes)?;
+        write_atomic(&path, &bytes)?;
         let pending_path = self.state_dir().join(QA_PENDING_FILE);
         let pending_bytes = bincode::serialize(&state.export_qa_pending())
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
-        std::fs::write(pending_path, pending_bytes)?;
+        write_atomic(&pending_path, &pending_bytes)?;
         let ov_path = self.state_dir().join(OPEN_VALIDATORS_FILE);
         if state.open_validators().is_empty() {
             if ov_path.exists() {
@@ -611,7 +630,7 @@ impl Persistence {
         let path = self.qa_registry_path();
         let json = serde_json::to_vec_pretty(registry)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
-        std::fs::write(path, json)?;
+        write_atomic(&path, &json)?;
         Ok(())
     }
 
@@ -634,7 +653,7 @@ impl Persistence {
         let path = self.qa_pool_config_path();
         let json = serde_json::to_vec_pretty(config)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
-        std::fs::write(path, json)?;
+        write_atomic(&path, &json)?;
         Ok(())
     }
 
@@ -659,7 +678,7 @@ impl Persistence {
     ) -> Result<(), PersistenceError> {
         let json = serde_json::to_vec_pretty(policy)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
-        std::fs::write(self.network_fee_config_path(), json)?;
+        write_atomic(&self.network_fee_config_path(), &json)?;
         Ok(())
     }
 
@@ -696,7 +715,7 @@ impl Persistence {
         let path = self.slash_registry_path();
         let json = serde_json::to_vec_pretty(registry)
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
-        std::fs::write(path, json)?;
+        write_atomic(&path, &json)?;
         Ok(())
     }
 
@@ -723,7 +742,7 @@ impl Persistence {
         let path = self.bls_dual_key_registry_path();
         let bytes =
             encode_bls_dual_key_registry(registry).map_err(PersistenceError::Serialization)?;
-        std::fs::write(path, bytes)?;
+        write_atomic(&path, &bytes)?;
         Ok(())
     }
 
