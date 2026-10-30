@@ -367,13 +367,15 @@ pub fn apply_preset(node: &mut BoingNode, preset: &NetworkPreset) -> bool {
     if let Some(h) = preset.media_blobs_phase7_cap_from {
         node.enable_media_blobs_phase7_cap(h);
     }
+    // Genesis first: at height 0 it replaces the state store, which carries the tree gates.
+    let rewrote = node.apply_genesis_spec(&preset.genesis);
     if let Some(h) = preset.storage_tree_v2_from {
         node.enable_storage_tree_v2(h);
     }
     if let Some(h) = preset.account_tree_v3_from {
         node.enable_account_tree_v3(h);
     }
-    node.apply_genesis_spec(&preset.genesis)
+    rewrote
 }
 
 #[cfg(test)]

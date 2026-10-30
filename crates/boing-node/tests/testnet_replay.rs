@@ -887,6 +887,10 @@ fn replay_full_live_chain_to_the_tip() {
 #[test]
 fn testnet_preset_bakes_tree_and_vm_gates_at_one_height() {
     let p = network_preset::boing_testnet_preset();
+    // A fresh node (height 0) must keep the gates after the preset rewrites genesis.
+    let n = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    assert_eq!(n.state.storage_tree_v2_activation(), Some(1_500));
+    assert_eq!(n.state.account_tree_v3_activation(), Some(1_500));
     assert_eq!(p.storage_tree_v2_from, Some(1_500));
     assert_eq!(p.account_tree_v3_from, Some(1_500));
     assert_eq!(p.history.vm_hardening_from, 1_500);
@@ -973,6 +977,19 @@ fn replay_live_chain_then_cross_tree_and_vm_gates_locally() {
         replay(n, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
     }
     produce_across(&mut a, &mut b, gate, 4);
+    assert_deep_roots_active(&mut a);
+}
+
+/// The committed root past the gate is not the legacy (64-bit routing) root of the same state.
+fn assert_deep_roots_active(n: &mut BoingNode) {
+    let h = n.chain.height();
+    let mut legacy = n.state.snapshot();
+    legacy.set_storage_tree_v2_activation(None);
+    legacy.set_account_tree_v3_activation(None);
+    assert_ne!(
+        legacy.state_root_at_height(h),
+        n.state.state_root_at_height(h)
+    );
 }
 
 /// Real preset heights: replay the full live dump (`BOING_REPLAY_FULL_CHAIN`) to the tip, then
@@ -989,7 +1006,9 @@ fn replay_full_live_chain_then_cross_preset_gates() {
     let mut b = testnet_node(AccountId([7u8; 32]), true);
     for n in [&mut a, &mut b] {
         replay(n, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+        assert_eq!(n.state.storage_tree_v2_activation(), Some(1_500));
     }
     produce_across(&mut a, &mut b, 1_500, 5);
+    assert_deep_roots_active(&mut a);
     println!("crossed preset gates at 1500; tip {}", a.chain.height());
 }
