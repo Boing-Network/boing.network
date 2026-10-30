@@ -9,7 +9,7 @@
 //! instead of lingering as half-open connections.
 
 use std::collections::HashMap;
-use std::net::IpAddr;
+use std::net::{IpAddr, ToSocketAddrs};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -102,15 +102,52 @@ pub trait BlockProvider: Send + Sync {
 
 type BlockSyncBehaviour = request_response::cbor::Behaviour<BlockRequest, BlockResponse>;
 
+/// Extract a remote IP for the per-IP connection cap.
+///
+/// Literal `/ip4` / `/ip6` components win. `/dns`, `/dns4`, and `/dns6` are resolved best-effort so
+/// DNS-dialed peers (including bootnodes) share the same cap as numeric multiaddrs — otherwise a
+/// peer could bypass the limit by advertising only a hostname.
 fn ip_from_multiaddr(ma: &libp2p::Multiaddr) -> Option<IpAddr> {
+    let mut dns_name: Option<String> = None;
     for p in ma.iter() {
         match p {
             Protocol::Ip4(ip) => return Some(IpAddr::V4(ip)),
             Protocol::Ip6(ip) => return Some(IpAddr::V6(ip)),
+            Protocol::Dns(name) | Protocol::Dns4(name) | Protocol::Dns6(name) => {
+                dns_name = Some(name.to_string());
+            }
             _ => {}
         }
     }
-    None
+    let name = dns_name?;
+    // Port is irrelevant for the A/AAAA lookup; `ToSocketAddrs` still requires one.
+    (name.as_str(), 0u16)
+        .to_socket_addrs()
+        .ok()?
+        .next()
+        .map(|sa| sa.ip())
+}
+
+/// Parse a comma-separated listen multiaddr list. Empty / unparseable entries fail startup instead of
+/// panicking inside the swarm task after [`P2pNode::new`] has already returned `Ok`.
+fn parse_listen_addrs(listen_addr: &str) -> Result<Vec<libp2p::Multiaddr>, P2pError> {
+    let mut out = Vec::new();
+    for one in listen_addr
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        let ma = one
+            .parse::<libp2p::Multiaddr>()
+            .map_err(|e| P2pError::Network(format!("invalid P2P listen address {one:?}: {e}")))?;
+        out.push(ma);
+    }
+    if out.is_empty() {
+        return Err(P2pError::Network(
+            "P2P listen address is empty (expected one multiaddr or a comma-separated list)".into(),
+        ));
+    }
+    Ok(out)
 }
 
 fn direction(endpoint: &libp2p_core::connection::ConnectedPoint) -> &'static str {
@@ -219,14 +256,21 @@ impl P2pNode {
         max_connections_per_ip: u32,
         gossip: GossipConfig,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>), P2pError> {
+        // Validate listen multiaddrs *before* spawning so a bad `--p2p-listen` returns Err to the
+        // caller instead of panicking inside the swarm task after this method has returned Ok.
+        let listen_addrs = parse_listen_addrs(listen_addr)?;
+        let listen_addr_display = listen_addr.to_string();
+
         let gossip_for_behaviour = gossip.clone();
-        let (broadcast_tx, mut broadcast_rx) = mpsc::channel(64);
+        // Larger than the historical 64 so vote bursts after a proposal are less likely to drop;
+        // try_send failures are still logged (see broadcast_* helpers).
+        let (broadcast_tx, mut broadcast_rx) = mpsc::channel(256);
         let (cmd_tx, mut cmd_rx) = mpsc::channel(32);
         // Unbounded so the swarm task never awaits on backpressure when forwarding gossip / blocks
         // to the node (bounded channels can stall libp2p and break mesh + tx propagation).
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
-        let swarm = SwarmBuilder::with_new_identity()
+        let mut swarm = SwarmBuilder::with_new_identity()
             .with_tokio()
             .with_tcp(
                 Default::default(),
@@ -241,7 +285,9 @@ impl P2pNode {
                 let mut cfg_builder = gossipsub::ConfigBuilder::default();
                 cfg_builder
                     .heartbeat_interval(Duration::from_secs(1))
-                    .validation_mode(ValidationMode::Permissive)
+                    // Strict matches MessageAuthenticity::Signed: reject unsigned / malformed
+                    // author fields at the protocol layer (Permissive would accept them).
+                    .validation_mode(ValidationMode::Strict)
                     .max_transmit_size(gossip_for_behaviour.max_message_bytes);
                 if gossip_for_behaviour.peer_scoring {
                     // Hold forwarding until the application reports Accept/Reject/Ignore so invalid
@@ -263,8 +309,11 @@ impl P2pNode {
                         .map_err(|e| Box::new(std::io::Error::other(e)))?;
                 }
                 let sync_limits = crate::block_sync::BlockSyncLimits::from_env();
+                // Requests are tiny (hash/height); responses carry full blocks — set both explicitly
+                // rather than relying on libp2p's 1 MiB / 10 MiB defaults.
                 let block_sync = BlockSyncBehaviour::with_codec(
                     request_response::cbor::codec::Codec::default()
+                        .set_request_size_maximum(sync_limits.max_request_bytes)
                         .set_response_size_maximum(sync_limits.max_response_bytes),
                     [(
                         StreamProtocol::new("/boing/block-sync/1"),
@@ -308,7 +357,34 @@ impl P2pNode {
         let equivocation_topic = IdentTopic::new(EQUIVOCATION_TOPIC);
         let vrf_proofs_topic = IdentTopic::new(VRF_PROOFS_TOPIC);
         let media_blobs_topic = IdentTopic::new(MEDIA_BLOBS_TOPIC);
-        let listen_addr = listen_addr.to_string();
+
+        // Bind listeners and subscribe before spawn so startup failures surface to the caller.
+        for ma in &listen_addrs {
+            swarm
+                .listen_on(ma.clone())
+                .map_err(|e| P2pError::Network(format!("P2P listen_on {ma} failed: {e}")))?;
+        }
+        for (topic, label) in [
+            (&blocks_topic, "blocks"),
+            (&txs_topic, "txs"),
+            (&votes_topic, "votes"),
+            (&equivocation_topic, "equivocation"),
+            (&vrf_proofs_topic, "vrf-proofs"),
+            (&media_blobs_topic, "media-blobs"),
+        ] {
+            swarm
+                .behaviour_mut()
+                .gossipsub
+                .subscribe(topic)
+                .map_err(|e| P2pError::Network(format!("subscribe {label}: {e}")))?;
+        }
+
+        info!(
+            "P2P: listening on {} peer_id={:?}",
+            listen_addr_display,
+            swarm.local_peer_id()
+        );
+
         let block_provider = block_provider;
 
         tokio::spawn(async move {
@@ -320,63 +396,6 @@ impl P2pNode {
             let report_validation = gossip.peer_scoring;
             let mut redial_tick = tokio::time::interval(REDIAL_TICK);
             redial_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-            // Comma-separated: e.g. `/ip4/0.0.0.0/tcp/4001,/ip6/::/tcp/4001` (IPv6 listeners are
-            // v6-only, so a private IPv6 network such as Fly 6PN needs its own listener).
-            for one in listen_addr
-                .split(',')
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-            {
-                match one.parse::<libp2p::Multiaddr>() {
-                    Ok(ma) => {
-                        if let Err(e) = swarm.listen_on(ma) {
-                            boing_telemetry::component_warn(
-                                "boing_p2p::swarm",
-                                "p2p",
-                                "listen_failed",
-                                format!("{one}: {e}"),
-                            );
-                        }
-                    }
-                    Err(e) => panic!("invalid P2P listen address {one:?}: {e}"),
-                }
-            }
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .subscribe(&blocks_topic)
-                .expect("subscribe blocks");
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .subscribe(&txs_topic)
-                .expect("subscribe txs");
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .subscribe(&votes_topic)
-                .expect("subscribe votes");
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .subscribe(&equivocation_topic)
-                .expect("subscribe equivocation");
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .subscribe(&vrf_proofs_topic)
-                .expect("subscribe vrf-proofs");
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .subscribe(&media_blobs_topic)
-                .expect("subscribe media-blobs");
-
-            info!(
-                "P2P: listening on {} peer_id={:?}",
-                listen_addr,
-                swarm.local_peer_id()
-            );
 
             loop {
                 tokio::select! {
@@ -691,21 +710,49 @@ impl P2pNode {
                                 num_established,
                                 ..
                             } => {
-                                if let libp2p_core::connection::ConnectedPoint::Dialer { address, .. } =
-                                    endpoint
-                                {
-                                    redial.on_dialed_connection(address, *peer_id);
+                                // Enforce the per-IP cap *before* marking bootnodes connected, so a
+                                // rejected peer is not counted as live and immediately redialed.
+                                let mut rejected_ip_cap = false;
+                                if max_connections_per_ip > 0 && !peer_ips.contains_key(peer_id) {
+                                    let ma = remote_multiaddr(endpoint);
+                                    if let Some(ip) = ip_from_multiaddr(ma) {
+                                        let cnt = *ip_connection_count.get(&ip).unwrap_or(&0);
+                                        if cnt >= max_connections_per_ip {
+                                            boing_telemetry::component_warn(
+                                                "boing_p2p::swarm",
+                                                "p2p",
+                                                "connection_rejected_ip_cap",
+                                                format!(
+                                                    "peer={peer_id:?} remote_ip={ip} established_from_ip={cnt} limit={max_connections_per_ip}"
+                                                ),
+                                            );
+                                            let _ = swarm.disconnect_peer_id(*peer_id);
+                                            rejected_ip_cap = true;
+                                        } else {
+                                            *ip_connection_count.entry(ip).or_insert(0) += 1;
+                                            peer_ips.insert(*peer_id, ip);
+                                        }
+                                    }
                                 }
-                                redial.on_peer_connected(*peer_id);
-                                info!(
-                                    "P2P: connection established peer={} direction={} connections_to_peer={} peers={} bootnodes_connected={}/{}",
-                                    peer_id,
-                                    direction(endpoint),
-                                    num_established,
-                                    swarm.connected_peers().count(),
-                                    redial.connected_count(),
-                                    redial.len()
-                                );
+                                if !rejected_ip_cap {
+                                    if let libp2p_core::connection::ConnectedPoint::Dialer {
+                                        address,
+                                        ..
+                                    } = endpoint
+                                    {
+                                        redial.on_dialed_connection(address, *peer_id);
+                                    }
+                                    redial.on_peer_connected(*peer_id);
+                                    info!(
+                                        "P2P: connection established peer={} direction={} connections_to_peer={} peers={} bootnodes_connected={}/{}",
+                                        peer_id,
+                                        direction(endpoint),
+                                        num_established,
+                                        swarm.connected_peers().count(),
+                                        redial.connected_count(),
+                                        redial.len()
+                                    );
+                                }
                             }
                             SwarmEvent::ConnectionClosed {
                                 peer_id,
@@ -715,6 +762,19 @@ impl P2pNode {
                                 ..
                             } => {
                                 if *num_established == 0 {
+                                    // Only drop the IP accounting when the peer has no remaining
+                                    // connections (an earlier bug decremented on every close).
+                                    gossip_limiter.forget(peer_id);
+                                    if max_connections_per_ip > 0 {
+                                        if let Some(ip) = peer_ips.remove(peer_id) {
+                                            if let Some(c) = ip_connection_count.get_mut(&ip) {
+                                                *c = c.saturating_sub(1);
+                                                if *c == 0 {
+                                                    ip_connection_count.remove(&ip);
+                                                }
+                                            }
+                                        }
+                                    }
                                     let bootnode_addrs =
                                         redial.on_peer_disconnected(*peer_id, Instant::now());
                                     let peers = swarm.connected_peers().count();
@@ -880,48 +940,6 @@ impl P2pNode {
                                     acceptance,
                                 );
                             }
-                        } else if let SwarmEvent::ConnectionEstablished {
-                            peer_id,
-                            endpoint,
-                            ..
-                        } = &ev
-                        {
-                            if max_connections_per_ip > 0 {
-                                let ma = remote_multiaddr(endpoint);
-                                if let Some(ip) = ip_from_multiaddr(ma) {
-                                    if !peer_ips.contains_key(peer_id) {
-                                        let cnt = *ip_connection_count.get(&ip).unwrap_or(&0);
-                                        if cnt >= max_connections_per_ip {
-                                            boing_telemetry::component_warn(
-                                                "boing_p2p::swarm",
-                                                "p2p",
-                                                "connection_rejected_ip_cap",
-                                                format!(
-                                                    "peer={peer_id:?} remote_ip={ip} established_from_ip={cnt} limit={max_connections_per_ip}"
-                                                ),
-                                            );
-                                            let _ = swarm.disconnect_peer_id(*peer_id);
-                                        } else {
-                                            *ip_connection_count.entry(ip).or_insert(0) += 1;
-                                            peer_ips.insert(*peer_id, ip);
-                                        }
-                                    }
-                                }
-                            }
-                        } else if let SwarmEvent::ConnectionClosed { peer_id, num_established, .. } = &ev {
-                            if *num_established == 0 {
-                                gossip_limiter.forget(peer_id);
-                            }
-                            if max_connections_per_ip > 0 {
-                                if let Some(ip) = peer_ips.remove(peer_id) {
-                                    if let Some(c) = ip_connection_count.get_mut(&ip) {
-                                        *c = c.saturating_sub(1);
-                                        if *c == 0 {
-                                            ip_connection_count.remove(&ip);
-                                        }
-                                    }
-                                }
-                            }
                         } else if let SwarmEvent::Behaviour(BoingBehaviourEvent::BlockSync(
                             request_response::Event::Message {
                                 message: request_response::Message::Response { response, .. },
@@ -1061,58 +1079,57 @@ impl P2pNode {
         Ok(())
     }
 
-    pub fn broadcast_block(&self, block: &Block) -> Result<(), P2pError> {
-        if let Some(ref ch) = self.broadcast_tx {
-            ch.try_send(BroadcastMsg::Block(block.clone()))
-                .map_err(|e| P2pError::Network(e.to_string()))?;
+    fn try_broadcast(&self, msg: BroadcastMsg, kind: &str) -> Result<(), P2pError> {
+        let Some(ref ch) = self.broadcast_tx else {
+            return Ok(());
+        };
+        match ch.try_send(msg) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                // Surface channel-full / closed failures (callers often `let _ =`); otherwise a
+                // panicked swarm task looks like silent vote/tx loss.
+                boing_telemetry::component_warn(
+                    "boing_p2p::broadcast",
+                    "p2p",
+                    "broadcast_channel_full_or_closed",
+                    format!("{kind}: {e}"),
+                );
+                Err(P2pError::Network(format!("broadcast {kind}: {e}")))
+            }
         }
-        Ok(())
+    }
+
+    pub fn broadcast_block(&self, block: &Block) -> Result<(), P2pError> {
+        self.try_broadcast(BroadcastMsg::Block(block.clone()), "block")
     }
 
     /// Gossip a verified signed transaction to subscribed peers.
     pub fn broadcast_signed_transaction(&self, signed: &SignedTransaction) -> Result<(), P2pError> {
-        if let Some(ref ch) = self.broadcast_tx {
-            ch.try_send(BroadcastMsg::SignedTransaction(signed.clone()))
-                .map_err(|e| P2pError::Network(e.to_string()))?;
-        }
-        Ok(())
+        self.try_broadcast(
+            BroadcastMsg::SignedTransaction(signed.clone()),
+            "transaction",
+        )
     }
 
     /// Gossip a signed consensus vote to subscribed peers.
     pub fn broadcast_vote(&self, vote: &ConsensusVote) -> Result<(), P2pError> {
-        if let Some(ref ch) = self.broadcast_tx {
-            ch.try_send(BroadcastMsg::Vote(vote.clone()))
-                .map_err(|e| P2pError::Network(e.to_string()))?;
-        }
-        Ok(())
+        self.try_broadcast(BroadcastMsg::Vote(vote.clone()), "vote")
     }
 
     /// Gossip verified equivocation evidence to subscribed peers.
     pub fn broadcast_equivocation(&self, evidence: &EquivocationEvidence) -> Result<(), P2pError> {
-        if let Some(ref ch) = self.broadcast_tx {
-            ch.try_send(BroadcastMsg::Equivocation(evidence.clone()))
-                .map_err(|e| P2pError::Network(e.to_string()))?;
-        }
-        Ok(())
+        self.try_broadcast(BroadcastMsg::Equivocation(evidence.clone()), "equivocation")
     }
 
     /// Gossip a verified per-validator ECVRF proof to subscribed peers.
     pub fn broadcast_vrf_proof(&self, proof: &VrfProofGossip) -> Result<(), P2pError> {
-        if let Some(ref ch) = self.broadcast_tx {
-            ch.try_send(BroadcastMsg::VrfProof(proof.clone()))
-                .map_err(|e| P2pError::Network(e.to_string()))?;
-        }
-        Ok(())
+        self.try_broadcast(BroadcastMsg::VrfProof(proof.clone()), "vrf_proof")
     }
 
     /// Gossip media blob bytes on `boing/media-blobs` (Phase 2 data plane). Caller should
     /// [`MediaBlobGossip::validate`] first; peers re-verify on receive.
     pub fn broadcast_media_blob(&self, blob: &MediaBlobGossip) -> Result<(), P2pError> {
-        if let Some(ref ch) = self.broadcast_tx {
-            ch.try_send(BroadcastMsg::MediaBlob(blob.clone()))
-                .map_err(|e| P2pError::Network(e.to_string()))?;
-        }
-        Ok(())
+        self.try_broadcast(BroadcastMsg::MediaBlob(blob.clone()), "media_blob")
     }
 }
 
@@ -1128,4 +1145,29 @@ impl Default for P2pNode {
 pub enum P2pError {
     #[error("Network error: {0}")]
     Network(String),
+}
+
+#[cfg(test)]
+mod startup_tests {
+    use super::*;
+
+    #[test]
+    fn parse_listen_addrs_rejects_empty_and_garbage() {
+        assert!(parse_listen_addrs("").is_err());
+        assert!(parse_listen_addrs("   ,  , ").is_err());
+        assert!(parse_listen_addrs("not-a-multiaddr").is_err());
+        let ok = parse_listen_addrs("/ip4/127.0.0.1/tcp/4001").unwrap();
+        assert_eq!(ok.len(), 1);
+        let two = parse_listen_addrs("/ip4/0.0.0.0/tcp/4001,/ip6/::/tcp/4001").unwrap();
+        assert_eq!(two.len(), 2);
+    }
+
+    #[test]
+    fn ip_from_multiaddr_reads_literal_ip() {
+        let ma: libp2p::Multiaddr = "/ip4/203.0.113.9/tcp/4001".parse().unwrap();
+        assert_eq!(
+            ip_from_multiaddr(&ma),
+            Some(IpAddr::V4(std::net::Ipv4Addr::new(203, 0, 113, 9)))
+        );
+    }
 }

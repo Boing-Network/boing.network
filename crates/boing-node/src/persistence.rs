@@ -75,6 +75,8 @@ pub fn decode_bincode_limited<T: serde::de::DeserializeOwned>(
 const CHAIN_DIR: &str = "chain";
 const BLOCKS_DIR: &str = "blocks";
 const CHAIN_META_FILE: &str = "meta.bin";
+/// Last round this validator signed a local consensus vote (anti-equivocation across restarts).
+const LAST_LOCAL_VOTE_ROUND_FILE: &str = "last_local_vote_round.bin";
 const STATE_DIR: &str = "state";
 const STATE_FILE: &str = "accounts.bin";
 const QA_REGISTRY_FILE: &str = "qa_registry.json";
@@ -267,6 +269,40 @@ impl Persistence {
             .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
         std::fs::write(path, bytes)?;
         Ok(())
+    }
+
+    /// Load one block by height from disk (for heights pruned from the in-memory window).
+    pub fn load_block(&self, height: u64) -> Result<Option<Block>, PersistenceError> {
+        let path = self.blocks_dir().join(format!("{height}.bin"));
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = read_file_limited(&path, MAX_PERSIST_BLOCK_FILE_BYTES)?;
+        let block = Block::from_bincode(&bytes)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        Ok(Some(block))
+    }
+
+    /// Persist the last round this node cast a local consensus vote.
+    pub fn save_last_local_vote_round(&self, round: u64) -> Result<(), PersistenceError> {
+        self.ensure_dirs()?;
+        let path = self.chain_dir().join(LAST_LOCAL_VOTE_ROUND_FILE);
+        let bytes = bincode::serialize(&round)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        let tmp = path.with_extension("bin.tmp");
+        std::fs::write(&tmp, bytes)?;
+        std::fs::rename(tmp, path)?;
+        Ok(())
+    }
+
+    pub fn load_last_local_vote_round(&self) -> Result<Option<u64>, PersistenceError> {
+        let path = self.chain_dir().join(LAST_LOCAL_VOTE_ROUND_FILE);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = read_file_limited(&path, MAX_PERSIST_SMALL_FILE_BYTES)?;
+        let round: u64 = decode_bincode_limited(&bytes, MAX_PERSIST_SMALL_FILE_BYTES)?;
+        Ok(Some(round))
     }
 
     /// Save execution receipts for a block height (`chain/blocks/receipts_{height}.bin`).

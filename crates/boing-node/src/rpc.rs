@@ -4386,7 +4386,7 @@ async fn dispatch_jsonrpc_request(
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true);
             let n = node.read().await;
-            match n.chain.get_block_by_height(height) {
+            match n.block_by_height(height) {
                 Some(block) => {
                     let hash = block.hash();
                     let mut block_json =

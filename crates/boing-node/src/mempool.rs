@@ -244,6 +244,20 @@ impl Mempool {
         }
         let sender = signed.tx.sender;
         let nonce = signed.tx.nonce;
+        // Replacements must strictly raise the tip so nodes converge on the same pending tx
+        // (previously any signed replacement could undercut the fee).
+        if let Some(existing) = inner
+            .by_sender
+            .get(&sender)
+            .and_then(|m| m.get(&nonce))
+        {
+            if tip <= existing.priority_tip {
+                return Err(MempoolError::UnderpricedReplacement {
+                    have: existing.priority_tip,
+                    got: tip,
+                });
+            }
+        }
         let is_replacement = inner
             .by_sender
             .get(&sender)
@@ -445,6 +459,11 @@ pub enum MempoolError {
     FreePendingLimitExceeded { sender: AccountId, limit: usize },
     #[error("Mempool full ({limit} pending txs); try again later")]
     MempoolFull { limit: usize },
+    /// Same (sender, nonce) replacement must carry a strictly higher `priority_tip`.
+    #[error(
+        "underpriced replacement: pending tip is {have}, replacement tip is {got} (must be higher)"
+    )]
+    UnderpricedReplacement { have: u128, got: u128 },
     #[error("insufficient balance for fee: have {have}, need {need}")]
     InsufficientFee { have: u128, need: u128 },
     /// The tx nonce is below the sender's committed nonce, so it can never execute.
@@ -664,9 +683,9 @@ mod tests {
             Err(MempoolError::MempoolFull { .. })
         ));
         assert_eq!(pool.len(), 6);
-        // replacing an existing nonce is not an insertion and still works when full
+        // same-tip replacement is rejected; a higher tip still works when the pool is full
         let k4_id = AccountId(k4.verifying_key().to_bytes());
-        let replacement = SignedTransaction::new(
+        let same_tip = SignedTransaction::new(
             Transaction {
                 nonce: 0,
                 sender: k4_id,
@@ -678,8 +697,70 @@ mod tests {
             },
             &k4,
         );
-        pool.insert(replacement).unwrap();
+        assert!(matches!(
+            pool.insert(same_tip),
+            Err(MempoolError::UnderpricedReplacement { .. })
+        ));
+        const CHAIN: u64 = 6913;
+        boing_primitives::set_tx_verify_policy(boing_primitives::TxSigPolicy {
+            chain_id: Some(CHAIN),
+            require_v2: false,
+        });
+        let higher = SignedTransaction::new_for_chain_with_tip(
+            Transaction {
+                nonce: 0,
+                sender: k4_id,
+                payload: TransactionPayload::Transfer {
+                    to: AccountId([8u8; 32]),
+                    amount: 3,
+                },
+                access_list: AccessList::default(),
+            },
+            &k4,
+            CHAIN,
+            1,
+        );
+        pool.insert(higher).unwrap();
         assert_eq!(pool.len(), 6);
+    }
+
+    #[test]
+    fn replacement_rejects_lower_or_equal_tip() {
+        const CHAIN: u64 = 6913;
+        boing_primitives::set_tx_verify_policy(boing_primitives::TxSigPolicy {
+            chain_id: Some(CHAIN),
+            require_v2: false,
+        });
+        let pool = Mempool::new();
+        let key = SigningKey::generate(&mut OsRng);
+        let id = AccountId(key.verifying_key().to_bytes());
+        let mk = |to: u8, tip: u128| {
+            SignedTransaction::new_for_chain_with_tip(
+                Transaction {
+                    nonce: 0,
+                    sender: id,
+                    payload: TransactionPayload::Transfer {
+                        to: AccountId([to; 32]),
+                        amount: 1,
+                    },
+                    access_list: AccessList::default(),
+                },
+                &key,
+                CHAIN,
+                tip,
+            )
+        };
+        pool.insert(mk(1, 5)).unwrap();
+        assert!(matches!(
+            pool.insert(mk(2, 4)),
+            Err(MempoolError::UnderpricedReplacement { have: 5, got: 4 })
+        ));
+        assert!(matches!(
+            pool.insert(mk(3, 5)),
+            Err(MempoolError::UnderpricedReplacement { have: 5, got: 5 })
+        ));
+        pool.insert(mk(4, 6)).unwrap();
+        assert_eq!(pool.len(), 1);
     }
 
     #[test]

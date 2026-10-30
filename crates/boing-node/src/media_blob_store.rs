@@ -315,6 +315,36 @@ impl MediaBlobStore {
         self.persist_index(&idx)
     }
 
+    /// Fill missing bytes for a blob that already has consensus metadata (PutBlob ingest).
+    ///
+    /// Gossip must not invent new index entries (anonymous publisher / multi-year TTL used to let
+    /// any peer fill the disk). Returns `Ok(true)` when bytes were written, `Ok(false)` when the
+    /// blob is unknown or already present.
+    pub fn put_gossip_bytes_if_known(&self, blob_id: &BlobId, data: &[u8]) -> std::io::Result<bool> {
+        let id = blob_id_of(data);
+        if &id != blob_id {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "blob id does not match data",
+            ));
+        }
+        let Some(meta) = self.get_meta(blob_id) else {
+            return Ok(false);
+        };
+        if meta.size as usize != data.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "gossip blob size does not match stored meta",
+            ));
+        }
+        if self.has_bytes(blob_id) {
+            return Ok(false);
+        }
+        fs::create_dir_all(&self.dir)?;
+        fs::write(self.data_path(blob_id), data)?;
+        Ok(true)
+    }
+
     pub fn get_meta(&self, id: &BlobId) -> Option<BlobMetaRecord> {
         let idx = self.index.read().unwrap_or_else(|e| e.into_inner());
         idx.entries.get(&blob_id_hex(id)).cloned()
@@ -555,6 +585,38 @@ mod tests {
         assert_eq!(store.get_bytes(&id).unwrap().unwrap(), data);
         assert!(store.prune_expired(20).unwrap() >= 1);
         assert!(store.get_meta(&id).is_none());
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn gossip_bytes_require_existing_meta_and_do_not_invent_entries() {
+        let dir = tmp_dir("gossip");
+        let store = MediaBlobStore::open(&dir).unwrap();
+        let data = b"gossip-fill";
+        let id = blob_id_of(data);
+        assert_eq!(store.put_gossip_bytes_if_known(&id, data).unwrap(), false);
+        assert_eq!(store.len(), 0);
+        let meta = BlobMetaRecord {
+            blob_id: id,
+            size: data.len() as u32,
+            content_type: "application/octet-stream".into(),
+            retention: BlobRetention::Forever,
+            publisher: [3u8; 32],
+            included_height: 9,
+            tx_id: [4u8; 32],
+            pin_until_height: None,
+        };
+        // Meta without bytes (simulate PutBlob meta present, bytes missing).
+        {
+            let key = blob_id_hex(&id);
+            let mut idx = store.index.write().unwrap();
+            idx.entries.insert(key, meta);
+            store.persist_index(&idx).unwrap();
+        }
+        assert!(!store.has_bytes(&id));
+        assert!(store.put_gossip_bytes_if_known(&id, data).unwrap());
+        assert_eq!(store.get_bytes(&id).unwrap().unwrap(), data);
+        assert_eq!(store.put_gossip_bytes_if_known(&id, data).unwrap(), false);
         let _ = fs::remove_dir_all(dir);
     }
 

@@ -506,6 +506,11 @@ impl BoingNode {
                     Ok(None) => {}
                     Err(e) => logging::log_persistence_warn("load_bls_dual_key_registry", &e),
                 }
+                match p.load_last_local_vote_round() {
+                    Ok(Some(r)) => node.last_local_vote_round = Some(r),
+                    Ok(None) => {}
+                    Err(e) => logging::log_persistence_warn("load_last_local_vote_round", &e),
+                }
             }
         }
 
@@ -743,8 +748,20 @@ impl BoingNode {
         self.prune_receipts_if_due(height);
         self.pending_commit = None;
         self.pending_since = None;
-        self.early_votes
-            .retain(|(r, _), _| *r >= height.saturating_add(1));
+        // Bound vote-observation maps (audit #61 item 13): keep the next round and a small history.
+        let keep_from = height.saturating_sub(64);
+        self.early_votes.retain(|(r, _), _| *r >= keep_from);
+        self.observed_votes.retain(|(r, _), _| *r >= keep_from);
+        // slashed_equivocations is rebuilt from the slash registry; drop ancient keys defensively.
+        self.slashed_equivocations
+            .retain(|(_, r), _| *r >= keep_from);
+        if let Some(ref p) = self.persistence {
+            if let Some(round) = self.last_local_vote_round {
+                if let Err(e) = p.save_last_local_vote_round(round) {
+                    logging::log_persistence_warn("save_last_local_vote_round", &e);
+                }
+            }
+        }
         self.refresh_native_aggregates();
         self.emit_head_subscriber_event();
         self.maybe_refresh_stake_validators(height);
@@ -1963,6 +1980,16 @@ impl BoingNode {
 
     pub fn media_blob_store(&self) -> Option<&MediaBlobStore> {
         self.media_blob_store.as_ref()
+    }
+
+    /// Block at `height` from the in-memory window, falling back to persistence when pruned.
+    pub fn block_by_height(&self, height: u64) -> Option<Block> {
+        if let Some(b) = self.chain.get_block_by_height(height) {
+            return Some(b);
+        }
+        self.persistence
+            .as_ref()
+            .and_then(|p| p.load_block(height).ok().flatten())
     }
 
     pub fn media_blobs_activation_height(&self) -> Option<u64> {
