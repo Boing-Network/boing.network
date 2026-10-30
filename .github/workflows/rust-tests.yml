@@ -1,0 +1,44 @@
+# Run the Rust workspace test suite (audit #61 item 77).
+# desktop-hub (Tauri/GTK) is excluded: CI runners do not provision its system deps.
+name: Rust tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  fmt:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable branch
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable branch
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: cargo test
+        run: cargo test --workspace --exclude boing-network-hub --locked
+      - name: cargo clippy (informational)
+        continue-on-error: true
+        run: cargo clippy --workspace --exclude boing-network-hub --all-targets
