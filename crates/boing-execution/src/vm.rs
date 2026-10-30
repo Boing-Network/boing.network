@@ -819,7 +819,12 @@ impl Vm {
                 );
             }
             TransactionPayload::ReportEquivocation { evidence } => {
-                return self.execute_report_equivocation(state, tx, evidence, exec_ctx.block_height);
+                return self.execute_report_equivocation(
+                    state,
+                    tx,
+                    evidence,
+                    exec_ctx.block_height,
+                );
             }
         };
         Ok(VmExecutionResult {

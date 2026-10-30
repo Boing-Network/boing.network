@@ -119,12 +119,13 @@ fn leader_timeout_does_not_slash_committed_stake() {
 
     // Diagnostics may reset the streak, but committed stake must be untouched.
     assert_eq!(node.state.get(&v2).unwrap().stake, 10_000);
-    assert!(node
-        .state
-        .get(&boing_tokenomics::FEE_BURN_SINK)
-        .map(|s| s.balance)
-        .unwrap_or(0)
-        == 0);
+    assert!(
+        node.state
+            .get(&boing_tokenomics::FEE_BURN_SINK)
+            .map(|s| s.balance)
+            .unwrap_or(0)
+            == 0
+    );
     assert!(node.slash_registry.list_slashes().is_empty());
     assert!(node.state.slash_appeals().list_slashes().is_empty());
 }

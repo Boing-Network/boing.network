@@ -458,10 +458,7 @@ impl Transaction {
             }
             TransactionPayload::ReportEquivocation { evidence } => {
                 let offender = evidence.validator();
-                AccessList::new(
-                    vec![self.sender, offender],
-                    vec![self.sender, offender],
-                )
+                AccessList::new(vec![self.sender, offender], vec![self.sender, offender])
             }
             TransactionPayload::Batch { calls } => {
                 let mut ids = vec![self.sender];

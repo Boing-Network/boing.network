@@ -60,6 +60,8 @@ export declare const PayloadVariant: {
     readonly GrantBlobDownload: 34;
     /** Revoke media-blob download ACL (Phase 34; publisher-only). */
     readonly RevokeBlobDownload: 35;
+    /** Report verified equivocation evidence (consensus-ordered slash). */
+    readonly ReportEquivocation: 36;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -288,6 +290,10 @@ export type TransactionPayloadInput = {
     kind: 'revokeBlobDownload';
     blobId: Uint8Array;
     grantee: Uint8Array;
+} | {
+    kind: 'reportEquivocation';
+    /** Bincode bytes of `boing_primitives::EquivocationEvidence` (two `ConsensusVote`s). */
+    evidence: Uint8Array;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {
