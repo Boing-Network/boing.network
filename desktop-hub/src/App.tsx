@@ -7,9 +7,6 @@ import {
   getWelcomeDismissed,
   setWelcomeDismissed,
   clearWelcomeDismissed,
-  getSignedIn,
-  setSignedIn,
-  clearSignedIn,
   getShowIntro,
   setShowIntro,
 } from "./lib/storage";
@@ -49,8 +46,6 @@ const WINDOW_TITLE_BASE = "Boing Network Hub";
 
 type AppPhase = "intro" | "welcome" | "app";
 
-type EntryMode = "guest" | "signin" | "register";
-
 /**
  * When coming from splash (at /app), update check already ran there — skip "updating".
  * Goes straight to intro (if enabled), welcome, or app.
@@ -63,32 +58,18 @@ function App() {
   const [phase, setPhase] = useState<AppPhase>(getInitialPhase);
   const [view, setViewState] = useState<HubView>("home");
   const [lastEmbedView, setLastEmbedView] = useState<HubView | null>(null);
-  const [signedIn, setSignedInState] = useState(getSignedIn);
   const [showIntroNextLaunch, setShowIntroNextLaunchState] = useState(getShowIntro);
   const mainRef = useRef<HTMLElement>(null);
   const { status: updateStatus, runCheck, clearStatus } = useUpdateCheck();
   const [rpcDiagnosticsOpen, setRpcDiagnosticsOpen] = useState(false);
 
-  const enterApp = useCallback((mode: EntryMode) => {
+  const enterApp = useCallback(() => {
     setWelcomeDismissed();
-    if (mode === "signin" || mode === "register") {
-      setSignedIn();
-      setSignedInState(true);
-    }
     setPhase("app");
-  }, []);
-
-  const handleSignOut = useCallback(() => {
-    clearWelcomeDismissed();
-    clearSignedIn();
-    setSignedInState(false);
-    setPhase("welcome");
   }, []);
 
   const handleShowWelcome = useCallback(() => {
     clearWelcomeDismissed();
-    clearSignedIn();
-    setSignedInState(false);
     setPhase("welcome");
   }, []);
 
@@ -114,11 +95,6 @@ function App() {
     }
     setPhase(getWelcomeDismissed() ? "app" : "welcome");
   }, []);
-
-  useEffect(() => {
-    if (phase !== "app") return;
-    setSignedInState(getSignedIn());
-  }, [phase]);
 
   useEffect(() => {
     if (phase !== "app") return;
@@ -201,9 +177,9 @@ function App() {
           onRetryError={() => void runCheck({ persistError: true })}
         />
         <WelcomeView
-          onSignIn={() => enterApp("signin")}
-          onRegister={() => enterApp("register")}
-          onContinueAsGuest={() => enterApp("guest")}
+          onOpenWallet={enterApp}
+          onRegister={enterApp}
+          onContinueAsGuest={enterApp}
         />
       </>
     );
@@ -257,8 +233,6 @@ function App() {
           ))}
         </nav>
         <HubFooter
-          signedIn={signedIn}
-          onSignOut={handleSignOut}
           onShowWelcome={handleShowWelcome}
           showIntroNextLaunch={showIntroNextLaunch}
           onShowIntroNextLaunchChange={handleShowIntroNextLaunchChange}

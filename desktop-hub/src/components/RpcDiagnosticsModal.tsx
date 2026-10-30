@@ -117,7 +117,8 @@ export function RpcDiagnosticsModal({ open, onClose }: Props): ReactElement | nu
 
         <div className="hub-rpc-modal__body">
           <p className="qa-operator__muted">
-            Same RPC URL and operator token as the QA operator view (saved automatically). Use this to watch node health and
+            Same RPC URL and operator token as the QA operator view (RPC URL in local preferences; operator token in the OS
+            credential store). Use this to watch node health and
             run a full environment check before pool work.
           </p>
 

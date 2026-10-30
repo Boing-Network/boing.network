@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { AppIcon } from "../components/AppIcons";
 import { BoingLoaderDots } from "../components/BoingLoaderDots";
+import { openExternal } from "../lib/openExternal";
 
 type Props = { url: string; title: string; appId: string };
 
@@ -72,10 +73,9 @@ export function EmbedView({ url, title, appId }: Props) {
 
   const handleOpenInBrowser = useCallback(async () => {
     try {
-      const { open } = await import("@tauri-apps/plugin-shell");
-      await open(iframeUrl);
+      await openExternal(iframeUrl);
     } catch {
-      window.open(iframeUrl, "_blank", "noopener,noreferrer");
+      /* allowlist / open failure — leave the embed as-is */
     }
   }, [iframeUrl]);
 
@@ -109,6 +109,11 @@ export function EmbedView({ url, title, appId }: Props) {
         ) : (
           <>
             {loading && <LoadingSpinner />}
+            {/*
+              Cross-origin embeds need allow-scripts + allow-same-origin so the remote
+              apps can use their own storage/cookies. That combination does not isolate
+              the iframe from itself; CSP + shell.open allowlist harden the hub shell.
+            */}
             <iframe
               key={iframeKey}
               className="app-embed"
@@ -116,6 +121,7 @@ export function EmbedView({ url, title, appId }: Props) {
               title={title}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
               allow="clipboard-read; clipboard-write"
+              referrerPolicy="strict-origin-when-cross-origin"
               onLoad={handleLoad}
               onError={handleError}
               style={{ opacity: loading ? 0 : 1 }}

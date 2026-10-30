@@ -6,6 +6,7 @@ use tauri::{
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+mod operator_token;
 #[cfg(target_os = "windows")]
 mod single_instance_windows;
 
@@ -188,7 +189,12 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .on_window_event(main_window_close_to_tray)
-        .invoke_handler(tauri::generate_handler![close_splash_and_show_main])
+        .invoke_handler(tauri::generate_handler![
+            close_splash_and_show_main,
+            operator_token::get_operator_token,
+            operator_token::set_operator_token,
+            operator_token::clear_operator_token,
+        ])
         .setup(|app| {
             // On Windows, ensure app data dir exists so WebView2 can create EBWebView (see tauri-apps/tauri#12787)
             #[cfg(target_os = "windows")]

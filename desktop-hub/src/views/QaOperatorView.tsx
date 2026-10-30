@@ -130,8 +130,9 @@ export function QaOperatorView() {
           This screen is the main place for day-to-day pool work: refresh the queue, inspect config, vote on pending deploys,
           and apply updated registry / pool JSON—no terminal required. When the node is configured with{" "}
           <code className="qa-operator__code">BOING_OPERATOR_RPC_TOKEN</code>, enter the same value here as the operator token
-          so requests include <code className="qa-operator__code">X-Boing-Operator</code>. For live chain health, request IDs,
-          and a full RPC environment check, use <strong>Settings → RPC &amp; diagnostics</strong> in the footer.
+          so requests include <code className="qa-operator__code">X-Boing-Operator</code>. The token is stored in the OS
+          credential store (not webview localStorage). For live chain health, request IDs, and a full RPC environment
+          check, use <strong>Settings → RPC &amp; diagnostics</strong> in the footer.
         </p>
       </header>
 
