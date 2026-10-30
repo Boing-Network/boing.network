@@ -7,7 +7,7 @@ Longer background lives in [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIV
 ## 1. Testnet 1500 crossing watch (storage-tree v2 + account-tree v3 + VM hardening, chain 6913)
 
 Storage-tree v2 changes how contract storage is committed in the **state root**. From the activation height `H`
-(**1500**, in the testnet preset from testnet-v0.1.20, with account-tree v3 and VM hardening at the same block) every node must compute
+(**1500**, in the testnet preset from testnet-v0.1.21, with account-tree v3 and VM hardening at the same block) every node must compute
 the new root, or it rejects the first v2 block and forks off. **After `H` there is no rollback.**
 
 ### Before the head gets close to H

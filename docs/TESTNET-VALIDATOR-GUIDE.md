@@ -30,15 +30,17 @@ RPC port **8545** only needs to be public if you want to serve RPC to others.
 > mismatch from the fee rule, not a network problem). Use **`testnet-v0.1.19`** or newer, or build `main`
 > from source (below). An already-synced node is unaffected by this. See "Older binaries" in section 5 for what a pre-fix source build needs.
 
-**Release binaries:** `testnet-v0.1.19` is the first release that contains the preset (see the note above); download it from
-<https://github.com/Boing-Network/boing.network/releases/tag/testnet-v0.1.19> (all releases:
+**Release binaries:** `testnet-v0.1.19` is the first release that contains the preset (see the note above). Use
+**`testnet-v0.1.21`** or newer: it carries the block-1500 activations (storage-tree v2, account-tree v3, VM hardening).
+`testnet-v0.1.20` is withdrawn (fresh nodes drop the 1500 tree activations). Download v0.1.21 from
+<https://github.com/Boing-Network/boing.network/releases/tag/testnet-v0.1.21> (all releases:
 <https://github.com/Boing-Network/boing.network/releases>). The zip contains `boing-node-<platform>` and
 `boing-<platform>`, so rename them after unzipping (there is no `--version` flag; use `./boing-node --help`):
 
 ```bash
-# testnet-v0.1.19 or newer (replace the tag when a newer testnet release is published):
-curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.19/release-linux-x86_64.zip
-# Expected SHA-256 (testnet-v0.1.19 linux zip): 687e90680d3302f03f7aebdc6ce095db0d845cad16e43781b896060af8130aa3
+# testnet-v0.1.21 or newer (replace the tag when a newer testnet release is published):
+curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.21/release-linux-x86_64.zip
+# Expected SHA-256 (testnet-v0.1.21 linux zip): ecf3dd80d9e52c1b73387c7c437eda11ea470f6fc149e98a2fa7d7f7e5eaecca
 sha256sum release-linux-x86_64.zip
 unzip release-linux-x86_64.zip && mv boing-node-linux-x86_64 boing-node && mv boing-linux-x86_64 boing && chmod +x boing-node boing
 ./boing validator --help
@@ -163,11 +165,11 @@ runtime bytecode that init code returns before storing it (direct deploys, QA-po
 `CREATE2`), charges gas for memory expansion (`3*w + w*w/512` per frame for `w` 32-byte words, on top of the
 existing 8 MiB per-frame cap) and fails a frame whose operand stack grows past **1024** items. Blocks below
 1500 execute exactly as before. Every validator and RPC node must run a build with this rule before the chain
-reaches 1500 (testnet-v0.1.20 or later); an older build computes different results for the first block that hits one of the new limits.
+reaches 1500 (testnet-v0.1.21 or later); an older build computes different results for the first block that hits one of the new limits.
 
 **Upcoming: storage-tree v2 and account-tree v3 at block 1500** (audit #61 item 30). From that height
 per-contract storage trees and the global account tree route on all 256 key bits; the state root is rebuilt
-once at 1500 for both. Both heights are in the preset (testnet-v0.1.20+), so do not set the env vars; an older
+once at 1500 for both. Both heights are in the preset (testnet-v0.1.21+), so do not set the env vars; an older
 build, or a node still carrying `BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT=4400`, forks at 1500. See
 [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md) and [ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md).
 

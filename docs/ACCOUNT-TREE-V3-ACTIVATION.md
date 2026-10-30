@@ -26,7 +26,7 @@ so existing verifiers work at any depth.
 - At `H` the node rebuilds the account tree once at the new depth (O(state)); after that updates stay
   incremental. A rewind below `H` switches back.
 - The gate is independent of storage-tree v2; they can activate at the same height.
-- **Testnet 6913: H = 1500, baked into the preset** (testnet-v0.1.20+), the same block as storage-tree v2 and
+- **Testnet 6913: H = 1500, baked into the preset** (testnet-v0.1.21+), the same block as storage-tree v2 and
   VM hardening; one full state-root rebuild covers both trees. The env var / flag still overrides the preset.
   Crossing is tested in `replay_live_chain_then_cross_tree_and_vm_gates_locally` and (with a full dump)
   `replay_full_live_chain_then_cross_preset_gates`.
