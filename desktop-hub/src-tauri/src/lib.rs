@@ -6,9 +6,9 @@ use tauri::{
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+mod operator_token;
 #[cfg(target_os = "windows")]
 mod single_instance_windows;
-mod operator_token;
 
 #[tauri::command]
 async fn close_splash_and_show_main(app: tauri::AppHandle) -> Result<(), String> {
