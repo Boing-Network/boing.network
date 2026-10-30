@@ -180,13 +180,21 @@ impl ConsensusEngine {
     }
 
     /// Count of current votes that count toward the quorum.
+    ///
+    /// Only votes matching the pending block hash count (wrong-hash votes are retained for
+    /// equivocation detection). In anchor mode, only votes from anchors still in the set count;
+    /// if the anchor list is empty or none remain active, every matching validator vote counts.
     fn counted_votes(&self) -> usize {
+        let Some(pending) = &self.pending_block else {
+            return 0;
+        };
+        let want = pending.hash();
+        let matching = self.votes.iter().filter(|(_, h)| **h == want);
         let active = self.active_anchors();
-        // No anchors configured, or none remain in the set → every validator vote counts.
         if self.anchors.is_empty() || active.is_empty() {
-            self.votes.len()
+            matching.count()
         } else {
-            self.votes.keys().filter(|v| active.contains(v)).count()
+            matching.filter(|(v, _)| active.contains(v)).count()
         }
     }
 
@@ -456,6 +464,9 @@ impl ConsensusEngine {
 
     /// Submit a vote from a validator. Returns Some(block_hash) when committed.
     /// Detects equivocation: validator voting for different blocks in same round.
+    ///
+    /// Wrong-hash votes are still recorded so a later conflicting vote (any order) raises
+    /// [`ConsensusError::Equivocation`]; only votes matching the pending block count toward quorum.
     pub fn vote(
         &mut self,
         block_hash: Hash,
@@ -470,8 +481,9 @@ impl ConsensusEngine {
             .pending_block
             .as_ref()
             .ok_or_else(|| ConsensusError::InvalidBlock("No pending block to vote on".into()))?;
-        if block.hash() != block_hash {
-            if self.votes.contains_key(&validator) {
+        let pending_hash = block.hash();
+        if let Some(prev) = self.votes.get(&validator) {
+            if *prev != block_hash {
                 boing_telemetry::component_warn(
                     "boing_consensus::engine",
                     "consensus",
@@ -483,26 +495,35 @@ impl ConsensusEngine {
                     round: self.round,
                 });
             }
+            // Idempotent re-gossip of the same vote.
+            return Ok(None);
+        }
+        self.votes.insert(validator, block_hash);
+        if pending_hash != block_hash {
             return Err(ConsensusError::InvalidBlock(
                 "Vote for wrong block hash".into(),
             ));
         }
 
-        self.votes.insert(validator, block_hash);
         debug!(
             "Consensus: vote from {:?}, {}/{}",
             validator,
-            self.votes.len(),
+            self.counted_votes(),
             self.quorum()
         );
 
         if self.counted_votes() >= self.quorum() {
-            let h = block.hash();
+            let h = pending_hash;
             info!(
                 "Consensus: committed block {} at round {} view {}",
                 h, self.round, self.view
             );
-            self.last_committed_voters = self.votes.keys().copied().collect();
+            self.last_committed_voters = self
+                .votes
+                .iter()
+                .filter(|(_, vh)| **vh == h)
+                .map(|(v, _)| *v)
+                .collect();
             self.round += 1;
             self.view = 0;
             self.pending_block = None;
@@ -598,6 +619,26 @@ mod tests {
         engine.vote(hash_a, v1).unwrap();
         let result = engine.vote(block_b.hash(), v1); // v1 votes for different block
         assert!(matches!(result, Err(ConsensusError::Equivocation { .. })));
+    }
+
+    /// Wrong-hash vote first must still be retained so a later correct vote is slashable.
+    #[test]
+    fn test_equivocation_detected_wrong_hash_first() {
+        let v1 = AccountId::from_bytes([1u8; 32]);
+        let v2 = AccountId::from_bytes([2u8; 32]);
+        let v3 = AccountId::from_bytes([3u8; 32]);
+        let v4 = AccountId::from_bytes([4u8; 32]);
+        let mut engine = ConsensusEngine::new(vec![v1, v2, v3, v4]);
+        let block_a = mk_block(0, v1, Hash::ZERO);
+        let wrong = Hash([9u8; 32]);
+        engine.propose(block_a.clone()).unwrap();
+        assert!(matches!(
+            engine.vote(wrong, v2),
+            Err(ConsensusError::InvalidBlock(_))
+        ));
+        let result = engine.vote(block_a.hash(), v2);
+        assert!(matches!(result, Err(ConsensusError::Equivocation { .. })));
+        assert_eq!(engine.counted_votes(), 0, "wrong-hash vote must not count");
     }
 
     #[test]
