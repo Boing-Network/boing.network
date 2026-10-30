@@ -82,9 +82,11 @@ pub struct RpcState {
     pub faucet_cooldown: Option<FaucetCooldown>,
     pub faucet_submit_lock: Option<FaucetSubmitLock>,
     /// Operator methods (`boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`,
-    /// `boing_submitSlashAppeal`, `boing_resolveSlashAppeal`, **admin-only** `boing_qaPoolVote`)
-    /// require header `X-Boing-Operator: <token>`. When `None`, those methods are rejected.
-    /// Public-membership QA votes do not use this header.
+    /// `boing_resolveSlashAppeal`, **admin-only** `boing_qaPoolVote`) require header
+    /// `X-Boing-Operator: <token>`. When `None`, those methods are rejected.
+    /// `boing_submitSlashAppeal` accepts the operator token **or** a slashed-validator
+    /// Ed25519 signature; without either it is rejected. Public-membership QA votes do
+    /// not use this header.
     pub operator_rpc_token: Option<Arc<str>>,
     /// Extra shared secrets that authorize media-blob byte download
     /// (`GET /v1/media/blob?id=…` and optionally `boing_getBlob`). From
@@ -2917,13 +2919,19 @@ async fn dispatch_jsonrpc_request(
         "boing_submitSlashAppeal" => {
             // Local-mirror RPC (prefer consensus SubmitSlashAppeal tx). Auth: operator token
             // **or** Ed25519 signature from the slashed validator (audit #61 item 46).
+            // Fail closed on auth before param shape errors so operator-gate probes
+            // (empty params, wrong/missing token) still see -32057.
             let params = req.params.unwrap_or(serde_json::Value::Null);
             let (slash_id, evidence_hex, validator_sig_hex) = match &params {
-                serde_json::Value::Array(arr) if arr.len() >= 2 => {
+                serde_json::Value::Array(arr) if !arr.is_empty() => {
                     let sid = arr[0]
                         .as_u64()
                         .or_else(|| arr[0].as_str().and_then(|s| s.parse().ok()));
-                    let ev = arr[1].as_str().unwrap_or("").to_string();
+                    let ev = arr
+                        .get(1)
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
                     let sig = arr.get(2).and_then(|v| v.as_str()).map(|s| s.to_string());
                     (sid, ev, sig)
                 }
@@ -2946,6 +2954,18 @@ async fn dispatch_jsonrpc_request(
                 }
                 _ => (None, String::new(), None),
             };
+            let operator_ok = state.operator_authorized(headers);
+            if !operator_ok && validator_sig_hex.is_none() {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Authentication required: set X-Boing-Operator, or pass validator_signature (Ed25519 over BOING_SLASH_APPEAL_SUBMIT_V1) from the slashed validator. Prefer SubmitSlashAppeal tx (index 30)."
+                            .into(),
+                    ),
+                );
+            }
             let Some(slash_id) = slash_id else {
                 return (
                     StatusCode::OK,
@@ -2983,19 +3003,9 @@ async fn dispatch_jsonrpc_request(
                     ),
                 );
             }
-            let operator_ok = state.operator_authorized(headers);
             if !operator_ok {
-                let Some(sig_hex) = validator_sig_hex.as_deref() else {
-                    return (
-                        StatusCode::OK,
-                        rpc_error(
-                            id,
-                            -32057,
-                            "Authentication required: set X-Boing-Operator, or pass validator_signature (Ed25519 over BOING_SLASH_APPEAL_SUBMIT_V1) from the slashed validator. Prefer SubmitSlashAppeal tx (index 30)."
-                                .into(),
-                        ),
-                    );
-                };
+                // `validator_sig_hex` is Some: empty-sig path already returned -32057 above.
+                let sig_hex = validator_sig_hex.as_deref().unwrap_or("");
                 let n = node.read().await;
                 let Some(slash) = n.slash_registry.get_slash(slash_id) else {
                     return (
