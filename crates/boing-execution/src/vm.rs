@@ -31,6 +31,8 @@ use crate::gas::base;
 
 /// Gas used by a transaction.
 pub const GAS_PER_TRANSFER: u64 = 21_000;
+/// Per-call **gas limit** for contract execution (EVM-style ceiling, not a flat charge).
+/// Interpreter usage is what gets billed; this constant caps CPU work per call (issue #61 item 25).
 pub const GAS_PER_CONTRACT_CALL: u64 = 40_000_000;
 /// Gas budget for **`0xFD` init** that runs at deploy (SSTORE bootstrap + `MSTORE`/`RETURN` of large runtime).
 pub const GAS_PER_CONTRACT_DEPLOY_INIT: u64 = 5_000_000;
@@ -1947,9 +1949,10 @@ impl Vm {
                 let rec = state
                     .remove_qa_pending(&subject)
                     .ok_or(VmError::QaPendingNotFound)?;
-                self.install_contract_from_deploy_tx(state, &rec.tx, exec_ctx)?;
+                // Charge init-code gas to the voter's tx (issue #61 item 26); previously discarded.
+                let init_gas = self.install_contract_from_deploy_tx(state, &rec.tx, exec_ctx)?;
                 Ok(VmExecutionResult {
-                    gas_used: GAS_PER_QA_POOL_VOTE,
+                    gas_used: GAS_PER_QA_POOL_VOTE.saturating_add(init_gas),
                     return_data: b"qa_vote_allow".to_vec(),
                     logs: Vec::new(),
                 })
@@ -1967,12 +1970,13 @@ impl Vm {
     }
 
     /// Create the contract for a previously registered Unsure deploy (nonce already consumed).
+    /// Returns gas used by init-code execution (0 when the deploy has no init section).
     fn install_contract_from_deploy_tx(
         &self,
         state: &mut StateStore,
         tx: &Transaction,
         exec_ctx: VmExecutionContext,
-    ) -> Result<(), VmError> {
+    ) -> Result<u64, VmError> {
         let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) =
             tx.payload.as_contract_deploy()
         else {
@@ -1998,10 +2002,10 @@ impl Vm {
         });
         let uses_init = contract_deploy_uses_init_code(bytecode);
         let init_body = contract_deploy_init_body(bytecode);
-        let stored_code = if uses_init {
+        let (stored_code, init_gas) = if uses_init {
             let mut interpreter =
                 Interpreter::new(init_body.to_vec(), GAS_PER_CONTRACT_DEPLOY_INIT);
-            let _g_init = interpreter.run_with_qa(
+            let g_init = interpreter.run_with_qa(
                 tx.sender,
                 contract_addr,
                 &[],
@@ -2020,12 +2024,12 @@ impl Vm {
                     self.qa_at(exec_ctx),
                 )?;
             }
-            runtime
+            (runtime, g_init)
         } else {
-            bytecode.to_vec()
+            (bytecode.to_vec(), 0)
         };
         state.set_contract_code(contract_addr, stored_code);
-        Ok(())
+        Ok(init_gas)
     }
 
     /// Apply every batch step in order. Any error aborts with `Err`; the block executor reverts the
@@ -3267,13 +3271,13 @@ pub(crate) fn apply_in_tx_create2(
                 message: r.message,
             });
         }
+        // In-tx CREATE2 has no QA-pool path; Unsure must not silently install (issue #61 item 27).
         QaResult::Unsure => {
-            boing_telemetry::component_debug(
-                "boing_execution::vm",
-                "execution",
-                "create2_qa_unsure_proceeding",
-                "in-tx CREATE2 QA Unsure at execution — proceeding",
-            );
+            return Err(VmError::QaRejected {
+                rule_id: boing_qa::RuleId::SOFT_RULE_FAILED.to_string(),
+                message: "in-tx CREATE2 QA Unsure: deploy via a top-level ContractDeploy for community review"
+                    .to_string(),
+            });
         }
     }
 
@@ -3321,6 +3325,53 @@ pub(crate) fn apply_in_tx_create2(
 
     state.set_contract_code(contract_addr, stored_code);
     Ok((contract_addr, init_gas))
+}
+
+#[cfg(test)]
+mod create2_qa_unsure_tests {
+    use super::*;
+    use boing_qa::RuleRegistry;
+
+    #[test]
+    fn in_tx_create2_rejects_qa_unsure() {
+        // Purpose "dapp" is always-review → Unsure; CREATE2 must not proceed (issue #61 item 27).
+        let reg = RuleRegistry::new().with_always_review_categories(vec!["dapp".to_string()]);
+        let mut state = StateStore::new();
+        let deployer = AccountId([3u8; 32]);
+        let mut logs = Vec::new();
+        let err = apply_in_tx_create2(
+            &mut state,
+            &reg,
+            deployer,
+            [1u8; 32],
+            vec![0x00], // minimal STOP bytecode
+            GAS_PER_CONTRACT_DEPLOY_INIT,
+            &mut logs,
+            0,
+            VmExecutionContext {
+                block_height: 1,
+                block_timestamp: 1,
+                native_value: false,
+                vm_hardening: true,
+            },
+        )
+        .expect_err("Unsure CREATE2 must fail");
+        match err {
+            VmError::QaRejected { message, .. } => {
+                assert!(
+                    message.contains("CREATE2 QA Unsure"),
+                    "unexpected message: {message}"
+                );
+            }
+            other => panic!("expected QaRejected, got {other}"),
+        }
+        assert!(
+            state
+                .get_contract_code(&create2_contract_address(&deployer, &[1u8; 32], &[0x00]))
+                .is_none(),
+            "no code installed on Unsure"
+        );
+    }
 }
 
 #[cfg(test)]

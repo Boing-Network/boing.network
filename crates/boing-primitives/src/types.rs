@@ -852,16 +852,19 @@ impl TransactionPayload {
         }
     }
 
-    /// Native BOING moved by this payload (Transfer amount, or sum of batch transfer steps).
-    /// Used by the optional transfer-amount fee so batching cannot dodge it.
+    /// Native BOING moved by this payload (Transfer amount, ContractCallWithValue, or batch
+    /// transfer / value-call steps). Used by the optional transfer-amount fee so value-bearing
+    /// calls and batches cannot dodge it (issue #61 item 28).
     pub fn native_transfer_total(&self) -> u128 {
         match self {
             TransactionPayload::Transfer { amount, .. } => *amount,
+            TransactionPayload::ContractCallWithValue { value, .. } => *value,
             TransactionPayload::Batch { calls } => calls
                 .iter()
                 .map(|c| match c {
                     BatchCall::Transfer { amount, .. } => *amount,
-                    BatchCall::ContractCall { .. } | BatchCall::ContractCallWithValue { .. } => 0,
+                    BatchCall::ContractCallWithValue { value, .. } => *value,
+                    BatchCall::ContractCall { .. } => 0,
                 })
                 .fold(0u128, |a, b| a.saturating_add(b)),
             _ => 0,
@@ -1507,5 +1510,40 @@ mod receipt_root_tests {
         let a = receipts_root(&[r1.clone(), r2.clone()]);
         let b = receipts_root(&[r2, r1]);
         assert_ne!(a, b);
+    }
+}
+
+#[cfg(test)]
+mod native_transfer_total_tests {
+    use super::*;
+
+    #[test]
+    fn native_transfer_total_includes_call_value() {
+        let to = AccountId([2u8; 32]);
+        let transfer = TransactionPayload::Transfer { to, amount: 100 };
+        assert_eq!(transfer.native_transfer_total(), 100);
+
+        let call_value = TransactionPayload::ContractCallWithValue {
+            contract: to,
+            calldata: vec![],
+            value: 55,
+        };
+        assert_eq!(call_value.native_transfer_total(), 55);
+
+        let batch = TransactionPayload::Batch {
+            calls: vec![
+                BatchCall::Transfer { to, amount: 10 },
+                BatchCall::ContractCallWithValue {
+                    contract: to,
+                    calldata: vec![],
+                    value: 7,
+                },
+                BatchCall::ContractCall {
+                    contract: to,
+                    calldata: vec![],
+                },
+            ],
+        };
+        assert_eq!(batch.native_transfer_total(), 17);
     }
 }

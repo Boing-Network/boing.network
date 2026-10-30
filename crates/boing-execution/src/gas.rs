@@ -61,11 +61,14 @@ impl GasConfig {
     }
 
     /// Upper bound for any single tx (predictable cap).
+    ///
+    /// Sized to cover a full contract-call budget plus large PutBlob gas (~84M for 16 MiB),
+    /// so adaptive fee helpers are not under-capped relative to media-blob txs (issue #61 item 25).
     pub fn max_tx_gas(&self) -> u64 {
         self.gas(
             base::CONTRACT_CALL
                 .max(base::CONTRACT_DEPLOY)
-                .saturating_mul(2),
+                .saturating_mul(3),
         )
     }
 }
