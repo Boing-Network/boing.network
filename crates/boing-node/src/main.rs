@@ -834,6 +834,7 @@ async fn main() -> anyhow::Result<()> {
                 interval.tick().await;
                 let mut n = node_clone.write().await;
                 n.tick_liveness();
+                n.tick_proposal_timeout();
                 if let Some(h) = n.produce_block_if_ready() {
                     tracing::info!("Produced block: {:?}", h);
                 }
