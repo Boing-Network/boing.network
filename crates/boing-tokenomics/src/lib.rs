@@ -306,7 +306,9 @@ pub fn network_fee_amount_in(
 ) -> u128 {
     let gas_fee = execution_gas_fee_in(gas_used, policy, denom);
     let bps_fee = match payload {
-        TransactionPayload::Transfer { .. } | TransactionPayload::Batch { .. }
+        TransactionPayload::Transfer { .. }
+        | TransactionPayload::ContractCallWithValue { .. }
+        | TransactionPayload::Batch { .. }
             if policy.transfer_amount_bps > 0 =>
         {
             payload
@@ -736,6 +738,20 @@ mod tests {
         assert_eq!(network_fee_amount_in(21_000, &tx, &p, d), 7);
         assert_eq!(total_fee_with_tip_in(21_000, &tx, &p, d, 100), 107);
         assert_eq!(execution_gas_fee_in(21_000, &p, d), 0);
+    }
+
+    #[test]
+    fn transfer_bps_applies_to_contract_call_with_value() {
+        let d = Denomination::BaseUnits;
+        let mut p = NetworkFeePolicy::waived_execution_gas_for_tests();
+        p.transfer_amount_bps = 100; // 1%
+        let tx = TransactionPayload::ContractCallWithValue {
+            contract: AccountId([9; 32]),
+            calldata: vec![],
+            value: 10_000,
+        };
+        // 1% of 10_000 = 100; no gas fee (waived)
+        assert_eq!(network_fee_amount_in(21_000, &tx, &p, d), 100);
     }
 
     #[test]
