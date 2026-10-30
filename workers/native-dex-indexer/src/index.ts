@@ -3,6 +3,7 @@
  * - GET /stats, GET / — full indexer JSON: **`schemaVersion`: 1**, **`tokens`** (alias of **`tokenDirectory`**),
  *   pools with **`reserveA` / `reserveB`** when available (aligns with `boing_listDexPools` / HANDOFF §4).
  *   Pool rows may include **`createdAtHeight`**, **`tokenADecimals`**, **`tokenBDecimals`** when stats are built with **`buildNativeDexIndexerStatsForClient`** merging **`boing_listDexPools`** for the canonical factory.
+ *   Responses are served from a short in-isolate payload cache (default 30s) to avoid re-scanning RPC on every hit.
  *   Optional pools_page pools_page_size
  * - GET /v1/directory/meta — row counts + last sync batch id
  * - GET /v1/directory/pools?limit=&cursor= — cursor pagination (stable order by pool_hex)
@@ -109,7 +110,12 @@ function sliceIndexerPoolsInPayload(payload: Record<string, unknown>, url: URL):
   };
 }
 
-async function buildPayload(env: Env) {
+/** In-isolate TTL for GET `/` and `/stats` (issue #61 item 73). Sync/cron always rebuild. */
+const PAYLOAD_CACHE_TTL_MS = 30_000;
+type IndexerPayload = Awaited<ReturnType<typeof buildPayloadUncached>>;
+let payloadCache: { expiresAt: number; payload: IndexerPayload } | null = null;
+
+async function buildPayloadUncached(env: Env) {
   const baseUrl = rpcBaseUrl(env);
 
   const client = createClient({ baseUrl });
@@ -134,6 +140,25 @@ async function buildPayload(env: Env) {
     tokenUsdJson: env.NATIVE_DEX_INDEXER_TOKEN_USD_JSON,
     tokenDirectoryExtraJson: env.NATIVE_DEX_INDEXER_TOKEN_DIRECTORY_JSON,
   });
+}
+
+function rememberPayload(payload: IndexerPayload): IndexerPayload {
+  payloadCache = { expiresAt: Date.now() + PAYLOAD_CACHE_TTL_MS, payload };
+  return payload;
+}
+
+/** Fresh RPC scan; updates the short-lived GET cache. */
+async function buildPayload(env: Env) {
+  return rememberPayload(await buildPayloadUncached(env));
+}
+
+/** Prefer the in-isolate cache for unauthenticated GETs. */
+async function buildPayloadCached(env: Env) {
+  const now = Date.now();
+  if (payloadCache && now < payloadCache.expiresAt) {
+    return payloadCache.payload;
+  }
+  return buildPayload(env);
 }
 
 function rpcBaseUrl(env: Env): string {
@@ -474,7 +499,7 @@ export default {
       }
 
       if (request.method === 'GET' && (path === '/stats' || path === '/')) {
-        const payload = await buildPayload(env);
+        const payload = await buildPayloadCached(env);
         const sliced = sliceIndexerPoolsInPayload(payload as Record<string, unknown>, url);
         return new Response(JSON.stringify(sliced), {
           headers: {

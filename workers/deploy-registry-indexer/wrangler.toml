@@ -35,3 +35,5 @@ DEPLOY_REGISTRY_FROM_HEIGHT = "0"
 DEPLOY_REGISTRY_MAX_BLOCKS_PER_TICK = "12"
 # Concurrent `boing_getBlockByHeight` JSON-RPC calls per tick (1–16).
 DEPLOY_REGISTRY_PARALLEL_FETCHES = "6"
+# Soft per-isolate cap on concurrent GET /v1/deployments/stream SSE clients (issue #61 item 72).
+# DEPLOY_REGISTRY_MAX_SSE = "32"
