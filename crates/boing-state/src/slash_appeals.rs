@@ -872,6 +872,19 @@ impl SlashAppealRegistry {
         self.slashes.values().collect()
     }
 
+    /// Lookup an equivocation slash seeded for `(account, round)` (`block_height` stores the round).
+    pub fn find_equivocation_at_round(
+        &self,
+        account: &AccountId,
+        round: u64,
+    ) -> Option<&ConsensusSlashRecord> {
+        self.slashes.values().find(|s| {
+            s.account == *account
+                && s.block_height == round
+                && matches!(s.reason, ConsensusSlashReason::Equivocation)
+        })
+    }
+
     pub fn list_appeals(&self) -> Vec<&ConsensusSlashAppeal> {
         self.appeals.values().collect()
     }

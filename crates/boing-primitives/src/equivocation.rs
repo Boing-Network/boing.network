@@ -6,6 +6,9 @@ use crate::consensus_vote::ConsensusVote;
 use crate::signature::SignatureError;
 use crate::types::AccountId;
 
+/// Bincode / payload index for [`crate::TransactionPayload::ReportEquivocation`].
+pub const REPORT_EQUIVOCATION_TX_INDEX: u32 = 36;
+
 /// Two valid signatures from one validator for different blocks in the same round.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EquivocationEvidence {

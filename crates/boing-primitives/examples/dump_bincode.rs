@@ -155,6 +155,12 @@ fn main() {
         hex::encode(&p)
     );
 
+    // ReportEquivocation needs real vote bytes; print discriminant only via a Transfer-sized stub note.
+    println!(
+        "ReportEquivocation index={}",
+        boing_primitives::REPORT_EQUIVOCATION_TX_INDEX
+    );
+
     let qv = TransactionPayload::QaPoolVote {
         subject: boing_primitives::Hash([3u8; 32]),
         vote: boing_primitives::QaPoolVoteKind::Allow,

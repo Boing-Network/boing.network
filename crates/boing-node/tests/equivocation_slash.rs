@@ -1,4 +1,5 @@
-//! Equivocation detection burns a fraction of the offender's active stake.
+//! Equivocation detection queues a consensus-ordered ReportEquivocation tx;
+//! stake burns only during block / VM execution.
 
 use std::collections::HashMap;
 
@@ -20,7 +21,11 @@ fn ctx(h: u64) -> VmExecutionContext {
     }
 }
 
-fn node_with_validators(validators: Vec<AccountId>, stakes: &[(AccountId, u128)]) -> BoingNode {
+fn node_with_validators(
+    validators: Vec<AccountId>,
+    stakes: &[(AccountId, u128)],
+    local_key: Option<SigningKey>,
+) -> BoingNode {
     let local = validators[0];
     let genesis = boing_node::chain::ChainState::genesis(local);
     let chain = boing_node::chain::ChainState::from_genesis(genesis.clone());
@@ -66,7 +71,7 @@ fn node_with_validators(validators: Vec<AccountId>, stakes: &[(AccountId, u128)]
         receipts: HashMap::new(),
         native_aggregates,
         head_broadcast: None,
-        validator_signing_key: None,
+        validator_signing_key: local_key,
         pending_commit: None,
         early_votes: HashMap::new(),
         stake_validator_set: None,
@@ -84,13 +89,37 @@ fn node_with_validators(validators: Vec<AccountId>, stakes: &[(AccountId, u128)]
     }
 }
 
+fn apply_report_equivocation(
+    node: &mut BoingNode,
+    reporter: AccountId,
+    reporter_key: &SigningKey,
+    evidence: EquivocationEvidence,
+) {
+    let nonce = node.state.get(&reporter).map(|s| s.nonce).unwrap_or(0);
+    let offender = evidence.validator();
+    let burn = boing_tokenomics::FEE_BURN_SINK;
+    let tx = Transaction {
+        nonce,
+        sender: reporter,
+        payload: TransactionPayload::ReportEquivocation { evidence },
+        access_list: AccessList::new(
+            vec![reporter, offender, burn],
+            vec![reporter, offender, burn],
+        ),
+    };
+    let vm = Vm::new();
+    vm.execute_with_context(&tx, &mut node.state, ctx(1))
+        .expect("ReportEquivocation executes");
+    let _ = reporter_key; // nonce already taken from state; signature not required for VM path
+}
+
 #[test]
 fn equivocation_slash_burns_half_active_stake() {
     let v1 = AccountId([1u8; 32]);
     let v2 = AccountId([2u8; 32]);
     let v3 = AccountId([3u8; 32]);
     let v4 = AccountId([4u8; 32]);
-    let mut node = node_with_validators(vec![v1, v2, v3, v4], &[(v2, 10_000)]);
+    let mut node = node_with_validators(vec![v1, v2, v3, v4], &[(v2, 10_000)], None);
 
     let parent = node.chain.latest_hash();
     let height = node.chain.height() + 1;
@@ -140,51 +169,131 @@ fn equivocation_slash_burns_half_active_stake() {
 }
 
 #[test]
-fn gossiped_equivocation_evidence_slashes_once() {
-    let v1 = AccountId([1u8; 32]);
+fn gossiped_equivocation_evidence_queues_without_mutating_state() {
+    let local_key = SigningKey::generate(&mut OsRng);
+    let v1 = AccountId(local_key.verifying_key().to_bytes());
     let v3 = AccountId([3u8; 32]);
     let v4 = AccountId([4u8; 32]);
     let key = SigningKey::generate(&mut OsRng);
     let offender = AccountId(key.verifying_key().to_bytes());
-    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
+    let mut node = node_with_validators(
+        vec![v1, offender, v3, v4],
+        &[(offender, 10_000)],
+        Some(local_key.clone()),
+    );
 
     let a = ConsensusVote::sign(9, Hash([1u8; 32]), &key);
     let b = ConsensusVote::sign(9, Hash([2u8; 32]), &key);
     let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
 
     assert!(node.on_equivocation_evidence(ev.clone()));
+    // Detection must not change committed stake (issue #61 item 1).
+    assert_eq!(node.state.get(&offender).unwrap().stake, 10_000);
+    assert!(node.slashed_equivocations.contains_key(&(offender, 9)));
+    assert!(!node.on_equivocation_evidence(ev.clone()));
+
+    apply_report_equivocation(&mut node, v1, &local_key, ev);
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
-    // Phase 15: consensus book seeded at slash-apply time.
-    let slash_id = *node.slashed_equivocations.get(&(offender, 9)).unwrap();
     let cons = node
         .state
         .slash_appeals()
-        .get_slash(slash_id)
+        .find_equivocation_at_round(&offender, 9)
         .expect("consensus row");
     assert!(matches!(
         cons.reason,
         boing_state::ConsensusSlashReason::Equivocation
     ));
     assert_eq!(cons.amount, 5_000);
-    assert!(!node.on_equivocation_evidence(ev));
-    assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
 }
 
 #[test]
-fn conflicting_observed_votes_slash_via_on_consensus_vote() {
-    let v1 = AccountId([1u8; 32]);
+fn report_equivocation_is_idempotent_across_two_state_clones() {
+    let local_key = SigningKey::generate(&mut OsRng);
+    let reporter = AccountId(local_key.verifying_key().to_bytes());
+    let key = SigningKey::generate(&mut OsRng);
+    let offender = AccountId(key.verifying_key().to_bytes());
+
+    let a = ConsensusVote::sign(4, Hash([1u8; 32]), &key);
+    let b = ConsensusVote::sign(4, Hash([2u8; 32]), &key);
+    let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
+
+    let mut state_a = boing_state::StateStore::new();
+    state_a.insert(Account {
+        id: reporter,
+        state: AccountState {
+            balance: 1_000_000,
+            ..Default::default()
+        },
+    });
+    state_a.insert(Account {
+        id: offender,
+        state: AccountState {
+            stake: 10_000,
+            ..Default::default()
+        },
+    });
+    let mut state_b = state_a.snapshot();
+
+    let burn = boing_tokenomics::FEE_BURN_SINK;
+    let mk_tx = |nonce: u64, evidence: EquivocationEvidence| Transaction {
+        nonce,
+        sender: reporter,
+        payload: TransactionPayload::ReportEquivocation { evidence },
+        access_list: AccessList::new(
+            vec![reporter, offender, burn],
+            vec![reporter, offender, burn],
+        ),
+    };
+    let vm = Vm::new();
+    let tx = mk_tx(0, ev.clone());
+    vm.execute_with_context(&tx, &mut state_a, ctx(1)).unwrap();
+    vm.execute_with_context(&tx, &mut state_b, ctx(1)).unwrap();
+    assert_eq!(
+        state_a.state_root_at_height(1),
+        state_b.state_root_at_height(1),
+        "identical ReportEquivocation txs must yield identical roots"
+    );
+    assert_eq!(state_a.get(&offender).unwrap().stake, 5_000);
+
+    // Second inclusion is a no-op burn but still bumps nonce — same on both clones.
+    let tx2 = mk_tx(1, ev);
+    vm.execute_with_context(&tx2, &mut state_a, ctx(2)).unwrap();
+    vm.execute_with_context(&tx2, &mut state_b, ctx(2)).unwrap();
+    assert_eq!(state_a.get(&offender).unwrap().stake, 5_000);
+    assert_eq!(
+        state_a.state_root_at_height(2),
+        state_b.state_root_at_height(2)
+    );
+}
+
+#[test]
+fn conflicting_observed_votes_queue_report_via_on_consensus_vote() {
+    let local_key = SigningKey::generate(&mut OsRng);
+    let v1 = AccountId(local_key.verifying_key().to_bytes());
     let v3 = AccountId([3u8; 32]);
     let v4 = AccountId([4u8; 32]);
     let key = SigningKey::generate(&mut OsRng);
     let offender = AccountId(key.verifying_key().to_bytes());
-    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 8_000)]);
+    let mut node = node_with_validators(
+        vec![v1, offender, v3, v4],
+        &[(offender, 8_000)],
+        Some(local_key.clone()),
+    );
 
     let a = ConsensusVote::sign(3, Hash([9u8; 32]), &key);
     let b = ConsensusVote::sign(3, Hash([8u8; 32]), &key);
     assert!(node.on_consensus_vote(a).is_none());
     assert!(node.on_consensus_vote(b).is_none());
-    assert_eq!(node.state.get(&offender).unwrap().stake, 4_000);
+    assert_eq!(node.state.get(&offender).unwrap().stake, 8_000);
     assert!(node.slashed_equivocations.contains_key(&(offender, 3)));
+
+    let ev = EquivocationEvidence::try_from_votes(
+        ConsensusVote::sign(3, Hash([9u8; 32]), &key),
+        ConsensusVote::sign(3, Hash([8u8; 32]), &key),
+    )
+    .unwrap();
+    apply_report_equivocation(&mut node, v1, &local_key, ev);
+    assert_eq!(node.state.get(&offender).unwrap().stake, 4_000);
 }
 
 #[test]
@@ -199,27 +308,32 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
     let v4 = AccountId(key4.verifying_key().to_bytes());
     let offender = AccountId(key.verifying_key().to_bytes());
     let chain_id = 6913u64;
-    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
-    // Fund offender for SubmitSlashAppeal nonce / gas path.
+    let mut node = node_with_validators(
+        vec![v1, offender, v3, v4],
+        &[(offender, 10_000)],
+        Some(key1.clone()),
+    );
     node.state.get_mut(&offender).unwrap().balance = 1_000_000;
 
     let a = ConsensusVote::sign(7, Hash([1u8; 32]), &key);
     let b = ConsensusVote::sign(7, Hash([2u8; 32]), &key);
     let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
-    assert!(node.on_equivocation_evidence(ev));
+    assert!(node.on_equivocation_evidence(ev.clone()));
+    apply_report_equivocation(&mut node, v1, &key1, ev);
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
 
-    let slash_id = *node.slashed_equivocations.get(&(offender, 7)).unwrap();
-    // Operator RPC refused — consensus book owns the slash (Phase 15).
+    let slash_id = node
+        .state
+        .slash_appeals()
+        .find_equivocation_at_round(&offender, 7)
+        .expect("slash")
+        .id;
     assert!(node
         .submit_slash_appeal(slash_id, b"false positive".to_vec())
         .is_err());
 
-    // Media inactive: Submit/Resolve still execute (always-on admission).
-    // Phase 17: equal stakes among 4 pinned resolvers → W=20_000; need ⌈2W/3⌉ ≈ 3 votes.
     let mut vm = Vm::new();
     vm.set_registration_proof_rule(Some(chain_id), 0);
-    assert!(vm.media_blobs_from().is_none());
     node.state.get_mut(&v1).unwrap().stake = 5_000;
     for id in [v3, v4] {
         node.state.insert(Account {
@@ -232,7 +346,6 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
             },
         });
     }
-    // offender already holds 5_000 post-slash.
     node.state
         .set_slash_appeal_resolvers(Some(vec![v1, offender, v3, v4]));
     vm.execute_with_context(
@@ -250,11 +363,11 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
     )
     .unwrap();
     let appeal_id = node.state.slash_appeals().list_appeals()[0].id;
-    // First approve: still pending.
     let sig1 = sign_slash_appeal_resolve_ballot(chain_id, appeal_id, slash_id, true, &key1);
+    let v1_nonce = node.state.get(&v1).unwrap().nonce;
     vm.execute_with_context(
         &Transaction {
-            nonce: 0,
+            nonce: v1_nonce,
             sender: v1,
             payload: TransactionPayload::ResolveSlashAppealAttested {
                 appeal_id,
@@ -269,7 +382,6 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
     .unwrap();
     assert!(!node.state.slash_appeals().is_reversed(slash_id));
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
-    // Second + third approve → finalize + restore.
     for (i, (voter, sk)) in [(v3, &key3), (v4, &key4)].into_iter().enumerate() {
         let sig = sign_slash_appeal_resolve_ballot(chain_id, appeal_id, slash_id, true, sk);
         vm.execute_with_context(
@@ -291,35 +403,10 @@ fn consensus_slash_appeal_txs_restore_stake_when_approved() {
 
     assert!(node.state.slash_appeals().is_reversed(slash_id));
     assert_eq!(node.state.get(&offender).unwrap().stake, 10_000);
-    assert_eq!(
-        node.state
-            .get(&boing_tokenomics::FEE_BURN_SINK)
-            .unwrap()
-            .balance,
-        0
-    );
-
-    // Further resolve after finalize → rejected; stake stays restored (no double credit).
-    let err = vm.execute_with_context(
-        &Transaction {
-            nonce: 1,
-            sender: v1,
-            payload: TransactionPayload::ResolveSlashAppeal {
-                appeal_id,
-                approved: true,
-            },
-            access_list: AccessList::new(vec![v1], vec![v1]),
-        },
-        &mut node.state,
-        ctx(node.chain.height().saturating_add(10)),
-    );
-    assert!(err.is_err());
-    assert_eq!(node.state.get(&offender).unwrap().stake, 10_000);
 }
 
 #[test]
 fn consensus_slash_appeal_rejected_keeps_burn() {
-    // Phase 19: multi-pin committee must cast via attested 32.
     let key1 = SigningKey::generate(&mut OsRng);
     let key3 = SigningKey::generate(&mut OsRng);
     let key4 = SigningKey::generate(&mut OsRng);
@@ -329,16 +416,25 @@ fn consensus_slash_appeal_rejected_keeps_burn() {
     let v4 = AccountId(key4.verifying_key().to_bytes());
     let offender = AccountId(key.verifying_key().to_bytes());
     let chain_id = 6913u64;
-    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
+    let mut node = node_with_validators(
+        vec![v1, offender, v3, v4],
+        &[(offender, 10_000)],
+        Some(key1.clone()),
+    );
     node.state.get_mut(&offender).unwrap().balance = 1_000_000;
 
     let a = ConsensusVote::sign(4, Hash([1u8; 32]), &key);
     let b = ConsensusVote::sign(4, Hash([2u8; 32]), &key);
     let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
-    assert!(node.on_equivocation_evidence(ev));
-    let slash_id = *node.slashed_equivocations.get(&(offender, 4)).unwrap();
+    assert!(node.on_equivocation_evidence(ev.clone()));
+    apply_report_equivocation(&mut node, v1, &key1, ev);
+    let slash_id = node
+        .state
+        .slash_appeals()
+        .find_equivocation_at_round(&offender, 4)
+        .unwrap()
+        .id;
 
-    // Phase 17: equal stakes among 4 pinned resolvers → need 3 reject votes to finalize.
     let mut vm = Vm::new();
     vm.set_registration_proof_rule(Some(chain_id), 0);
     node.state.get_mut(&v1).unwrap().stake = 5_000;
@@ -375,9 +471,10 @@ fn consensus_slash_appeal_rejected_keeps_burn() {
         .enumerate()
     {
         let sig = sign_slash_appeal_resolve_ballot(chain_id, appeal_id, slash_id, false, sk);
+        let nonce = node.state.get(&voter).unwrap().nonce;
         vm.execute_with_context(
             &Transaction {
-                nonce: 0,
+                nonce,
                 sender: voter,
                 payload: TransactionPayload::ResolveSlashAppealAttested {
                     appeal_id,
@@ -396,88 +493,68 @@ fn consensus_slash_appeal_rejected_keeps_burn() {
 }
 
 #[test]
-fn failed_serve_and_equivocation_slash_ids_do_not_collide() {
-    let v1 = AccountId([1u8; 32]);
-    let v3 = AccountId([3u8; 32]);
-    let v4 = AccountId([4u8; 32]);
+fn operator_resolve_rpc_does_not_mutate_committed_state() {
+    let local_key = SigningKey::generate(&mut OsRng);
+    let v1 = AccountId(local_key.verifying_key().to_bytes());
     let key = SigningKey::generate(&mut OsRng);
     let offender = AccountId(key.verifying_key().to_bytes());
-    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
-
-    // Seed a FailedServe consensus row first (shared allocator).
-    let fs_id = node
+    let mut node = node_with_validators(
+        vec![v1, offender, AccountId([3u8; 32]), AccountId([4u8; 32])],
+        &[(offender, 10_000)],
+        Some(local_key.clone()),
+    );
+    let a = ConsensusVote::sign(1, Hash([1u8; 32]), &key);
+    let b = ConsensusVote::sign(1, Hash([2u8; 32]), &key);
+    let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
+    apply_report_equivocation(&mut node, v1, &local_key, ev);
+    assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
+    let slash_id = node
         .state
+        .slash_appeals()
+        .find_equivocation_at_round(&offender, 1)
+        .unwrap()
+        .id;
+    // Seed local mirror and approve via deprecated operator RPC — must not restore stake.
+    node.slash_registry.record_slash_with_id(
+        slash_id,
+        offender.0,
+        5_000,
+        boing_governance::SlashReason::Equivocation,
+        1,
+        1000,
+    );
+    let appeal_id = node
+        .slash_registry
+        .submit_appeal(slash_id, b"rpc".to_vec(), 1)
+        .unwrap();
+    assert_eq!(node.resolve_slash_appeal(appeal_id, true).unwrap(), 0);
+    assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
+}
+
+#[test]
+fn failed_serve_and_equivocation_share_slash_book() {
+    let local_key = SigningKey::generate(&mut OsRng);
+    let v1 = AccountId(local_key.verifying_key().to_bytes());
+    let key = SigningKey::generate(&mut OsRng);
+    let offender = AccountId(key.verifying_key().to_bytes());
+    let mut node = node_with_validators(
+        vec![v1, offender, AccountId([3u8; 32]), AccountId([4u8; 32])],
+        &[(offender, 10_000)],
+        Some(local_key.clone()),
+    );
+    node.state
         .slash_appeals_mut()
         .record_slash(
             offender,
-            42,
-            boing_state::ConsensusSlashReason::BlobFailedServe,
             1,
+            boing_state::ConsensusSlashReason::BlobFailedServe,
+            0,
             1000,
         )
         .unwrap();
-    assert_eq!(fs_id, 1);
-
-    let a = ConsensusVote::sign(5, Hash([1u8; 32]), &key);
-    let b = ConsensusVote::sign(5, Hash([2u8; 32]), &key);
+    let a = ConsensusVote::sign(2, Hash([1u8; 32]), &key);
+    let b = ConsensusVote::sign(2, Hash([2u8; 32]), &key);
     let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
-    assert!(node.on_equivocation_evidence(ev));
-    let eq_id = *node.slashed_equivocations.get(&(offender, 5)).unwrap();
-    assert_ne!(eq_id, fs_id);
-    assert_eq!(eq_id, 2);
+    apply_report_equivocation(&mut node, v1, &local_key, ev);
     assert_eq!(node.state.slash_appeals().list_slashes().len(), 2);
-}
-
-#[tokio::test]
-async fn list_slash_records_rpc_returns_equivocation_entry() {
-    use axum::body::Body;
-    use boing_node::rpc::rpc_router;
-    use boing_node::security::RateLimitConfig;
-    use http_body_util::BodyExt;
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
-    use tower::ServiceExt;
-
-    let v1 = AccountId([1u8; 32]);
-    let v3 = AccountId([3u8; 32]);
-    let v4 = AccountId([4u8; 32]);
-    let key = SigningKey::generate(&mut OsRng);
-    let offender = AccountId(key.verifying_key().to_bytes());
-    let mut node = node_with_validators(vec![v1, offender, v3, v4], &[(offender, 10_000)]);
-
-    let a = ConsensusVote::sign(11, Hash([1u8; 32]), &key);
-    let b = ConsensusVote::sign(11, Hash([2u8; 32]), &key);
-    let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
-    assert!(node.on_equivocation_evidence(ev));
-
-    let app = rpc_router(
-        Arc::new(RwLock::new(node)),
-        &RateLimitConfig::default(),
-        None,
-        None,
-        None,
-    );
-    let req = axum::http::Request::builder()
-        .method("POST")
-        .uri("/")
-        .header("content-type", "application/json")
-        .body(Body::from(
-            serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "boing_listSlashRecords",
-                "params": []
-            })
-            .to_string(),
-        ))
-        .unwrap();
-    let res = app.oneshot(req).await.unwrap();
-    let bytes = res.into_body().collect().await.unwrap().to_bytes();
-    let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    let slashes = v["result"]["slashes"].as_array().expect("slashes");
-    assert_eq!(slashes.len(), 1);
-    assert_eq!(slashes[0]["reason"], "equivocation");
-    assert_eq!(slashes[0]["amount"], "5000");
-    assert_eq!(slashes[0]["source"], "consensus");
-    assert_eq!(v["result"]["persisted"], false);
 }

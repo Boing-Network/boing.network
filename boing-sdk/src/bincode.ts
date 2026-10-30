@@ -64,6 +64,8 @@ export const PayloadVariant = {
   GrantBlobDownload: 34,
   /** Revoke media-blob download ACL (Phase 34; publisher-only). */
   RevokeBlobDownload: 35,
+  /** Report verified equivocation evidence (consensus-ordered slash). */
+  ReportEquivocation: 36,
 } as const;
 
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
@@ -330,7 +332,12 @@ export type TransactionPayloadInput =
       signerBlsPubkeys: Uint8Array[];
     }
   | { kind: 'grantBlobDownload'; blobId: Uint8Array; grantee: Uint8Array }
-  | { kind: 'revokeBlobDownload'; blobId: Uint8Array; grantee: Uint8Array };
+  | { kind: 'revokeBlobDownload'; blobId: Uint8Array; grantee: Uint8Array }
+  | {
+      kind: 'reportEquivocation';
+      /** Bincode bytes of `boing_primitives::EquivocationEvidence` (two `ConsensusVote`s). */
+      evidence: Uint8Array;
+    };
 
 function need32(b: Uint8Array, what: string): Uint8Array {
   if (b.length !== 32) throw new Error(`${what} must be 32 bytes`);
@@ -603,6 +610,9 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
         need32(payload.blobId, 'blobId'),
         need32(payload.grantee, 'grantee'),
       );
+    case 'reportEquivocation':
+      // Nested `EquivocationEvidence` is already bincode; wrap as the variant payload body.
+      return concatBytes(writeU32Le(PayloadVariant.ReportEquivocation), payload.evidence);
     default: {
       const _x: never = payload;
       return _x;

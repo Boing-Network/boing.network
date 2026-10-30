@@ -818,6 +818,9 @@ impl Vm {
                     exec_ctx.block_height,
                 );
             }
+            TransactionPayload::ReportEquivocation { evidence } => {
+                return self.execute_report_equivocation(state, tx, evidence, exec_ctx.block_height);
+            }
         };
         Ok(VmExecutionResult {
             gas_used,
@@ -1304,6 +1307,63 @@ impl Vm {
         Ok(VmExecutionResult {
             gas_used: media_blob_meta_tx_gas(),
             return_data: blob_id.to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    /// Apply an equivocation slash inside block execution (consensus-ordered).
+    ///
+    /// Verifies the two conflicting votes, burns
+    /// [`boing_tokenomics::EQUIVOCATION_SLASH_BPS`] of the offender's active stake, and seeds the
+    /// consensus slash-appeal book. Idempotent for `(validator, round)`.
+    fn execute_report_equivocation(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        evidence: &boing_primitives::EquivocationEvidence,
+        _height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        evidence
+            .verify()
+            .map_err(|e| VmError::MediaBlob(format!("invalid equivocation evidence: {e}")))?;
+        let offender = evidence.validator();
+        let round = evidence.round();
+        if let Some(existing_id) = state
+            .slash_appeals()
+            .find_equivocation_at_round(&offender, round)
+            .map(|s| s.id)
+        {
+            // Already applied in a prior block (or earlier tx) — succeed without re-burning.
+            let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+            sender_state.nonce = sender_state
+                .nonce
+                .checked_add(1)
+                .ok_or(VmError::NonceOverflow)?;
+            return Ok(VmExecutionResult {
+                gas_used: GAS_PER_TRANSFER,
+                return_data: existing_id.to_le_bytes().to_vec(),
+                logs: Vec::new(),
+            });
+        }
+        let burned = boing_tokenomics::slash_equivocation_stake(state, &offender);
+        let slash_id = state
+            .slash_appeals_mut()
+            .record_slash(
+                offender,
+                burned,
+                boing_state::ConsensusSlashReason::Equivocation,
+                round,
+                boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS,
+            )
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: GAS_PER_TRANSFER,
+            return_data: slash_id.to_le_bytes().to_vec(),
             logs: Vec::new(),
         })
     }

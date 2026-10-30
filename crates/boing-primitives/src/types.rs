@@ -342,6 +342,11 @@ impl Transaction {
                 hex::encode(&blob_id[..8]),
                 hex::encode(&grantee.0[..8])
             ),
+            TransactionPayload::ReportEquivocation { evidence } => format!(
+                "Report equivocation validator={} round={}",
+                hex::encode(&evidence.validator().0[..8]),
+                evidence.round()
+            ),
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -450,6 +455,13 @@ impl Transaction {
             | TransactionPayload::RevokeBlobDownload { .. }
             | TransactionPayload::QaPoolVote { .. } => {
                 AccessList::new(vec![self.sender], vec![self.sender])
+            }
+            TransactionPayload::ReportEquivocation { evidence } => {
+                let offender = evidence.validator();
+                AccessList::new(
+                    vec![self.sender, offender],
+                    vec![self.sender, offender],
+                )
             }
             TransactionPayload::Batch { calls } => {
                 let mut ids = vec![self.sender];
@@ -714,6 +726,12 @@ pub enum TransactionPayload {
     RevokeBlobDownload {
         blob_id: crate::BlobId,
         grantee: AccountId,
+    },
+    /// Report verified equivocation evidence (index **36**). Burns stake and seeds the consensus
+    /// slash-appeal book during **block execution** so every validator applies the same slash.
+    /// Idempotent per `(validator, round)`.
+    ReportEquivocation {
+        evidence: crate::EquivocationEvidence,
     },
 }
 

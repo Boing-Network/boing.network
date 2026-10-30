@@ -494,7 +494,7 @@ pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_
 pub use denomination::{
     format_boing, parse_boing, Denomination, ParseBoingError, BASE_UNITS_PER_BOING, BOING_DECIMALS,
 };
-pub use equivocation::{EquivocationError, EquivocationEvidence};
+pub use equivocation::{EquivocationError, EquivocationEvidence, REPORT_EQUIVOCATION_TX_INDEX};
 pub use hash::{hasher, Hash};
 pub use hd::HdPath;
 pub use intent::{Intent, IntentKind, SignedIntent};

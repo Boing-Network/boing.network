@@ -394,6 +394,12 @@ fn payload_json(payload: &TransactionPayload, include_code: bool) -> Value {
                 "grantee": account_json(grantee),
             }
         }),
+        TransactionPayload::ReportEquivocation { evidence } => json!({
+            "ReportEquivocation": {
+                "validator": account_json(&evidence.validator()),
+                "round": evidence.round(),
+            }
+        }),
     }
 }
 
