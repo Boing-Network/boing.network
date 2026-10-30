@@ -186,6 +186,7 @@ impl Governance {
 
 pub use slashing_appeal::{
     AppealStatus, SlashReason, SlashRecord, SlashRegistry, SlashingAppeal, SlashingError,
+    MAX_SLASH_APPEAL_EVIDENCE_BYTES,
 };
 
 #[derive(Debug, thiserror::Error)]

@@ -2,10 +2,16 @@
 //!
 //! Slashed validators can submit appeals; governance decides via phased proposal.
 //! Delegators see exactly why validators were slashed.
+//!
+//! Prefer consensus txs `SubmitSlashAppeal` / `ResolveSlashAppeal*` on a live node. The in-memory
+//! [`SlashRegistry`] here is also used as a local RPC mirror; evidence is size-capped.
 
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+
+/// Max evidence bytes for local-mirror appeals (aligned with Phase 14 consensus book).
+pub const MAX_SLASH_APPEAL_EVIDENCE_BYTES: usize = 4096;
 
 /// Reason for a slash (auditable, transparent).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -145,6 +151,8 @@ impl SlashRegistry {
     }
 
     /// Submit an appeal for a slash at `current_height`. Returns appeal ID or error.
+    ///
+    /// Evidence longer than [`MAX_SLASH_APPEAL_EVIDENCE_BYTES`] is rejected (audit #61 item 46).
     pub fn submit_appeal(
         &mut self,
         slash_id: u64,
@@ -152,6 +160,11 @@ impl SlashRegistry {
         current_height: u64,
     ) -> Result<u64, SlashingError> {
         let result = (|| {
+            if evidence.len() > MAX_SLASH_APPEAL_EVIDENCE_BYTES {
+                return Err(SlashingError::EvidenceTooLarge {
+                    max: MAX_SLASH_APPEAL_EVIDENCE_BYTES,
+                });
+            }
             let slash = self
                 .slashes
                 .get(&slash_id)
@@ -289,6 +302,20 @@ mod tests {
     }
 
     #[test]
+    fn evidence_size_capped() {
+        let mut reg = SlashRegistry::new();
+        let slash_id = reg.record_slash([4u8; 32], 1, SlashReason::Fraud, 1, 100);
+        let too_big = vec![0u8; MAX_SLASH_APPEAL_EVIDENCE_BYTES + 1];
+        assert!(matches!(
+            reg.submit_appeal(slash_id, too_big, 1),
+            Err(SlashingError::EvidenceTooLarge { .. })
+        ));
+        assert!(reg
+            .submit_appeal(slash_id, vec![0u8; MAX_SLASH_APPEAL_EVIDENCE_BYTES], 1)
+            .is_ok());
+    }
+
+    #[test]
     fn serde_roundtrip() {
         let mut reg = SlashRegistry::new();
         let id = reg.record_slash([9u8; 32], 42, SlashReason::Liveness, 1, 10);
@@ -312,4 +339,6 @@ pub enum SlashingError {
     AppealAlreadyResolved,
     #[error("Appeal window closed")]
     AppealWindowClosed,
+    #[error("Appeal evidence exceeds {max} bytes")]
+    EvidenceTooLarge { max: usize },
 }

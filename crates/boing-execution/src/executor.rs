@@ -1338,6 +1338,8 @@ mod tests {
 
         let mut pool = QaPoolGovernanceConfig::production_default();
         pool.min_quorum_votes = 1;
+        // This test funds the voter with balance only; disable the production stake gate.
+        pool.min_voter_stake = 0;
         pool.quorum_fraction = 0.5;
         pool.allow_threshold_fraction = 0.5;
         pool.reward_per_counted_vote = 5;

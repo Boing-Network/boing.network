@@ -82,9 +82,11 @@ pub struct RpcState {
     pub faucet_cooldown: Option<FaucetCooldown>,
     pub faucet_submit_lock: Option<FaucetSubmitLock>,
     /// Operator methods (`boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`,
-    /// `boing_submitSlashAppeal`, `boing_resolveSlashAppeal`, **admin-only** `boing_qaPoolVote`)
-    /// require header `X-Boing-Operator: <token>`. When `None`, those methods are rejected.
-    /// Public-membership QA votes do not use this header.
+    /// `boing_resolveSlashAppeal`, **admin-only** `boing_qaPoolVote`) require header
+    /// `X-Boing-Operator: <token>`. When `None`, those methods are rejected.
+    /// `boing_submitSlashAppeal` accepts the operator token **or** a slashed-validator
+    /// Ed25519 signature; without either it is rejected. Public-membership QA votes do
+    /// not use this header.
     pub operator_rpc_token: Option<Arc<str>>,
     /// Extra shared secrets that authorize media-blob byte download
     /// (`GET /v1/media/blob?id=…` and optionally `boing_getBlob`). From
@@ -419,6 +421,39 @@ fn operator_token_matches(expected: Option<&str>, headers: &HeaderMap) -> bool {
         .get("x-boing-operator")
         .and_then(|v| v.to_str().ok())
         .is_some_and(|v| secret_eq(v, expected))
+}
+
+/// Domain-separated message for local-mirror `boing_submitSlashAppeal` without operator token.
+fn slash_appeal_submit_message(slash_id: u64, evidence: &[u8]) -> [u8; 32] {
+    let mut ev = boing_primitives::hasher();
+    ev.update(evidence);
+    let ev_hash = ev.finalize();
+    let mut h = boing_primitives::hasher();
+    h.update(b"BOING_SLASH_APPEAL_SUBMIT_V1");
+    h.update(&slash_id.to_le_bytes());
+    h.update(ev_hash.as_bytes());
+    *h.finalize().as_bytes()
+}
+
+fn verify_slash_appeal_submit_sig(
+    validator: &[u8; 32],
+    slash_id: u64,
+    evidence: &[u8],
+    sig_hex: &str,
+) -> bool {
+    use ed25519_dalek::{Signature, VerifyingKey};
+    let Ok(sig_bytes) = hex::decode(sig_hex.trim().trim_start_matches("0x")) else {
+        return false;
+    };
+    let Ok(sig_arr) = <[u8; 64]>::try_from(sig_bytes.as_slice()) else {
+        return false;
+    };
+    let Ok(vk) = VerifyingKey::from_bytes(validator) else {
+        return false;
+    };
+    let msg = slash_appeal_submit_message(slash_id, evidence);
+    vk.verify_strict(&msg, &Signature::from_bytes(&sig_arr))
+        .is_ok()
 }
 
 #[derive(Debug, Deserialize)]
@@ -2882,25 +2917,23 @@ async fn dispatch_jsonrpc_request(
             rpc_ok(id, result)
         }
         "boing_submitSlashAppeal" => {
-            if !state.operator_authorized(headers) {
-                return (
-                    StatusCode::OK,
-                    rpc_error(
-                        id,
-                        -32057,
-                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
-                            .into(),
-                    ),
-                );
-            }
+            // Local-mirror RPC (prefer consensus SubmitSlashAppeal tx). Auth: operator token
+            // **or** Ed25519 signature from the slashed validator (audit #61 item 46).
+            // Fail closed on auth before param shape errors so operator-gate probes
+            // (empty params, wrong/missing token) still see -32057.
             let params = req.params.unwrap_or(serde_json::Value::Null);
-            let (slash_id, evidence_hex) = match &params {
-                serde_json::Value::Array(arr) if arr.len() >= 2 => {
+            let (slash_id, evidence_hex, validator_sig_hex) = match &params {
+                serde_json::Value::Array(arr) if !arr.is_empty() => {
                     let sid = arr[0]
                         .as_u64()
                         .or_else(|| arr[0].as_str().and_then(|s| s.parse().ok()));
-                    let ev = arr[1].as_str().unwrap_or("").to_string();
-                    (sid, ev)
+                    let ev = arr
+                        .get(1)
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let sig = arr.get(2).and_then(|v| v.as_str()).map(|s| s.to_string());
+                    (sid, ev, sig)
                 }
                 serde_json::Value::Object(map) => {
                     let sid = map.get("slash_id").and_then(|v| {
@@ -2912,17 +2945,34 @@ async fn dispatch_jsonrpc_request(
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string();
-                    (sid, ev)
+                    let sig = map
+                        .get("validator_signature")
+                        .or_else(|| map.get("signature"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+                    (sid, ev, sig)
                 }
-                _ => (None, String::new()),
+                _ => (None, String::new(), None),
             };
+            let operator_ok = state.operator_authorized(headers);
+            if !operator_ok && validator_sig_hex.is_none() {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Authentication required: set X-Boing-Operator, or pass validator_signature (Ed25519 over BOING_SLASH_APPEAL_SUBMIT_V1) from the slashed validator. Prefer SubmitSlashAppeal tx (index 30)."
+                            .into(),
+                    ),
+                );
+            }
             let Some(slash_id) = slash_id else {
                 return (
                     StatusCode::OK,
                     rpc_error(
                         id,
                         -32602,
-                        "Invalid params: expected [slash_id, evidence_hex] or {slash_id, evidence}"
+                        "Invalid params: expected [slash_id, evidence_hex, validator_sig?] or {slash_id, evidence, validator_signature?}"
                             .into(),
                     ),
                 );
@@ -2940,6 +2990,41 @@ async fn dispatch_jsonrpc_request(
                     }
                 }
             };
+            if evidence.len() > boing_governance::MAX_SLASH_APPEAL_EVIDENCE_BYTES {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32602,
+                        format!(
+                            "evidence exceeds {} bytes",
+                            boing_governance::MAX_SLASH_APPEAL_EVIDENCE_BYTES
+                        ),
+                    ),
+                );
+            }
+            if !operator_ok {
+                // `validator_sig_hex` is Some: empty-sig path already returned -32057 above.
+                let sig_hex = validator_sig_hex.as_deref().unwrap_or("");
+                let n = node.read().await;
+                let Some(slash) = n.slash_registry.get_slash(slash_id) else {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32060, "Slash record not found".into()),
+                    );
+                };
+                if !verify_slash_appeal_submit_sig(&slash.validator, slash_id, &evidence, sig_hex) {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(
+                            id,
+                            -32057,
+                            "Invalid validator_signature for slashed validator".into(),
+                        ),
+                    );
+                }
+                drop(n);
+            }
             let mut n = node.write().await;
             match n.submit_slash_appeal(slash_id, evidence) {
                 Ok(appeal_id) => rpc_ok(
