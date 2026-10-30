@@ -45,4 +45,4 @@ cargo run -p boing-execution --example dump_native_dex_swap2_router
 
 ## Relationship to “full DEX”
 
-See [BOING-NATIVE-DEX-CAPABILITY.md](./BOING-NATIVE-DEX-CAPABILITY.md) for what Boing VM can and cannot do today. This artifact fills the **multi-hop swap in one tx** gap for up to **two** pools; three+ hops still require another program or multiple transactions.
+See [BOING-NATIVE-DEX-CAPABILITY.md](./BOING-NATIVE-DEX-CAPABILITY.md) for what Boing VM can and cannot do today. **Prefer** [NATIVE-DEX-MULTIHOP-SWAP-ROUTER.md](./NATIVE-DEX-MULTIHOP-SWAP-ROUTER.md) (2–6 hops). This page remains as the historical two-hop alias (`native_dex_swap2_router_bytecode` → same multihop bytecode).

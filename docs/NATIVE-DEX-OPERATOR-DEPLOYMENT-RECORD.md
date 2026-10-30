@@ -123,9 +123,9 @@ Created by the same deployer with `boing token deploy` (v2) and [`scripts/create
 
 **Example reserves (ledger units):** reserve A `1000`, reserve B `2000`, total LP `1000` after seeding.
 
-## Appendix B — Public testnet snapshot (`deploy-native-dex-full-stack`, operator `0x3b6a27…`)
+## Appendix B — Older public testnet snapshot (`deploy-native-dex-full-stack`, operator `0x3b6a27…`)
 
-**Normative for public RPC `end_user` hints.** Recorded: 2026-04-05 deploy; republished in docs **2026-05-21** after live RPC verification.
+**Historical only — superseded for OPS-1 / SDK / website.** This deploy used pool **`0x7247ddc3…`**. The monorepo canonical published id is **`0x5b60d6f8…`** ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md), `scripts/canonical-testnet-published.manifest.json`, § “Current public testnet” above). Recorded: 2026-04-05 deploy; left here so older env paste blocks remain interpretable.
 
 **Not normative for the monorepo canonical JSON.** This is a **concrete deploy** on **`https://testnet-rpc.boing.network`** with deployer / `senderHex` **`0x3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29`**. Script phases reported **`create2: true`** for every contract below (no nonce fallback in this run).
 

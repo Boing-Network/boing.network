@@ -55,8 +55,8 @@ The shared VM budget means a batch can never do more contract work than a single
 | Each contract step (`GAS_PER_BATCH_CONTRACT_CALL_STEP`) | 7 000 + interpreter gas used |
 | Each value contract step (testnet height 1150+) | same as a contract step; the value moves just before the step runs and is refunded if any step fails ([NATIVE-VALUE-AND-WBOING.md](NATIVE-VALUE-AND-WBOING.md)) |
 
-Fee = `network_fee_amount(gas)` as usual (21 000 gas = 1 BOING). Example: 16 BOING transfers =
-133 000 gas ≈ 7 BOING vs 16 BOING as 16 separate transfers. The policy's `extra_fixed_fee` is
+Fee = fee market v1 as usual (21 000 gas ≈ **0.021 BOING** at full schedule; ≈ **0.00021 BOING** with micro fees — [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md)). Example: 16 transfer steps =
+133 000 gas ≈ **0.133 BOING** at full schedule (≈ **0.00133 BOING** micro) vs ~**0.336 BOING** as 16 separate transfers. The policy's `extra_fixed_fee` is
 charged **once per tx**; the optional `transfer_amount_bps` fee is applied to the **sum** of all
 transfer steps so batching cannot dodge it.
 

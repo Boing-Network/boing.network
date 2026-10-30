@@ -116,7 +116,7 @@ When the node is started with **`--faucet-enable`**, it accepts:
 
 | Method | Params | Description |
 |--------|--------|-------------|
-| `boing_faucetRequest` | `[hex_account_id]` | Send **20** testnet BOING (node builds from Oct 15, 2026; the public node still sends **10** until it is redeployed) to the given account (32-byte hex; native units are 1:1 with BOING) — enough for several transfers (a transfer is **1 BOING**; a token deploy is typically **~10–20 BOING** and may need a second request). A few requests cover the 100 BOING validator registration bond. Rate limit: **1 request per 60 seconds per account**. |
+| `boing_faucetRequest` | `[hex_account_id]` | Send **20** testnet BOING (`FAUCET_DISPENSE_AMOUNT` in `crates/boing-node/src/faucet.rs`; the RPC `amount` field reports what was sent) to the given account (32-byte hex). After the 18-decimal switch (height **1050**), ledger amounts are base units (`20 × 10^18`); a simple transfer costs about **0.021 BOING** at full fee schedule (**~0.00021 BOING** with micro fees), so one faucet fill covers many transfers. A few requests cover the **100 BOING** validator registration bond. Rate limit: **1 request per 60 seconds per account**, plus node-wide **`BOING_FAUCET_MAX_PER_MINUTE`** (default **30**). |
 
 **Example (curl):**
 
@@ -134,7 +134,7 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
   "id": 1,
   "result": {
     "ok": true,
-    "amount": 10,
+    "amount": 20,
     "to": "hex_account_id",
     "message": "Check your wallet; tx is in the mempool."
   }
@@ -144,7 +144,8 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 **Notes:**
 
 - Only nodes started with `--faucet-enable` support this. **Do not use on mainnet.**
-- The faucet account is funded at genesis with 10,000,000 testnet BOING; each request sends **20** (`FAUCET_DISPENSE_AMOUNT` in `crates/boing-node/src/faucet.rs`; a node that has not been redeployed since Oct 15, 2026 may still send 10, and the RPC response reports the amount actually sent).
+- The faucet signing key is **intentionally public** (derived from `hash("boing-testnet-faucet-v1")`). Anyone can derive it and submit transfers; treat the faucet as shared testnet infrastructure, not a secret. **Mainnet must never reuse this scheme** (the node refuses `--faucet-enable` on chain id 6914).
+- The faucet account is funded at genesis with 10,000,000 testnet BOING; each request sends **20** (`FAUCET_DISPENSE_AMOUNT`); the RPC response `amount` reports the amount actually sent.
 - If you get "Faucet cooldown", wait 60 seconds and try again for the same account.
 
 ### 5.2 Public faucet page
@@ -155,7 +156,7 @@ The website provides a **dedicated faucet page** at [boing.network/faucet](https
 
 ### 5.3 Native constant-product AMM pool (chain 6913)
 
-The in-ledger **MVP constant-product pool** is a normal **32-byte contract `AccountId`**. Integrators should read **`boing_getNetworkInfo.end_user.canonical_native_cp_pool`** on public RPC (or set **`REACT_APP_BOING_NATIVE_AMM_POOL`** on a private chain). The hosted Fly testnet currently has **no published canonical pool** (`end_user` fields are `null`). Historical hex **`0x7247ddc3…`** was the previous tunnel ledger (operator-published **2026-05-21**); do not assume it exists on the current hosted chain. New pool rotations: [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md), [FLY-IO.md](FLY-IO.md).
+The in-ledger **MVP constant-product pool** is a normal **32-byte contract `AccountId`**. Integrators should read **`boing_getNetworkInfo.end_user.canonical_native_cp_pool`** on public RPC (or set **`REACT_APP_BOING_NATIVE_AMM_POOL`** on a private chain). The hosted Fly testnet currently has **no published canonical pool** (`end_user` fields are `null`). Historical published hex **`0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976`** (OPS / SDK / website; **2026-05-21**) is **not** currently advertised on hosted Fly `end_user`; do not assume it exists on the live cluster until ops republishes. New pool rotations: [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md), [FLY-IO.md](FLY-IO.md).
 
 ## 6. Bootnode list (testnet)
 

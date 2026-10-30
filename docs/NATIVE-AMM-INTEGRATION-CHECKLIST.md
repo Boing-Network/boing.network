@@ -109,7 +109,7 @@ flowchart LR
 
 Use after wallet, RPC, or dApp changes. Complements node test `native_amm_rpc_happy_path`.
 
-**Preconditions:** Pool **`0x7247ddc3…`** for chain **6913** ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md)); Boing Express with testnet BOING; public RPC CORS for boing.finance ([THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) §2).
+**Preconditions:** Canonical pool **`0x5b60d6f8…`** for chain **6913** when advertised ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md)); otherwise read live `end_user.canonical_native_cp_pool`; Boing Express with testnet BOING; public RPC CORS for boing.finance ([THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) §2).
 
 **Happy path — swap:** Load boing.finance `/swap` → connect Express on **6913** → confirm native AMM panel → refresh reserves → small integer swap → approve signing → confirm toast / [boing.observer](https://boing.observer) lookup.
 
@@ -139,4 +139,4 @@ Use after wallet, RPC, or dApp changes. Complements node test `native_amm_rpc_ha
 
 ## Suggested next concrete artifact
 
-**Calldata + bytecode:** [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). **Done in-repo:** **NAMM-1**–**3** (LP, fee, **`Log2`**) + **NAMM-4** (**v2** token `CALL`s, **`set_tokens`**, **`NATIVE_CP_POOL_CREATE2_SALT_V2`**) + **Phase 7** SDK + tutorial (**A7.1**–**A7.3**). **OPS-1:** canonical pool **`0x7247ddc3…`** is in [RPC-API-SPEC.md](RPC-API-SPEC.md), [TESTNET.md](TESTNET.md), **`boing-sdk`** **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**, and **`website/src/config/testnet.ts`** — verify **boing.finance** env separately (**A7.4**). **E2E-1:** [examples/native-boing-playwright](../examples/native-boing-playwright/) (public project includes tutorial README wiring check). Indexers: **`nativeAmmLogs`** + **`boing_getLogs`**. RPC coverage: `native_amm_rpc_happy_path` (add_liquidity **`return_data`** decode).
+**Calldata + bytecode:** [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md). **Done in-repo:** **NAMM-1**–**3** (LP, fee, **`Log2`**) + **NAMM-4** (**v2** token `CALL`s, **`set_tokens`**, **`NATIVE_CP_POOL_CREATE2_SALT_V2`**) + **Phase 7** SDK + tutorial (**A7.1**–**A7.3**). **OPS-1:** canonical pool **`0x5b60d6f8…`** is in [RPC-API-SPEC.md](RPC-API-SPEC.md), [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md), **`boing-sdk`** **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**, and **`website/src/config/testnet.ts`** (hosted Fly `end_user` may be `null`) — verify **boing.finance** env separately (**A7.4**). **E2E-1:** [examples/native-boing-playwright](../examples/native-boing-playwright/) (public project includes tutorial README wiring check). Indexers: **`nativeAmmLogs`** + **`boing_getLogs`**. RPC coverage: `native_amm_rpc_happy_path` (add_liquidity **`return_data`** decode).

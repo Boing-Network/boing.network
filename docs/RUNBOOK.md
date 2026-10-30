@@ -257,7 +257,7 @@ For security incidents and vulnerabilities:
 | 5. **Remediate** | Apply fixes; coordinate upgrades via governance if needed. |
 | 6. **Post-mortem** | Document cause, impact, and prevention. |
 
-**Contacts:** [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) § **5. Security Contacts** (responsible disclosure via GitHub Security Advisories; bug bounty **TBD**).
+**Contacts:** [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) § **5. Security Contacts** (responsible disclosure via GitHub Security Advisories; bug bounty program **not yet published** (responsible disclosure via GitHub Security Advisories)).
 
 ---
 

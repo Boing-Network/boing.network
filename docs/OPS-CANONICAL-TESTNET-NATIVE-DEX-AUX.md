@@ -17,7 +17,7 @@
 
 1. **Separate deploy steps** — The canonical pool was an early, explicit ops publish. Factory, ledger routers, multihop router, LP vault, and LP share token are **additional** native programs. Nothing invents their on-chain presence without **deploy txs** (tutorial scripts, operator automation, etc.).
 2. **RPC surface** — `boing_getNetworkInfo` may carry `end_user.canonical_native_dex_factory` (and related hints) on a **full node**, but **public edge RPC** sometimes **omits** that method or field (allowlist, proxy, older binary). Apps then saw **no** factory hint even though the chain could support DEX reads.
-3. **No universal “code at address” read** — Without a portable **`boing_getContractCode`**, “is this contract deployed?” is weaker than **storage** (pool reserves) or **logs** (factory `register_pair`). The audit script uses **reserves + optional log scan** as practical signals.
+3. **Code-at-address reads** — **`boing_getContractCode`** exists on current `boing-node` ([RPC-API-SPEC.md](RPC-API-SPEC.md)). Older gateways or allowlists may still omit it; the audit script prefers **reserves + optional log scan** as practical signals when code reads are unavailable.
 
 ## Published predictions (6913, deployer below)
 

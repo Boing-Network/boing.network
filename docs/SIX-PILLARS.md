@@ -41,7 +41,7 @@ The last pillar is last because it is a *product* of the others working. It is n
 
 **Plain terms.** Correctness first. We would rather be a little slower than be wrong, slash the wrong person, or let a malformed tx take down a block.
 
-**On chain.** Consensus is proof-of-stake HotStuff BFT. Signatures are Ed25519. Hashes are BLAKE3. Equivocation is detected and slashable. Execution is metered: every opcode and tx type has gas, and native fees are `ceil(gas_used / 21_000)` BOING so a simple transfer costs one token, not tens of thousands. Public RPC is rate-limited. Failed or underfunded transactions are isolated so they cannot stall block production.
+**On chain.** Consensus is proof-of-stake HotStuff BFT. Signatures are Ed25519. Hashes are BLAKE3. Equivocation is detected and slashable. Execution is metered: every opcode and tx type has gas, and native fees follow fee market v1 (`gas_used × 10^12` base units at full schedule ≈ **0.021 BOING** per transfer; recommended micro `execution_gas_fee_bps=100` ≈ **0.00021 BOING** — see [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md) and [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md)). Public RPC is rate-limited. Failed or underfunded transactions are isolated so they cannot stall block production.
 
 **What that means for you.** If it is a safety property, it belongs in the protocol, not in a slide. Advisories and incident process live in [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md). If you are integrating a wallet or dApp, treat the node as hostile until proofs and receipts check out.
 

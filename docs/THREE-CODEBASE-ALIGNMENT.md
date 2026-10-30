@@ -35,7 +35,7 @@ flowchart LR
 | **Block explorer** | `https://boing.observer` | boing.network (footer, Resources), boing.express (explorer links) |
 | **Wallet** | `https://boing.express` | boing.network (footer, Resources), boing.observer (header, footer) |
 
-- **boing.network** should link to Explorer and Wallet in footer and on the [Resources](/resources) page.
+- **boing.network** should link to Explorer and Wallet in footer and on the [Resources](https://boing.network/resources) page.
 - **boing.observer** should link to boing.network (faucet, docs, testnet) and boing.express (Wallet) in header and footer.
 - **boing.express** should use `https://boing.observer` for explorer deep links (e.g. account: `https://boing.observer/account/<address>`).
 
@@ -91,7 +91,7 @@ For wallet connection and dApp integration (e.g. portal sign-in, chain switching
 | Item | Value |
 |------|--------|
 | **Chain** | **6913** (testnet) |
-| **Canonical pool `AccountId`** | **Unset on hosted Fly RPC** (`end_user.canonical_native_cp_pool` is `null`). Historical `0x7247ddc3…` was the previous tunnel ledger. |
+| **Canonical pool `AccountId`** | **Unset on hosted Fly RPC** (`end_user.canonical_native_cp_pool` is `null`). Historical published id `0x5b60d6f8…` (OPS / SDK); hosted Fly `end_user` is currently `null`. |
 | **Canonical DEX factory** | **Unset** on hosted Fly RPC. |
 | **Multihop router** | **Unset** on hosted Fly RPC. |
 

@@ -45,7 +45,7 @@ flowchart TB
 |---------|-------------|--------|
 | **Byzantine Fault Tolerance** | Network operates correctly with up to 1/3 malicious validators | ✓ HotStuff |
 | **PoS + Slashing** | Validators stake BOING; malicious behavior penalized | ✓ Implemented |
-| **VRF Leader Selection** | Unpredictable, unbiased leader election | Design / Roadmap |
+| **VRF Leader Selection** | Unpredictable, unbiased leader election (`LeaderElection::Vrf` / `BOING_LEADER_ELECTION=vrf`, ECVRF proofs; RoundRobin remains default) | ✓ Implemented (optional; flag + tests) |
 | **Equivocation Detection** | Double-signing detected and slashed | ✓ Consensus |
 
 ### 1.2 Cryptography
