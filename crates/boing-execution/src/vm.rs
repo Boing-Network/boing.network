@@ -2397,6 +2397,18 @@ mod tests {
         sender
     }
 
+    /// Build init bytecode that `RETURN`s exactly `runtime` (≤32 bytes) via a single `MSTORE`.
+    fn init_returning(runtime: &[u8]) -> Vec<u8> {
+        assert!(!runtime.is_empty() && runtime.len() <= 32);
+        let mut word = [0u8; 32];
+        word[..runtime.len()].copy_from_slice(runtime);
+        let mut init = vec![0x7f]; // PUSH32
+        init.extend_from_slice(&word);
+        init.extend([0x60, 0x00, 0x52]); // PUSH1 0; MSTORE
+        init.extend([0x60, runtime.len() as u8, 0x60, 0x00, 0xf3]); // RETURN size, offset 0
+        init
+    }
+
     /// Audit #61 item 3: the runtime returned by init code is QA-checked from the VM hardening
     /// height (empty runtime, runtime carrying the init marker); before it, stored as-is.
     #[test]
@@ -2438,6 +2450,187 @@ mod tests {
                 .get_contract_code(&nonce_derived_contract_address(&sender, 0))
                 .is_some());
         }
+    }
+
+    /// Audit #61 item 3 (exact finding): a well-formed init stub can RETURN runtime that would be
+    /// Rejected if deployed directly (invalid opcode / blocklisted hash). With hardening the deploy
+    /// fails; without it the bad runtime is stored. Covers top-level deploy and in-contract CREATE2.
+    #[test]
+    fn init_code_cannot_smuggle_rejected_runtime() {
+        use crate::bytecode::Opcode;
+        use boing_primitives::hasher;
+
+        let bad_opcode_runtime = vec![0xff];
+        // STOP is normally Allow; blocklisting its hash models a known-bad runtime whose bytes do
+        // not appear as a contiguous scam pattern inside the init PUSH immediate (which the outer
+        // deploy QA would already catch).
+        let blocklisted_runtime = vec![0x00];
+        let mut h = hasher();
+        h.update(&blocklisted_runtime);
+        let blocked_hash = *h.finalize().as_bytes();
+        let block_reg = RuleRegistry::new().with_blocklist(vec![blocked_hash]);
+
+        assert!(matches!(
+            check_contract_deploy_full(
+                &bad_opcode_runtime,
+                Some("dapp"),
+                None,
+                &RuleRegistry::new()
+            ),
+            QaResult::Reject(_)
+        ));
+        assert!(matches!(
+            check_contract_deploy_full(&blocklisted_runtime, Some("dapp"), None, &block_reg),
+            QaResult::Reject(_)
+        ));
+
+        for (runtime, registry) in [
+            (bad_opcode_runtime.as_slice(), RuleRegistry::new()),
+            (blocklisted_runtime.as_slice(), block_reg.clone()),
+        ] {
+            let init = init_returning(runtime);
+            let mut deploy_probe = vec![CONTRACT_DEPLOY_INIT_CODE_MARKER];
+            deploy_probe.extend_from_slice(&init);
+            let probe = check_contract_deploy_full(&deploy_probe, Some("dapp"), None, &registry);
+            assert!(
+                matches!(probe, QaResult::Allow),
+                "init stub alone must pass QA so the bypass is real: {probe:?}"
+            );
+
+            // Hardening on → Reject, no code installed.
+            let vm = Vm::with_qa_registry(registry.clone());
+            let mut state = StateStore::new();
+            let sender = funded_sender(&mut state);
+            let r = vm.execute(&init_deploy_tx(sender, init.clone()), &mut state);
+            assert!(
+                matches!(
+                    &r,
+                    Err(VmError::QaRejected { message, .. }) if message.contains("init-code runtime")
+                ),
+                "{r:?}"
+            );
+            assert!(state
+                .get_contract_code(&nonce_derived_contract_address(&sender, 0))
+                .is_none());
+
+            // Hardening off → historical bypass: bad runtime stored.
+            let mut vm = Vm::with_qa_registry(registry.clone());
+            vm.set_vm_hardening_from(u64::MAX);
+            let mut state = StateStore::new();
+            let sender = funded_sender(&mut state);
+            vm.execute(&init_deploy_tx(sender, init.clone()), &mut state)
+                .unwrap();
+            assert_eq!(
+                state
+                    .get_contract_code(&nonce_derived_contract_address(&sender, 0))
+                    .unwrap()
+                    .as_slice(),
+                runtime
+            );
+        }
+
+        // CREATE2 path: factory deploys a compact `0xFD || init` that RETURNs `[0xff]`.
+        // Short init (fits in one MSTORE word with the marker): PUSH1 0xff; PUSH1 0; MSTORE;
+        // RETURN offset 31 size 1.
+        let init = vec![0x60, 0xff, 0x60, 0x00, 0x52, 0x60, 0x01, 0x60, 0x1f, 0xf3];
+        let mut deploy_bytes = vec![CONTRACT_DEPLOY_INIT_CODE_MARKER];
+        deploy_bytes.extend_from_slice(&init);
+        let salt = [7u8; 32];
+
+        let mut factory = Vec::new();
+        assert!(deploy_bytes.len() <= 32);
+        let mut word = [0u8; 32];
+        word[..deploy_bytes.len()].copy_from_slice(&deploy_bytes);
+        factory.push(Opcode::Push32 as u8);
+        factory.extend_from_slice(&word);
+        factory.extend([Opcode::Push1 as u8, 0x00, Opcode::MStore as u8]);
+        factory.extend([
+            Opcode::Push1 as u8,
+            0x00, // offset
+            Opcode::Push1 as u8,
+            deploy_bytes.len() as u8, // size
+        ]);
+        factory.push(Opcode::Push32 as u8);
+        factory.extend_from_slice(&salt);
+        factory.extend([Opcode::Create2 as u8, Opcode::Stop as u8]);
+
+        let vm = Vm::new(); // hardening from genesis
+        let mut state = StateStore::new();
+        let sender = funded_sender(&mut state);
+        vm.execute(
+            &Transaction {
+                nonce: 0,
+                sender,
+                payload: TransactionPayload::ContractDeploy {
+                    bytecode: factory.clone(),
+                    create2_salt: None,
+                },
+                access_list: AccessList::default(),
+            },
+            &mut state,
+        )
+        .unwrap();
+        let factory_addr = nonce_derived_contract_address(&sender, 0);
+        let call = Transaction {
+            nonce: 1,
+            sender,
+            payload: TransactionPayload::ContractCall {
+                contract: factory_addr,
+                calldata: Vec::new(),
+            },
+            access_list: AccessList::default(),
+        };
+        let r = vm.execute(&call, &mut state);
+        assert!(
+            matches!(
+                &r,
+                Err(VmError::QaRejected { message, .. }) if message.contains("init-code runtime")
+            ),
+            "CREATE2 must QA-check returned runtime: {r:?}"
+        );
+        let expected_child = create2_contract_address(&factory_addr, &salt, &deploy_bytes);
+        assert!(
+            state.get_contract_code(&expected_child).is_none(),
+            "smuggled CREATE2 child must not be installed"
+        );
+
+        // Without hardening, the same CREATE2 installs the bad runtime.
+        let mut vm = Vm::new();
+        vm.set_vm_hardening_from(u64::MAX);
+        let mut state = StateStore::new();
+        let sender = funded_sender(&mut state);
+        vm.execute(
+            &Transaction {
+                nonce: 0,
+                sender,
+                payload: TransactionPayload::ContractDeploy {
+                    bytecode: factory,
+                    create2_salt: None,
+                },
+                access_list: AccessList::default(),
+            },
+            &mut state,
+        )
+        .unwrap();
+        let factory_addr = nonce_derived_contract_address(&sender, 0);
+        vm.execute(
+            &Transaction {
+                nonce: 1,
+                sender,
+                payload: TransactionPayload::ContractCall {
+                    contract: factory_addr,
+                    calldata: Vec::new(),
+                },
+                access_list: AccessList::default(),
+            },
+            &mut state,
+        )
+        .unwrap();
+        let expected_child = create2_contract_address(&factory_addr, &salt, &deploy_bytes);
+        assert_eq!(
+            state.get_contract_code(&expected_child).unwrap().as_slice(),
+            bad_opcode_runtime.as_slice()
+        );
     }
 
     #[test]
