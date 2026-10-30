@@ -168,12 +168,14 @@ pub fn block_sigs_from(history: Option<&ExecutionHistory>) -> u64 {
 
 /// Startup guards for mainnet mode (chain id [`BOING_MAINNET_CHAIN_ID`]).
 ///
-/// * `BOING_OPERATOR_RPC_TOKEN` must be set (non-blank): without it every operator-gated method is open
-///   to anyone who can reach the RPC port.
+/// * `BOING_OPERATOR_RPC_TOKEN` must be set (non-blank). Operator methods are already fail-closed when
+///   the token is unset (`-32057`), so mainnet refuses to start without an explicit secret rather than
+///   shipping a node that cannot run operator RPCs.
 /// * The testnet faucet must be off: its signing key is derived from a public constant, so anyone can
 ///   spend the faucet account's funds.
 ///
-/// Non-mainnet chain ids (testnet, devnets, unset) are unchanged. Returns a human-readable error.
+/// Non-mainnet chain ids (testnet, devnets, unset) may start without the token (operator methods stay
+/// rejected until it is set). Returns a human-readable error.
 pub fn check_mainnet_guards(
     chain_id: Option<u64>,
     operator_token_set: bool,
@@ -185,7 +187,8 @@ pub fn check_mainnet_guards(
     if !operator_token_set {
         return Err(format!(
             "refusing to start in mainnet mode (chain id {BOING_MAINNET_CHAIN_ID}) without BOING_OPERATOR_RPC_TOKEN: \
-             operator RPC methods would be unauthenticated. Set a long random token, or use a different BOING_CHAIN_ID for non-mainnet networks"
+             operator RPC methods are fail-closed when unset, so mainnet requires an explicit operator secret. \
+             Set a long random token, or use a different BOING_CHAIN_ID for non-mainnet networks"
         ));
     }
     if faucet_enabled {
@@ -394,7 +397,7 @@ mod sign_for_chain_tests {
             .contains("faucet"));
         assert!(check_mainnet_guards(Some(6914), false, true).is_err());
         assert!(check_mainnet_guards(Some(6914), true, false).is_ok());
-        // testnet / devnet / unset behave as before (open operator RPC, faucet allowed)
+        // testnet / devnet / unset may start without a token (operator methods still fail-closed) and may enable the faucet
         for id in [Some(BOING_TESTNET_CHAIN_ID), Some(1), Some(0), None] {
             assert!(check_mainnet_guards(id, false, true).is_ok());
             assert!(check_mainnet_guards(id, false, false).is_ok());
