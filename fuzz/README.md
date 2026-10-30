@@ -35,6 +35,9 @@ cd fuzz && cargo fuzz run fuzz_target_1
 ## Targets
 
 - **fuzz_target_1**: Fuzzes bincode deserialization of `Block` and `Transaction` from boing-primitives.
+- **fuzz_bytecode_decode**: Opcode byte decode + PUSH size helpers (`boing-execution`).
+- **fuzz_tx_roundtrip**: Deserialize → serialize round-trip plus `from_bincode` paths.
+- **fuzz_qa_match**: Scam-pattern / deploy QA matcher (`boing-qa`).
 
 ## Adding Targets
 

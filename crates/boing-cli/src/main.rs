@@ -14,6 +14,7 @@ mod name;
 mod pool;
 mod qa_apply;
 mod router;
+mod secrets;
 mod token;
 mod validator;
 
@@ -78,11 +79,16 @@ enum Commands {
         #[arg(long, default_value = "8545")]
         port: u16,
     },
-    /// Deploy contract or config to network
+    /// Deploy contract bytecode to the network (`ContractDeployWithPurpose`)
     Deploy {
-        /// Path to contract bytecode or config
+        /// Path to bytecode file (`.hex` / `.bin`) or a project directory containing one
         #[arg(default_value = ".")]
         path: String,
+        /// Purpose category declared for QA (default: dapp)
+        #[arg(long, default_value = "dapp")]
+        purpose: String,
+        #[command(flatten)]
+        signer: SignerArgs,
     },
     /// Register contract for success-based incentives
     #[command(subcommand)]
@@ -171,9 +177,13 @@ enum MetricsCommands {
 
 #[derive(clap::Args)]
 struct SignerArgs {
-    /// 32-byte Ed25519 secret seed hex (default: environment variable BOING_SECRET_HEX)
+    /// 32-byte Ed25519 secret seed hex (default: BOING_SECRET_HEX). Prefer `--secret-file` /
+    /// `@path` / `-` (stdin) so the seed is not visible in process listings.
     #[arg(long)]
     secret_hex: Option<String>,
+    /// Read the seed hex from a file (first non-comment line). Env: `BOING_SECRET_FILE`.
+    #[arg(long)]
+    secret_file: Option<String>,
     /// Override sender nonce (default: fetched via boing_getAccount)
     #[arg(long)]
     nonce: Option<u64>,
@@ -441,9 +451,15 @@ struct ValidatorSignerArgs {
     /// Owner (bond payer) secret seed hex (default: BOING_SECRET_HEX; falls back to the node key)
     #[arg(long)]
     secret_hex: Option<String>,
+    /// Owner seed file (`BOING_SECRET_FILE`); prefer over `--secret-hex` in argv
+    #[arg(long)]
+    secret_file: Option<String>,
     /// Node consensus secret seed hex (default: BOING_VALIDATOR_KEY)
     #[arg(long)]
     node_key_hex: Option<String>,
+    /// Node seed file (`BOING_VALIDATOR_KEY_FILE`)
+    #[arg(long)]
+    node_key_file: Option<String>,
     /// Override owner nonce (default: fetched via boing_getAccount)
     #[arg(long)]
     nonce: Option<u64>,
@@ -457,6 +473,9 @@ struct NameSignerArgs {
     /// Signer secret seed hex (default: BOING_SECRET_HEX). Never printed.
     #[arg(long)]
     secret_hex: Option<String>,
+    /// Signer seed file (`BOING_SECRET_FILE`)
+    #[arg(long)]
+    secret_file: Option<String>,
     /// Override the first nonce (default: fetched via boing_getAccount)
     #[arg(long)]
     nonce: Option<u64>,
@@ -541,13 +560,7 @@ enum NameCommands {
 }
 
 fn name_signer(s: &NameSignerArgs) -> anyhow::Result<ed25519_dalek::SigningKey> {
-    let raw = s
-        .secret_hex
-        .clone()
-        .or_else(|| std::env::var("BOING_SECRET_HEX").ok())
-        .filter(|v| !v.trim().is_empty())
-        .ok_or_else(|| anyhow::anyhow!("no signer: pass --secret-hex or set BOING_SECRET_HEX"))?;
-    token::parse_signing_key(&raw)
+    token::resolve_signing_key(s.secret_hex.clone(), s.secret_file.clone())
 }
 
 #[derive(Subcommand)]
@@ -598,9 +611,12 @@ enum QaCommands {
         /// Path to QA pool governance JSON
         #[arg(long)]
         pool: PathBuf,
-        /// Operator shared secret (default: environment variable BOING_OPERATOR_RPC_TOKEN)
+        /// Operator shared secret (default: BOING_OPERATOR_RPC_TOKEN). Prefer `--operator-token-file`.
         #[arg(long)]
         operator_token: Option<String>,
+        /// Read operator token from a file (`BOING_OPERATOR_RPC_TOKEN_FILE`)
+        #[arg(long)]
+        operator_token_file: Option<String>,
     },
 }
 
@@ -631,7 +647,22 @@ async fn main() -> anyhow::Result<()> {
     let result = match cli.command {
         Commands::Init { name, output } => init::run(name, output),
         Commands::Dev { port } => dev::run(port).await,
-        Commands::Deploy { path } => deploy::run(&cli.rpc_url, &path).await,
+        Commands::Deploy {
+            path,
+            purpose,
+            signer,
+        } => {
+            deploy::run(
+                &cli.rpc_url,
+                &path,
+                signer.secret_hex,
+                signer.secret_file,
+                purpose,
+                signer.nonce,
+                signer.dry_run,
+            )
+            .await
+        }
         Commands::Metrics(MetricsCommands::Register { contract, owner }) => {
             metrics_register::run(&cli.rpc_url, &contract, &owner).await
         }
@@ -639,10 +670,17 @@ async fn main() -> anyhow::Result<()> {
             registry,
             pool,
             operator_token,
+            operator_token_file,
         }) => {
-            let token = operator_token
-                .or_else(|| std::env::var("BOING_OPERATOR_RPC_TOKEN").ok())
-                .filter(|s| !s.trim().is_empty());
+            let token = secrets::read_secret_string(
+                operator_token,
+                operator_token_file,
+                "BOING_OPERATOR_RPC_TOKEN",
+                "BOING_OPERATOR_RPC_TOKEN_FILE",
+                "operator token",
+            )
+            .ok()
+            .filter(|s| !s.trim().is_empty());
             qa_apply::run(&cli.rpc_url, &registry, &pool, token.as_deref()).await
         }
         Commands::Token(cmd) => match cmd {
@@ -657,6 +695,7 @@ async fn main() -> anyhow::Result<()> {
                 token::deploy(
                     &cli.rpc_url,
                     signer.secret_hex,
+                    signer.secret_file,
                     name,
                     symbol,
                     initial_supply,
@@ -676,6 +715,7 @@ async fn main() -> anyhow::Result<()> {
                 token::mint(
                     &cli.rpc_url,
                     signer.secret_hex,
+                    signer.secret_file,
                     &t,
                     to,
                     amount,
@@ -693,6 +733,7 @@ async fn main() -> anyhow::Result<()> {
                 token::transfer(
                     &cli.rpc_url,
                     signer.secret_hex,
+                    signer.secret_file,
                     &t,
                     &to,
                     amount,
@@ -713,6 +754,7 @@ async fn main() -> anyhow::Result<()> {
                 token::approve(
                     &cli.rpc_url,
                     signer.secret_hex,
+                    signer.secret_file,
                     &t,
                     &spender,
                     amount,
@@ -734,6 +776,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Pool(cmd) => {
             let sg = |s: SignerArgs| pool::Signer {
                 secret: s.secret_hex,
+                secret_file: s.secret_file,
                 nonce: s.nonce,
                 dry_run: s.dry_run,
             };
@@ -915,6 +958,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Iface(cmd) => {
             let sg = |s: SignerArgs| pool::Signer {
                 secret: s.secret_hex,
+                secret_file: s.secret_file,
                 nonce: s.nonce,
                 dry_run: s.dry_run,
             };
@@ -1052,13 +1096,21 @@ async fn main() -> anyhow::Result<()> {
         },
         Commands::Validator(cmd) => match cmd {
             ValidatorCommands::Register { signer } => {
-                let (owner, node) =
-                    validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                let (owner, node) = validator::resolve_keys(
+                    signer.secret_hex,
+                    signer.secret_file,
+                    signer.node_key_hex,
+                    signer.node_key_file,
+                )?;
                 validator::register(&cli.rpc_url, owner, node, signer.nonce, signer.dry_run).await
             }
             ValidatorCommands::Deregister { node, signer } => {
-                let (owner, node_key) =
-                    validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                let (owner, node_key) = validator::resolve_keys(
+                    signer.secret_hex,
+                    signer.secret_file,
+                    signer.node_key_hex,
+                    signer.node_key_file,
+                )?;
                 validator::deregister(
                     &cli.rpc_url,
                     owner,
@@ -1070,8 +1122,12 @@ async fn main() -> anyhow::Result<()> {
                 .await
             }
             ValidatorCommands::Unjail { node, signer } => {
-                let (owner, node_key) =
-                    validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                let (owner, node_key) = validator::resolve_keys(
+                    signer.secret_hex,
+                    signer.secret_file,
+                    signer.node_key_hex,
+                    signer.node_key_file,
+                )?;
                 validator::unjail(
                     &cli.rpc_url,
                     owner,
@@ -1083,8 +1139,12 @@ async fn main() -> anyhow::Result<()> {
                 .await
             }
             ValidatorCommands::ClaimUnbond { signer } => {
-                let (owner, node_key) =
-                    validator::resolve_keys(signer.secret_hex, signer.node_key_hex)?;
+                let (owner, node_key) = validator::resolve_keys(
+                    signer.secret_hex,
+                    signer.secret_file,
+                    signer.node_key_hex,
+                    signer.node_key_file,
+                )?;
                 validator::claim_unbond(&cli.rpc_url, owner, node_key, signer.nonce, signer.dry_run)
                     .await
             }

@@ -80,11 +80,17 @@ pub fn parse_signing_key(s: &str) -> anyhow::Result<SigningKey> {
     Ok(SigningKey::from_bytes(&arr))
 }
 
-pub fn resolve_signing_key(arg: Option<String>) -> anyhow::Result<SigningKey> {
-    let s = arg
-        .or_else(|| std::env::var("BOING_SECRET_HEX").ok())
-        .filter(|s| !s.trim().is_empty())
-        .ok_or_else(|| anyhow::anyhow!("no signer: pass --secret-hex or set BOING_SECRET_HEX"))?;
+pub fn resolve_signing_key(
+    arg: Option<String>,
+    file: Option<String>,
+) -> anyhow::Result<SigningKey> {
+    let s = crate::secrets::read_secret_string(
+        arg,
+        file,
+        "BOING_SECRET_HEX",
+        "BOING_SECRET_FILE",
+        "signer secret",
+    )?;
     parse_signing_key(&s)
 }
 
@@ -319,6 +325,7 @@ pub(crate) async fn nonce_for(
 pub async fn deploy(
     rpc_url: &str,
     secret: Option<String>,
+    secret_file: Option<String>,
     name: Option<String>,
     symbol: Option<String>,
     initial_supply: Option<u128>,
@@ -329,7 +336,7 @@ pub async fn deploy(
 ) -> anyhow::Result<()> {
     version.assert_deployable()?;
     validate_metadata(&name, &symbol)?;
-    let key = resolve_signing_key(secret)?;
+    let key = resolve_signing_key(secret, secret_file)?;
     let me = account_of(&key);
     let n = nonce_for(rpc_url, &key, nonce).await?;
     let token = nonce_derived_contract_address(&me, n);
@@ -367,13 +374,14 @@ pub async fn deploy(
 pub async fn mint(
     rpc_url: &str,
     secret: Option<String>,
+    secret_file: Option<String>,
     token: &str,
     to: Option<String>,
     amount: u128,
     nonce: Option<u64>,
     dry_run: bool,
 ) -> anyhow::Result<()> {
-    let key = resolve_signing_key(secret)?;
+    let key = resolve_signing_key(secret, secret_file)?;
     let token = parse_account(token)?;
     let to = match to {
         Some(s) => parse_account(&s)?,
@@ -386,6 +394,7 @@ pub async fn mint(
 pub async fn transfer(
     rpc_url: &str,
     secret: Option<String>,
+    secret_file: Option<String>,
     token: &str,
     to: &str,
     amount: u128,
@@ -395,7 +404,7 @@ pub async fn transfer(
     if amount == 0 {
         anyhow::bail!("amount must be > 0");
     }
-    let key = resolve_signing_key(secret)?;
+    let key = resolve_signing_key(secret, secret_file)?;
     let (token, to) = (parse_account(token)?, parse_account(to)?);
     check_not_self_transfer(&account_of(&key), &to)?;
     let n = nonce_for(rpc_url, &key, nonce).await?;
@@ -428,13 +437,14 @@ pub async fn balance(rpc_url: &str, token: &str, holder: &str) -> anyhow::Result
 pub async fn approve(
     rpc_url: &str,
     secret: Option<String>,
+    secret_file: Option<String>,
     token: &str,
     spender: &str,
     amount: u128,
     nonce: Option<u64>,
     dry_run: bool,
 ) -> anyhow::Result<()> {
-    let key = resolve_signing_key(secret)?;
+    let key = resolve_signing_key(secret, secret_file)?;
     let (token, spender) = (parse_account(token)?, parse_account(spender)?);
     let n = nonce_for(rpc_url, &key, nonce).await?;
     submit(

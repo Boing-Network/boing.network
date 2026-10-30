@@ -126,7 +126,7 @@ pub struct RouteArgs {
 }
 
 pub async fn deploy(rpc_url: &str, s: Signer) -> anyhow::Result<()> {
-    let key = resolve_signing_key(s.secret.clone())?;
+    let key = resolve_signing_key(s.secret.clone(), s.secret_file.clone())?;
     let n = nonce_for(rpc_url, &key, s.nonce).await?;
     let addr = boing_primitives::nonce_derived_contract_address(&account_of(&key), n);
     println!("  router   {}", hex_account(&addr));
@@ -141,7 +141,7 @@ pub async fn route(rpc_url: &str, s: Signer, a: RouteArgs) -> anyhow::Result<()>
     if a.amount_in == 0 {
         anyhow::bail!("--amount-in must be > 0");
     }
-    let key = resolve_signing_key(s.secret.clone())?;
+    let key = resolve_signing_key(s.secret.clone(), s.secret_file.clone())?;
     let me = account_of(&key);
     let router = parse_account(&a.router)?;
     let offline = s.dry_run && s.nonce.is_some();
