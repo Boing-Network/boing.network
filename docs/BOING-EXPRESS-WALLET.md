@@ -312,7 +312,7 @@ After migration and deploy:
 #### 3.7.6 Compatibility
 
 - Portal prefers `boing_requestAccounts`, `boing_signMessage`, `boing_chainId`, `boing_switchChain`; falls back to `eth_requestAccounts`, `personal_sign`, etc. when Boing methods are unsupported.
-- Backend accepts older timestamp-only message format; nonce-based sign-in is the preferred flow.
+- Backend **requires** nonce-based sign-in; the older timestamp-only message format is rejected (`nonce_required`).
 
 ---
 
