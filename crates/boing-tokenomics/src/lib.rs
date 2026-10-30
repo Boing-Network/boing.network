@@ -805,7 +805,10 @@ mod tests {
             1_000_000_000u128 * BASE_UNITS_PER_BOING * 100 / 10_000 / BLOCKS_PER_YEAR as u128
                 * 7_000
                 / 10_000;
-        assert_eq!(far, floor, "floor formula stays nonzero; hard cap stops minting");
+        assert_eq!(
+            far, floor,
+            "floor formula stays nonzero; hard cap stops minting"
+        );
         assert!(far > 0);
         assert_eq!(
             block_emission_validators_in(5, Denomination::WholeBoing),

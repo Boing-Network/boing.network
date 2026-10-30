@@ -246,11 +246,7 @@ impl Mempool {
         let nonce = signed.tx.nonce;
         // Replacements must strictly raise the tip so nodes converge on the same pending tx
         // (previously any signed replacement could undercut the fee).
-        if let Some(existing) = inner
-            .by_sender
-            .get(&sender)
-            .and_then(|m| m.get(&nonce))
-        {
+        if let Some(existing) = inner.by_sender.get(&sender).and_then(|m| m.get(&nonce)) {
             if tip <= existing.priority_tip {
                 return Err(MempoolError::UnderpricedReplacement {
                     have: existing.priority_tip,

@@ -320,7 +320,11 @@ impl MediaBlobStore {
     /// Gossip must not invent new index entries (anonymous publisher / multi-year TTL used to let
     /// any peer fill the disk). Returns `Ok(true)` when bytes were written, `Ok(false)` when the
     /// blob is unknown or already present.
-    pub fn put_gossip_bytes_if_known(&self, blob_id: &BlobId, data: &[u8]) -> std::io::Result<bool> {
+    pub fn put_gossip_bytes_if_known(
+        &self,
+        blob_id: &BlobId,
+        data: &[u8],
+    ) -> std::io::Result<bool> {
         let id = blob_id_of(data);
         if &id != blob_id {
             return Err(std::io::Error::new(
