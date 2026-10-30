@@ -213,6 +213,7 @@ function yearsByte(years) {
 export function encodeTransactionPayload(payload) {
     switch (payload.kind) {
         case 'transfer':
+            checkValue(payload.amount);
             return concatBytes(writeU32Le(PayloadVariant.Transfer), payload.to, writeU128Le(payload.amount));
         case 'contractCall':
             return concatBytes(writeU32Le(PayloadVariant.ContractCall), payload.contract, encodeByteVec(payload.calldata));
@@ -226,8 +227,10 @@ export function encodeTransactionPayload(payload) {
         case 'contractDeployWithPurposeAndMetadata':
             return concatBytes(writeU32Le(PayloadVariant.ContractDeployWithPurposeAndMetadata), encodeByteVec(payload.bytecode), encodeBincodeString(payload.purposeCategory), encodeOptionByteVec(payload.descriptionHash ?? null), encodeOptionString(payload.assetName ?? null), encodeOptionString(payload.assetSymbol ?? null), encodeOptionFixed32(payload.create2Salt ?? null));
         case 'bond':
+            checkValue(payload.amount);
             return concatBytes(writeU32Le(PayloadVariant.Bond), writeU128Le(payload.amount));
         case 'unbond':
+            checkValue(payload.amount);
             return concatBytes(writeU32Le(PayloadVariant.Unbond), writeU128Le(payload.amount));
         case 'claimUnbond':
             return writeU32Le(PayloadVariant.ClaimUnbond);

@@ -352,6 +352,7 @@ function yearsByte(years: number): Uint8Array {
 export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array {
   switch (payload.kind) {
     case 'transfer':
+      checkValue(payload.amount);
       return concatBytes(
         writeU32Le(PayloadVariant.Transfer),
         payload.to,
@@ -396,8 +397,10 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
         encodeOptionFixed32(payload.create2Salt ?? null),
       );
     case 'bond':
+      checkValue(payload.amount);
       return concatBytes(writeU32Le(PayloadVariant.Bond), writeU128Le(payload.amount));
     case 'unbond':
+      checkValue(payload.amount);
       return concatBytes(writeU32Le(PayloadVariant.Unbond), writeU128Le(payload.amount));
     case 'claimUnbond':
       return writeU32Le(PayloadVariant.ClaimUnbond);

@@ -84,6 +84,28 @@ describe('bincode golden vectors (boing-primitives)', () => {
     ).toBe(GOLDEN.qaPoolVote);
   });
 
+  it('rejects Transfer / Bond / Unbond amounts outside u128', () => {
+    const to = new Uint8Array(32).fill(1);
+    const overflow = 1n << 128n;
+    const tooBig = 1n << 130n;
+    for (const amount of [-1n, overflow, tooBig] as const) {
+      expect(() =>
+        encodeTransactionPayload({ kind: 'transfer', to, amount }),
+      ).toThrow(/value must fit u128/);
+      expect(() => encodeTransactionPayload({ kind: 'bond', amount })).toThrow(
+        /value must fit u128/,
+      );
+      expect(() => encodeTransactionPayload({ kind: 'unbond', amount })).toThrow(
+        /value must fit u128/,
+      );
+    }
+    // Max u128 still encodes (truncation bug must not accept out-of-range).
+    const max = (1n << 128n) - 1n;
+    expect(encodeTransactionPayload({ kind: 'transfer', to, amount: max }).length).toBe(4 + 32 + 16);
+    expect(encodeTransactionPayload({ kind: 'bond', amount: max }).length).toBe(4 + 16);
+    expect(encodeTransactionPayload({ kind: 'unbond', amount: 0n }).length).toBe(4 + 16);
+  });
+
   it('encodes deploy-with-purpose and deploy-with-metadata', () => {
     expect(
       Buffer.from(
