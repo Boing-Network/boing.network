@@ -2,7 +2,7 @@
 
 use ed25519_dalek::{Signature as Ed25519Signature, Signer, SigningKey, VerifyingKey};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::hash::hasher;
 use crate::types::{AccountId, Transaction};
@@ -190,20 +190,13 @@ pub fn verify_signature_with_tip(
     let pk = VerifyingKey::from_bytes(&sender.0).map_err(|_| SignatureError::InvalidPublicKey)?;
     let ed_sig = Ed25519Signature::from_bytes(&sig.0);
     if let Some(cid) = policy.chain_id {
+        // `with_tip(..., 0)` is identical to the plain v2 digest — one verify covers both (issue #61 item 34).
         if pk
             .verify_strict(
                 &signable_transaction_hash_with_tip(tx, cid, priority_tip),
                 &ed_sig,
             )
             .is_ok()
-        {
-            return Ok(());
-        }
-        // Untipped path also accepts a plain v2 signature when tip is 0 (same preimage).
-        if priority_tip == 0
-            && pk
-                .verify_strict(&signable_transaction_hash_v2(tx, cid), &ed_sig)
-                .is_ok()
         {
             return Ok(());
         }
@@ -223,24 +216,42 @@ pub fn verify_signature_with_tip(
         .map_err(|_| SignatureError::InvalidSignature)
 }
 
-// Process-wide policy (one chain per node / CLI process). 0 = unset.
-static VERIFY_CHAIN_ID: AtomicU64 = AtomicU64::new(0);
-static VERIFY_REQUIRE_V2: AtomicBool = AtomicBool::new(false);
+// Process-wide policy (one chain per node / CLI process), packed into a single atomic so
+// `chain_id` and `require_v2` cannot tear across concurrent readers/writers (issue #61 item 34).
+// Layout: bit 63 = require_v2; bits 0..62 = chain_id (0 = unset).
+const VERIFY_REQUIRE_V2_BIT: u64 = 1 << 63;
+const VERIFY_CHAIN_ID_MASK: u64 = VERIFY_REQUIRE_V2_BIT - 1;
+static VERIFY_POLICY_PACKED: AtomicU64 = AtomicU64::new(0);
 static SIGNING_CHAIN_ID: AtomicU64 = AtomicU64::new(0);
 
+fn pack_tx_verify_policy(policy: TxSigPolicy) -> u64 {
+    let mut v = policy.chain_id.unwrap_or(0) & VERIFY_CHAIN_ID_MASK;
+    if policy.require_v2 {
+        v |= VERIFY_REQUIRE_V2_BIT;
+    }
+    v
+}
+
+fn unpack_tx_verify_policy(v: u64) -> TxSigPolicy {
+    let c = v & VERIFY_CHAIN_ID_MASK;
+    TxSigPolicy {
+        chain_id: (c != 0).then_some(c),
+        require_v2: (v & VERIFY_REQUIRE_V2_BIT) != 0,
+    }
+}
+
 /// Set the policy used by [`SignedTransaction::verify`] (the node updates it as the chain grows).
+///
+/// Prefer passing an explicit [`TxSigPolicy`] into [`verify_signature_with`] /
+/// [`SignedTransaction::verify_with`] on admission paths so height-boundary checks are not
+/// TOCTOU against this process-wide value.
 pub fn set_tx_verify_policy(policy: TxSigPolicy) {
-    VERIFY_CHAIN_ID.store(policy.chain_id.unwrap_or(0), Ordering::SeqCst);
-    VERIFY_REQUIRE_V2.store(policy.require_v2, Ordering::SeqCst);
+    VERIFY_POLICY_PACKED.store(pack_tx_verify_policy(policy), Ordering::SeqCst);
 }
 
 /// Current process-wide verification policy (default: legacy only).
 pub fn tx_verify_policy() -> TxSigPolicy {
-    let c = VERIFY_CHAIN_ID.load(Ordering::SeqCst);
-    TxSigPolicy {
-        chain_id: (c != 0).then_some(c),
-        require_v2: VERIFY_REQUIRE_V2.load(Ordering::SeqCst),
-    }
+    unpack_tx_verify_policy(VERIFY_POLICY_PACKED.load(Ordering::SeqCst))
 }
 
 /// Chain id [`SignedTransaction::new`] signs for (`None` = legacy format; CLI sets it from the node).
@@ -512,5 +523,53 @@ mod v2_tests {
             signable_transaction_hash_v2(&t, 6913),
             signable_transaction_hash_v2(&t, 6914)
         );
+    }
+
+    #[test]
+    fn packed_process_wide_policy_roundtrips() {
+        let cases = [
+            TxSigPolicy::default(),
+            TxSigPolicy {
+                chain_id: Some(6913),
+                require_v2: false,
+            },
+            TxSigPolicy {
+                chain_id: Some(6914),
+                require_v2: true,
+            },
+            TxSigPolicy {
+                chain_id: None,
+                require_v2: true,
+            },
+        ];
+        for p in cases {
+            assert_eq!(unpack_tx_verify_policy(pack_tx_verify_policy(p)), p);
+        }
+        let prev = tx_verify_policy();
+        set_tx_verify_policy(TxSigPolicy {
+            chain_id: Some(6913),
+            require_v2: true,
+        });
+        assert_eq!(
+            tx_verify_policy(),
+            TxSigPolicy {
+                chain_id: Some(6913),
+                require_v2: true,
+            }
+        );
+        set_tx_verify_policy(prev);
+    }
+
+    #[test]
+    fn tip_zero_v2_accepts_without_legacy_fallback() {
+        let key = SigningKey::from_bytes(&[9u8; 32]);
+        let signed = SignedTransaction::new_for_chain(tx(&key), &key, 6913);
+        assert_eq!(signed.priority_tip, 0);
+        assert!(signed
+            .verify_with(TxSigPolicy {
+                chain_id: Some(6913),
+                require_v2: true,
+            })
+            .is_ok());
     }
 }
