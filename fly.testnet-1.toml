@@ -75,7 +75,8 @@ primary_region = "iad"
   destination = "/data"
 
 [[vm]]
-  # performance-2x / 16 GiB: 8 GiB still OOM-killed (exit 137) when tip blocks serialize
-  # multi‑hundred‑MiB getBlockByHeight JSON (deploy bytecode as number arrays).
+  # performance-2x / 8 GiB (interim cost cut; live machine already 8 GiB).
+  # Pin 8192mb in-repo so redeploys do not restore 16 GiB. Watch for OOM (exit 137)
+  # if tip blocks serialize multi‑hundred‑MiB getBlockByHeight JSON.
   size = "performance-2x"
-  memory = "16384mb"
+  memory = "8192mb"
