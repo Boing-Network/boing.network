@@ -1379,6 +1379,7 @@ impl BoingNode {
             block_height: height.saturating_add(1),
             block_timestamp: ts,
             native_value: false, // set by the VM from the height
+            vm_hardening: false,
         };
         let policy = self.executor.fee_policy();
         // Free-path balance gate (anti-spam): zero-tip txs when execution gas is waived.
@@ -1430,6 +1431,7 @@ impl BoingNode {
             block_height: self.chain.height().saturating_add(1),
             block_timestamp: 0,
             native_value: false, // set by the VM from the height
+            vm_hardening: false,
         };
         let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
@@ -1842,6 +1844,7 @@ impl BoingNode {
             block_height: self.chain.height().saturating_add(1),
             block_timestamp: 0,
             native_value: false, // set by the VM from the height
+            vm_hardening: false,
         };
         let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
@@ -2001,6 +2004,7 @@ impl BoingNode {
         vm.set_security_v4_from(self.executor.vm().security_v4_from());
         vm.set_base_units_from(self.executor.vm().base_units_from());
         vm.set_native_value_from(self.executor.vm().native_value_from());
+        vm.set_vm_hardening_from(self.executor.vm().vm_hardening_from());
         vm.set_media_blobs_from(self.executor.vm().media_blobs_from());
         vm.set_blobs_root_header_from(self.executor.vm().blobs_root_header_from());
         vm.set_media_blobs_phase7_cap_from(self.executor.vm().media_blobs_phase7_cap_from());

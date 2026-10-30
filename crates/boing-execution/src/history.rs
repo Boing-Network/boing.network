@@ -55,6 +55,11 @@ pub struct ExecutionHistory {
     /// (micro-fee / waive). Below it, execution gas is always charged at the full historical schedule
     /// so replay stays exact. `0` = honor policy BPS from genesis (new chains / local).
     pub micro_fees_from: u64,
+    /// First height of the VM hardening rules (audit #61 items 3, 22, 23): runtime bytecode returned
+    /// by init code is QA-checked before it is stored, memory expansion is charged gas, and the
+    /// operand stack is capped at [`crate::interpreter::MAX_STACK_DEPTH`]. Below it the historical
+    /// behaviour applies exactly. `0` = from genesis (new chains / mainnet).
+    pub vm_hardening_from: u64,
 }
 
 impl ExecutionHistory {
@@ -81,6 +86,10 @@ impl ExecutionHistory {
     /// Whether reduced `execution_gas_fee_bps` (micro / waive) applies at `height`.
     pub fn micro_fees_active(&self, height: u64) -> bool {
         height >= self.micro_fees_from
+    }
+
+    pub fn vm_hardening_active(&self, height: u64) -> bool {
+        height >= self.vm_hardening_from
     }
 
     pub fn denomination_at(&self, height: u64) -> boing_primitives::Denomination {

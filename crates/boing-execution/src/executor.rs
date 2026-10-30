@@ -75,9 +75,11 @@ impl BlockExecutor {
             self.vm.set_security_v4_from(h.security_v4_from);
             self.vm.set_base_units_from(h.base_units_from);
             self.vm.set_native_value_from(h.native_value_from);
+            self.vm.set_vm_hardening_from(h.vm_hardening_from);
         } else {
             self.vm.set_base_units_from(0);
             self.vm.set_native_value_from(0);
+            self.vm.set_vm_hardening_from(0);
         }
         self.history = history.map(std::sync::Arc::new);
     }
@@ -261,6 +263,7 @@ impl BlockExecutor {
             block_height,
             block_timestamp,
             native_value: self.vm.native_value_active(block_height),
+            vm_hardening: self.vm.vm_hardening_active(block_height),
         };
         // Ledger redenomination (whole BOING -> base units) happens once, at the start of block H.
         self.prepare_state_for_height(block_height, state);

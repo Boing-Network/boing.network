@@ -28,6 +28,7 @@ const CTX: VmExecutionContext = VmExecutionContext {
     block_height: 10,
     block_timestamp: 1_700_000_000,
     native_value: false,
+    vm_hardening: false,
 };
 
 fn acct(b: u8) -> AccountId {

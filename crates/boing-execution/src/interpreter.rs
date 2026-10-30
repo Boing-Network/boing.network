@@ -18,6 +18,22 @@ use super::vm::VmError;
 /// Maximum nested [`Opcode::Call`] depth (root frame = 0).
 pub const MAX_CALL_DEPTH: u8 = 64;
 
+/// Maximum operand-stack depth per frame once [`VmExecutionContext::vm_hardening`] is active
+/// (audit #61 item 23; same bound as the EVM).
+pub const MAX_STACK_DEPTH: usize = 1024;
+
+/// Linear gas per 32-byte memory word once [`VmExecutionContext::vm_hardening`] is active.
+pub const MEMORY_GAS_PER_WORD: u64 = 3;
+/// Quadratic divisor: expanding to `w` words costs `3*w + w*w/512` in total (EVM schedule).
+pub const MEMORY_GAS_QUAD_DIVISOR: u64 = 512;
+
+/// Total memory gas for a frame of `words` 32-byte words (audit #61 item 22).
+pub fn memory_gas_cost(words: u64) -> u64 {
+    MEMORY_GAS_PER_WORD
+        .saturating_mul(words)
+        .saturating_add(words.saturating_mul(words) / MEMORY_GAS_QUAD_DIVISOR)
+}
+
 /// Block-level execution context supplied by the host ([`Vm`](crate::vm::Vm)) for every transaction.
 ///
 /// Drives [`Opcode::BlockHeight`] and [`Opcode::Timestamp`]. Defaults to zeros when omitted (tests / legacy callers).
@@ -29,6 +45,10 @@ pub struct VmExecutionContext {
     /// `NATIVE_TRANSFER` execute; otherwise they are invalid bytecode, as before the activation
     /// height). Set by [`crate::Vm`] from the block height; hosts may leave it `false`.
     pub native_value: bool,
+    /// VM hardening rules active for this block (audit #61 items 3, 22, 23): init-code runtime QA,
+    /// memory-expansion gas and the [`MAX_STACK_DEPTH`] cap. Set by [`crate::Vm`] from the block
+    /// height; `false` keeps the historical behaviour exactly.
+    pub vm_hardening: bool,
 }
 
 fn word_u64_env(n: u64) -> [u8; 32] {
@@ -226,6 +246,12 @@ impl Interpreter {
             if end > crate::vm::MAX_VM_MEMORY_BYTES {
                 return Err(VmError::MemoryLimitExceeded);
             }
+            if self.exec_ctx.vm_hardening {
+                let old_words = self.memory.len().div_ceil(32) as u64;
+                let new_words = end.div_ceil(32) as u64;
+                let cost = memory_gas_cost(new_words).saturating_sub(memory_gas_cost(old_words));
+                self.spend_gas(cost)?;
+            }
             self.memory.resize(end, 0);
         }
         Ok(())
@@ -379,6 +405,11 @@ impl Interpreter {
         self.memory[..calldata.len()].copy_from_slice(calldata);
 
         while self.pc < self.code.len() {
+            // Each instruction pushes at most one word, so checking before every instruction keeps
+            // the stack within MAX_STACK_DEPTH + 1.
+            if self.exec_ctx.vm_hardening && self.stack.len() > MAX_STACK_DEPTH {
+                return Err(VmError::StackOverflow);
+            }
             let op = self.code[self.pc];
             self.pc += 1;
 
@@ -905,6 +936,70 @@ mod tests {
         code.extend_from_slice(&size);
         code.extend_from_slice(&[0x60, 0x00, 0xf3]);
         assert!(matches!(run_code(code), Err(VmError::MemoryLimitExceeded)));
+    }
+
+    /// Run `code` with the VM hardening flag on or off; returns gas used.
+    fn run_hardened(code: Vec<u8>, gas_limit: u64, hardened: bool) -> Result<u64, VmError> {
+        let mut state = StateStore::new();
+        let contract = AccountId([1u8; 32]);
+        state.insert(boing_primitives::Account {
+            id: contract,
+            state: boing_primitives::AccountState::default(),
+        });
+        let ctx = VmExecutionContext {
+            vm_hardening: hardened,
+            ..Default::default()
+        };
+        Interpreter::new(code, gas_limit).run_with_qa(
+            contract,
+            contract,
+            &[],
+            &mut state,
+            &RuleRegistry::new(),
+            ctx,
+        )
+    }
+
+    fn pushes(n: usize) -> Vec<u8> {
+        let mut code = Vec::with_capacity(n * 2 + 1);
+        for _ in 0..n {
+            code.extend_from_slice(&[0x60, 0x00]);
+        }
+        code.push(0x00);
+        code
+    }
+
+    /// Audit #61 item 23: before the gate the stack is unbounded (historical); from it, > 1024 fails.
+    #[test]
+    fn stack_depth_cap_is_gated() {
+        assert!(run_hardened(pushes(MAX_STACK_DEPTH + 50), 10_000_000, false).is_ok());
+        assert!(matches!(
+            run_hardened(pushes(MAX_STACK_DEPTH + 50), 10_000_000, true),
+            Err(VmError::StackOverflow)
+        ));
+        assert!(run_hardened(pushes(MAX_STACK_DEPTH), 10_000_000, true).is_ok());
+    }
+
+    /// Audit #61 item 22: memory expansion costs gas only from the gate, on the EVM schedule.
+    #[test]
+    fn memory_expansion_gas_is_gated() {
+        let offset = 1u128 << 20; // 1 MiB
+        let code = push32_pair(1, offset, &[0x52, 0x00]);
+        let plain = run_hardened(code.clone(), 10_000_000, false).unwrap();
+        let hard = run_hardened(code, 10_000_000, true).unwrap();
+        let words = ((offset as u64) + 32).div_ceil(32);
+        assert_eq!(hard - plain, memory_gas_cost(words));
+        // 4 MiB: within the 8 MiB hard cap, but the quadratic cost exceeds a 10M gas budget.
+        let code = push32_pair(1, 4u128 << 20, &[0x52, 0x00]);
+        assert!(run_hardened(code.clone(), 10_000_000, false).is_ok());
+        assert!(matches!(
+            run_hardened(code, 10_000_000, true),
+            Err(VmError::OutOfGas)
+        ));
+        // Re-touching already paid memory is free.
+        assert_eq!(memory_gas_cost(0), 0);
+        assert_eq!(memory_gas_cost(1), 3);
+        assert_eq!(memory_gas_cost(1024), 3 * 1024 + 2048);
     }
 
     #[test]

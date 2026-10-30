@@ -683,6 +683,7 @@ mod tests {
                 block_height: self.height,
                 block_timestamp: 0,
                 native_value: false,
+                vm_hardening: false,
             };
             match it.run_with_qa(who, to, &cd, &mut self.st, &RuleRegistry::new(), ctx) {
                 Ok(_) => Out {

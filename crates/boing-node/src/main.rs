@@ -174,6 +174,12 @@ struct Args {
     #[arg(long)]
     micro_fees_activation_height: Option<u64>,
 
+    /// VM hardening (init-code runtime QA, memory gas, stack cap) from this height (all nodes must
+    /// agree). Overrides **`BOING_VM_HARDENING_ACTIVATION_HEIGHT`**. Testnet 6913 preset default:
+    /// 5000. Chains without a preset apply it from genesis.
+    #[arg(long)]
+    vm_hardening_activation_height: Option<u64>,
+
     /// Storage-tree v2: route per-contract storage trees on all 256 key bits from this block height
     /// (all nodes must agree; set only in the future on a live chain). Overrides
     /// **`BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT`**. Unset = off (default; roots unchanged).
@@ -371,12 +377,18 @@ async fn main() -> anyhow::Result<()> {
                     &mut preset.history,
                 )
                 .map_err(|e| anyhow::anyhow!("micro fees config: {e}"))?;
+                boing_node::network_preset::resolve_vm_hardening_from(
+                    args.vm_hardening_activation_height,
+                    &mut preset.history,
+                )
+                .map_err(|e| anyhow::anyhow!("VM hardening config: {e}"))?;
                 let rewrote = boing_node::network_preset::apply_preset(&mut n, &preset);
                 tracing::info!(
-                    "Network preset: chain {} (historical execution eras until height {}; micro_fees_from={}; genesis {})",
+                    "Network preset: chain {} (historical execution eras until height {}; micro_fees_from={}; vm_hardening_from={}; genesis {})",
                     preset.chain_id,
                     preset.history.current_from,
                     preset.history.micro_fees_from,
+                    preset.history.vm_hardening_from,
                     if rewrote { "set from preset" } else { "unchanged" }
                 );
             }
@@ -596,12 +608,18 @@ async fn main() -> anyhow::Result<()> {
                     &mut preset.history,
                 )
                 .map_err(|e| anyhow::anyhow!("micro fees config: {e}"))?;
+                boing_node::network_preset::resolve_vm_hardening_from(
+                    args.vm_hardening_activation_height,
+                    &mut preset.history,
+                )
+                .map_err(|e| anyhow::anyhow!("VM hardening config: {e}"))?;
                 let rewrote = boing_node::network_preset::apply_preset(&mut n, &preset);
                 tracing::info!(
-                    "Network preset: chain {} (historical execution eras until height {}; micro_fees_from={}; genesis {})",
+                    "Network preset: chain {} (historical execution eras until height {}; micro_fees_from={}; vm_hardening_from={}; genesis {})",
                     preset.chain_id,
                     preset.history.current_from,
                     preset.history.micro_fees_from,
+                    preset.history.vm_hardening_from,
                     if rewrote { "set from preset" } else { "unchanged" }
                 );
             }

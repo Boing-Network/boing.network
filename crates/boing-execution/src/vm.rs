@@ -101,6 +101,8 @@ pub struct Vm {
     /// From this height contract calls may carry native value and the native-value opcodes execute
     /// (`BALANCE`, `CALLVALUE`, `SELFBALANCE`, `NATIVE_TRANSFER`). 0 = from genesis.
     native_value_from: u64,
+    /// From this height the VM hardening rules apply (audit #61 items 3, 22, 23). 0 = from genesis.
+    vm_hardening_from: u64,
     /// Pool membership / quorum / voter-reward knobs (execution-time public votes).
     qa_pool_config: QaPoolGovernanceConfig,
     /// Chain id for v2 validator registration proofs (security review #14); `None` = v1 only.
@@ -209,10 +211,25 @@ impl Vm {
         height >= self.native_value_from
     }
 
-    /// `exec_ctx` with [`VmExecutionContext::native_value`] set from its block height.
+    /// Activation height of the VM hardening rules (init-runtime QA, memory gas, stack cap).
+    pub fn set_vm_hardening_from(&mut self, from: u64) {
+        self.vm_hardening_from = from;
+    }
+
+    pub fn vm_hardening_from(&self) -> u64 {
+        self.vm_hardening_from
+    }
+
+    pub fn vm_hardening_active(&self, height: u64) -> bool {
+        height >= self.vm_hardening_from
+    }
+
+    /// `exec_ctx` with [`VmExecutionContext::native_value`] / [`VmExecutionContext::vm_hardening`]
+    /// set from its block height.
     fn ctx_at(&self, exec_ctx: VmExecutionContext) -> VmExecutionContext {
         VmExecutionContext {
             native_value: self.native_value_active(exec_ctx.block_height),
+            vm_hardening: self.vm_hardening_active(exec_ctx.block_height),
             ..exec_ctx
         }
     }
@@ -261,6 +278,7 @@ impl Vm {
             qa_registry_native: default_qa_registry().with_native_value_opcodes(true),
             qa_registry: default_qa_registry(),
             native_value_from: 0,
+            vm_hardening_from: 0,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -279,6 +297,7 @@ impl Vm {
             qa_registry_native: qa_registry.clone().with_native_value_opcodes(true),
             qa_registry: qa_registry.with_native_value_opcodes(false),
             native_value_from: 0,
+            vm_hardening_from: 0,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -300,6 +319,7 @@ impl Vm {
             qa_registry_native: qa_registry.clone().with_native_value_opcodes(true),
             qa_registry: qa_registry.with_native_value_opcodes(false),
             native_value_from: 0,
+            vm_hardening_from: 0,
             qa_pool_config,
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -1735,6 +1755,16 @@ impl Vm {
                 exec_ctx,
             )?;
             let runtime = interpreter.return_data.take().unwrap_or_default();
+            if exec_ctx.vm_hardening {
+                qa_check_init_runtime(
+                    &runtime,
+                    purpose,
+                    desc_hash,
+                    asset_name,
+                    asset_symbol,
+                    self.qa_at(exec_ctx),
+                )?;
+            }
             let logs = std::mem::take(&mut interpreter.logs);
             let gas = GAS_PER_CONTRACT_DEPLOY.saturating_add(g_init);
             (gas, logs, runtime)
@@ -1878,7 +1908,9 @@ impl Vm {
         tx: &Transaction,
         exec_ctx: VmExecutionContext,
     ) -> Result<(), VmError> {
-        let Some((bytecode, _, _, _, _)) = tx.payload.as_contract_deploy() else {
+        let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) =
+            tx.payload.as_contract_deploy()
+        else {
             return Err(VmError::NotImplemented("QA allow of non-deploy"));
         };
         let contract_addr = if let Some(salt) = tx.payload.deploy_create2_salt() {
@@ -1912,7 +1944,18 @@ impl Vm {
                 self.qa_at(exec_ctx),
                 exec_ctx,
             )?;
-            interpreter.return_data.take().unwrap_or_default()
+            let runtime = interpreter.return_data.take().unwrap_or_default();
+            if exec_ctx.vm_hardening {
+                qa_check_init_runtime(
+                    &runtime,
+                    purpose,
+                    desc_hash,
+                    asset_name,
+                    asset_symbol,
+                    self.qa_at(exec_ctx),
+                )?;
+            }
+            runtime
         } else {
             bytecode.to_vec()
         };
@@ -2325,6 +2368,76 @@ mod tests {
             state.get_contract_code(&contract).unwrap().as_slice(),
             &[0x00]
         );
+    }
+
+    fn init_deploy_tx(sender: AccountId, init: Vec<u8>) -> Transaction {
+        let mut bytecode = vec![CONTRACT_DEPLOY_INIT_CODE_MARKER];
+        bytecode.extend(init);
+        Transaction {
+            nonce: 0,
+            sender,
+            payload: TransactionPayload::ContractDeploy {
+                bytecode,
+                create2_salt: None,
+            },
+            access_list: AccessList::default(),
+        }
+    }
+
+    fn funded_sender(state: &mut StateStore) -> AccountId {
+        let key = SigningKey::generate(&mut OsRng);
+        let sender = AccountId(key.verifying_key().to_bytes());
+        state.insert(Account {
+            id: sender,
+            state: AccountState {
+                balance: 1_000_000,
+                ..Default::default()
+            },
+        });
+        sender
+    }
+
+    /// Audit #61 item 3: the runtime returned by init code is QA-checked from the VM hardening
+    /// height (empty runtime, runtime carrying the init marker); before it, stored as-is.
+    #[test]
+    fn init_code_runtime_qa_is_gated() {
+        // RETURN offset 0 size 0 → empty runtime.
+        let empty = vec![0x60, 0x00, 0x60, 0x00, 0xf3];
+        // MSTORE marker in byte 31, RETURN offset 31 size 1 → runtime = [marker].
+        let marker = vec![
+            0x60,
+            CONTRACT_DEPLOY_INIT_CODE_MARKER,
+            0x60,
+            0x00,
+            0x52,
+            0x60,
+            0x01,
+            0x60,
+            0x1f,
+            0xf3,
+        ];
+        for init in [empty, marker] {
+            // Gate active (from genesis).
+            let vm = Vm::new();
+            let mut state = StateStore::new();
+            let sender = funded_sender(&mut state);
+            let r = vm.execute(&init_deploy_tx(sender, init.clone()), &mut state);
+            assert!(matches!(r, Err(VmError::QaRejected { .. })), "{r:?}");
+            assert!(state
+                .get_contract_code(&nonce_derived_contract_address(&sender, 0))
+                .is_none());
+
+            // Before the gate: historical behaviour, runtime stored unchecked.
+            let mut vm = Vm::new();
+            vm.set_vm_hardening_from(u64::MAX);
+            let mut state = StateStore::new();
+            let sender = funded_sender(&mut state);
+            vm.execute(&init_deploy_tx(sender, init.clone()), &mut state)
+                .unwrap();
+            assert!(state
+                .get_contract_code(&nonce_derived_contract_address(&sender, 0))
+                .is_some());
+        }
     }
 
     #[test]
@@ -2797,6 +2910,11 @@ pub enum VmError {
     CallDepthExceeded,
     #[error("CALL input or output buffer exceeds protocol limit")]
     CallBufferTooLarge,
+    #[error(
+        "VM stack depth exceeded (max {} items)",
+        crate::interpreter::MAX_STACK_DEPTH
+    )]
+    StackOverflow,
     #[error("VM memory limit exceeded (max {MAX_VM_MEMORY_BYTES} bytes per frame)")]
     MemoryLimitExceeded,
     #[error("QA rejected: {rule_id} — {message}")]
@@ -2832,6 +2950,42 @@ pub enum VmError {
 /// Apply CREATE2-style deploy from inside a contract: QA, address derivation, account insert, optional init, runtime install.
 /// `deployer` is the **current contract** (`ADDRESS`); init runs with `CALLER` = `deployer` (factory semantics).
 /// `parent_call_depth` is the depth of the frame that executed `CREATE2` (constructor runs at `+1`).
+/// Audit #61 item 3 (from the VM hardening height): the runtime bytecode an init program returns
+/// is what gets stored and executed, so it must pass the same deploy QA as a direct deploy. It may
+/// not itself carry the init-code marker (that would smuggle an unchecked body past QA again).
+/// `Unsure` is not escalated here: the deploy as a whole already went through the Unsure path.
+fn qa_check_init_runtime(
+    runtime: &[u8],
+    purpose: Option<&str>,
+    desc_hash: Option<&[u8]>,
+    asset_name: Option<&str>,
+    asset_symbol: Option<&str>,
+    registry: &RuleRegistry,
+) -> Result<(), VmError> {
+    if contract_deploy_uses_init_code(runtime) {
+        return Err(VmError::QaRejected {
+            rule_id: boing_qa::RuleId::MALFORMED_BYTECODE.to_string(),
+            message:
+                "runtime bytecode returned by init code must not start with the init-code marker"
+                    .to_string(),
+        });
+    }
+    match check_contract_deploy_full_with_metadata(
+        runtime,
+        purpose,
+        desc_hash,
+        asset_name,
+        asset_symbol,
+        registry,
+    ) {
+        QaResult::Reject(r) => Err(VmError::QaRejected {
+            rule_id: r.rule_id.0,
+            message: format!("init-code runtime: {}", r.message),
+        }),
+        QaResult::Allow | QaResult::Unsure => Ok(()),
+    }
+}
+
 pub(crate) fn apply_in_tx_create2(
     state: &mut StateStore,
     qa_registry: &RuleRegistry,
@@ -2899,6 +3053,9 @@ pub(crate) fn apply_in_tx_create2(
         )?;
         Interpreter::merge_child_logs(parent_logs, &interpreter)?;
         let runtime = interpreter.return_data.take().unwrap_or_default();
+        if exec_ctx.vm_hardening {
+            qa_check_init_runtime(&runtime, Some("dapp"), None, None, None, qa_registry)?;
+        }
         (runtime, g)
     } else {
         (bytecode, 0)
@@ -2978,6 +3135,7 @@ mod slash_appeal_phase14_tests {
             block_height: h,
             block_timestamp: 0,
             native_value: false,
+            vm_hardening: false,
         }
     }
 

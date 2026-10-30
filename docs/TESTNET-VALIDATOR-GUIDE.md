@@ -154,6 +154,14 @@ a node that disagrees on any of them computes different roots at the first affec
 | Execution gas fee policy (`execution_gas_fee_bps`) | **100** bps from 1188 (the policy in `docs/config/network_fee_config.canonical.json`) | 1188 |
 | L1 media blobs (`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`) | from **1200** | 1311 (first `PutBlob`) |
 | Media-blob Phase 7 cap (`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`) | from **1306** | 1311 |
+| VM hardening (`BOING_VM_HARDENING_ACTIVATION_HEIGHT`) | from **5000** (upcoming) | 5000 |
+
+**Upcoming: VM hardening at block 5000** (audit #61 items 3, 22, 23). From that height the VM QA-checks the
+runtime bytecode that init code returns before storing it (direct deploys, QA-pool installs and in-contract
+`CREATE2`), charges gas for memory expansion (`3*w + w*w/512` per frame for `w` 32-byte words, on top of the
+existing 8 MiB per-frame cap) and fails a frame whose operand stack grows past **1024** items. Blocks below
+5000 execute exactly as before. Every validator and RPC node must run a build with this rule before the chain
+reaches 5000; an older build computes different results for the first block that hits one of the new limits.
 
 The micro-fee rule needs both the height and the 100 bps policy; either one alone fails at 1188. An
 environment variable or flag you set still overrides the preset (a wrong value breaks sync), and a

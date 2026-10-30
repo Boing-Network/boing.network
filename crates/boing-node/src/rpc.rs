@@ -4090,6 +4090,7 @@ async fn dispatch_jsonrpc_request(
                                     block_height: h.saturating_add(1),
                                     block_timestamp: ts,
                                     native_value: false, // set by the VM from the height
+                                    vm_hardening: false,
                                 },
                                 n.executor.fee_policy().clone(),
                                 n.executor.denomination_at(h.saturating_add(1)),
@@ -4297,6 +4298,7 @@ async fn dispatch_jsonrpc_request(
                 block_height: tip_height,
                 block_timestamp: ts,
                 native_value: false, // set by the VM from the height
+                vm_hardening: false,
             };
             drop(n);
             match vm.execute_with_context(&tx, &mut state_copy, exec_ctx) {

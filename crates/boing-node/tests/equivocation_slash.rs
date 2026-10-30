@@ -16,6 +16,7 @@ fn ctx(h: u64) -> VmExecutionContext {
         block_height: h,
         block_timestamp: 0,
         native_value: false,
+        vm_hardening: false,
     }
 }
 

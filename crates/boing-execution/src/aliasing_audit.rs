@@ -147,6 +147,7 @@ fn secured_token(st: &mut StateStore, deployer: AccountId, bytecode: Vec<u8>) ->
         block_height: 10,
         block_timestamp: 1_700_000_000,
         native_value: false,
+        vm_hardening: false,
     };
     let vm = Vm::new();
     let mk = |nonce, payload| Transaction {
