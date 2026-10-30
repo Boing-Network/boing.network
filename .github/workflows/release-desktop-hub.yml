@@ -12,6 +12,12 @@ on:
 permissions:
   contents: write
 
+# Serialize releases so parallel tag builds cannot race when syncing
+# website/public/hub-updater/latest.json onto main (audit #61 item 75).
+concurrency:
+  group: release-desktop-hub
+  cancel-in-progress: false
+
 jobs:
   build-and-release:
     strategy:

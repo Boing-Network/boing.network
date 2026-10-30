@@ -13,6 +13,12 @@ on:
 permissions:
   contents: write
 
+# One release at a time per tag ref; avoid overlapping multi-OS artifact
+# uploads racing into the same GitHub Release (audit #61 item 75).
+concurrency:
+  group: release-binaries-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   CARGO_TERM_COLOR: always
 
