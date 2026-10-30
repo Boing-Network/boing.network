@@ -166,7 +166,7 @@ pub async fn read_record(
 }
 
 pub async fn deploy(rpc_url: &str, s: Signer) -> anyhow::Result<()> {
-    let key = resolve_signing_key(s.secret.clone())?;
+    let key = resolve_signing_key(s.secret.clone(), s.secret_file.clone())?;
     let addr = registry_address_for(&account_of(&key));
     println!("Interface registry (CREATE2, salt BOING_INTERFACE_REGISTRY_V1)");
     println!("  deployer {}", hex_account(&account_of(&key)));
@@ -216,7 +216,7 @@ pub fn build_blob_store_deploy_tx(key: &SigningKey, nonce: u64) -> SignedTransac
 
 /// Deploy the interface blob store (built-in hosting for interface JSON; CREATE2, salt BOING_IFACE_BLOB_STORE_V1).
 pub async fn deploy_blob_store(rpc_url: &str, s: Signer) -> anyhow::Result<()> {
-    let key = resolve_signing_key(s.secret.clone())?;
+    let key = resolve_signing_key(s.secret.clone(), s.secret_file.clone())?;
     let addr = blob_store_address_for(&account_of(&key));
     println!("Interface blob store (CREATE2, salt BOING_IFACE_BLOB_STORE_V1)");
     println!("  deployer {}", hex_account(&account_of(&key)));
@@ -329,7 +329,7 @@ pub async fn publish(
     let hash = check_interface_json(&bytes)?;
     let set_cd = encode_iface_set_interface_calldata(&contract, &hash, uri)
         .map_err(|e| anyhow::anyhow!(e))?;
-    let key = resolve_signing_key(s.secret.clone())?;
+    let key = resolve_signing_key(s.secret.clone(), s.secret_file.clone())?;
     let me = account_of(&key);
     println!("Publish interface");
     println!("  registry  {}", hex_account(&registry));

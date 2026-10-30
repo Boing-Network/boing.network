@@ -10,11 +10,34 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 boing-primitives = { path = "../crates/boing-primitives" }
+boing-execution = { path = "../crates/boing-execution" }
+boing-qa = { path = "../crates/boing-qa" }
 bincode = "1"
 
 [[bin]]
 name = "fuzz_target_1"
 path = "fuzz_targets/fuzz_target_1.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_bytecode_decode"
+path = "fuzz_targets/fuzz_bytecode_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_tx_roundtrip"
+path = "fuzz_targets/fuzz_tx_roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_qa_match"
+path = "fuzz_targets/fuzz_qa_match.rs"
 test = false
 doc = false
 bench = false

@@ -25,12 +25,14 @@ Built with [Boing SDK](https://github.com/Boing-Network/boing.network).
 ## Quick Start
 
 ```bash
-boing dev          # Start local chain
-boing deploy .     # Deploy to network
+boing dev                 # Start local chain
+# Put VM bytecode in bytecode.hex (or pass a .bin/.hex file), then:
+boing deploy . --secret-file ./deployer.seed
 ```
 
 ## Project Structure
 
+- `bytecode.hex` — Boing VM bytecode to deploy (`boing deploy .`)
 - `src/` — Contract source
 - `Cargo.toml` — Dependencies
 "#;
@@ -145,6 +147,10 @@ pub fn run(name: Option<String>, output: Option<String>) -> anyhow::Result<()> {
     )
     .inspect_err(|e| {
         boing_telemetry::component_warn("boing_cli::init", "cli", "write_lib_rs_failed", e);
+    })?;
+    // Minimal STOP bytecode so `boing deploy .` has something to submit.
+    fs::write(out.join("bytecode.hex"), "0x00\n").inspect_err(|e| {
+        boing_telemetry::component_warn("boing_cli::init", "cli", "write_bytecode_hex_failed", e);
     })?;
 
     info!("Created project {} at {}", proj_name, out.display());

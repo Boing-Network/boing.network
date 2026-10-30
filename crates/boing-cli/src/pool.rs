@@ -372,6 +372,7 @@ async fn pool_tokens(
 
 pub struct Signer {
     pub secret: Option<String>,
+    pub secret_file: Option<String>,
     pub nonce: Option<u64>,
     pub dry_run: bool,
 }
@@ -392,7 +393,7 @@ pub struct CreateArgs {
 }
 
 pub async fn create(rpc_url: &str, s: Signer, a: CreateArgs) -> anyhow::Result<()> {
-    let key = resolve_signing_key(s.secret.clone())?;
+    let key = resolve_signing_key(s.secret.clone(), s.secret_file.clone())?;
     let me = account_of(&key);
     let v = a.version;
     v.assert_deployable()?;
@@ -482,7 +483,7 @@ pub async fn add_liquidity(
     if amount_a == 0 || amount_b == 0 {
         anyhow::bail!("amounts must be > 0");
     }
-    let key = resolve_signing_key(s.secret.clone())?;
+    let key = resolve_signing_key(s.secret.clone(), s.secret_file.clone())?;
     let pool = parse_account(pool)?;
     let min_lp = min_liquidity.unwrap_or(0);
     if !s.offline() {
@@ -550,7 +551,7 @@ pub async fn remove_liquidity(
     if liquidity == 0 {
         anyhow::bail!("--liquidity must be > 0");
     }
-    let key = resolve_signing_key(s.secret.clone())?;
+    let key = resolve_signing_key(s.secret.clone(), s.secret_file.clone())?;
     let me = account_of(&key);
     let pool_id = parse_account(pool)?;
     let (min_a, min_b) = match (min_a, min_b) {
@@ -608,7 +609,7 @@ pub async fn swap(
         anyhow::bail!("--amount-in must be > 0");
     }
     let dir = parse_direction(direction)?;
-    let key = resolve_signing_key(s.secret.clone())?;
+    let key = resolve_signing_key(s.secret.clone(), s.secret_file.clone())?;
     let pool_id = parse_account(pool)?;
     let min_out = match min_out {
         Some(m) => m,

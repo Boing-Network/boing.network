@@ -33,7 +33,12 @@ const ZERO_ARG = {
   shr: 0x1c,
   sar: 0x1d,
   address: 0x30,
+  balance: 0x31,
   caller: 0x33,
+  callvalue: 0x34,
+  blockheight: 0x40,
+  timestamp: 0x41,
+  selfbalance: 0x47,
   dup1: 0x80,
   log0: 0xa0,
   log1: 0xa1,
@@ -47,6 +52,7 @@ const ZERO_ARG = {
   jump: 0x56,
   jumpi: 0x57,
   call: 0xf1,
+  native_transfer: 0xf2,
   create2: 0xf5,
   return: 0xf3,
 };
@@ -209,6 +215,20 @@ function selfTest() {
     '33807f01010101010101010101010101010101010101010101010101010101010101015560046000a03360205260206020f300';
   if (hexOf(cb).slice(2) !== expectedSmoke) {
     throw new Error(`mini-ir-caller-return mismatch:\n${hexOf(cb)}\nvs\n0x${expectedSmoke}`);
+  }
+
+  // Keep in sync with crates/boing-execution/src/bytecode.rs (audit #61 item 53).
+  for (const [name, byte] of Object.entries({
+    blockheight: 0x40,
+    timestamp: 0x41,
+    balance: 0x31,
+    callvalue: 0x34,
+    selfbalance: 0x47,
+    native_transfer: 0xf2,
+  })) {
+    if (ZERO_ARG[name] !== byte) {
+      throw new Error(`opcode table drift: ${name} expected 0x${byte.toString(16)}`);
+    }
   }
 
   console.error('boing-vm-transpile-ir: self-test ok');

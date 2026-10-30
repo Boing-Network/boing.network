@@ -1,8 +1,9 @@
 //! `boing validator register | deregister | unjail | claim-unbond | status` — open validator set (permissionless).
 //!
 //! Keys: the **owner** (pays the 100 BOING bond, signs the tx) comes from `--secret-hex` /
-//! `BOING_SECRET_HEX`; the **node** key (consensus key the node runs with) from `--node-key-hex` /
-//! `BOING_VALIDATOR_KEY`. If no owner key is given, the node key owns itself. Keys are never printed.
+//! `--secret-file` / `BOING_SECRET_HEX`; the **node** key from `--node-key-hex` /
+//! `--node-key-file` / `BOING_VALIDATOR_KEY`. Prefer file/env over argv so seeds stay out of `ps`.
+//! If no owner key is given, the node key owns itself. Keys are never printed.
 
 use boing_primitives::{
     sign_validator_registration, AccessList, AccountId, SignedTransaction, Transaction,
@@ -18,19 +19,45 @@ use crate::token::{
 /// Resolve (owner, node) keys. The node key is optional for deregister/unjail when `--node` is given.
 pub fn resolve_keys(
     owner_hex: Option<String>,
+    owner_file: Option<String>,
     node_key_hex: Option<String>,
+    node_key_file: Option<String>,
 ) -> anyhow::Result<(Option<SigningKey>, Option<SigningKey>)> {
-    let node = node_key_hex
-        .or_else(|| std::env::var("BOING_VALIDATOR_KEY").ok())
-        .filter(|s| !s.trim().is_empty())
-        .map(|s| parse_signing_key(&s))
-        .transpose()?;
-    let owner = owner_hex
-        .or_else(|| std::env::var("BOING_SECRET_HEX").ok())
-        .filter(|s| !s.trim().is_empty())
-        .map(|s| parse_signing_key(&s))
-        .transpose()?;
+    let node = optional_signing_key(
+        node_key_hex,
+        node_key_file,
+        "BOING_VALIDATOR_KEY",
+        "BOING_VALIDATOR_KEY_FILE",
+        "node key",
+    )?;
+    let owner = optional_signing_key(
+        owner_hex,
+        owner_file,
+        "BOING_SECRET_HEX",
+        "BOING_SECRET_FILE",
+        "owner secret",
+    )?;
     Ok((owner, node))
+}
+
+fn optional_signing_key(
+    inline: Option<String>,
+    file: Option<String>,
+    env_inline: &str,
+    env_file: &str,
+    what: &str,
+) -> anyhow::Result<Option<SigningKey>> {
+    let has_inline = inline.as_ref().is_some_and(|s| !s.trim().is_empty());
+    let has_file = file.as_ref().is_some_and(|s| !s.trim().is_empty())
+        || std::env::var(env_file).ok().is_some_and(|s| !s.trim().is_empty());
+    let has_env = std::env::var(env_inline)
+        .ok()
+        .is_some_and(|s| !s.trim().is_empty());
+    if !has_inline && !has_file && !has_env {
+        return Ok(None);
+    }
+    let s = crate::secrets::read_secret_string(inline, file, env_inline, env_file, what)?;
+    Ok(Some(parse_signing_key(&s)?))
 }
 
 fn tx(owner: &SigningKey, nonce: u64, payload: TransactionPayload) -> SignedTransaction {
