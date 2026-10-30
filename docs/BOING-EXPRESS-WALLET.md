@@ -233,7 +233,7 @@ The portal and developer tools use **no external wallet libraries**. Connection 
   - `account_id_hex`: 32-byte address as hex with `0x` (66 chars).
   - `message`: Exact UTF-8 string that was shown to the user and signed (e.g. nonce-backed `Sign in to Boing Portal\nOrigin: ...\nTimestamp: ...\nNonce: ...`).
   - `signature`: Ed25519 signature as **64-byte hex** (128 hex chars, optional `0x` prefix). The wallet must return raw Ed25519 for the account's public key (same as Boing account ID).
-- **Verification:** Backend verifies Ed25519(`message`, `signature`) with public key = `account_id_hex` using Node built-in `crypto` (no npm packages). Messages with a timestamp are rejected if older than 5 minutes; nonce-based messages also require a valid unconsumed nonce from `GET /api/portal/auth/nonce`.
+- **Verification:** Backend verifies Ed25519(`message`, `signature`) with public key = `account_id_hex` using Node built-in `crypto` (no npm packages). Sign-in **requires** a nonce from `GET /api/portal/auth/nonce`; messages are rejected if older than 5 minutes or if the nonce is missing, expired, or already used.
 - **Response:** Same shape as `GET /api/portal/me` on success (e.g. `ok`, `registered`, `account_id_hex`, `role`, …). Frontend then sets session via `BoingPortalSession.setSession(account_id_hex, role)` and redirects.
 
 #### 3.6.2 Frontend (sign-in page)
@@ -312,7 +312,7 @@ After migration and deploy:
 #### 3.7.6 Compatibility
 
 - Portal prefers `boing_requestAccounts`, `boing_signMessage`, `boing_chainId`, `boing_switchChain`; falls back to `eth_requestAccounts`, `personal_sign`, etc. when Boing methods are unsupported.
-- Backend accepts older timestamp-only message format; nonce-based sign-in is the preferred flow.
+- Backend **requires** nonce-based sign-in; the older timestamp-only message format is rejected (`nonce_required`).
 
 ---
 
