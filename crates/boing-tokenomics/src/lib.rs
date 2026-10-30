@@ -856,7 +856,13 @@ mod tests {
 
     #[test]
     fn whole_and_base_emission_paths_stay_aligned() {
-        for h in [1u64, 2, BLOCKS_PER_YEAR, BLOCKS_PER_YEAR + 1, BLOCKS_PER_YEAR * 50 + 7] {
+        for h in [
+            1u64,
+            2,
+            BLOCKS_PER_YEAR,
+            BLOCKS_PER_YEAR + 1,
+            BLOCKS_PER_YEAR * 50 + 7,
+        ] {
             let base = block_emission_validators_in(h, Denomination::BaseUnits);
             let whole = block_emission_validators_in(h, Denomination::WholeBoing);
             assert_eq!(whole, base / BASE_UNITS_PER_BOING);
