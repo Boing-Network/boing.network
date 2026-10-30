@@ -24,8 +24,10 @@ use serde_json::{json, Value};
 /// QA purpose category for fungible deploys (`QUALITY-ASSURANCE-NETWORK.md`).
 pub const TOKEN_PURPOSE: &str = "token";
 
-/// Reference fungible template version: `v1` (original) or `v2` (adds approve / transfer_from /
-/// allowance; fixes v1's self-transfer double credit).
+/// Reference fungible template version: `v2` (deployable) or `v1` (retired; self-transfer mints).
+///
+/// **New deploys must use v2.** v1 remains parseable so `boing token bytecode --version v1` can
+/// still identify historical contracts (audit #61 item 24).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TokenVersion(pub u8);
 
@@ -47,6 +49,16 @@ impl TokenVersion {
         } else {
             reference_fungible_template_v2_bytecode()
         }
+    }
+
+    /// Refuse known-broken v1 for new deploys (self-transfer credits without debiting).
+    pub fn assert_deployable(self) -> anyhow::Result<()> {
+        if self.0 == 1 {
+            anyhow::bail!(
+                "token template v1 is retired (known self-transfer mint bug); deploy with --version v2"
+            );
+        }
+        Ok(())
     }
 }
 
@@ -117,15 +129,15 @@ fn with_access_list(mut tx: Transaction) -> Transaction {
     tx
 }
 
-/// Signed `ContractDeployWithPurposeAndMetadata` for the reference fungible template.
-#[allow(dead_code)] // v1 deploy (tests / back-compat)
+/// Signed `ContractDeployWithPurposeAndMetadata` for the reference fungible **v2** template.
+#[allow(dead_code)] // tests / back-compat helper
 pub fn build_deploy_tx(
     key: &SigningKey,
     nonce: u64,
     name: Option<String>,
     symbol: Option<String>,
 ) -> SignedTransaction {
-    build_deploy_tx_versioned(key, nonce, name, symbol, TokenVersion(1))
+    build_deploy_tx_versioned(key, nonce, name, symbol, TokenVersion(2))
 }
 
 /// Deploy tx for the chosen template version.
@@ -315,6 +327,7 @@ pub async fn deploy(
     dry_run: bool,
     version: TokenVersion,
 ) -> anyhow::Result<()> {
+    version.assert_deployable()?;
     validate_metadata(&name, &symbol)?;
     let key = resolve_signing_key(secret)?;
     let me = account_of(&key);
@@ -460,6 +473,11 @@ pub async fn allowance(
 }
 
 pub fn print_bytecode(version: TokenVersion) {
+    if version.0 == 1 {
+        eprintln!(
+            "warning: token template v1 is retired for new deploys (self-transfer mint bug); use v2"
+        );
+    }
     println!("0x{}", hex::encode(version.bytecode()));
 }
 
@@ -542,13 +560,15 @@ mod tests {
                 create2_salt,
                 ..
             } => {
-                assert_eq!(bytecode, &reference_fungible_template_bytecode());
+                assert_eq!(bytecode, &reference_fungible_template_v2_bytecode());
                 assert_eq!(purpose_category, "token");
                 assert_eq!(asset_symbol.as_deref(), Some("BTST"));
                 assert!(create2_salt.is_none());
             }
             p => panic!("unexpected payload {p:?}"),
         }
+        assert!(TokenVersion(1).assert_deployable().is_err());
+        assert!(TokenVersion(2).assert_deployable().is_ok());
         assert!(stx.tx.access_list_covers_parallel_suggestion());
         let hex_tx = encode_signed(&stx).unwrap();
         let back = SignedTransaction::from_bincode(&hex::decode(&hex_tx[2..]).unwrap()).unwrap();

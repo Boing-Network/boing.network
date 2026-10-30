@@ -2,7 +2,7 @@
 
 > **Developers:** keep this aligned with `crates/boing-cli/src/pool.rs` and `boing-sdk/src/boingPool.ts`.
 
-`boing pool` and the matching `boing-sdk` helpers drive the native constant-product pool templates (`constant_product_pool_bytecode{,_v2..v8}`, specified in [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md)). **v8 (the default) is the first template with real custody:** it pulls deposits and swap input from the caller with reference-token **v2** `transfer_from`. Everything is Boing-native: Boing VM bytecode, bincode `SignedTransaction` signed with Ed25519, `boing_submitTransaction`, `boing_getContractStorage`. There is no EVM or Solana runtime. v1–v7 and the v1 token bytecode are unchanged; v8 and token v2 are new, versioned templates.
+`boing pool` and the matching `boing-sdk` helpers drive the native constant-product pool templates (`constant_product_pool_bytecode{,_v2..v10}`, specified in [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md)). **v8+ (the default) have real custody:** they pull deposits and swap input from the caller with reference-token **v2** `transfer_from`. Everything is Boing-native: Boing VM bytecode, bincode `SignedTransaction` signed with Ed25519, `boing_submitTransaction`, `boing_getContractStorage`. There is no EVM or Solana runtime. **New `boing pool create` / `createBoingPool` deploys refuse v1–v7** (ledger-only fake-deposit drain; audit #61 item 24); existing v1–v7 pools remain operable via liquidity/swap helpers, and bytecode dump still works for forensics.
 
 ## Commands
 

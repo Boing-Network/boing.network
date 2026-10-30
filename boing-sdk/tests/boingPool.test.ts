@@ -34,6 +34,7 @@ describe('boing pool SDK helpers: byte-identical to the Rust CLI', () => {
       feeAdminHex: V.recipientHex,
       feeBps: 50n,
       version: 7,
+      allowRetired: true,
     });
     expect(r.deployerHex).toBe(V.senderHex);
     expect(r.poolHex).toBe(V.poolHex);
@@ -42,8 +43,21 @@ describe('boing pool SDK helpers: byte-identical to the Rust CLI', () => {
   });
 
   it('deploy v1 matches CLI', async () => {
-    const r = await createBoingPool(null, SEED, { nonce: 0n, dryRun: true, version: 1 });
+    const r = await createBoingPool(null, SEED, { nonce: 0n, dryRun: true, version: 1, allowRetired: true });
     expect(r.txs[0]!.signedHex).toBe(V.deployV1.signedHex);
+  });
+
+  it('refuses retired v1..v7 for new creates unless allowRetired', async () => {
+    await expect(createBoingPool(null, SEED, { nonce: 0n, dryRun: true, version: 1 })).rejects.toThrow(/retired/);
+    await expect(
+      createBoingPool(null, SEED, {
+        nonce: 0n,
+        dryRun: true,
+        version: 7,
+        tokenAHex: V.tokenAHex,
+        tokenBHex: V.tokenBHex,
+      }),
+    ).rejects.toThrow(/retired/);
   });
 
   it('add / swap / swap_to / remove match CLI', async () => {
@@ -93,7 +107,16 @@ describe('boing pool SDK helpers: byte-identical to the Rust CLI', () => {
   it('offline dry-run without bounds is refused', async () => {
     await expect(swapBoingPool(null, SEED, { poolHex: V.poolHex, direction: 'a-to-b', amountIn: 1n, nonce: 0n, dryRun: true })).rejects.toThrow(/minOut/);
     await expect(removeBoingPoolLiquidity(null, SEED, { poolHex: V.poolHex, liquidity: 1n, nonce: 0n, dryRun: true })).rejects.toThrow(/minA/);
-    await expect(createBoingPool(null, SEED, { nonce: 0n, dryRun: true, version: 3, tokenAHex: V.tokenAHex, tokenBHex: V.tokenBHex })).rejects.toThrow(/token hooks/);
+    await expect(
+      createBoingPool(null, SEED, {
+        nonce: 0n,
+        dryRun: true,
+        version: 3,
+        tokenAHex: V.tokenAHex,
+        tokenBHex: V.tokenBHex,
+        allowRetired: true,
+      }),
+    ).rejects.toThrow(/token hooks/);
   });
 });
 

@@ -196,7 +196,7 @@ enum TokenCommands {
         /// Recipient of the initial supply (default: deployer)
         #[arg(long)]
         mint_to: Option<String>,
-        /// Template version: v2 (default; approve/transfer_from) or v1 (original)
+        /// Template version: v2 only for new deploys (v1 retired: self-transfer mint bug)
         #[arg(long, default_value = "v2")]
         version: token::TokenVersion,
         #[command(flatten)]
@@ -261,7 +261,7 @@ enum TokenCommands {
 enum PoolCommands {
     /// Deploy a native CP pool template (purpose `dapp`); optionally set tokens / fee admin / fee
     Create {
-        /// Template version v1..v9 (v8 = token-pulling custody; v9 = v8 + swap returns amount_out; v7 = ledger-only)
+        /// Template version for new deploys: v8..v10 only (v1..v7 retired: ledger-only fake-deposit drain)
         #[arg(long, default_value = "v8")]
         version: pool::PoolVersion,
         /// Reference-token contract for side A (token-hook versions v2, v4..v8; required for v8)

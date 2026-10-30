@@ -70,7 +70,7 @@ New, versioned template; the v1 bytecode above is unchanged. Same lazy admin, on
 
 Allowance slot: `(owner[0..16] ‖ spender[0..16]) ^ REF_FUNGIBLE_ALLOWANCE_XOR` (ASCII `BOING_REFFUNGIBLE_ALW2`, zero-padded), readable with `boing_getContractStorage`.
 
-**v1 self-transfer bug (fixed in v2):** in the v1 template, `transfer` to yourself credits the new balance without debiting first, so a holder doubles their balance (mint 100, self-transfer 100 → 200). This is pinned by the test `v1_template_self_transfer_double_credits_known_bug`. The v1 bytecode is left untouched (deployed tokens can't change), so **treat supply of v1 tokens as untrusted** and use v2 for new tokens. In v2 a self-transfer is a no-op. The secured template (`0xFD`) has not been re-checked for the same pattern.
+**v1 self-transfer bug (fixed in v2; v1 retired for new deploys):** in the v1 template, `transfer` to yourself credits the new balance without debiting first, so a holder doubles their balance (mint 100, self-transfer 100 → 200). This is pinned by the test `v1_template_self_transfer_double_credits_known_bug`. The v1 bytecode is left untouched (already-deployed tokens can't change), so **treat supply of v1 tokens as untrusted**. **`boing token deploy` and `deployBoingToken` refuse v1** (use `--version v2` / default). Secured **v2** is the pinned SDK/CLI default for new secured deploys (same self-transfer no-op); secured v1 is retired the same way.
 
 ## CLI: `boing token` (Rust, no SDK required)
 
@@ -78,7 +78,7 @@ Allowance slot: `(owner[0..16] ‖ spender[0..16]) ^ REF_FUNGIBLE_ALLOWANCE_XOR`
 
 | Command | What it does |
 |---------|--------------|
-| `boing token deploy --symbol TKN [--name ...] [--initial-supply N] [--mint-to <id>] [--version v2\|v1]` | Signs `ContractDeployWithPurposeAndMetadata` (purpose **`token`**) with the reference template (**v2 by default**; `--version v1` for the original); prints the nonce-derived token address; optionally sends `mint_first` at nonce+1 (fixed supply). |
+| `boing token deploy --symbol TKN [--name ...] [--initial-supply N] [--mint-to <id>] [--version v2]` | Signs `ContractDeployWithPurposeAndMetadata` (purpose **`token`**) with the reference template (**v2 only** for new deploys; v1 retired); prints the nonce-derived token address; optionally sends `mint_first` at nonce+1 (fixed supply). |
 | `boing token mint --token <id> --amount N [--to <id>]` | One-time `mint_first` (admin = first caller). |
 | `boing token transfer --token <id> --to <id> --amount N` | Reference `transfer`. |
 | `boing token balance --token <id> --holder <id>` | Reads `boing_getContractStorage` at `holder ^ REF_FUNGIBLE_BALANCE_XOR` and prints the `u128` balance. |

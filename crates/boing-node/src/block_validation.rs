@@ -62,8 +62,16 @@ pub fn validate_and_execute_block(
         )
         .map_err(|e| BlockValidationError::ExecutionFailed(e.to_string()))?;
 
-    // 4. Block reward
-    let reward = executor.block_emission(block.header.height);
+    // 4. Block reward (clamped to MAX_SUPPLY hard cap; must match producer).
+    let reward = {
+        let uncapped = executor.block_emission(block.header.height);
+        let held = state.compute_native_aggregates().total_native_held;
+        boing_tokenomics::clamp_emission_to_hard_cap(
+            uncapped,
+            held,
+            executor.denomination_at(block.header.height),
+        )
+    };
     if reward > 0 {
         match state.get_mut(&block.header.proposer) {
             Some(s) => s.balance = s.balance.saturating_add(reward),

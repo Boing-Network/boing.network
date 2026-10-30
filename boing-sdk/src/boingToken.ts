@@ -44,9 +44,21 @@ export const REFERENCE_FUNGIBLE_BALANCE_XOR: Uint8Array = (() => {
   return out;
 })();
 
-/** Template version: `2` (default, like the CLI: approve / transfer_from / allowance) or `1`. */
+/**
+ * Template version: `2` (default / only deployable) or `1` (retired: self-transfer mint bug).
+ * `bytecode` helpers still accept `1` for forensics; deploy builders refuse it (audit #61 item 24).
+ */
 export type BoingTokenVersion = 1 | 2;
 export const BOING_TOKEN_DEFAULT_VERSION: BoingTokenVersion = 2;
+
+/** Refuse known-broken v1 for new deploys. */
+export function assertBoingTokenDeployable(version: BoingTokenVersion = BOING_TOKEN_DEFAULT_VERSION): void {
+  if (version === 1) {
+    throw new Error(
+      'token template v1 is retired (known self-transfer mint bug); deploy with version 2',
+    );
+  }
+}
 
 /** `REF_FUNGIBLE_ALLOWANCE_XOR`: ASCII `BOING_REFFUNGIBLE_ALW2` zero-padded to 32 bytes. */
 export const REFERENCE_FUNGIBLE_ALLOWANCE_XOR: Uint8Array = (() => {
@@ -224,6 +236,11 @@ export interface DeployBoingTokenInput extends BoingTokenSendOptions {
   mintToHex?: string;
   /** Template version (default 2, like `boing token deploy`). */
   version?: BoingTokenVersion;
+  /**
+   * Opt-in for historical v1 signing vectors / forensics. Default deploys refuse v1
+   * (self-transfer mint bug; audit #61 item 24).
+   */
+  allowRetired?: boolean;
 }
 
 export interface DeployBoingTokenResult {
@@ -240,6 +257,9 @@ export async function deployBoingToken(
   secretKey32: Ed25519SecretKey32,
   input: DeployBoingTokenInput = {},
 ): Promise<DeployBoingTokenResult> {
+  if (!input.allowRetired) {
+    assertBoingTokenDeployable(input.version ?? BOING_TOKEN_DEFAULT_VERSION);
+  }
   validateBoingTokenMetadata(input.name, input.symbol);
   const deployerHex = await senderHexFromSecretKey(secretKey32);
   const nonce = await resolveNonce(client, deployerHex, input.nonce);

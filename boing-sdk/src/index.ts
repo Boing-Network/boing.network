@@ -228,6 +228,7 @@ export {
   transferBoingToken,
   getBoingTokenBalance,
   BOING_TOKEN_DEFAULT_VERSION,
+  assertBoingTokenDeployable,
   REFERENCE_FUNGIBLE_ALLOWANCE_XOR,
   boingTokenAllowanceStorageKeyHex,
   buildBoingTokenApproveTransaction,
@@ -1000,6 +1001,8 @@ export function createClient(config: string | import('./client.js').BoingClientC
 export {
   BOING_POOL_PURPOSE,
   BOING_POOL_DEFAULT_VERSION,
+  BOING_POOL_MIN_DEPLOYABLE_VERSION,
+  assertBoingPoolDeployable,
   boingPoolHasTokenHooks,
   boingPoolHasStorageFee,
   boingPoolHasFeeAdmin,
