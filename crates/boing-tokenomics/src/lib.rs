@@ -606,49 +606,48 @@ pub enum FeeError {
     InsufficientBalance { have: u128, need: u128 },
 }
 
-/// Block emission (proposer share) in the ledger unit `denom`. Whole BOING keeps the historical formula
-/// (replay). Base units use integer math only: year-1 emission per block from `MAX_SUPPLY × 10^18`,
-/// decayed by 85% per year in basis points, floored at 1% of supply per year, times the proposer share.
+/// Block emission (proposer share) in the ledger unit `denom`.
+///
+/// Both denominations share one integer schedule (no `f64`): year-1 emission per block from
+/// `MAX_SUPPLY` (× `10^18` for base units), decayed by [`EMISSION_DECAY_BPS`] per year, floored at
+/// [`EMISSION_FLOOR_BPS`] of supply per year, times the proposer share. Whole-BOING is the base-unit
+/// result truncated by `BASE_UNITS_PER_BOING` so the paths cannot diverge (audit #61 item 44).
 /// (The mainnet schedule replaces this; see MAINNET-READINESS plan item 2.)
 pub fn block_emission_validators_in(block_height: u64, denom: Denomination) -> u128 {
+    let base = block_emission_validators_base_units(block_height);
     match denom {
-        Denomination::WholeBoing => block_emission_validators(block_height),
-        Denomination::BaseUnits => {
-            if block_height == 0 {
-                return 0;
-            }
-            let supply = MAX_SUPPLY.saturating_mul(BASE_UNITS_PER_BOING);
-            let per_year = BLOCKS_PER_YEAR as u128;
-            let floor = supply * EMISSION_FLOOR_BPS as u128 / 10_000 / per_year;
-            let mut emission = supply * EMISSION_YEAR_1_BPS as u128 / 10_000 / per_year;
-            let year = (block_height - 1) / BLOCKS_PER_YEAR;
-            for _ in 0..year {
-                emission = emission * EMISSION_DECAY_BPS as u128 / 10_000;
-                if emission <= floor {
-                    break;
-                }
-            }
-            emission.max(floor) * BLOCK_EMISSION_PROPOSER_BPS as u128 / 10_000
-        }
+        Denomination::BaseUnits => base,
+        Denomination::WholeBoing => base / BASE_UNITS_PER_BOING,
     }
 }
 
 /// [`EMISSION_DECAY`] in basis points (integer path).
 pub const EMISSION_DECAY_BPS: u16 = 8_500;
 
-/// Block emission reward (validators' share), whole-BOING ledger. Year N = Year 1 * EMISSION_DECAY^(N-1).
-pub fn block_emission_validators(block_height: u64) -> u128 {
+fn block_emission_validators_base_units(block_height: u64) -> u128 {
     if block_height == 0 {
         return 0;
     }
+    let supply = MAX_SUPPLY.saturating_mul(BASE_UNITS_PER_BOING);
+    let per_year = BLOCKS_PER_YEAR as u128;
+    let floor = supply * EMISSION_FLOOR_BPS as u128 / 10_000 / per_year;
+    let mut emission = supply * EMISSION_YEAR_1_BPS as u128 / 10_000 / per_year;
     let year = (block_height - 1) / BLOCKS_PER_YEAR;
-    let decay = EMISSION_DECAY.powi(year as i32);
-    let year1_per_block =
-        (MAX_SUPPLY * EMISSION_YEAR_1_BPS as u128 / 10_000) / BLOCKS_PER_YEAR as u128;
-    let floor_per_block =
-        (MAX_SUPPLY * EMISSION_FLOOR_BPS as u128 / 10_000) / BLOCKS_PER_YEAR as u128;
-    let emission = (year1_per_block as f64 * decay) as u128;
-    emission.max(floor_per_block) * BLOCK_EMISSION_PROPOSER_BPS as u128 / 10_000
+    for _ in 0..year {
+        emission = emission * EMISSION_DECAY_BPS as u128 / 10_000;
+        if emission <= floor {
+            break;
+        }
+    }
+    emission.max(floor) * BLOCK_EMISSION_PROPOSER_BPS as u128 / 10_000
+}
+
+/// Block emission reward (validators' share), whole-BOING ledger.
+///
+/// Derived from the base-unit schedule (integer only). Sub-BOING floor dust truncates to `0` in
+/// this denomination; use [`Denomination::BaseUnits`] when the 1% floor must remain nonzero.
+pub fn block_emission_validators(block_height: u64) -> u128 {
+    block_emission_validators_in(block_height, Denomination::WholeBoing)
 }
 
 #[cfg(test)]
@@ -843,6 +842,30 @@ mod tests {
             block_emission_validators_in(5, Denomination::WholeBoing),
             block_emission_validators(5)
         );
+        // Whole BOING is a truncation of the base-unit schedule (no separate f64 path).
+        assert_eq!(
+            block_emission_validators_in(1, Denomination::WholeBoing),
+            block_emission_validators_in(1, Denomination::BaseUnits) / BASE_UNITS_PER_BOING
+        );
+        assert_eq!(
+            block_emission_validators_in(BLOCKS_PER_YEAR * 200 + 1, Denomination::WholeBoing),
+            block_emission_validators_in(BLOCKS_PER_YEAR * 200 + 1, Denomination::BaseUnits)
+                / BASE_UNITS_PER_BOING
+        );
+    }
+
+    #[test]
+    fn whole_and_base_emission_paths_stay_aligned() {
+        for h in [1u64, 2, BLOCKS_PER_YEAR, BLOCKS_PER_YEAR + 1, BLOCKS_PER_YEAR * 50 + 7] {
+            let base = block_emission_validators_in(h, Denomination::BaseUnits);
+            let whole = block_emission_validators_in(h, Denomination::WholeBoing);
+            assert_eq!(whole, base / BASE_UNITS_PER_BOING);
+        }
+    }
+
+    #[test]
+    fn emission_decay_bps_matches_documented_f64() {
+        assert!((EMISSION_DECAY * 10_000.0 - f64::from(EMISSION_DECAY_BPS)).abs() < 1e-9);
     }
 
     #[test]
