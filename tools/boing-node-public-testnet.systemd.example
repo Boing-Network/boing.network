@@ -5,6 +5,10 @@
 #
 # Env: copy https://github.com/Boing-Network/boing.network/blob/main/tools/boing-node-public-testnet.env.example
 # to /etc/boing-node/testnet.env (uncomment BOING_CANONICAL_NATIVE_* for your deployment), chmod 640, root:root.
+#
+# Operator RPC is fail-closed: set BOING_OPERATOR_RPC_TOKEN=<long random secret, e.g. `openssl rand -hex 32`>
+# in that env file if you need operator methods (fee/QA policy, slash appeals, BLS keys, blob offers);
+# clients send it as the X-Boing-Operator header. Never put the token inline in this unit file.
 
 [Unit]
 Description=Boing testnet boing-node (JSON-RPC + P2P)
@@ -38,6 +42,14 @@ ExecStart=/usr/local/bin/boing-node \
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65535
+
+# Hardening (the node only needs to write its data dir).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/boing-node-testnet
+CapabilityBoundingSet=
 
 [Install]
 WantedBy=multi-user.target

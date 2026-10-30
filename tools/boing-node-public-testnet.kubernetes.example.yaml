@@ -23,6 +23,25 @@ data:
   # BOING_CANONICAL_NATIVE_DEX_FACTORY: "0x..."  # add remaining BOING_CANONICAL_NATIVE_* per docs/RPC-API-SPEC.md
 
 ---
+# Operator RPC token (fail-closed): operator methods are rejected with -32057 unless this is set.
+# Create it out of band instead of committing a value:
+#   kubectl create secret generic boing-node-operator --from-literal=BOING_OPERATOR_RPC_TOKEN="$(openssl rand -hex 32)"
+# The Deployment references it with optional: true, so the node still starts (operator methods disabled) without it.
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: boing-node-testnet-data
+  labels:
+    app.kubernetes.io/name: boing-node
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 100Gi
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -39,6 +58,11 @@ spec:
       labels:
         app.kubernetes.io/name: boing-node
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
       containers:
         - name: boing-node
           # Replace with your image that contains the boing-node binary and any libc deps.
@@ -62,9 +86,19 @@ spec:
           envFrom:
             - configMapRef:
                 name: boing-node-testnet-env
+            - secretRef:
+                name: boing-node-operator
+                optional: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
           volumeMounts:
             - name: data
               mountPath: /data
       volumes:
         - name: data
-          emptyDir: {}
+          # Persistent: an emptyDir would wipe chain data on every pod restart and force a full resync.
+          persistentVolumeClaim:
+            claimName: boing-node-testnet-data

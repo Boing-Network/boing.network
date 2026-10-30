@@ -113,16 +113,17 @@ pub struct RpcHttpMetrics {
     pub websocket_cap_rejects: AtomicU64,
 }
 
-/// Constant-time (for equal lengths) string comparison for shared secrets. The length itself is not
-/// secret (tokens are fixed-size operator-chosen strings), but contents never short-circuit.
+/// Constant-time string comparison for shared secrets. Always scans `max(len(a), len(b))` bytes and
+/// folds the length difference into the result, so neither contents nor a length mismatch
+/// short-circuit (only the longer length is observable through timing).
 pub(crate) fn secret_eq(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());
-    if a.len() != b.len() {
-        return false;
-    }
-    let mut diff = 0u8;
-    for (x, y) in a.iter().zip(b.iter()) {
-        diff |= x ^ y;
+    let n = a.len().max(b.len());
+    let mut diff: usize = a.len() ^ b.len();
+    for i in 0..n {
+        let x = a.get(i).copied().unwrap_or(0);
+        let y = b.get(i).copied().unwrap_or(0);
+        diff |= usize::from(x ^ y);
     }
     std::hint::black_box(diff) == 0
 }
@@ -408,7 +409,7 @@ async fn http_media_blob_download(
 }
 
 /// Fails closed: with no configured token every operator call is rejected.
-/// The header is compared with [`secret_eq`] (constant time for equal lengths).
+/// The header is compared with [`secret_eq`] (constant time).
 fn operator_token_matches(expected: Option<&str>, headers: &HeaderMap) -> bool {
     let Some(expected) = expected else {
         return false;
@@ -1904,6 +1905,9 @@ mod secret_eq_tests {
         assert!(!secret_eq("s3cret-token", "s3cret-tokeN"));
         assert!(!secret_eq("s3cret-token", "s3cret-toke"));
         assert!(!secret_eq("a", ""));
+        assert!(!secret_eq("", "a"));
+        assert!(!secret_eq("s3cret-token\0", "s3cret-token"));
+        assert!(!secret_eq("s3cret-token", "s3cret-token\0"));
     }
 }
 

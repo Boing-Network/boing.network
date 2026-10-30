@@ -3,7 +3,11 @@
 # Setup (paths are relative to this file under tools/):
 #   1. cp boing-node-public-testnet.env.example .env
 #   2. mkdir -p bin data && install your release boing-node binary at bin/boing-node
-#   3. From repo root: docker compose -f tools/boing-node-public-testnet.docker-compose.yml up -d
+#   3. Set BOING_OPERATOR_RPC_TOKEN in .env to a long random secret (e.g. `openssl rand -hex 32`) if you
+#      need operator RPC methods (fee/QA policy, slash appeals, BLS key registration, blob offers).
+#      Without it those methods are rejected (-32057, fail-closed). Keep .env mode 600 and out of git.
+#   4. sudo chown -R 10001:10001 data   (the container runs as an unprivileged user, not root)
+#   5. From repo root: docker compose -f tools/boing-node-public-testnet.docker-compose.yml up -d
 #
 # Spec: docs/RPC-API-SPEC.md — BOING_DEX_* vars match tools/boing-node-public-testnet.env.example
 
@@ -12,6 +16,14 @@ services:
     image: debian:bookworm-slim
     network_mode: host
     restart: unless-stopped
+    # Hardening: unprivileged uid, read-only root fs (only /data is writable), no capabilities.
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
     working_dir: /data
     env_file:
       - ./.env
