@@ -45,7 +45,7 @@ import '../../../styles/hub-common.css';
         <p><a href={EXTERNAL_QUEST_FORM_URL} class="btn btn-primary" target="_blank" rel="noopener">Open submission form →</a></p>
       ) : (
         <>
-          <p>Enter your account address and which quest you completed. For manual quests, add proof (tx hash, Discord handle, or feedback link).</p>
+          <p>Sign in as a registered user, then submit with your portal password (or a wallet authorize signature). For manual quests, add proof (tx hash, Discord handle, or feedback link).</p>
           <form id="quest-submit-form" class="quest-form">
             <label for="account-id">Account address (32-byte hex)</label>
             <input id="account-id" name="account_id" type="text" placeholder="0x..." maxlength="66" required />
@@ -56,8 +56,11 @@ import '../../../styles/hub-common.css';
                 <option value={q.id}>{q.name}</option>
               ))}
             </select>
+            <label for="portal-password">Portal password</label>
+            <input id="portal-password" name="portal_password" type="password" autocomplete="current-password" placeholder="Required to prove account ownership" required />
+            <p class="form-hint">Wallet-only accounts: <a href="/testnet/set-password">set a portal password</a> first, or POST with a signed Authorize message (action <code>quest_submit</code>).</p>
             <label for="proof-value">Proof (optional for auto; required for manual)</label>
-            <input id="proof-value" name="proof_value" type="text" placeholder="tx hash, Discord, or link" />
+            <input id="proof-value" name="proof_value" type="text" placeholder="tx hash, Discord, or link" maxlength="512" />
             <button type="submit" id="submit-btn">Submit</button>
             <p id="form-message" class="form-message" aria-live="polite"></p>
           </form>
@@ -119,6 +122,7 @@ import '../../../styles/hub-common.css';
     if (form) {
       var questSelect = form.querySelector('#quest-id');
       var proofInput = form.querySelector('#proof-value');
+      var passwordInput = form.querySelector('#portal-password');
       var submitBtn = form.querySelector('#submit-btn');
       var messageEl = form.querySelector('#form-message');
       function setMessage(text, isError) {
@@ -126,9 +130,19 @@ import '../../../styles/hub-common.css';
       }
       form.addEventListener('submit', function (e) {
         e.preventDefault();
+        if (!session || session.role !== expectedRole) {
+          setMessage('Sign in as a registered user before submitting.', true);
+          return;
+        }
         var accountHex = (accountInput && accountInput.value || '').trim();
         if (!accountHex.startsWith('0x')) accountHex = '0x' + accountHex;
         if (accountHex.length !== 66) { setMessage('Account address must be 32 bytes (64 hex + 0x).', true); return; }
+        if (session.account_id_hex && accountHex.toLowerCase() !== String(session.account_id_hex).toLowerCase()) {
+          setMessage('Account must match your signed-in session.', true);
+          return;
+        }
+        var password = (passwordInput && passwordInput.value || '').trim();
+        if (!password) { setMessage('Portal password is required to prove ownership.', true); return; }
         if (submitBtn) submitBtn.disabled = true;
         setMessage('Submitting…');
         fetch('/api/quests/submit', {
@@ -137,6 +151,7 @@ import '../../../styles/hub-common.css';
           body: JSON.stringify({
             quest_id: questSelect && questSelect.value,
             account_id_hex: accountHex,
+            password: password,
             proof_type: proofInput && proofInput.value && proofInput.value.trim() ? 'form' : undefined,
             proof_value: proofInput && proofInput.value ? proofInput.value.trim() : undefined,
           }),
@@ -181,6 +196,7 @@ import '../../../styles/hub-common.css';
   .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; margin-right: 0.5rem; background: rgba(124, 58, 237, 0.25); color: var(--accent-teal); }
   .badge.tier { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
   .quest-form label { display: block; margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+  .quest-form .form-hint { font-size: 0.85rem; color: var(--text-tertiary); margin: 0.35rem 0 0; max-width: 400px; }
   .quest-form input, .quest-form select { width: 100%; max-width: 400px; padding: 10px 14px; margin-top: 0.25rem; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); font-family: var(--font-mono); transition: border-color 0.2s ease; }
   .quest-form input:focus-visible, .quest-form select:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; border-color: rgba(124, 58, 237, 0.6); }
   .quest-form button { margin-top: 1rem; padding: 0.5rem 1rem; border: none; border-radius: 6px; background: var(--accent-teal); color: var(--bg-primary); font-weight: 600; cursor: pointer; transition: opacity 0.2s ease; }

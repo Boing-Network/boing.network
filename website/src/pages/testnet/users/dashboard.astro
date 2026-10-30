@@ -61,6 +61,12 @@ import '../../../styles/hub-common.css';
     var placeholder = document.getElementById('quest-progress-placeholder');
     var loaded = document.getElementById('dashboard-loaded');
     var metricsRow = document.getElementById('metrics-row');
+    function escapeHtml(s) {
+      var div = document.createElement('div');
+      div.textContent = s == null ? '' : String(s);
+      return div.innerHTML;
+    }
+
     function renderAuth() {
       if (!authEl) return;
       if (!session) {
@@ -68,7 +74,7 @@ import '../../../styles/hub-common.css';
         return;
       }
       var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
-      authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+      authEl.innerHTML = 'Signed in as <span class="account-short">' + escapeHtml(short) + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
       if (dashboardLoad) dashboardLoad.style.display = 'none';
       var so = document.getElementById('portal-signout');
       if (so) so.addEventListener('click', function () {
@@ -81,9 +87,9 @@ import '../../../styles/hub-common.css';
       if (!metricsRow) return;
       metricsRow.style.display = 'grid';
       metricsRow.innerHTML =
-        '<div class="hub-metric-card"><span class="value">' + completed + '</span><span class="label">Quests completed</span></div>' +
-        '<div class="hub-metric-card"><span class="value">' + total + '</span><span class="label">Total quests</span></div>' +
-        '<div class="hub-metric-card"><span class="value">' + (total ? Math.round((completed / total) * 100) : 0) + '%</span><span class="label">Progress</span></div>';
+        '<div class="hub-metric-card"><span class="value">' + escapeHtml(String(completed)) + '</span><span class="label">Quests completed</span></div>' +
+        '<div class="hub-metric-card"><span class="value">' + escapeHtml(String(total)) + '</span><span class="label">Total quests</span></div>' +
+        '<div class="hub-metric-card"><span class="value">' + escapeHtml(String(total ? Math.round((completed / total) * 100) : 0)) + '%</span><span class="label">Progress</span></div>';
       var progressWrap = document.getElementById('progress-bar-wrap');
       var progressBar = document.getElementById('progress-bar');
       var progressFill = document.getElementById('progress-bar-fill');
@@ -105,16 +111,18 @@ import '../../../styles/hub-common.css';
       fetch('/api/portal/me?account_id_hex=' + encodeURIComponent(hex))
         .then(function (res) { return res.json().catch(function () { return {}; }); })
         .then(function (data) {
-          if (!data.ok) { loaded.innerHTML = '<p class="err">' + (data.message || 'Failed to load.') + '</p>'; return; }
+          if (!data.ok) { loaded.innerHTML = '<p class="err">' + escapeHtml(data.message || 'Failed to load.') + '</p>'; return; }
           if (!data.registered) { loaded.innerHTML = '<p>Not registered. <a href="/testnet/register/user">Register as user</a>.</p>'; return; }
-          if (data.role !== 'user') { loaded.innerHTML = '<p>This account is registered as <strong>' + data.role + '</strong>. Use the correct dashboard.</p>'; return; }
+          if (data.role !== 'user') { loaded.innerHTML = '<p>This account is registered as <strong>' + escapeHtml(data.role) + '</strong>. Use the correct dashboard.</p>'; return; }
           var completions = data.quest_completions || [];
           setMetrics(completions.length, totalQuests);
           var html = '<p><strong>Registered as user.</strong></p>';
           if (completions.length === 0) html += '<p>No quest completions yet. <a href="/testnet/users/quests">Submit one on the Quests page</a>.</p>';
           else {
             html += '<p><strong>Quest completions (' + completions.length + '):</strong></p><ul class="quest-list-loaded">';
-            completions.forEach(function (c) { html += '<li>' + (c.quest_id || '') + (c.verified_at ? ' ✓ verified' : ' (pending)') + '</li>'; });
+            completions.forEach(function (c) {
+              html += '<li>' + escapeHtml(c.quest_id || '') + (c.verified_at ? ' ✓ verified' : ' (pending)') + '</li>';
+            });
             html += '</ul>';
           }
           loaded.innerHTML = html;

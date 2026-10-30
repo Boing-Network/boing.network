@@ -115,9 +115,9 @@ import '../../../styles/hub-common.css';
         }
         var html = '<ul class="resources-list hub-list-animate">';
         dapps.forEach(function (d) {
-          var short = (d.contract_hex || '').slice(0, 18) + '…';
-          var name = d.name ? (' — ' + d.name) : '';
-          html += '<li><code>' + short + '</code>' + name + (d.registered_at ? ' <span class="muted">' + d.registered_at.slice(0, 10) + '</span>' : '') + '</li>';
+          var short = escapeHtml((d.contract_hex || '').slice(0, 18) + '…');
+          var name = d.name ? (' — ' + escapeHtml(d.name)) : '';
+          html += '<li><code>' + short + '</code>' + name + (d.registered_at ? ' <span class="muted">' + escapeHtml(String(d.registered_at).slice(0, 10)) + '</span>' : '') + '</li>';
         });
         html += '</ul>';
         listWrap.innerHTML = html;
@@ -125,5 +125,10 @@ import '../../../styles/hub-common.css';
       .catch(function () {
         if (listWrap) listWrap.innerHTML = '<p class="muted">Network error. API may not be deployed yet.</p>';
       });
+    function escapeHtml(s) {
+      var div = document.createElement('div');
+      div.textContent = s == null ? '' : String(s);
+      return div.innerHTML;
+    }
   })();
 </script>
