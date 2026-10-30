@@ -741,26 +741,34 @@ async fn main() -> anyhow::Result<()> {
         )
         .map_err(|e| anyhow::anyhow!(e))?;
         if n.state.get(&faucet_id).is_none() {
-            // Whole BOING scaled to the ledger unit at the tip (base units on chains without history).
-            let tip = n.chain.height();
-            let initial = n
-                .executor
-                .denomination_at(tip)
-                .scale(faucet::FAUCET_INITIAL_BALANCE);
-            n.state.insert(Account {
-                id: faucet_id,
-                state: AccountState {
-                    balance: initial,
-                    nonce: 0,
-                    stake: 0,
-                    ..Default::default()
-                },
-            });
-            n.refresh_native_aggregates();
-            tracing::info!(
-                "Faucet account initialized with {} BOING",
-                faucet::FAUCET_INITIAL_BALANCE
-            );
+            // Only fund at genesis. Mid-chain inserts change the committed state root and diverge
+            // from peers that already share the tip (issue #61 item 1).
+            if n.chain.height() != 0 {
+                tracing::error!(
+                    "Faucet enabled but account {} is missing at height {}; refusing to mint outside genesis (set genesis allocations / restart from matching state)",
+                    hex::encode(faucet_id.0),
+                    n.chain.height()
+                );
+            } else {
+                let initial = n
+                    .executor
+                    .denomination_at(0)
+                    .scale(faucet::FAUCET_INITIAL_BALANCE);
+                n.state.insert(Account {
+                    id: faucet_id,
+                    state: AccountState {
+                        balance: initial,
+                        nonce: 0,
+                        stake: 0,
+                        ..Default::default()
+                    },
+                });
+                n.refresh_native_aggregates();
+                tracing::info!(
+                    "Faucet account initialized at genesis with {} BOING",
+                    faucet::FAUCET_INITIAL_BALANCE
+                );
+            }
         }
         drop(n);
         Some(Arc::new(key))
