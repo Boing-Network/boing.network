@@ -14,7 +14,10 @@ use boing_state::StateStore;
 ///
 /// Keeps imported blocks from jumping far into the future while allowing modest clock skew
 /// between producers and importers (issue #61 item 15).
-pub const MAX_BLOCK_TIMESTAMP_FUTURE_SECS: u64 = 30;
+/// Sized for burst production in the same second (`max(now, parent+1)` advances by one per
+/// block): catch-up and name-registry tests can produce hundreds of blocks faster than wall
+/// clock, so a few minutes of skew is required.
+pub const MAX_BLOCK_TIMESTAMP_FUTURE_SECS: u64 = 600;
 
 /// Validate and execute a block. Returns updated state and per-tx receipts on success.
 /// Caller must ensure block chains to parent (parent_hash, height).
