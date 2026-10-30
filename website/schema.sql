@@ -95,6 +95,15 @@ CREATE TABLE IF NOT EXISTS portal_auth_nonces (
 
 CREATE INDEX IF NOT EXISTS idx_portal_auth_nonces_expires ON portal_auth_nonces(expires_at);
 
+-- Portal API rate-limit buckets (issue #61 item 68).
+CREATE TABLE IF NOT EXISTS portal_rate_limits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bucket_key TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_portal_rate_limits_bucket_created
+  ON portal_rate_limits(bucket_key, created_at);
+
 -- Node listing: D1 overrides for public network listings (merged by GET /api/networks).
 -- ids: boing-devnet (Windows), boing-devnet-linux, boing-devnet-macos (see migrations/insert-boing-devnet-listing.sql)
 CREATE TABLE IF NOT EXISTS network_listings (

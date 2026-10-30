@@ -9,6 +9,7 @@
 import * as ed from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { blake3 } from '@noble/hashes/blake3.js';
+import { checkRateLimit, clientIp, rateLimitedResponse } from '../_lib/rateLimit.js';
 
 const SIGN_IN_VERSION = 'blake3-noble-v1';
 
@@ -34,6 +35,11 @@ export async function onRequestPost(context) {
 
   if (!env.DB) {
     return addVersionHeader(Response.json({ ok: false, message: 'Database not configured', error_code: 'config' }, { status: 503 }));
+  }
+
+  const rl = await checkRateLimit(env.DB, `sign-in:${clientIp(request)}`, 20, 60);
+  if (!rl.ok) {
+    return addVersionHeader(rateLimitedResponse(rl.retryAfterSecs));
   }
 
   const json401 = (message, error_code) =>
@@ -109,26 +115,33 @@ export async function onRequestPost(context) {
       return addVersionHeader(Response.json(payload, { status: 401 }));
     }
 
-    // Parse and validate message structure and nonce (after signature is valid)
+    // Parse and validate message structure and nonce (after signature is valid).
+    // Legacy timestamp-only messages are rejected — a captured signature was replayable
+    // for up to five minutes (issue #61 item 67).
     const messageInfo = parseSignInMessage(messageForValidation);
+    if (messageInfo.version === 'legacy' || !messageInfo.nonce) {
+      return json401(
+        'Sign-in requires a nonce. Fetch GET /api/portal/auth/nonce and sign the nonce-bearing message.',
+        'nonce_required',
+      );
+    }
     const messageError = validateMessageWindow(messageInfo);
     if (messageError) {
       const code = !messageInfo.timestamp ? 'invalid_message' : messageError.includes('expired') ? 'message_expired' : 'invalid_message';
       return json401(messageError, code);
     }
-    if (messageInfo.nonce) {
-      const nonceCheck = await checkNonce(env.DB, messageInfo.nonce, messageInfo.origin);
-      if (!nonceCheck.ok) {
-        const code = nonceCheck.message.includes('expired') ? 'nonce_expired' : nonceCheck.message.includes('already used') ? 'nonce_used' : 'nonce_invalid';
-        return json401(nonceCheck.message, code);
-      }
+    const nonceCheck = await checkNonce(env.DB, messageInfo.nonce, messageInfo.origin);
+    if (!nonceCheck.ok) {
+      const code = nonceCheck.message.includes('expired')
+        ? 'nonce_expired'
+        : nonceCheck.message.includes('already used')
+          ? 'nonce_used'
+          : 'nonce_invalid';
+      return json401(nonceCheck.message, code);
     }
-
-    if (messageInfo.nonce) {
-      const nonceOk = await consumeNonce(env.DB, messageInfo.nonce, messageInfo.origin);
-      if (!nonceOk.ok) {
-        return json401(nonceOk.message, 'nonce_used');
-      }
+    const nonceOk = await consumeNonce(env.DB, messageInfo.nonce, messageInfo.origin);
+    if (!nonceOk.ok) {
+      return json401(nonceOk.message, 'nonce_used');
     }
 
     const row = await env.DB.prepare(

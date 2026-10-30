@@ -4,12 +4,16 @@
  * Body: { account_id_hex, password }
  */
 import { verifyPassword } from './password.js';
+import { checkRateLimit, clientIp, rateLimitedResponse } from '../_lib/rateLimit.js';
 
 export async function onRequestPost(context) {
   const { env, request } = context;
   if (!env.DB) {
     return Response.json({ ok: false, message: 'Database not configured' }, { status: 503 });
   }
+
+  const rl = await checkRateLimit(env.DB, `sign-in-account:${clientIp(request)}`, 10, 60);
+  if (!rl.ok) return rateLimitedResponse(rl.retryAfterSecs);
 
   try {
     const body = await request.json();
