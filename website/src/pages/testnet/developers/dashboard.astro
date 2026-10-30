@@ -41,9 +41,11 @@ import '../../../styles/hub-common.css';
         <form id="dapp-form" class="compact-form">
           <input id="dapp-owner" type="text" aria-label="Your account address (optional if signed in)" placeholder="Your account address (0x..., optional if session exists)" title="32-byte hex account address" />
           <input id="dapp-contract" type="text" aria-label="Contract address (0x…)" placeholder="Contract address (0x...)" required />
-          <input id="dapp-name" type="text" aria-label="dApp name (optional)" placeholder="dApp name (optional)" />
+          <input id="dapp-name" type="text" aria-label="dApp name (optional)" placeholder="dApp name (optional)" maxlength="128" />
+          <input id="dapp-password" type="password" aria-label="Portal password" autocomplete="current-password" placeholder="Portal password (proves ownership)" required />
           <button type="submit">Add dApp</button>
         </form>
+        <p class="muted" style="font-size: 0.85rem; margin-top: 0.5rem;">Registration requires your portal password (or a signed Authorize message with action <code>dapp_register</code>). <a href="/testnet/set-password">Set a password</a> if needed.</p>
         <p id="dapp-message" class="form-message"></p>
       </div>
     </section>
@@ -72,6 +74,12 @@ import '../../../styles/hub-common.css';
     var placeholder = document.getElementById('dashboard-placeholder');
     var loaded = document.getElementById('dashboard-loaded');
     var metricsRow = document.getElementById('metrics-row');
+    function escapeHtml(s) {
+      var div = document.createElement('div');
+      div.textContent = s == null ? '' : String(s);
+      return div.innerHTML;
+    }
+
     function renderAuth() {
       if (!authEl) return;
       if (!session) {
@@ -79,7 +87,7 @@ import '../../../styles/hub-common.css';
         return;
       }
       var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
-      authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+      authEl.innerHTML = 'Signed in as <span class="account-short">' + escapeHtml(short) + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
       if (dashboardLoad) dashboardLoad.style.display = 'none';
       var so = document.getElementById('portal-signout');
       if (so) so.addEventListener('click', function () {
@@ -92,7 +100,7 @@ import '../../../styles/hub-common.css';
       if (!metricsRow) return;
       metricsRow.style.display = 'grid';
       metricsRow.innerHTML =
-        '<div class="hub-metric-card"><span class="value">' + dappCount + '</span><span class="label">dApps registered</span></div>' +
+        '<div class="hub-metric-card"><span class="value">' + escapeHtml(String(dappCount)) + '</span><span class="label">dApps registered</span></div>' +
         '<div class="hub-metric-card"><span class="value">' + (dappCount > 0 ? 'Active' : '—') + '</span><span class="label">Status</span></div>';
       if (dappCount > 0 && metricsRow.parentNode) {
         var strip = document.createElement('div');
@@ -123,12 +131,12 @@ import '../../../styles/hub-common.css';
       fetch('/api/portal/me?account_id_hex=' + encodeURIComponent(hex))
         .then(function (res) { return res.json().catch(function () { return {}; }); })
         .then(function (data) {
-          if (!data.ok) { loaded.innerHTML = '<p class="err">' + (data.message || 'Failed to load.') + '</p>'; return; }
+          if (!data.ok) { loaded.innerHTML = '<p class="err">' + escapeHtml(data.message || 'Failed to load.') + '</p>'; return; }
           if (!data.registered) { loaded.innerHTML = '<p>Not registered. <a href="/testnet/register/developer">Register as developer</a>.</p>'; return; }
-          if (data.role !== 'developer') { loaded.innerHTML = '<p>This account is registered as <strong>' + data.role + '</strong>. Use the correct dashboard.</p>'; return; }
+          if (data.role !== 'developer') { loaded.innerHTML = '<p>This account is registered as <strong>' + escapeHtml(data.role) + '</strong>. Use the correct dashboard.</p>'; return; }
           var dapps = data.dapps || [];
           setMetrics(dapps.length);
-          var html = '<p><strong>Registered as developer.</strong>' + (data.github_username ? ' GitHub: ' + data.github_username : '') + '</p>';
+          var html = '<p><strong>Registered as developer.</strong>' + (data.github_username ? ' GitHub: ' + escapeHtml(data.github_username) : '') + '</p>';
           if (dapps.length === 0)
             html +=
               '<p>No dApps registered yet. Add one below.</p><div class="hub-empty-state__visual" aria-hidden="true">' +
@@ -136,7 +144,9 @@ import '../../../styles/hub-common.css';
               '</div>';
           else {
             html += '<p><strong>Your dApps (' + dapps.length + '):</strong></p><ul class="dapp-list">';
-            dapps.forEach(function (d) { html += '<li><code>' + (d.contract_hex || '').slice(0, 18) + '…</code>' + (d.name ? ' — ' + d.name : '') + '</li>'; });
+            dapps.forEach(function (d) {
+              html += '<li><code>' + escapeHtml((d.contract_hex || '').slice(0, 18)) + '…</code>' + (d.name ? ' — ' + escapeHtml(d.name) : '') + '</li>';
+            });
             html += '</ul>';
           }
           loaded.innerHTML = html;
@@ -171,6 +181,7 @@ import '../../../styles/hub-common.css';
         e.preventDefault();
         var contract = (document.getElementById('dapp-contract') && document.getElementById('dapp-contract').value || '').trim();
         var name = (document.getElementById('dapp-name') && document.getElementById('dapp-name').value || '').trim();
+        var password = (document.getElementById('dapp-password') && document.getElementById('dapp-password').value || '').trim();
         var ownerHex = (document.getElementById('dapp-owner') && document.getElementById('dapp-owner').value || '').trim() || '';
         if (!ownerHex.startsWith('0x')) ownerHex = ownerHex ? '0x' + ownerHex : '';
         var msgEl = document.getElementById('dapp-message');
@@ -182,16 +193,25 @@ import '../../../styles/hub-common.css';
           if (msgEl) msgEl.textContent = 'Account address must be 32 bytes (64 hex + 0x).';
           return;
         }
+        if (!password) {
+          if (msgEl) msgEl.textContent = 'Portal password is required to prove ownership.';
+          return;
+        }
         var ownerToUse = ownerHex || (session && session.role === 'developer' ? session.account_id_hex : '');
         if (!ownerToUse && meInput) ownerToUse = (meInput.value || '').trim();
         if (!ownerToUse.startsWith('0x') && ownerToUse.length === 64) ownerToUse = '0x' + ownerToUse;
+        if (!ownerToUse || ownerToUse.length !== 66) {
+          if (msgEl) msgEl.textContent = 'Owner account address is required.';
+          return;
+        }
         fetch('/api/portal/dapps', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contract_hex: contract.startsWith('0x') ? contract : '0x' + contract,
-            owner_account_hex: ownerToUse || undefined,
+            owner_account_hex: ownerToUse,
             name: name || undefined,
+            password: password,
           }),
         })
           .then(function (res) { return res.json().catch(function () { return {}; }); })
@@ -200,6 +220,8 @@ import '../../../styles/hub-common.css';
             if (data.ok && loaded && (meInput || session)) {
               var h = ownerToUse || (session && session.account_id_hex) || (meInput && meInput.value);
               if (h && h.length === 66 && loadBtn) { if (meInput) meInput.value = h; loadDashboard(h); }
+              var pw = document.getElementById('dapp-password');
+              if (pw) pw.value = '';
             }
           })
           .catch(function () { if (msgEl) msgEl.textContent = 'Network error. API may not be deployed yet.'; });

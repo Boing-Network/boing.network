@@ -101,6 +101,12 @@ import '../../../styles/hub-common.css';
       return;
     }
 
+    function escapeHtml(s) {
+      var div = document.createElement('div');
+      div.textContent = s == null ? '' : String(s);
+      return div.innerHTML;
+    }
+
     function renderAuth() {
       if (!authEl) return;
       if (!session) {
@@ -108,7 +114,7 @@ import '../../../styles/hub-common.css';
         return;
       }
       var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(session.account_id_hex) : session.account_id_hex;
-      authEl.innerHTML = 'Signed in as <span class="account-short">' + short + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
+      authEl.innerHTML = 'Signed in as <span class="account-short">' + escapeHtml(short) + '</span> · <button type="button" id="portal-signout" class="auth-signout">Logout</button>';
       if (dashboardLoad) dashboardLoad.style.display = 'none';
       var so = document.getElementById('portal-signout');
       if (so) so.addEventListener('click', function () {
@@ -125,7 +131,7 @@ import '../../../styles/hub-common.css';
         .then(function (res) { return res.json().catch(function () { return {}; }); })
         .then(function (data) {
           if (!data.ok) {
-            registrationContent.innerHTML = '<p class="err">' + (data.message || 'Failed to load.') + '</p>';
+            registrationContent.innerHTML = '<p class="err">' + escapeHtml(data.message || 'Failed to load.') + '</p>';
             if (contribSection) contribSection.style.display = 'block';
             registrationSection.style.display = 'block';
             return;
@@ -137,18 +143,18 @@ import '../../../styles/hub-common.css';
             return;
           }
           if (data.role !== 'node_operator') {
-            registrationContent.innerHTML = '<p>This account is registered as <strong>' + data.role + '</strong>. Use the correct hub dashboard.</p>';
+            registrationContent.innerHTML = '<p>This account is registered as <strong>' + escapeHtml(data.role) + '</strong>. Use the correct hub dashboard.</p>';
             registrationSection.style.display = 'block';
             return;
           }
           var short = window.BoingPortalSession ? window.BoingPortalSession.shortAccount(data.account_id_hex) : data.account_id_hex.slice(0, 18) + '…';
-          var html = '<p><strong>Account:</strong> <code class="account-short">' + short + '</code></p>';
+          var html = '<p><strong>Account:</strong> <code class="account-short">' + escapeHtml(short) + '</code></p>';
           if (data.node_multiaddr) {
-            html += '<p><strong>Node multiaddr:</strong> <code>' + data.node_multiaddr + '</code></p>';
+            html += '<p><strong>Node multiaddr:</strong> <code>' + escapeHtml(data.node_multiaddr) + '</code></p>';
           } else {
             html += '<p><strong>Node multiaddr:</strong> <span class="muted">Not set. <a href="/testnet/register/operator">Add one when re-registering</a>.</span></p>';
           }
-          html += '<p class="muted">Registered ' + (data.created_at ? data.created_at.slice(0, 10) : '') + '.</p>';
+          html += '<p class="muted">Registered ' + escapeHtml(data.created_at ? data.created_at.slice(0, 10) : '') + '.</p>';
           registrationContent.innerHTML = html;
           if (contribSection) contribSection.style.display = 'block';
           registrationSection.style.display = 'block';
