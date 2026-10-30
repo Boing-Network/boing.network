@@ -704,16 +704,22 @@ async fn main() -> anyhow::Result<()> {
         let registry = if let Some(ref path) = args.qa_registry {
             let bytes =
                 std::fs::read(path).map_err(|e| anyhow::anyhow!("read --qa-registry: {}", e))?;
-            boing_qa::rule_registry_from_json(&bytes)
-                .map_err(|e| anyhow::anyhow!("qa_registry JSON: {}", e))?
+            let r = boing_qa::rule_registry_from_json(&bytes)
+                .map_err(|e| anyhow::anyhow!("qa_registry JSON: {}", e))?;
+            r.validate()
+                .map_err(|e| anyhow::anyhow!("qa_registry: {}", e))?;
+            r
         } else {
             n.mempool.qa_registry().clone()
         };
         let pool_cfg = if let Some(ref path) = args.qa_pool_config {
             let bytes =
                 std::fs::read(path).map_err(|e| anyhow::anyhow!("read --qa-pool-config: {}", e))?;
-            boing_qa::qa_pool_config_from_json(&bytes)
-                .map_err(|e| anyhow::anyhow!("qa_pool_config JSON: {}", e))?
+            let c = boing_qa::qa_pool_config_from_json(&bytes)
+                .map_err(|e| anyhow::anyhow!("qa_pool_config JSON: {}", e))?;
+            c.validate()
+                .map_err(|e| anyhow::anyhow!("qa_pool_config: {}", e))?;
+            c
         } else {
             n.qa_pool.governance_config()
         };

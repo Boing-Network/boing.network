@@ -3257,6 +3257,12 @@ async fn dispatch_jsonrpc_request(
                     );
                 }
             };
+            if let Err(e) = registry.validate() {
+                return (
+                    StatusCode::OK,
+                    rpc_error(id, -32602, format!("Invalid qa_registry: {}", e)),
+                );
+            }
             let pool_cfg = match qa_pool_config_from_json(pool_json.as_bytes()) {
                 Ok(c) => c,
                 Err(e) => {
@@ -3266,6 +3272,12 @@ async fn dispatch_jsonrpc_request(
                     );
                 }
             };
+            if let Err(e) = pool_cfg.validate() {
+                return (
+                    StatusCode::OK,
+                    rpc_error(id, -32602, format!("Invalid qa_pool_config: {}", e)),
+                );
+            }
             let mut n = node.write().await;
             n.set_qa_policy(registry, pool_cfg);
             info!("RPC: operator applied QA policy (registry + pool config)");

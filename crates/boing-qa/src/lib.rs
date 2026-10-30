@@ -300,8 +300,15 @@ pub fn check_contract_deploy_full_with_metadata(
         return base;
     }
 
-    // Scam patterns: byte sequences that if found → Reject
-    for pattern in registry.scam_patterns() {
+    // Scam patterns: byte sequences that if found → Reject (bounded length/count — see RuleRegistry::validate).
+    for pattern in registry
+        .scam_patterns()
+        .iter()
+        .take(RuleRegistry::MAX_SCAM_PATTERNS)
+    {
+        if pattern.is_empty() || pattern.len() > RuleRegistry::MAX_SCAM_PATTERN_LEN {
+            continue;
+        }
         if pattern.len() <= bytecode.len() && bytecode.windows(pattern.len()).any(|w| w == pattern)
         {
             return QaResult::Reject(QaReject::new(
@@ -521,6 +528,46 @@ impl RuleRegistry {
     pub fn with_max_bytecode_size(mut self, size: usize) -> Self {
         self.max_bytecode_size = size;
         self
+    }
+
+    /// Soft caps for scam-pattern DoS (issue #61 item 43): O(patterns × bytecode) before dedupe.
+    pub const MAX_SCAM_PATTERNS: usize = 256;
+    pub const MAX_SCAM_PATTERN_LEN: usize = 1_024;
+    /// Absolute ceiling for `max_bytecode_size` (governance cannot set unbounded).
+    pub const ABSOLUTE_MAX_BYTECODE_SIZE: usize = 16 * 1024 * 1024;
+
+    /// Reject registries that would disable deploy checks or make pattern scans unbounded.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.max_bytecode_size == 0 {
+            return Err("max_bytecode_size must be > 0".into());
+        }
+        if self.max_bytecode_size > Self::ABSOLUTE_MAX_BYTECODE_SIZE {
+            return Err(format!(
+                "max_bytecode_size must be <= {} (got {})",
+                Self::ABSOLUTE_MAX_BYTECODE_SIZE,
+                self.max_bytecode_size
+            ));
+        }
+        if self.scam_patterns.len() > Self::MAX_SCAM_PATTERNS {
+            return Err(format!(
+                "scam_patterns length must be <= {} (got {})",
+                Self::MAX_SCAM_PATTERNS,
+                self.scam_patterns.len()
+            ));
+        }
+        for (i, p) in self.scam_patterns.iter().enumerate() {
+            if p.is_empty() {
+                return Err(format!("scam_patterns[{i}] must be non-empty"));
+            }
+            if p.len() > Self::MAX_SCAM_PATTERN_LEN {
+                return Err(format!(
+                    "scam_patterns[{i}] length must be <= {} (got {})",
+                    Self::MAX_SCAM_PATTERN_LEN,
+                    p.len()
+                ));
+            }
+        }
+        Ok(())
     }
 
     pub fn with_blocklist(mut self, hashes: Vec<[u8; 32]>) -> Self {
@@ -828,5 +875,24 @@ mod tests {
         assert!(
             matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::CONTENT_POLICY_VIOLATION)
         );
+    }
+
+    #[test]
+    fn rule_registry_validate_bounds() {
+        RuleRegistry::new().validate().unwrap();
+        assert!(RuleRegistry::new()
+            .with_max_bytecode_size(0)
+            .validate()
+            .is_err());
+        let too_many = vec![vec![0x01u8]; RuleRegistry::MAX_SCAM_PATTERNS + 1];
+        assert!(RuleRegistry::new()
+            .with_scam_patterns(too_many)
+            .validate()
+            .is_err());
+        let too_long = vec![vec![0xabu8; RuleRegistry::MAX_SCAM_PATTERN_LEN + 1]];
+        assert!(RuleRegistry::new()
+            .with_scam_patterns(too_long)
+            .validate()
+            .is_err());
     }
 }

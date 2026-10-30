@@ -229,6 +229,45 @@ impl QaPoolGovernanceConfig {
         }
         QaQuorumDecision::Pending
     }
+
+    /// Reject configs that would silently disable review or break quorum math (issue #61 item 43).
+    ///
+    /// Call after deserialize (RPC / CLI / governance apply) before installing the config.
+    pub fn validate(&self) -> Result<(), String> {
+        fn frac_ok(name: &str, v: f64) -> Result<(), String> {
+            if !v.is_finite() || v <= 0.0 || v > 1.0 {
+                return Err(format!("{name} must be finite and in (0, 1] (got {v})"));
+            }
+            Ok(())
+        }
+        frac_ok("quorum_fraction", self.quorum_fraction)?;
+        frac_ok("allow_threshold_fraction", self.allow_threshold_fraction)?;
+        frac_ok("reject_threshold_fraction", self.reject_threshold_fraction)?;
+
+        if self.review_window_secs == 0
+            && matches!(self.default_on_expiry, QaPoolExpiryPolicy::Allow)
+        {
+            return Err(
+                "review_window_secs=0 with default_on_expiry=allow would immediately allow every Unsure deploy"
+                    .into(),
+            );
+        }
+
+        if self.public_membership && self.min_quorum_votes == 0 {
+            return Err("public_membership requires min_quorum_votes >= 1".into());
+        }
+
+        // Cap reward so a mis-set governance value cannot drain the treasury in one vote.
+        const MAX_REWARD_PER_COUNTED_VOTE: u128 = 1_000_000;
+        if self.reward_per_counted_vote > MAX_REWARD_PER_COUNTED_VOTE {
+            return Err(format!(
+                "reward_per_counted_vote must be <= {MAX_REWARD_PER_COUNTED_VOTE} (got {})",
+                self.reward_per_counted_vote
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 /// Outcome of [`QaPoolGovernanceConfig::quorum_decision`].
@@ -307,5 +346,39 @@ mod tests {
             Err(QaVoterIneligible::InsufficientStake)
         );
         assert!(c.voter_eligibility(v, None, Some(100)).is_ok());
+    }
+
+    #[test]
+    fn defaults_pass_validate() {
+        QaPoolGovernanceConfig::production_default()
+            .validate()
+            .unwrap();
+        QaPoolGovernanceConfig::development_default()
+            .validate()
+            .unwrap();
+        QaPoolGovernanceConfig::default().validate().unwrap();
+    }
+
+    #[test]
+    fn validate_rejects_zero_window_allow_expiry() {
+        let mut c = QaPoolGovernanceConfig::production_default();
+        c.review_window_secs = 0;
+        c.default_on_expiry = QaPoolExpiryPolicy::Allow;
+        assert!(c.validate().is_err());
+        c.default_on_expiry = QaPoolExpiryPolicy::Reject;
+        assert!(c.validate().is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_bad_fractions_and_reward_cap() {
+        let mut c = QaPoolGovernanceConfig::production_default();
+        c.quorum_fraction = 0.0;
+        assert!(c.validate().is_err());
+        c.quorum_fraction = 0.5;
+        c.allow_threshold_fraction = f64::NAN;
+        assert!(c.validate().is_err());
+        c.allow_threshold_fraction = 2.0 / 3.0;
+        c.reward_per_counted_vote = 1_000_001;
+        assert!(c.validate().is_err());
     }
 }
