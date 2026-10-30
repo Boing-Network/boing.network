@@ -1,8 +1,8 @@
 # Account-tree v3 (full-key routing of the account tree) — activation notes
 
-**Status:** implemented, **OFF by default**. Nothing changes on any chain until every node is started
-with the same `BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT` (or `--account-tree-v3-activation-height`).
-Audit #61 item 30.
+**Status:** implemented. Default remains **OFF** (mainnet unset). **Testnet 6913 crossed at H = 1500**
+(preset from testnet-v0.1.21+; public tip past 1506 on 2026-10-30 with
+`account_tree_v3_activation_height: 1500`). Audit #61 item 30.
 
 ## The problem
 
@@ -31,10 +31,26 @@ so existing verifiers work at any depth.
   Crossing is tested in `replay_live_chain_then_cross_tree_and_vm_gates_locally` and (with a full dump)
   `replay_full_live_chain_then_cross_preset_gates`.
 
-## Activation
+### Testnet crossing record (chain 6913)
+
+Observed on the public RPC (`https://testnet-rpc.boing.network/`) on 2026-10-30:
+
+| Height | `state_root` |
+|---|---|
+| 1499 (legacy) | `0x03e1e55794f8dbfdbca67061a668c12ae3c2ef97ff94b68684fb1aec3c0b93d7` |
+| 1500 (v2+v3) | `0xca7dd351852e0d74b657212d4cbf52a9dd916e171c41a6b1055b379df38c8131` |
+| 1506 | `0x88d18b7ec7de3170095e9974092b8fdfbf42068cdb4196bde74e4041077a7b71` |
+
+`boing_getNetworkInfo` reported `storage_tree_v2_activation_height: 1500` and
+`account_tree_v3_activation_height: 1500`. The root change at 1500 is expected (one-time rebuild at full
+depth). Do not unset or lower `H` on any node that follows this chain.
+
+## Activation (new networks / mainnet)
 
 1. Release a build with this change and pick `H` well above the current tip.
 2. Every validator and RPC node sets `BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT=H` before the chain reaches
-   `H`. A node without it computes a different state root at the first block from `H` on and stops
-   syncing.
+   `H` (or bake it into the network preset, as testnet did). A node without it computes a different state
+   root at the first block from `H` on and stops syncing.
 3. Once reached, `H` is consensus history: never change or unset it on that chain.
+4. Mainnet stays unset until the soak gate in [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md#mainnet-gate)
+   is met (same clock as storage-tree v2 when they share a height).

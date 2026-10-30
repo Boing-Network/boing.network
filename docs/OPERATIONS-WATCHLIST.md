@@ -6,24 +6,26 @@ Longer background lives in [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIV
 
 ## 1. Testnet 1500 crossing watch (storage-tree v2 + account-tree v3 + VM hardening, chain 6913)
 
+**Status (2026-10-30): crossed.** Public tip past **1506**. `boing_getNetworkInfo` on
+`https://testnet-rpc.boing.network/` reports `storage_tree_v2_activation_height: 1500` and
+`account_tree_v3_activation_height: 1500`. Recorded roots (1499 / 1500 / 1506) live in
+[ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md#testnet-crossing-record-chain-6913).
+Keep the soak / after-crossing checks below; the pre-crossing checklist is historical.
+
 Storage-tree v2 changes how contract storage is committed in the **state root**. From the activation height `H`
 (**1500**, in the testnet preset from testnet-v0.1.21, with account-tree v3 and VM hardening at the same block) every node must compute
 the new root, or it rejects the first v2 block and forks off. **After `H` there is no rollback.**
 
-### Before the head gets close to H
+### Before the head gets close to H (historical — completed)
 
-- [ ] Every validator and RPC node runs the build that knows the feature (`boing_clientVersion`).
-- [ ] Every node has `BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT=<H>` (or `--storage-tree-v2-activation-height <H>`),
-      restarted one at a time.
-- [ ] Every node reports the same value (and none reports `null`):
-      `curl -s -X POST <rpc> -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"boing_getNetworkInfo","params":[]}'`
-      then read `result.storage_tree_v2_activation_height` and `result.head_height`.
-      Check every public RPC, `boing-testnet-1` and any operator-run nodes (`boing-testnet-2` was retired on 2026-10-24).
-- [ ] Blocks are still being produced and every node's `head_height` agrees within a block or two.
-- [ ] Note the head, the time, and the last good block's `result.header.state_root`
-      (`boing_getBlockByHeight`) in your ops notes as a baseline.
-- [ ] Rollback plan is ready (below) and someone who can restart every node is reachable.
-- [ ] Do not rehearse on live nodes. Rehearse on a throw-away devnet only.
+- [x] Every validator and RPC node runs the build that knows the feature (`boing_clientVersion`).
+- [x] Gate baked into the testnet preset (testnet-v0.1.21+); env override not required when the preset matches.
+- [x] Public RPC reports `storage_tree_v2_activation_height` / `account_tree_v3_activation_height` = `1500`
+      (not `null`).
+- [x] Blocks continued past `H` (tip ≥ 1506 observed 2026-10-30).
+- [x] Baseline roots recorded (1499 legacy → 1500 v2+v3).
+- [x] Rollback plan documented (below); only valid while head is still below H.
+- [x] Do not rehearse on live nodes. Rehearse on a throw-away devnet only.
 
 ### Deadline for rolling back
 
@@ -33,19 +35,20 @@ The chain at `H - 1` and below is byte-for-byte the legacy algorithm. If the hea
 node still reports the wrong value, deciding between "fix the node" and "unset everywhere" must happen **before** the
 head reaches `H`. Once the head is at or past `H`, the only fix for a misconfigured node is to restart it with the same `H`.
 
-### At the crossing (heads H-1, H, H+1 ... H+10)
+### At the crossing (heads H-1, H, H+1 ... H+10) — completed on public RPC
 
 Logs (Fly: `fly logs -a boing-testnet-1`; other hosts: the node's stdout/journal):
 
-- [ ] Blocks keep being committed past `H`; the height keeps increasing on every node.
-- [ ] No `Invalid state root: expected ..., computed ...` (the `InvalidStateRoot` block-validation error) on any node.
-- [ ] No repeated block-import failures, no validator that stopped voting, no peer count collapse.
+- [x] Blocks keep being committed past `H`; public tip advanced through at least 1506.
+- [x] Public RPC serves blocks at 1499, 1500, and later with distinct, stable `state_root` values (see crossing record).
+- [ ] Spot-check Fly logs for no `InvalidStateRoot` / block-import failures on every validator (ops follow-up).
 - [ ] `P2P: block publish error: InsufficientPeers` is unrelated noise unless it is new and persistent
       (see RUNBOOK 8.5).
 
 State root agreement: for heights `H-1`, `H`, `H+1` ... `H+10`, call `boing_getBlockByHeight` on **at least two
 independent nodes** and compare `result.header.state_root`. They must be identical at every height. Also compare the
-boing.observer recomputation if it is available.
+boing.observer recomputation if it is available. Public RPC alone was checked for this record; multi-node
+comparison remains an ops follow-up when a second independent RPC is available.
 
 ### What a fork looks like
 

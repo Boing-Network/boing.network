@@ -67,7 +67,8 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md) | Error codes wallets and UIs should map |
 | [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) | **Source of truth** for the tx / block bincode layout, signing domains (v2, priority tip), payload indices |
 | [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md) | Every `BOING_*` environment variable, defaults, ports |
-| [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md) | Gated fix for the 64-bit storage-key prefix collision: design, activation procedure, migration notes |
+| [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md) | Gated fix for the 64-bit storage-key prefix collision (testnet H=1500 crossed): design, activation, migration |
+| [ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md) | Gated fix for the 64-bit account-id prefix collision (audit #61 item 30; testnet H=1500 crossed) |
 | [PERFORMANCE.md](PERFORMANCE.md) | Benchmarks (state root, mempool admission) with before/after numbers |
 | [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md) | Pinned fungible / NFT bytecode |
 | [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) | Reference fungible |

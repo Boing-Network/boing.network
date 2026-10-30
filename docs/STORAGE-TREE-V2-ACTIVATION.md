@@ -1,7 +1,9 @@
 # Storage-tree v2 (full-key routing) — activation and migration notes
 
-**Status:** implemented, **OFF by default**. Nothing changes on any chain until every node is started
-with the same `BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT` (or `--storage-tree-v2-activation-height`).
+**Status:** implemented. Default remains **OFF** (mainnet unset). **Testnet 6913 crossed at H = 1500**
+(preset from testnet-v0.1.21+; public tip past 1506 on 2026-10-30 with
+`storage_tree_v2_activation_height: 1500`). Account-tree v3 activated at the same height — see
+[ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md).
 
 ## The problem
 
@@ -30,7 +32,8 @@ From the activation height `H`, every per-contract storage tree routes on **all 
 | Entries sharing every routed bit | smallest key wins | impossible (distinct keys diverge) |
 
 Because single-entry subtrees are collapsed, the cost scales with occupied paths, not with 256. The
-global account tree stays at 64 bits. Leaf values (`BLAKE3(value)`) and the account leaf layout are
+global account tree has its own gate ([ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md));
+on testnet it also activates at 1500. Leaf values (`BLAKE3(value)`) and the account leaf layout are
 unchanged.
 
 Where it plugs in: `StateStore::state_root_at_height(height)` (used by both the block producer and
@@ -83,7 +86,10 @@ code default remains OFF.
 | Chain | `BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT` |
 |---|---|
 | Mainnet (6914) | **unset** (not scheduled) |
-| Testnet (6913) | **`H = 1500`**, in the preset from testnet-v0.1.21 (lowered from the earlier 4400 proposal, which the quiet chain would take too long to reach) |
+| Testnet (6913) | **`H = 1500`** (crossed; tip past 1506 as of 2026-10-30), in the preset from testnet-v0.1.21 (lowered from the earlier 4400 proposal, which the quiet chain would take too long to reach) |
+
+Live roots at the crossing are recorded in [ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md#testnet-crossing-record-chain-6913)
+(same rebuild covers both trees). The soak clock for the mainnet gate starts from that crossing.
 
 **Basis for 4400.** Computed by `node scripts/compute-activation-height.mjs` against the live testnet: *head 1321, block
 time 2026-10-26T00:46:53Z, computed 2026-10-26T04:34Z (00:34 EDT). Recompute on the day of rollout; do not reuse this number
