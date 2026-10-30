@@ -113,10 +113,12 @@ impl Default for QaPoolGovernanceConfig {
 }
 
 impl QaPoolGovernanceConfig {
-    /// Production defaults: public membership, bounded queue, 3-vote quorum floor, 1 BOING per counted vote.
+    /// Production defaults: public membership, bounded queue, 3-vote quorum floor, stake gate,
+    /// 1 BOING per counted vote (anti-sybil vs zero-stake farming — audit #61 item 42).
     pub fn production_default() -> Self {
         Self {
             public_membership: true,
+            min_voter_stake: 1,
             min_quorum_votes: default_min_quorum_votes(),
             reward_per_counted_vote: default_reward_per_counted_vote(),
             ..Self::default()
@@ -210,13 +212,20 @@ impl QaPoolGovernanceConfig {
     }
 
     /// Allow/Reject/Pending from counted votes (Abstain already excluded from `allow`/`reject`).
+    ///
+    /// For public membership, `min_quorum_votes` is a **hard floor** (not only the electorate
+    /// denominator). With `quorum_fraction = 0.5` and `min_quorum_votes = 3`, two votes used to
+    /// meet quorum (`2/3 ≥ 0.5`); they no longer do (audit #61 item 42).
     pub fn quorum_decision(&self, allow: usize, reject: usize) -> QaQuorumDecision {
         let total = allow.saturating_add(reject);
-        let electorate = self.effective_electorate_size().max(1);
-        if (total as f64 / electorate as f64) < self.quorum_fraction {
+        if total == 0 {
             return QaQuorumDecision::Pending;
         }
-        if total == 0 {
+        if self.public_membership && total < self.min_quorum_votes as usize {
+            return QaQuorumDecision::Pending;
+        }
+        let electorate = self.effective_electorate_size().max(1);
+        if (total as f64 / electorate as f64) < self.quorum_fraction {
             return QaQuorumDecision::Pending;
         }
         let allow_ratio = allow as f64 / total as f64;
@@ -315,8 +324,26 @@ mod tests {
         let c = QaPoolGovernanceConfig::production_default();
         assert!(c.accepts_new_pending());
         assert!(c.public_membership);
-        assert!(c.voter_may_vote(AccountId::from_bytes([9u8; 32])));
+        assert_eq!(c.min_voter_stake, 1);
+        // Stake gate: zero stake is ineligible under production defaults.
+        assert_eq!(
+            c.voter_eligibility(AccountId::from_bytes([9u8; 32]), None, Some(0)),
+            Err(QaVoterIneligible::InsufficientStake)
+        );
+        assert!(c
+            .voter_eligibility(AccountId::from_bytes([9u8; 32]), None, Some(1))
+            .is_ok());
         assert_eq!(c.effective_electorate_size(), 3);
+    }
+
+    #[test]
+    fn public_membership_requires_min_quorum_votes_floor() {
+        let c = QaPoolGovernanceConfig::production_default();
+        // Two Allow votes used to pass with electorate=3 and quorum_fraction=0.5.
+        assert_eq!(c.quorum_decision(2, 0), QaQuorumDecision::Pending);
+        assert_eq!(c.quorum_decision(3, 0), QaQuorumDecision::Allow);
+        assert_eq!(c.quorum_decision(0, 3), QaQuorumDecision::Reject);
+        assert_eq!(c.quorum_decision(2, 1), QaQuorumDecision::Allow);
     }
 
     #[test]

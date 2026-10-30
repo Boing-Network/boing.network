@@ -241,11 +241,6 @@ impl PendingQaQueue {
             QaPoolExpiryPolicy::Reject => DefaultOnExpiry::Reject,
             QaPoolExpiryPolicy::Allow => DefaultOnExpiry::Allow,
         };
-        let quorum_fraction = cfg.quorum_fraction;
-        let allow_threshold = cfg.allow_threshold_fraction;
-        let reject_threshold = cfg.reject_threshold_fraction;
-        let effective_pool = cfg.effective_electorate_size();
-
         let mut inner = self.inner.lock().unwrap();
         let Some(item) = inner.items.get(&tx_hash) else {
             return PoolResolution::Pending;
@@ -263,47 +258,35 @@ impl PendingQaQueue {
         }
 
         let (allow, reject) = item.vote_counts();
-        let total_votes = allow + reject;
-
-        let quorum_met = (total_votes as f64 / effective_pool as f64) >= quorum_fraction;
-        if !quorum_met {
-            return PoolResolution::Pending;
+        // Single decision path with pool_config (keeps min_quorum_votes floor in sync).
+        match cfg.quorum_decision(allow, reject) {
+            crate::pool_config::QaQuorumDecision::Pending => PoolResolution::Pending,
+            crate::pool_config::QaQuorumDecision::Allow => {
+                let item = match inner.items.remove(&tx_hash) {
+                    Some(i) => i,
+                    None => return PoolResolution::Pending,
+                };
+                tracing::info!(
+                    target: "boing_qa::pool",
+                    boing_component = "qa_pool",
+                    component_event = "resolved_allow",
+                    tx_hash = %hex::encode(item.tx_hash.0),
+                    "QA pool resolved Allow"
+                );
+                PoolResolution::Allow(item.signed_tx_bincode)
+            }
+            crate::pool_config::QaQuorumDecision::Reject => {
+                let _ = inner.items.remove(&tx_hash);
+                tracing::info!(
+                    target: "boing_qa::pool",
+                    boing_component = "qa_pool",
+                    component_event = "resolved_reject",
+                    tx_hash = %hex::encode(tx_hash.0),
+                    "QA pool resolved Reject"
+                );
+                PoolResolution::Reject
+            }
         }
-
-        if total_votes == 0 {
-            return PoolResolution::Pending;
-        }
-
-        let allow_ratio = allow as f64 / total_votes as f64;
-        let reject_ratio = reject as f64 / total_votes as f64;
-
-        if allow_ratio >= allow_threshold {
-            let item = match inner.items.remove(&tx_hash) {
-                Some(i) => i,
-                None => return PoolResolution::Pending,
-            };
-            tracing::info!(
-                target: "boing_qa::pool",
-                boing_component = "qa_pool",
-                component_event = "resolved_allow",
-                tx_hash = %hex::encode(item.tx_hash.0),
-                "QA pool resolved Allow"
-            );
-            return PoolResolution::Allow(item.signed_tx_bincode);
-        }
-        if reject_ratio >= reject_threshold {
-            let _ = inner.items.remove(&tx_hash);
-            tracing::info!(
-                target: "boing_qa::pool",
-                boing_component = "qa_pool",
-                component_event = "resolved_reject",
-                tx_hash = %hex::encode(tx_hash.0),
-                "QA pool resolved Reject"
-            );
-            return PoolResolution::Reject;
-        }
-
-        PoolResolution::Pending
     }
 
     /// Get a pending item by tx hash.
