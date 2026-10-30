@@ -4,10 +4,10 @@ Short, checkable lists for things operators must watch. Nothing here changes any
 Longer background lives in [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md),
 [RUNBOOK.md](RUNBOOK.md), [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md) and [FLY-IO.md](FLY-IO.md).
 
-## 1. Testnet 4400 crossing watch (storage-tree v2, chain 6913)
+## 1. Testnet 1500 crossing watch (storage-tree v2 + account-tree v3 + VM hardening, chain 6913)
 
 Storage-tree v2 changes how contract storage is committed in the **state root**. From the activation height `H`
-(proposed **4400**, recompute on the day with `node scripts/compute-activation-height.mjs`) every node must compute
+(**1500**, in the testnet preset from testnet-v0.1.20, with account-tree v3 and VM hardening at the same block) every node must compute
 the new root, or it rejects the first v2 block and forks off. **After `H` there is no rollback.**
 
 ### Before the head gets close to H

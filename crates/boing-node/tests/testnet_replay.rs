@@ -360,7 +360,7 @@ fn craft_next_with(leader: &BoingNode, txs: Vec<SignedTransaction>, all_succeed:
             proposer,
             tx_root: tx_root(&plain),
             receipts_root: receipts_root(&receipts),
-            state_root: state.state_root(),
+            state_root: state.state_root_at_height(height),
             blobs_root: None,
         },
         signatures: txs.iter().map(|s| s.signature).collect(),
@@ -878,4 +878,118 @@ fn replay_full_live_chain_to_the_tip() {
     assert_eq!(node.chain.height(), tip);
     assert_eq!(node.chain.latest_hash(), blocks.last().unwrap().0.hash());
     println!("full-chain replay OK to tip {tip}");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Storage tree v2 + account tree v3 + VM hardening, all at the same preset height (testnet 1500).
+// ---------------------------------------------------------------------------------------------
+
+#[test]
+fn testnet_preset_bakes_tree_and_vm_gates_at_one_height() {
+    let p = network_preset::boing_testnet_preset();
+    assert_eq!(p.storage_tree_v2_from, Some(1_500));
+    assert_eq!(p.account_tree_v3_from, Some(1_500));
+    assert_eq!(p.history.vm_hardening_from, 1_500);
+}
+
+/// Continue the chain from the leader's tip past `gate` with one faucet transfer per block plus a
+/// wBOING deploy / deposit around the gate (contract storage writes). Two nodes import every block
+/// and must agree on hash and state root; the root is recomputed from scratch at the gate.
+fn produce_across(a: &mut BoingNode, b: &mut BoingNode, gate: u64, past: u64) {
+    use boing_execution::{encode_wboing_deposit_calldata, wrapped_boing_bytecode};
+    let key = boing_node::faucet::testnet_faucet_signing_key();
+    let faucet = boing_node::faucet::testnet_faucet_account_id();
+    let sign = |n: &BoingNode, payload: TransactionPayload| {
+        let mut tx = Transaction {
+            nonce: n.state.get(&faucet).unwrap().nonce,
+            sender: faucet,
+            payload,
+            access_list: AccessList::default(),
+        };
+        tx.access_list = tx.suggested_parallel_access_list();
+        SignedTransaction::new_for_chain(tx, &key, 6913)
+    };
+    let mut wboing: Option<AccountId> = None;
+    let mut root_before_gate = None;
+    while a.chain.height() < gate + past {
+        let next = a.chain.height() + 1;
+        let payload = if next == gate - 2 {
+            wboing = Some(boing_primitives::nonce_derived_contract_address(
+                &faucet,
+                a.state.get(&faucet).unwrap().nonce,
+            ));
+            TransactionPayload::ContractDeployWithPurposeAndMetadata {
+                bytecode: wrapped_boing_bytecode(),
+                purpose_category: "token".into(),
+                description_hash: None,
+                asset_name: Some("Wrapped BOING".into()),
+                asset_symbol: Some("wBOING".into()),
+                create2_salt: None,
+            }
+        } else if wboing.is_some() && (next == gate - 1 || next == gate || next == gate + 1) {
+            TransactionPayload::ContractCallWithValue {
+                contract: wboing.unwrap(),
+                calldata: encode_wboing_deposit_calldata(),
+                value: BASE_UNITS_PER_BOING,
+            }
+        } else {
+            let mut to = [9u8; 32];
+            to[..8].copy_from_slice(&next.to_le_bytes());
+            TransactionPayload::Transfer {
+                to: AccountId(to),
+                amount: 1,
+            }
+        };
+        let blk = craft_next(a, vec![sign(a, payload)]);
+        a.import_network_block_catchup(&blk)
+            .unwrap_or_else(|e| panic!("leader imports {next}: {e}"));
+        b.import_network_block_catchup(&blk)
+            .unwrap_or_else(|e| panic!("follower imports {next}: {e}"));
+        assert_eq!(a.chain.latest_hash(), b.chain.latest_hash());
+        assert_eq!(a.state.state_root(), b.state.state_root());
+        if next == gate - 1 {
+            root_before_gate = Some(a.state.state_root());
+        }
+    }
+    let w = wboing.expect("wBOING deployed");
+    assert_eq!(a.state.get(&w).unwrap().balance, 3 * BASE_UNITS_PER_BOING);
+    assert!(root_before_gate.is_some());
+}
+
+/// Fixtures to 1310 under the preset, then move all three gates to 1320 and cross them locally.
+#[test]
+fn replay_live_chain_then_cross_tree_and_vm_gates_locally() {
+    std::env::set_var("BOING_CHAIN_ID", "6913");
+    let blocks = load_chain_to_1310();
+    let gate = 1_320;
+    let mut a = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    let mut b = testnet_node(AccountId([7u8; 32]), true);
+    for n in [&mut a, &mut b] {
+        let mut hist = network_preset::boing_testnet_history();
+        hist.vm_hardening_from = gate;
+        n.executor.set_execution_history(Some(hist));
+        n.enable_storage_tree_v2(gate);
+        n.enable_account_tree_v3(gate);
+        replay(n, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    }
+    produce_across(&mut a, &mut b, gate, 4);
+}
+
+/// Real preset heights: replay the full live dump (`BOING_REPLAY_FULL_CHAIN`) to the tip, then
+/// produce blocks across 1500 with the unmodified preset.
+#[test]
+fn replay_full_live_chain_then_cross_preset_gates() {
+    let Ok(path) = std::env::var("BOING_REPLAY_FULL_CHAIN") else {
+        eprintln!("BOING_REPLAY_FULL_CHAIN not set; skipping");
+        return;
+    };
+    std::env::set_var("BOING_CHAIN_ID", "6913");
+    let blocks = load_blocks_from(std::path::Path::new(&path));
+    let mut a = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    let mut b = testnet_node(AccountId([7u8; 32]), true);
+    for n in [&mut a, &mut b] {
+        replay(n, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+    }
+    produce_across(&mut a, &mut b, 1_500, 5);
+    println!("crossed preset gates at 1500; tip {}", a.chain.height());
 }

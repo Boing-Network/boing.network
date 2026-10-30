@@ -154,18 +154,22 @@ a node that disagrees on any of them computes different roots at the first affec
 | Execution gas fee policy (`execution_gas_fee_bps`) | **100** bps from 1188 (the policy in `docs/config/network_fee_config.canonical.json`) | 1188 |
 | L1 media blobs (`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT`) | from **1200** | 1311 (first `PutBlob`) |
 | Media-blob Phase 7 cap (`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`) | from **1306** | 1311 |
-| VM hardening (`BOING_VM_HARDENING_ACTIVATION_HEIGHT`) | from **5000** (upcoming) | 5000 |
+| VM hardening (`BOING_VM_HARDENING_ACTIVATION_HEIGHT`) | from **1500** (upcoming) | 1500 |
+| Storage-tree v2 (`BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT`) | from **1500** (upcoming) | 1500 |
+| Account-tree v3 (`BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT`) | from **1500** (upcoming) | 1500 |
 
-**Upcoming: VM hardening at block 5000** (audit #61 items 3, 22, 23). From that height the VM QA-checks the
+**Upcoming: VM hardening at block 1500** (audit #61 items 3, 22, 23). From that height the VM QA-checks the
 runtime bytecode that init code returns before storing it (direct deploys, QA-pool installs and in-contract
 `CREATE2`), charges gas for memory expansion (`3*w + w*w/512` per frame for `w` 32-byte words, on top of the
 existing 8 MiB per-frame cap) and fails a frame whose operand stack grows past **1024** items. Blocks below
-5000 execute exactly as before. Every validator and RPC node must run a build with this rule before the chain
-reaches 5000; an older build computes different results for the first block that hits one of the new limits.
+1500 execute exactly as before. Every validator and RPC node must run a build with this rule before the chain
+reaches 1500 (testnet-v0.1.20 or later); an older build computes different results for the first block that hits one of the new limits.
 
-**Not in the preset: account-tree v3** (`BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT`, off by default; audit #61
-item 30). Like storage-tree v2 it is an opt-in consensus height: when the network announces one, every node
-must set the same value before the chain reaches it. See [ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md).
+**Upcoming: storage-tree v2 and account-tree v3 at block 1500** (audit #61 item 30). From that height
+per-contract storage trees and the global account tree route on all 256 key bits; the state root is rebuilt
+once at 1500 for both. Both heights are in the preset (testnet-v0.1.20+), so do not set the env vars; an older
+build, or a node still carrying `BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT=4400`, forks at 1500. See
+[STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md) and [ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md).
 
 The micro-fee rule needs both the height and the 100 bps policy; either one alone fails at 1188. An
 environment variable or flag you set still overrides the preset (a wrong value breaks sync), and a

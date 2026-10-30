@@ -83,7 +83,7 @@ code default remains OFF.
 | Chain | `BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT` |
 |---|---|
 | Mainnet (6914) | **unset** (not scheduled) |
-| Testnet (6913) | **proposed `H = 4400`** (see below; recompute on the day) |
+| Testnet (6913) | **`H = 1500`**, in the preset from testnet-v0.1.20 (lowered from the earlier 4400 proposal, which the quiet chain would take too long to reach) |
 
 **Basis for 4400.** Computed by `node scripts/compute-activation-height.mjs` against the live testnet: *head 1321, block
 time 2026-10-26T00:46:53Z, computed 2026-10-26T04:34Z (00:34 EDT). Recompute on the day of rollout; do not reuse this number

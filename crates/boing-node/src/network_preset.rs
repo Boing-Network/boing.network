@@ -61,10 +61,16 @@ pub const BOING_TESTNET_MEDIA_BLOBS_FROM: u64 = 1_200;
 pub const BOING_TESTNET_MEDIA_BLOBS_PHASE7_CAP_FROM: u64 = 1_306;
 
 /// Testnet activation height of the VM hardening rules (audit #61 items 3, 22, 23: init-code
-/// runtime QA, memory-expansion gas, operand-stack cap). Chosen well above the tip at release
-/// (~1.4k) so every operator can upgrade first. `BOING_VM_HARDENING_ACTIVATION_HEIGHT` / the CLI
+/// runtime QA, memory-expansion gas, operand-stack cap). Tip at release ~1.4k; blocks are only
+/// produced on transactions, so 1500 is reachable while leaving operators time to upgrade. `BOING_VM_HARDENING_ACTIVATION_HEIGHT` / the CLI
 /// flag override it; once reached it is consensus, never change.
-pub const BOING_TESTNET_VM_HARDENING_FROM: u64 = 5_000;
+pub const BOING_TESTNET_VM_HARDENING_FROM: u64 = 1_500;
+/// Testnet storage tree v2 (deep per-contract storage commitment) from this height. ONE-WAY:
+/// never lower or remove once the live chain passes it. Override: `BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT`.
+pub const BOING_TESTNET_STORAGE_TREE_V2_FROM: u64 = 1_500;
+/// Testnet account tree v3 (deep account commitment) from this height; same block as storage v2
+/// (one full state-root rebuild covers both). ONE-WAY. Override: `BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT`.
+pub const BOING_TESTNET_ACCOUNT_TREE_V3_FROM: u64 = 1_500;
 
 /// Genesis block proposer plus the accounts funded at height 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -91,6 +97,10 @@ pub struct NetworkPreset {
     /// Phase 7 raised-cap activation height (consensus). `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT`
     /// / the CLI flag override it.
     pub media_blobs_phase7_cap_from: Option<u64>,
+    /// Storage tree v2 activation height (env/CLI still override).
+    pub storage_tree_v2_from: Option<u64>,
+    /// Account tree v3 activation height (env/CLI still override).
+    pub account_tree_v3_from: Option<u64>,
 }
 
 /// Historical execution eras of the public testnet, found by replaying every committed block
@@ -256,6 +266,8 @@ pub fn boing_testnet_preset() -> NetworkPreset {
         fee_policy: Some(boing_testnet_fee_policy()),
         media_blobs_from: Some(BOING_TESTNET_MEDIA_BLOBS_FROM),
         media_blobs_phase7_cap_from: Some(BOING_TESTNET_MEDIA_BLOBS_PHASE7_CAP_FROM),
+        storage_tree_v2_from: Some(BOING_TESTNET_STORAGE_TREE_V2_FROM),
+        account_tree_v3_from: Some(BOING_TESTNET_ACCOUNT_TREE_V3_FROM),
     }
 }
 
@@ -355,6 +367,12 @@ pub fn apply_preset(node: &mut BoingNode, preset: &NetworkPreset) -> bool {
     if let Some(h) = preset.media_blobs_phase7_cap_from {
         node.enable_media_blobs_phase7_cap(h);
     }
+    if let Some(h) = preset.storage_tree_v2_from {
+        node.enable_storage_tree_v2(h);
+    }
+    if let Some(h) = preset.account_tree_v3_from {
+        node.enable_account_tree_v3(h);
+    }
     node.apply_genesis_spec(&preset.genesis)
 }
 
@@ -453,6 +471,10 @@ mod vm_hardening_gate_tests {
         assert!(!h.vm_hardening_active(1_403));
         assert!(h.vm_hardening_active(BOING_TESTNET_VM_HARDENING_FROM));
         assert!(boing_execution::ExecutionHistory::default().vm_hardening_active(0));
+        let p = boing_testnet_preset();
+        assert_eq!(p.storage_tree_v2_from, Some(1_500));
+        assert_eq!(p.account_tree_v3_from, Some(1_500));
+        assert_eq!(BOING_TESTNET_VM_HARDENING_FROM, 1_500);
         let mut h = boing_testnet_history();
         resolve_vm_hardening_from(Some(7), &mut h).unwrap();
         assert_eq!(h.vm_hardening_from, 7);
