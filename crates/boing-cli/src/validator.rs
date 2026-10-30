@@ -49,7 +49,9 @@ fn optional_signing_key(
 ) -> anyhow::Result<Option<SigningKey>> {
     let has_inline = inline.as_ref().is_some_and(|s| !s.trim().is_empty());
     let has_file = file.as_ref().is_some_and(|s| !s.trim().is_empty())
-        || std::env::var(env_file).ok().is_some_and(|s| !s.trim().is_empty());
+        || std::env::var(env_file)
+            .ok()
+            .is_some_and(|s| !s.trim().is_empty());
     let has_env = std::env::var(env_inline)
         .ok()
         .is_some_and(|s| !s.trim().is_empty());

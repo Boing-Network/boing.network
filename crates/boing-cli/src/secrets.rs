@@ -19,10 +19,11 @@ pub fn read_secret_string(
     if let Some(v) = inline.filter(|s| !s.trim().is_empty()) {
         return materialize_secret_token(&v, what);
     }
-    if let Some(path) = file
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| std::env::var(env_file).ok().filter(|s| !s.trim().is_empty()))
-    {
+    if let Some(path) = file.filter(|s| !s.trim().is_empty()).or_else(|| {
+        std::env::var(env_file)
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+    }) {
         return read_secret_file(Path::new(&path), what);
     }
     if let Ok(v) = std::env::var(env_inline) {
@@ -47,9 +48,8 @@ fn materialize_secret_token(v: &str, what: &str) -> anyhow::Result<String> {
 }
 
 fn read_secret_file(path: &Path, what: &str) -> anyhow::Result<String> {
-    let raw = std::fs::read_to_string(path).map_err(|e| {
-        anyhow::anyhow!("cannot read {what} file {}: {e}", path.display())
-    })?;
+    let raw = std::fs::read_to_string(path)
+        .map_err(|e| anyhow::anyhow!("cannot read {what} file {}: {e}", path.display()))?;
     let line = raw
         .lines()
         .map(str::trim)

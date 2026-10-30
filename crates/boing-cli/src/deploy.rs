@@ -25,8 +25,8 @@ pub fn load_bytecode(path: &str) -> anyhow::Result<(PathBuf, Vec<u8>)> {
             "deploy path not found: {path} (expected a bytecode file or a project directory)"
         );
     };
-    let raw = std::fs::read(&file)
-        .map_err(|e| anyhow::anyhow!("cannot read {}: {e}", file.display()))?;
+    let raw =
+        std::fs::read(&file).map_err(|e| anyhow::anyhow!("cannot read {}: {e}", file.display()))?;
     let bytecode = decode_bytecode_bytes(&raw, &file)?;
     if bytecode.is_empty() {
         anyhow::bail!("{} is empty", file.display());
@@ -74,7 +74,9 @@ fn decode_bytecode_bytes(raw: &[u8], path: &Path) -> anyhow::Result<Vec<u8>> {
         .trim_start_matches("0x")
         .trim_start_matches("0X")
         .to_string();
-    if !compact.is_empty() && compact.len() % 2 == 0 && compact.chars().all(|c| c.is_ascii_hexdigit())
+    if !compact.is_empty()
+        && compact.len() % 2 == 0
+        && compact.chars().all(|c| c.is_ascii_hexdigit())
     {
         return hex::decode(&compact)
             .map_err(|e| anyhow::anyhow!("invalid hex in {}: {e}", path.display()));

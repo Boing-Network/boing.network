@@ -1096,13 +1096,21 @@ async fn main() -> anyhow::Result<()> {
         },
         Commands::Validator(cmd) => match cmd {
             ValidatorCommands::Register { signer } => {
-                let (owner, node) =
-                    validator::resolve_keys(signer.secret_hex, signer.secret_file, signer.node_key_hex, signer.node_key_file)?;
+                let (owner, node) = validator::resolve_keys(
+                    signer.secret_hex,
+                    signer.secret_file,
+                    signer.node_key_hex,
+                    signer.node_key_file,
+                )?;
                 validator::register(&cli.rpc_url, owner, node, signer.nonce, signer.dry_run).await
             }
             ValidatorCommands::Deregister { node, signer } => {
-                let (owner, node_key) =
-                    validator::resolve_keys(signer.secret_hex, signer.secret_file, signer.node_key_hex, signer.node_key_file)?;
+                let (owner, node_key) = validator::resolve_keys(
+                    signer.secret_hex,
+                    signer.secret_file,
+                    signer.node_key_hex,
+                    signer.node_key_file,
+                )?;
                 validator::deregister(
                     &cli.rpc_url,
                     owner,
@@ -1114,8 +1122,12 @@ async fn main() -> anyhow::Result<()> {
                 .await
             }
             ValidatorCommands::Unjail { node, signer } => {
-                let (owner, node_key) =
-                    validator::resolve_keys(signer.secret_hex, signer.secret_file, signer.node_key_hex, signer.node_key_file)?;
+                let (owner, node_key) = validator::resolve_keys(
+                    signer.secret_hex,
+                    signer.secret_file,
+                    signer.node_key_hex,
+                    signer.node_key_file,
+                )?;
                 validator::unjail(
                     &cli.rpc_url,
                     owner,
@@ -1127,8 +1139,12 @@ async fn main() -> anyhow::Result<()> {
                 .await
             }
             ValidatorCommands::ClaimUnbond { signer } => {
-                let (owner, node_key) =
-                    validator::resolve_keys(signer.secret_hex, signer.secret_file, signer.node_key_hex, signer.node_key_file)?;
+                let (owner, node_key) = validator::resolve_keys(
+                    signer.secret_hex,
+                    signer.secret_file,
+                    signer.node_key_hex,
+                    signer.node_key_file,
+                )?;
                 validator::claim_unbond(&cli.rpc_url, owner, node_key, signer.nonce, signer.dry_run)
                     .await
             }
