@@ -206,7 +206,7 @@ fn test_import_block() {
 }
 
 #[test]
-fn reject_block_timestamp_not_after_parent() {
+fn reject_block_timestamp_before_parent() {
     let proposer = AccountId(key().verifying_key().to_bytes());
     let mut parent = StateStore::new();
     parent.insert(Account {
@@ -223,7 +223,7 @@ fn reject_block_timestamp_not_after_parent() {
         header: BlockHeader {
             parent_hash: Hash::ZERO,
             height: 1,
-            timestamp: 5, // not strictly after parent_timestamp=5
+            timestamp: 4, // before parent_timestamp=5
             proposer,
             tx_root: tx_root(&[]),
             receipts_root: receipts_root(&[]),
@@ -235,9 +235,9 @@ fn reject_block_timestamp_not_after_parent() {
         transactions: vec![],
     };
     match validate_and_execute_block(&block, &parent, &[proposer], proposer, &exec, 5) {
-        Err(BlockValidationError::TimestampNotAfterParent { .. }) => {}
-        Err(e) => panic!("equal timestamp must fail, got error: {e}"),
-        Ok(_) => panic!("equal timestamp must fail"),
+        Err(BlockValidationError::TimestampBeforeParent { .. }) => {}
+        Err(e) => panic!("earlier timestamp must fail, got error: {e}"),
+        Ok(_) => panic!("earlier timestamp must fail"),
     }
 }
 

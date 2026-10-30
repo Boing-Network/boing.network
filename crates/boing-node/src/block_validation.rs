@@ -184,13 +184,16 @@ pub fn chains_to(block: &Block, our_latest_hash: Hash, our_height: u64) -> bool 
     block.header.parent_hash == our_latest_hash && block.header.height == our_height + 1
 }
 
-/// Enforce `timestamp > parent` (except genesis) and reject far-future clocks.
+/// Enforce non-decreasing timestamps vs parent (except genesis) and reject far-future clocks.
+///
+/// Equal timestamps are allowed: recorded testnet history (and same-second production) reuse the
+/// parent second. Strict `>` would reject valid historical blocks on replay.
 pub fn validate_block_timestamp(
     block: &Block,
     parent_timestamp: u64,
 ) -> Result<(), BlockValidationError> {
-    if block.header.height > 0 && block.header.timestamp <= parent_timestamp {
-        return Err(BlockValidationError::TimestampNotAfterParent {
+    if block.header.height > 0 && block.header.timestamp < parent_timestamp {
+        return Err(BlockValidationError::TimestampBeforeParent {
             parent: parent_timestamp,
             got: block.header.timestamp,
         });
@@ -246,8 +249,8 @@ pub fn import_block(
 pub enum BlockValidationError {
     #[error("Block does not chain to our tip")]
     DoesNotChain,
-    #[error("Block timestamp {got} is not strictly after parent timestamp {parent}")]
-    TimestampNotAfterParent { parent: u64, got: u64 },
+    #[error("Block timestamp {got} is before parent timestamp {parent}")]
+    TimestampBeforeParent { parent: u64, got: u64 },
     #[error("Block timestamp {got} is too far in the future (max allowed {max_allowed})")]
     TimestampTooFarInFuture { got: u64, max_allowed: u64 },
     #[error("Invalid tx root")]
