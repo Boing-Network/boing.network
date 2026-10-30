@@ -144,6 +144,9 @@ mod tests {
             tx_count: 0,
         };
         assert_eq!(reg.on_event(&ev, &ctx), vec![42]);
-        assert_eq!(reg.on_event(&ev, &EvalContext::new(6, 0)), Vec::<u64>::new());
+        assert_eq!(
+            reg.on_event(&ev, &EvalContext::new(6, 0)),
+            Vec::<u64>::new()
+        );
     }
 }

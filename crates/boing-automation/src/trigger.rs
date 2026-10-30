@@ -45,7 +45,10 @@ impl Trigger {
             }
             TriggerCondition::TimestampAfter(t) => now_secs >= *t,
             TriggerCondition::Custom(pred) => {
-                matches!(pred.trim().to_ascii_lowercase().as_str(), "true" | "1" | "yes")
+                matches!(
+                    pred.trim().to_ascii_lowercase().as_str(),
+                    "true" | "1" | "yes"
+                )
             }
         }
     }

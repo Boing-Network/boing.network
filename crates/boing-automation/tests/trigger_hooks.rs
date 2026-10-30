@@ -18,9 +18,7 @@ fn test_block_height_trigger_fires() {
     let fired = reg.on_event(&event, &ctx);
     assert_eq!(fired, vec![100]);
     // One-shot: later heights must not re-fire (audit #61 item 48).
-    assert!(reg
-        .on_event(&event, &EvalContext::new(11, 1001))
-        .is_empty());
+    assert!(reg.on_event(&event, &EvalContext::new(11, 1001)).is_empty());
 }
 
 #[test]
