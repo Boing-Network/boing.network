@@ -39,6 +39,9 @@ pub enum Opcode {
     Xor = 0x18,
     /// Bitwise NOT (0x19)
     Not = 0x19,
+    /// BLAKE3 hash over a memory range (0x20). Pops `offset`, then `size` (stack top = `offset`);
+    /// pushes the 32-byte digest. Activation-gated (`BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT`).
+    Blake3 = 0x20,
     /// Shift left (0x1b). Pops `shift`, then `value` (stack top = `shift`). Effective count = unsigned `shift` word mod 256 (big-endian low byte `shift[31]`). Push `(value << count) mod 2^256`.
     Shl = 0x1b,
     /// Logical shift right (0x1c). Pops `shift`, then `value`. Same effective count as [`Shl`](Opcode::Shl). Unsigned `value >> count`.
@@ -123,6 +126,7 @@ impl Opcode {
             0x17 => Some(Self::Or),
             0x18 => Some(Self::Xor),
             0x19 => Some(Self::Not),
+            0x20 => Some(Self::Blake3),
             0x1b => Some(Self::Shl),
             0x1c => Some(Self::Shr),
             0x1d => Some(Self::Sar),
@@ -210,4 +214,8 @@ pub mod gas {
     pub const BALANCE: u64 = 100;
     /// `NATIVE_TRANSFER`: two account writes (priced like a batch transfer step).
     pub const NATIVE_TRANSFER: u64 = 7_000;
+    /// `Blake3` base cost (plus [`BLAKE3_PER_WORD`] × ceil(size/32)).
+    pub const BLAKE3: u64 = 30;
+    /// Linear gas per 32-byte word of Blake3 input.
+    pub const BLAKE3_PER_WORD: u64 = 6;
 }

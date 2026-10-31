@@ -52,6 +52,7 @@ const required = [
   'CALLVALUE',
   'SELFBALANCE',
   'NATIVETRANSFER',
+  'BLAKE3',
 ];
 
 let failed = false;
@@ -78,4 +79,4 @@ for (const name of required) {
 if (failed) {
   process.exit(1);
 }
-console.log('ok: JS opcode tables match Rust for BLOCKHEIGHT/TIMESTAMP/native-value ops');
+console.log('ok: JS opcode tables match Rust for BLOCKHEIGHT/TIMESTAMP/native-value/BLAKE3 ops');

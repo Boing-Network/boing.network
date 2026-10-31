@@ -1,9 +1,9 @@
 # Audit #61 item 29 — protocol-invasive DEX / token semantics
 
-**Status (batch 10):** first-mint `√` shipped as **pool v11** (new CREATE2 template). JumpI /
-amount-range / bond-debit leftovers from item 29 shipped in
-[#147](https://github.com/Boing-Network/boing.network/pull/147). XOR allowance keys and custody
-intermediate `min_out` remain as documented below (hash opcode still activation-gated scaffolding).
+**Status (batch 11):** first-mint `√` shipped as **pool v11**. Live **`Opcode::Blake3` (`0x20`)**
++ fungible **v3** (hashed allowance keys) ship behind
+`BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT` (default never). Custody intermediate `min_out=1`
+unchanged (by design).
 
 ## 1. First LP mint: `min(A, B)` (v8–v10) vs `√(A·B)` (v11)
 
@@ -28,10 +28,10 @@ hard-fork activation** or a multi-slot layout redesign in a **new token template
 requires ~2^128 work to collide on a chosen owner half while the owner half of `approve` is always
 `CALLER`.
 
-**Scaffolding (batch 10):** `crates/boing-execution/src/hash_opcode_scaffold.rs` — planned
-`Blake3` opcode byte `0x20`, env `BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT` (default never), and
-host-side `ref_fungible_allowance_key_v3_host` (= `BLAKE3(domain ‖ owner ‖ spender)`) for a future
-fungible v3 template. Opcode is **not** in the live ISA until a coordinated hard-fork PR.
+**Shipped (batch 11):** `Opcode::Blake3` at `0x20` (memory-range hash; activation-gated). Host
+`ref_fungible_allowance_key_v3_host` = `BLAKE3(pad32(domain) ‖ owner ‖ spender)`. Template
+`reference_fungible_template_v3_bytecode` / CLI+SDK `--version v3`. Deploy QA accepts `0x20` only
+when the Blake3 flag is on for the next block height.
 
 ## 3. Custody router intermediate hops use `min_out = 1`
 
@@ -51,7 +51,7 @@ revision if product ever wants hop-level floors; not required for correctness of
 | Finding | Safe without hard fork? | Action |
 |---------|-------------------------|--------|
 | First LP `min` vs `√` | New pool **v11** | **Shipped** (batch 10) |
-| XOR 16-byte allowance keys | Needs hash opcode **or** new token template | Scaffold + activation plan |
+| XOR 16-byte allowance keys | Needs hash opcode **or** new token template | **Shipped**: Blake3 + fungible v3 (activation-gated) |
 | Custody intermediate `min_out=1` | By design | Keep; document here |
 
 Refs: https://github.com/Boing-Network/boing.network/issues/61

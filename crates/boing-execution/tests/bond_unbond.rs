@@ -48,6 +48,7 @@ fn test_bond_unbond_claim_with_delay() {
             block_timestamp: 0,
             native_value: false,
             vm_hardening: false,
+            blake3_opcode: false,
         },
     )
     .unwrap();
@@ -75,6 +76,7 @@ fn test_bond_unbond_claim_with_delay() {
                 block_timestamp: 0,
                 native_value: false,
                 vm_hardening: false,
+                blake3_opcode: false,
             },
         )
         .unwrap_err();
@@ -94,6 +96,7 @@ fn test_bond_unbond_claim_with_delay() {
             block_timestamp: 0,
             native_value: false,
             vm_hardening: false,
+            blake3_opcode: false,
         },
     )
     .unwrap();

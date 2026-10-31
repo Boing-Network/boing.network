@@ -221,6 +221,10 @@ impl BlockExecutor {
         self.vm.set_governance_consensus_from(from);
     }
 
+    pub fn set_blake3_from(&mut self, from: Option<u64>) {
+        self.vm.set_blake3_from(from);
+    }
+
     /// Execute all transactions. Returns total gas used and one receipt per tx (in block order).
     /// On error, state may be partially applied (caller should revert if needed).
     /// Transfer-only batches run in parallel; other batches run sequentially.
@@ -269,6 +273,7 @@ impl BlockExecutor {
             block_timestamp,
             native_value: self.vm.native_value_active(block_height),
             vm_hardening: self.vm.vm_hardening_active(block_height),
+            blake3_opcode: false,
         };
         // Ledger redenomination (whole BOING -> base units) happens once, at the start of block H.
         self.prepare_state_for_height(block_height, state);

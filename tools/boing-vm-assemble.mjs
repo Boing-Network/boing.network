@@ -45,6 +45,7 @@ const SINGLE = new Map(
     SHL: 0x1b,
     SHR: 0x1c,
     SAR: 0x1d,
+    BLAKE3: 0x20,
     ADDRESS: 0x30,
     BALANCE: 0x31,
     CALLER: 0x33,

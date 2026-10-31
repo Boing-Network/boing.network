@@ -96,8 +96,13 @@ impl RuleId {
 /// activation height are checked exactly as before.
 pub const NATIVE_VALUE_OPCODES: [u8; 4] = [0x31, 0x34, 0x47, 0xf2];
 
-fn is_valid_opcode_with(b: u8, native_value: bool) -> bool {
-    is_valid_opcode(b) || (native_value && NATIVE_VALUE_OPCODES.contains(&b))
+/// `Blake3` (0x20) — allowed only when the registry opts in ([`RuleRegistry::with_blake3_opcodes`]).
+pub const BLAKE3_OPCODE: u8 = 0x20;
+
+fn is_valid_opcode_with(b: u8, native_value: bool, blake3: bool) -> bool {
+    is_valid_opcode(b)
+        || (native_value && NATIVE_VALUE_OPCODES.contains(&b))
+        || (blake3 && b == BLAKE3_OPCODE)
 }
 
 fn is_valid_opcode(b: u8) -> bool {
@@ -155,11 +160,12 @@ fn push_immediate_size(b: u8) -> Option<u8> {
 fn check_well_formed(
     bytecode: &[u8],
     native_value: bool,
+    blake3: bool,
 ) -> Result<(), (usize, bool, &'static str)> {
     let mut pc = 0;
     while pc < bytecode.len() {
         let op = bytecode[pc];
-        if !is_valid_opcode_with(op, native_value) {
+        if !is_valid_opcode_with(op, native_value, blake3) {
             return Err((pc, true, "Invalid opcode"));
         }
         if let Some(imm_size) = push_immediate_size(op) {
@@ -249,7 +255,14 @@ pub fn check_contract_deploy(
     _description_hash: Option<&[u8]>,
     max_bytecode_size: usize,
 ) -> QaResult {
-    check_contract_deploy_with_blocklist(bytecode, purpose_category, max_bytecode_size, &[], false)
+    check_contract_deploy_with_blocklist(
+        bytecode,
+        purpose_category,
+        max_bytecode_size,
+        &[],
+        false,
+        false,
+    )
 }
 
 /// Full check using the complete rule registry. Applies all rules: hard rules, blocklist,
@@ -312,6 +325,7 @@ pub fn check_contract_deploy_full_with_metadata(
         registry.max_bytecode_size(),
         registry.blocklist(),
         registry.native_value_opcodes(),
+        registry.blake3_opcodes(),
     );
     if let QaResult::Reject(_) = base {
         return base;
@@ -443,6 +457,7 @@ pub fn check_contract_deploy_with_blocklist(
     max_bytecode_size: usize,
     blocklist_hashes: &[[u8; 32]],
     native_value_opcodes: bool,
+    blake3_opcodes: bool,
 ) -> QaResult {
     use boing_primitives::{contract_deploy_init_body, contract_deploy_uses_init_code};
 
@@ -471,7 +486,7 @@ pub fn check_contract_deploy_with_blocklist(
 
     let wellformed = contract_deploy_init_body(bytecode);
     if let Err((offset, invalid_opcode, reason)) =
-        check_well_formed(wellformed, native_value_opcodes)
+        check_well_formed(wellformed, native_value_opcodes, blake3_opcodes)
     {
         let rule_id = if invalid_opcode {
             RuleId(RuleId::INVALID_OPCODE.to_string())
@@ -534,6 +549,9 @@ pub struct RuleRegistry {
     /// (audit #61 item 47 — was `serde(skip)`, which always dropped the field).
     #[serde(default)]
     native_value_opcodes: bool,
+    /// Accept the Blake3 opcode ([`BLAKE3_OPCODE`]). Defaults to `false`.
+    #[serde(default)]
+    blake3_opcodes: bool,
 }
 
 impl Default for RuleRegistry {
@@ -551,6 +569,7 @@ impl RuleRegistry {
             always_review_categories: std::collections::HashSet::new(),
             content_blocklist: Vec::new(),
             native_value_opcodes: false,
+            blake3_opcodes: false,
         }
     }
 
@@ -562,6 +581,16 @@ impl RuleRegistry {
 
     pub fn native_value_opcodes(&self) -> bool {
         self.native_value_opcodes
+    }
+
+    /// Same registry, accepting (`true`) or rejecting the Blake3 opcode.
+    pub fn with_blake3_opcodes(mut self, allow: bool) -> Self {
+        self.blake3_opcodes = allow;
+        self
+    }
+
+    pub fn blake3_opcodes(&self) -> bool {
+        self.blake3_opcodes
     }
 
     pub fn with_max_bytecode_size(mut self, size: usize) -> Self {

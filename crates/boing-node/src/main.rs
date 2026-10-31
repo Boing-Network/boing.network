@@ -197,6 +197,11 @@ struct Args {
     #[arg(long)]
     governance_consensus_tx_activation_height: Option<u64>,
 
+    /// Enable VM Blake3 opcode from this height (all nodes must agree). Overrides
+    /// **`BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT`**. Unset / `never` = off.
+    #[arg(long)]
+    blake3_opcode_activation_height: Option<u64>,
+
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
@@ -273,6 +278,15 @@ async fn main() -> anyhow::Result<()> {
     if let Some(h) = governance_consensus_from {
         tracing::warn!(
             "Governance consensus txs (37–39): activation_height={h}. Every node must agree; see docs/GOVERNANCE-CONSENSUS-TX-ACTIVATION.md"
+        );
+    }
+    let blake3_from = boing_node::media_blob_config::resolve_blake3_opcode_activation(
+        args.blake3_opcode_activation_height,
+    )
+    .map_err(|e| anyhow::anyhow!("blake3 opcode config: {e}"))?;
+    if let Some(h) = blake3_from {
+        tracing::warn!(
+            "VM Blake3 opcode (0x20): activation_height={h}. Every node must agree; see docs/AUDIT-61-PROTOCOL-SEMANTICS.md"
         );
     }
     if let Some(h) = account_tree_v3_from {
@@ -460,6 +474,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = governance_consensus_from {
                 n.enable_governance_consensus_txs(h);
+            }
+            if let Some(h) = blake3_from {
+                n.enable_blake3_opcode(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -703,6 +720,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = governance_consensus_from {
                 n.enable_governance_consensus_txs(h);
+            }
+            if let Some(h) = blake3_from {
+                n.enable_blake3_opcode(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();

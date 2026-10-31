@@ -1588,6 +1588,7 @@ impl BoingNode {
             block_timestamp: ts,
             native_value: false, // set by the VM from the height
             vm_hardening: false,
+            blake3_opcode: false,
         };
         let policy = self.executor.fee_policy();
         // Free-path balance gate (anti-spam): zero-tip txs when execution gas is waived.
@@ -1640,6 +1641,7 @@ impl BoingNode {
             block_timestamp: 0,
             native_value: false, // set by the VM from the height
             vm_hardening: false,
+            blake3_opcode: false,
         };
         let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
@@ -2065,6 +2067,7 @@ impl BoingNode {
             block_timestamp: 0,
             native_value: false, // set by the VM from the height
             vm_hardening: false,
+            blake3_opcode: false,
         };
         let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
@@ -2136,6 +2139,16 @@ impl BoingNode {
 
     pub fn governance_consensus_activation_height(&self) -> Option<u64> {
         self.executor.vm().governance_consensus_from()
+    }
+
+    /// Enable VM Blake3 opcode from `activation_height` (all nodes must agree).
+    pub fn enable_blake3_opcode(&mut self, activation_height: u64) {
+        self.executor.set_blake3_from(Some(activation_height));
+        self.vm.set_blake3_from(Some(activation_height));
+    }
+
+    pub fn blake3_opcode_activation_height(&self) -> Option<u64> {
+        self.executor.vm().blake3_from()
     }
 
     pub fn bls_committee_flip_height(&self) -> Option<u64> {
@@ -2261,6 +2274,7 @@ impl BoingNode {
         vm.set_media_blobs_phase7_cap_from(self.executor.vm().media_blobs_phase7_cap_from());
         vm.set_bls_committee_flip_from(self.executor.vm().bls_committee_flip_from());
         vm.set_governance_consensus_from(self.executor.vm().governance_consensus_from());
+        vm.set_blake3_from(self.executor.vm().blake3_from());
         vm
     }
 
@@ -2280,6 +2294,8 @@ impl BoingNode {
         let next = self.chain.height().saturating_add(1);
         let active = self.executor.native_value_active(next);
         self.mempool.set_native_value_opcodes(active);
+        self.mempool
+            .set_blake3_opcodes(self.executor.vm().blake3_active(next));
         let carries_value = match &signed.tx.payload {
             TransactionPayload::ContractCallWithValue { .. } => true,
             TransactionPayload::Batch { calls } => calls

@@ -128,6 +128,8 @@ pub struct Vm {
     bls_committee_flip_from: Option<u64>,
     /// Governance consensus txs (indices 37–39). `None` = never admitted.
     governance_consensus_from: Option<u64>,
+    /// Blake3 opcode activation. `None` = never.
+    blake3_from: Option<u64>,
 }
 
 impl Vm {
@@ -194,6 +196,18 @@ impl Vm {
         boing_governance::consensus_tx::consensus_txs_active(self.governance_consensus_from, height)
     }
 
+    pub fn set_blake3_from(&mut self, from: Option<u64>) {
+        self.blake3_from = from;
+    }
+
+    pub fn blake3_from(&self) -> Option<u64> {
+        self.blake3_from
+    }
+
+    pub fn blake3_active(&self, height: u64) -> bool {
+        crate::blake3_opcode_active(self.blake3_from, height)
+    }
+
     pub fn media_blob_max_bytes(&self, height: u64) -> usize {
         media_blob_max_bytes_at(height, self.media_blobs_phase7_cap_from)
     }
@@ -247,17 +261,19 @@ impl Vm {
         VmExecutionContext {
             native_value: self.native_value_active(exec_ctx.block_height),
             vm_hardening: self.vm_hardening_active(exec_ctx.block_height),
+            blake3_opcode: self.blake3_active(exec_ctx.block_height),
             ..exec_ctx
         }
     }
 
-    /// Deploy QA registry for a block: native-value opcodes accepted only once active.
-    fn qa_at(&self, exec_ctx: VmExecutionContext) -> &RuleRegistry {
-        if exec_ctx.native_value {
-            &self.qa_registry_native
+    /// Deploy QA registry for a block: native-value / Blake3 opcodes accepted only once active.
+    fn qa_at(&self, exec_ctx: VmExecutionContext) -> RuleRegistry {
+        let base = if exec_ctx.native_value {
+            self.qa_registry_native.clone()
         } else {
-            &self.qa_registry
-        }
+            self.qa_registry.clone()
+        };
+        base.with_blake3_opcodes(exec_ctx.blake3_opcode)
     }
 
     /// Ledger unit at `height`.
@@ -306,6 +322,7 @@ impl Vm {
             media_blobs_phase7_cap_from: None,
             bls_committee_flip_from: None,
             governance_consensus_from: None,
+            blake3_from: None,
         }
     }
 
@@ -326,6 +343,7 @@ impl Vm {
             media_blobs_phase7_cap_from: None,
             bls_committee_flip_from: None,
             governance_consensus_from: None,
+            blake3_from: None,
         }
     }
 
@@ -349,6 +367,7 @@ impl Vm {
             media_blobs_phase7_cap_from: None,
             bls_committee_flip_from: None,
             governance_consensus_from: None,
+            blake3_from: None,
         }
     }
 
@@ -1910,7 +1929,7 @@ impl Vm {
             desc_hash,
             asset_name,
             asset_symbol,
-            self.qa_at(exec_ctx),
+            &self.qa_at(exec_ctx),
         ) {
             QaResult::Allow => {}
             QaResult::Reject(r) => {
@@ -1970,7 +1989,7 @@ impl Vm {
                 contract_addr,
                 &[],
                 state,
-                self.qa_at(exec_ctx),
+                &self.qa_at(exec_ctx),
                 exec_ctx,
             )?;
             let runtime = interpreter.return_data.take().unwrap_or_default();
@@ -1981,7 +2000,7 @@ impl Vm {
                     desc_hash,
                     asset_name,
                     asset_symbol,
-                    self.qa_at(exec_ctx),
+                    &self.qa_at(exec_ctx),
                 )?;
             }
             let logs = std::mem::take(&mut interpreter.logs);
@@ -2162,7 +2181,7 @@ impl Vm {
                 contract_addr,
                 &[],
                 state,
-                self.qa_at(exec_ctx),
+                &self.qa_at(exec_ctx),
                 exec_ctx,
             )?;
             let runtime = interpreter.return_data.take().unwrap_or_default();
@@ -2173,7 +2192,7 @@ impl Vm {
                     desc_hash,
                     asset_name,
                     asset_symbol,
-                    self.qa_at(exec_ctx),
+                    &self.qa_at(exec_ctx),
                 )?;
             }
             (runtime, g_init)
@@ -2240,7 +2259,7 @@ impl Vm {
                             *contract,
                             calldata,
                             state,
-                            self.qa_at(exec_ctx),
+                            &self.qa_at(exec_ctx),
                             exec_ctx,
                         )
                         .map_err(step_err)?;
@@ -2272,7 +2291,7 @@ impl Vm {
                             *contract,
                             calldata,
                             state,
-                            self.qa_at(exec_ctx),
+                            &self.qa_at(exec_ctx),
                             exec_ctx,
                         )
                         .map_err(step_err)?;
@@ -2323,7 +2342,7 @@ impl Vm {
             *contract,
             calldata,
             state,
-            self.qa_at(exec_ctx),
+            &self.qa_at(exec_ctx),
             exec_ctx,
         )?;
         let return_data = interpreter.return_data.take().unwrap_or_default();
@@ -3508,6 +3527,7 @@ mod create2_qa_unsure_tests {
                 block_timestamp: 1,
                 native_value: false,
                 vm_hardening: true,
+                blake3_opcode: false,
             },
         )
         .expect_err("Unsure CREATE2 must fail");
@@ -3600,6 +3620,7 @@ mod slash_appeal_phase14_tests {
             block_timestamp: 0,
             native_value: false,
             vm_hardening: false,
+            blake3_opcode: false,
         }
     }
 

@@ -32,6 +32,7 @@ pub mod reference_fungible_secured;
 pub mod reference_nft;
 pub mod reference_token;
 pub mod reference_token_v2;
+pub mod reference_token_v3;
 mod scheduler;
 mod vm;
 
@@ -57,6 +58,7 @@ pub use executor::{
 pub use gas::GasConfig;
 pub use hash_opcode_scaffold::{
     blake3_opcode_active, parse_blake3_activation_height, ref_fungible_allowance_key_v3_host,
+    ref_fungible_allowance_v3_domain_word, BLAKE3_MAX_INPUT_BYTES, BLAKE3_OPCODE,
     BLAKE3_OPCODE_ACTIVATION_ENV, PLANNED_BLAKE3_OPCODE, REF_FUNGIBLE_ALLOWANCE_V3_DOMAIN,
 };
 pub use interface_blob_store::{
@@ -212,6 +214,9 @@ pub use reference_token_v2::{
     encode_allowance_calldata, encode_approve_calldata, encode_transfer_from_calldata,
     ref_fungible_allowance_key, reference_fungible_template_v2_bytecode,
     REF_FUNGIBLE_ALLOWANCE_XOR, SELECTOR_ALLOWANCE, SELECTOR_APPROVE, SELECTOR_TRANSFER_FROM,
+};
+pub use reference_token_v3::{
+    ref_fungible_allowance_key_v3, reference_fungible_template_v3_bytecode,
 };
 pub use scheduler::TransactionScheduler;
 pub use vm::{
