@@ -40,7 +40,9 @@ fn doc_url_for_rule(rule_id: &str) -> Option<String> {
         RuleId::MAX_BYTECODE_SIZE => "#max-bytecode-size",
         RuleId::INVALID_OPCODE | RuleId::MALFORMED_BYTECODE => "#opcodes-and-well-formedness",
         RuleId::BLOCKLIST_MATCH | RuleId::SCAM_PATTERN_MATCH => "#blocklist-and-scam-patterns",
-        RuleId::CONTENT_POLICY_VIOLATION | RuleId::METADATA_TOO_LONG => "#metadata-and-content-policy",
+        RuleId::CONTENT_POLICY_VIOLATION | RuleId::METADATA_TOO_LONG => {
+            "#metadata-and-content-policy"
+        }
         RuleId::SOFT_RULE_FAILED
         | RuleId::PURPOSE_DECLARATION_INVALID
         | RuleId::ALWAYS_REVIEW_CATEGORY => "#soft-rules-and-purpose",
@@ -962,5 +964,4 @@ mod tests {
         let bare: RuleRegistry = serde_json::from_str(r#"{"max_bytecode_size":8192,"blocklist":[],"scam_patterns":[],"always_review_categories":[],"content_blocklist":[]}"#).unwrap();
         assert!(!bare.native_value_opcodes());
     }
-
 }
