@@ -1008,7 +1008,13 @@ fn replay_full_live_chain_then_cross_preset_gates() {
         replay(n, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
         assert_eq!(n.state.storage_tree_v2_activation(), Some(1_500));
     }
-    produce_across(&mut a, &mut b, 1_500, 5);
+    if a.chain.height() >= 1_500 {
+        // The live testnet is already past 1500, so the replayed dump itself crosses the gate and
+        // crafting blocks below it is no longer possible.
+        assert_eq!(a.state.state_root(), b.state.state_root());
+    } else {
+        produce_across(&mut a, &mut b, 1_500, 5);
+    }
     assert_deep_roots_active(&mut a);
     println!("crossed preset gates at 1500; tip {}", a.chain.height());
 }

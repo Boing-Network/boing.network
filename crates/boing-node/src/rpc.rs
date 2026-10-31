@@ -892,11 +892,13 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_verifyAccountProof",
 ];
 
+/// Test-only reference for [`crate::rpc_block_json`] (which now does this inline for block JSON).
 /// `serde_json::to_value`, except that integers above `u64::MAX` (u128 amounts) become decimal
 /// strings instead of failing. Previously a block holding such an amount (e.g. a failed transfer of
 /// 1e30) was returned without `header` / `transactions`.
 /// Integers above JavaScript's `Number.MAX_SAFE_INTEGER` (2^53 - 1) are emitted as decimal strings so
 /// JS clients never round them (base-unit amounts are routinely ~10^18+).
+#[cfg(test)]
 pub(crate) fn json_value_lossless<T: serde::Serialize>(v: &T) -> serde_json::Value {
     let Ok(text) = serde_json::to_string(v) else {
         return serde_json::Value::Null;
@@ -904,9 +906,11 @@ pub(crate) fn json_value_lossless<T: serde::Serialize>(v: &T) -> serde_json::Val
     serde_json::from_str(&quote_big_json_ints(&text)).unwrap_or(serde_json::Value::Null)
 }
 
+#[cfg(test)]
 const JS_MAX_SAFE_INTEGER: u64 = (1 << 53) - 1;
 
 /// Wraps bare JSON integers above 2^53 - 1 in quotes (outside strings only).
+#[cfg(test)]
 fn quote_big_json_ints(text: &str) -> String {
     let b = text.as_bytes();
     let mut out: Vec<u8> = Vec::with_capacity(text.len() + 16);
