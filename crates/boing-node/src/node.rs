@@ -568,7 +568,27 @@ impl BoingNode {
         Ok(id)
     }
 
-    /// Operator-attested advance to cooling (quorum counting still deferred).
+    /// Stake-weighted ballot on an open proposal. `weight` defaults to the voter's bonded `stake`
+    /// when `weight_override` is `None`.
+    pub fn governance_vote(
+        &mut self,
+        id: u64,
+        voter: AccountId,
+        approve: bool,
+        weight_override: Option<u128>,
+    ) -> Result<(), GovernanceError> {
+        let weight = match weight_override {
+            Some(w) => w,
+            None => self.state.get(&voter).map(|a| a.stake).unwrap_or(0),
+        };
+        self.governance.cast_vote(id, voter.0, approve, weight)?;
+        self.persist_governance();
+        Ok(())
+    }
+
+    /// Advance to cooling. Requires stake-weighted quorum when `governance.strict_quorum` is set
+    /// (default on new nodes). Consensus-tx admission remains activation-gated — see
+    /// `docs/GOVERNANCE-CONSENSUS-TX-ACTIVATION.md`.
     pub fn governance_advance_cooling(
         &mut self,
         id: u64,

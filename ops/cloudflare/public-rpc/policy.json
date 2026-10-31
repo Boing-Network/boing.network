@@ -104,7 +104,7 @@
       "$comment": "Never served on the public hostname. Operator and admin methods are authenticated on the node (-32057, X-Boing-Operator) but must not even be reachable from the open internet; use the Fly origin or a private path.",
       "methods": [
         "boing_governanceAdvanceCooling", "boing_governanceAdvanceExecution", "boing_governanceExecute",
-        "boing_governancePropose",
+        "boing_governancePropose", "boing_governanceVote",
         "boing_operatorApplyFeePolicy", "boing_operatorApplyQaPolicy", "boing_putBlobSampleOffer",
         "boing_registerBlsDualKey", "boing_resolveSlashAppeal", "boing_submitSlashAppeal"
       ]

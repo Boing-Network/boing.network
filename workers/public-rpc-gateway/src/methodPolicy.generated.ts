@@ -44,6 +44,7 @@ export const METHOD_CLASS: Readonly<Record<string, MethodClass>> = {
   "boing_governanceGetProposal": "read",
   "boing_governanceListProposals": "read",
   "boing_governancePropose": "blocked",
+  "boing_governanceVote": "blocked",
   "boing_health": "read",
   "boing_listBlobSampleOffers": "read",
   "boing_listBlobSampleServeChallenges": "read",
