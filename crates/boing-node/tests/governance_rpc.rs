@@ -1,4 +1,4 @@
-//! Audit #61 item 41 — phased governance RPCs apply allowlisted fee policy.
+//! Audit #61 item 41 — phased governance RPCs apply allowlisted fee policy (quorum votes).
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -75,6 +75,30 @@ async fn phased_fee_policy_proposal_applies_on_execute() {
     .await;
     assert_eq!(proposed["result"]["ok"], true, "{proposed:?}");
     let id = proposed["result"]["id"].as_u64().unwrap();
+
+    // strict_quorum: cooling without votes must fail.
+    let cool_fail = rpc(
+        node.clone(),
+        "s3cret",
+        "boing_governanceAdvanceCooling",
+        serde_json::json!([id]),
+    )
+    .await;
+    assert!(
+        cool_fail.get("error").is_some(),
+        "expected quorum error, got {cool_fail:?}"
+    );
+
+    let voter = "01".repeat(32);
+    let voted = rpc(
+        node.clone(),
+        "s3cret",
+        "boing_governanceVote",
+        serde_json::json!([id, voter, true, "100"]),
+    )
+    .await;
+    assert_eq!(voted["result"]["ok"], true, "{voted:?}");
+    assert_eq!(voted["result"]["quorum_met"], true, "{voted:?}");
 
     let cool = rpc(
         node.clone(),

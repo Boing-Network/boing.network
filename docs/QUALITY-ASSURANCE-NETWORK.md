@@ -659,7 +659,7 @@ The following are **governance-mutable**:
    - **target_key:** `qa_registry` (see `boing_qa::GOVERNANCE_QA_REGISTRY_KEY`)
    - **target_value:** JSON-serialized `RuleRegistry` (see below).
 
-2. **Vote / cooling / execution** — Use the phased governance RPCs on a live node (**`boing_governancePropose`** → **`boing_governanceAdvanceCooling`** → **`boing_governanceAdvanceExecution`** → **`boing_governanceExecute`**, all operator-authenticated). Cooling advance is **operator-attested** today (stake-weighted on-chain quorum votes remain deferred — audit #61 item 41). When the proposal is **executed**, the node applies the new registry:
+2. **Vote / cooling / execution** — Use the phased governance RPCs on a live node (**`boing_governancePropose`** → **`boing_governanceVote`** → **`boing_governanceAdvanceCooling`** → **`boing_governanceAdvanceExecution`** → **`boing_governanceExecute`**, all operator-authenticated). Cooling requires stake-weighted quorum when `strict_quorum` is on; consensus-tx admission remains activation-gated — see [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md). When the proposal is **executed**, the node applies the new registry:
    - Deserialize: `boing_qa::rule_registry_from_json(&target_value)`.
    - Replace the in-memory QA rule registry used by the mempool and RPC with this registry.
 

@@ -82,7 +82,7 @@ pub struct RpcState {
     pub faucet_cooldown: Option<FaucetCooldown>,
     pub faucet_submit_lock: Option<FaucetSubmitLock>,
     /// Operator methods (`boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`,
-    /// `boing_governancePropose` / `AdvanceCooling` / `AdvanceExecution` / `Execute`,
+    /// `boing_governancePropose` / `Vote` / `AdvanceCooling` / `AdvanceExecution` / `Execute`,
     /// `boing_resolveSlashAppeal`, **admin-only** `boing_qaPoolVote`) require header
     /// `X-Boing-Operator: <token>`. When `None`, those methods are rejected.
     /// `boing_submitSlashAppeal` accepts the operator token **or** a slashed-validator
@@ -680,6 +680,15 @@ fn governance_proposal_json(p: &boing_governance::Proposal) -> serde_json::Value
             .unwrap_or_default()
             .as_secs()
     };
+    let mut approve_w = 0u128;
+    let mut reject_w = 0u128;
+    for v in p.votes.values() {
+        if v.approve {
+            approve_w = approve_w.saturating_add(v.weight);
+        } else {
+            reject_w = reject_w.saturating_add(v.weight);
+        }
+    }
     serde_json::json!({
         "id": p.id,
         "target_key": p.target_key,
@@ -688,6 +697,10 @@ fn governance_proposal_json(p: &boing_governance::Proposal) -> serde_json::Value
         "proposed_at_unix": secs(p.proposed_at),
         "cooling_ends_at_unix": p.cooling_ends_at.map(secs),
         "execution_ends_at_unix": p.execution_ends_at.map(secs),
+        "vote_count": p.votes.len(),
+        "approve_weight": approve_w.to_string(),
+        "reject_weight": reject_w.to_string(),
+        "cast_weight": approve_w.saturating_add(reject_w).to_string(),
     })
 }
 
@@ -848,6 +861,7 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_governanceAdvanceExecution",
     "boing_governanceExecute",
     "boing_governancePropose",
+    "boing_governanceVote",
     "boing_health",
     "boing_listDexPools",
     "boing_listDexTokens",
@@ -3483,6 +3497,131 @@ async fn dispatch_jsonrpc_request(
                 Ok(pid) => {
                     info!("RPC: governance propose id={pid}");
                     rpc_ok(id, serde_json::json!({ "ok": true, "id": pid }))
+                }
+                Err(e) => rpc_error(id, -32602, e.to_string()),
+            }
+        }
+        "boing_governanceVote" => {
+            if !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            // Params: [proposal_id, voter_hex, approve_bool, optional_weight_string]
+            let params = match req.params {
+                Some(p) => p,
+                None => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(
+                            id,
+                            -32602,
+                            "Invalid params: expected [proposal_id, voter_hex, approve] (optional weight string)".into(),
+                        ),
+                    );
+                }
+            };
+            let arr = match params.as_array() {
+                Some(a) if a.len() >= 3 => a,
+                _ => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(
+                            id,
+                            -32602,
+                            "Invalid params: expected [proposal_id, voter_hex, approve] (optional weight string)".into(),
+                        ),
+                    );
+                }
+            };
+            let pid = match arr[0].as_u64() {
+                Some(x) => x,
+                None => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "Invalid params: proposal_id must be u64".into()),
+                    );
+                }
+            };
+            let voter_hex = match arr[1].as_str() {
+                Some(s) => s,
+                None => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(
+                            id,
+                            -32602,
+                            "Invalid params: voter_hex must be a string".into(),
+                        ),
+                    );
+                }
+            };
+            let voter = match parse_account_id_hex(voter_hex) {
+                Ok(a) => a,
+                Err(e) => return (StatusCode::OK, rpc_error(id, -32602, e)),
+            };
+            let approve = match arr[2].as_bool() {
+                Some(b) => b,
+                None => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "Invalid params: approve must be a bool".into()),
+                    );
+                }
+            };
+            let weight_override = if arr.len() >= 4 {
+                if let Some(s) = arr[3].as_str() {
+                    match s.parse::<u128>() {
+                        Ok(w) => Some(w),
+                        Err(_) => {
+                            return (
+                                StatusCode::OK,
+                                rpc_error(
+                                    id,
+                                    -32602,
+                                    "Invalid params: weight must be a decimal u128 string".into(),
+                                ),
+                            );
+                        }
+                    }
+                } else if let Some(w) = arr[3].as_u64() {
+                    Some(u128::from(w))
+                } else {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(
+                            id,
+                            -32602,
+                            "Invalid params: weight must be a decimal u128 string or number".into(),
+                        ),
+                    );
+                }
+            } else {
+                None
+            };
+            let mut n = node.write().await;
+            match n.governance_vote(pid, voter, approve, weight_override) {
+                Ok(()) => {
+                    let (yes, no, cast) = n.governance.tally(pid).unwrap_or((0, 0, 0));
+                    let quorum = n.governance.quorum_met(pid).unwrap_or(false);
+                    rpc_ok(
+                        id,
+                        serde_json::json!({
+                            "ok": true,
+                            "id": pid,
+                            "approve_weight": yes.to_string(),
+                            "reject_weight": no.to_string(),
+                            "cast_weight": cast.to_string(),
+                            "quorum_met": quorum,
+                            "strict_quorum": n.governance.strict_quorum,
+                        }),
+                    )
                 }
                 Err(e) => rpc_error(id, -32602, e.to_string()),
             }
