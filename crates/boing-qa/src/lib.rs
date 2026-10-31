@@ -34,8 +34,21 @@ pub struct QaReject {
 /// Doc URL for QA guidance (QUALITY-ASSURANCE-NETWORK Appendix A: Deployer checklist). Override with env or config in production.
 pub const QA_PASS_GUIDE_URL: &str = "https://github.com/Boing-Network/boing.network/blob/main/docs/QUALITY-ASSURANCE-NETWORK.md#appendix-a-deployer-checklist-how-to-pass-qa";
 
-fn doc_url_for_rule(_rule_id: &str) -> Option<String> {
-    Some(format!("{}#common-rejections-and-fixes", QA_PASS_GUIDE_URL))
+fn doc_url_for_rule(rule_id: &str) -> Option<String> {
+    // Anchor to the closest checklist section when known (audit #61 item 47).
+    let frag = match rule_id {
+        RuleId::MAX_BYTECODE_SIZE => "#max-bytecode-size",
+        RuleId::INVALID_OPCODE | RuleId::MALFORMED_BYTECODE => "#opcodes-and-well-formedness",
+        RuleId::BLOCKLIST_MATCH | RuleId::SCAM_PATTERN_MATCH => "#blocklist-and-scam-patterns",
+        RuleId::CONTENT_POLICY_VIOLATION | RuleId::METADATA_TOO_LONG => {
+            "#metadata-and-content-policy"
+        }
+        RuleId::SOFT_RULE_FAILED
+        | RuleId::PURPOSE_DECLARATION_INVALID
+        | RuleId::ALWAYS_REVIEW_CATEGORY => "#soft-rules-and-purpose",
+        _ => "#common-rejections-and-fixes",
+    };
+    Some(format!("{}{}", QA_PASS_GUIDE_URL, frag))
 }
 
 impl std::fmt::Display for QaReject {
@@ -197,16 +210,20 @@ fn is_valid_purpose_category(s: &str) -> bool {
 
 /// Soft rules: may return Unsure when automation lacks sufficient knowledge.
 /// Per spec §7.4: ambiguous declaration, minimal description with "other", etc.
+///
+/// Note: `description_hash` is an opaque commitment. This helper only checks that a
+/// non-trivial hash **length** was provided for category `"other"` — it does **not**
+/// verify description text (audit #61 item 47 naming honesty).
 fn check_soft_rules(
     _bytecode: &[u8],
     purpose_category: Option<&str>,
     description_hash: Option<&[u8]>,
 ) -> Option<QaResult> {
-    // Soft rule: "other" category with empty/minimal description → Unsure (§7.4, §11.2)
+    // Soft rule: "other" category with empty/minimal description **hash** → Unsure (§7.4, §11.2)
     if let Some(cat) = purpose_category {
         if cat.trim().to_lowercase() == "other" {
-            let desc_len = description_hash.map(|d| d.len()).unwrap_or(0);
-            if desc_len < 4 {
+            let desc_commitment_len = description_hash.map(|d| d.len()).unwrap_or(0);
+            if desc_commitment_len < 4 {
                 return Some(QaResult::Unsure);
             }
         }
@@ -353,7 +370,9 @@ fn check_content_policy(
         return None;
     }
     let check = |s: &str| {
-        let lower = s.trim().to_lowercase();
+        // Fold common Cyrillic look-alikes so `а`/`е`/… cannot bypass Latin blocklist terms
+        // (audit #61 item 47).
+        let lower = fold_homoglyphs(&s.trim().to_lowercase());
         for term in forbidden_terms {
             if term.is_empty() {
                 continue;
@@ -381,9 +400,27 @@ fn check_content_policy(
     None
 }
 
-/// Whether `text` (already lowercased) matches forbidden `term`.
+/// Map a few Cyrillic letters that visually mimic Latin ones (best-effort, not full NFKC).
+fn fold_homoglyphs(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            'а' | 'А' => 'a',
+            'е' | 'Е' => 'e',
+            'о' | 'О' => 'o',
+            'р' | 'Р' => 'p',
+            'с' | 'С' => 'c',
+            'у' | 'У' => 'y',
+            'х' | 'Х' => 'x',
+            'і' | 'І' => 'i',
+            'ѕ' | 'Ѕ' => 's',
+            other => other,
+        })
+        .collect()
+}
+
+/// Whether `text` (already lowercased / homoglyph-folded) matches forbidden `term`.
 fn content_term_matches(text: &str, term: &str) -> bool {
-    let t = term.trim().to_lowercase();
+    let t = fold_homoglyphs(&term.trim().to_lowercase());
     if t.is_empty() {
         return false;
     }
@@ -491,9 +528,11 @@ pub struct RuleRegistry {
     always_review_categories: std::collections::HashSet<String>,
     /// Forbidden substrings in asset name/symbol (vulgarity, offensiveness). Case-insensitive match. Governance-mutable.
     content_blocklist: Vec<String>,
-    /// Accept the native-value opcodes ([`NATIVE_VALUE_OPCODES`]). Not part of the governance
-    /// encoding (`serde(skip)`): set by the node / VM from the activation height.
-    #[serde(skip)]
+    /// Accept the native-value opcodes ([`NATIVE_VALUE_OPCODES`]).
+    /// Defaults to `false` when absent from JSON so deserializing a registry does not
+    /// silently enable them; node/VM still set this from the activation height
+    /// (audit #61 item 47 — was `serde(skip)`, which always dropped the field).
+    #[serde(default)]
     native_value_opcodes: bool,
 }
 
@@ -894,5 +933,35 @@ mod tests {
             .with_scam_patterns(too_long)
             .validate()
             .is_err());
+    }
+
+    #[test]
+    fn content_policy_rejects_cyrillic_lookalike_shit() {
+        let reg = RuleRegistry::new().with_content_blocklist(vec!["shit".to_string()]);
+        // Cyrillic "ѕһіт" style mix: use Cyrillic а→ but for "shit" use с/һ/і/т approximations:
+        // с (U+0441), h Latin, і (U+0456), t Latin → still folds partial; use full: "ѕһіт" hard.
+        // Simpler: "ѕhit" with Cyrillic ѕ (looks like s).
+        let r = check_contract_deploy_full_with_metadata(
+            &[0x00],
+            Some("token"),
+            None,
+            Some("ЅhitCoin"), // Cyrillic capital Ѕ
+            None,
+            &reg,
+        );
+        assert!(
+            matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::CONTENT_POLICY_VIOLATION),
+            "got {r:?}"
+        );
+    }
+
+    #[test]
+    fn native_value_opcodes_roundtrip_in_json() {
+        let reg = RuleRegistry::new().with_native_value_opcodes(true);
+        let json = serde_json::to_string(&reg).unwrap();
+        let back: RuleRegistry = serde_json::from_str(&json).unwrap();
+        assert!(back.native_value_opcodes());
+        let bare: RuleRegistry = serde_json::from_str(r#"{"max_bytecode_size":8192,"blocklist":[],"scam_patterns":[],"always_review_categories":[],"content_blocklist":[]}"#).unwrap();
+        assert!(!bare.native_value_opcodes());
     }
 }

@@ -663,7 +663,12 @@ impl Interpreter {
                     let dest = Self::u256_to_usize(&self.pop()?);
                     let cond = self.pop()?;
                     let is_nonzero = cond != [0u8; 32];
-                    if is_nonzero && dest < self.code.len() {
+                    // Match Jump: a taken jump to an out-of-range destination faults
+                    // (audit #61 item 29). Untaken jumps fall through.
+                    if is_nonzero {
+                        if dest >= self.code.len() {
+                            return Err(VmError::InvalidJump);
+                        }
                         self.pc = dest;
                     }
                 }
@@ -790,7 +795,7 @@ impl Interpreter {
                     let to = AccountId(self.pop()?);
                     let amount_w = self.pop()?;
                     if amount_w[..16].iter().any(|b| *b != 0) {
-                        return Err(VmError::InsufficientBalance);
+                        return Err(VmError::NativeAmountExceedsU128);
                     }
                     let mut lo = [0u8; 16];
                     lo.copy_from_slice(&amount_w[16..]);

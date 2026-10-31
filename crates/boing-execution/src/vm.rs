@@ -552,7 +552,10 @@ impl Vm {
                     .register_with_cap(&params, exec_ctx.block_height, tx.sender, *node_id, v4)
                     .map_err(|e| VmError::OpenValidator(e.to_string()))?;
                 let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
-                sender_state.balance -= params.bond;
+                sender_state.balance = sender_state
+                    .balance
+                    .checked_sub(params.bond)
+                    .ok_or(VmError::InsufficientBalance)?;
                 sender_state.nonce = sender_state
                     .nonce
                     .checked_add(1)
@@ -3143,6 +3146,9 @@ pub enum VmError {
     AccountNotFound,
     #[error("Insufficient balance")]
     InsufficientBalance,
+    /// `NATIVE_TRANSFER` amount does not fit in `u128` (high 128 bits of the word are set).
+    #[error("Native transfer amount exceeds u128")]
+    NativeAmountExceedsU128,
     #[error("Unbond not mature: unlock at height {unlock_height}, current {current_height}")]
     UnbondNotMature {
         unlock_height: u64,
