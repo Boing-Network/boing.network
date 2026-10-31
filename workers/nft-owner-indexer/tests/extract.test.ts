@@ -66,6 +66,19 @@ describe('extractNftEventsFromBlock', () => {
     expect(extractNftEventsFromBlock(block, 1, () => null)).toEqual([]);
   });
 
+  it('skips mint_batch rows when normalizeHex64 cannot parse owner/token', () => {
+    const mint = encodeReferenceMintBatchCalldata(alice, [id(1)], [hash(1)]);
+    const bad = contractCallTx(mint);
+    // Corrupt embedded AccountId hex so normalizeHex64 returns null (audit #61 item 74).
+    (bad.payload.ContractCall as { calldata: string }).calldata = '06' + 'zz'.repeat(64);
+    const block = {
+      transactions: [bad],
+      receipts: [{ tx_id: '0x' + '01'.repeat(32), success: true }],
+    };
+    // Undecodable calldata → no events (decode fails) rather than throwing on `!`.
+    expect(extractNftEventsFromBlock(block, 1, () => null)).toEqual([]);
+  });
+
   it('uses lookupCurrentOwner for transfers of previously indexed tokens', () => {
     const xfer = encodeReferenceTransferNftCalldata(bob, id(9));
     const block = {

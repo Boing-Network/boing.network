@@ -116,8 +116,10 @@ export function extractNftEventsFromBlock(
 
     if (decoded.selector === SELECTOR_MINT_BATCH) {
       for (let j = 0; j < decoded.tokenIds.length; j++) {
-        const tokenIdHex = normalizeHex64(decoded.tokenIds[j])!;
-        const toOwnerHex = normalizeHex64(decoded.to)!;
+        // Skip malformed hex rather than asserting into D1 (audit #61 item 74).
+        const tokenIdHex = normalizeHex64(decoded.tokenIds[j]);
+        const toOwnerHex = normalizeHex64(decoded.to);
+        if (!tokenIdHex || !toOwnerHex) continue;
         const meta = normalizeHex64(decoded.metadataHashes[j]);
         const metadataHashHex = meta && !isZeroHex64(meta) ? meta : null;
         out.push({
@@ -138,8 +140,9 @@ export function extractNftEventsFromBlock(
     }
 
     if (decoded.selector === SELECTOR_TRANSFER_NFT) {
-      const tokenIdHex = normalizeHex64(decoded.tokenId)!;
-      const toOwnerHex = normalizeHex64(decoded.to)!;
+      const tokenIdHex = normalizeHex64(decoded.tokenId);
+      const toOwnerHex = normalizeHex64(decoded.to);
+      if (!tokenIdHex || !toOwnerHex) continue;
       const k = keyOf(collectionHex, tokenIdHex);
       const fromOwnerHex =
         overlay.get(k) ?? lookupCurrentOwner(collectionHex, tokenIdHex) ?? null;
@@ -160,7 +163,8 @@ export function extractNftEventsFromBlock(
     }
 
     if (decoded.selector === SELECTOR_SET_METADATA_HASH) {
-      const tokenIdHex = normalizeHex64(decoded.tokenId)!;
+      const tokenIdHex = normalizeHex64(decoded.tokenId);
+      if (!tokenIdHex) continue;
       const metadataHashHex = normalizeHex64(decoded.metadataHash);
       out.push({
         blockHeight,
