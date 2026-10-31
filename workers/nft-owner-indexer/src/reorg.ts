@@ -1,5 +1,8 @@
 /**
  * OBS-1-style tip rewind: compare RPC headers to indexed_blocks, delete mismatched heights.
+ *
+ * Audit #61 item 74: prefer an exponential + binary search for the fork point so a deep reorg
+ * does not issue one sequential RPC call per height up to `maxSteps` (Worker CPU risk).
  */
 
 import type { BoingClient } from '@boing-network/boing-sdk';
@@ -30,6 +33,89 @@ export function compareCanonicalBlockHash(
   if (a == null) return 'rpc_missing';
   if (b == null) return 'db_missing';
   return a === b ? 'match' : 'mismatch';
+}
+
+async function rpcHashAt(
+  client: BoingClient,
+  height: number
+): Promise<string | null> {
+  const rpcBlock = await client.getBlockByHeight(height, false);
+  if (!rpcBlock || typeof rpcBlock !== 'object') return null;
+  return normalizeHex64((rpcBlock as { hash?: unknown }).hash);
+}
+
+/**
+ * Find the highest height `h` in `[lo, hi]` whose RPC hash matches the DB row (canonical ancestor).
+ * Returns `null` if none match within the window (caller falls back to wiping the window).
+ *
+ * Uses exponential probe from `hi` then binary search — O(log N) RPC calls for the fork point.
+ */
+export async function findCanonicalForkHeight(
+  db: D1Database,
+  client: BoingClient,
+  hi: number,
+  maxSteps: number
+): Promise<{ forkHeight: number | null; rpcCalls: number }> {
+  let rpcCalls = 0;
+  const lo = Math.max(0, hi - maxSteps + 1);
+
+  const matches = async (h: number): Promise<boolean | 'rpc_missing'> => {
+    rpcCalls += 1;
+    const rpcHash = await rpcHashAt(client, h);
+    if (rpcHash == null) return 'rpc_missing';
+    const dbRow = await getIndexedBlockAtHeight(db, h);
+    const cmp = compareCanonicalBlockHash(rpcHash, dbRow?.block_hash);
+    return cmp === 'match';
+  };
+
+  // Tip already matching → no rewind.
+  const tipMatch = await matches(hi);
+  if (tipMatch === true) {
+    return { forkHeight: hi, rpcCalls };
+  }
+  if (tipMatch === 'rpc_missing') {
+    return { forkHeight: null, rpcCalls };
+  }
+
+  // Exponential search for a matching ancestor.
+  let step = 1;
+  let probe = hi - 1;
+  let foundMatch: number | null = null;
+  while (probe >= lo) {
+    const m = await matches(probe);
+    if (m === 'rpc_missing') break;
+    if (m === true) {
+      foundMatch = probe;
+      break;
+    }
+    step = Math.min(step * 2, hi - lo);
+    probe = hi - step;
+    if (probe < lo) {
+      // Final check at window floor.
+      const floor = await matches(lo);
+      if (floor === true) foundMatch = lo;
+      break;
+    }
+  }
+
+  if (foundMatch == null) {
+    return { forkHeight: null, rpcCalls };
+  }
+
+  // Binary search highest matching height in [foundMatch, hi].
+  let left = foundMatch;
+  let right = hi;
+  while (left < right) {
+    const mid = Math.ceil((left + right) / 2);
+    const m = await matches(mid);
+    if (m === true) {
+      left = mid;
+    } else {
+      // mismatch or rpc_missing → search lower
+      right = mid - 1;
+    }
+  }
+  return { forkHeight: left, rpcCalls };
 }
 
 export async function rewindStaleTipIfNeeded(
@@ -73,58 +159,71 @@ export async function rewindStaleTipIfNeeded(
     return { rewindHeights: [], lastIndexedHeight: r.lastHeight, lastHash: r.lastHash };
   }
 
+  const tipRpcHash = await rpcHashAt(client, lastIndexedHeight);
+  const tipCmp = compareCanonicalBlockHash(tipRpcHash, dbTip.block_hash);
+  if (tipCmp === 'match') {
+    return {
+      rewindHeights: [],
+      lastIndexedHeight,
+      lastHash: normalizeHex64(lastHash) ?? zeros32(),
+    };
+  }
+  if (tipCmp === 'rpc_missing') {
+    // Cannot decide; leave cursor alone for the next tick.
+    return {
+      rewindHeights: [],
+      lastIndexedHeight,
+      lastHash: normalizeHex64(lastHash) ?? zeros32(),
+    };
+  }
+
+  const { forkHeight, rpcCalls } = await findCanonicalForkHeight(
+    db,
+    client,
+    lastIndexedHeight,
+    maxSteps
+  );
+
   const rewindHeights: number[] = [];
-  let h = lastIndexedHeight;
-  let steps = 0;
+  const wipeFrom = forkHeight == null ? Math.max(0, lastIndexedHeight - maxSteps + 1) : forkHeight + 1;
 
-  while (h >= 0 && steps < maxSteps) {
-    steps += 1;
-    const rpcBlock = await client.getBlockByHeight(h, false);
-    const rpcHash =
-      rpcBlock && typeof rpcBlock === 'object'
-        ? normalizeHex64((rpcBlock as { hash?: unknown }).hash)
-        : null;
-    const dbRow = await getIndexedBlockAtHeight(db, h);
-    const cmp = compareCanonicalBlockHash(rpcHash, dbRow?.block_hash);
-
-    if (cmp === 'rpc_missing') {
-      if (rewindHeights.length > 0) {
-        const r = await reconcileCursorToTip(db, chainId, nowSec);
-        return { rewindHeights, lastIndexedHeight: r.lastHeight, lastHash: r.lastHash };
-      }
-      break;
-    }
-
-    if (cmp === 'match') {
-      if (rewindHeights.length > 0) {
-        await upsertIngestCursor(db, chainId, h, dbRow!.block_hash, nowSec);
-        return {
-          rewindHeights,
-          lastIndexedHeight: h,
-          lastHash: dbRow!.block_hash,
-        };
-      }
-      return {
-        rewindHeights: [],
-        lastIndexedHeight,
-        lastHash: normalizeHex64(lastHash) ?? zeros32(),
-      };
-    }
-
-    // mismatch or db_missing
+  for (let h = lastIndexedHeight; h >= wipeFrom; h -= 1) {
     await deleteHeightAndRebuild(db, h, nowSec);
     rewindHeights.push(h);
-    h -= 1;
   }
 
   if (rewindHeights.length > 0) {
     const r = await reconcileCursorToTip(db, chainId, nowSec);
+    if (forkHeight != null) {
+      const row = await getIndexedBlockAtHeight(db, forkHeight);
+      if (row) {
+        await upsertIngestCursor(db, chainId, forkHeight, row.block_hash, nowSec);
+        console.log(
+          JSON.stringify({
+            ok: true,
+            action: 'reorg_rewind',
+            chainId,
+            rewindHeights,
+            forkHeight,
+            rpcCalls,
+            newLastHeight: forkHeight,
+          })
+        );
+        return {
+          rewindHeights,
+          lastIndexedHeight: forkHeight,
+          lastHash: row.block_hash,
+        };
+      }
+    }
     console.log(
       JSON.stringify({
         ok: true,
         action: 'reorg_rewind',
         chainId,
         rewindHeights,
+        forkHeight,
+        rpcCalls,
         newLastHeight: r.lastHeight,
       })
     );
