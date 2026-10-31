@@ -18,9 +18,10 @@ Calldata: `sel | hops | amount_in | min_out | recipient | deadline | (pool, dire
 with 1..=4 hops. The router:
 1. runs `transfer_from(token_in[0], CALLER -> router, amount_in)`. The user first approves the router.
 2. for each hop, approves `pool_i` for exactly `amt`, then calls `swap_to`. Intermediate hops pay the
-   router with `min = 1`; their returned `amount_out` becomes the next `amt`, and a return of 0 faults.
-   This means **intermediate pools must be v9**. The last hop pays `recipient` with `min_out` and can
-   be v8 or v9.
+   router with `min = 1` (**by design** — user slippage is enforced only on the final hop; see
+   [AUDIT-61-PROTOCOL-SEMANTICS.md](AUDIT-61-PROTOCOL-SEMANTICS.md) §3); their returned `amount_out`
+   becomes the next `amt`, and a return of 0 faults. This means **intermediate pools must be v9**.
+   The last hop pays `recipient` with `min_out` and can be v8 or v9.
 3. returns the last hop's return word: `amount_out` from a v9 pool, `0` from a v8 pool.
 
 Any failure faults, so the whole transaction reverts, including the pull and earlier hops. Because

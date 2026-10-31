@@ -45,7 +45,7 @@ boing pool remove-liquidity --pool 0xPOOL --liquidity 2500
 
 `crates/boing-cli/src/pool.rs` runs the real templates in `boing_execution::Interpreter`:
 
-- **v7 lifecycle:** fee set before liquidity; first-mint LP = `min(a, b)`; proportional second LP share (matches `quote_lp_minted`); swap output equals the off-chain quote in both directions; `reserve_a × reserve_b` never decreases.
+- **v7 lifecycle:** fee set before liquidity; first-mint LP = `min(a, b)` (not `√(a·b)` — see [AUDIT-61-PROTOCOL-SEMANTICS.md](AUDIT-61-PROTOCOL-SEMANTICS.md) §1; same for v8–v10); proportional second LP share (matches `quote_lp_minted`); swap output equals the off-chain quote in both directions; `reserve_a × reserve_b` never decreases.
 - **Slippage:** a swap with `min_out = quote + 1` is rejected with no state change and no log. So is a removal with `min_a` above pro-rata.
 - **No overdraft:** burning more LP than you hold, or any LP when you hold none, is rejected.
 - **Token hooks:** a v7 pool with reference tokens pays swap output from the pool's token balance to the trader.
