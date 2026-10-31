@@ -7,6 +7,7 @@ mod asm;
 mod bytecode;
 mod executor;
 mod gas;
+mod hash_opcode_scaffold;
 mod interpreter;
 mod native_amm;
 mod native_amm_v8;
@@ -121,13 +122,17 @@ pub use native_amm_lp_vault::{
     NATIVE_AMM_LP_VAULT_KEY_SHARE_TOKEN, SELECTOR_NATIVE_AMM_LP_VAULT_CONFIGURE,
     SELECTOR_NATIVE_AMM_LP_VAULT_DEPOSIT_ADD,
 };
+pub use hash_opcode_scaffold::{
+    blake3_opcode_active, parse_blake3_activation_height, ref_fungible_allowance_key_v3_host,
+    BLAKE3_OPCODE_ACTIVATION_ENV, PLANNED_BLAKE3_OPCODE, REF_FUNGIBLE_ALLOWANCE_V3_DOMAIN,
+};
 pub use native_amm_v8::{
-    constant_product_pool_bytecode_v10, constant_product_pool_bytecode_v8,
-    constant_product_pool_bytecode_v9, encode_v8_add_liquidity_calldata,
-    encode_v8_remove_liquidity_calldata, encode_v8_remove_liquidity_to_calldata,
-    encode_v8_swap_calldata, encode_v8_swap_to_calldata, pool_v8_lock_key,
-    NATIVE_CP_POOL_CREATE2_SALT_V10, NATIVE_CP_POOL_CREATE2_SALT_V8,
-    NATIVE_CP_POOL_CREATE2_SALT_V9,
+    constant_product_pool_bytecode_v10, constant_product_pool_bytecode_v11,
+    constant_product_pool_bytecode_v8, constant_product_pool_bytecode_v9,
+    encode_v8_add_liquidity_calldata, encode_v8_remove_liquidity_calldata,
+    encode_v8_remove_liquidity_to_calldata, encode_v8_swap_calldata, encode_v8_swap_to_calldata,
+    isqrt_u128, pool_v8_lock_key, NATIVE_CP_POOL_CREATE2_SALT_V10, NATIVE_CP_POOL_CREATE2_SALT_V11,
+    NATIVE_CP_POOL_CREATE2_SALT_V8, NATIVE_CP_POOL_CREATE2_SALT_V9,
 };
 pub use native_dex_custody_router::{
     custody_router_lock_key, encode_custody_router_swap_calldata,

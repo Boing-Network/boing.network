@@ -223,6 +223,50 @@ impl P {
         self.a.mcopy(x, dst);
         self.a.mark(done);
     }
+    /// `mem[dst] = ⌊√(mem[x] · mem[y])⌋` (Babylonian; scratch `LP1`/`LP2`/`OUT`).
+    fn isqrt_product(&mut self, x: u64, y: u64, dst: u64) {
+        let newton = self.a.label();
+        let loop_l = self.a.label();
+        let finish = self.a.label();
+        let done = self.a.label();
+        // Y = x * y
+        self.a.mload(x).mload(y).op(Opcode::Mul).mstore(LP1);
+        // if Y <= 3: dst = 1 (callers already require nonzero sides)
+        self.a.mload(LP1).push_u(3).op(Opcode::Gt).jumpi(newton);
+        self.a.push_u(1).mstore(dst).jump(done);
+        self.a.mark(newton);
+        // Z = Y; X = Y/2 + 1
+        self.a.mcopy(LP1, LP2);
+        self.a
+            .mload(LP1)
+            .push_u(2)
+            .op(Opcode::Div)
+            .push_u(1)
+            .op(Opcode::Add)
+            .mstore(OUT);
+        self.a.mark(loop_l);
+        // while X < Z: Z = X; X = (Y/X + X)/2
+        self.a
+            .mload(OUT)
+            .mload(LP2)
+            .op(Opcode::Lt)
+            .op(Opcode::IsZero)
+            .jumpi(finish);
+        self.a.mcopy(OUT, LP2);
+        self.a
+            .mload(LP1)
+            .mload(OUT)
+            .op(Opcode::Div)
+            .mload(OUT)
+            .op(Opcode::Add)
+            .push_u(2)
+            .op(Opcode::Div)
+            .mstore(OUT);
+        self.a.jump(loop_l);
+        self.a.mark(finish);
+        self.a.mcopy(LP2, dst);
+        self.a.mark(done);
+    }
     /// Pull `mem[amount]` of token `mem[token]` from `CALLER` into the pool; fault unless it returns `1`.
     fn pull(&mut self, token: u64, amount: u64) {
         let f = self.fail;
@@ -297,7 +341,7 @@ impl P {
 /// Custody-safe native CP pool (**v8**). CREATE2 salt: [`NATIVE_CP_POOL_CREATE2_SALT_V8`].
 #[must_use]
 pub fn constant_product_pool_bytecode_v8() -> Vec<u8> {
-    pool_v8_family(false, false)
+    pool_v8_family(false, false, false)
 }
 
 /// CREATE2 salt for **v9** pool bytecode ([`constant_product_pool_bytecode_v9`]).
@@ -308,7 +352,7 @@ pub const NATIVE_CP_POOL_CREATE2_SALT_V9: [u8; 32] =
 /// chain hops ([`crate::native_dex_custody_router`]). Everything else is byte-for-byte v8 logic.
 #[must_use]
 pub fn constant_product_pool_bytecode_v9() -> Vec<u8> {
-    pool_v8_family(true, false)
+    pool_v8_family(true, false, false)
 }
 
 /// CREATE2 salt for **v10** pool bytecode ([`constant_product_pool_bytecode_v10`]).
@@ -325,10 +369,41 @@ pub const NATIVE_CP_POOL_CREATE2_SALT_V10: [u8; 32] =
 /// rejection rule are v9's.
 #[must_use]
 pub fn constant_product_pool_bytecode_v10() -> Vec<u8> {
-    pool_v8_family(true, true)
+    pool_v8_family(true, true, false)
 }
 
-fn pool_v8_family(swap_returns_out: bool, u128_bound: bool) -> Vec<u8> {
+/// CREATE2 salt for **v11** pool bytecode ([`constant_product_pool_bytecode_v11`]).
+pub const NATIVE_CP_POOL_CREATE2_SALT_V11: [u8; 32] =
+    *b"BOING_NATIVECP_C2V11\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+
+/// **v11** = v10 plus Uniswap-style first LP mint `⌊√(amount_a · amount_b)⌋` (integer Babylonian
+/// method in-bytecode). Subsequent mints stay `min(a·T/ra, b·T/rb)`. New CREATE2 salt — deployed
+/// v8–v10 pools are unchanged (audit #61 item 29).
+#[must_use]
+pub fn constant_product_pool_bytecode_v11() -> Vec<u8> {
+    pool_v8_family(true, true, true)
+}
+
+/// Floor integer square root (Babylonian / Newton). Matches the v11 first-mint path.
+#[must_use]
+pub fn isqrt_u128(y: u128) -> u128 {
+    if y == 0 {
+        return 0;
+    }
+    if y <= 3 {
+        return 1;
+    }
+    let mut z = y;
+    let mut x = y / 2 + 1;
+    while x < z {
+        z = x;
+        x = y / x + x;
+        x /= 2;
+    }
+    z
+}
+
+fn pool_v8_family(swap_returns_out: bool, u128_bound: bool, first_mint_sqrt: bool) -> Vec<u8> {
     let mut a = Asm::new();
     let fail = a.label();
     let bound = if u128_bound {
@@ -431,7 +506,12 @@ fn pool_v8_family(swap_returns_out: bool, u128_bound: bool) -> Vec<u8> {
     p.min(LP1, LP2, LP);
     p.a.jump(lp_done);
     p.a.mark(first);
-    p.min(A, B, LP);
+    if first_mint_sqrt {
+        // v11: Uniswap-style ⌊√(A·B)⌋ (v8–v10 keep min(A,B)).
+        p.isqrt_product(A, B, LP);
+    } else {
+        p.min(A, B, LP);
+    }
     // First mint: default fee if unset (v7 behaviour).
     let fee_set = p.a.label();
     p.a.sload_key(&swap_fee_bps_key()).jumpi(fee_set);
@@ -1184,5 +1264,56 @@ mod tests {
         let r = check_contract_deploy_full(&code, Some("dapp"), None, &RuleRegistry::new());
         assert!(matches!(r, QaResult::Allow | QaResult::Unsure), "{r:?}");
         assert_ne!(code, crate::native_amm::constant_product_pool_bytecode_v7());
+    }
+
+    #[test]
+    fn isqrt_u128_matches_babylonian_reference() {
+        for y in [0u128, 1, 2, 3, 4, 9, 10, 100, 40_000, 1_000_000, u64::MAX as u128] {
+            let expect = {
+                if y == 0 {
+                    0
+                } else if y <= 3 {
+                    1
+                } else {
+                    let mut z = y;
+                    let mut x = y / 2 + 1;
+                    while x < z {
+                        z = x;
+                        x = (y / x + x) / 2;
+                    }
+                    z
+                }
+            };
+            assert_eq!(isqrt_u128(y), expect, "y={y}");
+        }
+    }
+
+    #[test]
+    fn v11_first_mint_uses_sqrt_product() {
+        let mut e = setup();
+        // Replace v8 pool from setup() with v11 (same tokens already configured on v8 — redeploy).
+        e.st.set_contract_code(POOL, constant_product_pool_bytecode_v11());
+        // set_tokens again: tokens_configured is storage on the pool account; code swap keeps storage.
+        // Fresh pool storage: clear by deploying at a fresh address pattern — re-set tokens if needed.
+        // setup() already wrote tokens_configured into POOL storage; bytecode change alone is fine.
+        e.approve(LP1, TA_ID, 100);
+        e.approve(LP1, TB_ID, 400);
+        let r = e.pool(LP1, encode_v8_add_liquidity_calldata(100, 400, 0, 0));
+        assert!(r.ok, "v11 first mint failed");
+        // √(100·400) = √40000 = 200 (not min(100,400)=100 as in v8–v10)
+        assert_eq!(e.lp(LP1), 200);
+        assert_eq!(isqrt_u128(100 * 400), 200);
+        assert_ne!(
+            constant_product_pool_bytecode_v11(),
+            constant_product_pool_bytecode_v10()
+        );
+    }
+
+    #[test]
+    fn pool_v11_passes_protocol_qa() {
+        use boing_qa::{check_contract_deploy_full, QaResult};
+        let code = constant_product_pool_bytecode_v11();
+        let r = check_contract_deploy_full(&code, Some("dapp"), None, &RuleRegistry::new());
+        assert!(matches!(r, QaResult::Allow | QaResult::Unsure), "{r:?}");
     }
 }
