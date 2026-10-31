@@ -61,6 +61,7 @@ fn node_with_proposer(signing_key: &SigningKey, balance: u128) -> BoingNode {
         proposal_timeout: boing_node::node::DEFAULT_PROPOSAL_TIMEOUT,
         media_blob_store: None,
         bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
+        account_tx_cache_key: boing_node::account_tx_index::alloc_cache_key(),
     }
 }
 

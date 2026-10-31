@@ -3519,8 +3519,8 @@ async fn dispatch_jsonrpc_request(
                     }
                 },
             };
-            let key = std::sync::Arc::as_ptr(node) as usize;
             let n = node.read().await;
+            let key = n.account_tx_cache_key;
             rpc_ok(
                 id,
                 crate::account_tx_index::account_transactions_json(
@@ -3818,13 +3818,15 @@ async fn dispatch_jsonrpc_request(
                     "chain_id": chain_id,
                     "chain_name": chain_name,
                     "head_height": head_height,
+                    // Tip after quorum commit; not a separate finality gadget (audit #61 item 21).
                     "finalized_height": head_height,
                     "latest_block_hash": format!("0x{}", hex::encode(latest_block_hash.0)),
                     "target_block_time_secs": BLOCK_TIME_SECS,
                     "client_version": format!("boing-node/{}", env!("CARGO_PKG_VERSION")),
                     "consensus": {
                         "validator_count": n.consensus.num_validators(),
-                        "model": "hotstuff_bft"
+                        "model": "single_round_quorum_commit",
+                        "finality": "quorum_commit_tip"
                     },
                     "native_currency": native_currency_json(&n),
                     "chain_native": {
@@ -4145,8 +4147,9 @@ async fn dispatch_jsonrpc_request(
                     let mut arr = [0u8; 32];
                     arr.copy_from_slice(&bytes);
                     let account_id = boing_primitives::AccountId(arr);
-                    let mut n = node.write().await;
-                    if let Some(proof) = n.state.prove_account(&account_id) {
+                    // Read lock: ephemeral tree proof (audit #61 item 20).
+                    let n = node.read().await;
+                    if let Some(proof) = n.state.prove_account_readonly(&account_id) {
                         match bincode::serialize(&proof) {
                             Ok(ser) => rpc_ok(
                                 id,
@@ -4797,8 +4800,22 @@ async fn dispatch_jsonrpc_request(
             };
             match (parse_account(&hex_contract), parse_account(&hex_owner)) {
                 (Ok(contract), Ok(owner)) => {
-                    let n = node.write().await;
-                    n.dapp_registry.register(contract, owner);
+                    // Soft-cap the in-memory map; no auth required today but growth is bounded
+                    // (audit #61 item 20).
+                    let n = node.read().await;
+                    if !n.dapp_registry.register(contract, owner) {
+                        return (
+                            StatusCode::OK,
+                            rpc_error(
+                                id,
+                                -32000,
+                                format!(
+                                    "dApp registry full (max {})",
+                                    crate::dapp_registry::DappRegistry::MAX_REGISTRATIONS
+                                ),
+                            ),
+                        );
+                    }
                     info!(
                         "RPC: dApp registered contract={} owner={}",
                         hex::encode(contract.0),

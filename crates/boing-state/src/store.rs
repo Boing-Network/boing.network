@@ -630,6 +630,13 @@ impl StateStore {
         self.tree.prove(id)
     }
 
+    /// Read-only account proof: builds an ephemeral tree so RPC can avoid taking the node write
+    /// lock (audit #61 item 20).
+    pub fn prove_account_readonly(&self, id: &AccountId) -> Option<crate::MerkleProof> {
+        let (mut tree, _) = self.build_full();
+        tree.prove(id)
+    }
+
     /// Merkle proof for a single contract storage slot against the contract's storage SMT.
     /// Returns `None` if the slot is absent (zero) or the contract has no storage.
     pub fn prove_storage(

@@ -544,7 +544,8 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
   "client_version": "boing-node/0.1.0",
   "consensus": {
     "validator_count": 4,
-    "model": "hotstuff_bft"
+    "model": "single_round_quorum_commit",
+    "finality": "quorum_commit_tip"
   },
   "client_hints": {
     "min_wallet_version": "0.1.18",
