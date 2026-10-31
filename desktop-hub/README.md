@@ -160,6 +160,11 @@ repository secrets below are provisioned with a real code-signing certificate. [
 `src-tauri/tauri.conf.json` stays `null` for CI to inject at release time. Signing is **not** something
 a code change can finish without an org-held `.pfx`.
 
+**Scaffolding (no cert in repo):** see [docs/WINDOWS-AUTHENTICODE.md](../docs/WINDOWS-AUTHENTICODE.md),
+`desktop-hub/scripts/check-windows-signing-ready.sh`, and the **Desktop Hub — Windows signing
+readiness** workflow (Actions → workflow_dispatch). Release jobs also print a readiness STATUS line
+before the optional PFX import.
+
 Signing the Windows installer avoids SmartScreen warnings and “administrator has set policies to prevent the installation” on locked-down machines. The release workflow signs the Windows build when these GitHub secrets are set:
 
 | Secret | Description |

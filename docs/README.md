@@ -95,6 +95,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [NATIVE-DEX-CUSTODY-ROUTER.md](NATIVE-DEX-CUSTODY-ROUTER.md) | Custody router for v8/v9 pools |
 | [AUDIT-61-PROTOCOL-SEMANTICS.md](AUDIT-61-PROTOCOL-SEMANTICS.md) | Audit #61 item 29 — why LP `min` / XOR allowance / custody `min_out=1` stay as-is |
 | [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md) | Audit #61 item 41 — quorum votes + consensus-tx activation plan |
+| [WINDOWS-AUTHENTICODE.md](WINDOWS-AUTHENTICODE.md) | Hub Windows Authenticode secrets + readiness CI (no .pfx in repo) |
 | [NATIVE-LP-VAULT-V2.md](NATIVE-LP-VAULT-V2.md) | LP vault v2 (token-pair pools) |
 | [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) | Pair directory VM |
 | [NATIVE-DEX-LEDGER-ROUTER.md](NATIVE-DEX-LEDGER-ROUTER.md) | Ledger forwarders v1–v3 |

@@ -1,0 +1,63 @@
+# Report whether Windows Authenticode secrets are provisioned (no .pfx in the repo).
+# Does not build the hub and never prints secret values.
+name: Desktop Hub — Windows signing readiness
+
+on:
+  workflow_dispatch:
+  # Optional: surface drift on docs/script changes without blocking merges.
+  pull_request:
+    paths:
+      - 'desktop-hub/scripts/check-windows-signing-ready.sh'
+      - 'docs/WINDOWS-AUTHENTICODE.md'
+      - '.github/workflows/desktop-hub-signing-readiness.yml'
+      - '.github/workflows/release-desktop-hub.yml'
+      - 'desktop-hub/src-tauri/tauri.conf.json'
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check Authenticode secret presence
+        # Secrets are empty strings when unset — the script treats that as MISSING.
+        # A missing secret must not fail PR CI: report and continue. workflow_dispatch
+        # operators still see the STATUS line in the log.
+        continue-on-error: true
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+        run: |
+          chmod +x desktop-hub/scripts/check-windows-signing-ready.sh
+          set +e
+          ./desktop-hub/scripts/check-windows-signing-ready.sh
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "signing_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signing_ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Windows Authenticode secrets are not fully provisioned; Hub releases remain unsigned until docs/WINDOWS-AUTHENTICODE.md is followed."
+          fi
+
+      - name: Confirm tauri.conf thumbprint stays null in git
+        run: |
+          node -e "
+          const c = require('./desktop-hub/src-tauri/tauri.conf.json');
+          const t = c.bundle?.windows?.certificateThumbprint;
+          if (t !== null && t !== undefined && t !== '') {
+            console.error('certificateThumbprint must be null in git (CI injects at release); got', t);
+            process.exit(1);
+          }
+          const ts = c.bundle?.windows?.timestampUrl || '';
+          if (ts && !String(ts).startsWith('https://')) {
+            console.error('timestampUrl should be https when set; got', ts);
+            process.exit(1);
+          }
+          console.log('tauri.conf.json: certificateThumbprint is null (ok); timestampUrl=', ts || '(unset)');
+          "
