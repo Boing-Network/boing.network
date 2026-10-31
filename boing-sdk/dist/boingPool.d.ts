@@ -58,8 +58,12 @@ export declare function boingPoolEffectiveFeeBps(version: BoingPoolVersion, stor
 export declare function quoteBoingPoolAmountOut(version: BoingPoolVersion, reserveIn: bigint, reserveOut: bigint, amountIn: bigint, feeBps: bigint): bigint;
 /** `floor(quote * (10000 - slippageBps) / 10000)`, at least 1 (CLI `min_out_with_slippage`). */
 export declare function boingPoolMinOutWithSlippage(quote: bigint, slippageBps: bigint): bigint;
-/** LP minted by `add_liquidity`: first mint min(a, b); then min(a*T/ra, b*T/rb). */
+/** Floor integer square root (Babylonian) — matches pool v11 first-mint. */
+export declare function boingPoolIsqrt(y: bigint): bigint;
+/** LP minted by `add_liquidity` (v8–v10): first mint min(a, b); then min(a*T/ra, b*T/rb). */
 export declare function quoteBoingPoolLpMinted(ra: bigint, rb: bigint, totalLp: bigint, a: bigint, b: bigint): bigint;
+/** LP minted by pool **v11**: first mint ⌊√(a·b)⌋; then same pro-rata as v8–v10. */
+export declare function quoteBoingPoolLpMintedV11(ra: bigint, rb: bigint, totalLp: bigint, a: bigint, b: bigint): bigint;
 /** Amounts paid by `remove_liquidity(burn)`. */
 export declare function quoteBoingPoolRemove(ra: bigint, rb: bigint, totalLp: bigint, burn: bigint): [bigint, bigint];
 export interface BoingPoolState {

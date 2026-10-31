@@ -246,7 +246,7 @@ pub fn min_out_with_slippage(quote: u128, slippage_bps: u128) -> anyhow::Result<
     Ok((quote * (10_000 - slippage_bps) / 10_000).max(1))
 }
 
-/// LP minted by `add_liquidity` (mirrors bytecode: first mint = min(a, b); then
+/// LP minted by `add_liquidity` (mirrors v8–v10 bytecode: first mint = min(a, b); then
 /// min(a * T / ra, b * T / rb)).
 pub fn quote_lp_minted(ra: u128, rb: u128, total: u128, a: u128, b: u128) -> u128 {
     if a == 0 || b == 0 {
@@ -254,6 +254,20 @@ pub fn quote_lp_minted(ra: u128, rb: u128, total: u128, a: u128, b: u128) -> u12
     }
     if total == 0 {
         return a.min(b);
+    }
+    if ra == 0 || rb == 0 {
+        return 0;
+    }
+    (a * total / ra).min(b * total / rb)
+}
+
+/// LP minted by pool **v11** (first mint = ⌊√(a·b)⌋; then same pro-rata as v8–v10).
+pub fn quote_lp_minted_v11(ra: u128, rb: u128, total: u128, a: u128, b: u128) -> u128 {
+    if a == 0 || b == 0 {
+        return 0;
+    }
+    if total == 0 {
+        return boing_execution::isqrt_u128(a.saturating_mul(b));
     }
     if ra == 0 || rb == 0 {
         return 0;
@@ -924,6 +938,7 @@ mod tests {
         assert_eq!(min_out_with_slippage(1, 10_000).unwrap(), 1);
         assert!(min_out_with_slippage(1, 10_001).is_err());
         assert_eq!(quote_lp_minted(0, 0, 0, 1000, 2000), 1000);
+        assert_eq!(quote_lp_minted_v11(0, 0, 0, 100, 400), 200);
         assert_eq!(quote_lp_minted(1000, 2000, 1000, 100, 500), 100);
         assert_eq!(quote_remove(1000, 2000, 1000, 250), (250, 500));
     }

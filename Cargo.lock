@@ -696,6 +696,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bincode",
+ "blake3",
  "boing-primitives",
  "boing-qa",
  "boing-state",

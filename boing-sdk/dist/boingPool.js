@@ -119,12 +119,41 @@ export function boingPoolMinOutWithSlippage(quote, slippageBps) {
     const m = (quote * (10000n - slippageBps)) / 10000n;
     return m < 1n ? 1n : m;
 }
-/** LP minted by `add_liquidity`: first mint min(a, b); then min(a*T/ra, b*T/rb). */
+/** Floor integer square root (Babylonian) — matches pool v11 first-mint. */
+export function boingPoolIsqrt(y) {
+    if (y < 0n)
+        throw new RangeError('y must be non-negative');
+    if (y === 0n)
+        return 0n;
+    if (y <= 3n)
+        return 1n;
+    let z = y;
+    let x = y / 2n + 1n;
+    while (x < z) {
+        z = x;
+        x = y / x + x;
+        x = x / 2n;
+    }
+    return z;
+}
+/** LP minted by `add_liquidity` (v8–v10): first mint min(a, b); then min(a*T/ra, b*T/rb). */
 export function quoteBoingPoolLpMinted(ra, rb, totalLp, a, b) {
     if (a === 0n || b === 0n)
         return 0n;
     if (totalLp === 0n)
         return a < b ? a : b;
+    if (ra === 0n || rb === 0n)
+        return 0n;
+    const x = (a * totalLp) / ra;
+    const y = (b * totalLp) / rb;
+    return x < y ? x : y;
+}
+/** LP minted by pool **v11**: first mint ⌊√(a·b)⌋; then same pro-rata as v8–v10. */
+export function quoteBoingPoolLpMintedV11(ra, rb, totalLp, a, b) {
+    if (a === 0n || b === 0n)
+        return 0n;
+    if (totalLp === 0n)
+        return boingPoolIsqrt(a * b);
     if (ra === 0n || rb === 0n)
         return 0n;
     const x = (a * totalLp) / ra;
