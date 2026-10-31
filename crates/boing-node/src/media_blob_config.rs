@@ -74,3 +74,19 @@ pub fn resolve_media_blobs_bls_committee_flip_activation(
     }
     parse_optional_u64_env(boing_primitives::PHASE32_BLS_COMMITTEE_FLIP_ENV)
 }
+
+/// Resolve governance consensus-tx activation (`BOING_GOVERNANCE_CONSENSUS_TX_ACTIVATION_HEIGHT`).
+/// Supports `never` / `off` / empty → `None`. CLI override wins when set.
+pub fn resolve_governance_consensus_tx_activation(cli: Option<u64>) -> Result<Option<u64>, String> {
+    if let Some(h) = cli {
+        return Ok(Some(h));
+    }
+    let raw =
+        match std::env::var(boing_governance::consensus_tx::GOVERNANCE_CONSENSUS_TX_ACTIVATION_ENV)
+        {
+            Ok(s) => Some(s),
+            Err(std::env::VarError::NotPresent) => None,
+            Err(e) => return Err(e.to_string()),
+        };
+    boing_governance::consensus_tx::parse_activation_height(raw.as_deref())
+}

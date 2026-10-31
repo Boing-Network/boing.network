@@ -697,6 +697,7 @@ dependencies = [
  "async-trait",
  "bincode",
  "blake3",
+ "boing-governance",
  "boing-primitives",
  "boing-qa",
  "boing-state",
@@ -834,6 +835,7 @@ name = "boing-state"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "boing-governance",
  "boing-primitives",
  "boing-telemetry",
  "serde",

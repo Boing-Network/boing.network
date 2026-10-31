@@ -216,6 +216,11 @@ impl BlockExecutor {
         self.vm.set_bls_committee_flip_from(from);
     }
 
+    /// Governance consensus txs (indices 37–39). `None` = never.
+    pub fn set_governance_consensus_from(&mut self, from: Option<u64>) {
+        self.vm.set_governance_consensus_from(from);
+    }
+
     /// Execute all transactions. Returns total gas used and one receipt per tx (in block order).
     /// On error, state may be partially applied (caller should revert if needed).
     /// Transfer-only batches run in parallel; other batches run sequentially.

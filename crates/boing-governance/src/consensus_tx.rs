@@ -1,10 +1,9 @@
 //! Activation-gated **consensus transaction** scaffolding for phased governance
 //! (audit #61 item 41 leftover).
 //!
-//! Wire `TransactionPayload` variants are **not** appended in this crate yet — appending
-//! discriminants is consensus-critical and must ship with StateStore commitment + mempool
-//! admission in the same release. This module locks the planned shapes, activation env, and
-//! quorum math so a later PR can append indices 37+ without redesign.
+//! Wire indices **37–39** (`GovernancePropose` / `GovernanceVote` / `GovernanceAdvanceCooling`)
+//! ship with StateStore commitment + mempool admission. This module keeps activation helpers and
+//! planned body shapes aligned with `TransactionPayload`.
 //!
 //! See [`docs/GOVERNANCE-CONSENSUS-TX-ACTIVATION.md`](../../../docs/GOVERNANCE-CONSENSUS-TX-ACTIVATION.md).
 
@@ -17,10 +16,15 @@ use crate::{GovernanceError, ALLOWED_TARGET_KEYS};
 pub const GOVERNANCE_CONSENSUS_TX_ACTIVATION_ENV: &str =
     "BOING_GOVERNANCE_CONSENSUS_TX_ACTIVATION_HEIGHT";
 
-/// Planned wire indices (append-only after `ReportEquivocation` = 36). **Do not reorder.**
-pub const PLANNED_WIRE_GOVERNANCE_PROPOSE: u32 = 37;
-pub const PLANNED_WIRE_GOVERNANCE_VOTE: u32 = 38;
-pub const PLANNED_WIRE_GOVERNANCE_ADVANCE_COOLING: u32 = 39;
+/// Wire indices (append-only after `ReportEquivocation` = 36). **Do not reorder.**
+pub const WIRE_GOVERNANCE_PROPOSE: u32 = 37;
+pub const WIRE_GOVERNANCE_VOTE: u32 = 38;
+pub const WIRE_GOVERNANCE_ADVANCE_COOLING: u32 = 39;
+
+/// Deprecated aliases — prefer [`WIRE_GOVERNANCE_PROPOSE`] etc.
+pub const PLANNED_WIRE_GOVERNANCE_PROPOSE: u32 = WIRE_GOVERNANCE_PROPOSE;
+pub const PLANNED_WIRE_GOVERNANCE_VOTE: u32 = WIRE_GOVERNANCE_VOTE;
+pub const PLANNED_WIRE_GOVERNANCE_ADVANCE_COOLING: u32 = WIRE_GOVERNANCE_ADVANCE_COOLING;
 
 /// Planned propose body (matches operator RPC `boing_governancePropose` allowlist).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,10 +92,7 @@ pub fn not_yet_admitted_message(activation: Option<u64>, height: u64) -> String 
         Some(h) if height < h => format!(
             "governance consensus txs activate at height {h} (current {height})"
         ),
-        Some(_) => {
-            "governance consensus txs marked active but wire TransactionPayload variants are not shipped yet"
-                .into()
-        }
+        Some(_) => "governance consensus txs are active at this height".into(),
     }
 }
 

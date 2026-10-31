@@ -2,6 +2,7 @@
 //!
 //! Enables stateless clients and compact proofs.
 
+pub mod governance_registry;
 pub mod names;
 pub mod open_validators;
 mod qa_pending;
@@ -12,6 +13,7 @@ mod sparse_merkle;
 mod store;
 
 pub use boing_primitives::{Account, AccountId, AccountState, Hash};
+pub use governance_registry::{GovernanceRegistry, GOVERNANCE_REGISTRY_DOMAIN};
 pub use names::{
     CommitRecord, NameRecord, NameRegistry, NameRegistryError, NameRegistryParams, NameStatus,
 };

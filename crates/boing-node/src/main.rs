@@ -192,6 +192,11 @@ struct Args {
     #[arg(long)]
     account_tree_v3_activation_height: Option<u64>,
 
+    /// Enable governance consensus txs (indices 37–39) from this height (all nodes must agree).
+    /// Overrides **`BOING_GOVERNANCE_CONSENSUS_TX_ACTIVATION_HEIGHT`**. Unset / `never` = off.
+    #[arg(long)]
+    governance_consensus_tx_activation_height: Option<u64>,
+
     /// Leader election: `round_robin` (default) or `vrf` (ECVRF proofs via `boing/vrf-proofs`, BLAKE3 stub fallback). Overrides **`BOING_LEADER_ELECTION`**.
     #[arg(long)]
     leader_election: Option<String>,
@@ -260,6 +265,16 @@ async fn main() -> anyhow::Result<()> {
         args.account_tree_v3_activation_height,
     )
     .map_err(|e| anyhow::anyhow!("account tree v3 config: {e}"))?;
+    let governance_consensus_from =
+        boing_node::media_blob_config::resolve_governance_consensus_tx_activation(
+            args.governance_consensus_tx_activation_height,
+        )
+        .map_err(|e| anyhow::anyhow!("governance consensus tx config: {e}"))?;
+    if let Some(h) = governance_consensus_from {
+        tracing::warn!(
+            "Governance consensus txs (37–39): activation_height={h}. Every node must agree; see docs/GOVERNANCE-CONSENSUS-TX-ACTIVATION.md"
+        );
+    }
     if let Some(h) = account_tree_v3_from {
         tracing::warn!(
             "Account tree v3 (consensus): the account tree uses full-key routing from height={h}. \
@@ -442,6 +457,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = bls_committee_flip_from {
                 n.enable_bls_committee_flip(h);
+            }
+            if let Some(h) = governance_consensus_from {
+                n.enable_governance_consensus_txs(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();
@@ -682,6 +700,9 @@ async fn main() -> anyhow::Result<()> {
             }
             if let Some(h) = bls_committee_flip_from {
                 n.enable_bls_committee_flip(h);
+            }
+            if let Some(h) = governance_consensus_from {
+                n.enable_governance_consensus_txs(h);
             }
             n.consensus.set_leader_election(leader_election);
             n.maybe_publish_vrf_proof_for_current_round();

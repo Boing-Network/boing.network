@@ -64,6 +64,12 @@ export const PayloadVariant = {
     RevokeBlobDownload: 35,
     /** Report verified equivocation evidence (consensus-ordered slash). */
     ReportEquivocation: 36,
+    /** On-chain governance propose (activation-gated). */
+    GovernancePropose: 37,
+    /** Stake-weighted governance vote (activation-gated). */
+    GovernanceVote: 38,
+    /** Advance governance proposal to cooling (activation-gated). */
+    GovernanceAdvanceCooling: 39,
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export const BlobRetentionVariant = {
@@ -350,6 +356,12 @@ export function encodeTransactionPayload(payload) {
         case 'reportEquivocation':
             // Nested `EquivocationEvidence` is already bincode; wrap as the variant payload body.
             return concatBytes(writeU32Le(PayloadVariant.ReportEquivocation), payload.evidence);
+        case 'governancePropose':
+            return concatBytes(writeU32Le(PayloadVariant.GovernancePropose), encodeBincodeString(payload.targetKey), encodeByteVec(payload.targetValue));
+        case 'governanceVote':
+            return concatBytes(writeU32Le(PayloadVariant.GovernanceVote), writeU64Le(payload.proposalId), Uint8Array.of(payload.approve ? 1 : 0));
+        case 'governanceAdvanceCooling':
+            return concatBytes(writeU32Le(PayloadVariant.GovernanceAdvanceCooling), writeU64Le(payload.proposalId));
         default: {
             const _x = payload;
             return _x;

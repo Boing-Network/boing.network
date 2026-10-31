@@ -11,3 +11,5 @@ thiserror = "1"
 
 [dev-dependencies]
 serde_json = "1"
+
+# bincode used by boing-state GovernanceRegistry commitment; keep serde-compatible.

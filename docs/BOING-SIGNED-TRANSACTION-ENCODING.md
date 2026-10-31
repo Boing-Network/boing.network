@@ -73,6 +73,9 @@ Variant discriminant is **`u32` LE**, in this **exact** declaration order (must 
 | 34 | `GrantBlobDownload` | blob download ACL ([HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md)) |
 | 35 | `RevokeBlobDownload` | blob download ACL |
 | 36 | `ReportEquivocation` | consensus-ordered equivocation slash (two conflicting `ConsensusVote`s) |
+| 37 | `GovernancePropose` | on-chain governance propose (`target_key`, `target_value`; activation-gated) |
+| 38 | `GovernanceVote` | stake-weighted governance ballot (`proposal_id`, `approve`) |
+| 39 | `GovernanceAdvanceCooling` | advance proposal to cooling once quorum met |
 
 Indices 21-36 follow the `TransactionPayload` declaration order; field layouts for them are in `types.rs` (derive order, same primitive rules as below). **Never reorder or insert variants** - discriminants are consensus-critical. Append-only at the end is how new payloads ship.
 
