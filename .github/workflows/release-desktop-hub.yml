@@ -84,6 +84,20 @@ jobs:
         shell: bash
         run: npm ci
 
+      - name: Report Windows Authenticode readiness
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+        run: |
+          chmod +x desktop-hub/scripts/check-windows-signing-ready.sh || true
+          set +e
+          ./desktop-hub/scripts/check-windows-signing-ready.sh
+          set -e
+          # Never fail the release for missing org certs — unsigned is allowed.
+
       - name: Import Windows code signing certificate
         if: matrix.platform == 'windows-latest'
         env:
