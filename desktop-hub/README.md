@@ -154,6 +154,12 @@ Releases are built and published automatically via GitHub Actions.
 
 ### Windows code signing (recommended)
 
+**Current status (audit #61 leftover):** public Hub Windows builds remain **unsigned** until the three
+repository secrets below are provisioned with a real code-signing certificate. [#142](https://github.com/Boing-Network/boing.network/pull/142) only switched the Authenticode
+`timestampUrl` to HTTPS (`https://timestamp.digicert.com`); `certificateThumbprint` in
+`src-tauri/tauri.conf.json` stays `null` for CI to inject at release time. Signing is **not** something
+a code change can finish without an org-held `.pfx`.
+
 Signing the Windows installer avoids SmartScreen warnings and “administrator has set policies to prevent the installation” on locked-down machines. The release workflow signs the Windows build when these GitHub secrets are set:
 
 | Secret | Description |
