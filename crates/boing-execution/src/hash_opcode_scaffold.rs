@@ -2,10 +2,9 @@
 //! (audit #61 item 29).
 //!
 //! Live reference-token / wBOING templates still use
-//! [`crate::reference_token_v2::ref_fungible_allowance_key`] (16-byte truncate + XOR). A hashed
-//! key needs either a VM hash opcode or a multi-slot layout. This module locks the planned
-//! opcode byte, activation env, and a **host-side** BLAKE3 key helper for future template v3
-//! tests — it is **not** callable from contract bytecode until the opcode ships.
+//! [`crate::reference_token_v2::ref_fungible_allowance_key`] (16-byte truncate + XOR). Fungible
+//! **v3** uses [`Opcode::Blake3`] (`0x20`) with activation
+//! [`BLAKE3_OPCODE_ACTIVATION_ENV`] and [`ref_fungible_allowance_key_v3_host`].
 //!
 //! See [`docs/AUDIT-61-PROTOCOL-SEMANTICS.md`](../../../docs/AUDIT-61-PROTOCOL-SEMANTICS.md).
 
@@ -14,25 +13,33 @@
 /// Unset / empty / `never` → never (default). Shipping the opcode is a consensus hard fork.
 pub const BLAKE3_OPCODE_ACTIVATION_ENV: &str = "BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT";
 
-/// Planned opcode byte for `Blake3` (hash 32-byte memory word → 32-byte digest on stack).
-/// Chosen in the unused 0x20–0x2f band; must be appended to `Opcode` + JS tables together.
+/// Opcode byte for `Blake3` (memory-range hash → 32-byte digest on stack).
 pub const PLANNED_BLAKE3_OPCODE: u8 = 0x20;
+/// Alias once the opcode is live in the ISA.
+pub const BLAKE3_OPCODE: u8 = PLANNED_BLAKE3_OPCODE;
+/// Max input bytes for one Blake3 op (reject larger ranges).
+pub const BLAKE3_MAX_INPUT_BYTES: usize = 4096;
 
 /// XOR used by a future hashed allowance layout (distinct from the v2 truncate XOR).
 pub const REF_FUNGIBLE_ALLOWANCE_V3_DOMAIN: &[u8] = b"BOING_REF_FUNGIBLE_ALLOWANCE_V3";
 
-/// Host-side allowance storage key for a future fungible **v3** template:
-/// `BLAKE3(domain ‖ owner ‖ spender)`.
-///
-/// Not used by deployed v2 bytecode. Once [`PLANNED_BLAKE3_OPCODE`] is live, on-chain approve /
-/// transfer_from can compute the same key without truncating addresses.
+/// Domain word: ASCII tag left-aligned, zero-padded to 32 (word-aligned preimage for v3 bytecode).
+#[must_use]
+pub fn ref_fungible_allowance_v3_domain_word() -> [u8; 32] {
+    let mut w = [0u8; 32];
+    w[..REF_FUNGIBLE_ALLOWANCE_V3_DOMAIN.len()].copy_from_slice(REF_FUNGIBLE_ALLOWANCE_V3_DOMAIN);
+    w
+}
+
+/// Host-side allowance storage key for fungible **v3**:
+/// `BLAKE3(pad32(domain) ‖ owner ‖ spender)`.
 #[must_use]
 pub fn ref_fungible_allowance_key_v3_host(
     owner: &boing_primitives::AccountId,
     spender: &boing_primitives::AccountId,
 ) -> [u8; 32] {
     let mut h = blake3::Hasher::new();
-    h.update(REF_FUNGIBLE_ALLOWANCE_V3_DOMAIN);
+    h.update(&ref_fungible_allowance_v3_domain_word());
     h.update(&owner.0);
     h.update(&spender.0);
     *h.finalize().as_bytes()
@@ -87,7 +94,10 @@ mod tests {
     }
 
     #[test]
-    fn planned_opcode_unused_in_current_isa() {
-        assert!(crate::bytecode::Opcode::from_byte(PLANNED_BLAKE3_OPCODE).is_none());
+    fn blake3_opcode_byte_is_live() {
+        assert_eq!(
+            crate::bytecode::Opcode::from_byte(PLANNED_BLAKE3_OPCODE),
+            Some(crate::bytecode::Opcode::Blake3)
+        );
     }
 }

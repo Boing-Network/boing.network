@@ -90,3 +90,17 @@ pub fn resolve_governance_consensus_tx_activation(cli: Option<u64>) -> Result<Op
         };
     boing_governance::consensus_tx::parse_activation_height(raw.as_deref())
 }
+
+/// Resolve Blake3 opcode activation (`BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT`).
+/// Supports `never` / `off` / empty → `None`.
+pub fn resolve_blake3_opcode_activation(cli: Option<u64>) -> Result<Option<u64>, String> {
+    if let Some(h) = cli {
+        return Ok(Some(h));
+    }
+    let raw = match std::env::var(boing_execution::BLAKE3_OPCODE_ACTIVATION_ENV) {
+        Ok(s) => Some(s),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(e) => return Err(e.to_string()),
+    };
+    boing_execution::parse_blake3_activation_height(raw.as_deref())
+}

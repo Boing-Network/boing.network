@@ -23,14 +23,18 @@ export declare const REFERENCE_FUNGIBLE_BALANCE_XOR: Uint8Array;
  * Template version: `2` (default / only deployable) or `1` (retired: self-transfer mint bug).
  * `bytecode` helpers still accept `1` for forensics; deploy builders refuse it (audit #61 item 24).
  */
-export type BoingTokenVersion = 1 | 2;
+export type BoingTokenVersion = 1 | 2 | 3;
 export declare const BOING_TOKEN_DEFAULT_VERSION: BoingTokenVersion;
 /** Refuse known-broken v1 for new deploys. */
 export declare function assertBoingTokenDeployable(version?: BoingTokenVersion): void;
 /** `REF_FUNGIBLE_ALLOWANCE_XOR`: ASCII `BOING_REFFUNGIBLE_ALW2` zero-padded to 32 bytes. */
 export declare const REFERENCE_FUNGIBLE_ALLOWANCE_XOR: Uint8Array;
+/** Domain ASCII `BOING_REF_FUNGIBLE_ALLOWANCE_V3` left-aligned, zero-padded to 32. */
+export declare const REFERENCE_FUNGIBLE_ALLOWANCE_V3_DOMAIN_WORD: Uint8Array;
 /** v2 storage key of `allowance[owner][spender]`: `(owner[0..16] ‖ spender[0..16]) ^ ALLOWANCE_XOR`. */
 export declare function boingTokenAllowanceStorageKeyHex(ownerHex: string, spenderHex: string): string;
+/** v3 allowance key: BLAKE3(pad32(domain) ‖ owner ‖ spender). Needs `@noble/hashes/blake3`. */
+export declare function boingTokenAllowanceStorageKeyV3Hex(ownerHex: string, spenderHex: string): string;
 /** Reference fungible template bytecode hex (what `boing token bytecode --version vN` prints). */
 export declare function boingTokenBytecodeHex(version?: BoingTokenVersion): `0x${string}`;
 /** `boing_getContractStorage` key for `holder`'s balance (`holder ^ REF_FUNGIBLE_BALANCE_XOR`). */

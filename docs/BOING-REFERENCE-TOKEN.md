@@ -58,6 +58,14 @@ For dApps that want the **same 96-byte** `transfer` / `mint_first` layout but **
   | `0x07` | **Set transfer-unlock height** — amount word carries **u64** BE in low **8** bytes (requires transfer-unlock flag). |
 - **SDK:** `resolveReferenceFungibleSecuredTemplateBytecodeHex`, `buildReferenceFungibleSecuredDeployMetaTx` (with **`nativeTokenSecurity`** to encode wizard toggles into **`0xFD` init**; **`chainContext.chainHeight`** required when **`timelock`** is on; **`mintFirstTotalSupplyWei`** for **`maxWalletPercentage`**), `referenceFungibleSecuredConfigFromNativeTokenSecurity`, env `BOING_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX` (+ `VITE_` / `REACT_APP_` variants). **Pinned default** (no `nativeTokenSecurity`) keeps enforcement flags **off**. Custom Rust configs remain available via `reference_fungible_secured_deploy_bytecode`.
 
+## Reference fungible **v3** (`reference_fungible_template_v3_bytecode`)
+
+Same selectors and balance layout as **v2**, but allowance slots use
+`BLAKE3(pad32("BOING_REF_FUNGIBLE_ALLOWANCE_V3") ‖ owner ‖ spender)` via live
+`Opcode::Blake3` (`0x20`). Requires `BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT`
+(default never). CLI/SDK: `--version v3` / `BoingTokenVersion = 3`. Host twin:
+`ref_fungible_allowance_key_v3_host` / `boingTokenAllowanceStorageKeyV3Hex`.
+
 ## Reference fungible **v2** (`reference_fungible_template_v2_bytecode`)
 
 New, versioned template; the v1 bytecode above is unchanged. Same lazy admin, one-time `mint_first`, `transfer` and balance layout (`holder ^ REF_FUNGIBLE_BALANCE_XOR`), plus:

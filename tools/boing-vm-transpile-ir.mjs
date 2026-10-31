@@ -32,6 +32,7 @@ const ZERO_ARG = {
   shl: 0x1b,
   shr: 0x1c,
   sar: 0x1d,
+  blake3: 0x20,
   address: 0x30,
   balance: 0x31,
   caller: 0x33,

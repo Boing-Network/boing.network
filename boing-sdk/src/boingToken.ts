@@ -15,6 +15,8 @@ import { transactionIdFromSignedTransactionHex } from './bincode.js';
 import { predictNonceDerivedContractAddress } from './create2.js';
 import { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX } from './defaultReferenceFungibleTemplateBytecodeHex.js';
 import { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX } from './defaultReferenceFungibleTemplateV2BytecodeHex.js';
+import { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V3_BYTECODE_HEX } from './defaultReferenceFungibleTemplateV3BytecodeHex.js';
+import { blake3 } from '@noble/hashes/blake3';
 import { bytesToHex, hexToAccountId, hexToBytes, validateHex32 } from './hex.js';
 import {
   encodeReferenceApproveCalldata,
@@ -48,14 +50,14 @@ export const REFERENCE_FUNGIBLE_BALANCE_XOR: Uint8Array = (() => {
  * Template version: `2` (default / only deployable) or `1` (retired: self-transfer mint bug).
  * `bytecode` helpers still accept `1` for forensics; deploy builders refuse it (audit #61 item 24).
  */
-export type BoingTokenVersion = 1 | 2;
+export type BoingTokenVersion = 1 | 2 | 3;
 export const BOING_TOKEN_DEFAULT_VERSION: BoingTokenVersion = 2;
 
 /** Refuse known-broken v1 for new deploys. */
 export function assertBoingTokenDeployable(version: BoingTokenVersion = BOING_TOKEN_DEFAULT_VERSION): void {
   if (version === 1) {
     throw new Error(
-      'token template v1 is retired (known self-transfer mint bug); deploy with version 2',
+      'token template v1 is retired (known self-transfer mint bug); deploy with version 2 or 3',
     );
   }
 }
@@ -64,6 +66,13 @@ export function assertBoingTokenDeployable(version: BoingTokenVersion = BOING_TO
 export const REFERENCE_FUNGIBLE_ALLOWANCE_XOR: Uint8Array = (() => {
   const out = new Uint8Array(32);
   out.set(new TextEncoder().encode('BOING_REFFUNGIBLE_ALW2'));
+  return out;
+})();
+
+/** Domain ASCII `BOING_REF_FUNGIBLE_ALLOWANCE_V3` left-aligned, zero-padded to 32. */
+export const REFERENCE_FUNGIBLE_ALLOWANCE_V3_DOMAIN_WORD: Uint8Array = (() => {
+  const out = new Uint8Array(32);
+  out.set(new TextEncoder().encode('BOING_REF_FUNGIBLE_ALLOWANCE_V3'));
   return out;
 })();
 
@@ -78,9 +87,25 @@ export function boingTokenAllowanceStorageKeyHex(ownerHex: string, spenderHex: s
   return bytesToHex(k);
 }
 
+/** v3 allowance key: BLAKE3(pad32(domain) ‖ owner ‖ spender). Needs `@noble/hashes/blake3`. */
+export function boingTokenAllowanceStorageKeyV3Hex(ownerHex: string, spenderHex: string): string {
+  const o = hexToAccountId(validateHex32(ownerHex));
+  const s = hexToAccountId(validateHex32(spenderHex));
+  const pre = new Uint8Array(96);
+  pre.set(REFERENCE_FUNGIBLE_ALLOWANCE_V3_DOMAIN_WORD, 0);
+  pre.set(o, 32);
+  pre.set(s, 64);
+  return bytesToHex(blake3(pre));
+}
+
 /** Reference fungible template bytecode hex (what `boing token bytecode --version vN` prints). */
 export function boingTokenBytecodeHex(version: BoingTokenVersion = BOING_TOKEN_DEFAULT_VERSION): `0x${string}` {
-  const src = version === 1 ? DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX : DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX;
+  const src =
+    version === 1
+      ? DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_BYTECODE_HEX
+      : version === 3
+        ? DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V3_BYTECODE_HEX
+        : DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX;
   const h = src.trim().toLowerCase();
   return (h.startsWith('0x') ? h : `0x${h}`) as `0x${string}`;
 }

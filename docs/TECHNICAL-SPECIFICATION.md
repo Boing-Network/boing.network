@@ -320,6 +320,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 | **Shl** | `0x1b` | 3 | Shift left: pop `shift`, pop `value` (stack top = `shift` word). Effective shift = unsigned `shift` mod 256 (big-endian low byte `shift[31]`). Push `(value << k) mod 2^256`. |
 | **Shr** | `0x1c` | 3 | Logical shift right: same stack order and effective `k`; unsigned `value >> k`. |
 | **Sar** | `0x1d` | 3 | Arithmetic shift right: same stack order and `k`; signed two’s-complement 256-bit; sign-extending fill. |
+| **Blake3** | `0x20` | 30 + 6×⌈size/32⌉ | Memory-range BLAKE3: pop `offset`, then `size` (stack top = `offset`); push 32-byte digest. Max input **4096** bytes. Activation-gated via `BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT` (unset = never; invalid bytecode before activation). |
 | **Address** | `0x30` | 2 | Push this contract’s `AccountId` (32-byte word) |
 | **BlockHeight** | `0x40` | 2 | Push the **current block height** from execution context as a 32-byte word (value in the **low 8** bytes, big-endian; high 24 bytes zero). Same value for all txs in the block. Defaults to **0** when the host omits context (e.g. some simulations). |
 | **Timestamp** | `0x41` | 2 | Push the **current block timestamp** (Unix seconds, execution context) as a 32-byte word (low **8** bytes BE). Same value for all txs in the block. Defaults to **0** when the host omits context. |

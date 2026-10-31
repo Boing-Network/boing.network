@@ -39,6 +39,7 @@ pub struct Mempool {
     qa_registry: RuleRegistry,
     /// Deploy QA accepts the native-value opcodes (set by the node from the next block height).
     native_value_opcodes: std::sync::atomic::AtomicBool,
+    blake3_opcodes: std::sync::atomic::AtomicBool,
     /// When true (execution gas fully waived), zero-tip txs use the legacy free-pending cap.
     /// Tip-aware drain/eviction always runs regardless of this flag.
     optional_fees_active: std::sync::atomic::AtomicBool,
@@ -74,6 +75,7 @@ impl Mempool {
             max_total: max_total_from_env(),
             qa_registry: default_qa_registry(),
             native_value_opcodes: std::sync::atomic::AtomicBool::new(false),
+            blake3_opcodes: std::sync::atomic::AtomicBool::new(false),
             optional_fees_active: std::sync::atomic::AtomicBool::new(false),
         }
     }
@@ -82,6 +84,11 @@ impl Mempool {
     /// is at/after the native-value activation height, so earlier deploys are checked as before.
     pub fn set_native_value_opcodes(&self, allow: bool) {
         self.native_value_opcodes
+            .store(allow, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn set_blake3_opcodes(&self, allow: bool) {
+        self.blake3_opcodes
             .store(allow, std::sync::atomic::Ordering::Relaxed);
     }
 
@@ -247,16 +254,20 @@ impl Mempool {
             if let Some((bytecode, purpose, desc_hash, asset_name, asset_symbol)) =
                 signed.tx.payload.as_contract_deploy()
             {
-                let native;
-                let registry = if self
+                let mut reg = self.qa_registry.clone();
+                if self
                     .native_value_opcodes
                     .load(std::sync::atomic::Ordering::Relaxed)
                 {
-                    native = self.qa_registry.clone().with_native_value_opcodes(true);
-                    &native
-                } else {
-                    &self.qa_registry
-                };
+                    reg = reg.with_native_value_opcodes(true);
+                }
+                if self
+                    .blake3_opcodes
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                {
+                    reg = reg.with_blake3_opcodes(true);
+                }
+                let registry = &reg;
                 match check_contract_deploy_full_with_metadata(
                     bytecode,
                     purpose,

@@ -211,6 +211,7 @@ export {
   isReferenceSelfTransferCalldata,
 } from './referenceToken.js';
 export { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX } from './defaultReferenceFungibleTemplateV2BytecodeHex.js';
+export { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V3_BYTECODE_HEX } from './defaultReferenceFungibleTemplateV3BytecodeHex.js';
 export {
   BOING_TOKEN_PURPOSE,
   BOING_TOKEN_MAX_NAME_BYTES,

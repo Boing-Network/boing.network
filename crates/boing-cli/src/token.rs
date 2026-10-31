@@ -11,8 +11,9 @@
 
 use boing_execution::{
     encode_approve_calldata, encode_mint_first_calldata, encode_transfer_calldata,
-    ref_fungible_allowance_key, reference_fungible_template_bytecode,
-    reference_fungible_template_v2_bytecode, REF_FUNGIBLE_BALANCE_XOR,
+    ref_fungible_allowance_key, ref_fungible_allowance_key_v3,
+    reference_fungible_template_bytecode, reference_fungible_template_v2_bytecode,
+    reference_fungible_template_v3_bytecode, REF_FUNGIBLE_BALANCE_XOR,
 };
 use boing_primitives::{
     nonce_derived_contract_address, AccessList, AccountId, SignedTransaction, Transaction,
@@ -24,10 +25,10 @@ use serde_json::{json, Value};
 /// QA purpose category for fungible deploys (`QUALITY-ASSURANCE-NETWORK.md`).
 pub const TOKEN_PURPOSE: &str = "token";
 
-/// Reference fungible template version: `v2` (deployable) or `v1` (retired; self-transfer mints).
+/// Reference fungible template version: `v2` (default), `v3` (Blake3 keys), or `v1` (retired).
 ///
-/// **New deploys must use v2.** v1 remains parseable so `boing token bytecode --version v1` can
-/// still identify historical contracts (audit #61 item 24).
+/// **New deploys:** v2 always; v3 only after `BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT`.
+/// v1 remains parseable for forensics (audit #61 item 24).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TokenVersion(pub u8);
 
@@ -37,17 +38,20 @@ impl std::str::FromStr for TokenVersion {
         match s.trim().trim_start_matches(['v', 'V']) {
             "1" => Ok(TokenVersion(1)),
             "2" => Ok(TokenVersion(2)),
-            _ => Err(format!("invalid token version `{s}` (expected v1 or v2)")),
+            "3" => Ok(TokenVersion(3)),
+            _ => Err(format!(
+                "invalid token version `{s}` (expected v1, v2, or v3)"
+            )),
         }
     }
 }
 
 impl TokenVersion {
     pub fn bytecode(self) -> Vec<u8> {
-        if self.0 == 1 {
-            reference_fungible_template_bytecode()
-        } else {
-            reference_fungible_template_v2_bytecode()
+        match self.0 {
+            1 => reference_fungible_template_bytecode(),
+            3 => reference_fungible_template_v3_bytecode(),
+            _ => reference_fungible_template_v2_bytecode(),
         }
     }
 
@@ -55,10 +59,18 @@ impl TokenVersion {
     pub fn assert_deployable(self) -> anyhow::Result<()> {
         if self.0 == 1 {
             anyhow::bail!(
-                "token template v1 is retired (known self-transfer mint bug); deploy with --version v2"
+                "token template v1 is retired (known self-transfer mint bug); deploy with --version v2 or v3"
             );
         }
         Ok(())
+    }
+
+    pub fn allowance_key(self, owner: &AccountId, spender: &AccountId) -> [u8; 32] {
+        if self.0 == 3 {
+            ref_fungible_allowance_key_v3(owner, spender)
+        } else {
+            ref_fungible_allowance_key(owner, spender)
+        }
     }
 }
 
@@ -589,7 +601,7 @@ mod tests {
     fn token_versions_and_v2_approve_allowance() {
         assert_eq!("v2".parse::<TokenVersion>().unwrap(), TokenVersion(2));
         assert_eq!("1".parse::<TokenVersion>().unwrap(), TokenVersion(1));
-        assert!("v3".parse::<TokenVersion>().is_err());
+        assert_eq!("v3".parse::<TokenVersion>().unwrap(), TokenVersion(3));
         assert_eq!(
             TokenVersion(1).bytecode(),
             reference_fungible_template_bytecode()

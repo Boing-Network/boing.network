@@ -49,6 +49,8 @@ pub struct VmExecutionContext {
     /// memory-expansion gas and the [`MAX_STACK_DEPTH`] cap. Set by [`crate::Vm`] from the block
     /// height; `false` keeps the historical behaviour exactly.
     pub vm_hardening: bool,
+    /// `Blake3` opcode active for this block. Set by [`crate::Vm`] from the activation height.
+    pub blake3_opcode: bool,
 }
 
 fn word_u64_env(n: u64) -> [u8; 32] {
@@ -767,6 +769,22 @@ impl Interpreter {
                     self.ensure_memory(offset, size)?;
                     self.return_data = Some(self.memory[offset..offset + size].to_vec());
                     break;
+                }
+                Opcode::Blake3 if !exec_ctx.blake3_opcode => {
+                    return Err(VmError::InvalidBytecode);
+                }
+                Opcode::Blake3 => {
+                    self.spend_gas(gas::BLAKE3)?;
+                    let offset = Self::u256_to_usize(&self.pop()?);
+                    let size = Self::u256_to_usize(&self.pop()?);
+                    if size > crate::hash_opcode_scaffold::BLAKE3_MAX_INPUT_BYTES {
+                        return Err(VmError::InvalidBytecode);
+                    }
+                    let words = (size as u64).saturating_add(31) / 32;
+                    self.spend_gas(gas::BLAKE3_PER_WORD.saturating_mul(words))?;
+                    self.ensure_memory(offset, size)?;
+                    let digest = *blake3::hash(&self.memory[offset..offset + size]).as_bytes();
+                    self.push(digest);
                 }
                 Opcode::Balance
                 | Opcode::CallValue

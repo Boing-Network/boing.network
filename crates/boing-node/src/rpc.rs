@@ -4584,6 +4584,7 @@ async fn dispatch_jsonrpc_request(
                                     block_timestamp: ts,
                                     native_value: false, // set by the VM from the height
                                     vm_hardening: false,
+                                    blake3_opcode: false,
                                 },
                                 n.executor.fee_policy().clone(),
                                 n.executor.denomination_at(h.saturating_add(1)),
@@ -4792,6 +4793,7 @@ async fn dispatch_jsonrpc_request(
                 block_timestamp: ts,
                 native_value: false, // set by the VM from the height
                 vm_hardening: false,
+                blake3_opcode: false,
             };
             drop(n);
             match vm.execute_with_context(&tx, &mut state_copy, exec_ctx) {
@@ -5215,7 +5217,8 @@ async fn dispatch_jsonrpc_request(
                 .mempool
                 .qa_registry()
                 .clone()
-                .with_native_value_opcodes(n.executor.native_value_active(next));
+                .with_native_value_opcodes(n.executor.native_value_active(next))
+                .with_blake3_opcodes(n.executor.vm().blake3_active(next));
             drop(n);
             let result = check_contract_deploy_full_with_metadata(
                 &bytecode,
