@@ -1047,7 +1047,9 @@ impl BoingNode {
                     return None;
                 }
                 if self.early_votes.len() >= MAX_EARLY_ENTRIES
-                    && !self.early_votes.contains_key(&(vote.round, vote.block_hash))
+                    && !self
+                        .early_votes
+                        .contains_key(&(vote.round, vote.block_hash))
                 {
                     let keep_from = tip_round.saturating_sub(64);
                     self.early_votes.retain(|(r, _), _| *r >= keep_from);
@@ -2489,7 +2491,6 @@ fn with_chain_id_rules(mut executor: BlockExecutor) -> BlockExecutor {
     }
     executor
 }
-
 
 impl Drop for BoingNode {
     fn drop(&mut self) {
