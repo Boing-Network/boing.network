@@ -24,7 +24,7 @@ function baseInfo(overrides: Partial<NetworkInfo>): NetworkInfo {
     latest_block_hash: '0x' + '00'.repeat(32),
     target_block_time_secs: 2,
     client_version: 'test',
-    consensus: { validator_count: 1, model: 'hotstuff_bft' },
+    consensus: { validator_count: 1, model: 'single_round_quorum_commit' },
     native_currency: { symbol: 'BOING', decimals: 18 },
     chain_native: {
       account_count: 1,

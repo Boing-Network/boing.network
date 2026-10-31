@@ -6,6 +6,7 @@
 //! meaning "strictly older than this position".
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use boing_primitives::{AccountId, BatchCall, Hash, Transaction, TransactionPayload};
@@ -14,6 +15,24 @@ use crate::node::BoingNode;
 
 pub const DEFAULT_LIMIT: usize = 25;
 pub const MAX_LIMIT: usize = 100;
+
+/// Process-wide unique keys for the account-tx cache (audit #61 item 20: avoid `Arc::as_ptr`).
+fn next_cache_key() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
+/// Allocate a cache key for a live [`BoingNode`]. Pair with [`drop_cache`] when the node is dropped.
+pub fn alloc_cache_key() -> u64 {
+    next_cache_key()
+}
+
+/// Remove a node's index entry so address/key reuse cannot serve a stale map.
+pub fn drop_cache(key: u64) {
+    if let Ok(mut reg) = registry().lock() {
+        reg.remove(&key);
+    }
+}
 
 #[derive(Default)]
 pub struct AccountTxIndex {
@@ -116,8 +135,8 @@ impl AccountTxIndex {
     }
 }
 
-fn registry() -> &'static Mutex<HashMap<usize, AccountTxIndex>> {
-    static R: OnceLock<Mutex<HashMap<usize, AccountTxIndex>>> = OnceLock::new();
+fn registry() -> &'static Mutex<HashMap<u64, AccountTxIndex>> {
+    static R: OnceLock<Mutex<HashMap<u64, AccountTxIndex>>> = OnceLock::new();
     R.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -368,7 +387,7 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
 /// Build the `boing_getAccountTransactions` result.
 pub fn account_transactions_json(
     node: &BoingNode,
-    node_key: usize,
+    node_key: u64,
     account: &AccountId,
     before: Option<(u64, u32)>,
     limit: usize,

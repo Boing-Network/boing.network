@@ -73,6 +73,7 @@ fn node_with_proposer_key(signing_key: &SigningKey, balance: u128) -> boing_node
         proposal_timeout: boing_node::node::DEFAULT_PROPOSAL_TIMEOUT,
         media_blob_store: None,
         bls_dual_key_registry: boing_primitives::BlsDualKeyRegistry::new(),
+        account_tx_cache_key: boing_node::account_tx_index::alloc_cache_key(),
     }
 }
 
@@ -279,7 +280,7 @@ async fn rpc_get_network_info_shape() {
         .expect("consensus");
     assert_eq!(
         consensus.get("model"),
-        Some(&serde_json::json!("hotstuff_bft"))
+        Some(&serde_json::json!("single_round_quorum_commit"))
     );
     assert_eq!(
         consensus.get("validator_count"),

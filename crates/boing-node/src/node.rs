@@ -110,6 +110,8 @@ pub struct BoingNode {
     pub media_blob_store: Option<MediaBlobStore>,
     /// Phase 27 host-local BLS dual-key registry (`bls_dual_key_registry.bin`; not slash V5).
     pub bls_dual_key_registry: BlsDualKeyRegistry,
+    /// Stable key for [`crate::account_tx_index`] (not a pointer; audit #61 item 20).
+    pub account_tx_cache_key: u64,
 }
 
 /// Default wait before an anchor proposes in place of an offline open-validator leader.
@@ -222,6 +224,7 @@ impl BoingNode {
             proposal_timeout: DEFAULT_PROPOSAL_TIMEOUT,
             media_blob_store: None,
             bls_dual_key_registry: BlsDualKeyRegistry::new(),
+            account_tx_cache_key: crate::account_tx_index::alloc_cache_key(),
         }
     }
 
@@ -737,10 +740,17 @@ impl BoingNode {
     fn commit_pending(&mut self, pending: PendingCommit) -> Hash {
         let hash = pending.block.hash();
         let height = pending.block.header.height;
+        if let Err(e) = self.chain.append(pending.block.clone()) {
+            // Should be unreachable when pending was produced from this tip; avoid consensus panic
+            // if a future race ever violates that (audit #61 item 19).
+            tracing::error!(
+                "commit_pending: pending block does not chain to tip ({e:?}); refusing commit height={}",
+                height
+            );
+            self.pending_commit = Some(pending);
+            return Hash::ZERO;
+        }
         self.state = pending.new_state;
-        self.chain
-            .append(pending.block.clone())
-            .expect("pending block must chain to tip");
         for r in &pending.receipts {
             self.receipts.insert(r.tx_id, r.clone());
         }
@@ -1026,6 +1036,25 @@ impl BoingNode {
             .unwrap_or(false);
         if !have_pending || self.consensus.round() != vote.round {
             if self.consensus.round() == vote.round || self.consensus.pending_block().is_none() {
+                // Bound idle growth (audit #61 item 19): ignore far-future rounds and cap entries.
+                const MAX_EARLY_AHEAD: u64 = 8;
+                const MAX_EARLY_ENTRIES: usize = 4096;
+                let tip_round = self.consensus.round();
+                if vote.round > tip_round.saturating_add(MAX_EARLY_AHEAD) {
+                    return None;
+                }
+                if vote.round + 64 < tip_round {
+                    return None;
+                }
+                if self.early_votes.len() >= MAX_EARLY_ENTRIES
+                    && !self.early_votes.contains_key(&(vote.round, vote.block_hash))
+                {
+                    let keep_from = tip_round.saturating_sub(64);
+                    self.early_votes.retain(|(r, _), _| *r >= keep_from);
+                    if self.early_votes.len() >= MAX_EARLY_ENTRIES {
+                        return None;
+                    }
+                }
                 self.early_votes
                     .entry((vote.round, vote.block_hash))
                     .or_default()
@@ -2459,4 +2488,11 @@ fn with_chain_id_rules(mut executor: BlockExecutor) -> BlockExecutor {
         executor.set_registration_proof_rule(Some(c), 0);
     }
     executor
+}
+
+
+impl Drop for BoingNode {
+    fn drop(&mut self) {
+        crate::account_tx_index::drop_cache(self.account_tx_cache_key);
+    }
 }

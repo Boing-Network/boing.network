@@ -79,7 +79,17 @@ impl MediaBlobStore {
         let index_path = dir.join(INDEX_FILE);
         let index = if index_path.exists() {
             let bytes = fs::read(&index_path)?;
-            bincode::deserialize(&bytes).unwrap_or_default()
+            match bincode::deserialize(&bytes) {
+                Ok(idx) => idx,
+                Err(e) => {
+                    // Corrupt index: start empty rather than crash, but do not silently hide it
+                    // (audit #61 item 21).
+                    tracing::warn!(
+                        "media blob store: corrupt index.bin ({e}); resetting to empty index"
+                    );
+                    BlobIndex::default()
+                }
+            }
         } else {
             BlobIndex::default()
         };
@@ -292,7 +302,11 @@ impl MediaBlobStore {
     fn persist_index(&self, index: &BlobIndex) -> std::io::Result<()> {
         let bytes = bincode::serialize(index)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        fs::write(self.index_path(), bytes)
+        // Atomic replace so a crash mid-write does not leave a truncated index.bin.
+        let path = self.index_path();
+        let tmp = path.with_extension("bin.tmp");
+        fs::write(&tmp, bytes)?;
+        fs::rename(&tmp, path)
     }
 
     /// Store bytes + metadata (idempotent if the same id already exists with matching hash).

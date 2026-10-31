@@ -26,9 +26,17 @@ impl DappRegistry {
         }
     }
 
+    /// Soft cap on in-memory registrations (audit #61 item 20: unbounded RPC map).
+    pub const MAX_REGISTRATIONS: usize = 10_000;
+
     /// Register a contract for dApp incentive tracking. Idempotent (re-register updates owner).
+    /// Returns `false` when the registry is at capacity and `contract` is new.
     pub fn register(&self, contract: AccountId, owner: AccountId) -> bool {
         let mut inner = self.inner.write().unwrap();
+        let is_new = !inner.contracts.contains(&contract);
+        if is_new && inner.registrations.len() >= Self::MAX_REGISTRATIONS {
+            return false;
+        }
         inner.contracts.insert(contract);
         // Replace existing registration for same contract
         inner.registrations.retain(|r| r.contract != contract);
@@ -36,6 +44,14 @@ impl DappRegistry {
             .registrations
             .push(DappRegistration { contract, owner });
         true
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.read().unwrap().registrations.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// List all registered dApps.
