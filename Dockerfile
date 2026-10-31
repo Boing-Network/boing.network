@@ -19,14 +19,18 @@ RUN cargo build --release -p boing-node \
 
 FROM debian:bookworm-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends ca-certificates curl gosu \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 10001 boing \
+    && useradd --system --uid 10001 --gid boing --home-dir /data --shell /usr/sbin/nologin boing
 
 COPY --from=builder /src/target/release/boing-node /usr/local/bin/boing-node
 COPY deploy/fly/entrypoint.sh /usr/local/bin/entrypoint.sh
-# Run as root so Fly volume mounts on /data are writable without an extra chown step.
+# Start as root so Fly volume mounts on /data are writable; entrypoint chowns then
+# drops to uid 10001 via gosu (audit #61 item 78).
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/boing-node \
-    && mkdir -p /data
+    && mkdir -p /data \
+    && chown -R boing:boing /data
 
 WORKDIR /data
 EXPOSE 8545 4001

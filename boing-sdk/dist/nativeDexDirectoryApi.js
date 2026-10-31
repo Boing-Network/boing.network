@@ -314,10 +314,28 @@ async function readJsonOrThrow(url, res) {
 /**
  * `GET {baseUrl}/v1/directory/meta`
  */
+/** Default fetch timeout for directory worker helpers (matches BoingClient default). */
+export const DEFAULT_DIRECTORY_FETCH_TIMEOUT_MS = 30000;
+function mergeDirectoryFetchInit(init, timeoutMs = DEFAULT_DIRECTORY_FETCH_TIMEOUT_MS) {
+    if (init?.signal != null || timeoutMs <= 0) {
+        return { ...init, method: 'GET', headers: { Accept: 'application/json', ...init?.headers } };
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const signal = controller.signal;
+    // Clear timer when aborted by caller or timeout — best-effort via signal event.
+    signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+    return {
+        ...init,
+        method: 'GET',
+        signal,
+        headers: { Accept: 'application/json', ...init?.headers },
+    };
+}
 export async function fetchNativeDexDirectoryMeta(baseUrl, init) {
     const root = normalizeNativeDexDirectoryWorkerBaseUrl(baseUrl);
     const url = `${root}/v1/directory/meta`;
-    const res = await fetch(url, { ...init, method: 'GET', headers: { Accept: 'application/json', ...init?.headers } });
+    const res = await fetch(url, mergeDirectoryFetchInit(init));
     const data = await readJsonOrThrow(url, res);
     const parsed = parseNativeDexDirectoryMetaResponse(data);
     if (!parsed) {
@@ -336,7 +354,7 @@ export async function fetchNativeDexDirectoryPoolsPage(baseUrl, query = {}, init
     if (query.cursor != null && query.cursor !== '')
         u.searchParams.set('cursor', query.cursor);
     const url = u.toString();
-    const res = await fetch(url, { ...init, method: 'GET', headers: { Accept: 'application/json', ...init?.headers } });
+    const res = await fetch(url, mergeDirectoryFetchInit(init));
     const data = await readJsonOrThrow(url, res);
     const parsed = parseNativeDexDirectoryPoolsPageResponse(data);
     if (!parsed) {
@@ -356,7 +374,7 @@ export async function fetchNativeDexDirectoryPoolEventsPage(baseUrl, poolHex32, 
     if (query.cursor != null && query.cursor !== '')
         u.searchParams.set('cursor', query.cursor);
     const url = u.toString();
-    const res = await fetch(url, { ...init, method: 'GET', headers: { Accept: 'application/json', ...init?.headers } });
+    const res = await fetch(url, mergeDirectoryFetchInit(init));
     const data = await readJsonOrThrow(url, res);
     const parsed = parseNativeDexDirectoryPoolEventsPageResponse(data);
     if (!parsed) {
@@ -376,7 +394,7 @@ export async function fetchNativeDexDirectoryUserEventsPage(baseUrl, callerHex32
     if (query.cursor != null && query.cursor !== '')
         u.searchParams.set('cursor', query.cursor);
     const url = u.toString();
-    const res = await fetch(url, { ...init, method: 'GET', headers: { Accept: 'application/json', ...init?.headers } });
+    const res = await fetch(url, mergeDirectoryFetchInit(init));
     const data = await readJsonOrThrow(url, res);
     const parsed = parseNativeDexDirectoryUserEventsPageResponse(data);
     if (!parsed) {

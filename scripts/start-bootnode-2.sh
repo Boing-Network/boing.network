@@ -5,7 +5,7 @@
 # 2. Ensure firewall allows TCP 4001 inbound on this machine.
 # 3. After running, share this machine's public IP for PUBLIC_BOOTNODES.
 
-BOOTNODE_1_IP="${BOOTNODE_1_IP:-REPLACE_WITH_PRIMARY_IP}"
+BOOTNODE_1_IP="${BOOTNODE_1_IP:-169.155.48.188}"
 set -e
 cd "$(dirname "$0")/.."
 

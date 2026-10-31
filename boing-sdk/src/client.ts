@@ -1164,12 +1164,6 @@ export class BoingClient {
     return this.request<SubmitIntentResult>('boing_submitIntent', [ensureHex(hexSignedIntent)]);
   }
 
-  /**
-   * Pre-flight QA check for a deployment (no submit). Matches node param order:
-   * [hex_bytecode, purpose_category?, description_hash?, asset_name?, asset_symbol?].
-   * When passing asset_name, include description_hash (or use a 32-byte placeholder) per RPC-API-SPEC.
-   * Returns allow | reject | unsure; when reject, rule_id and message are set.
-   */
   /** List pending governance QA pool items. */
   async qaPoolList(): Promise<QaPoolListResult> {
     return this.request<QaPoolListResult>('boing_qaPoolList', []);
@@ -1265,6 +1259,12 @@ export class BoingClient {
     return this.request<OperatorApplyQaPolicyResult>('boing_operatorApplyFeePolicy', [networkFeeConfigJson]);
   }
 
+  /**
+   * Pre-flight QA check for a deployment (no submit). Matches node param order:
+   * [hex_bytecode, purpose_category?, description_hash?, asset_name?, asset_symbol?].
+   * When passing asset_name, include description_hash (or use a 32-byte placeholder) per RPC-API-SPEC.
+   * Returns allow | reject | unsure; when reject, rule_id and message are set.
+   */
   async qaCheck(
     hexBytecode: string,
     purposeCategory?: string,

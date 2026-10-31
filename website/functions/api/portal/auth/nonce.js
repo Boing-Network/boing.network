@@ -51,7 +51,7 @@ export async function onRequestGet(context) {
         'Sign in to Boing Portal\nOrigin: {origin}\nTimestamp: {timestamp}\nNonce: {nonce}',
     });
   } catch (e) {
-    return Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 });
+    return Response.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
 

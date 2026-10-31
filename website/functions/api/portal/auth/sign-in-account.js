@@ -82,7 +82,7 @@ export async function onRequestPost(context) {
 
     return Response.json(result);
   } catch (e) {
-    return Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 });
+    return Response.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
 

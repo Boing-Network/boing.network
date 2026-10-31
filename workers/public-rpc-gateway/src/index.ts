@@ -26,6 +26,12 @@ type Env = {
   [binding: string]: unknown;
 };
 
+
+/** Strip internal *.fly.dev hostnames from client-visible error text (audit #61 item 74). */
+function scrubUpstreamHost(msg: string): string {
+  return msg.replace(/https?:\/\/[a-z0-9.-]+\.fly\.dev/gi, "[upstream]");
+}
+
 const DEFAULT_BACKENDS = ["https://boing-testnet-1.fly.dev"];
 
 const HEALTH_TTL_MS = 8_000;
@@ -306,7 +312,7 @@ async function proxySubmitFanout(origins: string[], req: Request, body: ArrayBuf
         }
         return { origin, kind: "transport", status: upstream.status, text, headers };
       } catch (e) {
-        const msg = e instanceof Error ? `${e.name}: ${e.message}` : "network error";
+        const msg = scrubUpstreamHost(e instanceof Error ? `${e.name}: ${e.message}` : "network error");
         return {
           origin,
           kind: "transport",
@@ -314,7 +320,7 @@ async function proxySubmitFanout(origins: string[], req: Request, body: ArrayBuf
           text: JSON.stringify({
             jsonrpc: "2.0",
             id: null,
-            error: { code: -32000, message: `${origin}: ${msg}` },
+            error: { code: -32000, message: `${scrubUpstreamHost(origin)}: ${msg}` },
           }),
           headers: new Headers({ "Content-Type": "application/json" }),
         };

@@ -20,6 +20,14 @@ import {
 } from '@boing-network/boing-sdk';
 import { mergeSkipped, parseSkipped, planChunk, type SkippedBlock } from './ingest';
 
+function timingSafeEqualString(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+
+
 type Env = {
   DEPLOY_REGISTRY_DB: D1Database;
   DEPLOY_REGISTRY_RPC_URL?: string;
@@ -361,7 +369,7 @@ export default {
       }
       const auth = req.headers.get('Authorization') || '';
       const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-      if (token !== secret) return json({ ok: false, error: 'unauthorized' }, 401);
+      if (!timingSafeEqualString(token, secret)) return json({ ok: false, error: 'unauthorized' }, 401);
       try {
         const out = await syncDeployRegistry(env);
         return json({ ok: true, schemaVersion: 1, ...out });

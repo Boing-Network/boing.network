@@ -84,6 +84,13 @@ function json(data: unknown, status = 200, extraHeaders: Record<string, string> 
   });
 }
 
+function timingSafeEqualString(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+
 function parseIntOpt(raw: string | undefined, fallback: number): number {
   if (raw == null || !String(raw).trim()) return fallback;
   const n = parseInt(String(raw), 10);
@@ -466,7 +473,7 @@ export default {
         const authHeader = (request.headers.get('Authorization') || '').trim();
         const bearerMatch = /^Bearer\s+(\S.*)$/i.exec(authHeader);
         const token = bearerMatch ? bearerMatch[1]!.trim() : '';
-        if (token !== secret) {
+        if (!timingSafeEqualString(token, secret)) {
           return json({ error: 'unauthorized' }, 401);
         }
         const payload = await buildPayload(env);

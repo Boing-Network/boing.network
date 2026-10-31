@@ -317,12 +317,6 @@ export declare class BoingClient {
     registerDappMetrics(hexContract: string, hexOwner: string): Promise<RegisterDappResult>;
     /** Submit a signed intent. Params: hex-encoded signed intent. */
     submitIntent(hexSignedIntent: string): Promise<SubmitIntentResult>;
-    /**
-     * Pre-flight QA check for a deployment (no submit). Matches node param order:
-     * [hex_bytecode, purpose_category?, description_hash?, asset_name?, asset_symbol?].
-     * When passing asset_name, include description_hash (or use a 32-byte placeholder) per RPC-API-SPEC.
-     * Returns allow | reject | unsure; when reject, rule_id and message are set.
-     */
     /** List pending governance QA pool items. */
     qaPoolList(): Promise<QaPoolListResult>;
     /**
@@ -365,6 +359,12 @@ export declare class BoingClient {
     getNetworkFeePolicy(): Promise<NetworkFeePolicyResult>;
     /** Replace native fee policy (operator RPC). */
     operatorApplyFeePolicy(networkFeeConfigJson: string): Promise<OperatorApplyQaPolicyResult>;
+    /**
+     * Pre-flight QA check for a deployment (no submit). Matches node param order:
+     * [hex_bytecode, purpose_category?, description_hash?, asset_name?, asset_symbol?].
+     * When passing asset_name, include description_hash (or use a 32-byte placeholder) per RPC-API-SPEC.
+     * Returns allow | reject | unsure; when reject, rule_id and message are set.
+     */
     qaCheck(hexBytecode: string, purposeCategory?: string, descriptionHash?: string, assetName?: string, assetSymbol?: string): Promise<QaCheckResponse>;
     /** Request testnet BOING (only when node is started with --faucet-enable). Params: 32-byte account ID (hex). Rate limited per account. */
     faucetRequest(hexAccountId: string): Promise<FaucetResult>;

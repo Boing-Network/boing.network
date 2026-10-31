@@ -78,7 +78,7 @@ export async function onRequestPost(context) {
 
     return Response.json({ ok: true, message: 'Portal password set. You can now sign in with your wallet.' });
   } catch (e) {
-    return Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 });
+    return Response.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
 

@@ -186,7 +186,7 @@ export async function onRequestPost(context) {
 
     return addVersionHeader(Response.json(result));
   } catch (e) {
-    return addVersionHeader(Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 }));
+    return addVersionHeader(Response.json({ ok: false, message: 'Server error' }, { status: 500 }));
   }
 }
 
