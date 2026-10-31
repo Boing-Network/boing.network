@@ -19,7 +19,7 @@ export async function onRequestGet(context) {
     ).all();
     return Response.json({ ok: true, dapps: result.results || [] });
   } catch (e) {
-    return Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 });
+    return Response.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
 
@@ -97,7 +97,7 @@ export async function onRequestPost(context) {
 
     return Response.json({ ok: true, message: 'dApp registered' });
   } catch (e) {
-    return Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 });
+    return Response.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
 

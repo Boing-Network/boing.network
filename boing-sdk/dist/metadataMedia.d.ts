@@ -28,6 +28,10 @@ export declare function metadataHashWordToFetchUrls(metadataHashHex32: string): 
  * Use with `BoingClient.getBlob(id)`.
  */
 export declare function blobIdHexFromBoingUri(uri: string): string | null;
+/** Hostnames / literals that should not be fetched from server-side indexers (SSRF). */
+export declare function isPrivateOrLinkLocalHostname(hostname: string): boolean;
+/** True when `url` is http(s) targeting a private / link-local / loopback host. */
+export declare function isPrivateOrLinkLocalUrl(url: string): boolean;
 export type FetchMetadataJsonResult = {
     ok: true;
     url: string;
@@ -42,6 +46,7 @@ export type FetchMetadataJsonResult = {
 export declare function fetchMetadataJsonFromUrl(url: string, options?: {
     timeoutMs?: number;
     fetchImpl?: typeof fetch;
+    blockPrivateUrls?: boolean;
 }): Promise<FetchMetadataJsonResult>;
 /** Try each URL until one returns parseable JSON metadata. */
 export declare function fetchFirstMetadataJson(urls: readonly string[], options?: {

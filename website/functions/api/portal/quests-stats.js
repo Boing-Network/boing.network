@@ -24,6 +24,6 @@ export async function onRequestGet(context) {
       by_quest,
     });
   } catch (e) {
-    return Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 });
+    return Response.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }

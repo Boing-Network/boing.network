@@ -147,6 +147,41 @@ export function blobIdHexFromBoingUri(uri: string): string | null {
   return m ? m[1].toLowerCase() : null;
 }
 
+
+/** Hostnames / literals that should not be fetched from server-side indexers (SSRF). */
+export function isPrivateOrLinkLocalHostname(hostname: string): boolean {
+  const h = hostname.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  if (!h) return true;
+  if (h === 'localhost' || h.endsWith('.localhost') || h === '0.0.0.0') return true;
+  if (h === '::1' || h === '0:0:0:0:0:0:0:1') return true;
+  // IPv4 dotted
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (m) {
+    const a = m.slice(1).map((x) => Number(x));
+    if (a.some((n) => n > 255)) return true;
+    if (a[0] === 10) return true;
+    if (a[0] === 127) return true;
+    if (a[0] === 0) return true;
+    if (a[0] === 169 && a[1] === 254) return true;
+    if (a[0] === 172 && a[1] >= 16 && a[1] <= 31) return true;
+    if (a[0] === 192 && a[1] === 168) return true;
+    if (a[0] === 100 && a[1] >= 64 && a[1] <= 127) return true; // CGNAT
+  }
+  if (h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80:')) return true;
+  return false;
+}
+
+/** True when `url` is http(s) targeting a private / link-local / loopback host. */
+export function isPrivateOrLinkLocalUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+    return isPrivateOrLinkLocalHostname(u.hostname);
+  } catch {
+    return true;
+  }
+}
+
 export type FetchMetadataJsonResult =
   | { ok: true; url: string; json: unknown; imageUrl: string | null }
   | { ok: false; url: string; error: string };
@@ -154,10 +189,14 @@ export type FetchMetadataJsonResult =
 /** Fetch JSON metadata from HTTPS (or IPFS gateway) with a short timeout. */
 export async function fetchMetadataJsonFromUrl(
   url: string,
-  options?: { timeoutMs?: number; fetchImpl?: typeof fetch },
+  options?: { timeoutMs?: number; fetchImpl?: typeof fetch; blockPrivateUrls?: boolean },
 ): Promise<FetchMetadataJsonResult> {
   const timeoutMs = Math.min(30_000, Math.max(500, options?.timeoutMs ?? 8_000));
   const fetchFn = options?.fetchImpl ?? fetch;
+  // Server-side consumers should set blockPrivateUrls: true (audit #61 item 57).
+  if (options?.blockPrivateUrls && isPrivateOrLinkLocalUrl(url)) {
+    return { ok: false, url, error: 'Blocked private or link-local URL' };
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

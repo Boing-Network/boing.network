@@ -20,8 +20,9 @@ export async function syncDirectoryPoolsFromPayload(db: D1Database, payload: Nat
   const now = new Date().toISOString();
   const pools = payload.pools;
 
+  // Empty payload is often a transient RPC/snapshot failure — keep the last good directory
+  // rather than wiping published pools (audit #61 item 74).
   if (!Array.isArray(pools) || pools.length === 0) {
-    await db.prepare(`DELETE FROM directory_pools`).run();
     return;
   }
 
@@ -49,7 +50,7 @@ export async function syncDirectoryPoolsFromPayload(db: D1Database, payload: Nat
   }
 
   if (stmts.length === 0) {
-    await db.prepare(`DELETE FROM directory_pools`).run();
+    // All rows failed hex validation; leave prior directory intact.
     return;
   }
 
@@ -285,6 +286,7 @@ export async function listDirectoryPoolsPage(
   pools: unknown[];
 }> {
   let limit = parseInt(url.searchParams.get('limit') || String(DEFAULT_PAGE), 10);
+  if (!Number.isFinite(limit)) limit = DEFAULT_PAGE;
   if (!Number.isFinite(limit) || limit < 1) limit = DEFAULT_PAGE;
   if (limit > MAX_PAGE) limit = MAX_PAGE;
 
@@ -344,6 +346,7 @@ export async function listDirectoryPoolEventsPage(
   events: unknown[];
 }> {
   let limit = parseInt(url.searchParams.get('limit') || String(DEFAULT_EVENTS_PAGE), 10);
+  if (!Number.isFinite(limit)) limit = DEFAULT_EVENTS_PAGE;
   if (!Number.isFinite(limit) || limit < 1) limit = DEFAULT_EVENTS_PAGE;
   if (limit > MAX_EVENTS_PAGE) limit = MAX_EVENTS_PAGE;
 
@@ -409,6 +412,7 @@ export async function listDirectoryUserEventsPage(
   events: unknown[];
 }> {
   let limit = parseInt(url.searchParams.get('limit') || String(DEFAULT_EVENTS_PAGE), 10);
+  if (!Number.isFinite(limit)) limit = DEFAULT_EVENTS_PAGE;
   if (!Number.isFinite(limit) || limit < 1) limit = DEFAULT_EVENTS_PAGE;
   if (limit > MAX_EVENTS_PAGE) limit = MAX_EVENTS_PAGE;
 
@@ -534,6 +538,7 @@ export async function listDirectoryNftPositionsPage(
   positions: unknown[];
 }> {
   let limit = parseInt(url.searchParams.get('limit') || String(DEFAULT_EVENTS_PAGE), 10);
+  if (!Number.isFinite(limit)) limit = DEFAULT_EVENTS_PAGE;
   if (!Number.isFinite(limit) || limit < 1) limit = DEFAULT_EVENTS_PAGE;
   if (limit > MAX_EVENTS_PAGE) limit = MAX_EVENTS_PAGE;
 
@@ -654,6 +659,7 @@ export async function listDirectoryReceiptLogsPage(
   logs: unknown[];
 }> {
   let limit = parseInt(url.searchParams.get('limit') || String(DEFAULT_EVENTS_PAGE), 10);
+  if (!Number.isFinite(limit)) limit = DEFAULT_EVENTS_PAGE;
   if (!Number.isFinite(limit) || limit < 1) limit = DEFAULT_EVENTS_PAGE;
   if (limit > MAX_EVENTS_PAGE) limit = MAX_EVENTS_PAGE;
 

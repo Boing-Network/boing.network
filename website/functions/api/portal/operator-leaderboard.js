@@ -54,6 +54,6 @@ export async function onRequestGet(context) {
       total_blocks,
     });
   } catch (e) {
-    return Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 });
+    return Response.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }

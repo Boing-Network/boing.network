@@ -78,6 +78,8 @@ export declare function parseNativeDexDirectoryUserEventsPageResponse(data: unkn
 /**
  * `GET {baseUrl}/v1/directory/meta`
  */
+/** Default fetch timeout for directory worker helpers (matches BoingClient default). */
+export declare const DEFAULT_DIRECTORY_FETCH_TIMEOUT_MS = 30000;
 export declare function fetchNativeDexDirectoryMeta(baseUrl: string, init?: RequestInit): Promise<NativeDexDirectoryMetaResponse>;
 export type FetchNativeDexDirectoryPoolsPageQuery = {
     /** 1–100; default 20 on server if omitted — we pass explicit default 20 when unset. */

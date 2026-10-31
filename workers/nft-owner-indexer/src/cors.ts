@@ -57,7 +57,7 @@ export function headersJson(
   } else if (corsOrigins.length === 1) {
     h.set('Access-Control-Allow-Origin', corsOrigins[0]!);
   } else {
-    h.set('Access-Control-Allow-Origin', '*');
+    // Allowlist configured but Origin missing/unlisted: omit ACAO (do not fall back to *).
   }
   h.set('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS');
   h.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');

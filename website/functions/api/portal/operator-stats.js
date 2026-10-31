@@ -68,7 +68,7 @@ export async function onRequestGet(context) {
       uptime_estimate,
     });
   } catch (e) {
-    return Response.json({ ok: false, message: e.message || 'Server error' }, { status: 500 });
+    return Response.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
 

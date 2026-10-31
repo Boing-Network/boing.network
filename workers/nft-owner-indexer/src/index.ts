@@ -59,11 +59,19 @@ function parsePositiveInt(raw: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+function timingSafeEqualString(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+
 function authorized(req: Request, env: Env): boolean {
   const secret = env.NFT_OWNER_SYNC_SECRET;
   if (!secret) return false;
-  const h = req.headers.get('Authorization') ?? '';
-  return h === `Bearer ${secret}`;
+  const h = (req.headers.get('Authorization') ?? '').trim();
+  const token = h.toLowerCase().startsWith('bearer ') ? h.slice(7).trim() : '';
+  return timingSafeEqualString(token, secret);
 }
 
 /**

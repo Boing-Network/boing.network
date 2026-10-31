@@ -14,6 +14,9 @@ const secret = randomBytes(32);
 const pub = await ed25519.getPublicKeyAsync(secret);
 const hx = (u8) => '0x' + Buffer.from(u8).toString('hex');
 
+console.error(
+  "Warning: prints a raw signing seed to stdout — avoid CI logs and terminal scrollback retention (audit #61 item 58).",
+);
 console.log(
   JSON.stringify(
     {
