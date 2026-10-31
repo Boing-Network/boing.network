@@ -75,8 +75,8 @@ primary_region = "iad"
   destination = "/data"
 
 [[vm]]
-  # performance-2x / 8 GiB (interim cost cut; live machine already 8 GiB).
-  # Pin 8192mb in-repo so redeploys do not restore 16 GiB. Watch for OOM (exit 137)
-  # if tip blocks serialize multi‑hundred‑MiB getBlockByHeight JSON.
-  size = "performance-2x"
-  memory = "8192mb"
+  # shared-cpu-2x / 2 GiB (cost cut 2026-10-31; observed RSS ~0.5 GiB, peak 1.3 GiB).
+  # Rollback: fly scale vm performance-2x --memory 8192 -a boing-testnet-1
+  # Watch for OOM (exit 137); first step up is memory 4096mb.
+  size = "shared-cpu-2x"
+  memory = "2048mb"
