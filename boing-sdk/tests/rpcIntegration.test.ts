@@ -107,7 +107,8 @@ describe.skipIf(!run)(
         expect(info.target_block_time_secs).toBeGreaterThan(0);
         expect(info.client_version).toMatch(/^boing-node\//);
         expect(info.consensus.validator_count).toBeGreaterThan(0);
-        expect(info.consensus.model).toBe('single_round_quorum_commit');
+        // Live testnet may still report the legacy label until redeployed.
+        expect(['single_round_quorum_commit', 'hotstuff_bft']).toContain(info.consensus.model);
         expect(info.native_currency.symbol).toBe('BOING');
         expect(info.chain_native.account_count).toBeGreaterThanOrEqual(1);
         expect(BigInt(info.chain_native.total_balance)).toBeGreaterThanOrEqual(0n);
