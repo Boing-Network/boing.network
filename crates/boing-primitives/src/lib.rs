@@ -55,14 +55,14 @@ pub use blobs::{
     media_blob_pin_rent_kib_blocks, media_blob_uri, parse_media_blob_id, recover_media_blob_xor,
     validate_blob_announce, validate_blob_announce_with_cap, validate_pay_blob_sample,
     validate_pay_blob_sample_with_max_chunks, validate_put_blob, validate_put_blob_with_cap,
-    validate_renew_media_blob_pin, verify_media_blob_das_sample, verify_media_blob_das_sample_with_chunk, within_phase3_target_cap,
-    BlobError, BlobId, BlobRetention, MediaBlobChunkRef, MediaBlobDasSample,
-    MediaBlobErasureBundle, MediaBlobGossip, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
-    MAX_MEDIA_BLOB_INLINE_BYTES, MAX_MEDIA_BLOB_INLINE_PREFER_BYTES,
-    MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS, MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOBS_GOSSIP_TOPIC,
-    MEDIA_BLOB_DAS_CHUNK_BYTES, MEDIA_BLOB_FOREVER_MULTIPLIER, MEDIA_BLOB_GAS_BASE,
-    MEDIA_BLOB_GAS_PER_WORD, MEDIA_BLOB_URI_PREFIX, MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS,
-    PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
+    validate_renew_media_blob_pin, verify_media_blob_das_sample,
+    verify_media_blob_das_sample_with_chunk, within_phase3_target_cap, BlobError, BlobId,
+    BlobRetention, MediaBlobChunkRef, MediaBlobDasSample, MediaBlobErasureBundle, MediaBlobGossip,
+    MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN, MAX_MEDIA_BLOB_INLINE_BYTES,
+    MAX_MEDIA_BLOB_INLINE_PREFER_BYTES, MAX_MEDIA_BLOB_RENEW_EXTEND_BLOCKS,
+    MAX_MEDIA_BLOB_TTL_BLOCKS, MEDIA_BLOBS_GOSSIP_TOPIC, MEDIA_BLOB_DAS_CHUNK_BYTES,
+    MEDIA_BLOB_FOREVER_MULTIPLIER, MEDIA_BLOB_GAS_BASE, MEDIA_BLOB_GAS_PER_WORD,
+    MEDIA_BLOB_URI_PREFIX, MEDIA_BLOB_VIDEO_PIN_HORIZON_BLOCKS, PHASE3_TARGET_MAX_MEDIA_BLOB_BYTES,
 };
 pub use blobs_erasure::{
     chunk_media_blob_rs, chunk_media_blob_rs_with_parity, media_blob_rs_chunk_refs,
@@ -505,8 +505,9 @@ pub use names::{
 };
 pub use paymaster::{PaymasterConfig, SponsoredTransaction};
 pub use randomness::{
-    dummy_vrf_output, ecvrf_prove, leader_from_ecvrf_proofs, leader_from_vrf, stub_vrf_allowed, verify_ecvrf_output,
-    verify_vrf_output, vrf_round_alpha, vrf_round_seed, VdfOutput, VrfOutput, ECVRF_PROOF_LEN,
+    dummy_vrf_output, ecvrf_prove, leader_from_ecvrf_proofs, leader_from_vrf, stub_vrf_allowed,
+    verify_ecvrf_output, verify_vrf_output, vrf_round_alpha, vrf_round_seed, VdfOutput, VrfOutput,
+    ECVRF_PROOF_LEN,
 };
 pub use recovery::{Guardian, RecoveryRequest};
 pub use signature::{
