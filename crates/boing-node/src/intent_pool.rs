@@ -85,7 +85,7 @@ pub enum IntentPoolError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use boing_primitives::{hasher, AccountId, Intent, IntentKind};
+    use boing_primitives::{AccountId, Intent, IntentKind};
     use ed25519_dalek::{Signer, SigningKey};
     use rand::rngs::OsRng;
 
@@ -96,12 +96,10 @@ mod tests {
             kind: IntentKind::Custom(vec![n]),
             nonce: n as u64,
             deadline_block: 100,
+            chain_id: Some(6913),
         };
-        let msg = bincode::serialize(&intent).unwrap();
-        let mut h = hasher();
-        h.update(&msg);
-        let digest = h.finalize();
-        let sig = key.sign(digest.as_bytes());
+        let digest = intent.signable_hash();
+        let sig = key.sign(&digest);
         SignedIntent {
             intent,
             signature: boing_primitives::signature::Signature(sig.to_bytes()),

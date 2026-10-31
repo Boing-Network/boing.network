@@ -29,7 +29,7 @@ impl QaPendingRecord {
     }
 
     pub fn commitment_hash(&self) -> Hash {
-        let bytes = bincode::serialize(self).unwrap_or_default();
+        let bytes = bincode::serialize(self).expect("registry serialize for commitment");
         let mut h = hasher();
         h.update(b"boing.qa_pending.v1");
         h.update(&bytes);

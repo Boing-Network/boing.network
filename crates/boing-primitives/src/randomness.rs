@@ -140,6 +140,20 @@ pub fn verify_ecvrf_output(public_key: &AccountId, round: u64, vrf: &VrfOutput) 
 ///
 /// Output = `BLAKE3(domain || "out" || round_seed)`; proof = `BLAKE3(domain || "prf" || round_seed)`
 /// (32 bytes). Prefer [`ecvrf_prove`] / [`verify_ecvrf_output`] for production validator keys.
+/// Whether 32-byte BLAKE3 stub VRF proofs are accepted by [`verify_vrf_output`].
+///
+/// Default **true** for local/testnet leader fallback. Set `BOING_ALLOW_STUB_VRF=0` (or `false`)
+/// on production validators so only ECVRF proofs verify (audit #61 item 36).
+pub fn stub_vrf_allowed() -> bool {
+    match std::env::var("BOING_ALLOW_STUB_VRF") {
+        Ok(v) => {
+            let v = v.trim().to_ascii_lowercase();
+            !(v.is_empty() || v == "0" || v == "false" || v == "no" || v == "off")
+        }
+        Err(_) => true,
+    }
+}
+
 pub fn dummy_vrf_output(round: u64) -> VrfOutput {
     let seed = vrf_round_seed(round);
     let mut out_h = blake3::Hasher::new();
@@ -164,6 +178,9 @@ pub fn dummy_vrf_output(round: u64) -> VrfOutput {
 pub fn verify_vrf_output(round: u64, vrf: &VrfOutput, public_key: Option<&AccountId>) -> bool {
     match vrf.proof.len() {
         32 => {
+            if !stub_vrf_allowed() {
+                return false;
+            }
             let expected = dummy_vrf_output(round);
             expected.output == vrf.output && expected.proof == vrf.proof
         }
@@ -229,5 +246,15 @@ mod tests {
         let leader = leader_from_ecvrf_proofs(&[v0, v1], round, &proofs).unwrap();
         let expected = if p0.output <= p1.output { v0 } else { v1 };
         assert_eq!(leader, expected);
+    }
+
+    #[test]
+    fn stub_rejected_when_disallowed() {
+        let a = dummy_vrf_output(7);
+        std::env::set_var("BOING_ALLOW_STUB_VRF", "0");
+        assert!(!verify_vrf_output(7, &a, None));
+        std::env::set_var("BOING_ALLOW_STUB_VRF", "1");
+        assert!(verify_vrf_output(7, &a, None));
+        std::env::remove_var("BOING_ALLOW_STUB_VRF");
     }
 }

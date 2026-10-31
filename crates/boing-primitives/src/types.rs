@@ -394,7 +394,10 @@ impl Transaction {
 
     pub fn id(&self) -> Hash {
         let mut h = hasher();
-        h.update(&bincode::serialize(self).unwrap_or_default());
+        // Serialization of Transaction is expected to always succeed; hashing an empty buffer
+        // on failure would create colliding ids (audit #61 item 38).
+        let bytes = bincode::serialize(self).expect("transaction serialize for id");
+        h.update(&bytes);
         let mut out = [0u8; 32];
         out.copy_from_slice(h.finalize().as_bytes());
         Hash(out)

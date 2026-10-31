@@ -135,7 +135,7 @@ impl NameRegistry {
     pub fn commitment(&self) -> [u8; 32] {
         let mut h = hasher();
         h.update(b"BOING_NAME_REGISTRY_V1");
-        h.update(&bincode::serialize(self).unwrap_or_default());
+        h.update(&bincode::serialize(self).expect("registry serialize for commitment"));
         *h.finalize().as_bytes()
     }
 
