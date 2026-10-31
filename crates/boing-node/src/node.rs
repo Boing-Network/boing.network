@@ -6,7 +6,9 @@ use std::time::{Duration, Instant};
 
 use boing_consensus::ConsensusEngine;
 use boing_execution::{BlockExecutor, TransactionScheduler, Vm};
-use boing_governance::{SlashReason, SlashRegistry, SlashingError};
+use boing_governance::{
+    Governance, GovernanceError, Proposal, ProposalPhase, SlashReason, SlashRegistry, SlashingError,
+};
 use boing_p2p::{P2pEvent, P2pNode};
 use boing_primitives::{
     phase28_register_with_pop, AccessList, Account, AccountId, AccountState, Block,
@@ -88,8 +90,10 @@ pub struct BoingNode {
     pub slashed_equivocations: HashMap<(AccountId, u64), u64>,
     /// Last accepted signed vote per (round, validator) — used to build gossip evidence on conflict.
     pub observed_votes: HashMap<(u64, AccountId), ConsensusVote>,
-    /// Auditable slash / appeal registry (in-memory MVP; not yet persisted).
+    /// Auditable slash / appeal registry (persisted as `slash_registry.json`).
     pub slash_registry: SlashRegistry,
+    /// Phased governance engine (fee / QA allowlisted keys; persisted as `governance.json`).
+    pub governance: Governance,
     /// Consecutive leader-timeout observations per validator (multi-validator liveness).
     pub liveness_miss_streak: HashMap<AccountId, u32>,
     /// When the local node started waiting for the current round's leader (non-leader path).
@@ -214,6 +218,7 @@ impl BoingNode {
             slashed_equivocations: HashMap::new(),
             observed_votes: HashMap::new(),
             slash_registry: SlashRegistry::new(),
+            governance: Governance::default(),
             liveness_miss_streak: HashMap::new(),
             leader_wait_started: None,
             open_validator_params: None,
@@ -477,13 +482,14 @@ impl BoingNode {
                 Err(e) => tracing::warn!("media blob store: could not open: {e}"),
             }
 
-            let (load_reg, load_pool, load_slash, load_fee) = {
+            let (load_reg, load_pool, load_slash, load_fee, load_gov) = {
                 let p = node.persistence.as_ref().expect("just set");
                 (
                     p.load_qa_registry()?,
                     p.load_qa_pool_config()?,
                     p.load_slash_registry()?,
                     p.load_network_fee_config()?,
+                    p.load_governance()?,
                 )
             };
             if load_reg.is_some() || load_pool.is_some() {
@@ -502,6 +508,9 @@ impl BoingNode {
             if let Some(slash_reg) = load_slash {
                 node.slash_registry = slash_reg;
                 node.rebuild_slashed_equivocations_from_registry();
+            }
+            if let Some(gov) = load_gov {
+                node.governance = gov;
             }
             if let Some(ref p) = node.persistence {
                 match p.load_bls_dual_key_registry() {
@@ -538,6 +547,96 @@ impl BoingNode {
                 logging::log_persistence_warn("save_slash_registry", &e);
             }
         }
+    }
+
+    fn persist_governance(&self) {
+        if let Some(ref p) = self.persistence {
+            if let Err(e) = p.save_governance(&self.governance) {
+                logging::log_persistence_warn("save_governance", &e);
+            }
+        }
+    }
+
+    /// Propose an allowlisted policy change (`qa_registry` / `qa_pool_config` / `network_fee_config`).
+    pub fn governance_propose(
+        &mut self,
+        target_key: String,
+        target_value: Vec<u8>,
+    ) -> Result<u64, GovernanceError> {
+        let id = self.governance.propose(target_key, target_value)?;
+        self.persist_governance();
+        Ok(id)
+    }
+
+    /// Operator-attested advance to cooling (quorum counting still deferred).
+    pub fn governance_advance_cooling(
+        &mut self,
+        id: u64,
+        now: std::time::SystemTime,
+    ) -> Result<(), GovernanceError> {
+        self.governance.advance_to_cooling(id, now)?;
+        self.persist_governance();
+        Ok(())
+    }
+
+    pub fn governance_advance_execution(
+        &mut self,
+        id: u64,
+        now: std::time::SystemTime,
+    ) -> Result<(), GovernanceError> {
+        self.governance.advance_to_execution(id, now)?;
+        self.persist_governance();
+        Ok(())
+    }
+
+    /// Execute a proposal in the Execution phase and apply the allowlisted key to live policy.
+    pub fn governance_execute(
+        &mut self,
+        id: u64,
+        now: std::time::SystemTime,
+    ) -> Result<(String, ProposalPhase), String> {
+        let (key, value) = self
+            .governance
+            .execute(id, now)
+            .map_err(|e| e.to_string())?;
+        match key.as_str() {
+            boing_tokenomics::GOVERNANCE_NETWORK_FEE_CONFIG_KEY => {
+                let policy = boing_tokenomics::network_fee_policy_from_json(&value)
+                    .map_err(|e| format!("Invalid network_fee_config JSON: {e}"))?;
+                policy
+                    .validate()
+                    .map_err(|e| format!("Invalid network_fee_config: {e}"))?;
+                self.set_fee_policy(policy);
+            }
+            boing_qa::GOVERNANCE_QA_REGISTRY_KEY => {
+                let registry = boing_qa::rule_registry_from_json(&value)
+                    .map_err(|e| format!("Invalid qa_registry JSON: {e}"))?;
+                registry
+                    .validate()
+                    .map_err(|e| format!("Invalid qa_registry: {e}"))?;
+                let pool = self.qa_pool.governance_config();
+                self.set_qa_policy(registry, pool);
+            }
+            boing_qa::GOVERNANCE_QA_POOL_CONFIG_KEY => {
+                let pool = boing_qa::qa_pool_config_from_json(&value)
+                    .map_err(|e| format!("Invalid qa_pool_config JSON: {e}"))?;
+                pool.validate()
+                    .map_err(|e| format!("Invalid qa_pool_config: {e}"))?;
+                let registry = self.mempool.qa_registry().clone();
+                self.set_qa_policy(registry, pool);
+            }
+            other => return Err(format!("Unknown governance target_key: {other}")),
+        }
+        self.persist_governance();
+        Ok((key, ProposalPhase::Execution))
+    }
+
+    pub fn governance_get(&self, id: u64) -> Option<&Proposal> {
+        self.governance.get(id)
+    }
+
+    pub fn governance_list(&self) -> Vec<&Proposal> {
+        self.governance.list()
     }
 
     fn persist_bls_dual_key_registry(&self) {

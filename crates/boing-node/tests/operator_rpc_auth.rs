@@ -11,9 +11,13 @@ use http_body_util::BodyExt;
 use tokio::sync::RwLock;
 use tower::ServiceExt;
 
-const OPERATOR_METHODS: [&str; 4] = [
+const OPERATOR_METHODS: [&str; 8] = [
     "boing_operatorApplyFeePolicy",
     "boing_operatorApplyQaPolicy",
+    "boing_governancePropose",
+    "boing_governanceAdvanceCooling",
+    "boing_governanceAdvanceExecution",
+    "boing_governanceExecute",
     "boing_submitSlashAppeal",
     "boing_resolveSlashAppeal",
 ];
