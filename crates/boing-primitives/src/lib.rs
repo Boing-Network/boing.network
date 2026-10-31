@@ -55,7 +55,7 @@ pub use blobs::{
     media_blob_pin_rent_kib_blocks, media_blob_uri, parse_media_blob_id, recover_media_blob_xor,
     validate_blob_announce, validate_blob_announce_with_cap, validate_pay_blob_sample,
     validate_pay_blob_sample_with_max_chunks, validate_put_blob, validate_put_blob_with_cap,
-    validate_renew_media_blob_pin, verify_media_blob_das_sample, within_phase3_target_cap,
+    validate_renew_media_blob_pin, verify_media_blob_das_sample, verify_media_blob_das_sample_with_chunk, within_phase3_target_cap,
     BlobError, BlobId, BlobRetention, MediaBlobChunkRef, MediaBlobDasSample,
     MediaBlobErasureBundle, MediaBlobGossip, MAX_MEDIA_BLOB_BYTES, MAX_MEDIA_BLOB_CONTENT_TYPE_LEN,
     MAX_MEDIA_BLOB_INLINE_BYTES, MAX_MEDIA_BLOB_INLINE_PREFER_BYTES,
@@ -497,7 +497,7 @@ pub use denomination::{
 pub use equivocation::{EquivocationError, EquivocationEvidence, REPORT_EQUIVOCATION_TX_INDEX};
 pub use hash::{hasher, Hash};
 pub use hd::HdPath;
-pub use intent::{Intent, IntentKind, SignedIntent};
+pub use intent::{Intent, IntentKind, SignedIntent, INTENT_SIGN_DOMAIN};
 pub use names::{
     check_registrable, display_name, is_reserved, name_commitment, name_rent, name_rent_per_year,
     normalize_name, validate_label, NameError, NAME_MAX_LEN, NAME_MAX_YEARS, NAME_MIN_LEN,
@@ -505,7 +505,7 @@ pub use names::{
 };
 pub use paymaster::{PaymasterConfig, SponsoredTransaction};
 pub use randomness::{
-    dummy_vrf_output, ecvrf_prove, leader_from_ecvrf_proofs, leader_from_vrf, verify_ecvrf_output,
+    dummy_vrf_output, ecvrf_prove, leader_from_ecvrf_proofs, leader_from_vrf, stub_vrf_allowed, verify_ecvrf_output,
     verify_vrf_output, vrf_round_alpha, vrf_round_seed, VdfOutput, VrfOutput, ECVRF_PROOF_LEN,
 };
 pub use recovery::{Guardian, RecoveryRequest};

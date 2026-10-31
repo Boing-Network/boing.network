@@ -579,10 +579,18 @@ pub struct MerkleProof {
 }
 
 impl MerkleProof {
-    /// Verify this proof produces the expected root.
+    /// Verify this proof is internally consistent with the root embedded in the proof.
+    ///
+    /// Callers must also check that root against a **trusted** value (e.g. a block header
+    /// state root) via [`Self::verify_against`] (audit #61 item 33).
     pub fn verify(&self) -> bool {
+        self.verify_against(&self.root)
+    }
+
+    /// Verify the proof path and that the computed root equals `trusted_root`.
+    pub fn verify_against(&self, trusted_root: &Hash) -> bool {
         let computed = Self::compute_root_from_proof(&self.key, &self.value_hash, &self.siblings);
-        computed == self.root
+        computed == *trusted_root && self.root == *trusted_root
     }
 
     fn compute_root_from_proof(key: &[u8; 32], value_hash: &Hash, steps: &[ProofStep]) -> Hash {

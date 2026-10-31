@@ -15,8 +15,11 @@ pub struct HdPath {
 }
 
 impl HdPath {
-    /// Boing mainnet coin type (placeholder; register with SLIP-44).
-    pub const BOING_COIN_TYPE: u32 = 0x8000_0234; // example
+    /// Boing coin type for BIP-44 paths.
+    ///
+    /// **Not** a registered SLIP-44 constant yet — provisional `0x8000_0234` until Boing has an
+    /// official assignment (audit #61 item 38). Do not treat this as final for hardware wallets.
+    pub const BOING_COIN_TYPE: u32 = 0x8000_0234;
 
     pub fn new(purpose: u32, coin_type: u32, account: u32, change: u32, index: u32) -> Self {
         Self {

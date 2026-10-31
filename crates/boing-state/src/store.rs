@@ -38,6 +38,18 @@ pub type PersistenceExport = (
     Vec<ContractStorageEntry>,
 );
 
+/// Full state snapshot for persistence helpers (audit #61 item 32).
+/// Prefer this over [`PersistenceExport`] alone so registries are not dropped on round-trip.
+#[derive(Clone, Debug, Default)]
+pub struct PersistenceBundle {
+    pub accounts: Vec<(AccountId, AccountState)>,
+    pub contract_code: Vec<(AccountId, Vec<u8>)>,
+    pub contract_storage: Vec<ContractStorageEntry>,
+    pub qa_pending: Vec<(Hash, QaPendingRecord)>,
+    pub open_validators: OpenValidatorRegistry,
+    pub names: NameRegistry,
+}
+
 /// Checkpoint handle for revert. Created by `checkpoint()`.
 ///
 /// Journaled (security review #4): a checkpoint is a position in the store's undo journal, so taking
@@ -657,7 +669,10 @@ impl StateStore {
         tree.prove(&AccountId(*slot))
     }
 
-    /// Export state for disk persistence.
+    /// Export accounts / code / storage for the primary `accounts.bin` snapshot.
+    ///
+    /// Does **not** include registries — use [`Self::export_persistence_bundle`] for a full
+    /// round-trip (audit #61 item 32).
     pub fn export_for_persistence(&self) -> PersistenceExport {
         let accounts: Vec<_> = self.accounts.iter().map(|(k, v)| (*k, v.clone())).collect();
         let contract_code: Vec<_> = self
@@ -673,7 +688,20 @@ impl StateStore {
         (accounts, contract_code, contract_storage)
     }
 
-    /// Load state from persisted data.
+    /// Export accounts, code, storage, and singleton registries in one bundle.
+    pub fn export_persistence_bundle(&self) -> PersistenceBundle {
+        let (accounts, contract_code, contract_storage) = self.export_for_persistence();
+        PersistenceBundle {
+            accounts,
+            contract_code,
+            contract_storage,
+            qa_pending: self.export_qa_pending(),
+            open_validators: self.open_validators.clone(),
+            names: self.names.clone(),
+        }
+    }
+
+    /// Load state from persisted data (accounts / code / storage only).
     pub fn load_from_persistence(
         accounts: Vec<(AccountId, AccountState)>,
         contract_code: Vec<(AccountId, Vec<u8>)>,
@@ -692,6 +720,19 @@ impl StateStore {
         for ((contract, key), value) in contract_storage {
             state.merge_contract_storage(contract, key, value);
         }
+        state
+    }
+
+    /// Load a full [`PersistenceBundle`], restoring registries that affect the state root.
+    pub fn load_persistence_bundle(bundle: PersistenceBundle) -> Self {
+        let mut state = Self::load_from_persistence(
+            bundle.accounts,
+            bundle.contract_code,
+            bundle.contract_storage,
+        );
+        state.load_qa_pending(bundle.qa_pending);
+        state.load_open_validators(bundle.open_validators);
+        state.load_names(bundle.names);
         state
     }
 

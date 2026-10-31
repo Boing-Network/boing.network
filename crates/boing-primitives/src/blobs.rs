@@ -175,6 +175,8 @@ pub enum BlobError {
     IdMismatch { expected: String, got: String },
     #[error("announce size is zero")]
     AnnounceSizeZero,
+    #[error("announce blob_id must be non-zero")]
+    AnnounceZeroBlobId,
     #[error("chunk index {index} out of range (count={count})")]
     ChunkIndexOutOfRange { index: u32, count: u32 },
     #[error(
@@ -282,6 +284,11 @@ pub fn validate_put_blob(
 }
 
 /// Validate BlobAnnounce (commitment without inline bytes).
+///
+/// Requires a non-zero `blob_id` so the announce commits to a specific blob for later
+/// PutBlob / DAS matching (audit #61 item 37). Byte binding is checked when data arrives
+/// (`blob_id_of(data) == blob_id`). Callers must still treat `chunks_root` / DAS roots as
+/// untrusted until compared to a consensus commitment.
 pub fn validate_blob_announce(
     blob_id: &BlobId,
     size: u32,
@@ -289,6 +296,9 @@ pub fn validate_blob_announce(
     content_type: &str,
 ) -> Result<(), BlobError> {
     retention.validate()?;
+    if blob_id.iter().all(|&b| b == 0) {
+        return Err(BlobError::AnnounceZeroBlobId);
+    }
     if size == 0 {
         return Err(BlobError::AnnounceSizeZero);
     }
@@ -302,7 +312,6 @@ pub fn validate_blob_announce(
             len: content_type.len(),
         });
     }
-    let _ = blob_id;
     Ok(())
 }
 
@@ -395,6 +404,9 @@ pub fn validate_blob_announce_with_cap(
     max_bytes: usize,
 ) -> Result<(), BlobError> {
     retention.validate()?;
+    if blob_id.iter().all(|&b| b == 0) {
+        return Err(BlobError::AnnounceZeroBlobId);
+    }
     if size == 0 {
         return Err(BlobError::AnnounceSizeZero);
     }
@@ -408,7 +420,6 @@ pub fn validate_blob_announce_with_cap(
             len: content_type.len(),
         });
     }
-    let _ = blob_id;
     Ok(())
 }
 
@@ -582,7 +593,15 @@ pub fn media_blob_chunk_merkle_proof(
 }
 
 /// Verify a DAS sample against its claimed `chunks_root`.
+///
+/// This checks the Merkle path only. Callers must separately compare `chunks_root` (and
+/// `blob_id`) to a trusted consensus commitment. When chunk bytes are available, use
+/// [`verify_media_blob_das_sample_with_chunk`] so `chunk_hash` is bound to `BLAKE3(chunk)`.
 pub fn verify_media_blob_das_sample(sample: &MediaBlobDasSample) -> Result<(), BlobError> {
+    verify_media_blob_das_sample_path(sample)
+}
+
+fn verify_media_blob_das_sample_path(sample: &MediaBlobDasSample) -> Result<(), BlobError> {
     if sample.chunk_count == 0 || sample.chunk_index >= sample.chunk_count {
         return Err(BlobError::ChunkIndexOutOfRange {
             index: sample.chunk_index,
@@ -603,6 +622,18 @@ pub fn verify_media_blob_das_sample(sample: &MediaBlobDasSample) -> Result<(), B
         return Err(BlobError::DasProofInvalid);
     }
     Ok(())
+}
+
+/// Like [`verify_media_blob_das_sample`], but also requires `BLAKE3(chunk_bytes) == chunk_hash`
+/// (audit #61 item 37).
+pub fn verify_media_blob_das_sample_with_chunk(
+    sample: &MediaBlobDasSample,
+    chunk_bytes: &[u8],
+) -> Result<(), BlobError> {
+    if chunk_hash_of(chunk_bytes) != sample.chunk_hash {
+        return Err(BlobError::DasProofInvalid);
+    }
+    verify_media_blob_das_sample_path(sample)
 }
 
 /// Chunk `data` into DAS-sized pieces + XOR parity; compute merkle root over data-chunk hashes.

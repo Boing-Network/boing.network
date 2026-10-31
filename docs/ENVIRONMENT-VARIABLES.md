@@ -41,6 +41,7 @@ Single reference for the `BOING_*` environment variables read by the Rust worksp
 | `BOING_VALIDATORS` | preset anchors on known networks | Comma-separated validator ids. |
 | `BOING_VALIDATOR_SET` | `static` | `static`, `stake` or `open`. |
 | `BOING_LEADER_ELECTION` | `round_robin` | `round_robin` or `vrf`. |
+| `BOING_ALLOW_STUB_VRF` | `1` (allow) | When `0`/`false`, [`verify_vrf_output`] rejects 32-byte BLAKE3 stub proofs so only ECVRF verifies (audit #61 item 36). Leave enabled for local/testnet leader fallback; disable on production validators that require real ECVRF. |
 | `BOING_STAKE_VALIDATOR_ACTIVATION_HEIGHT`, `BOING_STAKE_VALIDATOR_TOP_N` (21), `BOING_STAKE_VALIDATOR_EPOCH_LEN`, `BOING_STAKE_VALIDATOR_MIN_STAKE` | see `validator_config.rs` | Stake-weighted set parameters. |
 | `BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT` | required for `open` mode | Height at which open registration starts. |
 | `BOING_OPEN_VALIDATOR_BOND`, `_DEREGISTER_DELAY`, `_EPOCH_LEN`, `_MAX`, `_LIVENESS_WINDOW`, `_MISS_THRESHOLD_BPS`, `_MIN_SAMPLES`, `_JAIL_COOLDOWN` | `OpenValidatorParams::default()` | Open-validator economics and liveness/jailing. |
