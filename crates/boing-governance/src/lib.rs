@@ -501,7 +501,8 @@ mod tests {
 
     #[test]
     fn operator_attested_skips_quorum() {
-        let mut gov = Governance::new_operator_attested(Duration::from_secs(1), Duration::from_secs(10));
+        let mut gov =
+            Governance::new_operator_attested(Duration::from_secs(1), Duration::from_secs(10));
         let id = gov.propose("qa_registry".into(), b"{}".to_vec()).unwrap();
         gov.advance_to_cooling(id, UNIX_EPOCH).unwrap();
         assert_eq!(gov.get(id).unwrap().phase, ProposalPhase::Cooling);
@@ -532,7 +533,8 @@ mod tests {
 
     #[test]
     fn legacy_json_without_votes_deserializes() {
-        let raw = r#"{"proposals":{},"next_id":1,"cooling_period":86400,"execution_window":604800}"#;
+        let raw =
+            r#"{"proposals":{},"next_id":1,"cooling_period":86400,"execution_window":604800}"#;
         let g: Governance = serde_json::from_str(raw).unwrap();
         assert!(!g.strict_quorum);
         assert_eq!(g.quorum_approve_bps, DEFAULT_QUORUM_APPROVE_BPS);

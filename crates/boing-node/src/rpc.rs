@@ -3554,7 +3554,11 @@ async fn dispatch_jsonrpc_request(
                 None => {
                     return (
                         StatusCode::OK,
-                        rpc_error(id, -32602, "Invalid params: voter_hex must be a string".into()),
+                        rpc_error(
+                            id,
+                            -32602,
+                            "Invalid params: voter_hex must be a string".into(),
+                        ),
                     );
                 }
             };
@@ -3594,8 +3598,7 @@ async fn dispatch_jsonrpc_request(
                         rpc_error(
                             id,
                             -32602,
-                            "Invalid params: weight must be a decimal u128 string or number"
-                                .into(),
+                            "Invalid params: weight must be a decimal u128 string or number".into(),
                         ),
                     );
                 }
