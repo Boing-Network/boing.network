@@ -55,6 +55,10 @@ pub use executor::{
     failed_tx_fee_amount, failed_tx_fee_amount_in, BlockExecutor, ExecutionError, FAILED_TX_GAS,
 };
 pub use gas::GasConfig;
+pub use hash_opcode_scaffold::{
+    blake3_opcode_active, parse_blake3_activation_height, ref_fungible_allowance_key_v3_host,
+    BLAKE3_OPCODE_ACTIVATION_ENV, PLANNED_BLAKE3_OPCODE, REF_FUNGIBLE_ALLOWANCE_V3_DOMAIN,
+};
 pub use interface_blob_store::{
     decode_interface_blob_words, encode_iface_blob_put_calldatas, interface_blob_id,
     interface_blob_storage_key, interface_blob_store_bytecode, interface_blob_uri,
@@ -121,10 +125,6 @@ pub use native_amm_lp_vault::{
     NATIVE_AMM_LP_VAULT_KEY_CONFIGURED, NATIVE_AMM_LP_VAULT_KEY_POOL,
     NATIVE_AMM_LP_VAULT_KEY_SHARE_TOKEN, SELECTOR_NATIVE_AMM_LP_VAULT_CONFIGURE,
     SELECTOR_NATIVE_AMM_LP_VAULT_DEPOSIT_ADD,
-};
-pub use hash_opcode_scaffold::{
-    blake3_opcode_active, parse_blake3_activation_height, ref_fungible_allowance_key_v3_host,
-    BLAKE3_OPCODE_ACTIVATION_ENV, PLANNED_BLAKE3_OPCODE, REF_FUNGIBLE_ALLOWANCE_V3_DOMAIN,
 };
 pub use native_amm_v8::{
     constant_product_pool_bytecode_v10, constant_product_pool_bytecode_v11,

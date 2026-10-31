@@ -1268,7 +1268,19 @@ mod tests {
 
     #[test]
     fn isqrt_u128_matches_babylonian_reference() {
-        for y in [0u128, 1, 2, 3, 4, 9, 10, 100, 40_000, 1_000_000, u64::MAX as u128] {
+        for y in [
+            0u128,
+            1,
+            2,
+            3,
+            4,
+            9,
+            10,
+            100,
+            40_000,
+            1_000_000,
+            u64::MAX as u128,
+        ] {
             let expect = {
                 if y == 0 {
                     0
