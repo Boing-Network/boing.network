@@ -5,6 +5,7 @@ edition = "2021"
 description = "State management and Verkle tree for Boing blockchain"
 
 [dependencies]
+boing-governance = { path = "../boing-governance" }
 boing-primitives = { path = "../boing-primitives" }
 boing-telemetry = { path = "../boing-telemetry" }
 serde = { version = "1", features = ["derive"] }

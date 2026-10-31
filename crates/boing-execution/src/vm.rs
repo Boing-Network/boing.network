@@ -126,6 +126,8 @@ pub struct Vm {
     /// Phase 32: flip multi-pin committee from Ed25519 tx 32 → BLS aggregate tx 33.
     /// `None` = Phase 31 policy (multi-pin default stays 32).
     bls_committee_flip_from: Option<u64>,
+    /// Governance consensus txs (indices 37–39). `None` = never admitted.
+    governance_consensus_from: Option<u64>,
 }
 
 impl Vm {
@@ -177,6 +179,19 @@ impl Vm {
 
     pub fn bls_committee_flip_from(&self) -> Option<u64> {
         self.bls_committee_flip_from
+    }
+
+    /// Enable governance consensus txs from `height` (`None` = never).
+    pub fn set_governance_consensus_from(&mut self, from: Option<u64>) {
+        self.governance_consensus_from = from;
+    }
+
+    pub fn governance_consensus_from(&self) -> Option<u64> {
+        self.governance_consensus_from
+    }
+
+    pub fn governance_consensus_active(&self, height: u64) -> bool {
+        boing_governance::consensus_tx::consensus_txs_active(self.governance_consensus_from, height)
     }
 
     pub fn media_blob_max_bytes(&self, height: u64) -> usize {
@@ -290,6 +305,7 @@ impl Vm {
             blobs_root_header_from: None,
             media_blobs_phase7_cap_from: None,
             bls_committee_flip_from: None,
+            governance_consensus_from: None,
         }
     }
 
@@ -309,6 +325,7 @@ impl Vm {
             blobs_root_header_from: None,
             media_blobs_phase7_cap_from: None,
             bls_committee_flip_from: None,
+            governance_consensus_from: None,
         }
     }
 
@@ -331,6 +348,7 @@ impl Vm {
             blobs_root_header_from: None,
             media_blobs_phase7_cap_from: None,
             bls_committee_flip_from: None,
+            governance_consensus_from: None,
         }
     }
 
@@ -829,6 +847,40 @@ impl Vm {
                     tx,
                     evidence,
                     exec_ctx.block_height,
+                );
+            }
+            TransactionPayload::GovernancePropose {
+                target_key,
+                target_value,
+            } => {
+                return self.execute_governance_propose(
+                    state,
+                    tx,
+                    target_key,
+                    target_value,
+                    exec_ctx.block_height,
+                    exec_ctx.block_timestamp,
+                );
+            }
+            TransactionPayload::GovernanceVote {
+                proposal_id,
+                approve,
+            } => {
+                return self.execute_governance_vote(
+                    state,
+                    tx,
+                    *proposal_id,
+                    *approve,
+                    exec_ctx.block_height,
+                );
+            }
+            TransactionPayload::GovernanceAdvanceCooling { proposal_id } => {
+                return self.execute_governance_advance_cooling(
+                    state,
+                    tx,
+                    *proposal_id,
+                    exec_ctx.block_height,
+                    exec_ctx.block_timestamp,
                 );
             }
         };
@@ -1374,6 +1426,103 @@ impl Vm {
         Ok(VmExecutionResult {
             gas_used: GAS_PER_TRANSFER,
             return_data: slash_id.to_le_bytes().to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn require_governance_consensus_active(&self, height: u64) -> Result<(), VmError> {
+        if self.governance_consensus_active(height) {
+            return Ok(());
+        }
+        Err(VmError::MediaBlob(
+            boing_governance::consensus_tx::not_yet_admitted_message(
+                self.governance_consensus_from,
+                height,
+            ),
+        ))
+    }
+
+    fn bump_sender_nonce(state: &mut StateStore, tx: &Transaction) -> Result<(), VmError> {
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(())
+    }
+
+    fn execute_governance_propose(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        target_key: &str,
+        target_value: &[u8],
+        height: u64,
+        block_timestamp: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        self.require_governance_consensus_active(height)?;
+        let planned = boing_governance::consensus_tx::PlannedGovernancePropose {
+            target_key: target_key.to_string(),
+            target_value: target_value.to_vec(),
+        };
+        boing_governance::consensus_tx::validate_planned_propose(&planned)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let now = std::time::UNIX_EPOCH + std::time::Duration::from_secs(block_timestamp);
+        let engine = state.governance_mut().engine_mut();
+        engine.set_strict_quorum(true);
+        let id = engine
+            .propose_at(planned.target_key, planned.target_value, now)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        Self::bump_sender_nonce(state, tx)?;
+        Ok(VmExecutionResult {
+            gas_used: GAS_PER_TRANSFER,
+            return_data: id.to_le_bytes().to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn execute_governance_vote(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        proposal_id: u64,
+        approve: bool,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        self.require_governance_consensus_active(height)?;
+        let weight = state.get(&tx.sender).map(|a| a.stake).unwrap_or(0);
+        let engine = state.governance_mut().engine_mut();
+        engine.set_strict_quorum(true);
+        engine
+            .cast_vote(proposal_id, tx.sender.0, approve, weight)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        Self::bump_sender_nonce(state, tx)?;
+        Ok(VmExecutionResult {
+            gas_used: GAS_PER_TRANSFER,
+            return_data: Vec::new(),
+            logs: Vec::new(),
+        })
+    }
+
+    fn execute_governance_advance_cooling(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        proposal_id: u64,
+        height: u64,
+        block_timestamp: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        self.require_governance_consensus_active(height)?;
+        let now = std::time::UNIX_EPOCH + std::time::Duration::from_secs(block_timestamp);
+        let engine = state.governance_mut().engine_mut();
+        engine.set_strict_quorum(true);
+        engine
+            .advance_to_cooling(proposal_id, now)
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        Self::bump_sender_nonce(state, tx)?;
+        Ok(VmExecutionResult {
+            gas_used: GAS_PER_TRANSFER,
+            return_data: Vec::new(),
             logs: Vec::new(),
         })
     }
@@ -5221,5 +5370,158 @@ mod slash_appeal_phase14_tests {
         )
         .unwrap();
         assert!(state.slash_appeals().is_reversed(220));
+    }
+}
+
+#[cfg(test)]
+mod governance_consensus_tx_tests {
+    use super::*;
+    use boing_primitives::{AccessList, Account, AccountId, AccountState, Transaction};
+    use boing_state::StateStore;
+    use std::time::{Duration, UNIX_EPOCH};
+
+    fn funded(state: &mut StateStore, id: AccountId, stake: u128) {
+        state.insert(Account {
+            id,
+            state: AccountState {
+                balance: 1_000_000,
+                nonce: 0,
+                stake,
+                pending_unbond: 0,
+                unbond_unlock_height: 0,
+            },
+        });
+    }
+
+    fn tx(sender: AccountId, nonce: u64, payload: TransactionPayload) -> Transaction {
+        Transaction {
+            nonce,
+            sender,
+            payload,
+            access_list: AccessList::default(),
+        }
+    }
+
+    #[test]
+    fn reject_below_activation() {
+        let mut vm = Vm::new();
+        vm.set_governance_consensus_from(Some(100));
+        let mut state = StateStore::new();
+        let sender = AccountId([1u8; 32]);
+        funded(&mut state, sender, 10);
+        let t = tx(
+            sender,
+            0,
+            TransactionPayload::GovernancePropose {
+                target_key: "network_fee_config".into(),
+                target_value: br#"{"ok":true}"#.to_vec(),
+            },
+        );
+        let err = vm
+            .execute_with_context(
+                &t,
+                &mut state,
+                VmExecutionContext {
+                    block_height: 99,
+                    block_timestamp: 1,
+                    ..Default::default()
+                },
+            )
+            .unwrap_err();
+        assert!(err.to_string().contains("activate at height 100"));
+    }
+
+    #[test]
+    fn propose_vote_cooling_commits_registry() {
+        let mut vm = Vm::new();
+        vm.set_governance_consensus_from(Some(1));
+        let mut state = StateStore::new();
+        let a = AccountId([0x11; 32]);
+        let b = AccountId([0x22; 32]);
+        funded(&mut state, a, 70);
+        funded(&mut state, b, 30);
+        let root0 = state.state_root();
+
+        let propose = tx(
+            a,
+            0,
+            TransactionPayload::GovernancePropose {
+                target_key: "qa_registry".into(),
+                target_value: b"{}".to_vec(),
+            },
+        );
+        let r = vm
+            .execute_with_context(
+                &propose,
+                &mut state,
+                VmExecutionContext {
+                    block_height: 1,
+                    block_timestamp: 10,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let id = u64::from_le_bytes(r.return_data[..8].try_into().unwrap());
+        assert_eq!(id, 1);
+        assert!(!state.governance().is_empty());
+        let root1 = state.state_root();
+        assert_ne!(root0, root1);
+
+        vm.execute_with_context(
+            &tx(
+                a,
+                1,
+                TransactionPayload::GovernanceVote {
+                    proposal_id: id,
+                    approve: true,
+                },
+            ),
+            &mut state,
+            VmExecutionContext {
+                block_height: 2,
+                block_timestamp: 11,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        vm.execute_with_context(
+            &tx(
+                b,
+                0,
+                TransactionPayload::GovernanceVote {
+                    proposal_id: id,
+                    approve: false,
+                },
+            ),
+            &mut state,
+            VmExecutionContext {
+                block_height: 2,
+                block_timestamp: 11,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(state.governance().engine().quorum_met(id).unwrap());
+
+        vm.execute_with_context(
+            &tx(
+                a,
+                2,
+                TransactionPayload::GovernanceAdvanceCooling { proposal_id: id },
+            ),
+            &mut state,
+            VmExecutionContext {
+                block_height: 3,
+                block_timestamp: 12,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            state.governance().engine().get(id).unwrap().phase,
+            boing_governance::ProposalPhase::Cooling
+        );
+        let _ = UNIX_EPOCH + Duration::from_secs(12);
+        assert_ne!(root1, state.state_root());
     }
 }

@@ -449,7 +449,10 @@ fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u12
         | TransactionPayload::ResolveSlashAppealBlsAggregate { .. }
         | TransactionPayload::GrantBlobDownload { .. }
         | TransactionPayload::RevokeBlobDownload { .. }
-        | TransactionPayload::ReportEquivocation { .. } => 0,
+        | TransactionPayload::ReportEquivocation { .. }
+        | TransactionPayload::GovernancePropose { .. }
+        | TransactionPayload::GovernanceVote { .. }
+        | TransactionPayload::GovernanceAdvanceCooling { .. } => 0,
         _ => 0,
     }
 }

@@ -400,6 +400,29 @@ fn payload_json(payload: &TransactionPayload, include_code: bool) -> Value {
                 "round": evidence.round(),
             }
         }),
+        TransactionPayload::GovernancePropose {
+            target_key,
+            target_value,
+        } => json!({
+            "GovernancePropose": {
+                "target_key": target_key,
+                "target_value": hex0x(target_value),
+            }
+        }),
+        TransactionPayload::GovernanceVote {
+            proposal_id,
+            approve,
+        } => json!({
+            "GovernanceVote": {
+                "proposal_id": proposal_id,
+                "approve": approve,
+            }
+        }),
+        TransactionPayload::GovernanceAdvanceCooling { proposal_id } => json!({
+            "GovernanceAdvanceCooling": {
+                "proposal_id": proposal_id,
+            }
+        }),
     }
 }
 

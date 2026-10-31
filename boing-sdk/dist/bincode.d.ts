@@ -62,6 +62,12 @@ export declare const PayloadVariant: {
     readonly RevokeBlobDownload: 35;
     /** Report verified equivocation evidence (consensus-ordered slash). */
     readonly ReportEquivocation: 36;
+    /** On-chain governance propose (activation-gated). */
+    readonly GovernancePropose: 37;
+    /** Stake-weighted governance vote (activation-gated). */
+    readonly GovernanceVote: 38;
+    /** Advance governance proposal to cooling (activation-gated). */
+    readonly GovernanceAdvanceCooling: 39;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -294,6 +300,17 @@ export type TransactionPayloadInput = {
     kind: 'reportEquivocation';
     /** Bincode bytes of `boing_primitives::EquivocationEvidence` (two `ConsensusVote`s). */
     evidence: Uint8Array;
+} | {
+    kind: 'governancePropose';
+    targetKey: string;
+    targetValue: Uint8Array;
+} | {
+    kind: 'governanceVote';
+    proposalId: bigint;
+    approve: boolean;
+} | {
+    kind: 'governanceAdvanceCooling';
+    proposalId: bigint;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {

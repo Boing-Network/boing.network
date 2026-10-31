@@ -381,6 +381,26 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "validator":hex0x(&evidence.validator().0),
             "round":evidence.round(),
         }),
+        TransactionPayload::GovernancePropose {
+            target_key,
+            target_value,
+        } => json!({
+            "kind":"governance_propose",
+            "target_key": target_key,
+            "value_len": target_value.len(),
+        }),
+        TransactionPayload::GovernanceVote {
+            proposal_id,
+            approve,
+        } => json!({
+            "kind":"governance_vote",
+            "proposal_id": proposal_id,
+            "approve": approve,
+        }),
+        TransactionPayload::GovernanceAdvanceCooling { proposal_id } => json!({
+            "kind":"governance_advance_cooling",
+            "proposal_id": proposal_id,
+        }),
     }
 }
 

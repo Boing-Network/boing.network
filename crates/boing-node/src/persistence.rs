@@ -107,6 +107,9 @@ const NAMES_FILE: &str = "names.bin";
 const SAMPLE_OFFERS_FILE: &str = "sample_offers_registry.bin";
 const SAMPLE_SERVE_FILE: &str = "sample_serve_challenges.bin";
 const SLASH_APPEALS_FILE: &str = "slash_appeals_registry.bin";
+const GOVERNANCE_REGISTRY_FILE: &str = "governance_registry.bin";
+const GOVERNANCE_REGISTRY_MAGIC: &[u8; 4] = b"BGR1";
+const GOVERNANCE_REGISTRY_VERSION_V1: u32 = 1;
 /// Phase 17+ on-disk envelope magic for `slash_appeals_registry.bin`.
 const SLASH_APPEALS_MAGIC: &[u8; 4] = b"BSAR";
 /// Phase 17 payload version (weighted ResolveVote, no ballot).
@@ -203,6 +206,37 @@ pub fn decode_slash_appeals(
     Err(PersistenceError::Serialization(
         "corrupt or unsupported slash_appeals_registry.bin (not V5, V4, V3, V2, Phase 16, or Phase 14/15)"
             .into(),
+    ))
+}
+
+/// Encode committed governance registry: magic + u32 version + bincode.
+pub fn encode_governance_registry_v1(
+    reg: &boing_state::GovernanceRegistry,
+) -> Result<Vec<u8>, PersistenceError> {
+    let payload =
+        bincode::serialize(reg).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+    let mut out = Vec::with_capacity(4 + 4 + payload.len());
+    out.extend_from_slice(GOVERNANCE_REGISTRY_MAGIC);
+    out.extend_from_slice(&GOVERNANCE_REGISTRY_VERSION_V1.to_le_bytes());
+    out.extend_from_slice(&payload);
+    Ok(out)
+}
+
+pub fn decode_governance_registry(
+    bytes: &[u8],
+) -> Result<boing_state::GovernanceRegistry, PersistenceError> {
+    if bytes.len() >= 8 && &bytes[..4] == GOVERNANCE_REGISTRY_MAGIC {
+        let ver = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
+        if ver == GOVERNANCE_REGISTRY_VERSION_V1 {
+            return bincode::deserialize(&bytes[8..])
+                .map_err(|e| PersistenceError::Serialization(e.to_string()));
+        }
+        return Err(PersistenceError::Serialization(format!(
+            "unsupported governance_registry.bin version {ver}"
+        )));
+    }
+    Err(PersistenceError::Serialization(
+        "corrupt or unsupported governance_registry.bin".into(),
     ))
 }
 
@@ -445,6 +479,17 @@ impl Persistence {
             std::fs::write(&tmp, bytes)?;
             std::fs::rename(tmp, &slash_appeals_path)?;
         }
+        let governance_path = self.state_dir().join(GOVERNANCE_REGISTRY_FILE);
+        if state.governance().is_empty() {
+            if governance_path.exists() {
+                std::fs::remove_file(&governance_path)?;
+            }
+        } else {
+            let bytes = encode_governance_registry_v1(state.governance())?;
+            let tmp = governance_path.with_extension("bin.tmp");
+            std::fs::write(&tmp, bytes)?;
+            std::fs::rename(tmp, &governance_path)?;
+        }
         let js_path = self.state_dir().join(OPEN_VALIDATOR_JAIL_STATS_FILE);
         if state.open_validators().last_jail.is_empty() {
             if js_path.exists() {
@@ -559,6 +604,12 @@ impl Persistence {
             let bytes = read_file_limited(&slash_appeals_path, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
             let reg = decode_slash_appeals(&bytes)?;
             state.load_slash_appeals(reg);
+        }
+        let governance_path = self.state_dir().join(GOVERNANCE_REGISTRY_FILE);
+        if governance_path.exists() {
+            let bytes = read_file_limited(&governance_path, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
+            let reg = decode_governance_registry(&bytes)?;
+            state.load_governance(reg);
         }
         Ok(Some(state))
     }

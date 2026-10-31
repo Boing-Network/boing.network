@@ -9,14 +9,14 @@
 //! `Execute`). Allowlisted keys apply fee / QA policy via the same setters as
 //! `boing_operatorApply*`. Stake-weighted **quorum votes** are implemented in this crate and
 //! enforced before cooling when [`Governance::strict_quorum`] is on (default for new engines).
-//! **Still deferred to a coordinated upgrade:** consensus `TransactionPayload` variants that
-//! commit the same engine into the state root — see [`consensus_tx`] and
+//! Consensus `TransactionPayload` indices **37–39** commit this engine into the state root when
+//! `BOING_GOVERNANCE_CONSENSUS_TX_ACTIVATION_HEIGHT` is set — see [`consensus_tx`] and
 //! `docs/GOVERNANCE-CONSENSUS-TX-ACTIVATION.md`.
 
 pub mod consensus_tx;
 pub mod slashing_appeal;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -93,7 +93,7 @@ pub const ALLOWED_TARGET_KEYS: &[&str] = &["qa_registry", "qa_pool_config", "net
 /// Governance engine — manages proposals and time locks.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Governance {
-    proposals: HashMap<u64, Proposal>,
+    proposals: BTreeMap<u64, Proposal>,
     next_id: u64,
     #[serde(with = "serde_duration")]
     cooling_period: Duration,
@@ -116,7 +116,7 @@ fn default_quorum_approve_bps() -> u32 {
 impl Default for Governance {
     fn default() -> Self {
         Self {
-            proposals: HashMap::new(),
+            proposals: BTreeMap::new(),
             next_id: 1,
             cooling_period: DEFAULT_COOLING,
             execution_window: DEFAULT_EXECUTION_WINDOW,
@@ -130,7 +130,7 @@ impl Default for Governance {
 impl Governance {
     pub fn new(cooling_period: Duration, execution_window: Duration) -> Self {
         Self {
-            proposals: HashMap::new(),
+            proposals: BTreeMap::new(),
             next_id: 1,
             cooling_period,
             execution_window,
@@ -152,11 +152,21 @@ impl Governance {
         ALLOWED_TARGET_KEYS.contains(&target_key)
     }
 
-    /// Create a proposal for an allowlisted key.
+    /// Create a proposal for an allowlisted key (wall-clock `SystemTime::now()` — operator RPC).
     pub fn propose(
         &mut self,
         target_key: String,
         target_value: Vec<u8>,
+    ) -> Result<u64, GovernanceError> {
+        self.propose_at(target_key, target_value, SystemTime::now())
+    }
+
+    /// Create a proposal at a deterministic clock (consensus-tx / block timestamp path).
+    pub fn propose_at(
+        &mut self,
+        target_key: String,
+        target_value: Vec<u8>,
+        now: SystemTime,
     ) -> Result<u64, GovernanceError> {
         if !Self::is_allowed_key(&target_key) {
             return Err(GovernanceError::UnknownTargetKey(target_key));
@@ -166,7 +176,6 @@ impl Governance {
         }
         let id = self.next_id;
         self.next_id += 1;
-        let now = SystemTime::now();
         self.proposals.insert(
             id,
             Proposal {
@@ -181,6 +190,18 @@ impl Governance {
             },
         );
         Ok(id)
+    }
+
+    /// Next proposal id that will be allocated.
+    #[must_use]
+    pub fn next_id(&self) -> u64 {
+        self.next_id
+    }
+
+    /// True when no proposals exist and the id allocator is still at genesis.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.proposals.is_empty() && self.next_id <= 1
     }
 
     /// Record (or replace) a stake-weighted ballot. Only valid in [`ProposalPhase::Proposal`].

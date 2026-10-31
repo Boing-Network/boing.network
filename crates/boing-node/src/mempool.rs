@@ -533,6 +533,9 @@ pub enum MempoolError {
     /// PutBlob rejected (feature off, oversize, bad retention, …).
     #[error("media blob rejected: {0}")]
     MediaBlobRejected(String),
+    /// Governance consensus tx rejected (activation / allowlist / phase).
+    #[error("governance tx rejected: {0}")]
+    GovernanceRejected(String),
     /// Native value on contract calls before the activation height.
     #[error("native value on contract calls is not active until height {from}")]
     NativeValueNotActive { from: u64 },

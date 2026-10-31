@@ -347,6 +347,19 @@ impl Transaction {
                 hex::encode(&evidence.validator().0[..8]),
                 evidence.round()
             ),
+            TransactionPayload::GovernancePropose { target_key, .. } => {
+                format!("Governance propose ({target_key})")
+            }
+            TransactionPayload::GovernanceVote {
+                proposal_id,
+                approve,
+            } => format!(
+                "Governance vote on proposal {proposal_id} ({})",
+                if *approve { "approve" } else { "reject" }
+            ),
+            TransactionPayload::GovernanceAdvanceCooling { proposal_id } => {
+                format!("Governance advance cooling for proposal {proposal_id}")
+            }
             TransactionPayload::ContractDeploy { .. }
             | TransactionPayload::ContractDeployWithPurpose { .. }
             | TransactionPayload::ContractDeployWithPurposeAndMetadata { .. } => {
@@ -462,6 +475,11 @@ impl Transaction {
             TransactionPayload::ReportEquivocation { evidence } => {
                 let offender = evidence.validator();
                 AccessList::new(vec![self.sender, offender], vec![self.sender, offender])
+            }
+            TransactionPayload::GovernancePropose { .. }
+            | TransactionPayload::GovernanceVote { .. }
+            | TransactionPayload::GovernanceAdvanceCooling { .. } => {
+                AccessList::new(vec![self.sender], vec![self.sender])
             }
             TransactionPayload::Batch { calls } => {
                 let mut ids = vec![self.sender];
@@ -732,6 +750,21 @@ pub enum TransactionPayload {
     /// Idempotent per `(validator, round)`.
     ReportEquivocation {
         evidence: crate::EquivocationEvidence,
+    },
+    /// On-chain governance propose (index **37**). Allowlisted `target_key` + opaque value.
+    /// Admitted only at/after `BOING_GOVERNANCE_CONSENSUS_TX_ACTIVATION_HEIGHT`.
+    GovernancePropose {
+        target_key: String,
+        target_value: Vec<u8>,
+    },
+    /// Stake-weighted governance ballot (index **38**). Weight = sender bonded stake at execution.
+    GovernanceVote {
+        proposal_id: u64,
+        approve: bool,
+    },
+    /// Advance a proposal to cooling once on-chain quorum is met (index **39**).
+    GovernanceAdvanceCooling {
+        proposal_id: u64,
     },
 }
 

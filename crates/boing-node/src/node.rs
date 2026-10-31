@@ -2125,6 +2125,19 @@ impl BoingNode {
         self.vm.set_bls_committee_flip_from(Some(activation_height));
     }
 
+    /// Enable governance consensus txs (indices 37–39) from `activation_height`.
+    /// All nodes must agree. See `docs/GOVERNANCE-CONSENSUS-TX-ACTIVATION.md`.
+    pub fn enable_governance_consensus_txs(&mut self, activation_height: u64) {
+        self.executor
+            .set_governance_consensus_from(Some(activation_height));
+        self.vm
+            .set_governance_consensus_from(Some(activation_height));
+    }
+
+    pub fn governance_consensus_activation_height(&self) -> Option<u64> {
+        self.executor.vm().governance_consensus_from()
+    }
+
     pub fn bls_committee_flip_height(&self) -> Option<u64> {
         self.executor.vm().bls_committee_flip_from()
     }
@@ -2247,6 +2260,7 @@ impl BoingNode {
         vm.set_blobs_root_header_from(self.executor.vm().blobs_root_header_from());
         vm.set_media_blobs_phase7_cap_from(self.executor.vm().media_blobs_phase7_cap_from());
         vm.set_bls_committee_flip_from(self.executor.vm().bls_committee_flip_from());
+        vm.set_governance_consensus_from(self.executor.vm().governance_consensus_from());
         vm
     }
 
@@ -2295,6 +2309,66 @@ impl BoingNode {
         self.submit_transaction_inner(signed, Some(expensive_limiter))
     }
 
+    fn precheck_governance_tx(&self, signed: &SignedTransaction) -> Result<(), MempoolError> {
+        let activation = self.executor.vm().governance_consensus_from();
+        let next_height = self.chain.height().saturating_add(1);
+        let is_gov = matches!(
+            &signed.tx.payload,
+            TransactionPayload::GovernancePropose { .. }
+                | TransactionPayload::GovernanceVote { .. }
+                | TransactionPayload::GovernanceAdvanceCooling { .. }
+        );
+        if !is_gov {
+            return Ok(());
+        }
+        if !boing_governance::consensus_tx::consensus_txs_active(activation, next_height) {
+            return Err(MempoolError::GovernanceRejected(
+                boing_governance::consensus_tx::not_yet_admitted_message(activation, next_height),
+            ));
+        }
+        match &signed.tx.payload {
+            TransactionPayload::GovernancePropose {
+                target_key,
+                target_value,
+            } => {
+                let planned = boing_governance::consensus_tx::PlannedGovernancePropose {
+                    target_key: target_key.clone(),
+                    target_value: target_value.clone(),
+                };
+                boing_governance::consensus_tx::validate_planned_propose(&planned)
+                    .map_err(|e| MempoolError::GovernanceRejected(e.to_string()))?;
+            }
+            TransactionPayload::GovernanceVote { proposal_id, .. } => {
+                if self.state.governance().engine().get(*proposal_id).is_none() {
+                    return Err(MempoolError::GovernanceRejected(format!(
+                        "proposal {proposal_id} not found"
+                    )));
+                }
+            }
+            TransactionPayload::GovernanceAdvanceCooling { proposal_id } => {
+                let eng = self.state.governance().engine();
+                if eng.get(*proposal_id).is_none() {
+                    return Err(MempoolError::GovernanceRejected(format!(
+                        "proposal {proposal_id} not found"
+                    )));
+                }
+                match eng.quorum_met(*proposal_id) {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        return Err(MempoolError::GovernanceRejected(
+                            "governance quorum not met".into(),
+                        ));
+                    }
+                    Err(e) => {
+                        return Err(MempoolError::GovernanceRejected(e.to_string()));
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     fn submit_transaction_inner(
         &self,
         signed: SignedTransaction,
@@ -2314,6 +2388,7 @@ impl BoingNode {
         self.precheck_open_validator_tx(&signed)?;
         self.precheck_name_tx(&signed)?;
         self.precheck_media_blob_tx(&signed)?;
+        self.precheck_governance_tx(&signed)?;
         if gossip_expensive_limiter.is_some() && self.fee_precheck_is_expensive(&signed) {
             let Some(limiter) = gossip_expensive_limiter else {
                 unreachable!("checked is_some");

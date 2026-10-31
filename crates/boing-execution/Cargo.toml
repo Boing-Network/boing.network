@@ -81,6 +81,7 @@ name = "print_native_create2_manifest"
 path = "examples/print_native_create2_manifest.rs"
 
 [dependencies]
+boing-governance = { path = "../boing-governance" }
 boing-primitives = { path = "../boing-primitives" }
 boing-state = { path = "../boing-state" }
 boing-qa = { path = "../boing-qa" }

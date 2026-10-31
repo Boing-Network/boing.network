@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use boing_primitives::{Account, AccountId, AccountState, Hash};
 
+use crate::governance_registry::GovernanceRegistry;
 use crate::names::{NameRegistry, NameRegistryParams};
 use crate::open_validators::{OpenValidatorParams, OpenValidatorRegistry};
 use crate::qa_pending::QaPendingRecord;
@@ -77,6 +78,7 @@ enum Undo {
     SampleOffers(Box<SampleOfferRegistry>),
     SampleServe(Box<SampleServeChallengeRegistry>),
     SlashAppeals(Box<SlashAppealRegistry>),
+    Governance(Box<GovernanceRegistry>),
 }
 
 /// State store with Sparse Merkle tree for state_root.
@@ -132,6 +134,8 @@ pub struct StateStore {
     slash_appeals: SlashAppealRegistry,
     /// Host-supplied consensus validator set for ResolveSlashAppeal (not committed).
     slash_appeal_resolvers: Option<Vec<AccountId>>,
+    /// Consensus governance registry (committed once non-empty). Audit #61 item 41.
+    governance: GovernanceRegistry,
     /// Undo journal for live checkpoints (see [`StateCheckpoint`]).
     journal: Vec<Undo>,
     /// Shared with every live checkpoint; `strong_count > 1` means journaling is on.
@@ -144,6 +148,7 @@ pub struct StateStore {
     sample_offers_snap_pos: Option<usize>,
     sample_serve_snap_pos: Option<usize>,
     slash_appeals_snap_pos: Option<usize>,
+    governance_snap_pos: Option<usize>,
 }
 
 impl StateStore {
@@ -170,6 +175,7 @@ impl StateStore {
         self.sample_offers_snap_pos = None;
         self.sample_serve_snap_pos = None;
         self.slash_appeals_snap_pos = None;
+        self.governance_snap_pos = None;
         false
     }
 
@@ -362,7 +368,7 @@ impl StateStore {
     }
 
     /// Commitments of the singleton registries (`None` = registry empty, so no leaf).
-    fn registry_leaves(&self) -> [([u8; 32], Option<Hash>); 5] {
+    fn registry_leaves(&self) -> [([u8; 32], Option<Hash>); 6] {
         [
             (
                 OpenValidatorRegistry::smt_key(),
@@ -383,6 +389,10 @@ impl StateStore {
             (
                 SlashAppealRegistry::smt_key(),
                 (!self.slash_appeals.is_empty()).then(|| Hash(self.slash_appeals.commitment())),
+            ),
+            (
+                GovernanceRegistry::smt_key(),
+                (!self.governance.is_empty()).then(|| Hash(self.governance.commitment())),
             ),
         ]
     }
@@ -539,6 +549,7 @@ impl StateStore {
             sample_serve: self.sample_serve.clone(),
             slash_appeals: self.slash_appeals.clone(),
             slash_appeal_resolvers: self.slash_appeal_resolvers.clone(),
+            governance: self.governance.clone(),
             journal: Vec::new(),
             cp_token: Arc::new(()),
             last_cp_pos: 0,
@@ -547,6 +558,7 @@ impl StateStore {
             sample_offers_snap_pos: None,
             sample_serve_snap_pos: None,
             slash_appeals_snap_pos: None,
+            governance_snap_pos: None,
         }
     }
 
@@ -615,6 +627,7 @@ impl StateStore {
                 Undo::SampleOffers(reg) => self.sample_offers = *reg,
                 Undo::SampleServe(reg) => self.sample_serve = *reg,
                 Undo::SlashAppeals(reg) => self.slash_appeals = *reg,
+                Undo::Governance(reg) => self.governance = *reg,
             }
         }
         // Checkpoints created after `cp` are dead (nested scopes); keep the live-position bound.
@@ -633,6 +646,9 @@ impl StateStore {
         }
         if matches!(self.slash_appeals_snap_pos, Some(p) if p >= cp.pos) {
             self.slash_appeals_snap_pos = None;
+        }
+        if matches!(self.governance_snap_pos, Some(p) if p >= cp.pos) {
+            self.governance_snap_pos = None;
         }
     }
 
@@ -924,6 +940,23 @@ impl StateStore {
 
     pub fn set_slash_appeal_resolvers(&mut self, set: Option<Vec<AccountId>>) {
         self.slash_appeal_resolvers = set;
+    }
+
+    pub fn governance(&self) -> &GovernanceRegistry {
+        &self.governance
+    }
+
+    pub fn governance_mut(&mut self) -> &mut GovernanceRegistry {
+        if self.journaling() && self.snapshot_needed(self.governance_snap_pos) {
+            self.governance_snap_pos = Some(self.journal.len());
+            self.journal
+                .push(Undo::Governance(Box::new(self.governance.clone())));
+        }
+        &mut self.governance
+    }
+
+    pub fn load_governance(&mut self, reg: GovernanceRegistry) {
+        *self.governance_mut() = reg;
     }
 
     /// Open-mode node config (`None` = open mode off).
