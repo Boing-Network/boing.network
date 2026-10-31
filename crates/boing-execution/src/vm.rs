@@ -105,6 +105,8 @@ pub struct Vm {
     native_value_from: u64,
     /// From this height the VM hardening rules apply (audit #61 items 3, 22, 23). 0 = from genesis.
     vm_hardening_from: u64,
+    equivocation_slash_from: u64,
+    vm_jump_strict_from: u64,
     /// Pool membership / quorum / voter-reward knobs (execution-time public votes).
     qa_pool_config: QaPoolGovernanceConfig,
     /// Chain id for v2 validator registration proofs (security review #14); `None` = v1 only.
@@ -255,6 +257,33 @@ impl Vm {
         height >= self.vm_hardening_from
     }
 
+    /// Activation height of consensus-ordered equivocation slashing (#125).
+    pub fn set_equivocation_slash_from(&mut self, from: u64) {
+        self.equivocation_slash_from = from;
+    }
+
+    pub fn equivocation_slash_from(&self) -> u64 {
+        self.equivocation_slash_from
+    }
+
+    pub fn equivocation_slash_active(&self, height: u64) -> bool {
+        height >= self.equivocation_slash_from
+    }
+
+    /// Activation height of the strict-jump rules (#147: taken OOB `JumpI` faults,
+    /// `NativeAmountExceedsU128`).
+    pub fn set_vm_jump_strict_from(&mut self, from: u64) {
+        self.vm_jump_strict_from = from;
+    }
+
+    pub fn vm_jump_strict_from(&self) -> u64 {
+        self.vm_jump_strict_from
+    }
+
+    pub fn vm_jump_strict_active(&self, height: u64) -> bool {
+        height >= self.vm_jump_strict_from
+    }
+
     /// `exec_ctx` with [`VmExecutionContext::native_value`] / [`VmExecutionContext::vm_hardening`]
     /// set from its block height.
     fn ctx_at(&self, exec_ctx: VmExecutionContext) -> VmExecutionContext {
@@ -262,6 +291,7 @@ impl Vm {
             native_value: self.native_value_active(exec_ctx.block_height),
             vm_hardening: self.vm_hardening_active(exec_ctx.block_height),
             blake3_opcode: self.blake3_active(exec_ctx.block_height),
+            jump_strict: self.vm_jump_strict_active(exec_ctx.block_height),
             ..exec_ctx
         }
     }
@@ -312,6 +342,8 @@ impl Vm {
             qa_registry: default_qa_registry(),
             native_value_from: 0,
             vm_hardening_from: 0,
+            equivocation_slash_from: 0,
+            vm_jump_strict_from: 0,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -333,6 +365,8 @@ impl Vm {
             qa_registry: qa_registry.with_native_value_opcodes(false),
             native_value_from: 0,
             vm_hardening_from: 0,
+            equivocation_slash_from: 0,
+            vm_jump_strict_from: 0,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -357,6 +391,8 @@ impl Vm {
             qa_registry: qa_registry.with_native_value_opcodes(false),
             native_value_from: 0,
             vm_hardening_from: 0,
+            equivocation_slash_from: 0,
+            vm_jump_strict_from: 0,
             qa_pool_config,
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -1402,8 +1438,14 @@ impl Vm {
         state: &mut StateStore,
         tx: &Transaction,
         evidence: &boing_primitives::EquivocationEvidence,
-        _height: u64,
+        height: u64,
     ) -> Result<VmExecutionResult, VmError> {
+        if !self.equivocation_slash_active(height) {
+            return Err(VmError::MediaBlob(format!(
+                "ReportEquivocation not active until height {}",
+                self.equivocation_slash_from
+            )));
+        }
         evidence
             .verify()
             .map_err(|e| VmError::MediaBlob(format!("invalid equivocation evidence: {e}")))?;
@@ -3528,6 +3570,7 @@ mod create2_qa_unsure_tests {
                 native_value: false,
                 vm_hardening: true,
                 blake3_opcode: false,
+                jump_strict: true,
             },
         )
         .expect_err("Unsure CREATE2 must fail");
@@ -3621,6 +3664,7 @@ mod slash_appeal_phase14_tests {
             native_value: false,
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: true,
         }
     }
 

@@ -49,6 +49,7 @@ fn test_bond_unbond_claim_with_delay() {
             native_value: false,
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: true,
         },
     )
     .unwrap();
@@ -77,6 +78,7 @@ fn test_bond_unbond_claim_with_delay() {
                 native_value: false,
                 vm_hardening: false,
                 blake3_opcode: false,
+                jump_strict: true,
             },
         )
         .unwrap_err();
@@ -97,6 +99,7 @@ fn test_bond_unbond_claim_with_delay() {
             native_value: false,
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: true,
         },
     )
     .unwrap();

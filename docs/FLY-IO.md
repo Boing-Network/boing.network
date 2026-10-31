@@ -23,7 +23,7 @@ flowchart LR
 |---|---|---|---|
 | **`boing-testnet-1`** | Validator + faucet + public RPC | `https://boing-testnet-1.fly.dev/` | TCP **4001** |
 
-`boing-testnet-2` (former full-node companion) was **retired 2026-10-24**. [`fly.testnet-2.toml`](../fly.testnet-2.toml) remains in-repo as a recreate reference only.
+`boing-testnet-2` (former full-node companion) was **retired 2026-10-24**. Its `fly.testnet-2.toml` was removed 2026-10-31 (restore with `git show dda495d:fly.testnet-2.toml`).
 
 The live app:
 
@@ -48,7 +48,7 @@ Only **testnet-1** runs `--validator`. Promote a second validator later with a s
 ./scripts/fly-deploy-testnet.sh
 ```
 
-The script creates the app, a 10 GB volume in **`iad`**, IPs, an operator token secret, builds on Fly’s remote builder, and deploys **testnet-1**. (Historical dual-app path for a companion full node is archived in `fly.testnet-2.toml`.)
+The script creates the app, a 10 GB volume in **`iad`**, IPs, an operator token secret, builds on Fly’s remote builder, and deploys **testnet-1**. (A companion full node needs `FLY_APP_2` and `FLY_CONFIG_2`.)
 
 On Windows Git Bash, the script sets **`MSYS_NO_PATHCONV=1`** so `/ip4/...` bootnode multiaddrs are not rewritten as filesystem paths.
 

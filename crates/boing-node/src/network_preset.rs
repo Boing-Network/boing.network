@@ -71,6 +71,14 @@ pub const BOING_TESTNET_STORAGE_TREE_V2_FROM: u64 = 1_500;
 /// Testnet account tree v3 (deep account commitment) from this height; same block as storage v2
 /// (one full state-root rebuild covers both). ONE-WAY. Override: `BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT`.
 pub const BOING_TESTNET_ACCOUNT_TREE_V3_FROM: u64 = 1_500;
+/// Testnet activation of consensus-ordered equivocation slashing (#125). Tip at v0.1.22 release
+/// was 1506; blocks are produced only on transactions, so 1600 is near yet leaves upgrade time.
+/// ONE-WAY once reached. Override: `BOING_EQUIVOCATION_SLASH_ACTIVATION_HEIGHT`.
+pub const BOING_TESTNET_EQUIVOCATION_SLASH_FROM: u64 = 1_600;
+/// Testnet activation of the strict-jump rules (#147: taken out-of-range `JumpI` faults,
+/// `NativeAmountExceedsU128`). Same block as equivocation slashing. ONE-WAY once reached.
+/// Override: `BOING_VM_JUMP_STRICT_ACTIVATION_HEIGHT`.
+pub const BOING_TESTNET_VM_JUMP_STRICT_FROM: u64 = 1_600;
 
 /// Genesis block proposer plus the accounts funded at height 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -133,6 +141,8 @@ pub fn boing_testnet_history() -> ExecutionHistory {
         // gas applies, so replay stays exact. `BOING_MICRO_FEES_ACTIVATION_HEIGHT` / the CLI override it.
         micro_fees_from: BOING_TESTNET_MICRO_FEES_FROM,
         vm_hardening_from: BOING_TESTNET_VM_HARDENING_FROM,
+        equivocation_slash_from: BOING_TESTNET_EQUIVOCATION_SLASH_FROM,
+        vm_jump_strict_from: BOING_TESTNET_VM_JUMP_STRICT_FROM,
     }
 }
 
@@ -322,6 +332,38 @@ pub fn resolve_vm_hardening_from(
     Ok(())
 }
 
+fn env_height(name: &str) -> Result<Option<u64>, String> {
+    match std::env::var(name) {
+        Ok(s) => {
+            let s = s.trim();
+            if s.is_empty() {
+                Ok(None)
+            } else {
+                s.parse::<u64>()
+                    .map(Some)
+                    .map_err(|_| format!("invalid {name}: {s}"))
+            }
+        }
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Apply `BOING_EQUIVOCATION_SLASH_ACTIVATION_HEIGHT` / `BOING_VM_JUMP_STRICT_ACTIVATION_HEIGHT`
+/// over the history preset (testnet: [`BOING_TESTNET_EQUIVOCATION_SLASH_FROM`],
+/// [`BOING_TESTNET_VM_JUMP_STRICT_FROM`]). Unset keeps the preset value.
+pub fn resolve_consensus_fix_gates(
+    history: &mut boing_execution::ExecutionHistory,
+) -> Result<(), String> {
+    if let Some(h) = env_height("BOING_EQUIVOCATION_SLASH_ACTIVATION_HEIGHT")? {
+        history.equivocation_slash_from = h;
+    }
+    if let Some(h) = env_height("BOING_VM_JUMP_STRICT_ACTIVATION_HEIGHT")? {
+        history.vm_jump_strict_from = h;
+    }
+    Ok(())
+}
+
 /// Resolve micro-fee activation height: CLI, else `BOING_MICRO_FEES_ACTIVATION_HEIGHT`, else keep
 /// the history preset value (testnet: [`BOING_TESTNET_MICRO_FEES_FROM`]).
 pub fn resolve_micro_fees_from(
@@ -480,6 +522,12 @@ mod vm_hardening_gate_tests {
         assert_eq!(p.storage_tree_v2_from, Some(1_500));
         assert_eq!(p.account_tree_v3_from, Some(1_500));
         assert_eq!(BOING_TESTNET_VM_HARDENING_FROM, 1_500);
+        assert_eq!(h.equivocation_slash_from, 1_600);
+        assert_eq!(h.vm_jump_strict_from, 1_600);
+        assert!(!h.equivocation_slash_active(1_599));
+        assert!(h.equivocation_slash_active(1_600));
+        assert!(!h.vm_jump_strict_active(1_599));
+        assert!(h.vm_jump_strict_active(1_600));
         let mut h = boing_testnet_history();
         resolve_vm_hardening_from(Some(7), &mut h).unwrap();
         assert_eq!(h.vm_hardening_from, 7);

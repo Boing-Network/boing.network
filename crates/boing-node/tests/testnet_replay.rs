@@ -1018,3 +1018,35 @@ fn replay_full_live_chain_then_cross_preset_gates() {
     assert_deep_roots_active(&mut a);
     println!("crossed preset gates at 1500; tip {}", a.chain.height());
 }
+
+/// v0.1.22 gates: replay the full live dump to the tip, then produce blocks across the
+/// equivocation-slash / strict-jump activation (testnet 1600) with the unmodified preset.
+#[test]
+fn replay_full_live_chain_then_cross_consensus_fix_gates() {
+    let Ok(path) = std::env::var("BOING_REPLAY_FULL_CHAIN") else {
+        eprintln!("BOING_REPLAY_FULL_CHAIN not set; skipping");
+        return;
+    };
+    std::env::set_var("BOING_CHAIN_ID", "6913");
+    let gate = network_preset::BOING_TESTNET_EQUIVOCATION_SLASH_FROM;
+    assert_eq!(gate, network_preset::BOING_TESTNET_VM_JUMP_STRICT_FROM);
+    let blocks = load_blocks_from(std::path::Path::new(&path));
+    let mut a = testnet_node(BOING_TESTNET_GENESIS_ACCOUNT, true);
+    let mut b = testnet_node(AccountId([7u8; 32]), true);
+    for n in [&mut a, &mut b] {
+        replay(n, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
+        assert!(!n.executor.vm().equivocation_slash_active(n.chain.height()));
+        assert!(!n.executor.vm().vm_jump_strict_active(n.chain.height()));
+    }
+    assert!(
+        a.chain.height() < gate - 2,
+        "live tip reached the gate; raise it"
+    );
+    produce_across(&mut a, &mut b, gate, 3);
+    assert!(a.executor.vm().equivocation_slash_active(a.chain.height()));
+    assert!(a.executor.vm().vm_jump_strict_active(a.chain.height()));
+    println!(
+        "crossed consensus-fix gates at {gate}; tip {}",
+        a.chain.height()
+    );
+}

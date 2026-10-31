@@ -60,6 +60,16 @@ pub struct ExecutionHistory {
     /// operand stack is capped at [`crate::interpreter::MAX_STACK_DEPTH`]. Below it the historical
     /// behaviour applies exactly. `0` = from genesis (new chains / mainnet).
     pub vm_hardening_from: u64,
+    /// First height at which consensus-ordered equivocation slashing
+    /// (`TransactionPayload::ReportEquivocation`, #125) executes. Below it such a tx fails (nonce
+    /// consumed, like any failed tx) and the mempool refuses it, so nothing is slashed. `0` = from
+    /// genesis (new chains / mainnet).
+    pub equivocation_slash_from: u64,
+    /// First height of the strict-jump rules (#147): a taken `JumpI` to an out-of-range destination
+    /// faults (`InvalidJump`) instead of falling through, and an oversized `NATIVE_TRANSFER` amount
+    /// fails with `NativeAmountExceedsU128` instead of `InsufficientBalance`. Below it the
+    /// v0.1.21 behaviour applies exactly. `0` = from genesis.
+    pub vm_jump_strict_from: u64,
 }
 
 impl ExecutionHistory {
@@ -90,6 +100,14 @@ impl ExecutionHistory {
 
     pub fn vm_hardening_active(&self, height: u64) -> bool {
         height >= self.vm_hardening_from
+    }
+
+    pub fn equivocation_slash_active(&self, height: u64) -> bool {
+        height >= self.equivocation_slash_from
+    }
+
+    pub fn vm_jump_strict_active(&self, height: u64) -> bool {
+        height >= self.vm_jump_strict_from
     }
 
     pub fn denomination_at(&self, height: u64) -> boing_primitives::Denomination {

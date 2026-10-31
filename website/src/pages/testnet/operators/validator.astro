@@ -23,7 +23,7 @@ git clone https://github.com/Boing-Network/boing.network && cd boing.network
 cargo build --release -p boing-node -p boing-cli
 cp target/release/boing-node target/release/boing .`;
 const consensusEnv = `BOING_CHAIN_ID=6913 BOING_VALIDATOR_SET=open BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640`;
-const flyNotes = `cp fly.testnet-2.toml fly.toml      # set app = "<your-app>", drop the public RPC/CORS extras
+const flyNotes = `cp fly.testnet-1.toml fly.toml      # set app = "<your-app>", drop the public RPC/CORS/faucet extras
 # [env] keep BOING_CHAIN_ID / BOING_NAME_REGISTRY_ACTIVATION_HEIGHT, add:
 #   BOING_VALIDATOR_SET = "open"   BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT = "400"
 #   BOING_VALIDATOR = "1"          BOING_BOOTNODES = "${boot}"

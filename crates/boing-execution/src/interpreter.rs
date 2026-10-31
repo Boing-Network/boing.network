@@ -51,6 +51,11 @@ pub struct VmExecutionContext {
     pub vm_hardening: bool,
     /// `Blake3` opcode active for this block. Set by [`crate::Vm`] from the activation height.
     pub blake3_opcode: bool,
+    /// Strict-jump rules active for this block (#147): a taken `JumpI` to an out-of-range
+    /// destination faults, and an oversized `NATIVE_TRANSFER` amount reports
+    /// `NativeAmountExceedsU128`. `false` keeps the v0.1.21 behaviour (fall through /
+    /// `InsufficientBalance`).
+    pub jump_strict: bool,
 }
 
 fn word_u64_env(n: u64) -> [u8; 32] {
@@ -668,10 +673,12 @@ impl Interpreter {
                     // Match Jump: a taken jump to an out-of-range destination faults
                     // (audit #61 item 29). Untaken jumps fall through.
                     if is_nonzero {
-                        if dest >= self.code.len() {
+                        if dest < self.code.len() {
+                            self.pc = dest;
+                        } else if self.exec_ctx.jump_strict {
                             return Err(VmError::InvalidJump);
                         }
-                        self.pc = dest;
+                        // Pre-activation (v0.1.21): a taken OOB JumpI falls through.
                     }
                 }
                 Opcode::Call => {
@@ -813,7 +820,11 @@ impl Interpreter {
                     let to = AccountId(self.pop()?);
                     let amount_w = self.pop()?;
                     if amount_w[..16].iter().any(|b| *b != 0) {
-                        return Err(VmError::NativeAmountExceedsU128);
+                        return Err(if self.exec_ctx.jump_strict {
+                            VmError::NativeAmountExceedsU128
+                        } else {
+                            VmError::InsufficientBalance
+                        });
                     }
                     let mut lo = [0u8; 16];
                     lo.copy_from_slice(&amount_w[16..]);
@@ -959,6 +970,65 @@ mod tests {
         code.extend_from_slice(&size);
         code.extend_from_slice(&[0x60, 0x00, 0xf3]);
         assert!(matches!(run_code(code), Err(VmError::MemoryLimitExceeded)));
+    }
+
+    fn run_jump_strict(code: Vec<u8>, strict: bool) -> Result<u64, VmError> {
+        let mut state = StateStore::new();
+        let contract = AccountId([1u8; 32]);
+        state.insert(boing_primitives::Account {
+            id: contract,
+            state: boing_primitives::AccountState::default(),
+        });
+        let ctx = VmExecutionContext {
+            native_value: true,
+            jump_strict: strict,
+            ..Default::default()
+        };
+        Interpreter::new(code, 1_000_000).run_with_qa(
+            contract,
+            contract,
+            &[],
+            &mut state,
+            &RuleRegistry::new(),
+            ctx,
+        )
+    }
+
+    /// #147 gate: before activation a taken out-of-range JumpI falls through (v0.1.21); after it
+    /// faults. Untaken jumps fall through either way.
+    #[test]
+    fn jumpi_out_of_range_is_gated() {
+        // PUSH1 1 (cond), PUSH1 0xff (dest), JUMPI, STOP
+        let taken = vec![0x60, 0x01, 0x60, 0xff, 0x57, 0x00];
+        assert!(run_jump_strict(taken.clone(), false).is_ok());
+        assert!(matches!(
+            run_jump_strict(taken, true),
+            Err(VmError::InvalidJump)
+        ));
+        let untaken = vec![0x60, 0x00, 0x60, 0xff, 0x57, 0x00];
+        assert!(run_jump_strict(untaken.clone(), false).is_ok());
+        assert!(run_jump_strict(untaken, true).is_ok());
+    }
+
+    /// #147 gate: oversized NATIVE_TRANSFER amount error variant.
+    #[test]
+    fn native_transfer_oversized_error_is_gated() {
+        // PUSH32 amount (high bit set), PUSH32 to, NATIVE_TRANSFER
+        let mut code = vec![0x7f];
+        let mut amt = [0u8; 32];
+        amt[0] = 1;
+        code.extend_from_slice(&amt);
+        code.push(0x7f);
+        code.extend_from_slice(&[2u8; 32]);
+        code.extend_from_slice(&[0xf2, 0x00]);
+        assert!(matches!(
+            run_jump_strict(code.clone(), false),
+            Err(VmError::InsufficientBalance)
+        ));
+        assert!(matches!(
+            run_jump_strict(code, true),
+            Err(VmError::NativeAmountExceedsU128)
+        ));
     }
 
     /// Run `code` with the VM hardening flag on or off; returns gas used.

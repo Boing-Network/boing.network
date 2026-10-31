@@ -159,6 +159,8 @@ a node that disagrees on any of them computes different roots at the first affec
 | VM hardening (`BOING_VM_HARDENING_ACTIVATION_HEIGHT`) | from **1500** (active) | 1500 |
 | Storage-tree v2 (`BOING_STORAGE_TREE_V2_ACTIVATION_HEIGHT`) | from **1500** (active) | 1500 |
 | Account-tree v3 (`BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT`) | from **1500** (active) | 1500 |
+| Equivocation slashing (`BOING_EQUIVOCATION_SLASH_ACTIVATION_HEIGHT`) | from **1600** (testnet-v0.1.22+) | first `ReportEquivocation` at or after 1600 |
+| Strict jumps (`BOING_VM_JUMP_STRICT_ACTIVATION_HEIGHT`) | from **1600** (testnet-v0.1.22+) | first block at or after 1600 that hits the rule |
 
 **Active from block 1500: VM hardening** (audit #61 items 3, 22, 23). From that height the VM QA-checks the
 runtime bytecode that init code returns before storing it (direct deploys, QA-pool installs and in-contract
@@ -166,6 +168,17 @@ runtime bytecode that init code returns before storing it (direct deploys, QA-po
 existing 8 MiB per-frame cap) and fails a frame whose operand stack grows past **1024** items. Blocks below
 1500 execute exactly as before. Every validator and RPC node must run a build with this rule (testnet-v0.1.21
 or later); an older build computes different results for any block at or above 1500 that hits one of the new limits.
+
+**From block 1600: equivocation slashing and strict jumps** (testnet-v0.1.22; #125, #147). From 1600 a
+`ReportEquivocation` transaction verifies the two conflicting votes and burns part of the offender's active
+stake (before 1600 it fails and nothing is slashed, and nodes neither admit nor queue it). From the same
+height a taken `JUMPI` to an out-of-range destination faults like `JUMP` (before: it fell through), and an
+oversized `NATIVE_TRANSFER` amount fails with `NativeAmountExceedsU128` (before: `InsufficientBalance`).
+Blocks below 1600 execute exactly as testnet-v0.1.21. **Every validator and RPC node must run
+testnet-v0.1.22 or later before the chain reaches 1600**; `boing_health` reports both heights as
+`equivocation_slash_activation_height` / `vm_jump_strict_activation_height` (expect `1600`).
+The proposal-timeout / view-change and orphan-anchor quorum changes (#129) are not gated: they never change
+execution or state roots and only matter with more than one validator (see the release notes).
 
 **Active from block 1500: storage-tree v2 and account-tree v3** (audit #61 item 30). From that height
 per-contract storage trees and the global account tree route on all 256 key bits; the state root was rebuilt
@@ -242,7 +255,7 @@ set -a; . ./validator.env; set +a
 
 Docker: add `--env-file validator.env -e BOING_VALIDATOR=1`.
 
-**Fly.io:** copy `fly.testnet-1.toml` (or the retired `fly.testnet-2.toml` template) to your own `fly.toml`, change `app` and remove the public-RPC/CORS
+**Fly.io:** copy `fly.testnet-1.toml` to your own `fly.toml`, change `app` and remove the public-RPC/CORS
 extras. Keep the `[env]` consensus values above, add `BOING_VALIDATOR_SET=open`,
 `BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400` and `BOING_BOOTNODES=...`, and put the key in a secret:
 `fly secrets set BOING_VALIDATOR_KEY=...` (type it at the prompt or read it from a file; never commit it). Then run

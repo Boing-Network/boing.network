@@ -1374,6 +1374,18 @@ pub(crate) fn gate_heights_json(
     )
 }
 
+/// `(equivocation_slash_activation_height, vm_jump_strict_activation_height)`; `0` when no
+/// execution history is configured (active from genesis).
+pub(crate) fn consensus_fix_gates_json(
+    n: &crate::node::BoingNode,
+) -> (serde_json::Value, serde_json::Value) {
+    let h = n.executor.execution_history();
+    (
+        serde_json::json!(h.map(|h| h.equivocation_slash_from).unwrap_or(0)),
+        serde_json::json!(h.map(|h| h.vm_jump_strict_from).unwrap_or(0)),
+    )
+}
+
 pub(crate) fn protocol_params_json(
     n: &crate::node::BoingNode,
 ) -> (serde_json::Value, serde_json::Value) {
@@ -3790,6 +3802,8 @@ async fn dispatch_jsonrpc_request(
                     "storage_tree_v2_activation_height": storage_tree_v2_activation_height,
                     "account_tree_v3_activation_height": gate_heights_json(&n).0,
                     "vm_hardening_activation_height": gate_heights_json(&n).1,
+                    "equivocation_slash_activation_height": consensus_fix_gates_json(&n).0,
+                    "vm_jump_strict_activation_height": consensus_fix_gates_json(&n).1,
                     "receipt_retention_blocks": receipt_retention_blocks,
                     "client_version": format!("boing-node/{}", env!("CARGO_PKG_VERSION")),
                     "chain_id": chain_id,
@@ -4158,6 +4172,8 @@ async fn dispatch_jsonrpc_request(
                     "storage_tree_v2_activation_height": storage_tree_v2_activation_height,
                     "account_tree_v3_activation_height": gate_heights_json(&n).0,
                     "vm_hardening_activation_height": gate_heights_json(&n).1,
+                    "equivocation_slash_activation_height": consensus_fix_gates_json(&n).0,
+                    "vm_jump_strict_activation_height": consensus_fix_gates_json(&n).1,
                     "receipt_retention_blocks": receipt_retention_blocks,
                     "chain_id": chain_id,
                     "chain_name": chain_name,
@@ -4589,6 +4605,7 @@ async fn dispatch_jsonrpc_request(
                                     native_value: false, // set by the VM from the height
                                     vm_hardening: false,
                                     blake3_opcode: false,
+                                    jump_strict: false,
                                 },
                                 n.executor.fee_policy().clone(),
                                 n.executor.denomination_at(h.saturating_add(1)),
@@ -4798,6 +4815,7 @@ async fn dispatch_jsonrpc_request(
                 native_value: false, // set by the VM from the height
                 vm_hardening: false,
                 blake3_opcode: false,
+                jump_strict: false,
             };
             drop(n);
             match vm.execute_with_context(&tx, &mut state_copy, exec_ctx) {

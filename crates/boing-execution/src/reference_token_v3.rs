@@ -230,6 +230,7 @@ mod tests {
                 native_value: false,
                 vm_hardening: false,
                 blake3_opcode: true,
+                jump_strict: true,
             };
             it.run_with_qa(
                 who,
@@ -332,6 +333,7 @@ mod tests {
             native_value: false,
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: true,
         };
         let err = it
             .run_with_qa(

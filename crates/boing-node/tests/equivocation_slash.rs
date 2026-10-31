@@ -19,6 +19,7 @@ fn ctx(h: u64) -> VmExecutionContext {
         native_value: false,
         vm_hardening: false,
         blake3_opcode: false,
+        jump_strict: true,
     }
 }
 
@@ -562,4 +563,49 @@ fn failed_serve_and_equivocation_share_slash_book() {
     let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
     apply_report_equivocation(&mut node, v1, &local_key, ev);
     assert_eq!(node.state.slash_appeals().list_slashes().len(), 2);
+}
+
+/// Equivocation slashing is gated (#125): below the activation height the report tx fails and
+/// nothing is slashed; at the height it burns.
+#[test]
+fn report_equivocation_is_inert_before_activation_height() {
+    let local_key = SigningKey::generate(&mut OsRng);
+    let reporter = AccountId(local_key.verifying_key().to_bytes());
+    let key = SigningKey::generate(&mut OsRng);
+    let offender = AccountId(key.verifying_key().to_bytes());
+    let a = ConsensusVote::sign(4, Hash([1u8; 32]), &key);
+    let b = ConsensusVote::sign(4, Hash([2u8; 32]), &key);
+    let ev = EquivocationEvidence::try_from_votes(a, b).unwrap();
+
+    let mut state = boing_state::StateStore::new();
+    state.insert(Account {
+        id: reporter,
+        state: AccountState {
+            balance: 1_000_000,
+            ..Default::default()
+        },
+    });
+    state.insert(Account {
+        id: offender,
+        state: AccountState {
+            stake: 10_000,
+            ..Default::default()
+        },
+    });
+    let burn = boing_tokenomics::FEE_BURN_SINK;
+    let tx = Transaction {
+        nonce: 0,
+        sender: reporter,
+        payload: TransactionPayload::ReportEquivocation { evidence: ev },
+        access_list: AccessList::new(
+            vec![reporter, offender, burn],
+            vec![reporter, offender, burn],
+        ),
+    };
+    let mut vm = Vm::new();
+    vm.set_equivocation_slash_from(100);
+    assert!(vm.execute_with_context(&tx, &mut state, ctx(99)).is_err());
+    assert_eq!(state.get(&offender).unwrap().stake, 10_000);
+    vm.execute_with_context(&tx, &mut state, ctx(100)).unwrap();
+    assert_eq!(state.get(&offender).unwrap().stake, 5_000);
 }

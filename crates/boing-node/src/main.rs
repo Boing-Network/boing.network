@@ -427,13 +427,17 @@ async fn main() -> anyhow::Result<()> {
                     &mut preset.history,
                 )
                 .map_err(|e| anyhow::anyhow!("VM hardening config: {e}"))?;
+                boing_node::network_preset::resolve_consensus_fix_gates(&mut preset.history)
+                    .map_err(|e| anyhow::anyhow!("consensus fix gates config: {e}"))?;
                 let rewrote = boing_node::network_preset::apply_preset(&mut n, &preset);
                 tracing::info!(
-                    "Network preset: chain {} (historical execution eras until height {}; micro_fees_from={}; vm_hardening_from={}; genesis {})",
+                    "Network preset: chain {} (historical execution eras until height {}; micro_fees_from={}; vm_hardening_from={}; equivocation_slash_from={}; vm_jump_strict_from={}; genesis {})",
                     preset.chain_id,
                     preset.history.current_from,
                     preset.history.micro_fees_from,
                     preset.history.vm_hardening_from,
+                    preset.history.equivocation_slash_from,
+                    preset.history.vm_jump_strict_from,
                     if rewrote { "set from preset" } else { "unchanged" }
                 );
             }
@@ -673,13 +677,17 @@ async fn main() -> anyhow::Result<()> {
                     &mut preset.history,
                 )
                 .map_err(|e| anyhow::anyhow!("VM hardening config: {e}"))?;
+                boing_node::network_preset::resolve_consensus_fix_gates(&mut preset.history)
+                    .map_err(|e| anyhow::anyhow!("consensus fix gates config: {e}"))?;
                 let rewrote = boing_node::network_preset::apply_preset(&mut n, &preset);
                 tracing::info!(
-                    "Network preset: chain {} (historical execution eras until height {}; micro_fees_from={}; vm_hardening_from={}; genesis {})",
+                    "Network preset: chain {} (historical execution eras until height {}; micro_fees_from={}; vm_hardening_from={}; equivocation_slash_from={}; vm_jump_strict_from={}; genesis {})",
                     preset.chain_id,
                     preset.history.current_from,
                     preset.history.micro_fees_from,
                     preset.history.vm_hardening_from,
+                    preset.history.equivocation_slash_from,
+                    preset.history.vm_jump_strict_from,
                     if rewrote { "set from preset" } else { "unchanged" }
                 );
             }

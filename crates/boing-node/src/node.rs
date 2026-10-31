@@ -1217,6 +1217,14 @@ impl BoingNode {
     /// Deduped per `(validator, round)`. Returns `true` when this node newly accepted the evidence
     /// (for gossip rebroadcast).
     fn queue_equivocation_report(&mut self, evidence: EquivocationEvidence) -> bool {
+        // Before the activation height the report tx would only fail in block execution.
+        if !self
+            .executor
+            .vm()
+            .equivocation_slash_active(self.chain.height().saturating_add(1))
+        {
+            return false;
+        }
         if evidence.verify().is_err() {
             return false;
         }
@@ -1589,6 +1597,7 @@ impl BoingNode {
             native_value: false, // set by the VM from the height
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: false,
         };
         let policy = self.executor.fee_policy();
         // Free-path balance gate (anti-spam): zero-tip txs when execution gas is waived.
@@ -1642,6 +1651,7 @@ impl BoingNode {
             native_value: false, // set by the VM from the height
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: false,
         };
         let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
@@ -2027,6 +2037,13 @@ impl BoingNode {
                 }
             }
             TransactionPayload::ReportEquivocation { evidence } => {
+                let next = self.chain.height().saturating_add(1);
+                if !self.executor.vm().equivocation_slash_active(next) {
+                    return Err(MempoolError::MediaBlobRejected(format!(
+                        "ReportEquivocation not active until height {}",
+                        self.executor.vm().equivocation_slash_from()
+                    )));
+                }
                 if evidence.verify().is_err() {
                     return Err(MempoolError::MediaBlobRejected(
                         "ReportEquivocation evidence failed verification".into(),
@@ -2068,6 +2085,7 @@ impl BoingNode {
             native_value: false, // set by the VM from the height
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: false,
         };
         let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
@@ -2269,6 +2287,8 @@ impl BoingNode {
         vm.set_base_units_from(self.executor.vm().base_units_from());
         vm.set_native_value_from(self.executor.vm().native_value_from());
         vm.set_vm_hardening_from(self.executor.vm().vm_hardening_from());
+        vm.set_equivocation_slash_from(self.executor.vm().equivocation_slash_from());
+        vm.set_vm_jump_strict_from(self.executor.vm().vm_jump_strict_from());
         vm.set_media_blobs_from(self.executor.vm().media_blobs_from());
         vm.set_blobs_root_header_from(self.executor.vm().blobs_root_header_from());
         vm.set_media_blobs_phase7_cap_from(self.executor.vm().media_blobs_phase7_cap_from());

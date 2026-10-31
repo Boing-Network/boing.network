@@ -30,6 +30,7 @@ const CTX: VmExecutionContext = VmExecutionContext {
     native_value: false,
     vm_hardening: false,
     blake3_opcode: false,
+    jump_strict: true,
 };
 
 fn acct(b: u8) -> AccountId {

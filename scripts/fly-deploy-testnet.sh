@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Create and deploy the hosted Fly.io Boing testnet validator (boing-testnet-1).
-# Optional companion full node: set FLY_APP_2=boing-testnet-2 (uses retired fly.testnet-2.toml).
+# Optional companion full node: set FLY_APP_2=<app> and FLY_CONFIG_2=<toml>. The retired
+# fly.testnet-2.toml was removed 2026-10-31; restore it with `git show dda495d:fly.testnet-2.toml`.
 # Requires: fly CLI authenticated (`fly auth whoami`), repo root as cwd.
 set -euo pipefail
 # Git Bash on Windows rewrites /ip4/... as a filesystem path unless this is set.
@@ -17,7 +18,11 @@ APP2="${FLY_APP_2:-}"
 VOLUME_NAME="${FLY_VOLUME_NAME:-boing_data}"
 VOLUME_SIZE="${FLY_VOLUME_SIZE:-10}"
 CONFIG1="fly.testnet-1.toml"
-CONFIG2="fly.testnet-2.toml"
+CONFIG2="${FLY_CONFIG_2:-}"
+if [ -n "$APP2" ] && [ -z "$CONFIG2" ]; then
+  echo "FLY_APP_2 needs FLY_CONFIG_2 (fly.testnet-2.toml was removed; git show dda495d:fly.testnet-2.toml)" >&2
+  exit 1
+fi
 
 need() {
   command -v "$1" >/dev/null 2>&1 || {

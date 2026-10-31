@@ -917,6 +917,7 @@ mod tests {
             native_value: false,
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: true,
         };
         vm.execute_with_context(&deploy_tx, &mut state, ctx)
             .unwrap();
@@ -983,6 +984,7 @@ mod tests {
             native_value: false,
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: true,
         };
         let deploy_tx = boing_primitives::Transaction {
             nonce: 0,
@@ -1088,6 +1090,7 @@ mod tests {
             native_value: false,
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: true,
         };
         let deploy_tx = boing_primitives::Transaction {
             nonce: 0,
@@ -1127,6 +1130,7 @@ mod tests {
             native_value: false,
             vm_hardening: false,
             blake3_opcode: false,
+            jump_strict: true,
         };
         vm.execute_with_context(
             &boing_primitives::Transaction {

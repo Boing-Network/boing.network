@@ -34,6 +34,7 @@ fn ctx(h: u64) -> VmExecutionContext {
         native_value: false,
         vm_hardening: false,
         blake3_opcode: false,
+        jump_strict: true,
     }
 }
 
