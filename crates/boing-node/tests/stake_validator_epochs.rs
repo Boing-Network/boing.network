@@ -70,6 +70,7 @@ fn node_with_accounts(proposer_key: &SigningKey, extra: Vec<(AccountId, u128, u1
         slashed_equivocations: HashMap::new(),
         observed_votes: HashMap::new(),
         slash_registry: boing_governance::SlashRegistry::new(),
+        governance: boing_governance::Governance::default(),
         liveness_miss_streak: HashMap::new(),
         leader_wait_started: None,
         open_validator_params: None,

@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use boing_governance::SlashRegistry;
+use boing_governance::{Governance, SlashRegistry};
 use boing_primitives::{
     decode_bls_dual_key_registry, encode_bls_dual_key_registry, AccountId, AccountState, Block,
     BlsDualKeyRegistry, ExecutionReceipt, Hash, PHASE27_BLS_DUAL_KEY_REGISTRY_FILE,
@@ -120,6 +120,8 @@ const SLASH_APPEALS_VERSION_V5: u32 = 5;
 /// Node-local jailing snapshots (not committed to the state root).
 const OPEN_VALIDATOR_JAIL_STATS_FILE: &str = "open_validator_jail_stats.bin";
 const SLASH_REGISTRY_FILE: &str = "slash_registry.json";
+/// Phased governance proposals (operator-driven MVP; audit #61 item 41).
+const GOVERNANCE_FILE: &str = "governance.json";
 /// Phase 27 host-local BLS dual-key registry (not slash V5 / not state-root).
 const BLS_DUAL_KEY_REGISTRY_FILE: &str = PHASE27_BLS_DUAL_KEY_REGISTRY_FILE;
 
@@ -721,6 +723,30 @@ impl Persistence {
 
     pub fn load_slash_registry(&self) -> Result<Option<SlashRegistry>, PersistenceError> {
         let path = self.slash_registry_path();
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = std::fs::read(&path)?;
+        serde_json::from_slice(&bytes)
+            .map(Some)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))
+    }
+
+    fn governance_path(&self) -> std::path::PathBuf {
+        self.base.join(GOVERNANCE_FILE)
+    }
+
+    /// Save phased governance engine (JSON).
+    pub fn save_governance(&self, governance: &Governance) -> Result<(), PersistenceError> {
+        let path = self.governance_path();
+        let json = serde_json::to_vec_pretty(governance)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        write_atomic(&path, &json)?;
+        Ok(())
+    }
+
+    pub fn load_governance(&self) -> Result<Option<Governance>, PersistenceError> {
+        let path = self.governance_path();
         if !path.exists() {
             return Ok(None);
         }

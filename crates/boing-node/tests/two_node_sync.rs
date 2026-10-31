@@ -61,6 +61,7 @@ fn node_with_p2p(
         slashed_equivocations: HashMap::new(),
         observed_votes: HashMap::new(),
         slash_registry: boing_governance::SlashRegistry::new(),
+        governance: boing_governance::Governance::default(),
         liveness_miss_streak: HashMap::new(),
         leader_wait_started: None,
         open_validator_params: None,

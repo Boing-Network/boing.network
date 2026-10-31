@@ -659,11 +659,11 @@ The following are **governance-mutable**:
    - **target_key:** `qa_registry` (see `boing_qa::GOVERNANCE_QA_REGISTRY_KEY`)
    - **target_value:** JSON-serialized `RuleRegistry` (see below).
 
-2. **Vote / cooling / execution** — Use the existing phased governance (Proposal → Cooling → Execution). When the proposal is **executed**, the node (or operator) applies the new registry:
+2. **Vote / cooling / execution** — Use the phased governance RPCs on a live node (**`boing_governancePropose`** → **`boing_governanceAdvanceCooling`** → **`boing_governanceAdvanceExecution`** → **`boing_governanceExecute`**, all operator-authenticated). Cooling advance is **operator-attested** today (stake-weighted on-chain quorum votes remain deferred — audit #61 item 41). When the proposal is **executed**, the node applies the new registry:
    - Deserialize: `boing_qa::rule_registry_from_json(&target_value)`.
    - Replace the in-memory QA rule registry used by the mempool and RPC with this registry.
 
-3. **Persistence** — Nodes should save the updated registry to `qa_registry.json` and pool config to `qa_pool_config.json` (under the data directory) so they survive restarts until the next governance update. Use **`BoingNode::set_qa_policy`** to apply both in memory and on disk.
+3. **Persistence** — Executing a proposal calls **`BoingNode::set_qa_policy`** / **`set_fee_policy`**, which persist `qa_registry.json` / `qa_pool_config.json` / `network_fee_config.json`. Open proposals themselves persist as **`governance.json`**. Instant **`boing_operatorApplyQaPolicy`** / **`boing_operatorApplyFeePolicy`** remain available as a bypass of the cooling timer.
 
 ### C.3 JSON format for `RuleRegistry`
 

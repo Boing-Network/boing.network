@@ -82,11 +82,13 @@ pub struct RpcState {
     pub faucet_cooldown: Option<FaucetCooldown>,
     pub faucet_submit_lock: Option<FaucetSubmitLock>,
     /// Operator methods (`boing_operatorApplyQaPolicy`, `boing_operatorApplyFeePolicy`,
+    /// `boing_governancePropose` / `AdvanceCooling` / `AdvanceExecution` / `Execute`,
     /// `boing_resolveSlashAppeal`, **admin-only** `boing_qaPoolVote`) require header
     /// `X-Boing-Operator: <token>`. When `None`, those methods are rejected.
     /// `boing_submitSlashAppeal` accepts the operator token **or** a slashed-validator
     /// Ed25519 signature; without either it is rejected. Public-membership QA votes do
-    /// not use this header.
+    /// not use this header. Read-only `boing_governanceGetProposal` /
+    /// `boing_governanceListProposals` do not require the operator header.
     pub operator_rpc_token: Option<Arc<str>>,
     /// Extra shared secrets that authorize media-blob byte download
     /// (`GET /v1/media/blob?id=…` and optionally `boing_getBlob`). From
@@ -667,6 +669,28 @@ fn execution_receipt_to_json(r: &ExecutionReceipt) -> serde_json::Value {
     })
 }
 
+fn governance_proposal_json(p: &boing_governance::Proposal) -> serde_json::Value {
+    let phase = match p.phase {
+        boing_governance::ProposalPhase::Proposal => "proposal",
+        boing_governance::ProposalPhase::Cooling => "cooling",
+        boing_governance::ProposalPhase::Execution => "execution",
+    };
+    let secs = |t: std::time::SystemTime| {
+        t.duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    };
+    serde_json::json!({
+        "id": p.id,
+        "target_key": p.target_key,
+        "target_value_utf8": String::from_utf8_lossy(&p.target_value),
+        "phase": phase,
+        "proposed_at_unix": secs(p.proposed_at),
+        "cooling_ends_at_unix": p.cooling_ends_at.map(secs),
+        "execution_ends_at_unix": p.execution_ends_at.map(secs),
+    })
+}
+
 fn fee_policy_json(p: &NetworkFeePolicy) -> serde_json::Value {
     serde_json::json!({
         "fee_validators_bps": p.fee_validators_bps,
@@ -811,6 +835,8 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getNameInfo",
     "boing_getNetworkInfo",
     "boing_getQaRegistry",
+    "boing_governanceGetProposal",
+    "boing_governanceListProposals",
     "boing_getRpcMethodCatalog",
     "boing_getRpcOpenApi",
     "boing_getSyncState",
@@ -818,6 +844,10 @@ const BOING_RPC_SUPPORTED_METHODS: &[&str] = &[
     "boing_getTransactionReceipt",
     "boing_getValidators",
     "boing_getAccountTransactions",
+    "boing_governanceAdvanceCooling",
+    "boing_governanceAdvanceExecution",
+    "boing_governanceExecute",
+    "boing_governancePropose",
     "boing_health",
     "boing_listDexPools",
     "boing_listDexTokens",
@@ -3419,6 +3449,177 @@ async fn dispatch_jsonrpc_request(
             n.set_fee_policy(policy);
             info!("RPC: operator applied network fee policy");
             rpc_ok(id, serde_json::json!({ "ok": true }))
+        }
+        "boing_governancePropose" => {
+            if !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            let params = req
+                .params
+                .and_then(|p| serde_json::from_value::<Vec<String>>(p).ok());
+            let (key, value_json) = match params {
+                Some(v) if v.len() >= 2 => (v[0].clone(), v[1].clone()),
+                _ => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(
+                            id,
+                            -32602,
+                            "Invalid params: expected [target_key, target_value_json] (two strings). Allowlisted keys: qa_registry, qa_pool_config, network_fee_config.".into(),
+                        ),
+                    );
+                }
+            };
+            let mut n = node.write().await;
+            match n.governance_propose(key, value_json.into_bytes()) {
+                Ok(pid) => {
+                    info!("RPC: governance propose id={pid}");
+                    rpc_ok(id, serde_json::json!({ "ok": true, "id": pid }))
+                }
+                Err(e) => rpc_error(id, -32602, e.to_string()),
+            }
+        }
+        "boing_governanceAdvanceCooling" => {
+            if !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            let pid = match req
+                .params
+                .and_then(|p| serde_json::from_value::<Vec<u64>>(p).ok())
+                .and_then(|v| v.first().copied())
+            {
+                Some(x) => x,
+                None => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "Invalid params: expected [proposal_id]".into()),
+                    );
+                }
+            };
+            let mut n = node.write().await;
+            match n.governance_advance_cooling(pid, std::time::SystemTime::now()) {
+                Ok(()) => rpc_ok(
+                    id,
+                    serde_json::json!({ "ok": true, "id": pid, "phase": "cooling" }),
+                ),
+                Err(e) => rpc_error(id, -32602, e.to_string()),
+            }
+        }
+        "boing_governanceAdvanceExecution" => {
+            if !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            let pid = match req
+                .params
+                .and_then(|p| serde_json::from_value::<Vec<u64>>(p).ok())
+                .and_then(|v| v.first().copied())
+            {
+                Some(x) => x,
+                None => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "Invalid params: expected [proposal_id]".into()),
+                    );
+                }
+            };
+            let mut n = node.write().await;
+            match n.governance_advance_execution(pid, std::time::SystemTime::now()) {
+                Ok(()) => rpc_ok(
+                    id,
+                    serde_json::json!({ "ok": true, "id": pid, "phase": "execution" }),
+                ),
+                Err(e) => rpc_error(id, -32602, e.to_string()),
+            }
+        }
+        "boing_governanceExecute" => {
+            if !state.operator_authorized(headers) {
+                return (
+                    StatusCode::OK,
+                    rpc_error(
+                        id,
+                        -32057,
+                        "Operator authentication required: set X-Boing-Operator to match the node's BOING_OPERATOR_RPC_TOKEN."
+                            .into(),
+                    ),
+                );
+            }
+            let pid = match req
+                .params
+                .and_then(|p| serde_json::from_value::<Vec<u64>>(p).ok())
+                .and_then(|v| v.first().copied())
+            {
+                Some(x) => x,
+                None => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "Invalid params: expected [proposal_id]".into()),
+                    );
+                }
+            };
+            let mut n = node.write().await;
+            match n.governance_execute(pid, std::time::SystemTime::now()) {
+                Ok((key, _)) => {
+                    info!("RPC: governance execute id={pid} key={key}");
+                    rpc_ok(
+                        id,
+                        serde_json::json!({ "ok": true, "id": pid, "target_key": key, "applied": true }),
+                    )
+                }
+                Err(e) => rpc_error(id, -32602, e),
+            }
+        }
+        "boing_governanceGetProposal" => {
+            let pid = match req
+                .params
+                .and_then(|p| serde_json::from_value::<Vec<u64>>(p).ok())
+                .and_then(|v| v.first().copied())
+            {
+                Some(x) => x,
+                None => {
+                    return (
+                        StatusCode::OK,
+                        rpc_error(id, -32602, "Invalid params: expected [proposal_id]".into()),
+                    );
+                }
+            };
+            let n = node.read().await;
+            match n.governance_get(pid) {
+                Some(p) => rpc_ok(id, governance_proposal_json(p)),
+                None => rpc_ok(id, serde_json::Value::Null),
+            }
+        }
+        "boing_governanceListProposals" => {
+            let n = node.read().await;
+            let list: Vec<serde_json::Value> = n
+                .governance_list()
+                .into_iter()
+                .map(governance_proposal_json)
+                .collect();
+            rpc_ok(id, serde_json::json!({ "proposals": list }))
         }
         "boing_chainHeight" => {
             let n = node.read().await;
