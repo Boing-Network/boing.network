@@ -9,7 +9,7 @@
 #   .\scripts\upgrade-boing-node-from-release.ps1 -Tag testnet-v0.1.22 -ExpectedSha256 <64-hex-of-zip>
 #
 param(
-    [string]$Tag = "testnet-v0.1.21",
+    [string]$Tag = "testnet-v0.1.22",
     [string]$ExpectedSha256 = "",
     [switch]$WithCli,
     [switch]$Force
@@ -21,6 +21,7 @@ Set-Location $RepoRoot
 
 # Built-in SHA for testnet-v0.1.8 Windows zip (see website/functions/api/networks.js BOING_ZIP_SHA.windows).
 $BuiltinSha = @{
+    "testnet-v0.1.22" = "c829e6c132eff99fe9fcdf10c30e0999400e80d704c6296cedb3b89d94393770"
     "testnet-v0.1.21" = "6b15c32deee46a6e17b252fac0050a992994c96c1447c930013f180bb4081a5f"
     "testnet-v0.1.8" = "2cea7a6f093990c02bf405a20caf3b68bb59b434b69421449ab6bb4fec96a16a"
 }

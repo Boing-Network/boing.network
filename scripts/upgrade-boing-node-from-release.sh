@@ -20,12 +20,16 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-TAG="${1:-testnet-v0.1.21}"
+TAG="${1:-testnet-v0.1.22}"
 
 # Built-in SHA256 of release zips (refresh when you cut a new tag; or use BOING_EXPECT_SHA256).
 LINUX_ZIP_SHA=""
 MAC_ZIP_SHA=""
 case "$TAG" in
+  testnet-v0.1.22)
+    LINUX_ZIP_SHA="98238057cef70524c0ce895fb55491a1817be13aa65f129e650a408a5b1d4a30"
+    MAC_ZIP_SHA="6777fdad66f3fd1309e8889c01183cbb961042f9d5c1f26be6be1918dca8d9f6"
+    ;;
   testnet-v0.1.21)
     LINUX_ZIP_SHA="ecf3dd80d9e52c1b73387c7c437eda11ea470f6fc149e98a2fa7d7f7e5eaecca"
     MAC_ZIP_SHA="e11e4301eee6edaa96983a0122a5b095e6cfe5d51e77d04a4279a0d8825ad1d5"

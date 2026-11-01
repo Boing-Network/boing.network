@@ -53,9 +53,9 @@ After a new `boing-node` GitHub release tag (replace the tag with the one you pu
 
 ```bash
 cd website
-node scripts/network-listings-release-sql.mjs testnet-v0.1.21
+node scripts/network-listings-release-sql.mjs testnet-v0.1.22
 # Optional: apply (use CLOUDFLARE_API_TOKEN if OAuth fails on D1 import)
-node scripts/network-listings-release-sql.mjs testnet-v0.1.21 --apply
+node scripts/network-listings-release-sql.mjs testnet-v0.1.22 --apply
 ```
 
 Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.sql](../website/migrations/insert-boing-devnet-listing.sql). For new tags, regenerate with **`node scripts/network-listings-release-sql.mjs <tag>`** (see [TESTNET.md](TESTNET.md) §9.1).
@@ -65,7 +65,7 @@ Canonical hand-maintained SQL: [website/migrations/insert-boing-devnet-listing.s
 ## Command template notes
 
 - Use kebab-case flags only (`--p2p-listen`, `--data-dir`, `--rpc-port`, `--bootnodes`, `--faucet-enable`, `--validator`). Underscore forms are **rejected** by current `boing-node` (clap).
-- Example: `boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/169.155.48.188/tcp/4001 --rpc-port 8545 --faucet-enable` (add `--validator` for a validator; Linux/macOS use `boing-node-linux-x86_64` / `boing-node-macos-aarch64`).
+- Example: `boing-node-windows-x86_64.exe --data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes /ip4/169.155.48.188/tcp/4001 --rpc-port 8545 --faucet-enable --validator-set open --open-validator-activation-height 400 --name-registry-activation-height 640` (the last three flags are testnet 6913 consensus settings a fresh node needs to sync; also set env `BOING_CHAIN_ID=6913`; add `--validator` for a validator; Linux/macOS use `boing-node-linux-x86_64` / `boing-node-macos-aarch64`).
 - **Windows:** build with `--no-default-features` to disable mDNS (see [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)).
 - **Rate limits:** for a **local** node behind heavy wallet/indexer traffic, operators may set env **`BOING_RATE_PROFILE=dev`** or pass **`--dev-rate-limits`** (see [RUNBOOK.md](RUNBOOK.md) §2). Do **not** use the dev profile for **public** RPC hosts.
 - **Firewall:** open TCP 4001 for P2P; 8545 only if you expose RPC.

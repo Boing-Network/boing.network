@@ -31,7 +31,8 @@ const WEBSITE_ROOT = join(__dirname, '..');
 const OWNER_REPO = 'Boing-Network/boing.network';
 /** Hosted bootnode (`boing-testnet-1`); keep in sync with `DEFAULT_BOOTNODES` in `functions/api/networks.js`. `boing-testnet-2` was retired 2026-10-24. */
 const BOOTNODES_CLI = '/ip4/169.155.48.188/tcp/4001';
-const CMD_SUFFIX = `--data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes ${BOOTNODES_CLI} --rpc-port 8545 --faucet-enable`;
+/** Testnet 6913 consensus flags a fresh node needs to replay history (open validator set from 400, name registry from 640); not in the preset. Same values as docs/TESTNET-VALIDATOR-GUIDE.md. */
+const CMD_SUFFIX = `--data-dir {dataDir} --p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes ${BOOTNODES_CLI} --rpc-port 8545 --faucet-enable --validator-set open --open-validator-activation-height 400 --name-registry-activation-height 640`;
 
 const ROWS = [
   {
