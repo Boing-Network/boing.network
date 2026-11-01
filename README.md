@@ -133,7 +133,7 @@ The [boing.network](https://boing.network) website lives in `website/` (Astro â†
 
 ## ðŸ’¬ Community
 
-Join the conversation on [Discord](https://discord.gg/K3w9nbUw4N) or open an issue on [GitHub](https://github.com/Boing-Network/boing.network).
+Join the conversation on [Discord](https://discord.gg/K3w9nbUw4N) or the discussion on [GitHub](https://github.com/Boing-Network/boing.network/discussions).
 
 ---
 
