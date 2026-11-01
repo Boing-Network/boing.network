@@ -1,151 +1,95 @@
 # Boing Network — Essentials
 
-> 👋 **Everyday users:** the six pillars, the stack in one table, and where to click next.  
-> 🛠️ **Developers:** crates, RPC defaults, and the spec index.  
-> 🛰️ **Operators:** the same facts wallets and explorers depend on.
+A plain-language snapshot of what Boing Network is today, what you can use, and what is still early.
 
-**One place for the essentials of Boing Network:** the six pillars, design philosophy, priorities, tech stack, and pointers to the rest of the docs.
-
-```mermaid
-flowchart TB
-  User[You] --> Apps
-  subgraph Apps [Ecosystem]
-    Site[🌐 boing.network]
-    Wallet[👛 boing.express]
-    Explorer[🔭 boing.observer]
-    Finance[💱 boing.finance]
-  end
-  Apps --> RPC[📡 JSON-RPC]
-  RPC --> Node[boing-node]
-  Node --> VM[Boing VM]
-  Node --> Cons[PoS + HotStuff BFT]
-  Node --> QA[Protocol QA]
-```
+**Status:** public **testnet** is live. **Mainnet is not live yet.**
 
 ---
 
 ## What is Boing Network?
 
-**Boing Network** is an independent, decentralized **Layer 1** built from first principles. It is optimized for efficiency, free from dependencies on other chains, and committed to **transparency by default** and **protocol-level quality assurance**. This document summarizes the core commitments and where to go for detail.
+Boing Network is its own **Layer 1** blockchain — a new chain built from the ground up, not a copy of another network.
 
-Public testnet RPC: **`https://testnet-rpc.boing.network/`**. Addresses are **32-byte** Ed25519 account ids (64 hex chars, optional `0x`) — not 20-byte EVM addresses.
+Today you can:
 
----
+- Create a wallet and hold testnet BOING
+- Swap tokens and explore NFTs / media on-chain
+- Look up blocks, accounts, and activity on the explorer
+- Get free testnet BOING from the faucet
+- Join the community on Discord
 
-## The six pillars
-
-The written pillars live in [SIX-PILLARS.md](SIX-PILLARS.md) and are published as **`/pdfs/SIX-PILLARS.pdf`** on the websites. Summary:
-
-Boing Network prioritizes, in order:
-
-| # | Pillar | What it means |
-|---|--------|----------------|
-| **1** | 🔐 **Security** | Safety and correctness over speed. |
-| **2** | ⚡ **Scalability** | Throughput and efficient resource use. |
-| **3** | 🌍 **Decentralization** | Permissionless participation at every layer. |
-| **4** | 🧬 **Authenticity** | Unique architecture and identity (not a fork or framework). |
-| **5** | 🔎 **Transparency** | 100% openness in design, governance, and operations — the foundation for community trust. |
-| **6** | ✅ **True quality assurance** | Top-notch standards with built-in automation: only assets that meet protocol-defined rules and security bar are allowed on-chain. All currently known edge cases are resolved by the automated regulatory QA system (Allow or Reject); **leniency for meme culture** (meme/community/entertainment are valid purposes), with **no maliciousness or malignancy** allowed. The community QA pool is only for genuinely unknown or policy-mandated cases. See [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md). |
+Everything below runs on the **public testnet**. Values and assets there are for trying things out, not for real-world money.
 
 ---
 
-## Design philosophy
+## Products
 
-- **Authentic** — Our own architecture, not a fork or framework.
-- **Independent** — Core protocol does not depend on another L1 for consensus, execution, or identity.
-- **Optimal** — Adopt the best ideas from the ecosystem when they are demonstrably superior.
-- **Unique** — A distinct identity and technical story.
-- **Decentralized** — Absolute decentralization as a foundational requirement.
-- **Transparent** — Transparent by default in how we build, govern, and operate — trust through verifiability, not promises.
-
----
-
-## Priorities (order of precedence)
-
-When trade-offs arise, the network applies this order:
-
-1. **Security** → 2. **Scalability** → 3. **Decentralization** → 4. **Authenticity** → 5. **Transparency** → 6. **True quality assurance**
+| Product | What it is | Link |
+|---------|------------|------|
+| **Boing Express** | The wallet — create an account, send and receive, approve app actions | [boing.express](https://boing.express) |
+| **Boing Finance** | The app hub — swaps, pools, tokens, and NFTs on Boing (and related tools) | [boing.finance](https://boing.finance) |
+| **Boing Observer** | The explorer — see blocks, accounts, tokens, QA decisions, and network activity | [boing.observer](https://boing.observer) |
+| **Faucet** | Free testnet BOING so you can try the chain without buying anything | [boing.network/faucet](https://boing.network/faucet) |
+| **Website** | Home base — docs, testnet portal, status, and community links | [boing.network](https://boing.network) |
 
 ---
 
-## Tech stack at a glance
+## How apps talk to the chain
 
-| Layer | Technology |
-|-------|------------|
-| **Language** | Rust |
-| **Hashing** | BLAKE3 |
-| **Signatures** | Ed25519 |
-| **Consensus** | PoS + HotStuff BFT |
-| **State** | Sparse Merkle tree (Verkle target) |
-| **Execution** | **Boing VM** (stack-based; defined in `TECHNICAL-SPECIFICATION.md` §7; [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md)) |
-| **Networking** | libp2p (TCP, Noise, gossipsub, request-response) |
-| **Governance** | Phased (proposal → cooling → execution); time-locked |
+Apps do not “live inside” the chain. They ask a public gateway (the **RPC**) for balances, recent activity, and to submit the actions you approve in your wallet.
 
----
+**Public testnet gateway:** [https://testnet-rpc.boing.network/](https://testnet-rpc.boing.network/)
 
-## Crates (implementation)
+In plain terms, that gateway lets apps:
 
-| Crate | Role |
-|-------|------|
-| `boing-primitives` | Types, BLAKE3, Ed25519, Transaction, Block, AccountId |
-| `boing-consensus` | PoS + HotStuff BFT |
-| `boing-state` | State store, state root, checkpoints |
-| `boing-execution` | VM, BlockExecutor, TransactionScheduler |
-| `boing-tokenomics` | Block emission, dApp incentives |
-| `boing-governance` | Time-locked governance, slashing appeal |
-| `boing-automation` | Scheduler, triggers, executor incentives, verification |
-| `boing-qa` | Protocol QA: Allow/Reject/Unsure for deployments |
-| `boing-cli` | `boing init`, `boing dev`, `boing deploy`, `boing token` (deploy / mint / transfer / balance), `boing metrics register`, `boing qa apply` |
-| `boing-p2p` | libp2p networking |
-| `boing-node` | Node binary (RPC, mempool, block producer, chain) |
+- Check your balance and recent activity
+- Look up blocks, tokens, and pools
+- Send a transaction you already signed in Express
+- Request faucet funds (via the faucet page)
+- Work with on-chain media (with wallet help for larger files)
+
+Deep method lists and integrator details belong in a future **Technical Essentials** doc (planned) and in [RPC-API-SPEC.md](RPC-API-SPEC.md) for builders today.
 
 ---
 
-## Key documents
+## What you can do today
 
-| Document | Use it for |
-|----------|------------|
-| [docs/README.md](README.md) | Full index split by audience |
-| [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) | Single source of truth: crypto, data formats, bytecode, gas, RPC, QA rules |
-| [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md) | Full architecture, innovations, tokenomics, design decisions |
-| [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Sixth pillar: QA rules, automation, community pool, meme leniency, no malice |
-| [BUILD-ROADMAP.md](BUILD-ROADMAP.md) | Implementation phases and progress |
-| [RUNBOOK.md](RUNBOOK.md) | Running nodes, RPC, CLI, monitoring, incidents |
-| [TESTNET.md](TESTNET.md) | Join testnet, Testnet Portal (registration, quests), notes on a possible future incentivized testnet |
-| [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC methods and error codes |
-| [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) | Protocol, network, application, and operational security |
-| [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md) | SDK, automation, vision; network-wide enhancements |
+- **Swap** — Trade tokens on Boing’s native DEX through Finance (wallet connected).
+- **NFTs & media** — Create and view NFTs; larger media can live on the chain itself (PutBlob), with wallet-assisted upload paths.
+- **Quality Gate (QA)** — Before a new token or contract lands on the ledger, Boing runs transparent checks. Clear cases are allowed or rejected automatically; odd edge cases can go to a community review pool. Goal: cut down malicious or deceptive junk while still allowing playful meme / community projects.
+- **Fees & staking (high level)** — Everyday actions use a small network fee. Staking and validator rewards are part of how the chain is designed to stay secure over time; on today’s public testnet the setup is still early (see limits below).
+- **Community** — Chat, feedback, and updates on [Discord](https://discord.gg/K3w9nbUw4N).
 
-All docs live in **[docs/](./)**. The [README](../README.md) in the repo root is the short landing page.
+Deeper reading: [SIX-PILLARS.md](SIX-PILLARS.md) (why Boing prioritizes what it does) · [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) (QA in more detail) · [TESTNET.md](TESTNET.md) (how to join and use testnet).
 
 ---
 
-## Quick reference
+## Honest limits (today)
 
-| Item | Default / convention |
-|------|----------------------|
-| **Public RPC** | `https://testnet-rpc.boing.network/` |
-| **Local RPC port** | `8545` |
-| **Address (AccountId)** | 32 bytes, hex-encoded (64 hex chars; optional `0x` prefix) |
-| **Transaction format** | Bincode-serialized; signed with Ed25519 over BLAKE3 signable hash |
-| **Node binary** | `cargo run -p boing-node` |
-| **CLI** | `boing` (init, dev, deploy, metrics register, completions) |
-| **Wallet** | [boing.express](https://boing.express) |
-| **Explorer** | [boing.observer](https://boing.observer) |
-| **DeFi** | [boing.finance](https://boing.finance) |
+Be clear with yourself and others:
+
+- This is a **public testnet**, not mainnet.
+- The hosted chain is still **early** — for now, a **single hosted validator** runs the public network path people use day to day.
+- Independent security audits are **not** finished.
+- Features continue to ship and change; some Finance surfaces are still deepening (more pools, richer discovery, more staking UI).
+- Testnet BOING has **no** real-world cash value.
+
+When mainnet and a more decentralized validator set ship, this page will be updated.
 
 ---
 
-## Transparency commitment
+## Quick links
 
-We commit to 100% transparency in:
-
-- **Protocol design** — Open design docs, public specs, auditable code.
-- **Tokenomics** — Emission, fee splits, burn — on-chain and documented.
-- **Governance** — On-chain proposals, votes, outcomes.
-- **Validator & staking** — Clear slashing, reward formulas, distribution.
-- **Security & audits** — Audit reports public; known risks disclosed.
-- **Development** — Open source; roadmap and trade-offs discussed openly.
+| I want to… | Go here |
+|------------|---------|
+| Make a wallet | [boing.express](https://boing.express) |
+| Get testnet BOING | [Faucet](https://boing.network/faucet) |
+| Swap / NFTs | [boing.finance](https://boing.finance) |
+| Look something up | [boing.observer](https://boing.observer) |
+| Read the pillars | [SIX-PILLARS](SIX-PILLARS.md) · [PDF](../website/public/pdfs/SIX-PILLARS.pdf) |
+| Join Discord | [discord.gg/K3w9nbUw4N](https://discord.gg/K3w9nbUw4N) |
+| Build or integrate | [docs index](README.md) · [dApp integration](BOING-DAPP-INTEGRATION.md) · [RPC spec](RPC-API-SPEC.md) |
+| Run a node / ops | [TESTNET.md](TESTNET.md) · [RUNBOOK.md](RUNBOOK.md) |
 
 ---
 

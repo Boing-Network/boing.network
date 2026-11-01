@@ -607,7 +607,7 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 
 | Document | Use for |
 |----------|---------|
-| [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Six pillars, design philosophy, quick reference |
+| [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Plain-language product overview and testnet limits |
 | [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md) | Full architecture, innovations, tokenomics |
 | [RPC-API-SPEC.md](RPC-API-SPEC.md) | Complete RPC method specs and examples |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | QA design, automation, community pool; Appendix A: deployer checklist |

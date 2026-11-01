@@ -63,7 +63,7 @@ flowchart LR
 
 ## 2. Six Pillars — Pre-Infrastructure Checklist
 
-Complete these **before** running bootnodes. See [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) for pillar definitions.
+Complete these **before** running bootnodes. See [SIX-PILLARS.md](SIX-PILLARS.md) for pillar definitions.
 
 | # | Item | Pillar |
 |---|------|--------|
