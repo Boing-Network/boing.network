@@ -31,16 +31,16 @@ RPC port **8545** only needs to be public if you want to serve RPC to others.
 > from source (below). An already-synced node is unaffected by this. See "Older binaries" in section 5 for what a pre-fix source build needs.
 
 **Release binaries:** `testnet-v0.1.19` is the first release that contains the preset (see the note above). Use
-**`testnet-v0.1.23`** or newer: it carries the block-1500 activations (storage-tree v2, account-tree v3, VM hardening), the block-1600 activations (equivocation slashing, strict JUMPI / NATIVE_TRANSFER) and the block-1700 canonical QA policy. v0.1.21 nodes fork at 1600; v0.1.22 nodes may fork at 1700.
-`testnet-v0.1.20` is withdrawn (fresh nodes drop the 1500 tree activations). Download v0.1.23 from
-<https://github.com/Boing-Network/boing.network/releases/tag/testnet-v0.1.23> (all releases:
+**`testnet-v0.1.24`** or newer: it carries the block-1500 activations (storage-tree v2, account-tree v3, VM hardening), the block-1600 activations (equivocation slashing, strict JUMPI / NATIVE_TRANSFER) and the block-1700 canonical QA policy with the public QA pool. v0.1.21 nodes fork at 1600; v0.1.22 and v0.1.23 nodes may fork at 1700 (v0.1.23 rejects `Unsure` deploys that v0.1.24 sends to review).
+`testnet-v0.1.20` is withdrawn (fresh nodes drop the 1500 tree activations). Download v0.1.24 from
+<https://github.com/Boing-Network/boing.network/releases/tag/testnet-v0.1.24> (all releases:
 <https://github.com/Boing-Network/boing.network/releases>). The zip contains `boing-node-<platform>` and
 `boing-<platform>`, so rename them after unzipping (there is no `--version` flag; use `./boing-node --help`):
 
 ```bash
-# testnet-v0.1.23 or newer (replace the tag when a newer testnet release is published):
-curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.23/release-linux-x86_64.zip
-# Expected SHA-256 (testnet-v0.1.23 linux zip): 69abb7650fcb2a909f9f84f992e0e79c8c9a8d2be5b172d68ec373878beb3d2f
+# testnet-v0.1.24 or newer (replace the tag when a newer testnet release is published):
+curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.24/release-linux-x86_64.zip
+# Expected SHA-256 (testnet-v0.1.24 linux zip): c794228243e4f7308722e3f299b346e985c12ff3c82270b879ad4d0176bb54a0
 sha256sum release-linux-x86_64.zip
 unzip release-linux-x86_64.zip && mv boing-node-linux-x86_64 boing-node && mv boing-linux-x86_64 boing && chmod +x boing-node boing
 ./boing validator --help

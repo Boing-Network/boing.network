@@ -37,17 +37,17 @@ function isAllowedDownloadUrl(urlString) {
 const CANONICAL_GH_REPO = 'Boing-Network/boing.network';
 
 /** Pinned testnet tag for official zips. */
-const BOING_TESTNET_DOWNLOAD_TAG = 'testnet-v0.1.23';
+const BOING_TESTNET_DOWNLOAD_TAG = 'testnet-v0.1.24';
 
 /** SHA-256 of each official zip for `BOING_TESTNET_DOWNLOAD_TAG` (refresh via `network-listings-release-sql.mjs`). */
 const BOING_ZIP_SHA = {
-  windows: 'e97d8e80e24260a35bc5924e542c4c23b06b6223a7a280e8b70a1aaa842fdc46',
-  linux: '69abb7650fcb2a909f9f84f992e0e79c8c9a8d2be5b172d68ec373878beb3d2f',
-  macos: 'efca4b634029cd91c5db3dde3c894d3e5ceaf568ba3000f46cdf58358aec0b42',
+  windows: '9c31f9c9d58c5312960ab5ded97f13564eb640f4d291098bc33e848c2264df19',
+  linux: 'c794228243e4f7308722e3f299b346e985c12ff3c82270b879ad4d0176bb54a0',
+  macos: '9f96409c4b1cad7b0de7c45af13b83f8ebc4be8d871e8f692b31ecc7af6dde18',
 };
 
-/** Older official tags that D1 rows may still point at (0.1.0 to 0.1.22; 0.1.20 is withdrawn; the tag before `BOING_TESTNET_DOWNLOAD_TAG`). Extend this when you bump the tag. */
-const STALE_TESTNET_TAG_RE = /\/download\/(testnet-v0\.1\.(?:\d|1\d|2[012]))\//;
+/** Older official tags that D1 rows may still point at (0.1.0 to 0.1.23; 0.1.20 is withdrawn; the tag before `BOING_TESTNET_DOWNLOAD_TAG`). Extend this when you bump the tag. */
+const STALE_TESTNET_TAG_RE = /\/download\/(testnet-v0\.1\.(?:\d|1\d|2[0-3]))\//;
 
 function githubBlobMain(docPath) {
   return `https://github.com/${CANONICAL_GH_REPO}/blob/main/${docPath}`;

@@ -8,7 +8,7 @@
 # Usage:
 #   chmod +x scripts/upgrade-boing-node-from-release.sh
 #   ./scripts/upgrade-boing-node-from-release.sh
-#   ./scripts/upgrade-boing-node-from-release.sh testnet-v0.1.23   # other tag: pass expected SHA via env (see below)
+#   ./scripts/upgrade-boing-node-from-release.sh testnet-v0.1.24   # other tag: pass expected SHA via env (see below)
 #
 # Optional env:
 #   BOING_EXPECT_SHA256   — required if TAG is not built into the script’s pin table
@@ -20,12 +20,16 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-TAG="${1:-testnet-v0.1.23}"
+TAG="${1:-testnet-v0.1.24}"
 
 # Built-in SHA256 of release zips (refresh when you cut a new tag; or use BOING_EXPECT_SHA256).
 LINUX_ZIP_SHA=""
 MAC_ZIP_SHA=""
 case "$TAG" in
+  testnet-v0.1.24)
+    LINUX_ZIP_SHA="c794228243e4f7308722e3f299b346e985c12ff3c82270b879ad4d0176bb54a0"
+    MAC_ZIP_SHA="9f96409c4b1cad7b0de7c45af13b83f8ebc4be8d871e8f692b31ecc7af6dde18"
+    ;;
   testnet-v0.1.23)
     LINUX_ZIP_SHA="69abb7650fcb2a909f9f84f992e0e79c8c9a8d2be5b172d68ec373878beb3d2f"
     MAC_ZIP_SHA="efca4b634029cd91c5db3dde3c894d3e5ceaf568ba3000f46cdf58358aec0b42"
