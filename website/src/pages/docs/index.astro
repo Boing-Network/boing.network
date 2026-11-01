@@ -512,9 +512,6 @@ cargo build --release</code></pre>
     }
     classifyDocLinks();
 
-    const copyIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-    const checkIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-
     function copyText(text) {
       if (!text) return Promise.reject(new Error('empty'));
       const fallback = () => new Promise((resolve, reject) => {
@@ -539,28 +536,25 @@ cargo build --release</code></pre>
       return fallback();
     }
 
-    function flashCopied(el, opts) {
-      const label = (opts && opts.label) || 'Copied';
-      el.classList.add('is-copied');
-      const prevLabel = el.getAttribute('aria-label');
-      el.setAttribute('aria-label', label);
-      let badge = el.querySelector(':scope > .doc-copied-badge');
-      if (!badge) {
-        badge = document.createElement('span');
-        badge.className = 'doc-copied-badge';
-        badge.setAttribute('aria-hidden', 'true');
-        el.appendChild(badge);
+    let copyToastEl = null;
+    let copyToastTimer = null;
+    function showCopiedToast() {
+      if (!copyToastEl) {
+        copyToastEl = document.createElement('div');
+        copyToastEl.className = 'docs-copy-toast';
+        copyToastEl.setAttribute('role', 'status');
+        copyToastEl.setAttribute('aria-live', 'polite');
+        document.body.appendChild(copyToastEl);
       }
-      badge.textContent = label;
-      clearTimeout(el._copiedTimer);
-      el._copiedTimer = setTimeout(() => {
-        el.classList.remove('is-copied');
-        if (prevLabel) el.setAttribute('aria-label', prevLabel);
-        else el.removeAttribute('aria-label');
+      copyToastEl.textContent = 'Copied to clipboard';
+      copyToastEl.classList.add('is-visible');
+      clearTimeout(copyToastTimer);
+      copyToastTimer = setTimeout(() => {
+        copyToastEl.classList.remove('is-visible');
       }, 1600);
     }
 
-    // Code / command blocks — click anywhere on the block (or the button) to copy.
+    // Code / command blocks — click anywhere on the block to copy (no icon button).
     document.querySelectorAll('.docs-content .doc-section pre').forEach((pre) => {
       if (pre.closest('.code-block-wrapper')) return;
       const wrapper = document.createElement('div');
@@ -571,31 +565,13 @@ cargo build --release</code></pre>
       wrapper.setAttribute('aria-label', 'Copy command');
       pre.parentNode.insertBefore(wrapper, pre);
       wrapper.appendChild(pre);
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'code-copy-btn';
-      btn.setAttribute('aria-label', 'Copy command');
-      btn.innerHTML = copyIcon;
-      wrapper.appendChild(btn);
-
       wrapper.dataset.copyText = (pre.textContent || '').trim();
 
       function copyBlock(e) {
         if (e) e.preventDefault();
         const text = wrapper.dataset.copyText || (pre.textContent || '').trim();
         if (!text) return;
-        copyText(text).then(() => {
-          flashCopied(wrapper);
-          btn.classList.add('copied');
-          btn.setAttribute('aria-label', 'Copied');
-          btn.innerHTML = checkIcon;
-          clearTimeout(btn._copiedTimer);
-          btn._copiedTimer = setTimeout(() => {
-            btn.classList.remove('copied');
-            btn.setAttribute('aria-label', 'Copy command');
-            btn.innerHTML = copyIcon;
-          }, 1600);
-        }).catch(() => {});
+        copyText(text).then(() => showCopiedToast()).catch(() => {});
       }
 
       wrapper.addEventListener('click', (e) => {
@@ -607,10 +583,6 @@ cargo build --release</code></pre>
           e.preventDefault();
           copyBlock(e);
         }
-      });
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        copyBlock(e);
       });
     });
 
@@ -631,7 +603,7 @@ cargo build --release</code></pre>
         e.stopPropagation();
         const text = code.dataset.copyText || '';
         if (!text) return;
-        copyText(text).then(() => flashCopied(code)).catch(() => {});
+        copyText(text).then(() => showCopiedToast()).catch(() => {});
       }
 
       code.addEventListener('click', copyInline);
@@ -912,7 +884,6 @@ cargo build --release</code></pre>
   }
   .code-block-wrapper pre {
     margin: 0;
-    padding-right: 2.75rem;
   }
   .code-block-wrapper:hover pre {
     border-color: rgba(255, 193, 77, 0.45);
@@ -930,65 +901,35 @@ cargo build --release</code></pre>
     outline: 2px solid var(--docs-link-code);
     outline-offset: 2px;
   }
-  .doc-copied-badge {
-    position: absolute;
-    z-index: 3;
-    top: -0.55rem;
-    right: 0.15rem;
-    padding: 0.12rem 0.4rem;
+  :global(.docs-copy-toast) {
+    position: fixed;
+    z-index: 10050;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%) translateY(12px);
+    padding: 0.65rem 1rem;
     font-family: var(--font-sans);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.2;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
     color: #0b1220;
-    background: var(--docs-link-code);
-    border-radius: 999px;
+    background: var(--docs-link-code, #FFC14D);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.65rem;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
     opacity: 0;
-    transform: translateY(4px);
     pointer-events: none;
-    transition: opacity 0.15s ease, transform 0.15s ease;
+    transition: opacity 0.18s ease, transform 0.18s ease;
   }
-  .code-block-wrapper .doc-copied-badge {
-    top: 0.55rem;
-    right: 2.85rem;
-  }
-  .is-copied > .doc-copied-badge {
+  :global(.docs-copy-toast.is-visible) {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(-50%) translateY(0);
   }
-  .code-copy-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    width: 2rem;
-    height: 2rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    font-size: 0;
-    color: var(--docs-link-code);
-    background: rgba(255, 184, 0, 0.14);
-    border: 1px solid rgba(255, 193, 77, 0.35);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  @media (prefers-reduced-motion: reduce) {
+    :global(.docs-copy-toast) {
+      transition: opacity 0.12s ease;
+    }
   }
-  .code-copy-btn:hover {
-    background: rgba(255, 184, 0, 0.24);
-    border-color: rgba(255, 193, 77, 0.55);
-    color: #ffe09a;
-  }
-  .code-copy-btn.copied {
-    color: var(--success-color, #22c55e);
-    border-color: rgba(34, 197, 94, 0.5);
-    background: rgba(34, 197, 94, 0.15);
-  }
-  .code-copy-btn svg {
-    flex-shrink: 0;
-  }
-  .code-copy-btn:focus-visible { outline: 2px solid var(--docs-link-code); outline-offset: 2px; }
   .rpc-methods dt {
     margin-top: 1rem;
     color: var(--accent-neon);
