@@ -298,7 +298,7 @@ This section tracks **overall network** enhancements (not limited to one pillar)
 | Mempool | drain_for_block returns Vec<SignedTransaction> for re-insert | mempool.rs |
 | Roadmap | Protocol QA phase (4.6) | BUILD-ROADMAP.md §4.6 |
 | RPC spec | boing_qaCheck, QA error codes -32050, -32051 | RPC-API-SPEC.md |
-| Essentials doc | Six pillars, tech stack, key docs | BOING-NETWORK-ESSENTIALS.md |
+| Essentials doc | Plain-language product overview | BOING-NETWORK-ESSENTIALS.md |
 | RUNBOOK | Six pillars section, getBalance/getAccount in RPC table | RUNBOOK.md |
 
 ## Enhancements by area (status)
@@ -341,7 +341,7 @@ This section tracks **overall network** enhancements (not limited to one pillar)
 # Cross-References
 
 - **NEXT-STEPS-FUTURE-WORK.md** — Consolidated engineering backlog: where to file infra / CI upgrades, indexer and native AMM follow-ups, and optional small PR slices alongside this vision doc
-- **BOING-NETWORK-ESSENTIALS.md** — Six pillars, design philosophy, priorities, tech stack
+- **BOING-NETWORK-ESSENTIALS.md** — Plain-language overview of products, features, and testnet limits
 - **QUALITY-ASSURANCE-NETWORK.md** — Protocol QA (sixth pillar); automation and community pool
 - **BUILD-ROADMAP.md** — Phase 5.5 (Developer Experience), 5.6 (Success-Based dApp Incentives), 5.7 (Decentralized Automation)
 - **Appendix (this doc)** — Cryptographic verification for on-chain and off-chain automation

@@ -217,7 +217,7 @@ Implement in this order:
 - **Design system:** `docs/BOING-DESIGN-SYSTEM.md` — colors, typography, card style.
 - **Quality assurance:** `docs/QUALITY-ASSURANCE-NETWORK.md` — sixth pillar, Allow/Reject/Unsure, community pool, blocklist; use for copy and links.
 - **Testnet/mainnet:** `docs/TESTNET.md`, `docs/NETWORKS-API.md` — RPC URLs, bootnodes, faucet (testnet only).
-- **Essentials:** `docs/BOING-NETWORK-ESSENTIALS.md` — chain overview, tech stack, address format.
+- **Essentials:** `docs/BOING-NETWORK-ESSENTIALS.md` — plain-language product overview and what is live on testnet.
 - **Existing website:** `website/` in the same repo is the main Boing site (boing.network); explorer is a **separate app** (boing.observer) but can reuse design tokens and patterns.
 
 ### 8. Out of scope for MVP

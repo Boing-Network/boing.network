@@ -46,7 +46,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | Doc | What you get |
 |-----|----------------|
 | [SIX-PILLARS.md](SIX-PILLARS.md) | Why Boing exists, in order of priority (also `/pdfs/SIX-PILLARS.pdf`) |
-| [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Stack, crates, and the short map of everything else |
+| [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Plain-language overview: products, what you can do, honest testnet limits |
 | [TESTNET.md](TESTNET.md) | Join testnet, faucet, portal, quests |
 | [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) | How the wallet works (product lives at [boing.express](https://boing.express)) |
 | [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md) | Explorer + wallet: what each app is for |

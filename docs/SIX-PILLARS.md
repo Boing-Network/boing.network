@@ -10,7 +10,7 @@ August 2026 · [boing.network](https://boing.network) · [boing.observer](https:
 
 This is the written form of the six pillars. It is meant to be readable: technical enough that an engineer can map each pillar to shipped behavior, casual enough that you do not need the full spec in your lap.
 
-For stack, crates, and doc pointers, see [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md). For the QA pipeline itself, see [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md).
+For a plain-language product overview, see [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md). For the QA pipeline itself, see [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md).
 
 ```mermaid
 flowchart LR
@@ -137,7 +137,7 @@ If you remember one sentence: **we automate the boring judgments, we decentraliz
 
 | Document | Why it is next |
 |----------|----------------|
-| [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Stack, crates, design philosophy |
+| [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Plain-language overview of products and limits |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Allow / Reject / Unsure, malice definition, governance-mutable rules |
 | [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) | Crypto, VM, gas, RPC shapes |
 | [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC, including QA and DEX discovery |
