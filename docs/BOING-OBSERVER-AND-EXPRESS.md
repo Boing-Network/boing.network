@@ -32,7 +32,7 @@ flowchart LR
 
 - **Spec / build prompt:** [Part 2: Explorer specification](#part-2-explorer-specification-boingobserver) below — phased plan, RPC methods, design (boing.observer, “Boing Observer”), QA pillar visibility, MVP features (network selector, home with blocks, block/account pages, search).
 - **RPC:** Node CORS already allows `https://boing.observer` (and localhost). No code changes needed for the explorer to call the public RPC from the browser.
-- **References:** [RPC-API-SPEC.md](RPC-API-SPEC.md), [BOING-DESIGN-SYSTEM.md](BOING-DESIGN-SYSTEM.md), [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md), [READINESS.md](READINESS.md).
+- **References:** [RPC-API-SPEC.md](RPC-API-SPEC.md), [BOING-DESIGN-SYSTEM.md](BOING-DESIGN-SYSTEM.md), [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md), [TESTNET.md](TESTNET.md#31-readiness--launch).
 
 **What to build (outside this repo)**
 
@@ -146,7 +146,7 @@ Balances and amounts are in **smallest units** (u128); the explorer may need a k
 
 #### 2.4 Networks (devnet vs mainnet)
 
-- **Testnet / devnet:** Public RPC URL is (or will be) published on the Boing website (e.g. `https://testnet-rpc.boing.network/`). Faucet: `boing_faucetRequest` on testnet only. Until bootnodes and public RPC are live, use `http://127.0.0.1:8545` for local testing (see [READINESS.md](READINESS.md) §3).
+- **Testnet / devnet:** Public RPC URL is (or will be) published on the Boing website (e.g. `https://testnet-rpc.boing.network/`). Faucet: `boing_faucetRequest` on testnet only. Until bootnodes and public RPC are live, use `http://127.0.0.1:8545` for local testing (see [TESTNET.md](TESTNET.md#31-readiness--launch) §3).
 - **Mainnet:** RPC and bootnodes will be published at launch; same RPC methods, no faucet.
 - The explorer should **switch networks** (e.g. dropdown or subdomain) and call the corresponding RPC base URL. No API key required for read-only RPC in the spec.
 

@@ -25,16 +25,17 @@ flowchart TB
 |-----------|------------|
 | **User-facing testnet** (join, faucet, bootnodes) | [TESTNET.md](TESTNET.md) |
 | **Copy-paste commands** (`cargo`, `boing-node`, tutorial `npm run`) | [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md) |
-| **Two-machine bootnode + tunnel + website secrets** | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) |
+| **Home-lab bootnode + tunnel + website secrets** | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) (lab appendix; **not** production RPC) |
 | **Hosted testnet on Fly.io** | [FLY-IO.md](FLY-IO.md) (`./scripts/fly-deploy-testnet.sh`) |
-| **Beta readiness / six pillars** | [READINESS.md](READINESS.md) |
-| **Upgrade / restart the node behind public RPC** | [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) |
+| **Beta readiness / six pillars** | [TESTNET.md](TESTNET.md) Part 3.1 · [SIX-PILLARS.md](SIX-PILLARS.md) |
+| **Upgrade / restart the node behind public RPC** | [FLY-IO.md](FLY-IO.md#upgrade--restart-public-rpc-node) |
 | **JSON-RPC methods, errors, canonical pool hex** | [RPC-API-SPEC.md](RPC-API-SPEC.md) |
 | **Canonical native CP pool (OPS-1) + rotations** | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) § Published |
 | **Self-hosted RPC + deploy pool** | [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md) |
-| **Node listing API + two-node Windows layout** | [NETWORKS-API.md](NETWORKS-API.md), [OPS-PUBLIC-TESTNET-TWO-NODE.md](OPS-PUBLIC-TESTNET-TWO-NODE.md) |
+| **Node listing API + two-node Windows layout** | [NETWORKS-API.md](NETWORKS-API.md), [TESTNET.md](TESTNET.md#7-two-node-setup-on-windows) |
 | **Node flags, tunnel 530/1033, incidents** | [RUNBOOK.md](RUNBOOK.md) |
 | **QA protocol + content blocklist** | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md); apply policy: `npm run apply-public-testnet-qa-policy` |
+| **Feature timeline (when shipped)** | [FEATURES.md](FEATURES.md) |
 | **Backlog / future work index** | [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) |
 
 ---
@@ -72,7 +73,7 @@ Cloudflare **Bot Fight Mode** (`fight_mode`) on zone `boing.network` returns **H
 
 ## 3. Go-live sequence (order matters)
 
-**Prerequisite:** Workspace builds and tests clean — [READINESS.md](READINESS.md) §1 (`cargo test`, `boing-sdk` `npm test`).
+**Prerequisite:** Workspace builds and tests clean — [TESTNET.md](TESTNET.md#31-readiness--launch) (`cargo test`, `boing-sdk` `npm test`).
 
 1. **Same genesis everywhere** — All validators and full nodes share one genesis (faucet account, chain id, etc.).
 2. **Bootnodes** — At least two stable P2P listeners (or one host today); publish multiaddrs on the website and in [TESTNET.md](TESTNET.md) §6. See [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md).
@@ -89,13 +90,13 @@ Cloudflare **Bot Fight Mode** (`fight_mode`) on zone `boing.network` returns **H
    Or **`npm run check-testnet-rpc`** only; optional **`BOING_PROBE_FULL=1`**. See [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md).
 
 6. **Faucet** — Node behind the public URL runs with **`--faucet-enable`**; confirm via [boing.network/faucet](https://boing.network/faucet).
-7. **Website / portal env** — [READINESS.md](READINESS.md) §3.3, [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md): `PUBLIC_BOOTNODES`, `PUBLIC_TESTNET_RPC_URL`.
+7. **Website / portal env** — [TESTNET.md](TESTNET.md#31-readiness--launch) / [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md), [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md): `PUBLIC_BOOTNODES`, `PUBLIC_TESTNET_RPC_URL`.
 8. **Node listing API** — [NETWORKS-API.md](NETWORKS-API.md); clients read **`GET https://boing.network/api/networks`**.
 9. **Optional: native DEX full stack** — **`npm run deploy-native-dex-full-stack`** from [examples/native-boing-tutorial](../examples/native-boing-tutorial/) after **`boing-sdk`** build. For **public** testnet, publish canonical pool id per [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) (**OPS-1**).
 10. **Optional: QA content policy** — Edit [`docs/config/qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json), then **`npm run apply-public-testnet-qa-policy`** (requires **`BOING_OPERATOR_RPC_TOKEN`** on the node and the matching `X-Boing-Operator` header; operator methods are rejected with `-32057` when the token is unset). Restart nodes after upgrading **`boing-node`** so **`boing_qaCheck`** uses the live registry.
-11. **Micro fee market (recommended)** — Product target is Solana-like micro fees, not gasless. Set **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`** on public nodes (current tip or tip+1), then **`npm run apply-micro-fee-policy`** (loads [`docs/config/network_fee_config.canonical.json`](config/network_fee_config.canonical.json) via **`boing_operatorApplyFeePolicy`**). Confirm with **`boing_getNetworkFeePolicy`**. Details: [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md), [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
+11. **Micro fee market (recommended)** — Product target is Solana-like micro fees, not gasless. Set **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`** on public nodes (current tip or tip+1), then **`npm run apply-micro-fee-policy`** (loads [`docs/config/network_fee_config.canonical.json`](config/network_fee_config.canonical.json) via **`boing_operatorApplyFeePolicy`**). Confirm with **`boing_getNetworkFeePolicy`**. Details: [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md), [FLY-IO.md](FLY-IO.md#upgrade--restart-public-rpc-node).
 
-**Later upgrades** to the RPC binary: [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
+**Later upgrades** to the RPC binary: [FLY-IO.md](FLY-IO.md#upgrade--restart-public-rpc-node).
 
 ### HTTP 530 / Cloudflare error 1033
 

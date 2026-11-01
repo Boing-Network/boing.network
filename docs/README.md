@@ -47,6 +47,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 |-----|----------------|
 | [SIX-PILLARS.md](SIX-PILLARS.md) | Why Boing exists, in order of priority (also `/pdfs/SIX-PILLARS.pdf`) |
 | [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Plain-language overview: products, what you can do, honest testnet limits |
+| [FEATURES.md](FEATURES.md) | Product/protocol features with **when implemented** + status (also `/pdfs/FEATURES.pdf`) |
 | [TESTNET.md](TESTNET.md) | Join testnet, faucet, portal, quests |
 | [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) | How the wallet works (product lives at [boing.express](https://boing.express)) |
 | [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md) | Explorer + wallet: what each app is for |
@@ -69,7 +70,6 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [NATIVE-VALUE-AND-WBOING.md](NATIVE-VALUE-AND-WBOING.md) | Contract-call value + wrapped BOING |
 | [BOING-MINI-IR.md](BOING-MINI-IR.md) | Mini-IR for Boing VM tooling |
 | [INTERFACE-REGISTRY.md](INTERFACE-REGISTRY.md) | Interface / selector registry |
-| [BOING-NATIVE-PRODUCT-CAPABILITY-MATRIX.md](BOING-NATIVE-PRODUCT-CAPABILITY-MATRIX.md) | Product capability matrix |
 | [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](BOING-RPC-ERROR-CODES-FOR-DAPPS.md) | Error codes wallets and UIs should map |
 | [BOING-SIGNED-TRANSACTION-ENCODING.md](BOING-SIGNED-TRANSACTION-ENCODING.md) | **Source of truth** for the tx / block bincode layout, signing domains (v2, priority tip), payload indices |
 | [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md) | Every `BOING_*` environment variable, defaults, ports |
@@ -88,7 +88,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 
 | Doc | What you get |
 |-----|----------------|
-| [BOING-NATIVE-DEX-CAPABILITY.md](BOING-NATIVE-DEX-CAPABILITY.md) | What ships today vs EVM-shaped gaps |
+| [BOING-NATIVE-DEX-CAPABILITY.md](BOING-NATIVE-DEX-CAPABILITY.md) | What ships today, engineering checklist, product surfaces |
 | [NATIVE-AMM-INTEGRATION-CHECKLIST.md](NATIVE-AMM-INTEGRATION-CHECKLIST.md) | End-to-end integration + manual E2E smoke |
 | [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) | Pool selectors, storage, Log2, CREATE2 salts |
 | [NATIVE-AMM-CLI.md](NATIVE-AMM-CLI.md) | CLI helpers for native AMM |
@@ -103,7 +103,6 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [NATIVE-DEX-MULTIHOP-SWAP-ROUTER.md](NATIVE-DEX-MULTIHOP-SWAP-ROUTER.md) | Multihop router (2–6 hops) |
 | [NATIVE-AMM-LP-VAULT.md](NATIVE-AMM-LP-VAULT.md) | LP vault |
 | [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md) | LP share token |
-| [BOING-L1-DEX-ENGINEERING.md](BOING-L1-DEX-ENGINEERING.md) | L1 DEX engineering overview |
 | [HANDOFF_Boing_Network_Global_Token_Discovery.md](HANDOFF_Boing_Network_Global_Token_Discovery.md) | `boing_listDexPools` / `boing_listDexTokens` / `boing_getDexToken` |
 | [HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md](HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md) | Native DEX directory Worker (source of truth) |
 
@@ -117,18 +116,15 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [TESTNET.md](TESTNET.md) | Join testnet; **§9.1** node zip release checklist |
 | [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md) | Open validator registration, bond, liveness |
 | [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md) | WAF / edge guidance for public RPC |
-| [OPERATIONS-WATCHLIST.md](OPERATIONS-WATCHLIST.md) | Operator watchlist |
+| [RUNBOOK.md](RUNBOOK.md) §9 | Operations watchlist (1500 soak, gateway edge, CF Free limits) |
 | [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md) | Blob download ACL (Phase 34) |
 | [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md) | Copy/paste RPC smoke and tutorial `npm run` commands |
-| [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Optional home-lab bootnodes; public RPC is Fly + Worker |
-| [FLY-IO.md](FLY-IO.md) | Hosted Fly `boing-testnet-1` + public RPC Worker |
-| [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) | Upgrade the node behind public JSON-RPC |
+| [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Home-lab bootnodes appendix; public RPC is Fly + Worker |
+| [FLY-IO.md](FLY-IO.md) | Hosted Fly `boing-testnet-1` + public RPC Worker + **upgrade checklist** |
 | [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md) | Self-hosted RPC + deploy native DEX stack |
 | [NETWORKS-API.md](NETWORKS-API.md) | Public node listing API: `/api/networks`, `meta` fields, D1 refresh |
-| [OPS-PUBLIC-TESTNET-TWO-NODE.md](OPS-PUBLIC-TESTNET-TWO-NODE.md) | Validator + full node on two Windows PCs |
-| [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) | Published canonical pool (**OPS-1**) |
-| [OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md](OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md) | Predicted CREATE2 aux addresses |
-| [OPS-FRESH-TESTNET-BOOTSTRAP.md](OPS-FRESH-TESTNET-BOOTSTRAP.md) | Fresh chain + new operator key |
+| [TESTNET.md](TESTNET.md) §7 | Validator + full node on two Windows PCs |
+| [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) | Canonical pool + aux CREATE2 + fresh bootstrap (**OPS hub**) |
 | [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md) | Operator deployment snapshots |
 | [NATIVE-DEX-FULL-STACK-OUTPUT.md](NATIVE-DEX-FULL-STACK-OUTPUT.md) | `deploy-native-dex-full-stack` JSON reference |
 | [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md) | boing.network site deploy |
@@ -140,9 +136,8 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 
 | Doc | What you get |
 |-----|----------------|
-| [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Protocol QA, community pool, content blocklist governance |
+| [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Protocol QA, community pool, content blocklist, canonical JSON index (`docs/config/`) |
 | [QA-GATE-RULES.md](QA-GATE-RULES.md) | Enforced rule IDs, opcode whitelist, content matching, live vs canonical lists |
-| [config/CANONICAL-QA-REGISTRY.md](config/CANONICAL-QA-REGISTRY.md) | QA JSON configs + `npm run apply-public-testnet-qa-policy` |
 | [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) | Protocol, network, application security |
 | [THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md) | Sync boing.network / express / observer / finance |
 | [HANDOFF-DEPENDENT-PROJECTS.md](HANDOFF-DEPENDENT-PROJECTS.md) | Cross-repo work backlog |
@@ -158,7 +153,8 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 
 | Doc | What you get |
 |-----|----------------|
-| [READINESS.md](READINESS.md) | Beta checklist, six pillars, launch-blocking path |
+| [FEATURES.md](FEATURES.md) | Shipped / gated / deferred timeline (heights + tags) |
+| [TESTNET.md](TESTNET.md) Part 3.1 | Beta readiness checklist (former READINESS.md) |
 | [BUILD-ROADMAP.md](BUILD-ROADMAP.md) | Implementation phases (historical + remaining) |
 | [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) | Backlog router — infra, native AMM, indexer, ops |
 | [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md) | Full-stack capability matrix |
@@ -166,10 +162,9 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [DEVELOPMENT-AND-ENHANCEMENTS.md](DEVELOPMENT-AND-ENHANCEMENTS.md) | Strategic vision (non-normative TBD sections) |
 | [PROTOCOL_NATIVE_DEX_RPC_AND_INDEXING_ROADMAP.md](PROTOCOL_NATIVE_DEX_RPC_AND_INDEXING_ROADMAP.md) | Protocol drafts: simulate, LP positions, indexer |
 | [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md) | Architecture, tokenomics, design decisions |
-| [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md) | Boing VM only — no foreign chain bytecode engines in protocol |
+| [BOING-INFRASTRUCTURE-INDEPENDENCE.md](BOING-INFRASTRUCTURE-INDEPENDENCE.md) | Hosting independence + Boing VM independence (§9) |
 | [BOING-DESIGN-SYSTEM.md](BOING-DESIGN-SYSTEM.md) | Site design tokens |
 | [DECENTRALIZATION-AND-NETWORKING.md](DECENTRALIZATION-AND-NETWORKING.md) | P2P, discovery roadmap |
-| [BOING-INFRASTRUCTURE-INDEPENDENCE.md](BOING-INFRASTRUCTURE-INDEPENDENCE.md) | Hosting independence |
 | [NETWORK-COST-ESTIMATE.md](NETWORK-COST-ESTIMATE.md) | Cost overview |
 | [ACCELERATOR-APPLICATIONS.md](ACCELERATOR-APPLICATIONS.md) | Draft accelerator answers |
 

@@ -11,7 +11,7 @@ This document defines a **recommended** calldata layout for NFT-style contracts 
 
 ## Principles
 
-- **Boing VM only.** Opcodes and semantics are Boing-defined (`TECHNICAL-SPECIFICATION.md` §7, [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md)).
+- **Boing VM only.** Opcodes and semantics are Boing-defined (`TECHNICAL-SPECIFICATION.md` §7, [BOING-INFRASTRUCTURE-INDEPENDENCE.md](BOING-INFRASTRUCTURE-INDEPENDENCE.md#9-boing-vm-independence)).
 - **Storage layout** is contract-defined. A common pattern is **owner mapping**: `SLOAD` / `SSTORE` with key derived from `token_id` (32-byte word) and value = owner `AccountId` or zero if burned.
 - **Authorization** uses **`CALLER`** (`0x33`) to verify transfers (owner or approved operator).
 

@@ -5,7 +5,7 @@
 > 🛰️ **Operators:** this is the runbook — setup, RPC, CLI, monitoring, incidents, testnet ops.
 
 **Purpose:** Operations guide for running and maintaining Boing Network nodes.  
-**References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [README.md](../README.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [READINESS.md](READINESS.md), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md)
+**References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [README.md](../README.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [TESTNET.md](TESTNET.md#31-readiness--launch), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md)
 
 ```mermaid
 flowchart LR
@@ -129,7 +129,7 @@ Every `BOING_*` variable, its default and the default ports are listed in [ENVIR
 
 Off by default; mainnet unset. The testnet rollout (proposed height, script, per-node verification via `boing_getNetworkInfo.storage_tree_v2_activation_height`, rollback and the mainnet gate) is in [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md#testnet-rollout-chain-6913-only). Compute the height with `node scripts/compute-activation-height.mjs`; the variable must be on **every** node before the head reaches it.
 
-Day-of checklist (what to check in logs and state roots, the last moment to roll back, what a fork looks like): [OPERATIONS-WATCHLIST.md](OPERATIONS-WATCHLIST.md#1-testnet-1500-crossing-watch-storage-tree-v2--account-tree-v3--vm-hardening-chain-6913).
+Day-of checklist (what to check in logs and state roots, the last moment to roll back, what a fork looks like): [§9.1](#91-testnet-height-1500-crossing-storage-tree-v2--account-tree-v3--vm-hardening).
 
 ### Gossip limits and rollout (P2P)
 
@@ -384,7 +384,7 @@ Optional **lab** tunnels (private hostname only): [INFRASTRUCTURE-SETUP.md](INFR
 
 ### 8.4 Monitoring the testnet
 
-- **Upgrading the RPC binary:** [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) (Fly deploy for hosted; post-deploy **`check-testnet-rpc`**).
+- **Upgrading the RPC binary:** [FLY-IO.md](FLY-IO.md#upgrade--restart-public-rpc-node) (Fly deploy for hosted; post-deploy **`check-testnet-rpc`**).
 - **Chain height:** Call `boing_chainHeight` on the public RPC periodically; alert if growth stops while transactions are pending (an idle chain with no transactions does not advance, which is normal). Tutorial **`BOING_POLL_ONCE=1 node scripts/observer-chain-tip-poll.mjs`** emits one JSON sample (see [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3).
 - **Faucet balance:** Check the faucet account balance via `boing_getBalance` with the faucet account ID; refill or alert when low (genesis funding is 10M; **20** BOING per request in current builds; the public node sends 10 until redeployed).
 - **Bootnode reachability:** Ensure ports 4001 (P2P) and 8545 (RPC, if exposed) are reachable from the internet; use a simple TCP check or your monitoring stack.
@@ -414,3 +414,35 @@ Optional **lab** tunnels (private hostname only): [INFRASTRUCTURE-SETUP.md](INFR
 ---
 
 *Boing Network — Quality, enforced by the protocol.*
+
+## 9. Operations watchlist
+
+Short, checkable lists. Longer activation design: [STORAGE-TREE-V2-ACTIVATION.md](STORAGE-TREE-V2-ACTIVATION.md), [ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md). Public edge: [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md), [FLY-IO.md](FLY-IO.md).
+
+### 9.1 Testnet height 1500 crossing (storage-tree v2 + account-tree v3 + VM hardening)
+
+**Status (2026-10-30): crossed.** Public tip past **1506**. `boing_getNetworkInfo` reports `storage_tree_v2_activation_height: 1500` and `account_tree_v3_activation_height: 1500`. Recorded roots: [ACCOUNT-TREE-V3-ACTIVATION.md](ACCOUNT-TREE-V3-ACTIVATION.md#testnet-crossing-record-chain-6913).
+
+**After crossing (keep watching):**
+
+- Spot-check Fly logs for no `InvalidStateRoot` / block-import failures.
+- Sample `state_root` on two independent nodes when a second RPC is available.
+- Verify storage proofs for slots that used to collide; Observer/indexers use 256-bit routing at `height >= 1500`.
+- Do **not** unset or lower `H` on healthy nodes. Lagging nodes restart with the **same** `H`.
+
+**Scheduled next gates (tip may lag):** equivocation / jump-strict @ **1600**; QA canonical (+ public Unsure pool) @ **1700** — see [FEATURES.md](FEATURES.md) and [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md).
+
+### 9.2 Public RPC gateway (`boing-public-rpc-gateway` Worker)
+
+Since 2026-10-28 the Worker runs with `EDGE_POLICY_MODE = "enforce"`: refused requests get a JSON-RPC error and `X-Boing-Edge-Policy: denied:<reason>`.
+
+- Workers Logs: search for `edge_policy`. Live tail: `npx wrangler tail boing-public-rpc-gateway --format json`.
+- Legitimate wallets, finance, and observer must not appear as denials; if they do, roll back first.
+- Typecheck/tests: `cd workers/public-rpc-gateway && npm ci && npm run typecheck && npm test`.
+
+### 9.3 Cloudflare Free plan limits (edge)
+
+The edge is built for the **Free** plan. Worker requests **100k/day**, CPU **10 ms**, Logs **200k events / 3 days**, zone rate-limit **1 rule**. Fine-grained limits live in Worker rate-limit bindings.
+
+**If you upgrade the plan:** set `zone_rules.plan` in `ops/cloudflare/public-rpc/policy.json`, then `node scripts/public-rpc-edge.mjs generate` → `check` → dry-run → `apply`. Paid profiles start in **log** action. Details: [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md).
+

@@ -4,7 +4,7 @@
 > 🛠️ **Developers on wallet / explorer / finance:** this is the **shared checklist** of what the protocol repo already ships vs what each app should do next.  
 > 🛰️ **Operators:** SDK + tutorial verification commands are in §5 of this file and [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md).
 
-Product capability matrix (EVM | Solana | Boing-native): **[BOING-NATIVE-PRODUCT-CAPABILITY-MATRIX.md](BOING-NATIVE-PRODUCT-CAPABILITY-MATRIX.md)**.
+Product capability matrix (EVM | Solana | Boing-native): **[BOING-NATIVE-DEX-CAPABILITY.md](BOING-NATIVE-DEX-CAPABILITY.md#product-surfaces-evm--solana--boing-native)**.
 
 This document complements **[THREE-CODEBASE-ALIGNMENT.md](THREE-CODEBASE-ALIGNMENT.md)** (URLs, RPC envs, chain IDs). It records **what already ships in the `boing.network` monorepo** and **recommended next work** for codebases that are **not** this repository—primarily **boing.express** (wallet), **boing.observer** (explorer), and partner frontends (e.g. **boing.finance**).
 

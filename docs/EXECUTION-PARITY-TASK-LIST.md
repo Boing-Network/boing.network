@@ -137,7 +137,7 @@ Then: **R5** or **C** or **T1** depending on product priority.
 
 ## References
 
-For **SDK, wallet, indexer, and dApp-facing capability planning** (not only crate work), see [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md) — comparisons there are **illustrative**; behavior is always Boing-defined ([BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md)). **Tooling IR (T3):** [BOING-MINI-IR.md](BOING-MINI-IR.md) + `tools/boing-vm-transpile-ir.mjs`.
+For **SDK, wallet, indexer, and dApp-facing capability planning** (not only crate work), see [BOING-VM-CAPABILITY-PARITY-ROADMAP.md](BOING-VM-CAPABILITY-PARITY-ROADMAP.md) — comparisons there are **illustrative**; behavior is always Boing-defined ([BOING-INFRASTRUCTURE-INDEPENDENCE.md](BOING-INFRASTRUCTURE-INDEPENDENCE.md#9-boing-vm-independence)). **Tooling IR (T3):** [BOING-MINI-IR.md](BOING-MINI-IR.md) + `tools/boing-vm-transpile-ir.mjs`.
 
 For **backlog themes** after checked-off tracks (indexer scale, NATIVE-AMM follow-ups, testnet/ops pointers), see [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md).
 

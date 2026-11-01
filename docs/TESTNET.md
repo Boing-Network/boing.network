@@ -7,7 +7,7 @@
 > **Incentivized testnet status:** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Running a testnet node is currently not incentivized.
 
 **Purpose:** Single guide for joining the testnet, using the Testnet Portal, and the design notes for a future incentivized testnet program (readiness, promotion, mainnet migration).  
-**References:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) (single map: testnet ops + public RPC + infra), [RUNBOOK.md](RUNBOOK.md), [READINESS.md](READINESS.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [NETWORKS-API.md](NETWORKS-API.md)
+**References:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) (single map: testnet ops + public RPC + infra), [RUNBOOK.md](RUNBOOK.md), [TESTNET.md](TESTNET.md#31-readiness--launch), [RPC-API-SPEC.md](RPC-API-SPEC.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [NETWORKS-API.md](NETWORKS-API.md)
 
 ```mermaid
 flowchart LR
@@ -176,7 +176,7 @@ Public testnet connectivity (as of **2026-08-24**):
 1. **Bootnodes:** Keep at least one stable P2P listener on **4001**; update the table when adding another IP.
 2. **Public RPC:** Hosted Fly nodes behind the Cloudflare Worker at **`https://testnet-rpc.boing.network/`** ([FLY-IO.md](FLY-IO.md)). Publish **`BOING_CANONICAL_NATIVE_*`** per [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example).
 3. **Genesis:** All validators must share genesis so the faucet account holds testnet BOING.
-4. **Docs:** Incentive program — [Part 3](#part-3--incentivized-testnet). Critical path — [READINESS.md](READINESS.md) §3.
+4. **Docs:** Incentive program — [Part 3](#part-3--incentivized-testnet). Critical path — [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 (go-live) and [Part 3](#part-3--incentivized-testnet) below.
 
 **Local multi-node dev** (no public bootnodes required):
 
@@ -196,7 +196,31 @@ Public testnet connectivity (as of **2026-08-24**):
 
 ## 7. Two-node setup on Windows
 
-For a validator on one PC and a full node on another, see [OPS-PUBLIC-TESTNET-TWO-NODE.md](OPS-PUBLIC-TESTNET-TWO-NODE.md).
+**Goal:** One **validator** and one **full node** on separate Windows PCs, both joined to the public testnet.
+
+| Need | How |
+|------|-----|
+| Correct **`boing-node` build** | Zips from the latest [GitHub release](https://github.com/Boing-Network/boing.network/releases) or **`GET https://boing.network/api/networks`** ([NETWORKS-API.md](NETWORKS-API.md)) |
+| **Bootnodes + P2P** | Pass **`--bootnodes`** and **`--p2p-listen`** ([§6](#6-bootnode-list-testnet)) |
+| **Validator** | One machine with **`--validator`** and a staked account |
+| **Full node** | Second machine **without** **`--validator`** — local RPC for tools |
+
+**Automated preflight** (from a `boing.network` clone):
+
+```bash
+npm run public-testnet-node-preflight
+# lighter: npm run compare-local-public-tip
+```
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| **`BOING_LOCAL_RPC_URL`** | `http://127.0.0.1:8545` | Local node JSON-RPC |
+| **`BOING_PUBLIC_RPC_URL`** | `https://testnet-rpc.boing.network` | Reference tip + `chain_id` |
+| **`BOING_SYNC_MAX_LAG`** | `256` | Max blocks local may trail public |
+
+**Manual checklist:** outbound/inbound TCP **4001**; **one** validator process per staked identity; same network settings on both PCs; public tunnel only if **you** publish RPC to others.
+
+See also [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md), [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md).
 
 ## 8. Incentivized testnet (summary)
 
@@ -265,7 +289,7 @@ Paste the three zip hashes into **`website/functions/api/networks.js`** — `BOI
 
 **4. Deploy** — Deploy **boing.network** (Workers / Pages) so **`/api/networks`** matches the release.
 
-**5. Public RPC (separate)** — Updating listing URLs does **not** upgrade **`https://testnet-rpc.boing.network`**. Deploy the same **`boing-node`** build behind public RPC per [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
+**5. Public RPC (separate)** — Updating listing URLs does **not** upgrade **`https://testnet-rpc.boing.network`**. Deploy the same **`boing-node`** build behind public RPC per [FLY-IO.md](FLY-IO.md#upgrade--restart-public-rpc-node).
 
 **Also:** [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md).
 
@@ -422,13 +446,24 @@ Define incentive rules on a single **Incentivized Testnet Rules** page (e.g. `/i
 
 > **Status: not currently running.** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Everything in this part is planning material for a possible future program. It is not an offer, and no rewards, dates or amounts are committed.
 
-Readiness, promotion, and mainnet migration design for a possible future incentivized testnet where validators, developers, and users could earn rewards. References: [READINESS.md](READINESS.md), [RUNBOOK.md](RUNBOOK.md), [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md).
+Readiness, promotion, and mainnet migration design for a possible future incentivized testnet where validators, developers, and users could earn rewards. References: [TESTNET.md](TESTNET.md#31-readiness--launch), [RUNBOOK.md](RUNBOOK.md), [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md).
 
 ## 3.1 Readiness & Launch
 
+### Beta quality checklist (engineering)
+
+| Item | Command / doc |
+|------|----------------|
+| Workspace builds / tests | `cargo build --release`, `cargo test` |
+| CLI / node binaries | `target/release/boing`, `target/release/boing-node` |
+| Operator go-live order | [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 |
+| Pre-beta verify | `cargo build --release && cargo test && ./target/release/boing --version && ./target/release/boing-node --help` |
+| Six-pillar pre-infra items | Done — see [SIX-PILLARS.md](SIX-PILLARS.md); security contacts in [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md); RUNBOOK §6b/§6c; QA appendices A/B |
+
+
 ### Current Status
 
-Clients show "no nodes" until bootnodes and public RPC are live. Complete [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 and [READINESS.md](READINESS.md) §3 before announcing the incentivized testnet.
+Clients show "no nodes" until bootnodes and public RPC are live. Complete [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 and [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3 (go-live) and [Part 3](#part-3--incentivized-testnet) below before announcing the incentivized testnet.
 
 ### Duration
 
@@ -509,7 +544,7 @@ Document caps and eligibility in a single "Incentivized Testnet Rules" page.
 
 ### Post body (short)
 
-**Boing Network** is an L1 blockchain built from first principles with **protocol-enforced quality assurance**. Deployments are checked against a configurable rule registry (size/opcode gates always on; blocklists, scam patterns, and content policy grow via governance/operator policy — see `docs/config/CANONICAL-QA-REGISTRY.md`). Edge cases can land in the community QA pool as `Unsure` rather than auto-accepting. We're launching our **incentivized testnet** and invite validators, developers, and users to participate. **Validators:** Earn testnet BOING for blocks and uptime; top performers can qualify for mainnet recognition. **Developers:** Testnet BOING, bug bounties, dApp recognition, grant eligibility. **Users:** Faucet, quests, feedback; optional rewards per rules. All rewards from our **Community & Grants pool**. Timeline: Start [DATE], End [DATE], 2–4 weeks. **How to start:** [boing.network/testnet/join](https://boing.network/testnet/join) · [boing.network/faucet](https://boing.network/faucet) · Build from source (see the validator guide). Rules & rewards: [Link to Incentivized Testnet Rules when live]. Tech: Rust, HotStuff BFT, libp2p, custom VM, Sparse Merkle. CLI: `boing init`, `boing dev`, `boing deploy`; TypeScript SDK. Questions welcome below.
+**Boing Network** is an L1 blockchain built from first principles with **protocol-enforced quality assurance**. Deployments are checked against a configurable rule registry (size/opcode gates always on; blocklists, scam patterns, and content policy grow via governance/operator policy — see `QUALITY-ASSURANCE-NETWORK.md (canonical JSON under docs/config/)`). Edge cases can land in the community QA pool as `Unsure` rather than auto-accepting. We're launching our **incentivized testnet** and invite validators, developers, and users to participate. **Validators:** Earn testnet BOING for blocks and uptime; top performers can qualify for mainnet recognition. **Developers:** Testnet BOING, bug bounties, dApp recognition, grant eligibility. **Users:** Faucet, quests, feedback; optional rewards per rules. All rewards from our **Community & Grants pool**. Timeline: Start [DATE], End [DATE], 2–4 weeks. **How to start:** [boing.network/testnet/join](https://boing.network/testnet/join) · [boing.network/faucet](https://boing.network/faucet) · Build from source (see the validator guide). Rules & rewards: [Link to Incentivized Testnet Rules when live]. Tech: Rust, HotStuff BFT, libp2p, custom VM, Sparse Merkle. CLI: `boing init`, `boing dev`, `boing deploy`; TypeScript SDK. Questions welcome below.
 
 ### Links to include
 

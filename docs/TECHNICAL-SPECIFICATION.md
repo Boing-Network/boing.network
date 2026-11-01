@@ -294,7 +294,7 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 ### 7.1 VM Model
 
 - **Type:** Stack-based, deterministic
-- **ISA:** The **Boing VM** is its own instruction set. Opcode bytes and semantics are **Boing-defined** here and in `boing-execution` (see [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md)).
+- **ISA:** The **Boing VM** is its own instruction set. Opcode bytes and semantics are **Boing-defined** here and in `boing-execution` (see [BOING-INFRASTRUCTURE-INDEPENDENCE.md](BOING-INFRASTRUCTURE-INDEPENDENCE.md#9-boing-vm-independence)).
 - **Implementation:** `boing-execution` crate
 
 ### 7.2 Opcodes
@@ -617,7 +617,7 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 | [DECENTRALIZATION-AND-NETWORKING.md](DECENTRALIZATION-AND-NETWORKING.md) | P2P strategy, discovery roadmap, WebRTC signaling |
 | [SECURITY-STANDARDS.md](SECURITY-STANDARDS.md) | Security requirements and practices |
 | [EXECUTION-PARITY-TASK-LIST.md](EXECUTION-PARITY-TASK-LIST.md) | Actionable tasks for VM, receipts, RPC finality, token standards (pillar-aligned) |
-| [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md) | Boing VM only — no foreign chain bytecode runtimes |
+| [BOING-INFRASTRUCTURE-INDEPENDENCE.md](BOING-INFRASTRUCTURE-INDEPENDENCE.md#9-boing-vm-independence) | Boing VM only — no foreign chain bytecode runtimes |
 
 ---
 

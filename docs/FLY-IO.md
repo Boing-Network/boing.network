@@ -146,3 +146,46 @@ Phases **1–33** media + Phase **34** download ACL are documented in [BOING-L1-
 | Restart | `fly machines restart -a boing-testnet-1` |
 | Scale (keep 1) | Do not autostop; validators must stay up |
 | Secret rotate | `fly secrets set BOING_OPERATOR_RPC_TOKEN=… -a boing-testnet-1` |
+
+## Upgrade / restart public RPC node
+
+Use this when you are about to **replace or restart** the `boing-node` process behind **public testnet JSON-RPC** (Fly **`boing-testnet-1`** behind `https://testnet-rpc.boing.network/`).
+
+### Before the change
+
+1. **Note current height:** `npm run check-testnet-rpc` with **`BOING_RPC_URL`**, or `curl` **`boing_chainHeight`**.
+2. **Build from the commit** you intend to ship: `cargo build --release -p boing-node` (or CI / Fly remote builder).
+3. **Run tests** on that tree: `cargo test` (and `boing-sdk` **`npm test`** if RPC or SDK behavior changed).
+
+### Deploy / restart (hosted Fly — preferred)
+
+1. Keep **`fly.testnet-1.toml`** VM size at **shared-cpu-2x / 2 GiB** (since 2026-10-31; watch for OOM / exit 137 and step up to 4096mb first).
+2. Preserve secrets: operator token, **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT=1200`**, **`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT=1306`**, `BOING_RPC_MAX_BODY_MB`, blob download tokens if set.
+3. Deploy: `fly deploy --config fly.testnet-1.toml --remote-only --ha=false` (see [One-command deploy](#one-command-deploy)).
+4. Confirm `GET /live` on Fly and `GET https://testnet-rpc.boing.network/__gateway/health` (single backend).
+
+Env reminders: **`BOING_CHAIN_ID=6913`**, **`BOING_CHAIN_NAME=Boing Testnet`**, DEX discovery **`BOING_CANONICAL_NATIVE_*`**, micro fees ([OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md)). Template: [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example).
+
+### Self-hosted / lab restart (optional)
+
+1. Same genesis / data dir unless intentional reset.
+2. Flags aligned with prior ops ([RUNBOOK.md](RUNBOOK.md) §8.1).
+3. If you expose a **private** hostname via Cloudflare Tunnel, do **not** retarget production `testnet-rpc` ([INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md)).
+
+Replace binary from official zip: Windows `.\scripts\upgrade-boing-node-from-release.ps1`; Linux/macOS `./scripts/upgrade-boing-node-from-release.sh`. Or `cargo build --release -p boing-node`.
+
+### After the change (from the internet)
+
+1. **`npm run preflight-rpc`** (or **`check-testnet-rpc`**) with **`BOING_RPC_URL=https://testnet-rpc.boing.network/`**.
+2. **`boing_getNetworkInfo`** — confirm **`chain_id` 6913**.
+3. Smoke methods you rely on ([RPC-API-SPEC.md](RPC-API-SPEC.md)).
+4. HTTP **530** / **1033** → Worker DNS + Fly `/live` ([RUNBOOK.md](RUNBOOK.md) §8.3).
+
+### Rollback
+
+Keep the previous binary / image tag; restore and restart; re-run after-change checks.
+
+### Repo CI parity
+
+`.github/workflows/boing-sdk-rpc-integration.yml` runs `check-testnet-rpc`, SDK verify, indexer tick, and related smokes against a local node on **8545**. Match that flow on staging when possible.
+

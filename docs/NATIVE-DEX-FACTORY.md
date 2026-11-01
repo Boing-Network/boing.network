@@ -8,7 +8,7 @@
 This document specifies the **pair directory** bytecode produced by `native_dex_factory_bytecode()` in `crates/boing-execution/src/native_dex_factory.rs`. It complements:
 
 - [NATIVE-AMM-CALLDATA.md](./NATIVE-AMM-CALLDATA.md) — constant-product **pool** contract
-- [BOING-L1-DEX-ENGINEERING.md](./BOING-L1-DEX-ENGINEERING.md) — product / topology notes
+- [BOING-NATIVE-DEX-CAPABILITY.md](./BOING-NATIVE-DEX-CAPABILITY.md#engineering-dex-style-products-on-boing-l1) — product / topology notes
 
 ## Why this exists
 

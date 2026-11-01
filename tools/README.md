@@ -10,9 +10,9 @@
 | [`boing-node-public-testnet.kubernetes.example.yaml`](./boing-node-public-testnet.kubernetes.example.yaml) | **Kubernetes** `ConfigMap` + **`Deployment`** with **`envFrom`**. |
 | [Fly.io hosted testnet](../docs/FLY-IO.md) | **`Dockerfile`** + [`deploy/fly/`](../deploy/fly/) + [`scripts/fly-deploy-testnet.sh`](../scripts/fly-deploy-testnet.sh) + [`workers/public-rpc-gateway`](../workers/public-rpc-gateway/). |
 
-**Public testnet checks (repo root `package.json`):** **`npm run public-testnet-node-preflight`**, **`npm run compare-local-public-tip`** — see [docs/OPS-PUBLIC-TESTNET-TWO-NODE.md](../docs/OPS-PUBLIC-TESTNET-TWO-NODE.md).
+**Public testnet checks (repo root `package.json`):** **`npm run public-testnet-node-preflight`**, **`npm run compare-local-public-tip`** — see [docs/TESTNET.md](../docs/TESTNET.md#7-two-node-setup-on-windows).
 
-Docs: [docs/PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](../docs/PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md), [docs/RUNBOOK.md](../docs/RUNBOOK.md) § public RPC.
+Docs: [docs/FLY-IO.md](../docs/FLY-IO.md#upgrade--restart-public-rpc-node), [docs/RUNBOOK.md](../docs/RUNBOOK.md) § public RPC.
 
 ## `boing-vm-assemble.mjs`
 

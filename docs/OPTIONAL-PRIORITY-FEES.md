@@ -39,7 +39,7 @@ Apply live with `boing_operatorApplyFeePolicy` (operator auth required; rejected
 
 ## Operator / testnet enablement
 
-1. **Ship a binary** that includes fee market v1 + micro-fee height gate ([PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md)).
+1. **Ship a binary** that includes fee market v1 + micro-fee height gate ([FLY-IO.md](FLY-IO.md#upgrade--restart-public-rpc-node)).
 2. **Set activation height** on history networks (public testnet) so reduced BPS is not applied during replay:
    - Env: `BOING_MICRO_FEES_ACTIVATION_HEIGHT=<height>`
    - CLI: `--micro-fees-activation-height <height>`

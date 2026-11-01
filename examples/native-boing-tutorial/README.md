@@ -451,7 +451,7 @@ Node cannot hold the user’s extension key. In a page:
 
 ## Docs
 
-- [BOING-NATIVE-DEX-CAPABILITY.md](../../docs/BOING-NATIVE-DEX-CAPABILITY.md) / [NATIVE-DEX-FACTORY.md](../../docs/NATIVE-DEX-FACTORY.md) / [BOING-L1-DEX-ENGINEERING.md](../../docs/BOING-L1-DEX-ENGINEERING.md) (native DEX stack + pair directory §7c2)
+- [BOING-NATIVE-DEX-CAPABILITY.md](../../docs/BOING-NATIVE-DEX-CAPABILITY.md) / [NATIVE-DEX-FACTORY.md](../../docs/NATIVE-DEX-FACTORY.md) / [BOING-NATIVE-DEX-CAPABILITY.md](../../docs/BOING-NATIVE-DEX-CAPABILITY.md#engineering-dex-style-products-on-boing-l1) (native DEX stack + pair directory §7c2)
 - [NATIVE-AMM-LP-VAULT.md](../../docs/NATIVE-AMM-LP-VAULT.md) / [NATIVE-LP-SHARE-TOKEN.md](../../docs/NATIVE-LP-SHARE-TOKEN.md) (vault §7f–§7g; LP share token §7h–§7i; browser §7i2)
 - [DEVNET-OPERATOR-NATIVE-AMM.md](../../docs/DEVNET-OPERATOR-NATIVE-AMM.md) (self-hosted RPC: deploy pool + seed liquidity + dApp RPC)
 - [TESTNET-RPC-INFRA.md](../../docs/TESTNET-RPC-INFRA.md) (operators: go-live order, monitoring, **OPS-1**)

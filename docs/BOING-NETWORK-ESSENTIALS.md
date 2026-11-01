@@ -87,6 +87,7 @@ When mainnet and a more decentralized validator set ship, this page will be upda
 | Swap / NFTs | [boing.finance](https://boing.finance) |
 | Look something up | [boing.observer](https://boing.observer) |
 | Read the pillars | [SIX-PILLARS](SIX-PILLARS.md) · [PDF](../website/public/pdfs/SIX-PILLARS.pdf) |
+| See what shipped when | [FEATURES.md](FEATURES.md) · [PDF](../website/public/pdfs/FEATURES.pdf) |
 | Join Discord | [discord.gg/K3w9nbUw4N](https://discord.gg/K3w9nbUw4N) |
 | Build or integrate | [docs index](README.md) · [dApp integration](BOING-DAPP-INTEGRATION.md) · [RPC spec](RPC-API-SPEC.md) |
 | Run a node / ops | [TESTNET.md](TESTNET.md) · [RUNBOOK.md](RUNBOOK.md) |

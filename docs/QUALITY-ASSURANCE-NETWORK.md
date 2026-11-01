@@ -34,8 +34,20 @@ flowchart TD
 ### Public transparency — live registry and canonical reference
 
 - **Live rule registry (read-only):** JSON-RPC **`boing_getQaRegistry`** with params `[]` returns the **effective** `RuleRegistry` JSON the node is using (same shape as `qa_registry.json`). No authentication required.
-- **Canonical reference JSON (for comparison and docs):** [`docs/config/CANONICAL-QA-REGISTRY.md`](config/CANONICAL-QA-REGISTRY.md) describes [`qa_registry.canonical.json`](config/qa_registry.canonical.json) and [`qa_pool_config.canonical.json`](config/qa_pool_config.canonical.json), aligned with code defaults. **Deployed networks may differ** after governance or operator policy updates—always verify against **`boing_getQaRegistry`** and **`boing_qaPoolConfig`** on the RPC you trust.
+- **Canonical reference JSON** in [`docs/config/`](config/) matches default governance shapes in the node / `boing-qa` crate — for docs, diffs, and tooling, **not** a substitute for checking a live node:
+
+| File | Meaning |
+|------|--------|
+| [`qa_registry.canonical.json`](config/qa_registry.canonical.json) | Recommended rule registry baseline (32 KiB size cap, English content blocklist from [`qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json), empty deploy-hash / scam lists until curated). Fresh `RuleRegistry::new()` is minimal until an operator applies this JSON via `boing_operatorApplyQaPolicy` / `npm run apply-public-testnet-qa-policy`. |
+| [`qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json) | English content-policy terms for `asset_name` / `asset_symbol`. |
+| [`qa_pool_config.public-testnet.json`](config/qa_pool_config.public-testnet.json) | Open testnet pool governance (dev voting, generous caps). |
+| [`qa_pool_config.canonical.json`](config/qa_pool_config.canonical.json) | Production-style pool governance (`public_membership`, quorum floor, voter reward). |
+| [`network_fee_config.canonical.json`](config/network_fee_config.canonical.json) | Micro fee policy (`execution_gas_fee_bps=100`, gas → treasury, tips → proposer). |
+
+**Live vs canonical:** canonical JSON is the documented baseline; live policy is whatever the node loaded or applied. Pool summary: **`boing_qaPoolConfig`**. Smoke: `npm run verify-public-testnet-rpc`, `npm run verify-qa-alignment` (also in `.github/workflows/canonical-pool-public-rpc.yml`). Raw GitHub URLs stay stable under `docs/config/*.json` on `main`.
+
 - **Explorer / wallet:** [Boing Observer](https://boing.observer/qa) and Boing Express are **read-and-submit clients only**. They load pool status from RPC and may submit signed `QaPoolVote` transactions. They must **not** scrape protocol fees or pay voters from a Worker. Voter rewards are credited in consensus apply from [`PROTOCOL_TREASURY`](#81-protocol-treasury-and-public-membership).
+- **Operational gate catalog:** [QA-GATE-RULES.md](QA-GATE-RULES.md) (separate PDF) — every automated Allow / Reject / Unsure rule.
 
 ---
 
@@ -646,7 +658,7 @@ When voting on an Unsure item: (1) Does it match any malice category above? → 
 
 > **Purpose:** How to update protocol QA rules (including the content blocklist for vulgarity/offensiveness) via governance so that vulgar and offensive assets are not deployed. All QA rule sets are **mutable** through the standard governance process.
 
-**Read-only transparency:** The effective registry on any node is returned by JSON-RPC **`boing_getQaRegistry`** (no params). For a **documented baseline** to diff against, see **[docs/config/CANONICAL-QA-REGISTRY.md](config/CANONICAL-QA-REGISTRY.md)** and the JSON files in **`docs/config/`**.
+**Read-only transparency:** The effective registry on any node is returned by JSON-RPC **`boing_getQaRegistry`** (no params). For a **documented baseline** to diff against, see **this section** and the JSON files in **`docs/config/`**.
 
 ### C.1 What can be updated
 
@@ -709,7 +721,7 @@ The `target_value` is a JSON object with the same shape as `RuleRegistry`:
 - **blocklist:** In Rust `RuleRegistry` this is `Vec<[u8; 32]>`. In JSON you can use an array of hex strings (64 chars) or base64.
 - **scam_patterns:** In Rust `Vec<Vec<u8>>`. In JSON use an array of hex or base64 strings.
 
-Governance should maintain a **content_blocklist** of terms that the network does not allow in asset names or symbols (vulgarity, slurs, offensiveness). **Public testnet operators:** edit [`docs/config/qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json) and run **`npm run apply-public-testnet-qa-policy`** (see [`config/CANONICAL-QA-REGISTRY.md`](config/CANONICAL-QA-REGISTRY.md)). Governance can also replace the full `RuleRegistry` JSON via proposal or **`boing_operatorApplyQaPolicy`**.
+Governance should maintain a **content_blocklist** of terms that the network does not allow in asset names or symbols (vulgarity, slurs, offensiveness). **Public testnet operators:** edit [`docs/config/qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json) and run **`npm run apply-public-testnet-qa-policy`** (see [`config/CANONICAL-QA-REGISTRY.md`](#public-transparency--live-registry-and-canonical-reference)). Governance can also replace the full `RuleRegistry` JSON via proposal or **`boing_operatorApplyQaPolicy`**.
 
 ### C.3.1 QA pool governance (`qa_pool_config`)
 

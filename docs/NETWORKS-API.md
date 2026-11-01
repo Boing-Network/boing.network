@@ -19,7 +19,7 @@
 
 **Testnet public RPC:** `https://testnet-rpc.boing.network/` — used for the faucet (`boing_faucetRequest`) and read-only queries (`boing_chainHeight`, `boing_getBlockByHeight`, etc.). Override via env `PUBLIC_TESTNET_RPC_URL`.
 
-If a client shows no nodes or cannot connect, bootnodes and/or the public RPC are not live; see [READINESS.md](READINESS.md) §3.
+If a client shows no nodes or cannot connect, bootnodes and/or the public RPC are not live; see [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3.
 
 ---
 

@@ -134,7 +134,7 @@ Then **`fetch-native-amm-reserves`** again — reserves should match your seed (
 
 ## 6b. LP vault + LP share (optional)
 
-If you deploy [NATIVE-AMM-LP-VAULT.md](NATIVE-AMM-LP-VAULT.md) and [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md) on the same devnet, use the same **`examples/native-boing-tutorial`** package. On **public testnet** with the canonical operator key, **`npm run deploy-native-dex-lp-aux-contracts`** deploys both at the fixed CREATE2 ids in [`scripts/canonical-testnet-dex-predicted.json`](../scripts/canonical-testnet-dex-predicted.json) ([OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md](OPS-CANONICAL-TESTNET-NATIVE-DEX-AUX.md)).
+If you deploy [NATIVE-AMM-LP-VAULT.md](NATIVE-AMM-LP-VAULT.md) and [NATIVE-LP-SHARE-TOKEN.md](NATIVE-LP-SHARE-TOKEN.md) on the same devnet, use the same **`examples/native-boing-tutorial`** package. On **public testnet** with the canonical operator key, **`npm run deploy-native-dex-lp-aux-contracts`** deploys both at the fixed CREATE2 ids in [`scripts/canonical-testnet-dex-predicted.json`](../scripts/canonical-testnet-dex-predicted.json) ([OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md#aux-create2-predictions-factory--routers--vault--share)).
 
 | Goal | Command | Key env vars |
 |------|---------|----------------|

@@ -1,5 +1,9 @@
 # Boing Testnet — Infrastructure Setup Guide
 
+> **Role:** Home-lab / private-tunnel appendix of the operator hub ([TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md)).
+> **Public production RPC** is Cloudflare Worker → Fly — see [FLY-IO.md](FLY-IO.md). Do **not** point `testnet-rpc.boing.network` at a home tunnel.
+
+
 > 👋 **Everyday users:** this is a specialist document. Start at [README.md](README.md) for user / developer / operator paths.
 > 🛠️ **Developers:** keep this aligned with shipped code.
 > 🛰️ **Operators:** treat the sections below as the working spec for this topic.
@@ -68,7 +72,7 @@ Set via **GitHub → Settings → Secrets and variables → Actions → Variable
 
 If you need operator RPCs (or the endpoint is reachable from the open internet), set a long random secret in the node environment as **`BOING_OPERATOR_RPC_TOKEN`**. Operator methods then require the HTTP header **`X-Boing-Operator: <same value>`** (in addition to normal governance checks for votes). If the variable is unset, operator methods (including slash appeals and admin-only `boing_qaPoolVote`) are rejected with `-32057` (fail-closed); set it for local dev too if you use them. This is a breaking change from earlier releases that treated unset as open. See [RPC-API-SPEC.md](RPC-API-SPEC.md).
 
-**Read-only transparency:** **`boing_getQaRegistry`**, **`boing_qaPoolList`**, and **`boing_qaPoolConfig`** do not use the operator token — they are intended for public explorers (e.g. [boing.observer/qa](https://boing.observer/qa)). Canonical baseline JSON for docs lives under [docs/config/CANONICAL-QA-REGISTRY.md](config/CANONICAL-QA-REGISTRY.md).
+**Read-only transparency:** **`boing_getQaRegistry`**, **`boing_qaPoolList`**, and **`boing_qaPoolConfig`** do not use the operator token — they are intended for public explorers (e.g. [boing.observer/qa](https://boing.observer/qa)). Canonical baseline JSON for docs lives under [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md#public-transparency--live-registry-and-canonical-reference).
 
 The **`boing-node` process behind public RPC** (Fly `boing-testnet-1`, or a self-hosted origin you expose) must be a build that includes these methods, or explorers will show **Method not found** even when users run a newer binary locally. See [THREE-CODEBASE-ALIGNMENT.md §2.1](THREE-CODEBASE-ALIGNMENT.md#21-qa-registry-rpc-boing_getqaregistry--two-different-surfaces).
 
@@ -160,7 +164,7 @@ Explorers (e.g. **boing.observer/qa**) and tooling call these read-only methods 
 1. Confirm DNS: `testnet-rpc` → Worker (`*.workers.dev`), proxied.
 2. Confirm Fly: `GET https://boing-testnet-1.fly.dev/live` → **200**.
 3. Confirm gateway: `GET https://testnet-rpc.boing.network/__gateway/health` → single backend, `live: true`.
-4. Upgrade the Fly node when shipping RPC changes: [FLY-IO.md](FLY-IO.md), [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
+4. Upgrade the Fly node when shipping RPC changes: [FLY-IO.md](FLY-IO.md), [FLY-IO.md](FLY-IO.md#upgrade--restart-public-rpc-node).
 5. Verify from any machine:
    ```bash
    node scripts/verify-public-testnet-rpc.mjs

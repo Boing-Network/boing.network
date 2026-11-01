@@ -15,7 +15,7 @@ This document outlines what the Boing Network and Boing Express wallet **depend 
   - **Addresses:** 32-byte Ed25519 public keys (64 hex chars).
   - **Signing:** Ed25519 + BLAKE3 (same as used in Rust node and wallet).
   - **RPC:** Boing-specific JSON-RPC; no foreign-chain transaction or ABI formats.
-  - **Execution:** Only the **Boing VM** (`boing-execution`). No embedded foreign bytecode engines — see [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md).
+  - **Execution:** Only the **Boing VM** (`boing-execution`). No embedded foreign bytecode engines — see [§ Boing VM independence](#9-boing-vm-independence) below.
 - **Portal sign-in:** Ed25519-only; no legacy wallet message methods as the source of truth (use `boing_signMessage` per portal docs).
 - So **at the protocol level**, Boing is already independent of other networks.
 
@@ -258,3 +258,19 @@ Then after `cargo vendor`, commit the `vendor/` directory so `cargo build --froz
 ---
 
 *This document lives in the boing-network repo so both the chain and the wallet (boing.express) can align on what “infrastructure independence” means and what to replace vs keep.*
+
+## 9. Boing VM independence
+
+Boing’s execution layer is **only** the **Boing VM**: a stack machine defined in this repository and in [`TECHNICAL-SPECIFICATION.md`](TECHNICAL-SPECIFICATION.md) §7. The node does **not** embed or call another chain’s bytecode engine as its execution runtime.
+
+| Area | Boing |
+|------|--------|
+| **Execution** | Transactions run in `crates/boing-execution` (`Interpreter`, opcodes in `bytecode.rs`). |
+| **Dependencies** | The Rust workspace **does not** pull in foreign VM implementations (e.g. `revm`) as libraries. |
+| **Semantics** | Opcode **meaning** and **gas** are **Boing-defined** — not delegated to an external VM spec. |
+| **Bytes** | Some opcode byte values may resemble other ecosystems for familiarity; that is **not** bytecode/ABI compatibility. |
+
+**QA and tooling:** `boing-qa` validates against the Boing opcode set only. Assemblers / IR (`tools/boing-vm-assemble.mjs`, `tools/boing-vm-transpile-ir.mjs`) target Boing encodings from `bytecode.rs`.
+
+Documents that mention other ecosystems for comparison are **not** normative — source of truth is Boing specs + this codebase. Wallet: [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md).
+

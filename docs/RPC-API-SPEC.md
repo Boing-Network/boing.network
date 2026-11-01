@@ -438,7 +438,7 @@ Return the **effective protocol QA rule registry** the node uses for deployment 
 | Params | `[]` | None |
 | Result | object | `max_bytecode_size`, `blocklist` (array of 32-byte arrays), `scam_patterns`, `always_review_categories` (array of strings), `content_blocklist`. |
 
-**Reference:** Canonical baseline JSON for comparison lives in the monorepo at **`docs/config/qa_registry.canonical.json`** — see **`docs/config/CANONICAL-QA-REGISTRY.md`**. Live nodes may differ after governance updates.
+**Reference:** Canonical baseline JSON for comparison lives in the monorepo at **`docs/config/qa_registry.canonical.json`** — see **[QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md#public-transparency--live-registry-and-canonical-reference)**. Live nodes may differ after governance updates.
 
 ---
 

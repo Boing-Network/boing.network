@@ -9,7 +9,7 @@ This document defines a **recommended** calldata layout for fungible-token-style
 
 ## Principles
 
-- **Boing VM only.** Opcodes and semantics are Boing-defined (`TECHNICAL-SPECIFICATION.md` §7, [BOING-VM-INDEPENDENCE.md](BOING-VM-INDEPENDENCE.md)).
+- **Boing VM only.** Opcodes and semantics are Boing-defined (`TECHNICAL-SPECIFICATION.md` §7, [BOING-INFRASTRUCTURE-INDEPENDENCE.md](BOING-INFRASTRUCTURE-INDEPENDENCE.md#9-boing-vm-independence)).
 - **Storage layout** is contract-defined. A common pattern is **balance mapping**: `SLOAD` / `SSTORE` with key = holder `AccountId` (32 bytes) and value = balance as a 32-byte big-endian word (practical amounts often use the low 16 bytes as `u128`).
 - **Access control** uses **`CALLER`** (`0x33`) to push the **immediate caller** `AccountId` and compare with stored roles (e.g. minter). At **top-level** that is the transaction signer; if a **pool or router** contract uses nested **`Call` (`0xf1`)** to invoke your token, **`Caller` inside the token** is that **contract’s** id (like `msg.sender` being the pool on other chains), not the end-user.
 

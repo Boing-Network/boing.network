@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Automated checks for public testnet nodes (see docs/OPS-PUBLIC-TESTNET-TWO-NODE.md).
+ * Automated checks for public testnet nodes (see docs/TESTNET.md §7).
  *
  *   npm run public-testnet-node-preflight
  *
@@ -233,7 +233,7 @@ async function main() {
     report.ok = false;
     report.steps.chain_tip.reason = 'local_too_far_behind';
     report.hints.push(
-      'See docs/OPS-PUBLIC-TESTNET-TWO-NODE.md — bootnodes, binary tag, P2P reachability.'
+      'See docs/TESTNET.md §7 — bootnodes, binary tag, P2P reachability.'
     );
     console.error(JSON.stringify(report, null, 2));
     scheduleExit(2);

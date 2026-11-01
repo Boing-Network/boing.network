@@ -67,7 +67,7 @@ The same JSON-RPC method exists on **any** `boing-node` that includes it, but **
 | **Public testnet RPC** | **boing.observer** `/qa`, website tooling that use `https://testnet-rpc.boing.network/` | The **`boing-node` behind the public RPC gateway** (Fly; see [FLY-IO.md](FLY-IO.md)). Updating a **local** `boing-node` binary does **not** change this URL. |
 | **Local RPC** | Browser/tools pointed at `http://127.0.0.1:8545` (e.g. a node you started yourself) | The **downloaded / running** `boing-node` on that machine (newer GitHub release zip). This does **not** fix boing.observer until the **public** backend is upgraded too. |
 
-**User confusion to avoid:** “I updated my local node — why does boing.observer/qa still error?” Because the observer uses **`NEXT_PUBLIC_TESTNET_RPC`** (default public testnet), not your PC’s port 8545. Until that public node runs a build with `boing_getQaRegistry`, the explorer shows **Method not found**; use [canonical QA JSON](config/CANONICAL-QA-REGISTRY.md) for a static baseline, or upgrade the hosted Fly node.
+**User confusion to avoid:** “I updated my local node — why does boing.observer/qa still error?” Because the observer uses **`NEXT_PUBLIC_TESTNET_RPC`** (default public testnet), not your PC’s port 8545. Until that public node runs a build with `boing_getQaRegistry`, the explorer shows **Method not found**; use [canonical QA JSON](QUALITY-ASSURANCE-NETWORK.md#public-transparency--live-registry-and-canonical-reference) for a static baseline, or upgrade the hosted Fly node.
 
 **Node-runner copy** should stress **local binary + listing URL**; **boing.observer copy** should stress **configured RPC URL**. Both are correct; cross-link this section from app hints where helpful.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Boing mini-IR → VM bytecode (hex on stdout).
- * Spec: docs/BOING-MINI-IR.md — opcode bytes in sync with crates/boing-execution/src/bytecode.rs (Boing VM; see docs/BOING-VM-INDEPENDENCE.md).
+ * Spec: docs/BOING-MINI-IR.md — opcode bytes in sync with crates/boing-execution/src/bytecode.rs (Boing VM; see docs/BOING-INFRASTRUCTURE-INDEPENDENCE.md §9).
  *
  * Usage:
  *   node tools/boing-vm-transpile-ir.mjs program.json

@@ -9,7 +9,7 @@
 
 **Goal (OPS-1):** When operations freeze a **long-lived** constant-product pool on **Boing testnet (chain id 6913)**, publish its **32-byte pool `AccountId`** once and mirror it everywhere integrators look. This doc is the **checklist**; it does **not** contain a placeholder fake address.
 
-**Lost signing seed / chain reset:** [OPS-FRESH-TESTNET-BOOTSTRAP.md](OPS-FRESH-TESTNET-BOOTSTRAP.md) — new `BOING_SECRET_HEX`, CREATE2 manifest, repo sync, redeploy.
+**Lost signing seed / chain reset:** see [§ Fresh bootstrap / address rotation](#fresh-bootstrap--address-rotation) below.
 
 **Context:** See [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md). Operators who run **`boing-node`** locally get JSON-RPC from their own node; the node does not store a pool id. Deploying a pool is a normal **contract deploy** + **`boing_submitTransaction`** flow ([NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md)).
 
@@ -147,6 +147,59 @@ curl -s -X POST "$RPC" -H "Content-Type: application/json" \
 - Optional: `BOING_POOL_HEX=<canonical> npm run fetch-native-amm-reserves --prefix examples/native-boing-tutorial` against **`https://testnet-rpc.boing.network`**.
 
 ---
+
+## Aux CREATE2 predictions (factory / routers / vault / share)
+
+Mirror the same predictability story as the CP pool: fixed **deployer** + **CREATE2** + **frozen bytecode** ⇒ known `AccountId`s before deploy txs. Track what you actually deployed in [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md).
+
+**Important:** Until matching **`ContractDeploy`** transactions land on chain **6913**, predicted accounts may be **empty** — addresses are targets, not a guarantee of live code.
+
+### Why “gaps” showed up historically
+
+1. **Separate deploy steps** — pool was an early publish; factory/routers/vault/share need additional deploy txs.
+2. **RPC surface** — public edge may omit `end_user.canonical_native_dex_*` on older binaries/proxies.
+3. **Code-at-address reads** — prefer reserves + log scan when `boing_getContractCode` is unavailable.
+
+### Published predictions (6913)
+
+**Deployer** (CREATE2 ops key; may differ from the live pool’s historical deployer in § Published):
+
+| Field | Value |
+|-------|--------|
+| **Deployer `AccountId`** | `0xc063512f42868f1278c59a1f61ec0944785c304dbc48dec7e4c41f70f666733f` |
+
+| Contract | Predicted `AccountId` |
+|----------|---------------------|
+| Native DEX factory | `0x12dff97625620a1f10c05cd66cd72878288e8fea70d4150e9815bd38983b2890` |
+| Ledger router v1 | `0x371b4cd7e3b88e06e6b89bdc86214918a7e7ec73b62deb7f9975e4166736d54d` |
+| Ledger router v2 | `0x60a232b91d6f86a61d037ea6ea0fb769897f983c8e0d399e3df5189d00868992` |
+| Ledger router v3 | `0xfb552619b27dacacba52b62d97cd171eabe4a74dac262ecb0e8735284d7555ba` |
+| Multihop swap router | `0x8f8b2ecb6fd5dc7682e41ebe443d6116e0f4ae8247f67b4bfafec4dea2d861a3` |
+| AMM LP vault | `0x2b195b93a57b632ca3c1cf58cb7578542a6d58998116cddb8a6a50f1bd652f48` |
+| LP share token | `0x0618b4a6a30bc31822a0cdcf253ed2bcf642a6cecf26346ba655b63fccbde03c` |
+
+JSON mirror: [`scripts/canonical-testnet-dex-predicted.json`](../scripts/canonical-testnet-dex-predicted.json). SDK: `canonicalTestnetDex.js` / package re-exports.
+
+```bash
+cargo run -p boing-execution --example print_canonical_testnet_dex_create2_addresses -- --json
+```
+
+When aux contracts are live at predicted addresses, set **`BOING_CANONICAL_NATIVE_DEX_FACTORY`**, **`BOING_CANONICAL_NATIVE_DEX_MULTIHOP_SWAP_ROUTER`**, ledger v2/v3, LP vault/share env on RPC nodes ([RPC-API-SPEC.md](RPC-API-SPEC.md) `end_user`). Typical order: pool + directory → `npm run deploy-native-dex-aux-contracts` → optional `npm run deploy-native-dex-lp-aux-contracts`. Verify: `npm run audit-native-dex-testnet`.
+
+## Fresh bootstrap / address rotation
+
+Use when **no one depends on the current published pool/deployer** and you have **lost** `BOING_SECRET_HEX` or are **wiping** chain state for one coherent CREATE2 set.
+
+1. **Generate key (local only):** `npm run generate-testnet-operator-key` (or `cd boing-sdk && npm run generate-operator-key`). Save **`BOING_SECRET_HEX`** offline — never commit it.
+2. **Fund** `BOING_EXPECT_SENDER_HEX` (faucet / genesis).
+3. **Print manifest:** `cargo run -p boing-execution --example print_native_create2_manifest -- 0x<DEPLOYER> 2>/dev/null > scripts/canonical-testnet-published.manifest.json`
+4. **Sync repo:** `node scripts/sync-canonical-testnet-from-manifest.mjs scripts/canonical-testnet-published.manifest.json` (second rotations: set `CANONICAL_SYNC_PREVIOUS_POOL` / `CANONICAL_SYNC_PREVIOUS_DEPLOYER`).
+5. **Rebuild / check:** `cd boing-sdk && npm run build && npx vitest run tests/canonicalTestnet.test.ts`; `cargo run -p boing-execution --example verify_canonical_cp_pool_create2_drift` (want `create2_matches_published: true`).
+6. **Deploy on-chain** with the same secret (pool, factory, routers, vault/share) — see [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md) and tutorial README.
+7. **Optional RPC hints:** `BOING_CANONICAL_NATIVE_CP_POOL`, `BOING_CANONICAL_NATIVE_DEX_FACTORY`, …
+8. **Verify:** `npm run check-canonical-pool`, `npm run audit-native-dex-testnet`.
+
+Fill-in deploy tables + historical snapshots: [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md). Self-hosted stack: [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md).
 
 ## References
 

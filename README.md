@@ -4,7 +4,7 @@
 
 Boing is an independent Layer 1 where quality is enforced by the protocol. A decentralized, high-performance blockchain built from first principles, with transparent, protocol-level quality assurance (the **Boing Quality Gate**).
 
-> **Status: public testnet. Mainnet is not live.** Independent audits are not yet complete. See the [honest roadmap](https://boing.network/#roadmap) and [READINESS.md](docs/READINESS.md). Naming, tone and visual identity: [BRAND.md](BRAND.md).
+> **Status: public testnet. Mainnet is not live.** Independent audits are not yet complete. See the [honest roadmap](https://boing.network/#roadmap) and [FEATURES.md](docs/FEATURES.md) · [TESTNET.md](docs/TESTNET.md) Part 3.1. Naming, tone and visual identity: [BRAND.md](BRAND.md).
 
 > 👋 **Everyday users** start with a wallet, faucet, and explorer.  
 > 🛠️ **Developers** start with JSON-RPC, [`@boing-network/boing-sdk`](https://www.npmjs.com/package/@boing-network/boing-sdk), and the native DEX tutorial.  

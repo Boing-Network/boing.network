@@ -15,7 +15,7 @@
 - Most JSON-RPC scripts use **`BOING_RPC_URL`** (trailing slash optional). Examples:
   - Local: `http://127.0.0.1:8545`
   - Public: `https://testnet-rpc.boing.network` (or your tunnel URL)
-- **Go-live order** (genesis → bootnodes → block production → RPC → verify): [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3. **Self-hosted RPC + deploy pool:** [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md). **Public RPC upgrades:** [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md).
+- **Go-live order** (genesis → bootnodes → block production → RPC → verify): [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) §3. **Self-hosted RPC + deploy pool:** [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md). **Public RPC upgrades:** [FLY-IO.md](FLY-IO.md#upgrade--restart-public-rpc-node).
 - **Per-script env tables** (secrets, block ranges, pool hex): [examples/native-boing-tutorial/README.md](../examples/native-boing-tutorial/README.md).
 - **Piping JSON stdout:** Prefer **`node scripts/<name>.mjs`** from the tutorial directory (or full path from repo root). **`npm run`** can print lifecycle lines that break **`JSON.parse`** on stdout.
 
@@ -258,7 +258,7 @@ npm run test:e2e
 | **`.github/workflows/observer-ingest-d1.yml`** | **`boing-sdk` build** + **`examples/observer-d1-worker`**: **`tsc`**, **`wrangler deploy --dry-run`**; **`examples/observer-ingest-reference`**: **`node --check`** on ingest scripts |
 | **`.github/workflows/native-boing-playwright.yml`** | Playwright package install + tests (**skip** without extension path) |
 
-Use the RPC integration flow as a **local smoke** before publishing a new **`boing-node`** behind public RPC ([PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md)).
+Use the RPC integration flow as a **local smoke** before publishing a new **`boing-node`** behind public RPC ([FLY-IO.md](FLY-IO.md#upgrade--restart-public-rpc-node)).
 
 ---
 
@@ -266,11 +266,11 @@ Use the RPC integration flow as a **local smoke** before publishing a new **`boi
 
 | Doc | Use |
 |-----|-----|
-| [READINESS.md](READINESS.md) | Beta / launch checklist |
+| [TESTNET.md](TESTNET.md#31-readiness--launch) | Beta / launch checklist |
 | [RUNBOOK.md](RUNBOOK.md) | Node flags, tunnel, HTTP 530 / 1033, monitoring §8.4 |
 | [TESTNET.md](TESTNET.md) | Bootnodes, faucet, URLs |
 | [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) | Operator hub: go-live, env, monitoring, QA apply |
-| [PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md](PUBLIC-RPC-NODE-UPGRADE-CHECKLIST.md) | Upgrading the node behind public JSON-RPC |
+| [FLY-IO.md](FLY-IO.md#upgrade--restart-public-rpc-node) | Upgrading the node behind public JSON-RPC |
 | [PLAYWRIGHT-E2E-CI-OPS.md](PLAYWRIGHT-E2E-CI-OPS.md) | Extension E2E vs default CI |
 | [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md) | Canonical testnet pool id (**published** — § Published); **`boing-sdk`** **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** |
 | **`npm run check-canonical-pool`** (repo root) | No SDK build: **`boing_getContractStorage`** on canonical pool reserve A — default **`BOING_RPC_URL=https://testnet-rpc.boing.network/`**; override **`BOING_POOL_HEX`** if needed. **`BOING_REQUIRE_NONZERO_RESERVE=1`** fails if reserve A is zero (CI: **`.github/workflows/canonical-pool-public-rpc.yml`**) |
