@@ -1,6 +1,6 @@
 # Boing VM native DEX: what exists today
 
-> 👋 **Everyday users:** swap on [boing.finance](https://boing.finance) when a canonical pool is published on the RPC you use. Hosted Fly testnet may show `end_user.canonical_native_*` as **null** until operators bootstrap.  
+> 👋 **Everyday users:** swap on [boing.finance](https://boing.finance) when a canonical pool is published on the RPC you use. Hosted Fly testnet currently publishes `end_user.canonical_native_*` (verified 2026-11-01); always prefer the live RPC snapshot.  
 > 🛠️ **Developers:** Boing VM programs + `boing-sdk` — not Solidity. Discovery: `boing_listDexPools` / `boing_listDexTokens`.  
 > 🛰️ **Operators:** `npm run deploy-native-dex-full-stack` is an RPC script, **not** something `boing-node` runs on startup.
 

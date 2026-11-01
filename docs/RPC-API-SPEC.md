@@ -510,7 +510,7 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
   },
   "client_hints": {
     "min_wallet_version": "0.1.18",
-    "recommended_wallet_version": "0.1.22",
+    "recommended_wallet_version": "0.1.24",
     "recommended_sdk": "0.5.38",
     "sdk_npm_package": "@boing-network/boing-sdk",
     "note": "Advisory only ..."
@@ -605,7 +605,7 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
   },
   "client_hints": {
     "min_wallet_version": "0.1.18",
-    "recommended_wallet_version": "0.1.22",
+    "recommended_wallet_version": "0.1.24",
     "recommended_sdk": "0.5.38",
     "sdk_npm_package": "@boing-network/boing-sdk"
   },
@@ -964,7 +964,7 @@ Wallets and dApps still **configure** the pool **`AccountId`** in their own env 
 
 | | |
 |--|--|
-| **Canonical public testnet pool `AccountId`** | **Hosted Fly RPC currently unset** (`end_user.canonical_native_cp_pool` is **`null`** as of 2026-08-24). Historical tunnel-ledger id **`0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976`** (operator-published **2026-05-21**, documented deployer **`0x8079f30559c02c5fe087c9ad1bc3b751a29de35992f3f8431734243e825f696e`**) is **not** live on this cluster. Read **`boing_getNetworkInfo.end_user`**. After bootstrap, follow [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md). **CREATE2 note:** deployer **`0xc063512f…`** + current-tree bytecode predicts **`0xce4f8193…`** — not the live pool; run **`cargo run -p boing-execution --example verify_canonical_cp_pool_create2_drift`**. |
+| **Canonical public testnet pool `AccountId`** | Hosted Fly RPC publishes **`0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976`** on **`end_user.canonical_native_cp_pool`** (deploy **2026-05-21**, documented deployer **`0x8079f30559c02c5fe087c9ad1bc3b751a29de35992f3f8431734243e825f696e`**; `end_user` re-verified **2026-11-01**). Always read **`boing_getNetworkInfo.end_user`** after rotations. Checklist: [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md). **CREATE2 note:** deployer **`0xc063512f…`** + current-tree bytecode predicts **`0xce4f8193…`** — not the live pool; run **`cargo run -p boing-execution --example verify_canonical_cp_pool_create2_drift`**. |
 | **boing.finance (separate repo)** | **Source constant:** `frontend/src/config/boingCanonicalTestnetPool.js` → **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`**. **Cloudflare Pages / CI build:** **`REACT_APP_BOING_NATIVE_AMM_POOL`** (same 64-hex `AccountId`). Also wire **`nativeConstantProductPool`** (or equivalent in `contracts.js`) for chain **6913**. Redeploy the app after any change to this hex. Optional: depend on npm **`boing-sdk`** and import **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** (mirror of this table — see row below) plus shared RPC helpers / `explainBoingRpcError`. |
 | **boing-sdk** | **`CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX`** — exported from [`boing-sdk/src/canonicalTestnet.ts`](../boing-sdk/src/canonicalTestnet.ts); convenience for tutorials and TS apps. **Authoritative** values remain **this spec** and [TESTNET.md](TESTNET.md) §5.3. |
 
