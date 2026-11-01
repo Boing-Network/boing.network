@@ -156,7 +156,7 @@ The website provides a **dedicated faucet page** at [boing.network/faucet](https
 
 ### 5.3 Native constant-product AMM pool (chain 6913)
 
-The in-ledger **MVP constant-product pool** is a normal **32-byte contract `AccountId`**. Integrators should read **`boing_getNetworkInfo.end_user.canonical_native_cp_pool`** on public RPC (or set **`REACT_APP_BOING_NATIVE_AMM_POOL`** on a private chain). The hosted Fly testnet currently has **no published canonical pool** (`end_user` fields are `null`). Historical published hex **`0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976`** (OPS / SDK / website; **2026-05-21**) is **not** currently advertised on hosted Fly `end_user`; do not assume it exists on the live cluster until ops republishes. New pool rotations: [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md), [FLY-IO.md](FLY-IO.md).
+The in-ledger **MVP constant-product pool** is a normal **32-byte contract `AccountId`**. Integrators should read **`boing_getNetworkInfo.end_user.canonical_native_cp_pool`** on public RPC (or set **`REACT_APP_BOING_NATIVE_AMM_POOL`** on a private chain). Hosted Fly testnet currently publishes **`0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976`** (and related `canonical_native_*` module ids) on `end_user` (verified **2026-11-01**). Always prefer the live RPC snapshot over embedded SDK/website hexes after a rotation. New pool rotations: [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md), [FLY-IO.md](FLY-IO.md).
 
 ## 6. Bootnode list (testnet)
 

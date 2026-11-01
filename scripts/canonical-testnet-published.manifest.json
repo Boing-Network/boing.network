@@ -1,5 +1,5 @@
 {
-  "_comment": "Live public testnet stack published via boing_getNetworkInfo.end_user on https://testnet-rpc.boing.network/ (verified 2026-05-21). Source deploy: docs/NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md Appendix B. CREATE2-only predictions for deployer 0xc063… remain in canonical-testnet-dex-predicted.json.",
+  "_comment": "Live public testnet stack published via boing_getNetworkInfo.end_user on https://testnet-rpc.boing.network/ (deploy 2026-05-21; end_user re-verified 2026-11-01). Source deploy: docs/NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md Appendix B. CREATE2-only predictions for deployer 0xc063… remain in canonical-testnet-dex-predicted.json.",
   "deployer": "0x8079f30559c02c5fe087c9ad1bc3b751a29de35992f3f8431734243e825f696e",
   "native_cp_pool_v1": "0x5b60d6f8514d1a8a40340fa354951d778b0821cd3ff7e534d0bea50f67d38976",
   "native_dex_factory": "0x7322ccec1ffdbf25d3f60384db0f9a38f8d6121233daccd48d4477d6036aff2a",

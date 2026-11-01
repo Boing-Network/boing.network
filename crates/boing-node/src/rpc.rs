@@ -1411,7 +1411,7 @@ pub(crate) fn protocol_params_json(
 /// cut-over) and 0.1.16 the first that signs the chain-bound validator-registration proof; 0.1.15 only
 /// had the v2 transaction domain, so it would mis-display amounts on testnet from that height.
 const DEFAULT_MIN_WALLET_VERSION: &str = "0.1.18";
-const DEFAULT_RECOMMENDED_WALLET_VERSION: &str = "0.1.22";
+const DEFAULT_RECOMMENDED_WALLET_VERSION: &str = "0.1.24";
 const DEFAULT_RECOMMENDED_SDK_VERSION: &str = "0.5.38";
 
 fn env_or_default(var: &str, default: &str) -> String {

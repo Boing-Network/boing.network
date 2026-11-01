@@ -5,7 +5,7 @@
 > 🛰️ **Operators:** treat the sections below as the working spec for this topic.
 
 
-**Hosted Fly testnet (2026-08-24):** `https://testnet-rpc.boing.network/` currently returns **`end_user.canonical_native_cp_pool: null`**. The hex in § Published is the **previous tunnel ledger** — do not treat it as live on the Fly cluster until ops re-runs `npm run deploy-native-dex-full-stack` and sets `BOING_CANONICAL_NATIVE_*` on the nodes. Live source of truth: `boing_getNetworkInfo.end_user`.
+**Hosted Fly testnet (verified 2026-11-01):** `https://testnet-rpc.boing.network/` publishes **`end_user.canonical_native_cp_pool`** (and related `canonical_native_*` ids) matching § Published. Live source of truth remains `boing_getNetworkInfo.end_user` — re-check after any chain reset or `BOING_CANONICAL_NATIVE_*` change.
 
 **Goal (OPS-1):** When operations freeze a **long-lived** constant-product pool on **Boing testnet (chain id 6913)**, publish its **32-byte pool `AccountId`** once and mirror it everywhere integrators look. This doc is the **checklist**; it does **not** contain a placeholder fake address.
 
@@ -21,10 +21,10 @@
 | **Bytecode** | **v1** constant-product pool (full-stack deploy on public RPC) |
 | **Deploy** | Operator-published id above — **use this hex** for RPC reads, dApp defaults, and **`npm run check-canonical-pool`**. |
 | **Deployer (documented)** | `0x8079f30559c02c5fe087c9ad1bc3b751a29de35992f3f8431734243e825f696e` |
-| **Date** | **2026-05-21** (previous public tunnel ledger; **not** currently advertised on hosted Fly `end_user`) |
+| **Date** | **2026-05-21** deploy; **re-advertised** on hosted Fly `end_user` (verified **2026-11-01**) |
 | **Verification** | **`npm run check-canonical-pool`** with **`BOING_REQUIRE_NONZERO_RESERVE=1`**; reserves via **`npm run fetch-native-amm-reserves`** with **`BOING_POOL_HEX`**. Deploy record: [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md) **Appendix B**. |
 
-**Related live contracts (same deploy):** factory `0x58112627…`, multihop router `0xf801cd1a…`, ledger v2/v3, LP vault, LP share — see **`boing-sdk`** `canonicalTestnetDex.ts` and [`scripts/canonical-testnet-published.manifest.json`](../scripts/canonical-testnet-published.manifest.json).
+**Related live contracts (same deploy):** factory `0x7322ccec…`, multihop router `0xd8504729…`, ledger v2/v3, LP vault, LP share — see **`boing-sdk`** `canonicalTestnetDex.ts` and [`scripts/canonical-testnet-published.manifest.json`](../scripts/canonical-testnet-published.manifest.json).
 
 **CREATE2 prediction (deployer `0xc063512f…`):** A **fresh** deploy using **`constant_product_pool_bytecode()`** + **`NATIVE_CP_POOL_CREATE2_SALT_V1`** lands at **`0xce4f819369630e89c4634112fdf01e1907f076bc30907f0402591abfca66518d`** in today's tree — that is **not** the live public pool id. New deploys should use **`predictedPoolHex`** from **`npm run deploy-native-amm-pool`**. Run:
 

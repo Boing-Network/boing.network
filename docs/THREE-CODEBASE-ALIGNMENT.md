@@ -91,9 +91,9 @@ For wallet connection and dApp integration (e.g. portal sign-in, chain switching
 | Item | Value |
 |------|--------|
 | **Chain** | **6913** (testnet) |
-| **Canonical pool `AccountId`** | **Unset on hosted Fly RPC** (`end_user.canonical_native_cp_pool` is `null`). Historical published id `0x5b60d6f8…` (OPS / SDK); hosted Fly `end_user` is currently `null`. |
-| **Canonical DEX factory** | **Unset** on hosted Fly RPC. |
-| **Multihop router** | **Unset** on hosted Fly RPC. |
+| **Canonical pool `AccountId`** | Published on hosted Fly RPC: `0x5b60d6f8…` (`end_user.canonical_native_cp_pool`, verified 2026-11-01). Prefer live RPC over embedded SDK hexes. |
+| **Canonical DEX factory** | Published: `0x7322ccec…` on `end_user.canonical_native_dex_factory`. |
+| **Multihop router** | Published: `0xd8504729…` on `end_user.canonical_native_dex_multihop_swap_router`. |
 
 - **Docs:** [RPC-API-SPEC.md](RPC-API-SPEC.md) § Native constant-product AMM, [TESTNET.md](TESTNET.md) §5.3, [NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md](NATIVE-DEX-OPERATOR-DEPLOYMENT-RECORD.md) Appendix B.
 - **Live RPC:** `boing_getNetworkInfo.end_user` on `https://testnet-rpc.boing.network/`.
