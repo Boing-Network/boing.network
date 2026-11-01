@@ -50,6 +50,7 @@ fn test_bond_unbond_claim_with_delay() {
             vm_hardening: false,
             blake3_opcode: false,
             jump_strict: true,
+            qa_canonical: false,
         },
     )
     .unwrap();
@@ -79,6 +80,7 @@ fn test_bond_unbond_claim_with_delay() {
                 vm_hardening: false,
                 blake3_opcode: false,
                 jump_strict: true,
+                qa_canonical: false,
             },
         )
         .unwrap_err();
@@ -100,6 +102,7 @@ fn test_bond_unbond_claim_with_delay() {
             vm_hardening: false,
             blake3_opcode: false,
             jump_strict: true,
+            qa_canonical: false,
         },
     )
     .unwrap();

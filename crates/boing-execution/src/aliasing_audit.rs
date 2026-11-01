@@ -150,6 +150,7 @@ fn secured_token(st: &mut StateStore, deployer: AccountId, bytecode: Vec<u8>) ->
         vm_hardening: false,
         blake3_opcode: false,
         jump_strict: true,
+        qa_canonical: false,
     };
     let vm = Vm::new();
     let mk = |nonce, payload| Transaction {

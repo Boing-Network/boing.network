@@ -93,7 +93,70 @@ fn default_qa_registry() -> RuleRegistry {
     RuleRegistry::new()
 }
 
+/// Committed (canonical) QA policy in `state`: the stored governance JSON, else the protocol
+/// defaults (`RuleRegistry::new()`, [`QaPoolGovernanceConfig::development_default`]). Stored JSON
+/// is validated when written, so a parse failure here falls back to the default.
+pub fn canonical_qa_policy(state: &StateStore) -> (RuleRegistry, QaPoolGovernanceConfig) {
+    let p = state.qa_policy();
+    let registry = p
+        .registry_json
+        .as_deref()
+        .and_then(|b| boing_qa::rule_registry_from_json(b).ok())
+        .unwrap_or_else(default_qa_registry);
+    let pool = p
+        .pool_config_json
+        .as_deref()
+        .and_then(|b| boing_qa::qa_pool_config_from_json(b).ok())
+        .unwrap_or_else(QaPoolGovernanceConfig::development_default);
+    (registry, pool)
+}
+
+/// From `qa_canonical_from` with consensus governance on: execute every on-chain `qa_registry` /
+/// `qa_pool_config` proposal whose cooling has ended (at `block_timestamp`) and store its value as
+/// the committed QA policy. Invalid JSON is dropped (the proposal is consumed). Other keys are left
+/// untouched. Returns the number of policy updates applied.
+pub fn apply_due_qa_governance(state: &mut StateStore, block_timestamp: u64) -> usize {
+    use boing_governance::ProposalPhase;
+    let now = std::time::UNIX_EPOCH + std::time::Duration::from_secs(block_timestamp);
+    let due: Vec<u64> = state
+        .governance()
+        .engine()
+        .list()
+        .into_iter()
+        .filter(|p| p.target_key == "qa_registry" || p.target_key == "qa_pool_config")
+        .filter(|p| match p.phase {
+            ProposalPhase::Cooling => p.cooling_ends_at.is_some_and(|t| now >= t),
+            ProposalPhase::Execution => p.execution_ends_at.is_some_and(|t| now <= t),
+            _ => false,
+        })
+        .map(|p| p.id)
+        .collect();
+    let mut applied = 0;
+    for id in due {
+        let engine = state.governance_mut().engine_mut();
+        if engine.get(id).map(|p| p.phase) == Some(ProposalPhase::Cooling)
+            && engine.advance_to_execution(id, now).is_err()
+        {
+            continue;
+        }
+        let Ok((key, value)) = engine.execute(id, now) else {
+            continue;
+        };
+        if key == "qa_registry" {
+            if boing_qa::rule_registry_from_json(&value).is_ok() {
+                state.qa_policy_mut().registry_json = Some(value);
+                applied += 1;
+            }
+        } else if boing_qa::qa_pool_config_from_json(&value).is_ok() {
+            state.qa_policy_mut().pool_config_json = Some(value);
+            applied += 1;
+        }
+    }
+    applied
+}
+
 /// Virtual machine for executing transactions.
+#[derive(Clone)]
 pub struct Vm {
     /// Same rule set as mempool deploy QA (`check_contract_deploy_full_with_metadata`), with the
     /// native-value opcodes rejected (blocks below [`Self::native_value_from`]).
@@ -107,6 +170,10 @@ pub struct Vm {
     vm_hardening_from: u64,
     equivocation_slash_from: u64,
     vm_jump_strict_from: u64,
+    /// Canonical on-chain QA policy gate (`None` = off). See [`ExecutionHistory::qa_canonical_from`].
+    ///
+    /// [`ExecutionHistory::qa_canonical_from`]: crate::ExecutionHistory::qa_canonical_from
+    qa_canonical_from: Option<u64>,
     /// Pool membership / quorum / voter-reward knobs (execution-time public votes).
     qa_pool_config: QaPoolGovernanceConfig,
     /// Chain id for v2 validator registration proofs (security review #14); `None` = v1 only.
@@ -284,6 +351,28 @@ impl Vm {
         height >= self.vm_jump_strict_from
     }
 
+    /// Activation height of the canonical on-chain QA policy (v0.1.23); `None` = off.
+    pub fn set_qa_canonical_from(&mut self, from: Option<u64>) {
+        self.qa_canonical_from = from;
+    }
+
+    pub fn qa_canonical_from(&self) -> Option<u64> {
+        self.qa_canonical_from
+    }
+
+    pub fn qa_canonical_active(&self, height: u64) -> bool {
+        matches!(self.qa_canonical_from, Some(f) if height >= f)
+    }
+
+    /// A copy of this VM (same activation heights) running the committed on-chain QA policy in
+    /// `state` instead of the node-local one. Used for block execution from `qa_canonical_from`.
+    pub fn with_canonical_qa(&self, state: &StateStore) -> Vm {
+        let (registry, pool) = canonical_qa_policy(state);
+        let mut vm = self.clone();
+        vm.set_qa_policies(registry, pool);
+        vm
+    }
+
     /// `exec_ctx` with [`VmExecutionContext::native_value`] / [`VmExecutionContext::vm_hardening`]
     /// set from its block height.
     fn ctx_at(&self, exec_ctx: VmExecutionContext) -> VmExecutionContext {
@@ -292,6 +381,7 @@ impl Vm {
             vm_hardening: self.vm_hardening_active(exec_ctx.block_height),
             blake3_opcode: self.blake3_active(exec_ctx.block_height),
             jump_strict: self.vm_jump_strict_active(exec_ctx.block_height),
+            qa_canonical: self.qa_canonical_active(exec_ctx.block_height),
             ..exec_ctx
         }
     }
@@ -344,6 +434,7 @@ impl Vm {
             vm_hardening_from: 0,
             equivocation_slash_from: 0,
             vm_jump_strict_from: 0,
+            qa_canonical_from: None,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -367,6 +458,7 @@ impl Vm {
             vm_hardening_from: 0,
             equivocation_slash_from: 0,
             vm_jump_strict_from: 0,
+            qa_canonical_from: None,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -393,6 +485,7 @@ impl Vm {
             vm_hardening_from: 0,
             equivocation_slash_from: 0,
             vm_jump_strict_from: 0,
+            qa_canonical_from: None,
             qa_pool_config,
             registration_chain_id: None,
             registration_v2_from: 0,
@@ -1998,6 +2091,13 @@ impl Vm {
                 if self.qa_pool_config.public_membership {
                     return self.register_unsure_deploy(state, tx, exec_ctx.block_height);
                 }
+                if self.qa_canonical_active(exec_ctx.block_height) {
+                    // v0.1.23: no public pool to review it, so an Unsure deploy is not admitted.
+                    return Err(VmError::QaRejected {
+                        rule_id: boing_qa::RuleId::SOFT_RULE_FAILED.to_string(),
+                        message: "deploy QA Unsure with public QA membership off".to_string(),
+                    });
+                }
                 // Legacy / admin-pool path: Unsure is not a hard reject. Community QA pool admits
                 // some Unsure txs; at execution we only enforce Allow vs Reject.
                 boing_telemetry::component_debug(
@@ -3585,6 +3685,7 @@ mod create2_qa_unsure_tests {
                 vm_hardening: true,
                 blake3_opcode: false,
                 jump_strict: true,
+                qa_canonical: false,
             },
         )
         .expect_err("Unsure CREATE2 must fail");
@@ -3679,6 +3780,7 @@ mod slash_appeal_phase14_tests {
             vm_hardening: false,
             blake3_opcode: false,
             jump_strict: true,
+            qa_canonical: false,
         }
     }
 

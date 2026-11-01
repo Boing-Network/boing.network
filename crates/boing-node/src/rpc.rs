@@ -1386,6 +1386,11 @@ pub(crate) fn consensus_fix_gates_json(
     )
 }
 
+/// `qa_canonical_activation_height` (v0.1.23 canonical on-chain QA policy); `null` = off.
+pub(crate) fn qa_canonical_gate_json(n: &crate::node::BoingNode) -> serde_json::Value {
+    serde_json::json!(n.executor.vm().qa_canonical_from())
+}
+
 pub(crate) fn protocol_params_json(
     n: &crate::node::BoingNode,
 ) -> (serde_json::Value, serde_json::Value) {
@@ -3804,6 +3809,7 @@ async fn dispatch_jsonrpc_request(
                     "vm_hardening_activation_height": gate_heights_json(&n).1,
                     "equivocation_slash_activation_height": consensus_fix_gates_json(&n).0,
                     "vm_jump_strict_activation_height": consensus_fix_gates_json(&n).1,
+                    "qa_canonical_activation_height": qa_canonical_gate_json(&n),
                     "receipt_retention_blocks": receipt_retention_blocks,
                     "client_version": format!("boing-node/{}", env!("CARGO_PKG_VERSION")),
                     "chain_id": chain_id,
@@ -4174,6 +4180,7 @@ async fn dispatch_jsonrpc_request(
                     "vm_hardening_activation_height": gate_heights_json(&n).1,
                     "equivocation_slash_activation_height": consensus_fix_gates_json(&n).0,
                     "vm_jump_strict_activation_height": consensus_fix_gates_json(&n).1,
+                    "qa_canonical_activation_height": qa_canonical_gate_json(&n),
                     "receipt_retention_blocks": receipt_retention_blocks,
                     "chain_id": chain_id,
                     "chain_name": chain_name,
@@ -4606,6 +4613,7 @@ async fn dispatch_jsonrpc_request(
                                     vm_hardening: false,
                                     blake3_opcode: false,
                                     jump_strict: false,
+                                    qa_canonical: false,
                                 },
                                 n.executor.fee_policy().clone(),
                                 n.executor.denomination_at(h.saturating_add(1)),
@@ -4816,6 +4824,7 @@ async fn dispatch_jsonrpc_request(
                 vm_hardening: false,
                 blake3_opcode: false,
                 jump_strict: false,
+                qa_canonical: false,
             };
             drop(n);
             match vm.execute_with_context(&tx, &mut state_copy, exec_ctx) {

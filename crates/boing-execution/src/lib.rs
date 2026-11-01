@@ -220,8 +220,8 @@ pub use reference_token_v3::{
 };
 pub use scheduler::TransactionScheduler;
 pub use vm::{
-    apply_media_blob_block_housekeeping, settle_expired_serve_challenges, TransferState, Vm,
-    VmError, VmExecutionResult, GAS_BATCH_BASE, GAS_BATCH_CONTRACT_BUDGET,
-    GAS_PER_BATCH_CONTRACT_CALL_STEP, GAS_PER_BATCH_TRANSFER, GAS_PER_CONTRACT_CALL,
-    GAS_PER_CONTRACT_DEPLOY_INIT, GAS_PER_TRANSFER,
+    apply_due_qa_governance, apply_media_blob_block_housekeeping, canonical_qa_policy,
+    settle_expired_serve_challenges, TransferState, Vm, VmError, VmExecutionResult, GAS_BATCH_BASE,
+    GAS_BATCH_CONTRACT_BUDGET, GAS_PER_BATCH_CONTRACT_CALL_STEP, GAS_PER_BATCH_TRANSFER,
+    GAS_PER_CONTRACT_CALL, GAS_PER_CONTRACT_DEPLOY_INIT, GAS_PER_TRANSFER,
 };

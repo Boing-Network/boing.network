@@ -1037,6 +1037,8 @@ fn replay_full_live_chain_then_cross_consensus_fix_gates() {
         replay(n, &blocks).unwrap_or_else(|(h, e)| panic!("height {h}: {e}"));
         assert!(!n.executor.vm().equivocation_slash_active(n.chain.height()));
         assert!(!n.executor.vm().vm_jump_strict_active(n.chain.height()));
+        assert!(!n.executor.vm().qa_canonical_active(n.chain.height()));
+        assert!(n.state.qa_policy().is_empty());
     }
     assert!(
         a.chain.height() < gate - 2,
@@ -1047,6 +1049,17 @@ fn replay_full_live_chain_then_cross_consensus_fix_gates() {
     assert!(a.executor.vm().vm_jump_strict_active(a.chain.height()));
     println!(
         "crossed consensus-fix gates at {gate}; tip {}",
+        a.chain.height()
+    );
+    // v0.1.23: canonical on-chain QA policy gate (testnet 1700), same unmodified preset.
+    let qa_gate = network_preset::BOING_TESTNET_QA_CANONICAL_FROM;
+    assert_eq!(a.executor.vm().qa_canonical_from(), Some(qa_gate));
+    assert!(!a.executor.vm().qa_canonical_active(a.chain.height()));
+    produce_across(&mut a, &mut b, qa_gate, 3);
+    assert!(a.executor.vm().qa_canonical_active(a.chain.height()));
+    assert_eq!(a.state.state_root(), b.state.state_root());
+    println!(
+        "crossed QA canonical gate at {qa_gate}; tip {}",
         a.chain.height()
     );
 }

@@ -56,6 +56,9 @@ pub struct VmExecutionContext {
     /// `NativeAmountExceedsU128`. `false` keeps the v0.1.21 behaviour (fall through /
     /// `InsufficientBalance`).
     pub jump_strict: bool,
+    /// Canonical QA policy gate (v0.1.23): in-contract `CREATE2` init code is capped at the
+    /// registry's `max_bytecode_size` instead of [`boing_qa::DEFAULT_MAX_BYTECODE_SIZE`].
+    pub qa_canonical: bool,
 }
 
 fn word_u64_env(n: u64) -> [u8; 32] {
@@ -745,7 +748,12 @@ impl Interpreter {
                     if size == 0 {
                         return Err(VmError::Create2InitCodeEmpty);
                     }
-                    if size > boing_qa::DEFAULT_MAX_BYTECODE_SIZE {
+                    let max_init = if self.exec_ctx.qa_canonical {
+                        qa_registry.max_bytecode_size()
+                    } else {
+                        boing_qa::DEFAULT_MAX_BYTECODE_SIZE
+                    };
+                    if size > max_init {
                         return Err(VmError::CallBufferTooLarge);
                     }
                     let linear = gas::CREATE2_PER_INIT_BYTE.saturating_mul(size as u64);
@@ -982,6 +990,7 @@ mod tests {
         let ctx = VmExecutionContext {
             native_value: true,
             jump_strict: strict,
+            qa_canonical: false,
             ..Default::default()
         };
         Interpreter::new(code, 1_000_000).run_with_qa(

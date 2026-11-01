@@ -9,6 +9,7 @@ use crate::governance_registry::GovernanceRegistry;
 use crate::names::{NameRegistry, NameRegistryParams};
 use crate::open_validators::{OpenValidatorParams, OpenValidatorRegistry};
 use crate::qa_pending::QaPendingRecord;
+use crate::qa_policy::CommittedQaPolicy;
 use crate::sample_offers::SampleOfferRegistry;
 use crate::sample_serve::SampleServeChallengeRegistry;
 use crate::slash_appeals::SlashAppealRegistry;
@@ -79,6 +80,7 @@ enum Undo {
     SampleServe(Box<SampleServeChallengeRegistry>),
     SlashAppeals(Box<SlashAppealRegistry>),
     Governance(Box<GovernanceRegistry>),
+    QaPolicy(Box<CommittedQaPolicy>),
 }
 
 /// State store with Sparse Merkle tree for state_root.
@@ -136,6 +138,8 @@ pub struct StateStore {
     slash_appeal_resolvers: Option<Vec<AccountId>>,
     /// Consensus governance registry (committed once non-empty). Audit #61 item 41.
     governance: GovernanceRegistry,
+    /// Committed QA policy (gate `qa_canonical_from`; committed once non-empty).
+    qa_policy: CommittedQaPolicy,
     /// Undo journal for live checkpoints (see [`StateCheckpoint`]).
     journal: Vec<Undo>,
     /// Shared with every live checkpoint; `strong_count > 1` means journaling is on.
@@ -149,6 +153,7 @@ pub struct StateStore {
     sample_serve_snap_pos: Option<usize>,
     slash_appeals_snap_pos: Option<usize>,
     governance_snap_pos: Option<usize>,
+    qa_policy_snap_pos: Option<usize>,
 }
 
 impl StateStore {
@@ -176,6 +181,7 @@ impl StateStore {
         self.sample_serve_snap_pos = None;
         self.slash_appeals_snap_pos = None;
         self.governance_snap_pos = None;
+        self.qa_policy_snap_pos = None;
         false
     }
 
@@ -368,7 +374,7 @@ impl StateStore {
     }
 
     /// Commitments of the singleton registries (`None` = registry empty, so no leaf).
-    fn registry_leaves(&self) -> [([u8; 32], Option<Hash>); 6] {
+    fn registry_leaves(&self) -> [([u8; 32], Option<Hash>); 7] {
         [
             (
                 OpenValidatorRegistry::smt_key(),
@@ -393,6 +399,10 @@ impl StateStore {
             (
                 GovernanceRegistry::smt_key(),
                 (!self.governance.is_empty()).then(|| Hash(self.governance.commitment())),
+            ),
+            (
+                CommittedQaPolicy::smt_key(),
+                (!self.qa_policy.is_empty()).then(|| Hash(self.qa_policy.commitment())),
             ),
         ]
     }
@@ -550,6 +560,7 @@ impl StateStore {
             slash_appeals: self.slash_appeals.clone(),
             slash_appeal_resolvers: self.slash_appeal_resolvers.clone(),
             governance: self.governance.clone(),
+            qa_policy: self.qa_policy.clone(),
             journal: Vec::new(),
             cp_token: Arc::new(()),
             last_cp_pos: 0,
@@ -559,6 +570,7 @@ impl StateStore {
             sample_serve_snap_pos: None,
             slash_appeals_snap_pos: None,
             governance_snap_pos: None,
+            qa_policy_snap_pos: None,
         }
     }
 
@@ -628,6 +640,7 @@ impl StateStore {
                 Undo::SampleServe(reg) => self.sample_serve = *reg,
                 Undo::SlashAppeals(reg) => self.slash_appeals = *reg,
                 Undo::Governance(reg) => self.governance = *reg,
+                Undo::QaPolicy(reg) => self.qa_policy = *reg,
             }
         }
         // Checkpoints created after `cp` are dead (nested scopes); keep the live-position bound.
@@ -649,6 +662,9 @@ impl StateStore {
         }
         if matches!(self.governance_snap_pos, Some(p) if p >= cp.pos) {
             self.governance_snap_pos = None;
+        }
+        if matches!(self.qa_policy_snap_pos, Some(p) if p >= cp.pos) {
+            self.qa_policy_snap_pos = None;
         }
     }
 
@@ -953,6 +969,24 @@ impl StateStore {
                 .push(Undo::Governance(Box::new(self.governance.clone())));
         }
         &mut self.governance
+    }
+
+    #[must_use]
+    pub fn qa_policy(&self) -> &CommittedQaPolicy {
+        &self.qa_policy
+    }
+
+    pub fn qa_policy_mut(&mut self) -> &mut CommittedQaPolicy {
+        if self.journaling() && self.snapshot_needed(self.qa_policy_snap_pos) {
+            self.qa_policy_snap_pos = Some(self.journal.len());
+            self.journal
+                .push(Undo::QaPolicy(Box::new(self.qa_policy.clone())));
+        }
+        &mut self.qa_policy
+    }
+
+    pub fn load_qa_policy(&mut self, p: CommittedQaPolicy) {
+        *self.qa_policy_mut() = p;
     }
 
     pub fn load_governance(&mut self, reg: GovernanceRegistry) {

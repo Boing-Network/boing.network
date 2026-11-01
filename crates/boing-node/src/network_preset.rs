@@ -79,6 +79,12 @@ pub const BOING_TESTNET_EQUIVOCATION_SLASH_FROM: u64 = 1_600;
 /// `NativeAmountExceedsU128`). Same block as equivocation slashing. ONE-WAY once reached.
 /// Override: `BOING_VM_JUMP_STRICT_ACTIVATION_HEIGHT`.
 pub const BOING_TESTNET_VM_JUMP_STRICT_FROM: u64 = 1_600;
+/// Testnet activation of the canonical on-chain QA policy (v0.1.23): block execution uses the
+/// committed QA policy (protocol default + executed on-chain governance) instead of each node's
+/// `--qa-registry`; Unsure deploys are rejected while public QA membership is off; in-contract
+/// `CREATE2` uses the registry's `max_bytecode_size`. Tip at v0.1.23 release was ~1506.
+/// ONE-WAY once reached. Override: `BOING_QA_CANONICAL_ACTIVATION_HEIGHT` (`off` disables).
+pub const BOING_TESTNET_QA_CANONICAL_FROM: u64 = 1_700;
 
 /// Genesis block proposer plus the accounts funded at height 0.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -143,6 +149,7 @@ pub fn boing_testnet_history() -> ExecutionHistory {
         vm_hardening_from: BOING_TESTNET_VM_HARDENING_FROM,
         equivocation_slash_from: BOING_TESTNET_EQUIVOCATION_SLASH_FROM,
         vm_jump_strict_from: BOING_TESTNET_VM_JUMP_STRICT_FROM,
+        qa_canonical_from: Some(BOING_TESTNET_QA_CANONICAL_FROM),
     }
 }
 
@@ -361,6 +368,14 @@ pub fn resolve_consensus_fix_gates(
     if let Some(h) = env_height("BOING_VM_JUMP_STRICT_ACTIVATION_HEIGHT")? {
         history.vm_jump_strict_from = h;
     }
+    match std::env::var("BOING_QA_CANONICAL_ACTIVATION_HEIGHT") {
+        Ok(v) if v.trim().eq_ignore_ascii_case("off") => history.qa_canonical_from = None,
+        _ => {
+            if let Some(h) = env_height("BOING_QA_CANONICAL_ACTIVATION_HEIGHT")? {
+                history.qa_canonical_from = Some(h);
+            }
+        }
+    }
     Ok(())
 }
 
@@ -528,6 +543,10 @@ mod vm_hardening_gate_tests {
         assert!(h.equivocation_slash_active(1_600));
         assert!(!h.vm_jump_strict_active(1_599));
         assert!(h.vm_jump_strict_active(1_600));
+        assert_eq!(h.qa_canonical_from, Some(1_700));
+        assert!(!h.qa_canonical_active(1_699));
+        assert!(h.qa_canonical_active(1_700));
+        assert!(!boing_execution::ExecutionHistory::default().qa_canonical_active(u64::MAX));
         let mut h = boing_testnet_history();
         resolve_vm_hardening_from(Some(7), &mut h).unwrap();
         assert_eq!(h.vm_hardening_from, 7);

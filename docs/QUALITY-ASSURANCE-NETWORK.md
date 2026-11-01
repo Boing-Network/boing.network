@@ -672,6 +672,10 @@ The following are **governance-mutable**:
 
 3. **Persistence** — Executing a proposal calls **`BoingNode::set_qa_policy`** / **`set_fee_policy`**, which persist `qa_registry.json` / `qa_pool_config.json` / `network_fee_config.json`. Open proposals themselves persist as **`governance.json`**. Instant **`boing_operatorApplyQaPolicy`** / **`boing_operatorApplyFeePolicy`** remain available as a bypass of the cooling timer.
 
+### C.2.1 Canonical (on-chain) QA policy
+
+From `qa_canonical_activation_height` (testnet 6913: block **1700**, `BOING_QA_CANONICAL_ACTIVATION_HEIGHT`; off on other chains) block execution uses the QA registry and `qa_pool_config` committed in chain state, changed only by executed governance proposals. Node-local `--qa-registry` / pool config only gate mempool admission. With no committed public pool, `Unsure` deploys are rejected at execution. In-contract `CREATE2` init code uses the registry's `max_bytecode_size`.
+
 ### C.3 JSON format for `RuleRegistry`
 
 The `target_value` is a JSON object with the same shape as `RuleRegistry`:

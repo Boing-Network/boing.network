@@ -79,12 +79,14 @@ impl BlockExecutor {
             self.vm
                 .set_equivocation_slash_from(h.equivocation_slash_from);
             self.vm.set_vm_jump_strict_from(h.vm_jump_strict_from);
+            self.vm.set_qa_canonical_from(h.qa_canonical_from);
         } else {
             self.vm.set_base_units_from(0);
             self.vm.set_native_value_from(0);
             self.vm.set_vm_hardening_from(0);
             self.vm.set_equivocation_slash_from(0);
             self.vm.set_vm_jump_strict_from(0);
+            self.vm.set_qa_canonical_from(None);
         }
         self.history = history.map(std::sync::Arc::new);
     }
@@ -285,7 +287,19 @@ impl BlockExecutor {
             vm_hardening: self.vm.vm_hardening_active(block_height),
             blake3_opcode: false,
             jump_strict: self.vm.vm_jump_strict_active(block_height),
+            qa_canonical: self.vm.qa_canonical_active(block_height),
         };
+        // v0.1.23 canonical QA policy: from `qa_canonical_from`, execute due on-chain QA policy
+        // proposals, then run the block with the committed policy instead of the node-local one.
+        let canonical_vm = if self.vm.qa_canonical_active(block_height) {
+            if self.vm.governance_consensus_active(block_height) {
+                crate::vm::apply_due_qa_governance(state, block_timestamp);
+            }
+            Some(self.vm.with_canonical_qa(state))
+        } else {
+            None
+        };
+        let vm: &Vm = canonical_vm.as_ref().unwrap_or(&self.vm);
         // Ledger redenomination (whole BOING -> base units) happens once, at the start of block H.
         self.prepare_state_for_height(block_height, state);
         let denom = self.denomination_at(block_height);
@@ -359,8 +373,7 @@ impl BlockExecutor {
                         .par_iter()
                         .map(|(idx, tx, snapshot)| {
                             let mut view = ExecutionView::from_snapshot(snapshot.clone());
-                            let out = self
-                                .vm
+                            let out = vm
                                 .execute_transfer(tx, &mut view)
                                 .map_err(ExecutionError::Vm)?;
                             Ok((*idx, view, out.gas_used))
@@ -434,7 +447,7 @@ impl BlockExecutor {
                 for &idx in &batch {
                     let tx = &txs[idx];
                     let tx_ckpt = state.checkpoint();
-                    match self.vm.execute_with_context(tx, state, exec_ctx) {
+                    match vm.execute_with_context(tx, state, exec_ctx) {
                         Ok(out) => {
                             let fee = network_fee_amount_in(
                                 out.gas_used,

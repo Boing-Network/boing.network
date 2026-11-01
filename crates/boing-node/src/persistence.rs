@@ -110,6 +110,8 @@ const SLASH_APPEALS_FILE: &str = "slash_appeals_registry.bin";
 const GOVERNANCE_REGISTRY_FILE: &str = "governance_registry.bin";
 const GOVERNANCE_REGISTRY_MAGIC: &[u8; 4] = b"BGR1";
 const GOVERNANCE_REGISTRY_VERSION_V1: u32 = 1;
+const QA_POLICY_FILE: &str = "qa_policy_registry.bin";
+const QA_POLICY_MAGIC: &[u8; 4] = b"BQP1";
 /// Phase 17+ on-disk envelope magic for `slash_appeals_registry.bin`.
 const SLASH_APPEALS_MAGIC: &[u8; 4] = b"BSAR";
 /// Phase 17 payload version (weighted ResolveVote, no ballot).
@@ -237,6 +239,28 @@ pub fn decode_governance_registry(
     }
     Err(PersistenceError::Serialization(
         "corrupt or unsupported governance_registry.bin".into(),
+    ))
+}
+
+/// Encode committed QA policy: magic + bincode.
+pub fn encode_qa_policy_v1(
+    p: &boing_state::CommittedQaPolicy,
+) -> Result<Vec<u8>, PersistenceError> {
+    let payload =
+        bincode::serialize(p).map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+    let mut out = Vec::with_capacity(4 + payload.len());
+    out.extend_from_slice(QA_POLICY_MAGIC);
+    out.extend_from_slice(&payload);
+    Ok(out)
+}
+
+pub fn decode_qa_policy(bytes: &[u8]) -> Result<boing_state::CommittedQaPolicy, PersistenceError> {
+    if bytes.len() >= 4 && &bytes[..4] == QA_POLICY_MAGIC {
+        return bincode::deserialize(&bytes[4..])
+            .map_err(|e| PersistenceError::Serialization(e.to_string()));
+    }
+    Err(PersistenceError::Serialization(
+        "corrupt or unsupported qa_policy_registry.bin".into(),
     ))
 }
 
@@ -490,6 +514,17 @@ impl Persistence {
             std::fs::write(&tmp, bytes)?;
             std::fs::rename(tmp, &governance_path)?;
         }
+        let qa_policy_path = self.state_dir().join(QA_POLICY_FILE);
+        if state.qa_policy().is_empty() {
+            if qa_policy_path.exists() {
+                std::fs::remove_file(&qa_policy_path)?;
+            }
+        } else {
+            let bytes = encode_qa_policy_v1(state.qa_policy())?;
+            let tmp = qa_policy_path.with_extension("bin.tmp");
+            std::fs::write(&tmp, bytes)?;
+            std::fs::rename(tmp, &qa_policy_path)?;
+        }
         let js_path = self.state_dir().join(OPEN_VALIDATOR_JAIL_STATS_FILE);
         if state.open_validators().last_jail.is_empty() {
             if js_path.exists() {
@@ -610,6 +645,11 @@ impl Persistence {
             let bytes = read_file_limited(&governance_path, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
             let reg = decode_governance_registry(&bytes)?;
             state.load_governance(reg);
+        }
+        let qa_policy_path = self.state_dir().join(QA_POLICY_FILE);
+        if qa_policy_path.exists() {
+            let bytes = read_file_limited(&qa_policy_path, MAX_PERSIST_REGISTRY_FILE_BYTES)?;
+            state.load_qa_policy(decode_qa_policy(&bytes)?);
         }
         Ok(Some(state))
     }

@@ -70,6 +70,12 @@ pub struct ExecutionHistory {
     /// fails with `NativeAmountExceedsU128` instead of `InsufficientBalance`. Below it the
     /// v0.1.21 behaviour applies exactly. `0` = from genesis.
     pub vm_jump_strict_from: u64,
+    /// First height of canonical on-chain QA policy (v0.1.23): block execution uses the committed
+    /// QA policy in state (protocol default + executed on-chain governance), not the node-local
+    /// `--qa-registry` / `qa_pool_config.json` (those then only affect mempool admission); a deploy
+    /// that QA scores Unsure is rejected while public QA membership is off; in-contract `CREATE2`
+    /// init code is capped at the registry's `max_bytecode_size`. `None` = never (mainnet / dev).
+    pub qa_canonical_from: Option<u64>,
 }
 
 impl ExecutionHistory {
@@ -108,6 +114,10 @@ impl ExecutionHistory {
 
     pub fn vm_jump_strict_active(&self, height: u64) -> bool {
         height >= self.vm_jump_strict_from
+    }
+
+    pub fn qa_canonical_active(&self, height: u64) -> bool {
+        matches!(self.qa_canonical_from, Some(f) if height >= f)
     }
 
     pub fn denomination_at(&self, height: u64) -> boing_primitives::Denomination {

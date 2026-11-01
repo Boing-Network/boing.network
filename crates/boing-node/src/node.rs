@@ -1595,6 +1595,7 @@ impl BoingNode {
             vm_hardening: false,
             blake3_opcode: false,
             jump_strict: false,
+            qa_canonical: false,
         };
         let policy = self.executor.fee_policy();
         // Free-path balance gate (anti-spam): zero-tip txs when execution gas is waived.
@@ -1649,6 +1650,7 @@ impl BoingNode {
             vm_hardening: false,
             blake3_opcode: false,
             jump_strict: false,
+            qa_canonical: false,
         };
         let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
@@ -2083,6 +2085,7 @@ impl BoingNode {
             vm_hardening: false,
             blake3_opcode: false,
             jump_strict: false,
+            qa_canonical: false,
         };
         let vm = self.admission_vm();
         match vm.execute_with_context(&signed.tx, &mut state_copy, exec_ctx) {
@@ -2291,6 +2294,8 @@ impl BoingNode {
         vm.set_vm_hardening_from(self.executor.vm().vm_hardening_from());
         vm.set_equivocation_slash_from(self.executor.vm().equivocation_slash_from());
         vm.set_vm_jump_strict_from(self.executor.vm().vm_jump_strict_from());
+        // Admission keeps the node-local QA policy (by design) but applies the same height gates.
+        vm.set_qa_canonical_from(self.executor.vm().qa_canonical_from());
         vm.set_media_blobs_from(self.executor.vm().media_blobs_from());
         vm.set_blobs_root_header_from(self.executor.vm().blobs_root_header_from());
         vm.set_media_blobs_phase7_cap_from(self.executor.vm().media_blobs_phase7_cap_from());

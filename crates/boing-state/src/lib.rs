@@ -6,6 +6,7 @@ pub mod governance_registry;
 pub mod names;
 pub mod open_validators;
 mod qa_pending;
+pub mod qa_policy;
 pub mod sample_offers;
 pub mod sample_serve;
 pub mod slash_appeals;
@@ -22,6 +23,7 @@ pub use open_validators::{
     ValidatorRecord, ValidatorStatus,
 };
 pub use qa_pending::{unpaid_counted_voters, QaPendingRecord};
+pub use qa_policy::{CommittedQaPolicy, QA_POLICY_REGISTRY_DOMAIN};
 pub use sample_offers::{
     EscrowedSampleOffer, SampleOfferRegistry, SampleOfferRegistryError, SettledSampleMatch,
 };

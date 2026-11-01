@@ -766,6 +766,7 @@ mod tests {
                 vm_hardening: false,
                 blake3_opcode: false,
                 jump_strict: true,
+                qa_canonical: false,
             };
             match it.run_with_qa(who, to, &cd, &mut self.st, &RuleRegistry::new(), ctx) {
                 Ok(_) => Out {
