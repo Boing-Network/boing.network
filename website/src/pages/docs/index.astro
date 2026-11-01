@@ -12,13 +12,7 @@ const paramsObjectWrong = '{}';
 
 <Layout title="Documentation" description="Complete Boing Network documentation — getting started, tokenomics, RPC API, operations, and more. All in one place." canonical="/docs">
   <article class="docs-page page-wrap-full">
-    <header class="page-hero-full docs-hero">
-      <div class="page-wrap-inner">
-        <span class="stage-badge-global">Testnet</span>
-        <h1 class="docs-main-title"><Icon name="book" size={32} class="docs-title-icon" /> Boing Network Documentation</h1>
-        <p class="docs-lead">Pick a path. Everyday users start with wallet + faucet. Developers start with RPC and the SDK. Operators start with the testnet runbooks. PDFs at the bottom match the repository Markdown — including diagrams.</p>
-      </div>
-    </header>
+    <h1 class="docs-sr-only">Boing Network Documentation</h1>
     <div class="docs-body">
       <aside class="docs-toc" aria-label="Table of contents">
         <details class="toc-panel" open>
@@ -503,14 +497,16 @@ cargo build --release</code></pre>
 </script>
 
 <style>
-  /* Desktop: lock the docs shell to the viewport so TOC stays put and only the content column scrolls. */
-  @media (min-width: 901px) {
-    :global(body:has(.docs-page)) {
-      overflow: hidden;
-    }
-    :global(body:has(.docs-page) .site-footer) {
-      display: none !important;
-    }
+  .docs-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
   .docs-page {
     --docs-toc-width: 15.5rem;
@@ -518,53 +514,22 @@ cargo build --release</code></pre>
     max-width: 100%;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    /* Viewport shell under fixed site header: TOC fixed in left column, content scrolls alone. */
-    height: calc(100dvh - var(--site-header-offset, 7.5rem));
-    max-height: calc(100dvh - var(--site-header-offset, 7.5rem));
-    overflow: hidden;
-  }
-  .docs-hero {
-    flex-shrink: 0;
-    padding: 1.35rem 0 1.15rem !important;
-  }
-  .docs-hero .docs-main-title {
-    margin: 0 0 0.65rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.55rem;
-    flex-wrap: wrap;
-  }
-  .docs-title-icon { color: var(--accent-teal); flex-shrink: 0; }
-  .docs-main-title {
-    font-size: clamp(1.45rem, 2.2vw, 1.85rem);
-    margin: 0 0 0.5rem;
-    color: var(--text-primary);
-    line-height: 1.25;
-  }
-  .docs-lead {
-    color: var(--text-secondary);
-    margin: 0 auto;
-    max-width: 42rem;
-    font-size: 1.02rem;
-    line-height: 1.65;
+    /* Docs columns fill the space under the site header; page scroll reveals the normal footer. */
   }
   .docs-body {
     display: grid;
     grid-template-columns: var(--docs-toc-width) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     gap: var(--docs-shell-gap);
-    flex: 1 1 auto;
-    min-height: 0;
     width: 100%;
     max-width: 1280px;
     margin: 0 auto;
     padding: 0;
     align-items: stretch;
+    /* Independent column scroll under the fixed nav; footer remains in normal document flow below. */
+    height: calc(100dvh - var(--site-header-offset, 7.5rem));
+    min-height: calc(100dvh - var(--site-header-offset, 7.5rem));
     overflow: hidden;
-    border-top: 1px solid var(--border-color);
   }
   .docs-toc {
     grid-column: 1;
@@ -850,19 +815,15 @@ cargo build --release</code></pre>
     .docs-content { scroll-behavior: auto; }
   }
 
-  /* Tablet / mobile: collapse TOC into top accordion; content keeps its own scroll. */
+  /* Tablet / mobile: collapse TOC into top accordion; normal page scroll + footer. */
   @media (max-width: 900px) {
-    .docs-page {
-      height: auto;
-      max-height: none;
-      overflow: visible;
-      min-height: calc(100dvh - var(--site-header-offset, 7.5rem));
-    }
     .docs-body {
       grid-template-columns: 1fr;
-      grid-template-rows: auto minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      height: auto;
+      min-height: 0;
       overflow: visible;
-      border-top: none;
+      padding-top: 1rem;
     }
     .docs-toc {
       position: sticky;
@@ -923,9 +884,6 @@ cargo build --release</code></pre>
     }
   }
   @media (max-width: 480px) {
-    .docs-hero {
-      padding: 1.35rem 0 1.15rem;
-    }
     .docs-toc {
       margin: 0 0.75rem;
       padding: 0.75rem 0.9rem;
