@@ -81,8 +81,9 @@ pub const BOING_TESTNET_EQUIVOCATION_SLASH_FROM: u64 = 1_600;
 pub const BOING_TESTNET_VM_JUMP_STRICT_FROM: u64 = 1_600;
 /// Testnet activation of the canonical on-chain QA policy (v0.1.23): block execution uses the
 /// committed QA policy (protocol default + executed on-chain governance) instead of each node's
-/// `--qa-registry`; Unsure deploys are rejected while public QA membership is off; in-contract
-/// `CREATE2` uses the registry's `max_bytecode_size`. Tip at v0.1.23 release was ~1506.
+/// `--qa-registry`; Unsure deploys go to the canonical public QA pool
+/// (`QaPoolGovernanceConfig::canonical_default`, v0.1.24: open voting, 2-vote quorum, caps, 300-block
+/// expiry); in-contract `CREATE2` uses the registry's `max_bytecode_size`. Tip at v0.1.24 build: ~1522.
 /// ONE-WAY once reached. Override: `BOING_QA_CANONICAL_ACTIVATION_HEIGHT` (`off` disables).
 pub const BOING_TESTNET_QA_CANONICAL_FROM: u64 = 1_700;
 

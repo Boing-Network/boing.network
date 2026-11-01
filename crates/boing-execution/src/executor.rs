@@ -300,6 +300,8 @@ impl BlockExecutor {
             None
         };
         let vm: &Vm = canonical_vm.as_ref().unwrap_or(&self.vm);
+        // v0.1.24: expire undecided on-chain Unsure items (committed `review_window_blocks`).
+        vm.expire_qa_pending(state, block_height);
         // Ledger redenomination (whole BOING -> base units) happens once, at the start of block H.
         self.prepare_state_for_height(block_height, state);
         let denom = self.denomination_at(block_height);

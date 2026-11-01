@@ -1058,6 +1058,12 @@ fn replay_full_live_chain_then_cross_consensus_fix_gates() {
     produce_across(&mut a, &mut b, qa_gate, 3);
     assert!(a.executor.vm().qa_canonical_active(a.chain.height()));
     assert_eq!(a.state.state_root(), b.state.state_root());
+    // v0.1.24: with nothing committed, the canonical pool is the public pool (Unsure -> review).
+    for n in [&a, &b] {
+        let (_, pool) = boing_execution::canonical_qa_policy(&n.state);
+        assert!(pool.public_membership && pool.administrators.is_empty());
+        assert_eq!(pool, boing_qa::QaPoolGovernanceConfig::canonical_default());
+    }
     println!(
         "crossed QA canonical gate at {qa_gate}; tip {}",
         a.chain.height()

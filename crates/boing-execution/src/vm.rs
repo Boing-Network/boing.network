@@ -94,7 +94,8 @@ fn default_qa_registry() -> RuleRegistry {
 }
 
 /// Committed (canonical) QA policy in `state`: the stored governance JSON, else the protocol
-/// defaults (`RuleRegistry::new()`, [`QaPoolGovernanceConfig::development_default`]). Stored JSON
+/// defaults (`RuleRegistry::new()`, [`QaPoolGovernanceConfig::canonical_default`]: public QA pool,
+/// v0.1.24). Stored JSON
 /// is validated when written, so a parse failure here falls back to the default.
 pub fn canonical_qa_policy(state: &StateStore) -> (RuleRegistry, QaPoolGovernanceConfig) {
     let p = state.qa_policy();
@@ -107,7 +108,7 @@ pub fn canonical_qa_policy(state: &StateStore) -> (RuleRegistry, QaPoolGovernanc
         .pool_config_json
         .as_deref()
         .and_then(|b| boing_qa::qa_pool_config_from_json(b).ok())
-        .unwrap_or_else(QaPoolGovernanceConfig::development_default);
+        .unwrap_or_else(QaPoolGovernanceConfig::canonical_default);
     (registry, pool)
 }
 
@@ -362,6 +363,21 @@ impl Vm {
 
     pub fn qa_canonical_active(&self, height: u64) -> bool {
         matches!(self.qa_canonical_from, Some(f) if height >= f)
+    }
+
+    /// From the canonical QA gate: drop (reject) on-chain Unsure items left undecided for
+    /// `review_window_blocks` of the committed pool config. Runs at the start of the block, with
+    /// the canonical VM. Returns how many items expired.
+    pub fn expire_qa_pending(&self, state: &mut StateStore, block_height: u64) -> usize {
+        let window = self.qa_pool_config.review_window_blocks;
+        if window == 0 || !self.qa_canonical_active(block_height) {
+            return 0;
+        }
+        let expired = state.qa_pending_expired(block_height, window);
+        for s in &expired {
+            let _ = state.remove_qa_pending(s);
+        }
+        expired.len()
     }
 
     /// A copy of this VM (same activation heights) running the committed on-chain QA policy in
@@ -2183,6 +2199,24 @@ impl Vm {
         let subject = tx.id();
         if state.qa_pending(&subject).is_some() {
             return Err(VmError::QaPendingAlreadyRegistered);
+        }
+        if self.qa_canonical_active(height) {
+            // v0.1.24: the committed pool's anti-congestion caps bound on-chain review state.
+            let cfg = &self.qa_pool_config;
+            let (total, mine) = state.qa_pending_counts(&tx.sender);
+            let full = cfg.max_pending_items == 0 || total >= cfg.max_pending_items as usize;
+            let deployer_full =
+                cfg.max_pending_per_deployer > 0 && mine >= cfg.max_pending_per_deployer as usize;
+            if full || deployer_full {
+                return Err(VmError::QaRejected {
+                    rule_id: boing_qa::RuleId::SOFT_RULE_FAILED.to_string(),
+                    message: if full {
+                        "deploy QA Unsure and the QA pool is at capacity".to_string()
+                    } else {
+                        "deploy QA Unsure and the deployer's QA pool slots are full".to_string()
+                    },
+                });
+            }
         }
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state

@@ -3181,7 +3181,19 @@ async fn dispatch_jsonrpc_request(
         }
         "boing_qaPoolConfig" => {
             let n = node.read().await;
-            let cfg = n.qa_pool.governance_config();
+            // v0.1.24: from the canonical QA gate, report the committed (consensus) pool config.
+            let canonical = n.canonical_qa_pool_for_next_block();
+            let source = if canonical.is_some() {
+                "canonical"
+            } else {
+                "local"
+            };
+            let pending_count = if canonical.is_some() {
+                n.state.export_qa_pending().len()
+            } else {
+                n.qa_pool.pending_len()
+            };
+            let cfg = canonical.unwrap_or_else(|| n.qa_pool.governance_config());
             let expiry = match cfg.default_on_expiry {
                 QaPoolExpiryPolicy::Reject => "reject",
                 QaPoolExpiryPolicy::Allow => "allow",
@@ -3204,7 +3216,9 @@ async fn dispatch_jsonrpc_request(
                     "pay_abstain": cfg.pay_abstain,
                     "administrator_count": cfg.administrator_accounts().len(),
                     "accepts_new_pending": cfg.accepts_new_pending(),
-                    "pending_count": n.qa_pool.pending_len(),
+                    "pending_count": pending_count,
+                    "review_window_blocks": cfg.review_window_blocks,
+                    "source": source,
                 }),
             )
         }

@@ -161,7 +161,7 @@ a node that disagrees on any of them computes different roots at the first affec
 | Account-tree v3 (`BOING_ACCOUNT_TREE_V3_ACTIVATION_HEIGHT`) | from **1500** (active) | 1500 |
 | Equivocation slashing (`BOING_EQUIVOCATION_SLASH_ACTIVATION_HEIGHT`) | from **1600** (testnet-v0.1.22+) | first `ReportEquivocation` at or after 1600 |
 | Strict jumps (`BOING_VM_JUMP_STRICT_ACTIVATION_HEIGHT`) | from **1600** (testnet-v0.1.22+) | first block at or after 1600 that hits the rule |
-| Canonical QA policy (`BOING_QA_CANONICAL_ACTIVATION_HEIGHT`) | from **1700** (testnet-v0.1.23+) | first deploy at or after 1700 |
+| Canonical QA policy (`BOING_QA_CANONICAL_ACTIVATION_HEIGHT`) | from **1700** (testnet-v0.1.24+; public QA pool) | first deploy or QA vote at or after 1700 |
 
 **Active from block 1500: VM hardening** (audit #61 items 3, 22, 23). From that height the VM QA-checks the
 runtime bytecode that init code returns before storing it (direct deploys, QA-pool installs and in-contract
@@ -179,13 +179,16 @@ Blocks below 1600 execute exactly as testnet-v0.1.21. **Every validator and RPC 
 testnet-v0.1.22 or later before the chain reaches 1600**; `boing_health` reports both heights as
 `equivocation_slash_activation_height` / `vm_jump_strict_activation_height` (expect `1600`).
 
-**From block 1700: canonical on-chain QA policy** (testnet-v0.1.23). From 1700 block execution evaluates
-deploys against the QA registry and pool config committed in chain state (default: built-in registry, no public
-pool), not the node's `--qa-registry` / local `qa_pool_config`; those local files then only decide what this node
-admits to its mempool. A deploy that QA rates `Unsure` is rejected while no committed public QA pool exists
-(before 1700 it could be queued to a node-local pool), and in-contract `CREATE2` init code is capped at the
-registry's `max_bytecode_size`. Blocks below 1700 execute exactly as testnet-v0.1.22. **Every validator and RPC
-node must run testnet-v0.1.23 or later before the chain reaches 1700**; `boing_health` reports
+**From block 1700: canonical on-chain QA policy with a public QA pool** (testnet-v0.1.24; supersedes the
+v0.1.23 rules for 1700, which rejected `Unsure` deploys). From 1700 block execution evaluates deploys against the
+QA registry and pool config committed in chain state (defaults: built-in registry and the public pool below), not
+the node's `--qa-registry` / local `qa_pool_config`. A deploy that QA rates `Unsure` is registered on chain for
+public review: any funded account except the deployer votes with a `QaPoolVote` tx, 2 agreeing votes decide (Allow
+installs the contract, Reject drops it), no voter rewards, at most 32 pending items (2 per deployer), and an item
+still undecided 300 blocks after it entered is dropped. Details: [QUALITY-ASSURANCE-NETWORK.md § C.2.1](QUALITY-ASSURANCE-NETWORK.md#c21-canonical-on-chain-qa-policy).
+In-contract `CREATE2` init code is capped at the registry's `max_bytecode_size`. Blocks below 1700 execute exactly
+as testnet-v0.1.22. **Every validator and RPC node must run testnet-v0.1.24 or later before the chain reaches
+1700** (v0.1.23 would reject `Unsure` deploys there and fork); `boing_health` reports
 `qa_canonical_activation_height` (expect `1700`).
 The proposal-timeout / view-change and orphan-anchor quorum changes (#129) are not gated: they never change
 execution or state roots and only matter with more than one validator (see the release notes).

@@ -798,6 +798,28 @@ impl StateStore {
         self.qa_pending.remove(subject)
     }
 
+    /// `(all pending items, items whose deployer is `deployer`)` in the on-chain QA pool.
+    pub fn qa_pending_counts(&self, deployer: &AccountId) -> (usize, usize) {
+        let mine = self
+            .qa_pending
+            .values()
+            .filter(|r| r.deployer == *deployer)
+            .count();
+        (self.qa_pending.len(), mine)
+    }
+
+    /// Subjects of pending items with `entered_height + window <= height`, sorted (deterministic).
+    pub fn qa_pending_expired(&self, height: u64, window: u64) -> Vec<Hash> {
+        let mut v: Vec<Hash> = self
+            .qa_pending
+            .iter()
+            .filter(|(_, r)| r.entered_height.saturating_add(window) <= height)
+            .map(|(k, _)| *k)
+            .collect();
+        v.sort_by_key(|h| h.0);
+        v
+    }
+
     pub fn export_qa_pending(&self) -> Vec<(Hash, QaPendingRecord)> {
         self.qa_pending
             .iter()

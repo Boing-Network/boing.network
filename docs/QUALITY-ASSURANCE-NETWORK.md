@@ -674,7 +674,22 @@ The following are **governance-mutable**:
 
 ### C.2.1 Canonical (on-chain) QA policy
 
-From `qa_canonical_activation_height` (testnet 6913: block **1700**, `BOING_QA_CANONICAL_ACTIVATION_HEIGHT`; off on other chains) block execution uses the QA registry and `qa_pool_config` committed in chain state, changed only by executed governance proposals. Node-local `--qa-registry` / pool config only gate mempool admission. With no committed public pool, `Unsure` deploys are rejected at execution. In-contract `CREATE2` init code uses the registry's `max_bytecode_size`.
+From `qa_canonical_activation_height` (testnet 6913: block **1700**, `BOING_QA_CANONICAL_ACTIVATION_HEIGHT`; off on other chains) block execution uses the QA registry and `qa_pool_config` committed in chain state, changed only by executed governance proposals. Node-local `--qa-registry` only gates mempool admission; the mempool follows the committed pool config. In-contract `CREATE2` init code uses the registry's `max_bytecode_size`.
+
+**Canonical public QA pool (testnet-v0.1.24).** With no committed `qa_pool_config`, the canonical pool is `QaPoolGovernanceConfig::canonical_default()`, so from block 1700 an `Unsure` deploy is **registered for public review** (`qa_pending`, nonce consumed, receipt `qa_pending`) instead of being rejected:
+
+| Parameter | Value | Meaning |
+|---|---|---|
+| `public_membership` | `true` | Any funded account may vote with a `QaPoolVote` tx (`boing_qaPoolVote`), except the deployer on their own item. No administrators. |
+| `min_voter_stake` | `0` | No stake needed to vote (testnet). |
+| `min_quorum_votes` / `quorum_fraction` | `2` / `0.5` | At least 2 counted Allow/Reject votes (Abstain does not count). |
+| `allow_threshold_fraction` / `reject_threshold_fraction` | `2/3` | 2-0 decides; 1-1 waits for a third vote (2-1 decides). |
+| `reward_per_counted_vote` | `0` | No treasury payouts, so cheap accounts cannot farm rewards. |
+| `max_pending_items` / `max_pending_per_deployer` | `32` / `2` | Enforced on chain; an `Unsure` deploy over a cap fails (nonce consumed). |
+| `review_window_blocks` | `300` | An item still undecided at `entered_height + 300` is dropped (rejected) at the start of that block. Height-based because testnet only produces blocks when there are transactions. |
+| `default_on_expiry` | `reject` | On chain, expiry always rejects. |
+
+Allow installs the stored deploy as a contract in the deciding vote's block (init-code gas is charged to that vote). Reject drops the record. The deployer can redeploy later. Because governance consensus is off on testnet, these values change only in a node release. A committed `qa_pool_config` (when governance is on) overrides them, and one with `public_membership: false` rejects `Unsure` deploys at execution. Mainnet has no canonical QA gate, so none of this applies there. `boing_qaPoolConfig` reports the committed config with `"source": "canonical"` from the gate (else the node-local one, `"source": "local"`), plus `review_window_blocks`.
 
 ### C.3 JSON format for `RuleRegistry`
 

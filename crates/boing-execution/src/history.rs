@@ -73,7 +73,8 @@ pub struct ExecutionHistory {
     /// First height of canonical on-chain QA policy (v0.1.23): block execution uses the committed
     /// QA policy in state (protocol default + executed on-chain governance), not the node-local
     /// `--qa-registry` / `qa_pool_config.json` (those then only affect mempool admission); a deploy
-    /// that QA scores Unsure is rejected while public QA membership is off; in-contract `CREATE2`
+    /// that QA scores Unsure goes to the committed (default: public, v0.1.24) QA pool, rejected only
+    /// if the committed pool turns public membership off; undecided items expire on chain; in-contract `CREATE2`
     /// init code is capped at the registry's `max_bytecode_size`. `None` = never (mainnet / dev).
     pub qa_canonical_from: Option<u64>,
 }

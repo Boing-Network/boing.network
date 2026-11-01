@@ -2281,10 +2281,12 @@ impl BoingNode {
     /// block execution (security review #14), so the mempool accepts exactly what blocks will.
     pub fn admission_vm(&self) -> Vm {
         let mut vm = Vm::with_qa_registry(self.mempool.qa_registry().clone());
-        // Same pool config as block execution (public-membership Unsure → qa_pending path).
+        // Same pool config as block execution (public-membership Unsure → qa_pending path): the
+        // committed one from the canonical QA gate, else the node-local pool config.
         vm.set_qa_policies(
             self.mempool.qa_registry().clone(),
-            self.qa_pool.governance_config(),
+            self.canonical_qa_pool_for_next_block()
+                .unwrap_or_else(|| self.qa_pool.governance_config()),
         );
         let (chain_id, from) = self.executor.registration_proof_rule();
         vm.set_registration_proof_rule(chain_id, from);
@@ -2303,6 +2305,15 @@ impl BoingNode {
         vm.set_governance_consensus_from(self.executor.vm().governance_consensus_from());
         vm.set_blake3_from(self.executor.vm().blake3_from());
         vm
+    }
+
+    /// Committed QA pool config when the next block runs under the canonical QA gate (v0.1.24).
+    pub fn canonical_qa_pool_for_next_block(&self) -> Option<boing_qa::QaPoolGovernanceConfig> {
+        let next = self.chain.height().saturating_add(1);
+        self.executor
+            .vm()
+            .qa_canonical_active(next)
+            .then(|| boing_execution::canonical_qa_policy(&self.state).1)
     }
 
     pub fn refresh_tx_sig_policy(&self) -> boing_primitives::TxSigPolicy {
@@ -2449,6 +2460,26 @@ impl BoingNode {
                 Ok(())
             }
             Err(MempoolError::QaPendingPool(tx_hash)) => {
+                if let Some(cfg) = self.canonical_qa_pool_for_next_block() {
+                    // v0.1.24: from the canonical QA gate the committed pool decides, on chain.
+                    // Public membership: admit for inclusion (the block registers `qa_pending`);
+                    // otherwise blocks reject Unsure deploys, so refuse here.
+                    if !cfg.public_membership || cfg.max_pending_items == 0 {
+                        return Err(MempoolError::QaPoolDisabled);
+                    }
+                    let (total, mine) = self.state.qa_pending_counts(&signed.tx.sender);
+                    if total >= cfg.max_pending_items as usize {
+                        return Err(MempoolError::QaPoolFull);
+                    }
+                    if cfg.max_pending_per_deployer > 0
+                        && mine >= cfg.max_pending_per_deployer as usize
+                    {
+                        return Err(MempoolError::QaPoolDeployerCap);
+                    }
+                    self.mempool
+                        .insert_unsure_for_inclusion_with_policy(signed, policy)?;
+                    return Err(MempoolError::QaPendingPool(tx_hash));
+                }
                 let item = boing_qa::pool::PendingQaItem::from_signed(&signed)
                     .map_err(|e| MempoolError::QaPoolEnqueue(e.to_string()))?;
                 match self.qa_pool.add(item) {

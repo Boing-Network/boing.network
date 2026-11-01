@@ -44,6 +44,9 @@ fn default_reward_per_counted_vote() -> u128 {
     1
 }
 
+/// On-chain review window of [`QaPoolGovernanceConfig::canonical_default`] (blocks).
+pub const CANONICAL_REVIEW_WINDOW_BLOCKS: u64 = 300;
+
 /// Serializable governance payload for the QA pool. Keeps the queue **bounded** so review cannot be flooded.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct QaPoolGovernanceConfig {
@@ -60,6 +63,13 @@ pub struct QaPoolGovernanceConfig {
     pub max_pending_per_deployer: u32,
     #[serde(default = "default_review_secs")]
     pub review_window_secs: u64,
+    /// On-chain review window in **blocks** for Unsure deploys registered in state (`qa_pending`),
+    /// enforced from the canonical QA gate (`qa_canonical_from`): an item still undecided at
+    /// `entered_height + review_window_blocks` is dropped (rejected) at the start of that block.
+    /// `0` = no on-chain expiry. `review_window_secs` / `default_on_expiry` only drive the
+    /// node-local off-chain queue.
+    #[serde(default)]
+    pub review_window_blocks: u64,
     #[serde(default = "default_quorum")]
     pub quorum_fraction: f64,
     #[serde(default = "default_threshold")]
@@ -98,6 +108,7 @@ impl Default for QaPoolGovernanceConfig {
             max_pending_items: default_max_pending(),
             max_pending_per_deployer: default_max_per_deployer(),
             review_window_secs: default_review_secs(),
+            review_window_blocks: 0,
             quorum_fraction: default_quorum(),
             allow_threshold_fraction: default_threshold(),
             reject_threshold_fraction: default_threshold(),
@@ -132,6 +143,7 @@ impl QaPoolGovernanceConfig {
             max_pending_items: 256,
             max_pending_per_deployer: 16,
             review_window_secs: 7 * 24 * 60 * 60,
+            review_window_blocks: 0,
             quorum_fraction: 0.5,
             allow_threshold_fraction: 2.0 / 3.0,
             reject_threshold_fraction: 2.0 / 3.0,
@@ -140,6 +152,33 @@ impl QaPoolGovernanceConfig {
             public_membership: false,
             min_voter_stake: 0,
             min_quorum_votes: 1,
+            reward_per_counted_vote: 0,
+            pay_abstain: false,
+        }
+    }
+
+    /// Protocol default for the **canonical** (committed, consensus) QA pool once the canonical QA
+    /// gate is active (testnet from v0.1.24) and no `qa_pool_config` has been committed on chain.
+    ///
+    /// Public membership so Unsure deploys are registered for review instead of rejected:
+    /// any funded account except the deployer may vote (no stake gate), 2 agreeing Allow/Reject
+    /// votes decide (2-1 also decides), no voter rewards (no treasury farming), bounded queue
+    /// (32 items, 2 per deployer), and items undecided after 300 blocks are dropped (rejected).
+    pub fn canonical_default() -> Self {
+        Self {
+            administrators: Vec::new(),
+            max_pending_items: 32,
+            max_pending_per_deployer: 2,
+            review_window_secs: default_review_secs(),
+            review_window_blocks: CANONICAL_REVIEW_WINDOW_BLOCKS,
+            quorum_fraction: 0.5,
+            allow_threshold_fraction: 2.0 / 3.0,
+            reject_threshold_fraction: 2.0 / 3.0,
+            default_on_expiry: QaPoolExpiryPolicy::Reject,
+            dev_open_voting: false,
+            public_membership: true,
+            min_voter_stake: 0,
+            min_quorum_votes: 2,
             reward_per_counted_vote: 0,
             pay_abstain: false,
         }

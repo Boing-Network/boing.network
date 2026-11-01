@@ -738,7 +738,7 @@ pub mod pool_config;
 
 pub use pool_config::{
     qa_pool_config_from_json, QaPoolExpiryPolicy, QaPoolGovernanceConfig, QaQuorumDecision,
-    QaVoterIneligible, GOVERNANCE_QA_POOL_CONFIG_KEY,
+    QaVoterIneligible, CANONICAL_REVIEW_WINDOW_BLOCKS, GOVERNANCE_QA_POOL_CONFIG_KEY,
 };
 
 /// Governance target key for updating the QA rule registry. When a governance proposal is executed

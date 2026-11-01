@@ -107,7 +107,7 @@ fn local_registry_governs_execution_only_below_gate() {
 
 #[test]
 fn local_public_pool_ignored_from_gate() {
-    // Local pool says public membership on; canonical default (development) is off.
+    // Local pool says public membership on; from the gate the canonical (default) registry decides.
     let e = exec_with(
         meme_review_registry(),
         QaPoolGovernanceConfig::production_default(),
@@ -144,8 +144,15 @@ fn unsure_rejected_from_gate_when_public_membership_off() {
     let mut st = committed();
     let r = run(&e, GATE - 1, 0, &mut st, deploy(0, vec![0x00], "meme"));
     assert!(r.success, "{r:?}");
-    // From the gate: committed registry scores Unsure, public membership off => rejected.
+    // From the gate with the protocol-default (public, v0.1.24) pool: goes to review.
     let mut st = committed();
+    let r = run(&e, GATE, 0, &mut st, deploy(0, vec![0x00], "meme"));
+    assert!(r.success, "{r:?}");
+    assert_eq!(r.return_data, b"qa_pending");
+    // From the gate: committed registry scores Unsure, committed pool public off => rejected.
+    let mut st = committed();
+    st.qa_policy_mut().pool_config_json =
+        Some(serde_json::to_vec(&QaPoolGovernanceConfig::development_default()).unwrap());
     let r = run(&e, GATE, 0, &mut st, deploy(0, vec![0x00], "meme"));
     assert!(!r.success);
     assert!(
@@ -283,10 +290,8 @@ fn due_qa_governance_is_applied_only_from_gate() {
     let r = run(&e, GATE, ts, &mut st, deploy(0, vec![0x00], "meme"));
     assert_eq!(st.qa_policy().registry_json.as_deref(), Some(&reg_json[..]));
     assert!(st.governance().engine().list().is_empty());
-    assert!(
-        !r.success,
-        "meme now Unsure with public membership off: {r:?}"
-    );
+    assert!(r.success, "meme now Unsure, default public pool: {r:?}");
+    assert_eq!(r.return_data, b"qa_pending");
     assert_ne!(st.state_root(), root_before);
     let (reg, _) = canonical_qa_policy(&st);
     assert_eq!(
