@@ -230,6 +230,11 @@ impl BlockExecutor {
         self.vm.set_blake3_from(from);
     }
 
+    /// Swap QA registry + pool config without touching fee policy, history or activation heights.
+    pub fn set_qa_policies(&mut self, registry: RuleRegistry, pool_config: QaPoolGovernanceConfig) {
+        self.vm.set_qa_policies(registry, pool_config);
+    }
+
     /// Execute all transactions. Returns total gas used and one receipt per tx (in block order).
     /// On error, state may be partially applied (caller should revert if needed).
     /// Transfer-only batches run in parallel; other batches run sequentially.

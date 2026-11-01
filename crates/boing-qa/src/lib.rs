@@ -34,21 +34,26 @@ pub struct QaReject {
 /// Doc URL for QA guidance (QUALITY-ASSURANCE-NETWORK Appendix A: Deployer checklist). Override with env or config in production.
 pub const QA_PASS_GUIDE_URL: &str = "https://github.com/Boing-Network/boing.network/blob/main/docs/QUALITY-ASSURANCE-NETWORK.md#appendix-a-deployer-checklist-how-to-pass-qa";
 
+/// QA doc page without a fragment; per-rule anchors are appended to this.
+pub const QA_DOC_BASE_URL: &str =
+    "https://github.com/Boing-Network/boing.network/blob/main/docs/QUALITY-ASSURANCE-NETWORK.md";
+
+/// `doc_url` is RPC/diagnostic only (not part of `VmError` / receipts), so it can change freely.
 fn doc_url_for_rule(rule_id: &str) -> Option<String> {
-    // Anchor to the closest checklist section when known (audit #61 item 47).
+    // Anchors must exist as headings in docs/QUALITY-ASSURANCE-NETWORK.md (GitHub slugs).
     let frag = match rule_id {
-        RuleId::MAX_BYTECODE_SIZE => "#max-bytecode-size",
-        RuleId::INVALID_OPCODE | RuleId::MALFORMED_BYTECODE => "#opcodes-and-well-formedness",
-        RuleId::BLOCKLIST_MATCH | RuleId::SCAM_PATTERN_MATCH => "#blocklist-and-scam-patterns",
-        RuleId::CONTENT_POLICY_VIOLATION | RuleId::METADATA_TOO_LONG => {
-            "#metadata-and-content-policy"
+        RuleId::MAX_BYTECODE_SIZE
+        | RuleId::INVALID_OPCODE
+        | RuleId::MALFORMED_BYTECODE
+        | RuleId::BLOCKLIST_MATCH => "#hard-rules-must-pass",
+        RuleId::PURPOSE_DECLARATION_INVALID => "#valid-purpose-categories",
+        RuleId::SOFT_RULE_FAILED | RuleId::ALWAYS_REVIEW_CATEGORY => "#when-you-get-unsure",
+        RuleId::CONTENT_POLICY_VIOLATION => {
+            "#vulgarity-offensiveness-and-content-moderation-current-scope"
         }
-        RuleId::SOFT_RULE_FAILED
-        | RuleId::PURPOSE_DECLARATION_INVALID
-        | RuleId::ALWAYS_REVIEW_CATEGORY => "#soft-rules-and-purpose",
         _ => "#common-rejections-and-fixes",
     };
-    Some(format!("{}{}", QA_PASS_GUIDE_URL, frag))
+    Some(format!("{}{}", QA_DOC_BASE_URL, frag))
 }
 
 impl std::fmt::Display for QaReject {
@@ -992,5 +997,155 @@ mod tests {
         assert!(back.native_value_opcodes());
         let bare: RuleRegistry = serde_json::from_str(r#"{"max_bytecode_size":8192,"blocklist":[],"scam_patterns":[],"always_review_categories":[],"content_blocklist":[]}"#).unwrap();
         assert!(!bare.native_value_opcodes());
+    }
+
+    // --- QA gate audit (Oct 2026): bypass / boundary / determinism coverage ---
+
+    #[test]
+    fn init_marker_body_is_opcode_checked() {
+        // Invalid opcode hidden behind the init-code marker must still be rejected.
+        let b = vec![CONTRACT_DEPLOY_INIT_CODE_MARKER, 0x00, 0xff];
+        let r = check_contract_deploy(&b, None, None, DEFAULT_MAX_BYTECODE_SIZE);
+        assert!(matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::INVALID_OPCODE));
+        // Truncated PUSH inside init body.
+        let b = vec![CONTRACT_DEPLOY_INIT_CODE_MARKER, 0x61, 0x01];
+        let r = check_contract_deploy(&b, None, None, DEFAULT_MAX_BYTECODE_SIZE);
+        assert!(
+            matches!(r, QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::MALFORMED_BYTECODE)
+        );
+    }
+
+    #[test]
+    fn size_limit_boundary_counts_marker() {
+        let max = 64;
+        let exact = vec![0u8; max];
+        assert_eq!(
+            check_contract_deploy(&exact, None, None, max),
+            QaResult::Allow
+        );
+        // Marker byte counts toward the limit.
+        let mut with_marker = vec![CONTRACT_DEPLOY_INIT_CODE_MARKER];
+        with_marker.extend(vec![0u8; max]);
+        assert!(matches!(
+            check_contract_deploy(&with_marker, None, None, max),
+            QaResult::Reject(ref rej) if rej.rule_id.0 == RuleId::MAX_BYTECODE_SIZE
+        ));
+    }
+
+    #[test]
+    fn push_immediate_bytes_are_not_decoded_as_opcodes() {
+        // PUSH2 0xffff then STOP: 0xff inside the immediate is data, not an opcode.
+        let b = vec![0x61, 0xff, 0xff, 0x00];
+        assert_eq!(
+            check_contract_deploy(&b, None, None, DEFAULT_MAX_BYTECODE_SIZE),
+            QaResult::Allow
+        );
+    }
+
+    #[test]
+    fn gated_opcodes_follow_registry_flags() {
+        let reg = RuleRegistry::new();
+        for op in NATIVE_VALUE_OPCODES {
+            assert!(matches!(
+                check_contract_deploy_full(&[op], None, None, &reg),
+                QaResult::Reject(_)
+            ));
+            let on = reg.clone().with_native_value_opcodes(true);
+            assert_eq!(
+                check_contract_deploy_full(&[op], None, None, &on),
+                QaResult::Allow
+            );
+        }
+        assert!(matches!(
+            check_contract_deploy_full(&[BLAKE3_OPCODE], None, None, &reg),
+            QaResult::Reject(_)
+        ));
+        let on = reg.with_blake3_opcodes(true);
+        assert_eq!(
+            check_contract_deploy_full(&[BLAKE3_OPCODE], None, None, &on),
+            QaResult::Allow
+        );
+    }
+
+    #[test]
+    fn every_byte_value_is_classified_deterministically() {
+        // Each single-byte program yields the same verdict on repeated runs and from a
+        // JSON-roundtripped registry (what a second node would load).
+        let reg = RuleRegistry::new()
+            .with_scam_patterns(vec![vec![0x55, 0x55]])
+            .with_always_review_categories(vec!["meme".into()]);
+        let back: RuleRegistry =
+            serde_json::from_str(&serde_json::to_string(&reg).unwrap()).unwrap();
+        for b in 0u8..=255 {
+            for code in [
+                vec![b],
+                vec![b, 0x00],
+                vec![CONTRACT_DEPLOY_INIT_CODE_MARKER, b],
+            ] {
+                let a = check_contract_deploy_full(&code, Some("meme"), None, &reg);
+                let c = check_contract_deploy_full(&code, Some("meme"), None, &back);
+                assert_eq!(a, c, "byte {b:#04x}");
+                assert_eq!(
+                    a,
+                    check_contract_deploy_full(&code, Some("meme"), None, &reg)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn doc_urls_have_single_fragment() {
+        for id in [
+            RuleId::MAX_BYTECODE_SIZE,
+            RuleId::INVALID_OPCODE,
+            RuleId::MALFORMED_BYTECODE,
+            RuleId::BLOCKLIST_MATCH,
+            RuleId::SCAM_PATTERN_MATCH,
+            RuleId::PURPOSE_DECLARATION_INVALID,
+            RuleId::ALWAYS_REVIEW_CATEGORY,
+            RuleId::SOFT_RULE_FAILED,
+            RuleId::METADATA_TOO_LONG,
+            RuleId::CONTENT_POLICY_VIOLATION,
+        ] {
+            let u = doc_url_for_rule(id).unwrap();
+            assert_eq!(u.matches('#').count(), 1, "{u}");
+            assert!(u.starts_with(QA_DOC_BASE_URL));
+        }
+    }
+
+    #[test]
+    fn doc_url_anchors_exist_in_qa_doc() {
+        let doc = include_str!("../../../docs/QUALITY-ASSURANCE-NETWORK.md");
+        let slugs: Vec<String> = doc
+            .lines()
+            .filter(|l| l.starts_with('#'))
+            .map(|l| {
+                l.trim_start_matches('#')
+                    .trim()
+                    .to_lowercase()
+                    .chars()
+                    .filter_map(|c| {
+                        if c.is_alphanumeric() || c == '-' || c == '_' {
+                            Some(c)
+                        } else if c == ' ' {
+                            Some('-')
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+        for id in [
+            RuleId::MAX_BYTECODE_SIZE,
+            RuleId::PURPOSE_DECLARATION_INVALID,
+            RuleId::SOFT_RULE_FAILED,
+            RuleId::CONTENT_POLICY_VIOLATION,
+            RuleId::SCAM_PATTERN_MATCH,
+        ] {
+            let u = doc_url_for_rule(id).unwrap();
+            let frag = u.split('#').nth(1).unwrap();
+            assert!(slugs.iter().any(|s| s == frag), "missing anchor #{frag}");
+        }
     }
 }

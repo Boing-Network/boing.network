@@ -407,6 +407,20 @@ impl Vm {
         }
     }
 
+    /// Replace the QA registry and pool config **in place**, keeping every activation height
+    /// (media blobs, Blake3, governance txs, VM hardening, …). Rebuilding the VM with
+    /// [`Self::with_qa_policies`] would reset those gates to their defaults, so a runtime QA policy
+    /// update (operator RPC, governance, `--qa-registry`) must use this instead.
+    pub fn set_qa_policies(
+        &mut self,
+        qa_registry: RuleRegistry,
+        qa_pool_config: QaPoolGovernanceConfig,
+    ) {
+        self.qa_registry_native = qa_registry.clone().with_native_value_opcodes(true);
+        self.qa_registry = qa_registry.with_native_value_opcodes(false);
+        self.qa_pool_config = qa_pool_config;
+    }
+
     /// Reference to the QA registry used for contract deploy execution checks.
     pub fn qa_registry(&self) -> &RuleRegistry {
         &self.qa_registry

@@ -550,6 +550,10 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 
 Result will be `allow`, `reject`, or `unsure`. If `reject`, the response includes `rule_id` and `message`.
 
+Params: `[hex_bytecode, purpose_category?, description_hash?, asset_name?, asset_symbol?]`. `description_hash` is only used when it is exactly 32 bytes of hex; anything else is ignored (treated as missing), so `"other"` with a malformed hash returns `unsure`.
+
+What `boing_qaCheck` does **not** cover: for init-code deploys (first byte `0xFD`) it checks the init body only. The runtime bytecode the init code returns is QA-checked at execution (testnet from block 1500, VM hardening), so a deploy can pass pre-flight and still fail in the block with `init-code runtime: …`. For `0xFD` deploys, offsets in `INVALID_OPCODE` / `MALFORMED_BYTECODE` messages are relative to the init body (add 1 for the marker byte).
+
 ### Hard Rules (Must Pass)
 
 | Rule | Limit | Action |
@@ -574,6 +578,9 @@ dApp / dapp, token, NFT / nft, meme, community, entertainment, tooling, other (p
 | `BLOCKLIST_MATCH` | Hash matches known scam/malware | Cannot deploy; contact if error |
 | `SCAM_PATTERN_MATCH` | Contains known malicious pattern | Remove or refactor |
 | `PURPOSE_DECLARATION_INVALID` | Invalid category | Use valid category from list above |
+| `METADATA_TOO_LONG` | `asset_name` > 256 bytes or `asset_symbol` > 32 bytes (UTF-8) | Shorten name / symbol |
+| `CONTENT_POLICY_VIOLATION` | Name / symbol matches the governance content blocklist | Rename (see Appendix B) |
+| `SOFT_RULE_FAILED` | In-contract `CREATE2` whose QA result is Unsure (no pool path inside a tx) | Deploy with a top-level `ContractDeploy` instead |
 
 ### When You Get "Unsure"
 

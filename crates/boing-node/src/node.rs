@@ -706,15 +706,12 @@ impl BoingNode {
         pool_config: QaPoolGovernanceConfig,
     ) {
         self.mempool.set_qa_registry(registry.clone());
-        let fee = self.executor.fee_policy().clone();
-        let history = self.executor.execution_history().cloned();
-        self.executor = with_chain_id_rules(BlockExecutor::with_policies(
-            registry.clone(),
-            pool_config.clone(),
-            fee,
-        ));
-        self.executor.set_execution_history(history);
-        self.vm = Vm::with_qa_policies(registry, pool_config.clone());
+        // Update in place: rebuilding the executor / VM here used to reset every activation height
+        // installed by `enable_*` (media blobs, Blake3, governance txs, BLS flip, …) and the
+        // registration proof rule, so a QA policy push on a running node could fork it.
+        self.executor
+            .set_qa_policies(registry.clone(), pool_config.clone());
+        self.vm.set_qa_policies(registry, pool_config.clone());
         self.qa_pool.set_governance_config(pool_config);
     }
 
@@ -2281,6 +2278,11 @@ impl BoingNode {
     /// block execution (security review #14), so the mempool accepts exactly what blocks will.
     pub fn admission_vm(&self) -> Vm {
         let mut vm = Vm::with_qa_registry(self.mempool.qa_registry().clone());
+        // Same pool config as block execution (public-membership Unsure → qa_pending path).
+        vm.set_qa_policies(
+            self.mempool.qa_registry().clone(),
+            self.qa_pool.governance_config(),
+        );
         let (chain_id, from) = self.executor.registration_proof_rule();
         vm.set_registration_proof_rule(chain_id, from);
         vm.set_security_v4_from(self.executor.vm().security_v4_from());

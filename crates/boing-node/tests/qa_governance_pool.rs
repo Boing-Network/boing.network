@@ -111,3 +111,39 @@ fn production_pool_config_enqueues_unsure_with_public_membership() {
         Err(MempoolError::QaPendingPool(_))
     ));
 }
+
+/// Regression: applying a QA policy at runtime (operator RPC, governance, `--qa-registry`) used to
+/// rebuild the executor / VM and silently reset activation heights set via `enable_*`, which would
+/// fork a running node at the next gated block.
+#[test]
+fn set_qa_policy_preserves_activation_heights() {
+    let mut node = BoingNode::new();
+    node.enable_media_blobs(1200);
+    node.enable_blake3_opcode(4242);
+    node.enable_governance_consensus_txs(5151);
+    node.executor.set_registration_proof_rule(Some(6913), 77);
+    node.vm.set_registration_proof_rule(Some(6913), 77);
+    let before_exec = node.executor.registration_proof_rule();
+
+    let reg = RuleRegistry::new().with_always_review_categories(vec!["meme".to_string()]);
+    let mut pool_cfg = QaPoolGovernanceConfig::development_default();
+    pool_cfg.public_membership = true;
+    node.set_qa_policy(reg, pool_cfg);
+
+    assert_eq!(node.executor.vm().media_blobs_from(), Some(1200));
+    assert_eq!(node.vm.media_blobs_from(), Some(1200));
+    assert_eq!(node.executor.vm().blake3_from(), Some(4242));
+    assert_eq!(node.vm.blake3_from(), Some(4242));
+    assert_eq!(node.executor.vm().governance_consensus_from(), Some(5151));
+    assert_eq!(node.executor.registration_proof_rule(), before_exec);
+    // New policy is in effect on both the block executor and the node VM.
+    assert!(node
+        .executor
+        .vm()
+        .qa_registry()
+        .always_review_categories()
+        .contains("meme"));
+    assert!(node.vm.qa_pool_config().public_membership);
+    assert!(node.executor.vm().qa_pool_config().public_membership);
+    assert!(node.admission_vm().qa_pool_config().public_membership);
+}
