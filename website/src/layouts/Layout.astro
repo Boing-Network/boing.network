@@ -305,7 +305,8 @@ const navCurrent = {
         var backdrop = document.querySelector('.site-nav-backdrop');
         if (!header || !toggle || !nav) return;
 
-        var mqDesktop = window.matchMedia('(min-width: 960px)');
+        /* Keep in sync with --site-nav-desktop in styles below. */
+        var mqDesktop = window.matchMedia('(min-width: 1200px)');
 
         function isDesktop() {
           return mqDesktop.matches;
@@ -435,6 +436,13 @@ const navCurrent = {
 <style is:global>
   * { box-sizing: border-box; }
 
+  :root {
+    /* Fixed header (collaboration banner + nav bar). Used by main padding + homepage scroll-margin. */
+    --site-header-offset: 6.75rem;
+    /* Inline nav needs ~1200px; below that use the hamburger to avoid logo/link overlap. */
+    --site-nav-desktop: 1200px;
+  }
+
   html {
     font-family: var(--font-sans);
     background: var(--bg-primary);
@@ -455,11 +463,11 @@ const navCurrent = {
     position: relative;
     z-index: 1;
     /* Fixed header + collaboration banner */
-    padding-top: 6.75rem;
+    padding-top: var(--site-header-offset);
     min-width: 0;
   }
   body.testnet-app main {
-    padding-top: 6.75rem;
+    padding-top: var(--site-header-offset);
   }
   body.testnet-app .breadcrumbs { margin-top: 0.5rem; }
 
@@ -540,7 +548,7 @@ const navCurrent = {
     max-width: 1280px;
     margin: 0 auto;
   }
-  @media (min-width: 960px) {
+  @media (min-width: 1200px) {
     .site-header {
       padding: 0.65rem 1.75rem;
     }
@@ -562,10 +570,11 @@ const navCurrent = {
     position: relative;
     z-index: 3;
   }
-  @media (min-width: 960px) {
+  @media (min-width: 1200px) {
     .site-header-bar {
       width: auto;
       flex: 0 0 auto;
+      flex-shrink: 0;
     }
   }
 
@@ -647,7 +656,9 @@ const navCurrent = {
     align-items: center;
     gap: 0.65rem;
     text-decoration: none;
-    min-width: 0;
+    /* Never shrink under nav links (was causing “Overview” over “Network”). */
+    flex-shrink: 0;
+    min-width: max-content;
   }
   .logo:hover,
   .logo:focus-visible {
@@ -905,7 +916,7 @@ const navCurrent = {
     }
   }
 
-  @media (max-width: 959px) {
+  @media (max-width: 1199px) {
     .site-nav-toggle {
       display: inline-flex;
     }
@@ -1018,9 +1029,16 @@ const navCurrent = {
     }
   }
 
-  @media (min-width: 960px) {
+  @media (min-width: 1200px) {
     .site-nav-backdrop {
       display: none !important;
+    }
+
+    .site-header nav,
+    .site-nav {
+      flex: 1 1 auto;
+      min-width: 0;
+      justify-content: flex-end;
     }
   }
 </style>
