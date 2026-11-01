@@ -5,7 +5,7 @@
 > 🛰️ **Operators:** crate map and networking defaults live in §2 and §12.
 
 **Purpose:** Single source of truth for all technical specifications: software stack, cryptography, data formats, bytecode, gas, RPC API, and protocol rules.  
-**References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md)
+**References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md)
 
 ```mermaid
 flowchart TB
@@ -608,6 +608,7 @@ Use `boing_qaCheck([hex_bytecode])` or extend with optional `purpose_category`, 
 | Document | Use for |
 |----------|---------|
 | [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Plain-language product overview and testnet limits |
+| [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md) | Technical companion (activations, VM/fees, RPC/DEX highlights) |
 | [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md) | Full architecture, innovations, tokenomics |
 | [RPC-API-SPEC.md](RPC-API-SPEC.md) | Complete RPC method specs and examples |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | QA design, automation, community pool; Appendix A: deployer checklist |

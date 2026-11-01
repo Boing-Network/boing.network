@@ -20,7 +20,7 @@ flowchart LR
 
 ## Network essentials (six pillars)
 
-The network prioritizes, in order: **1. Security** → **2. Scalability** → **3. Decentralization** → **4. Authenticity** → **5. Transparency** → **6. True quality assurance**. For the full description of each pillar, see [SIX-PILLARS.md](SIX-PILLARS.md). For a plain-language product overview, see [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md).
+The network prioritizes, in order: **1. Security** → **2. Scalability** → **3. Decentralization** → **4. Authenticity** → **5. Transparency** → **6. True quality assurance**. For the full description of each pillar, see [SIX-PILLARS.md](SIX-PILLARS.md). For a plain-language product overview, see [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md). For a technical companion, see [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md).
 
 ---
 

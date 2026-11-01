@@ -48,7 +48,7 @@ In plain terms, that gateway lets apps:
 - Request faucet funds (via the faucet page)
 - Work with on-chain media (with wallet help for larger files)
 
-Deep method lists and integrator details belong in a future **Technical Essentials** doc (planned) and in [RPC-API-SPEC.md](RPC-API-SPEC.md) for builders today.
+Deep method lists and integrator details: [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md) (technical companion) and [RPC-API-SPEC.md](RPC-API-SPEC.md) (full method catalog).
 
 ---
 
@@ -89,7 +89,7 @@ When mainnet and a more decentralized validator set ship, this page will be upda
 | Read the pillars | [SIX-PILLARS](SIX-PILLARS.md) · [PDF](../website/public/pdfs/SIX-PILLARS.pdf) |
 | See what shipped when | [FEATURES.md](FEATURES.md) · [PDF](../website/public/pdfs/FEATURES.pdf) |
 | Join Discord | [discord.gg/K3w9nbUw4N](https://discord.gg/K3w9nbUw4N) |
-| Build or integrate | [docs index](README.md) · [dApp integration](BOING-DAPP-INTEGRATION.md) · [RPC spec](RPC-API-SPEC.md) |
+| Build or integrate | [Technical Essentials](BOING-NETWORK-TECHNICAL-ESSENTIALS.md) · [PDF](../website/public/pdfs/BOING-NETWORK-TECHNICAL-ESSENTIALS.pdf) · [docs index](README.md) · [dApp integration](BOING-DAPP-INTEGRATION.md) · [RPC spec](RPC-API-SPEC.md) |
 | Run a node / ops | [TESTNET.md](TESTNET.md) · [RUNBOOK.md](RUNBOOK.md) |
 
 ---

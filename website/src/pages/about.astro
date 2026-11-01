@@ -26,7 +26,13 @@ import PdfDocument from '../components/PdfDocument.astro';
         <PdfDocument src="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" title="Network essentials" fileName="BOING-NETWORK-ESSENTIALS.pdf" />
       </section>
 
-      <p class="section-reveal delay-3 about-links">
+      <section class="about-section section-reveal delay-3" aria-labelledby="technical-essentials-heading">
+        <h2 id="technical-essentials-heading"><Icon name="document" size={22} class="section-icon" /> Technical essentials</h2>
+        <p class="pdf-source">Technical companion for integrators and operators (chain id, activations, VM, fees, RPC, DEX, blobs, ops). Source: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-NETWORK-TECHNICAL-ESSENTIALS.md" target="_blank" rel="noopener">docs/BOING-NETWORK-TECHNICAL-ESSENTIALS.md</a>.</p>
+        <PdfDocument src="/pdfs/BOING-NETWORK-TECHNICAL-ESSENTIALS.pdf" title="Technical essentials" fileName="BOING-NETWORK-TECHNICAL-ESSENTIALS.pdf" />
+      </section>
+
+      <p class="section-reveal delay-4 about-links">
         <a href="/docs">Documentation</a> ·
         <a href="/docs/getting-started">Getting started</a> ·
         <a href="/developers/quickstart">Developer quickstart</a> ·

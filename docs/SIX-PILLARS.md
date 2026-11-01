@@ -10,7 +10,7 @@ August 2026 · [boing.network](https://boing.network) · [boing.observer](https:
 
 This is the written form of the six pillars. It is meant to be readable: technical enough that an engineer can map each pillar to shipped behavior, casual enough that you do not need the full spec in your lap.
 
-For a plain-language product overview, see [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md). For what shipped when (heights / tags / status), see [FEATURES.md](FEATURES.md). For the QA pipeline itself, see [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md).
+For a plain-language product overview, see [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md). For a technical companion (chain id, activations, VM, RPC/DEX), see [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md). For what shipped when (heights / tags / status), see [FEATURES.md](FEATURES.md). For the QA pipeline itself, see [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md).
 
 ```mermaid
 flowchart LR
@@ -138,6 +138,7 @@ If you remember one sentence: **we automate the boring judgments, we decentraliz
 | Document | Why it is next |
 |----------|----------------|
 | [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Plain-language overview of products and limits |
+| [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md) | Technical companion for integrators and operators |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Allow / Reject / Unsure, malice definition, governance-mutable rules |
 | [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) | Crypto, VM, gas, RPC shapes |
 | [RPC-API-SPEC.md](RPC-API-SPEC.md) | JSON-RPC, including QA and DEX discovery |
