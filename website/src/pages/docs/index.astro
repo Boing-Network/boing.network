@@ -21,28 +21,33 @@ const paramsObjectWrong = '{}';
     </header>
     <div class="docs-body">
       <aside class="docs-toc" aria-label="Table of contents">
-      <nav>
-        <h2 class="toc-title">On this page</h2>
-        <ol class="toc-list">
-          <li><a href="#overview" class="toc-link active">Overview</a></li>
-          <li><a href="#getting-started" class="toc-link">Getting Started</a></li>
-          <li><a href="#network-overview" class="toc-link">Network Overview</a></li>
-          <li><a href="#tokenomics" class="toc-link">Tokenomics</a></li>
-          <li><a href="#architecture" class="toc-link">Architecture & Features</a></li>
-          <li><a href="#rpc-api" class="toc-link">RPC API</a></li>
-          <li><a href="#operations" class="toc-link">Operations</a></li>
-          <li><a href="#roadmap" class="toc-link">Roadmap</a></li>
-          <li><a href="#testnet" class="toc-link">Testnet</a></li>
-          <li><a href="#security" class="toc-link">Security</a></li>
-          <li><a href="#governance" class="toc-link">Governance & Transparency</a></li>
-          <li><a href="#responsive" class="toc-link">Responsive</a></li>
-          <li><a href="#resources" class="toc-link">Resources</a></li>
-        </ol>
-      </nav>
-    </aside>
-    <div class="docs-content">
-      <section id="overview" class="doc-section active">
-        <h2>Overview</h2>
+        <details class="toc-panel" open>
+          <summary class="toc-summary">
+            <span class="toc-title">On this page</span>
+            <span class="toc-summary-hint" aria-hidden="true">Sections</span>
+          </summary>
+          <nav class="toc-nav">
+            <ol class="toc-list">
+              <li><a href="#overview" class="toc-link active">Overview</a></li>
+              <li><a href="#getting-started" class="toc-link">Getting Started</a></li>
+              <li><a href="#network-overview" class="toc-link">Network Overview</a></li>
+              <li><a href="#tokenomics" class="toc-link">Tokenomics</a></li>
+              <li><a href="#architecture" class="toc-link">Architecture & Features</a></li>
+              <li><a href="#rpc-api" class="toc-link">RPC API</a></li>
+              <li><a href="#operations" class="toc-link">Operations</a></li>
+              <li><a href="#roadmap" class="toc-link">Roadmap</a></li>
+              <li><a href="#testnet" class="toc-link">Testnet</a></li>
+              <li><a href="#security" class="toc-link">Security</a></li>
+              <li><a href="#governance" class="toc-link">Governance & Transparency</a></li>
+              <li><a href="#responsive" class="toc-link">Responsive</a></li>
+              <li><a href="#resources" class="toc-link">Resources</a></li>
+            </ol>
+          </nav>
+        </details>
+      </aside>
+      <div class="docs-content" tabindex="-1">
+      <section id="overview" class="doc-section active" aria-labelledby="overview-heading">
+        <h2 id="overview-heading">Overview</h2>
         <p>Boing Network is an independent Layer 1 built from first principles, where quality is enforced by the protocol. It is independent of other chains and designed for sustainable value, uncapped supply with floor-triggered rebalancing, and 100% transparent governance and tokenomics.</p>
         <h3>Pick your path</h3>
         <ul>
@@ -426,12 +431,23 @@ cargo build --release</code></pre>
 <script>
   (function () {
     const sectionIds = ['overview', 'getting-started', 'network-overview', 'tokenomics', 'architecture', 'rpc-api', 'operations', 'roadmap', 'testnet', 'security', 'governance', 'responsive', 'resources'];
-    function showSection(id) {
+    const contentEl = document.querySelector('.docs-content');
+    const tocPanel = document.querySelector('.toc-panel');
+
+    function closeMobileToc() {
+      if (!tocPanel || window.matchMedia('(min-width: 901px)').matches) return;
+      tocPanel.open = false;
+    }
+
+    function showSection(id, opts) {
+      const scrollTop = !opts || opts.scrollTop !== false;
       const sections = document.querySelectorAll('.doc-section');
       const links = document.querySelectorAll('.toc-link');
       sections.forEach((el) => el.classList.toggle('active', el.id === id));
       links.forEach((a) => a.classList.toggle('active', (a.getAttribute('href') || '').slice(1) === id));
       if (id) window.history.replaceState(null, '', window.location.pathname + '#' + id);
+      if (scrollTop && contentEl) contentEl.scrollTop = 0;
+      closeMobileToc();
     }
     function getSectionFromHash() {
       const hash = window.location.hash.slice(1);
@@ -445,7 +461,15 @@ cargo build --release</code></pre>
       });
     });
     window.addEventListener('hashchange', () => showSection(getSectionFromHash()));
-    showSection(getSectionFromHash());
+    showSection(getSectionFromHash(), { scrollTop: false });
+
+    // Keep desktop TOC panel open; allow accordion collapse only on smaller viewports.
+    function syncTocOpenState() {
+      if (!tocPanel) return;
+      if (window.matchMedia('(min-width: 901px)').matches) tocPanel.open = true;
+    }
+    syncTocOpenState();
+    window.addEventListener('resize', syncTocOpenState);
 
     // Copy button for code blocks — icon on the right of each block
     document.querySelectorAll('.docs-content .doc-section pre').forEach((pre) => {
@@ -479,123 +503,216 @@ cargo build --release</code></pre>
 </script>
 
 <style>
+  /* Desktop: lock the docs shell to the viewport so TOC stays put and only the content column scrolls. */
+  @media (min-width: 901px) {
+    :global(body:has(.docs-page)) {
+      overflow: hidden;
+    }
+    :global(body:has(.docs-page) .site-footer) {
+      display: none !important;
+    }
+  }
   .docs-page {
+    --docs-toc-width: 15.5rem;
+    --docs-shell-gap: 0;
     max-width: 100%;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 4.5rem);
+    /* Viewport shell under fixed site header: TOC fixed in left column, content scrolls alone. */
+    height: calc(100dvh - var(--site-header-offset, 7.5rem));
+    max-height: calc(100dvh - var(--site-header-offset, 7.5rem));
+    overflow: hidden;
+  }
+  .docs-hero {
+    flex-shrink: 0;
+    padding: 1.35rem 0 1.15rem !important;
   }
   .docs-hero .docs-main-title {
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.65rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.55rem;
     flex-wrap: wrap;
   }
   .docs-title-icon { color: var(--accent-teal); flex-shrink: 0; }
+  .docs-main-title {
+    font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+    margin: 0 0 0.5rem;
+    color: var(--text-primary);
+    line-height: 1.25;
+  }
+  .docs-lead {
+    color: var(--text-secondary);
+    margin: 0 auto;
+    max-width: 42rem;
+    font-size: 1.02rem;
+    line-height: 1.65;
+  }
   .docs-body {
     display: grid;
-    grid-template-columns: 220px 1fr;
-    grid-template-rows: 1fr;
-    gap: 2rem;
-    flex: 1;
+    grid-template-columns: var(--docs-toc-width) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: var(--docs-shell-gap);
+    flex: 1 1 auto;
     min-height: 0;
+    width: 100%;
     max-width: 1280px;
     margin: 0 auto;
-    padding: 0 2rem 1rem;
+    padding: 0;
     align-items: stretch;
     overflow: hidden;
-  }
-  .docs-body .docs-toc {
-    grid-column: 1;
-  }
-  .docs-body .docs-content {
-    grid-column: 2;
-    grid-row: 1;
-    min-width: 0;
-    min-height: 0;
-    overflow-y: auto;
-    max-height: 100%;
-    padding-bottom: 2rem;
+    border-top: 1px solid var(--border-color);
   }
   .docs-toc {
+    grid-column: 1;
+    grid-row: 1;
     position: sticky;
-    top: 5rem;
+    top: 0;
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 1.5rem 1rem 2rem 1.5rem;
+    border-right: 1px solid var(--border-color);
+    background: linear-gradient(180deg, rgba(10, 18, 36, 0.55) 0%, rgba(10, 18, 36, 0.25) 100%);
+  }
+  .toc-panel {
+    margin: 0;
+  }
+  .toc-summary {
+    list-style: none;
+    cursor: default;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+  }
+  .toc-summary::-webkit-details-marker { display: none; }
+  .toc-summary::marker { content: ''; }
+  .toc-summary-hint {
+    display: none;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
   }
   .toc-title {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     color: var(--text-tertiary);
-    margin: 0 0 0.75rem;
+    margin: 0;
+    font-weight: 700;
+  }
+  .toc-nav {
+    min-width: 0;
   }
   .toc-list {
     list-style: none;
     padding: 0;
     margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
   }
   .toc-list a.toc-link {
     display: block;
-    padding: 0.35rem 0;
+    padding: 0.45rem 0.65rem;
     font-size: 0.9rem;
+    line-height: 1.35;
     color: var(--text-secondary);
     text-decoration: none;
     border-left: 2px solid transparent;
-    padding-left: 0.5rem;
-    margin-left: -0.5rem;
+    border-radius: 0 0.35rem 0.35rem 0;
   }
   .toc-list a.toc-link:hover {
     color: var(--accent-neon);
+    background: rgba(34, 211, 238, 0.06);
   }
   .toc-list a.toc-link.active {
     color: var(--accent-neon);
     border-left-color: var(--accent-neon);
+    background: rgba(34, 211, 238, 0.1);
+    font-weight: 600;
+  }
+  .docs-content {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 2rem 2.5rem 4rem 2.5rem;
+    scroll-behavior: smooth;
   }
   .doc-section {
     display: none;
+    max-width: 46rem;
   }
   .doc-section.active {
     display: block;
-  }
-  .docs-content {
-    min-width: 0;
-  }
-  .docs-main-title {
-    font-size: 1.75rem;
-    margin: 0 0 0.5rem;
-    color: var(--text-primary);
-  }
-  .docs-lead {
-    color: var(--text-secondary);
-    margin: 0 0 2rem;
-    font-size: 1rem;
-  }
-  .doc-section.active {
-    margin-bottom: 2.5rem;
+    margin-bottom: 1rem;
   }
   .doc-section h2 {
-    font-size: 1.35rem;
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 2vw, 1.8rem);
+    font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 1rem;
-    padding-bottom: 0.35rem;
+    margin: 0 0 1.6rem;
+    padding-bottom: 0.9rem;
     border-bottom: 1px solid var(--border-color);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
   }
   .doc-section h3 {
-    font-size: 1.05rem;
+    font-size: 1.14rem;
+    font-weight: 650;
     color: var(--text-primary);
-    margin: 1.25rem 0 0.5rem;
+    margin: 2.4rem 0 0.95rem;
+    line-height: 1.35;
   }
-  .doc-section p, .doc-section li {
+  .doc-section h3:first-of-type {
+    margin-top: 1.6rem;
+  }
+  .doc-section h4,
+  .doc-section .resource-card-title {
+    margin-top: 0;
+  }
+  .doc-section p {
     color: var(--text-secondary);
-    margin: 0.5rem 0;
-    line-height: 1.6;
+    margin: 0 0 1.35rem;
+    line-height: 1.8;
+    font-size: 1.03rem;
   }
-  .doc-section ul, .doc-section ol {
-    margin: 0.5rem 0 1rem;
-    padding-left: 1.5rem;
+  .doc-section li {
+    color: var(--text-secondary);
+    margin: 0 0 0.9rem;
+    line-height: 1.75;
+    font-size: 1.03rem;
+    padding-left: 0.15rem;
+  }
+  .doc-section li:last-child {
+    margin-bottom: 0;
+  }
+  .doc-section ul,
+  .doc-section ol {
+    margin: 0 0 1.75rem;
+    padding-left: 1.4rem;
+  }
+  .doc-section ul ul,
+  .doc-section ol ol,
+  .doc-section ul ol,
+  .doc-section ol ul {
+    margin: 0.55rem 0 0.35rem;
+  }
+  .doc-section > :last-child {
+    margin-bottom: 0;
   }
   .doc-section code {
     font-family: var(--font-mono);
@@ -606,11 +723,12 @@ cargo build --release</code></pre>
   }
   .doc-section pre {
     background: var(--bg-tertiary);
-    padding: 1rem;
+    padding: 1.1rem 1.15rem;
     border-radius: 0.5rem;
     overflow-x: auto;
     border: 1px solid var(--border-color);
-    margin: 0.75rem 0;
+    margin: 0 0 1.35rem;
+    line-height: 1.55;
   }
   .doc-section pre code {
     background: none;
@@ -618,7 +736,7 @@ cargo build --release</code></pre>
   }
   .code-block-wrapper {
     position: relative;
-    margin: 0.75rem 0;
+    margin: 0 0 1.35rem;
   }
   .code-block-wrapper pre {
     margin: 0;
@@ -672,13 +790,14 @@ cargo build --release</code></pre>
   .doc-table {
     width: 100%;
     border-collapse: collapse;
-    margin: 0.75rem 0;
-    font-size: 0.9rem;
+    margin: 0 0 1.5rem;
+    font-size: 0.92rem;
   }
   .doc-table th, .doc-table td {
-    padding: 0.5rem 0.75rem;
+    padding: 0.7rem 0.85rem;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
   }
   .doc-table th {
     color: var(--text-tertiary);
@@ -686,28 +805,29 @@ cargo build --release</code></pre>
   }
   .doc-table td {
     color: var(--text-secondary);
+    line-height: 1.55;
   }
   .doc-table code {
     font-size: 0.85em;
   }
   .rpc-method-table {
-    font-size: 0.82rem;
+    font-size: 0.84rem;
   }
   .rpc-method-table td {
     vertical-align: top;
   }
-  .docs-site-links { margin: 0.5rem 0 1rem; padding-left: 1.5rem; }
-  .doc-section-desc { margin-bottom: 1rem; }
+  .docs-site-links { margin: 0 0 1.5rem; padding-left: 1.35rem; }
+  .doc-section-desc { margin-bottom: 1.25rem; }
   .resource-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
+    gap: 1.15rem;
+    margin-top: 0.35rem;
   }
   .resource-card {
     display: flex;
     flex-direction: column;
-    padding: 1.25rem;
+    padding: 1.35rem;
     background: rgba(30, 41, 59, 0.4);
     border: 1px solid rgba(34, 211, 238, 0.2);
     border-radius: 0.75rem;
@@ -725,41 +845,100 @@ cargo build --release</code></pre>
   .resource-card-title { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0 0 0.5rem; line-height: 1.3; }
   .resource-card-desc { font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 1rem; line-height: 1.5; flex: 1; }
   .resource-card-cta { font-size: 0.8rem; font-weight: 600; color: var(--accent-teal); }
-  @media (prefers-reduced-motion: reduce) { .resource-card:hover { transform: none; } }
-  @media (max-width: 768px) {
+  @media (prefers-reduced-motion: reduce) {
+    .resource-card:hover { transform: none; }
+    .docs-content { scroll-behavior: auto; }
+  }
+
+  /* Tablet / mobile: collapse TOC into top accordion; content keeps its own scroll. */
+  @media (max-width: 900px) {
+    .docs-page {
+      height: auto;
+      max-height: none;
+      overflow: visible;
+      min-height: calc(100dvh - var(--site-header-offset, 7.5rem));
+    }
     .docs-body {
       grid-template-columns: 1fr;
-      grid-template-rows: auto 1fr;
-      padding: 1.5rem 1.25rem 1rem;
-    }
-    .docs-body .docs-content {
-      grid-column: 1;
-      grid-row: 2;
-      min-height: 0;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: visible;
+      border-top: none;
     }
     .docs-toc {
-      position: static;
-      margin-bottom: 1rem;
-      padding: 1rem;
-      background: rgba(30,41,59,0.4);
-      border-radius: 0.5rem;
+      position: sticky;
+      top: var(--site-header-offset, 7.5rem);
+      z-index: 5;
+      height: auto;
+      max-height: none;
+      overflow: visible;
+      padding: 0.85rem 1.15rem;
+      margin: 0 1rem;
+      border-right: none;
       border: 1px solid var(--border-color);
+      border-radius: 0.65rem;
+      background: rgba(16, 26, 56, 0.92);
+      backdrop-filter: blur(10px);
+    }
+    .toc-summary {
+      cursor: pointer;
+      margin: 0;
+      padding: 0.2rem 0;
+    }
+    .toc-summary-hint {
+      display: inline;
+    }
+    .toc-panel[open] .toc-summary {
+      margin-bottom: 0.85rem;
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .toc-panel[open] .toc-summary-hint::after {
+      content: ' ▴';
+    }
+    .toc-panel:not([open]) .toc-summary-hint::after {
+      content: ' ▾';
     }
     .toc-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem 1rem;
+      gap: 0.2rem;
+      padding-bottom: 0.25rem;
     }
-    .toc-list li { margin: 0; }
-    .toc-list a {
-      padding: 0.25rem 0;
-      margin-left: 0;
+    .toc-list a.toc-link {
       border-left: none;
+      border-radius: 0.4rem;
+      padding: 0.55rem 0.7rem;
+    }
+    .toc-list a.toc-link.active {
+      border-left: none;
+    }
+    .docs-content {
+      grid-column: 1;
+      grid-row: 2;
+      height: auto;
+      max-height: none;
+      overflow: visible;
+      padding: 1.5rem 1.25rem 3rem;
+    }
+    .doc-section {
+      max-width: none;
     }
   }
   @media (max-width: 480px) {
-    .docs-body {
-      padding: 1rem 1.25rem 2rem;
+    .docs-hero {
+      padding: 1.35rem 0 1.15rem;
+    }
+    .docs-toc {
+      margin: 0 0.75rem;
+      padding: 0.75rem 0.9rem;
+    }
+    .docs-content {
+      padding: 1.25rem 1rem 2.75rem;
+    }
+    .doc-section h2 {
+      margin-bottom: 1.1rem;
+      padding-bottom: 0.6rem;
+    }
+    .doc-section h3 {
+      margin-top: 1.65rem;
     }
   }
 </style>
