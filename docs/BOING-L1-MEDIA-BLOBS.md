@@ -14,7 +14,7 @@ Content-addressed media on L1: sidecar bytes + consensus metadata via PutBlob / 
 | PHASE7 gated raise | **256 MiB** when tip ≥ `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` |
 | **Public testnet (Fly)** | **256 MiB consensus** active since height **1306** |
 
-**Practical limits on Fly today:** consensus allows 256 MiB, but inline PutBlob through JSON-RPC hex is RAM-bound. Load-tested successful Puts reach ~**80 MiB** on ≥8 GiB RAM; **≥128 MiB** risk OOM before inclusion. The public gateway Worker still caps request bodies at **8 MiB** — large Puts must hit Fly RPC directly (or use BlobAnnounce / segmented paths). Prefer Express PutBlob sessions for multi-file dApp uploads rather than one mega-Put.
+**Practical limits on Fly today:** consensus allows 256 MiB, but inline PutBlob through JSON-RPC hex is RAM-bound. Load-tested successful Puts reached ~**80 MiB** on an 8 GiB VM (the live VM is now 2 GiB, so expect a much lower ceiling); **≥128 MiB** risk OOM before inclusion. The public gateway Worker still caps request bodies at **8 MiB** — large Puts must hit Fly RPC directly (or use BlobAnnounce / segmented paths). Prefer Express PutBlob sessions for multi-file dApp uploads rather than one mega-Put.
 
 New validators outside the coordinated Fly set should only set PHASE7 after agreeing on the same activation height.
 
@@ -97,7 +97,7 @@ New validators outside the coordinated Fly set should only set PHASE7 after agre
 | `BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT` | **Leave at 1200**. Do not change. |
 | `BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT` | **`1306`** on Fly (active). Do not partially unset after tip ≥ H. |
 | `BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT` | **Leave unset** (multi-pin default stays Ed25519 **32**). |
-| Fly RAM / body | Prefer **performance-2x / 16 GiB**; `BOING_RPC_MAX_BODY_MB=600` on the validator for large inline Puts. |
+| Fly RAM / body | Live VM is **shared-cpu-2x / 2 GiB** (2026-10-31); scale memory up (e.g. performance-2x / 8 GiB) before large inline Put tests; `BOING_RPC_MAX_BODY_MB=600` on the validator for large inline Puts. |
 | `slash_appeals_registry.bin` | **Do not clear.** Stay **V5**. |
 | `bls_dual_key_registry.bin` | Host-local BDKR v1; PoP still required on register. |
 | Clients | npm **`@boing-network/boing-sdk@^0.5.38`**; PutBlob **publish sessions** are Express-side. |

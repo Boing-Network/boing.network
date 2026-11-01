@@ -5,14 +5,14 @@ const GITHUB_RELEASES_BASE = 'https://github.com/Boing-Network/boing.network/rel
 const GITHUB_API_RELEASES = 'https://api.github.com/repos/Boing-Network/boing.network/releases';
 
 /** Fallback when API fails or no desktop-hub release exists yet (keep in sync with latest release) */
-const FALLBACK_TAG = 'desktop-hub/v0.1.11';
-const FALLBACK_VERSION = '0.1.18';
+const FALLBACK_TAG = 'desktop-hub/v0.1.27';
+const FALLBACK_VERSION = '0.1.27';
 const FALLBACK_DOWNLOADS: { platform: string; label: string; description: string; filename: string; note?: string }[] = [
-  { platform: 'Windows', label: 'Windows (x64)', description: 'For Windows 10 and 11. Standard MSI installer with automatic updates.', filename: `Boing Network Hub_${FALLBACK_VERSION}_x64_en-US.msi`, note: 'MSI installer' },
-  { platform: 'macOS', label: 'macOS (Apple Silicon)', description: 'For Macs with M1, M2, M3, or newer Apple Silicon chips. Native performance.', filename: `Boing Network Hub_${FALLBACK_VERSION}_aarch64.dmg`, note: 'M1/M2/M3' },
-  { platform: 'macOS', label: 'macOS (Intel)', description: 'For Intel-based Macs. Compatible with macOS 10.15 and later.', filename: `Boing Network Hub_${FALLBACK_VERSION}_x86_64.dmg`, note: 'Intel Macs' },
-  { platform: 'Linux', label: 'Debian / Ubuntu', description: 'For Debian-based Linux distributions including Ubuntu, Linux Mint, and Pop!_OS.', filename: `boing-network-hub_${FALLBACK_VERSION}_amd64.deb`, note: '.deb package' },
-  { platform: 'Linux', label: 'AppImage', description: 'Universal Linux package. Works on any distribution without installation. Just download and run.', filename: `Boing Network Hub_${FALLBACK_VERSION}_amd64.AppImage`, note: 'Portable, any distro' },
+  { platform: 'Windows', label: 'Windows (x64)', description: 'For Windows 10 and 11. Standard MSI installer with automatic updates.', filename: `Boing.Network.Hub_${FALLBACK_VERSION}_x64_en-US.msi`, note: 'MSI installer' },
+  { platform: 'macOS', label: 'macOS (Apple Silicon)', description: 'For Macs with M1, M2, M3, or newer Apple Silicon chips. Native performance.', filename: `Boing.Network.Hub_${FALLBACK_VERSION}_aarch64.dmg`, note: 'M1/M2/M3' },
+  { platform: 'macOS', label: 'macOS (Intel)', description: 'For Intel-based Macs. Compatible with macOS 10.15 and later.', filename: `Boing.Network.Hub_${FALLBACK_VERSION}_x64.dmg`, note: 'Intel Macs' },
+  { platform: 'Linux', label: 'Debian / Ubuntu', description: 'For Debian-based Linux distributions including Ubuntu, Linux Mint, and Pop!_OS.', filename: `Boing.Network.Hub_${FALLBACK_VERSION}_amd64.deb`, note: '.deb package' },
+  { platform: 'Linux', label: 'AppImage', description: 'Universal Linux package. Works on any distribution without installation. Just download and run.', filename: `Boing.Network.Hub_${FALLBACK_VERSION}_amd64.AppImage`, note: 'Portable, any distro' },
 ];
 
 function directDownload(tag: string, filename: string): string {

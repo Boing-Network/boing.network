@@ -22,7 +22,7 @@ Use this when you are about to **replace or restart** the `boing-node` process b
 
 ## Deploy / restart (hosted Fly — preferred)
 
-1. Keep **`fly.testnet-1.toml`** VM size at **performance-2x / 16 GiB** (smaller sizes OOM on large tip blocks / Puts).
+1. Keep **`fly.testnet-1.toml`** VM size at **shared-cpu-2x / 2 GiB** (since 2026-10-31; watch for OOM / exit 137 on large tip blocks or Puts and step up to 4096mb first).
 2. Preserve secrets: operator token, **`BOING_MEDIA_BLOBS_ACTIVATION_HEIGHT=1200`**, **`BOING_MEDIA_BLOBS_PHASE7_CAP_ACTIVATION_HEIGHT=1306`**, `BOING_RPC_MAX_BODY_MB` (large Puts), blob download tokens if set.
 3. Deploy: `fly deploy --config fly.testnet-1.toml --remote-only --ha=false` (see [FLY-IO.md](FLY-IO.md)).
 4. Confirm `GET /live` on Fly and `GET https://testnet-rpc.boing.network/__gateway/health` (single backend).
