@@ -235,6 +235,7 @@ Plans and backlog: [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-
 | I want… | Go here |
 |---------|---------|
 | Plain-language overview | [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) · [PDF](../website/public/pdfs/BOING-NETWORK-ESSENTIALS.pdf) |
+| Whitepaper | [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) · [PDF](../website/public/pdfs/BOING-NETWORK-WHITEPAPER.pdf) |
 | Full RPC catalog | [RPC-API-SPEC.md](RPC-API-SPEC.md) · [PDF](../website/public/pdfs/RPC-API-SPEC.pdf) |
 | VM / crypto / gas | [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) |
 | What shipped when | [FEATURES.md](FEATURES.md) · [PDF](../website/public/pdfs/FEATURES.pdf) |

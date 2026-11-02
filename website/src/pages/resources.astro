@@ -73,10 +73,16 @@ import Icon from '../components/Icon.astro';
           <p>RPC endpoints, explorer links, and operator smoke commands.</p>
           <span class="resource-tile-cta">Status →</span>
         </a>
+        <a href="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" target="_blank" rel="noopener" class="resource-tile">
+          <span class="resource-tile-icon"><Icon name="document" size={40} /></span>
+          <h2>Whitepaper</h2>
+          <p>Protocol and product whitepaper for public testnet — architecture, QA gate, DEX, wallets, activations.</p>
+          <span class="resource-tile-cta">Open PDF →</span>
+        </a>
         <a href="/about" class="resource-tile">
           <span class="resource-tile-icon"><Icon name="shield" size={40} /></span>
           <h2>About</h2>
-          <p>Six pillars and network essentials (plain + technical) as PDFs.</p>
+          <p>Whitepaper, six pillars, and network essentials (plain + technical) as PDFs.</p>
           <span class="resource-tile-cta">About →</span>
         </a>
         <a href="/community" class="resource-tile">
@@ -184,6 +190,7 @@ import Icon from '../components/Icon.astro';
   .resource-tile:nth-child(9) { animation-delay: 0.45s; }
   .resource-tile:nth-child(10) { animation-delay: 0.5s; }
   .resource-tile:nth-child(11) { animation-delay: 0.55s; }
+  .resource-tile:nth-child(12) { animation-delay: 0.6s; }
   @keyframes resource-tile-reveal { to { opacity: 1; transform: translateY(0); } }
   .resource-tile:hover .resource-tile-icon {
     transform: scale(1.12);

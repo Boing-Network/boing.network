@@ -107,6 +107,7 @@ All project documentation lives in **[docs/](docs/)**. Start at the **[docs inde
 |-----|-------------|
 | [**docs/README.md**](docs/README.md) | **Index of all `docs/*.md` files** — pick your path |
 | [SIX-PILLARS.md](docs/SIX-PILLARS.md) | Written six pillars (also PDF on `/about`) |
+| [BOING-NETWORK-WHITEPAPER.md](docs/BOING-NETWORK-WHITEPAPER.md) | Protocol + product whitepaper (also `/pdfs/BOING-NETWORK-WHITEPAPER.pdf`) |
 | [BOING-NETWORK-ESSENTIALS.md](docs/BOING-NETWORK-ESSENTIALS.md) | Plain-language overview of products and what is live today |
 | [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](docs/BOING-NETWORK-TECHNICAL-ESSENTIALS.md) | Technical companion: chain id, activations, VM, fees, RPC, DEX, ops |
 | [TECHNICAL-SPECIFICATION.md](docs/TECHNICAL-SPECIFICATION.md) | Crypto, data formats, bytecode, gas, RPC, QA rules |

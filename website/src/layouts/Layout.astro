@@ -211,6 +211,7 @@ const navCurrent = {
                 <a href="/resources" class="nav-link" aria-current={navCurrent.resources ? 'page' : undefined}>Resources</a>
                 <a href="/downloads" class="nav-link" aria-current={navCurrent.downloads ? 'page' : undefined}>Downloads</a>
                 <a href="/about" class="nav-link" aria-current={navCurrent.about ? 'page' : undefined}>About</a>
+                <a href="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" target="_blank" rel="noopener" class="nav-link">Whitepaper</a>
                 <a href="/community" class="nav-link" aria-current={navCurrent.community ? 'page' : undefined}>Community</a>
                 <a href="/faucet" class="nav-link" aria-current={navCurrent.faucet ? 'page' : undefined}>Faucet</a>
               </div>
@@ -235,20 +236,49 @@ const navCurrent = {
       </div>
     </footer>
     <footer class="site-footer site-footer-main" data-testnet-hide>
-      <p>Boing Network — Quality, enforced by the protocol. <strong>Public testnet — mainnet not live.</strong></p>
-      <div class="footer-links">
-        <a href="/testnet">Dashboard</a>
-        <a href="/resources">Resources</a>
-        <a href="/downloads">Downloads</a>
-        <a href="/testnet/join">Join Testnet</a>
-        <a href="/testnet/operators/validator">Run a validator</a>
-        <a href="/faucet">Faucet</a>
-        <a href="https://boing.observer" target="_blank" rel="noopener">Boing Observer</a>
-        <a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a>
-        <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://discord.gg/K3w9nbUw4N" target="_blank" rel="noopener">Discord</a>
-        <a href="https://boing.finance" target="_blank" rel="noopener">Boing Finance</a>
-        <a href="/docs">Documentation</a>
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <p class="footer-brand-name">Boing Network</p>
+          <p class="footer-tagline">Quality, enforced by the protocol.</p>
+          <p class="footer-status"><strong>Public testnet</strong> — mainnet not live.</p>
+        </div>
+        <nav class="footer-nav" aria-label="Footer">
+          <div class="footer-group">
+            <h2 class="footer-heading">Network</h2>
+            <ul class="footer-list">
+              <li><a href="/testnet">Dashboard</a></li>
+              <li><a href="/testnet/join">Join testnet</a></li>
+              <li><a href="/faucet">Faucet</a></li>
+              <li><a href="/testnet/operators/validator">Run a validator</a></li>
+            </ul>
+          </div>
+          <div class="footer-group">
+            <h2 class="footer-heading">Products</h2>
+            <ul class="footer-list">
+              <li><a href="https://boing.express" target="_blank" rel="noopener">Express</a></li>
+              <li><a href="https://boing.finance" target="_blank" rel="noopener">Finance</a></li>
+              <li><a href="https://boing.observer" target="_blank" rel="noopener">Observer</a></li>
+              <li><a href="/downloads">Downloads</a></li>
+            </ul>
+          </div>
+          <div class="footer-group">
+            <h2 class="footer-heading">Docs</h2>
+            <ul class="footer-list">
+              <li><a href="/docs">Documentation</a></li>
+              <li><a href="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" target="_blank" rel="noopener">Whitepaper</a></li>
+              <li><a href="/resources">Resources</a></li>
+              <li><a href="/about">About</a></li>
+            </ul>
+          </div>
+          <div class="footer-group">
+            <h2 class="footer-heading">Community</h2>
+            <ul class="footer-list">
+              <li><a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">GitHub</a></li>
+              <li><a href="https://discord.gg/K3w9nbUw4N" target="_blank" rel="noopener">Discord</a></li>
+              <li><a href="/community">Community</a></li>
+            </ul>
+          </div>
+        </nav>
       </div>
     </footer>
     <script is:inline>
@@ -763,7 +793,6 @@ const navCurrent = {
   body.testnet-app .site-footer-main { display: none !important; }
   body:not(.testnet-app) [data-testnet-show] { display: none !important; }
   body:not(.testnet-app) .site-footer-main { display: block !important; }
-  body.page-home .site-footer-main { display: none !important; }
   .nav-hub-links {
     display: inline-flex;
     align-items: center;
@@ -872,9 +901,8 @@ const navCurrent = {
   .site-footer {
     position: relative;
     z-index: 1;
-    padding: 2rem;
-    border-top: 1px solid var(--border-color);
-    text-align: center;
+    padding: 2.75rem 1.5rem 2.25rem;
+    border-top: 1px solid rgba(59, 140, 255, 0.1);
     color: var(--text-tertiary);
     font-size: 0.875rem;
     background: var(--bg-primary);
@@ -882,11 +910,75 @@ const navCurrent = {
 
   .site-footer a {
     color: var(--accent-teal);
+    text-decoration: none;
   }
   .site-footer a:hover {
     color: var(--accent-electric);
   }
 
+  .footer-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(180px, 0.9fr) minmax(0, 2.4fr);
+    gap: 2rem 3rem;
+    align-items: start;
+  }
+
+  .footer-brand {
+    text-align: left;
+  }
+  .footer-brand-name {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--accent-teal);
+    letter-spacing: -0.01em;
+  }
+  .footer-tagline {
+    margin: 0 0 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.45;
+  }
+  .footer-status {
+    margin: 0;
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .footer-nav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem 1.75rem;
+  }
+  .footer-heading {
+    margin: 0 0 0.55rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .footer-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+  }
+  .footer-list a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0.1rem 0;
+    font-size: 0.9rem;
+  }
+
+  /* Compact legacy link row (testnet footer) */
   .footer-links {
     display: flex;
     justify-content: center;
@@ -899,6 +991,29 @@ const navCurrent = {
     align-items: center;
     min-height: 44px;
     padding: 0 0.35rem;
+  }
+
+  @media (max-width: 900px) {
+    .footer-inner {
+      grid-template-columns: 1fr;
+      gap: 1.75rem;
+    }
+    .footer-nav {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.5rem 1.5rem;
+    }
+  }
+  @media (max-width: 480px) {
+    .site-footer {
+      padding: 2rem 1rem 1.75rem;
+      text-align: left;
+    }
+    .footer-nav {
+      gap: 1.35rem 1.15rem;
+    }
+    .footer-list a {
+      min-height: 40px;
+    }
   }
 
   @media print {

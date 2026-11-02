@@ -13,7 +13,7 @@
 
 **Do not invent history.** Where evidence is thin, rows say **uncertain** or **approximate**. Prefer heights + release tags over month guesses.
 
-Related: [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) (plain overview), [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md) (technical companion), [BUILD-ROADMAP.md](BUILD-ROADMAP.md) (plan), [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) (backlog).
+Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + product whitepaper), [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) (plain overview), [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md) (technical companion), [BUILD-ROADMAP.md](BUILD-ROADMAP.md) (plan), [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) (backlog).
 
 ---
 

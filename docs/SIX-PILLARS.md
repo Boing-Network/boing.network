@@ -10,7 +10,7 @@ August 2026 · [boing.network](https://boing.network) · [boing.observer](https:
 
 This is the written form of the six pillars. It is meant to be readable: technical enough that an engineer can map each pillar to shipped behavior, casual enough that you do not need the full spec in your lap.
 
-For a plain-language product overview, see [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md). For a technical companion (chain id, activations, VM, RPC/DEX), see [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md). For what shipped when (heights / tags / status), see [FEATURES.md](FEATURES.md). For the QA pipeline itself, see [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md).
+For the protocol + product whitepaper, see [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md). For a plain-language product overview, see [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md). For a technical companion (chain id, activations, VM, RPC/DEX), see [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md). For what shipped when (heights / tags / status), see [FEATURES.md](FEATURES.md). For the QA pipeline itself, see [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md).
 
 ```mermaid
 flowchart LR

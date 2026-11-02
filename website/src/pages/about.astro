@@ -4,7 +4,7 @@ import Icon from '../components/Icon.astro';
 import PdfDocument from '../components/PdfDocument.astro';
 ---
 
-<Layout title="About" description="The six pillars of Boing Network as a PDF — an independent Layer 1 built from first principles, with quality enforced by the protocol." canonical="/about">
+<Layout title="About" description="Boing Network whitepaper, six pillars, and essentials as PDFs — an independent Layer 1 with quality enforced by the protocol." canonical="/about">
   <article class="page-wrap-full">
     <header class="page-hero-full">
       <div class="page-wrap-inner" style="max-width: 960px;">
@@ -14,25 +14,31 @@ import PdfDocument from '../components/PdfDocument.astro';
       </div>
     </header>
     <div class="page-wrap-inner about-content" style="max-width: 960px;">
-      <section class="about-section section-reveal delay-1" aria-labelledby="pillars-heading">
+      <section class="about-section section-reveal delay-1" aria-labelledby="whitepaper-heading">
+        <h2 id="whitepaper-heading"><Icon name="document" size={22} class="section-icon" /> Whitepaper</h2>
+        <p class="pdf-source">Protocol and product whitepaper for public testnet (chain 6913). Source: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-NETWORK-WHITEPAPER.md" target="_blank" rel="noopener">docs/BOING-NETWORK-WHITEPAPER.md</a>.</p>
+        <PdfDocument src="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" title="Boing Network whitepaper" fileName="BOING-NETWORK-WHITEPAPER.pdf" />
+      </section>
+
+      <section class="about-section section-reveal delay-2" aria-labelledby="pillars-heading">
         <h2 id="pillars-heading"><Icon name="shield" size={22} class="section-icon" /> The Six Pillars</h2>
         <p class="pdf-source">Canonical source: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/SIX-PILLARS.md" target="_blank" rel="noopener">docs/SIX-PILLARS.md</a>.</p>
         <PdfDocument src="/pdfs/SIX-PILLARS.pdf" title="Six pillars" fileName="SIX-PILLARS.pdf" />
       </section>
 
-      <section class="about-section section-reveal delay-2" aria-labelledby="essentials-heading">
+      <section class="about-section section-reveal delay-3" aria-labelledby="essentials-heading">
         <h2 id="essentials-heading"><Icon name="book" size={22} class="section-icon" /> Network essentials</h2>
         <p class="pdf-source">Plain-language overview of products, what you can do, and honest testnet limits. Source: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-NETWORK-ESSENTIALS.md" target="_blank" rel="noopener">docs/BOING-NETWORK-ESSENTIALS.md</a>.</p>
         <PdfDocument src="/pdfs/BOING-NETWORK-ESSENTIALS.pdf" title="Network essentials" fileName="BOING-NETWORK-ESSENTIALS.pdf" />
       </section>
 
-      <section class="about-section section-reveal delay-3" aria-labelledby="technical-essentials-heading">
+      <section class="about-section section-reveal delay-4" aria-labelledby="technical-essentials-heading">
         <h2 id="technical-essentials-heading"><Icon name="document" size={22} class="section-icon" /> Technical essentials</h2>
         <p class="pdf-source">Technical companion for integrators and operators (chain id, activations, VM, fees, RPC, DEX, blobs, ops). Source: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-NETWORK-TECHNICAL-ESSENTIALS.md" target="_blank" rel="noopener">docs/BOING-NETWORK-TECHNICAL-ESSENTIALS.md</a>.</p>
         <PdfDocument src="/pdfs/BOING-NETWORK-TECHNICAL-ESSENTIALS.pdf" title="Technical essentials" fileName="BOING-NETWORK-TECHNICAL-ESSENTIALS.pdf" />
       </section>
 
-      <p class="section-reveal delay-4 about-links">
+      <p class="section-reveal delay-5 about-links">
         <a href="/docs">Documentation</a> ·
         <a href="/docs/getting-started">Getting started</a> ·
         <a href="/developers/quickstart">Developer quickstart</a> ·

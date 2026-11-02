@@ -316,19 +316,6 @@ import Layout from '../layouts/Layout.astro';
       <a href="/about" class="link-3d">About</a>
       <a href="/community" class="link-3d">Community</a>
     </div>
-    <footer class="section-footer">
-      <p>Boing Network — Quality, enforced by the protocol. <strong>Public testnet — mainnet not live.</strong></p>
-      <div class="footer-links">
-        <a href="/testnet">Dashboard</a>
-        <a href="/resources">Resources</a>
-        <a href="/testnet/join">Join Testnet</a>
-        <a href="/faucet">Faucet</a>
-        <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://discord.gg/K3w9nbUw4N" target="_blank" rel="noopener">Discord</a>
-        <a href="https://boing.finance" target="_blank" rel="noopener">Boing Finance</a>
-        <a href="/docs">Documentation</a>
-      </div>
-    </footer>
   </section>
 </Layout>
 
@@ -489,23 +476,6 @@ import Layout from '../layouts/Layout.astro';
   }
   .build-banners-row .testnet-banner,
   .build-banners-row .cta-banner { margin: 0; }
-
-  .section-footer {
-    margin-top: 2.5rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--border-color);
-    text-align: center;
-    color: var(--text-tertiary);
-    font-size: 0.875rem;
-  }
-  .section-footer .footer-links {
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    margin-top: 0.5rem;
-    flex-wrap: wrap;
-  }
-  .section-footer a { color: var(--accent-neon); }
 
   /* Section reveal: stronger entrance with stagger */
   .section-reveal { opacity: 0; transform: translateY(28px); animation: section-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
