@@ -6,24 +6,91 @@ import '../../styles/hub-common.css';
 ---
 
 <Layout
-  title="Dashboard — Boing Network Testnet"
-  description="Boing Network testnet dashboard: sign in or register. Access your developer, community, or operator hub."
+  title="Testnet Hub — Boing Network"
+  description="Boing Network public testnet hub (chain 6913): join as user, developer, or operator. Express, Finance, Observer ecosystem tasks. Incentivized rewards not running."
 >
   <article class="portal-page portal-entry page-wrap-full">
     <script is:inline src="/portal-session.js"></script>
     <div class="portal-entry-inner page-wrap-inner">
     <div class="portal-hero fade-in-up">
-      <h1 class="portal-hero-title"><Icon name="portal" size={36} class="title-icon" /> Dashboard</h1>
+      <span class="stage-badge-global hub-chain-badge">Public testnet · chain 6913</span>
+      <h1 class="portal-hero-title"><Icon name="portal" size={36} class="title-icon" /> Testnet Hub</h1>
       <p class="lead portal-hero-lead fade-in-up delay-1">
-        Sign in to open your hub, or register as a <strong>developer</strong>, <strong>community user</strong>, or <strong>node operator</strong>. Each hub has a <strong>My Dashboard</strong> (your data) and <strong>Community</strong> (leaderboards and hub-wide progress).
+        One place to <strong>join</strong>, complete ecosystem tasks, and follow the path toward a future incentivized phase —
+        without treating practice as a mainnet claim. Sign in or register as a <strong>developer</strong>, <strong>community user</strong>, or <strong>node operator</strong>.
       </p>
       <div class="hero-ctas fade-in-up delay-2">
         <a href="/testnet/sign-in" class="btn btn-primary">Sign in</a>
         <a href="/testnet/register" class="btn btn-secondary">Register</a>
+        <a href="/testnet/join" class="btn btn-secondary">Join endpoints</a>
       </div>
     </div>
 
     <IncentivizedTestnetNotice />
+
+    <section class="section section-honesty fade-in-up delay-1" id="honesty">
+      <h2>Honest limits</h2>
+      <ul class="honesty-list">
+        <li><strong>Testnet only</strong> — mainnet (6914) is not live; no TGE date here.</li>
+        <li><strong>Single hosted validator path</strong> for day-to-day public traffic (<code>boing-testnet-1</code>); not multi-region HA.</li>
+        <li><strong>No incentivized rewards</strong> until rules are published and marked live.</li>
+        <li><strong>Testnet BOING</strong> has no cash value.</li>
+      </ul>
+      <p class="muted">
+        More: <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Tokenomics &amp; testnet (PDF)</a>
+        · <a href="/pdfs/BOING-INITIAL-TOKENOMICS.pdf" target="_blank" rel="noopener">Initial tokenomics draft (PDF)</a>
+        · <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET guide (PDF)</a>
+      </p>
+    </section>
+
+    <section class="section section-roles fade-in-up delay-1" id="roles">
+      <h2>Choose your hub</h2>
+      <p class="muted">Each role has its own dashboard, community view, and resources.</p>
+      <div class="role-cards">
+        <a href="/testnet/users" class="role-card">
+          <span class="role-card__icon"><Icon name="quest" size={28} /></span>
+          <h3>Community users</h3>
+          <p>Faucet, Express / Finance / Observer quests, feedback.</p>
+          <span class="role-card__cta">Open user hub →</span>
+        </a>
+        <a href="/testnet/developers" class="role-card">
+          <span class="role-card__icon"><Icon name="rocket" size={28} /></span>
+          <h3>Developers</h3>
+          <p>SDK, deploy, register dApps, bug reports.</p>
+          <span class="role-card__cta">Open developer hub →</span>
+        </a>
+        <a href="/testnet/operators" class="role-card">
+          <span class="role-card__icon"><Icon name="node" size={28} /></span>
+          <h3>Operators</h3>
+          <p>Bootnodes, validator guide, leaderboard practice.</p>
+          <span class="role-card__cta">Open operator hub →</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section section-ecosystem fade-in-up delay-1" id="ecosystem">
+      <h2>Ecosystem tasks</h2>
+      <p class="muted">Practice the real apps on chain 6913. These are soak tasks — not a rewards claim.</p>
+      <div class="eco-cards">
+        <a href="https://boing.express" target="_blank" rel="noopener" class="eco-card">
+          <h3>Express</h3>
+          <p>Wallet — create an account, approve actions.</p>
+        </a>
+        <a href="https://boing.finance" target="_blank" rel="noopener" class="eco-card">
+          <h3>Finance</h3>
+          <p>Swaps, pools, NFTs on the native DEX.</p>
+        </a>
+        <a href="https://boing.observer" target="_blank" rel="noopener" class="eco-card">
+          <h3>Observer</h3>
+          <p>Explorer — blocks, accounts, QA visibility.</p>
+        </a>
+        <a href="/faucet" class="eco-card">
+          <h3>Faucet</h3>
+          <p>Free testnet BOING for fees.</p>
+        </a>
+      </div>
+    </section>
+
     <section class="section section-how-it-works fade-in-up delay-1" id="how-it-works">
       <h2>How it works</h2>
       <p class="muted">Get started in three steps. Choose your role, register once, then use your hub to track progress.</p>
@@ -141,6 +208,7 @@ import '../../styles/hub-common.css';
   @media (min-width: 768px) {
     .portal-entry-inner { padding: 2.5rem 2rem 4rem; }
   }
+  .hub-chain-badge { display: inline-block; margin-bottom: 0.75rem; }
   .portal-entry .portal-hero { margin-bottom: 2.5rem; text-align: center; }
   .portal-hero-title {
     display: flex;
@@ -172,6 +240,49 @@ import '../../styles/hub-common.css';
   .section p { color: var(--text-secondary); }
   .section .muted { max-width: 560px; margin-left: auto; margin-right: auto; }
   .muted { color: var(--text-tertiary); font-size: 0.95rem; margin-bottom: 1rem; }
+  .muted a { color: var(--accent-teal); font-weight: 600; }
+
+  .section-honesty {
+    text-align: left;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    border-radius: 0.75rem;
+    background: rgba(6, 182, 212, 0.05);
+  }
+  .section-honesty h2 { text-align: center; }
+  .honesty-list { margin: 0.75rem 0 1rem 1.1rem; color: var(--text-secondary); }
+  .honesty-list li { margin-bottom: 0.4rem; }
+  .honesty-list code { font-size: 0.85em; }
+
+  .role-cards, .eco-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.25rem;
+    text-align: left;
+  }
+  .role-card, .eco-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem;
+    background: rgba(30, 41, 59, 0.35);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .role-card:hover, .eco-card:hover {
+    border-color: rgba(34, 211, 238, 0.5);
+    transform: translateY(-2px);
+  }
+  .role-card__icon { color: var(--accent-teal); margin-bottom: 0.5rem; }
+  .role-card h3, .eco-card h3 { margin: 0 0 0.4rem; font-size: 1.1rem; color: var(--text-primary); }
+  .role-card p, .eco-card p { margin: 0; font-size: 0.9rem; color: var(--text-secondary); flex: 1; }
+  .role-card__cta { margin-top: 0.85rem; font-size: 0.85rem; color: var(--accent-teal); font-weight: 600; }
 
   .portal-hero.fade-in-up,
   .portal-hero .fade-in-up,
@@ -188,5 +299,6 @@ import '../../styles/hub-common.css';
     .portal-hero.fade-in-up,
     .portal-hero .fade-in-up,
     .section.fade-in-up { animation: none; opacity: 1; transform: none; }
+    .role-card:hover, .eco-card:hover { transform: none; }
   }
 </style>

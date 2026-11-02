@@ -110,6 +110,8 @@ All project documentation lives in **[docs/](docs/)**. Start at the **[docs inde
 | [BOING-NETWORK-WHITEPAPER.md](docs/BOING-NETWORK-WHITEPAPER.md) | Protocol + product whitepaper (also `/pdfs/BOING-NETWORK-WHITEPAPER.pdf`) |
 | [BOING-NETWORK-ESSENTIALS.md](docs/BOING-NETWORK-ESSENTIALS.md) | Plain-language overview of products and what is live today |
 | [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](docs/BOING-NETWORK-TECHNICAL-ESSENTIALS.md) | Technical companion: chain id, activations, VM, fees, RPC, DEX, ops |
+| [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](docs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md) | Plain-language tokenomics + incentivized-testnet framing |
+| [BOING-INITIAL-TOKENOMICS.md](docs/BOING-INITIAL-TOKENOMICS.md) | Initial allocation draft (Proposed vs Undecided) |
 | [TECHNICAL-SPECIFICATION.md](docs/TECHNICAL-SPECIFICATION.md) | Crypto, data formats, bytecode, gas, RPC, QA rules |
 | [RPC-API-SPEC.md](docs/RPC-API-SPEC.md) | JSON-RPC reference (source of truth, all methods) |
 | [BOING-SIGNED-TRANSACTION-ENCODING.md](docs/BOING-SIGNED-TRANSACTION-ENCODING.md) | Tx / block wire format and signing domains (source of truth) |

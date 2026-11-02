@@ -26,7 +26,9 @@ import {
         <span class="stage-badge-global">Testnet</span>
         <h1 class="page-title"><Icon name="network" size={32} class="title-icon" /> Join the Testnet</h1>
         <p class="lead">
-          Run a node, get testnet BOING from the faucet, and participate as a validator or developer. Everything you need is below — or jump to dedicated pages for <strong>Bootnodes</strong>, <strong>Single vs multi-node</strong>, and the <strong>Faucet</strong>.
+          Public testnet <strong>chain 6913</strong>: run a node, get testnet BOING from the faucet, and participate as a validator or developer.
+          Day-to-day hosted traffic still uses a <strong>single validator path</strong> — not multi-region HA. Incentivized rewards are <strong>not</strong> running.
+          Jump to <strong>Bootnodes</strong>, <strong>Single vs multi-node</strong>, the <strong>Faucet</strong>, or the <a href="/testnet">Testnet Hub</a>.
         </p>
       </div>
     </header>
@@ -60,7 +62,7 @@ import {
       <a href="/testnet/users" class="dedicated-card card-reveal">
         <span class="card-icon"><Icon name="quest" size={28} /></span>
         <h2>Community Quests (Users)</h2>
-        <p>Community quests in the Testnet Portal: faucet, first transaction, feedback, and more. No rewards are currently offered.</p>
+        <p>Quests across Express, Finance, Observer, faucet, and feedback. Practice only — no rewards; not a mainnet claim.</p>
         <span class="card-arrow">Quests in portal →</span>
       </a>
       <a href="/testnet" class="dedicated-card card-reveal"><span class="card-icon"><Icon name="portal" size={28} /></span>
@@ -229,8 +231,13 @@ import {
     </section>
 
     <section class="section incentivized-callout" id="incentivized-callout">
-      <h2>Incentivized testnet</h2>
-      <p>The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. The public testnet itself is open for testing: join with bootnodes, use the <a href="/faucet">faucet</a> for transaction fees, and to validate, <a href="/testnet/operators/validator">register your node</a> with a 100 BOING bond (open registration; a few faucet requests cover it). Running a testnet node is currently not incentivized.</p>
+      <h2>Incentivized testnet (path, not live)</h2>
+      <p>
+        <strong>Rewards are not currently running.</strong> Completing quests or operating a node does <strong>not</strong> create a mainnet BOING claim.
+        We plan to progress via an honest soak on chain <strong>6913</strong>, then a time-boxed incentivized phase with published rules and caps when ready — no invented start date here.
+        Until then the public testnet is open: <a href="/faucet">faucet</a>, <a href="/testnet">Testnet Hub</a>, and (to validate) <a href="/testnet/operators/validator">register your node</a> with a 100 BOING bond.
+        Framing: <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Tokenomics &amp; testnet (PDF)</a>.
+      </p>
     </section>
 
     <section class="section">
@@ -238,6 +245,7 @@ import {
       <ul class="docs-quick-links">
         <li><a href="/docs/getting-started">Getting started</a></li>
         <li><a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a> — Full testnet guide</li>
+        <li><a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Tokenomics &amp; incentivized testnet (PDF)</a> — Plain-language framing</li>
         <li><a href="/pdfs/RUNBOOK.pdf" target="_blank" rel="noopener">RUNBOOK (PDF)</a> — Node setup and RPC</li>
       </ul>
     </section>

@@ -49,6 +49,8 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) | Protocol + product whitepaper for public testnet 6913 (also `/pdfs/BOING-NETWORK-WHITEPAPER.pdf`) |
 | [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Plain-language overview: products, what you can do, honest testnet limits |
 | [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md) | Technical companion: chain id, activations, VM/fees, RPC/DEX/blobs, ops (also `/pdfs/BOING-NETWORK-TECHNICAL-ESSENTIALS.pdf`) |
+| [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md) | Plain-language BOING allocation, fees, quest/bounty pots, testnet ≠ mainnet claim (also `/pdfs/…`) |
+| [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) | Draft allocation / emissions / fee split with Proposed vs Undecided markers |
 | [FEATURES.md](FEATURES.md) | Product/protocol features with **when implemented** + status (also `/pdfs/FEATURES.pdf`) |
 | [TESTNET.md](TESTNET.md) | Join testnet, faucet, portal, quests |
 | [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) | How the wallet works (product lives at [boing.express](https://boing.express)) |

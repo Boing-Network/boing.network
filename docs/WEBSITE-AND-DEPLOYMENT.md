@@ -58,7 +58,8 @@ boing.network/
 | Page / Section | Source | Notes |
 |----------------|--------|-------|
 | Landing | docs/BOING-BLOCKCHAIN-DESIGN-PLAN.md (Design Philosophy, Priority Pillars) | Hero, "Quality, enforced by the protocol" messaging |
-| /about | docs/BOING-NETWORK-WHITEPAPER.md, docs/SIX-PILLARS.md, docs/BOING-NETWORK-ESSENTIALS.md, docs/BOING-NETWORK-TECHNICAL-ESSENTIALS.md | Whitepaper, pillars, and essentials (plain + technical) as **PDFs** (`/pdfs/…`); page chrome only |
+| /about | docs/BOING-NETWORK-WHITEPAPER.md, docs/SIX-PILLARS.md, docs/BOING-NETWORK-ESSENTIALS.md, docs/BOING-NETWORK-TECHNICAL-ESSENTIALS.md, docs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md | Whitepaper, pillars, essentials, and tokenomics/testnet framing as **PDFs** (`/pdfs/…`); page chrome only |
+| /testnet | docs/TESTNET.md, docs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md | Testnet Hub: roles, ecosystem tasks, honest limits (6913) |
 | /docs/getting-started | docs/BUILD-ROADMAP.md Quick Start, README | `cargo build`, `cargo run -p boing-node` |
 | /docs/architecture | Design Plan (Tech Stack, Full Stack Architecture) | Mermaid diagrams, layer breakdown |
 | /docs#rpc-api (and redirect `/docs/rpc-api`) | docs/RPC-API-SPEC.md | On-site: full method table + error codes aligned with `boing-node`; canonical prose + examples remain in the repo spec (also PDF in `/pdfs/`) |

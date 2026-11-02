@@ -556,6 +556,8 @@ If fee revenue consistently exceeds validator costs, the network is **self-susta
 
 ## BOING Tokenomics — Sustainable Value Design
 
+**Working drafts (Proposed vs Undecided; no TGE date):** [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) · plain language: [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md).
+
 **Objective:** Ensure BOING token value is sustainable long-term. No dilution traps, no reward cliffs, value accrual through usage and scarcity.
 
 ### Supply & Emission

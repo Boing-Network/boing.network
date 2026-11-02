@@ -12,6 +12,8 @@ November 2026 · Public testnet (chain **6913**) · [boing.network](https://boin
 |----------|------|
 | [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Plain-language product snapshot |
 | [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md) | Integrator / operator fact sheet |
+| [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md) | Plain-language tokenomics + incentivized-testnet framing |
+| [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) | Initial allocation draft (Proposed vs Undecided) |
 | [FEATURES.md](FEATURES.md) | Shipped / gated / deferred timeline with evidence |
 | [SIX-PILLARS.md](SIX-PILLARS.md) | Priority order when goals collide |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Deploy quality gate narrative |
@@ -225,7 +227,7 @@ Until explicitly announced and activated:
 - Public Unsure QA pool as tip-live behavior — gated at **1700**
 - Blake3 opcode, governance consensus txs 37–39, BLS media committee flip — env-gated off until set
 - Bridges, light clients, DHT/WebRTC incentivized relays — deferred
-- Incentivized testnet rewards — not currently running
+- Incentivized testnet rewards — not currently running (path and pots: [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md); draft tables: [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md))
 - Durable planet-scale Observer (OBS-1) and full DEX subgraph history — deferred / partial
 
 Plans and backlog: [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md), [FEATURES.md](FEATURES.md) “Explicitly not yet”.

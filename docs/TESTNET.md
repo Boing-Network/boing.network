@@ -4,10 +4,10 @@
 > 🛠️ **Developers:** public RPC is `https://testnet-rpc.boing.network/`. Smoke with `npm run preflight-rpc` from the tutorial package.  
 > 🛰️ **Operators:** Part 1 (nodes + bootnodes), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), and §9 release tags.
 
-> **Incentivized testnet status:** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Running a testnet node is currently not incentivized.
+> **Incentivized testnet status:** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Running a testnet node is currently not incentivized. **Testnet activity ≠ mainnet claim** unless a live rules page says otherwise. Plain framing: [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md).
 
 **Purpose:** Single guide for joining the testnet, using the Testnet Portal, and the design notes for a future incentivized testnet program (readiness, promotion, mainnet migration).  
-**References:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) (single map: testnet ops + public RPC + infra), [RUNBOOK.md](RUNBOOK.md), [TESTNET.md](TESTNET.md#31-readiness--launch), [RPC-API-SPEC.md](RPC-API-SPEC.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [NETWORKS-API.md](NETWORKS-API.md)
+**References:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) (single map: testnet ops + public RPC + infra), [RUNBOOK.md](RUNBOOK.md), [TESTNET.md](TESTNET.md#31-readiness--launch), [RPC-API-SPEC.md](RPC-API-SPEC.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [NETWORKS-API.md](NETWORKS-API.md), [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md)
 
 ```mermaid
 flowchart LR
@@ -444,9 +444,9 @@ Define incentive rules on a single **Incentivized Testnet Rules** page (e.g. `/i
 
 # Part 3 — Incentivized Testnet
 
-> **Status: not currently running.** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Everything in this part is planning material for a possible future program. It is not an offer, and no rewards, dates or amounts are committed.
+> **Status: not currently running.** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Everything in this part is planning material for a possible future program. It is not an offer, and no rewards, dates or amounts are committed. **Testnet activity ≠ mainnet claim** unless a live rules page says otherwise.
 
-Readiness, promotion, and mainnet migration design for a possible future incentivized testnet where validators, developers, and users could earn rewards. References: [TESTNET.md](TESTNET.md#31-readiness--launch), [RUNBOOK.md](RUNBOOK.md), [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md).
+Readiness, promotion, and mainnet migration design for a possible future incentivized testnet where validators, developers, and users could earn rewards. Allocation / pots draft: [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md). Everyday framing: [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md). Also: [TESTNET.md](TESTNET.md#31-readiness--launch), [RUNBOOK.md](RUNBOOK.md), [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md).
 
 ## 3.1 Readiness & Launch
 

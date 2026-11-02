@@ -87,6 +87,8 @@ When mainnet and a more decentralized validator set ship, this page will be upda
 | Swap / NFTs | [boing.finance](https://boing.finance) |
 | Look something up | [boing.observer](https://boing.observer) |
 | Read the whitepaper | [BOING-NETWORK-WHITEPAPER](BOING-NETWORK-WHITEPAPER.md) · [PDF](../website/public/pdfs/BOING-NETWORK-WHITEPAPER.pdf) |
+| Tokenomics (plain) | [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md) · [PDF](../website/public/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf) |
+| Tokenomics (draft tables) | [BOING-INITIAL-TOKENOMICS](BOING-INITIAL-TOKENOMICS.md) · [PDF](../website/public/pdfs/BOING-INITIAL-TOKENOMICS.pdf) |
 | Read the pillars | [SIX-PILLARS](SIX-PILLARS.md) · [PDF](../website/public/pdfs/SIX-PILLARS.pdf) |
 | See what shipped when | [FEATURES.md](FEATURES.md) · [PDF](../website/public/pdfs/FEATURES.pdf) |
 | Join Discord | [discord.gg/K3w9nbUw4N](https://discord.gg/K3w9nbUw4N) |

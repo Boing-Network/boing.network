@@ -1,10 +1,12 @@
 /**
- * Community quest definitions for the testnet portal (no rewards are offered while the incentivized testnet is not running).
- * Used by testnet portal user hub (dashboard, community, quests). See docs/TESTNET.md Part 2 §2.7 (Community Quests).
+ * Community quest definitions for the testnet portal.
+ * No rewards are offered while the incentivized testnet is not running.
+ * Completing quests does not create a mainnet BOING claim.
+ * Used by testnet portal user hub (dashboard, community, quests). See docs/TESTNET.md Part 2 §2.7.
  */
 
 export type VerificationType = 'on_chain' | 'manual';
-export type RewardTier = 'base' | 'validator' | 'bonus';
+export type RewardTier = 'base' | 'validator' | 'bonus' | 'ecosystem';
 
 export interface Quest {
   id: string;
@@ -33,10 +35,34 @@ export const QUESTS: Quest[] = [
     rewardTier: 'base',
   },
   {
+    id: 'express_wallet',
+    name: 'Open Express',
+    description: 'Create or unlock a Boing Express wallet and copy your testnet address.',
+    howToComplete: 'Install or open https://boing.express, create/unlock a wallet on chain 6913, then submit your address on the Quests form.',
+    verificationType: 'manual',
+    rewardTier: 'ecosystem',
+  },
+  {
+    id: 'finance_swap',
+    name: 'Try Finance',
+    description: 'Connect Express to Boing Finance and complete a small testnet swap (or open the Swap tab if liquidity is thin).',
+    howToComplete: 'Visit https://boing.finance, connect Express, attempt a native swap or note why it could not complete. Submit a short note + tx hash if any.',
+    verificationType: 'manual',
+    rewardTier: 'ecosystem',
+  },
+  {
+    id: 'observer_lookup',
+    name: 'Look up on Observer',
+    description: 'Find your account or a recent block on Boing Observer.',
+    howToComplete: 'Open https://boing.observer, search your address or a block height, and submit the explorer URL you used.',
+    verificationType: 'manual',
+    rewardTier: 'ecosystem',
+  },
+  {
     id: 'validator_connect',
     name: 'Join the network',
     description: 'Run a node connected to testnet bootnodes.',
-    howToComplete: 'Run boing-node with --p2p-listen and --bootnodes (see the validator guide). Submit your node ID or a screenshot.',
+    howToComplete: 'Run boing-node with --p2p-listen and --bootnodes (see the validator guide). Submit your node ID or a screenshot. Note: public day-to-day traffic still rides a single hosted validator path.',
     verificationType: 'manual',
     rewardTier: 'validator',
   },

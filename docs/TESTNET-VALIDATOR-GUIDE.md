@@ -9,7 +9,7 @@ Website version: <https://boing.network/testnet/operators/validator>.
 > proposals jails you (bond kept; unjail after a cooldown). No operator approval and no 10,000 BOING stake are
 > needed. See [Open validator registration](#open-validator-registration).
 >
-> **Incentives:** Running a testnet node is currently not incentivized. The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels.
+> **Incentives:** Running a testnet node is currently not incentivized. The incentivized testnet is not currently running. Testnet activity ≠ mainnet claim. Framing: [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md). Announcements will be posted on our official channels.
 
 ## 1. Hardware and network
 

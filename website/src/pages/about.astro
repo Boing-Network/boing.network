@@ -38,7 +38,13 @@ import PdfDocument from '../components/PdfDocument.astro';
         <PdfDocument src="/pdfs/BOING-NETWORK-TECHNICAL-ESSENTIALS.pdf" title="Technical essentials" fileName="BOING-NETWORK-TECHNICAL-ESSENTIALS.pdf" />
       </section>
 
-      <p class="section-reveal delay-5 about-links">
+      <section class="about-section section-reveal delay-5" aria-labelledby="tokenomics-testnet-heading">
+        <h2 id="tokenomics-testnet-heading"><Icon name="document" size={22} class="section-icon" /> Tokenomics &amp; incentivized testnet</h2>
+        <p class="pdf-source">Plain-language BOING allocation, fees, quest/bounty pots, and testnet ≠ mainnet claim. Source: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md" target="_blank" rel="noopener">docs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md</a>. Draft tables: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-INITIAL-TOKENOMICS.md" target="_blank" rel="noopener">BOING-INITIAL-TOKENOMICS.md</a>.</p>
+        <PdfDocument src="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" title="Tokenomics and incentivized testnet" fileName="BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" />
+      </section>
+
+      <p class="section-reveal delay-6 about-links">
         <a href="/docs">Documentation</a> ·
         <a href="/docs/getting-started">Getting started</a> ·
         <a href="/developers/quickstart">Developer quickstart</a> ·

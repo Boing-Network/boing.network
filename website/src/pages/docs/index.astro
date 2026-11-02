@@ -117,15 +117,17 @@ cargo build --release</code></pre>
 
       <section id="tokenomics" class="doc-section">
         <h2>Tokenomics</h2>
+        <p>Plain-language overview (allocation, fees, quest/bounty pots, testnet ≠ mainnet claim): <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET (PDF)</a>. Draft tables with Proposed vs Undecided: <a href="/pdfs/BOING-INITIAL-TOKENOMICS.pdf" target="_blank" rel="noopener">BOING-INITIAL-TOKENOMICS (PDF)</a>. No TGE date is asserted.</p>
         <h3>Supply model</h3>
         <ul>
-          <li><strong>Total supply</strong> — Uncapped. When circulating supply reaches a defined floor, a new wave of tokens is minted to rebalance (validator incentives, treasury, staking).</li>
-          <li><strong>Initial supply</strong> — Set at mainnet launch (fixed amount); no infinite mint at genesis.</li>
+          <li><strong>Hard cap (code)</strong> — <code>MAX_SUPPLY</code> = 1 billion BOING; emission is clamped so total native held cannot exceed the cap.</li>
+          <li><strong>Initial supply</strong> — Fixed amount at mainnet launch (TBD); no infinite mint at genesis.</li>
+          <li><strong>Historical design note</strong> — Older “uncapped + floor-triggered waves” prose remains in the design plan for context; shipping code enforces the hard cap.</li>
         </ul>
         <h3>Fee allocation</h3>
-        <p>Of transaction fees: <strong>80% validators</strong>, <strong>20% treasury</strong>. Burn is optional (0% in base design).</p>
+        <p><strong>Design target:</strong> <strong>80% validators</strong>, <strong>20% treasury</strong> (burn optional 0%). <strong>Current public testnet runtime:</strong> protocol gas defaults to <strong>100% treasury</strong>; tips and block emission go to the proposer.</p>
         <h3>Initial supply allocation (at launch)</h3>
-        <p>Staking rewards 55%, Treasury 30%, Community &amp; grants 15%. Staking is topped up by new waves when the floor is reached, so the initial allocation leans toward treasury and community.</p>
+        <p>Published working picture: Staking rewards ~55%, Treasury ~30%, Community &amp; grants ~15% (team/ops carve-out still under discussion — see initial tokenomics draft). Staking is topped up by emissions while under the hard cap.</p>
         <h3>Floor-triggered waves</h3>
         <p><strong>Genesis</strong> — Fixed initial supply. <strong>Ongoing</strong> — Validators and treasury earn from fees; supply may decrease slowly until the floor. <strong>Floor</strong> — When circulating supply reaches the defined floor, the protocol triggers a rebalance. <strong>New wave</strong> — A new wave of tokens is minted (size and destination set by protocol/governance) to restore balance. All parameters (floor, wave size, trigger) are on-chain and transparent.</p>
         <h3>Emission schedule (block rewards)</h3>
@@ -383,6 +385,18 @@ cargo build --release</code></pre>
             <span class="resource-card-icon"><Icon name="document" size={28} /></span>
             <h4 class="resource-card-title">BOING-NETWORK-TECHNICAL-ESSENTIALS</h4>
             <p class="resource-card-desc">Technical companion: chain id, activations, VM, fees, RPC, DEX, blobs, and ops.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
+          <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="book" size={28} /></span>
+            <h4 class="resource-card-title">TOKENOMICS &amp; INCENTIVIZED TESTNET</h4>
+            <p class="resource-card-desc">Plain-language allocation, community pots, and testnet ≠ mainnet claim.</p>
+            <span class="resource-card-cta">Download PDF</span>
+          </a>
+          <a href="/pdfs/BOING-INITIAL-TOKENOMICS.pdf" target="_blank" rel="noopener" class="resource-card">
+            <span class="resource-card-icon"><Icon name="document" size={28} /></span>
+            <h4 class="resource-card-title">BOING-INITIAL-TOKENOMICS</h4>
+            <p class="resource-card-desc">Draft allocation / emissions / fees — Proposed vs Undecided.</p>
             <span class="resource-card-cta">Download PDF</span>
           </a>
           <a href="/pdfs/FEATURES.pdf" target="_blank" rel="noopener" class="resource-card">
