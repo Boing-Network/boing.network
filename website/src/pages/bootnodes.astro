@@ -1,78 +1,102 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Icon from '../components/Icon.astro';
-import { BOOTNODES, isTestnetLive, TESTNET_RPC_URL } from '../config/testnet';
+import CopyButton from '../components/CopyButton.astro';
+import CodeBlock from '../components/CodeBlock.astro';
+import {
+  BOOTNODES,
+  BOOTNODES_CSV,
+  isTestnetLive,
+  TESTNET_RPC_URL,
+  TESTNET_CHAIN_ID,
+  TESTNET_NODE_RELEASE,
+} from '../config/testnet';
 
-const exampleBootnodes =
-  isTestnetLive && BOOTNODES.length > 0
-    ? BOOTNODES.join(',')
-    : '/ip4/127.0.0.1/tcp/4001';
+const joinPeer = `export BOING_CHAIN_ID=${TESTNET_CHAIN_ID}
+./boing-node \\
+  --data-dir ./boing-data \\
+  --p2p-listen /ip4/0.0.0.0/tcp/4001 \\
+  --bootnodes ${BOOTNODES_CSV} \\
+  --rpc-port 8545`;
 ---
 
 <Layout
   title="Bootnodes"
-  description="What bootnodes are and how to use them to join the Boing Network testnet."
+  description="How to use the official Boing Network testnet bootnode to join chain 6913."
 >
   <article class="page-wrap-full">
     <header class="page-hero-full">
       <div class="page-wrap-inner">
-        <span class="stage-badge-global">Testnet</span>
+        <span class="stage-badge-global">Testnet · chain {TESTNET_CHAIN_ID}</span>
         <h1 class="page-title"><Icon name="network" size={32} class="title-icon" /> Bootnodes</h1>
         <p class="lead">
-          Bootnodes are well-known peer addresses that your node <strong>dials on startup</strong> to join the testnet. Without them, your node would only discover peers on the same LAN (via mDNS).
+          A <strong>bootnode</strong> is a stable peer your node dials first so it can find the rest of the network.
+          Without one, a new node only discovers peers on the same local network.
         </p>
       </div>
     </header>
     <div class="page-wrap-inner bootnodes-content">
     <section class="section">
-      <h2>What they are</h2>
-      <p>When you run a node with P2P enabled (<code>--p2p-listen</code>), it needs to find other peers. On a local network, <strong>mDNS</strong> can discover nearby nodes. To join the <strong>public testnet</strong> from anywhere, your node must connect to at least one stable peer — a <strong>bootnode</strong>.</p>
-      <p>Bootnodes are simply nodes that have a stable, publicly reachable address (IP + port). The team or community runs them and publishes their multiaddrs so new nodes can dial in and then discover more peers via gossip.</p>
+      <h2>In plain language</h2>
+      <ol>
+        <li>You start <code>boing-node</code> with <code>--p2p-listen</code> so other nodes can talk to you.</li>
+        <li>You pass <code>--bootnodes</code> with the official address below.</li>
+        <li>Your node connects, learns other peers, and syncs blocks for chain <strong>{TESTNET_CHAIN_ID}</strong>.</li>
+      </ol>
+      <p>Public JSON-RPC for apps stays at <code>{TESTNET_RPC_URL}</code> — you do not need to expose RPC to join as a peer.</p>
     </section>
 
-    <section class="section">
-      <h2>Format</h2>
-      <p>A bootnode address is a <strong>multiaddr</strong>, for example:</p>
-      <pre class="code-block"><code>{BOOTNODES[0] || '/ip4/127.0.0.1/tcp/4001'}</code></pre>
-      <p>You pass one or more bootnodes to your node with <code>--bootnodes</code> (comma-separated).</p>
-    </section>
-
-    <section class="section">
-      <h2>How to use</h2>
-      {isTestnetLive ? (
-        <>
-          <p>Public testnet RPC is at <code>{TESTNET_RPC_URL}</code>. Use the official bootnode list below (also on <a href="/testnet/join">Join Testnet</a>):</p>
-          <pre class="code-block"><code>{`./boing-node --p2p-listen /ip4/0.0.0.0/tcp/4001 \\
-  --bootnodes ${exampleBootnodes} \\
-  --validator --rpc-port 8545 --faucet-enable`}</code></pre>
-          <p>For local dev only, run a <strong>local</strong> multi-node setup: start one node with <code>--p2p-listen /ip4/127.0.0.1/tcp/4001</code>, then start a second node with <code>--bootnodes /ip4/127.0.0.1/tcp/4001</code>.</p>
-        </>
-      ) : (
-        <>
-          <p>When public bootnodes are published, they will appear in this section and on <a href="/testnet/join">Join Testnet</a>. For local dev:</p>
-          <pre class="code-block"><code>{`./boing-node --p2p-listen /ip4/127.0.0.1/tcp/4001 \\
-  --bootnodes /ip4/127.0.0.1/tcp/4001 \\
-  --validator --rpc-port 8545`}</code></pre>
-        </>
-      )}
-    </section>
-
-    <section class="section">
-      <h2>Official testnet bootnodes</h2>
+    <section class="section" id="official">
+      <h2>Official bootnode (live)</h2>
       {isTestnetLive && BOOTNODES.length > 0 ? (
         <>
-          <p>Use these multiaddrs with <code>--bootnodes</code> (comma-separated). Also in <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a> and <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET.md" target="_blank" rel="noopener">docs/TESTNET.md</a>.</p>
-          <p class="muted small-print">Hosted Fly.io pair: validator then full node. Public JSON-RPC stays at <code>https://testnet-rpc.boing.network/</code>.</p>
-          <pre class="code-block"><code>{BOOTNODES.join('\n')}</code></pre>
+          <p>
+            Hosted on Fly <code>boing-testnet-1</code> only. The former companion
+            <code>/ip4/109.105.220.118/tcp/4001</code> (<code>boing-testnet-2</code>) was <strong>retired 2026-10-24</strong> — do not dial it.
+          </p>
+          {BOOTNODES.map((bn) => (
+            <div class="copy-wrapper rpc-copy" data-copy-value={bn}>
+              <code class="rpc-url-display">{bn}</code>
+              <CopyButton label="Copy" copiedLabel="Copied!" />
+            </div>
+          ))}
+          <p class="muted small-print">
+            Same value in <a href="/api/networks">/api/networks</a>,
+            <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a>, and
+            <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET.md" target="_blank" rel="noopener">docs/TESTNET.md</a>.
+            Use release <strong>{TESTNET_NODE_RELEASE}</strong> or newer.
+          </p>
         </>
       ) : (
-        <p>Bootnode multiaddrs will be published here when the public testnet endpoints are configured.</p>
+        <p>Bootnode multiaddrs will appear here when the public testnet endpoints are configured.</p>
       )}
+    </section>
+
+    <section class="section">
+      <h2>Copy-paste: join as a peer</h2>
+      {isTestnetLive ? (
+        <>
+          <p>After you download or build <code>boing-node</code> (see <a href="/testnet/join#run-a-node">Join Testnet</a>):</p>
+          <CodeBlock code={joinPeer} label="Join the public testnet" />
+          <p>
+            Open inbound <strong>TCP 4001</strong> if you want others to dial you.
+            To become a <strong>validator</strong> (100 BOING bond), follow the
+            <a href="/testnet/operators/validator">validator guide</a> — do not enable <code>--faucet-enable</code> on a community node.
+          </p>
+        </>
+      ) : (
+        <p>When public bootnodes are published, a copy-paste command will appear here.</p>
+      )}
+    </section>
+
+    <section class="section">
+      <h2>Local-only practice</h2>
+      <p>On one machine: start node A with <code>--p2p-listen /ip4/127.0.0.1/tcp/4001</code>, then start node B with <code>--bootnodes /ip4/127.0.0.1/tcp/4001</code>. That does not join the public testnet.</p>
     </section>
 
     <nav class="section nav-links">
       <a href="/testnet/join">← Join Testnet</a>
-      <a href="/faucet">Faucet →</a>
+      <a href="/testnet/operators/validator">Run a validator →</a>
     </nav>
     </div>
   </article>
@@ -86,19 +110,28 @@ const exampleBootnodes =
   .lead { color: var(--text-secondary); font-size: 1.1rem; }
   .section { margin-top: 2rem; }
   .section h2 { font-size: 1.25rem; color: var(--text-primary); margin-bottom: 0.5rem; }
-  .section p { color: var(--text-secondary); }
+  .section p, .section li { color: var(--text-secondary); }
   .section code { background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
-  .code-block { background: rgba(0,0,0,0.3); border: 1px solid rgba(34,211,238,0.2); border-radius: 8px; padding: 1rem; overflow-x: auto; }
-  .code-block code { background: none; padding: 0; font-size: 0.9rem; }
+  .section ol { margin: 0.5rem 0 0 1.2rem; }
   .muted { color: var(--text-secondary); font-size: 0.9rem; }
+  .small-print { font-size: 0.85rem; margin-top: 0.5rem; }
+  .rpc-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0.35rem 0;
+  }
+  .rpc-copy .rpc-url-display {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.5rem;
+    background: rgba(0,0,0,0.25);
+    border-radius: 6px;
+  }
   .nav-links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
   .nav-links a { color: var(--accent-teal); font-weight: 500; }
   @media (max-width: 640px) {
     .bootnodes-content { padding-bottom: 2rem; }
     .section { margin-top: 1.5rem; }
-    .code-block { font-size: 0.85rem; padding: 0.75rem; }
-  }
-  @media (max-width: 375px) {
-    .section { margin-top: 1.25rem; }
   }
 </style>

@@ -55,7 +55,12 @@ import '../../../styles/hub-common.css';
 
       <section class="section fade-in-up delay-3">
         <h2>Your node</h2>
-        <p>Run <code>boing-node</code> with P2P and bootnodes to join the public testnet. To validate, <a href="/testnet/operators/validator">register your node</a> with a <strong>100 BOING</strong> bond (open registration, from the Boing Express Validate tab) and keep it online.</p>
+        <p>
+          Sync first with the copy-paste steps on <a href="/testnet/join#run-a-node">Join Testnet</a>
+          (<code>--p2p-listen</code> + official <code>--bootnodes</code>).
+          To validate, <a href="/testnet/operators/validator">register your node</a> with a <strong>100 BOING</strong> bond
+          (Express → <strong>Validate</strong>, or CLI) and keep it online.
+        </p>
         {isTestnetLive ? (
           <>
             <p><strong>RPC:</strong> <code>{TESTNET_RPC_URL}</code></p>

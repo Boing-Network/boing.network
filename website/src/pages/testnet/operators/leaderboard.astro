@@ -55,13 +55,18 @@ import '../../../styles/hub-common.css';
         </tbody>
       </table>
       <p class="leaderboard-placeholder-note" id="leaderboard-note">
-        Leaderboard and per-operator metrics coming when indexer/RPC data is available. See <a href="/testnet/join">Join Testnet</a> for bootnodes.
+        Leaderboard and per-operator metrics expand as indexer data lands. Sync steps and the official bootnode:
+        <a href="/testnet/join#run-a-node">Join Testnet</a>.
       </p>
     </section>
 
     <section class="section fade-in-up delay-1">
       <h2>Your node</h2>
-      <p>Run <code>boing-node</code> with P2P and bootnodes to join the public testnet. To validate, <a href="/testnet/operators/validator">register your node</a> with a <strong>100 BOING</strong> bond (open registration, from the Boing Express Validate tab) and keep it online.</p>
+      <p>
+        Peer with copy-paste steps on <a href="/testnet/join#run-a-node">Join Testnet</a>.
+        To validate, <a href="/testnet/operators/validator">register your node</a> with a <strong>100 BOING</strong> bond
+        (Express → Validate, or CLI) and keep it online.
+      </p>
       {isTestnetLive ? (
         <>
           <p><strong>RPC:</strong> <code>{TESTNET_RPC_URL}</code></p>

@@ -19,9 +19,11 @@ import '../../../styles/hub-common.css';
     <div class="hub-hero fade-in-up">
       <h1>Operator Hub</h1>
       <p class="lead">
-        Run a validator or miner and connect to testnet <strong>6913</strong> with bootnodes. This hub is for <strong>node operators and miners</strong> only.
-        Public day-to-day traffic still rides a <strong>single hosted validator</strong> path — peer anyway to help soak multi-node paths.
-        Operator activity can appear on the leaderboard. Running a testnet node is <strong>not incentivized</strong> today (not a mainnet claim).
+        Run a <strong>peer node</strong> or <strong>validator</strong> on public testnet <strong>6913</strong>.
+        This hub is for <strong>node operators</strong> only.
+        Day-to-day public RPC still rides a <strong>single hosted validator</strong> (<code>boing-testnet-1</code>) — peering helps soak multi-node paths.
+        Running a testnet node is <strong>not incentivized</strong> today (not a mainnet claim).
+        Start at <a href="/testnet/join#run-a-node">Join → run a node</a>, then the <a href="/testnet/operators/validator">validator guide</a>.
         Framing: <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Tokenomics &amp; testnet (PDF)</a>.
       </p>
       <div class="hub-ctas" id="hub-ctas">
@@ -48,10 +50,11 @@ import '../../../styles/hub-common.css';
     <section class="section steps-section fade-in-up delay-1">
       <h2>Your journey</h2>
       <ol class="steps-list steps-list--numbered">
-        <li><strong>Register</strong> — Add your account address and optional node multiaddr on the <a href="/testnet/register/operator">operator registration</a> page.</li>
-        <li><strong>Get testnet BOING</strong> — Use the <a href="/faucet">faucet</a> for staking and gas.</li>
-        <li><strong>Run your node</strong> — Build <code>boing-node</code>, use <code>--p2p-listen</code> and <code>--bootnodes</code> (see <a href="/testnet/join">Join Testnet</a>).</li>
-        <li><strong>Compete</strong> — Blocks proposed and uptime will show on the <a href="/testnet/operators/leaderboard">Leaderboard</a> once the indexer is live.</li>
+        <li><strong>Register in the portal</strong> — Add your account (and optional node address) on <a href="/testnet/register/operator">operator registration</a>.</li>
+        <li><strong>Get testnet BOING</strong> — Use the <a href="/faucet">faucet</a> (about 100+ BOING for a validator bond plus fees).</li>
+        <li><strong>Run a peer node</strong> — Download <code>testnet-v0.1.24</code> (or newer), dial the official bootnode, sync. Copy-paste: <a href="/testnet/join#run-a-node">Join Testnet</a>.</li>
+        <li><strong>Optional: validate</strong> — Register with a <strong>100 BOING</strong> bond from Express → Validate (or CLI). Full steps: <a href="/testnet/operators/validator">Run a validator</a>.</li>
+        <li><strong>Leaderboard</strong> — Practice ranking on the <a href="/testnet/operators/leaderboard">Leaderboard</a> (indexer metrics roll out over time).</li>
       </ol>
     </section>
 

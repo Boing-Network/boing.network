@@ -1,10 +1,14 @@
 /**
- * Testnet configuration — single source for RPC URL and bootnodes.
+ * Testnet configuration — single source for RPC URL, bootnodes, and client versions.
  * Override at build time with PUBLIC_TESTNET_RPC_URL and PUBLIC_BOOTNODES when ops changes endpoints.
+ * Live chain source of truth remains `boing_getNetworkInfo` on the public RPC.
  */
 
 const fromEnv = typeof import.meta !== 'undefined' && import.meta.env;
 const env = fromEnv as Record<string, string | undefined> | undefined;
+
+/** Public testnet chain id (decimal). Mainnet id 6914 is not live. */
+export const TESTNET_CHAIN_ID = 6913 as const;
 
 /** Public testnet RPC URL. Set PUBLIC_TESTNET_RPC_URL at build time to override. */
 export const TESTNET_RPC_URL =
@@ -13,7 +17,7 @@ export const TESTNET_RPC_URL =
 /**
  * Official testnet bootnode multiaddrs. Set PUBLIC_BOOTNODES (comma-separated)
  * at build time to override; otherwise this fallback is used.
- * Production: set PUBLIC_BOOTNODES="/ip4/PRIMARY_IP/tcp/4001" (comma-separated if multiple).
+ * Hosted: Fly `boing-testnet-1` only (`boing-testnet-2` / 109.105.220.118 retired 2026-10-24).
  */
 export const BOOTNODES: string[] =
   env && env.PUBLIC_BOOTNODES
@@ -22,6 +26,9 @@ export const BOOTNODES: string[] =
         '/ip4/169.155.48.188/tcp/4001', // Fly validator (boing-testnet-1)
       ];
 
+/** Comma-joined bootnodes for `--bootnodes` copy-paste. */
+export const BOOTNODES_CSV = BOOTNODES.join(',');
+
 /** Whether the testnet is "live" (we have at least one bootnode and a non-local RPC). */
 export const isTestnetLive =
   BOOTNODES.length > 0 &&
@@ -29,8 +36,29 @@ export const isTestnetLive =
   !TESTNET_RPC_URL.includes('localhost');
 
 /**
+ * Current public testnet node release tag (Windows / Linux / macOS zips on GitHub Releases).
+ * Keep in sync with `/api/networks` meta.boing_testnet_download_tag and TESTNET-VALIDATOR-GUIDE.md.
+ */
+export const TESTNET_NODE_RELEASE = 'testnet-v0.1.24' as const;
+
+/** Recommended Boing Express (wallet) version from live `client_hints.recommended_wallet_version`. */
+export const RECOMMENDED_WALLET_VERSION = '0.1.24' as const;
+
+/** Recommended `@boing-network/boing-sdk` from live `client_hints.recommended_sdk`. */
+export const RECOMMENDED_SDK_VERSION = '0.5.38' as const;
+
+/** Explorer / wallet / DEX product URLs for ecosystem cards. */
+export const ECOSYSTEM = {
+  express: 'https://boing.express',
+  finance: 'https://boing.finance',
+  observer: 'https://boing.observer',
+  faucet: 'https://boing.network/faucet',
+  discord: 'https://discord.gg/K3w9nbUw4N',
+} as const;
+
+/**
  * Whether hosted public testnet advertises native DEX ids on `boing_getNetworkInfo.end_user`
- * (chain **6913**). Verified **2026-11-01** against `https://testnet-rpc.boing.network/`.
+ * (chain **6913**). Verified against `https://testnet-rpc.boing.network/`.
  * Flip to `false` after a chain reset until ops re-publishes `BOING_CANONICAL_NATIVE_*`.
  * Live source of truth remains the RPC snapshot — embedded hexes below are fallbacks only.
  */

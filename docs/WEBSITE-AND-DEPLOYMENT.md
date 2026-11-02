@@ -175,7 +175,7 @@ Add bindings to `wrangler.toml`. Typical uses: RPC response cache, rate-limit co
    - **Root directory:** (leave blank or `/`)
 4. Add environment variables:
    - `PUBLIC_TESTNET_RPC_URL`: `https://testnet-rpc.boing.network/`
-   - `PUBLIC_BOOTNODES`: `/ip4/PRIMARY_IP/tcp/4001,/ip4/SECONDARY_IP/tcp/4001` (comma-separated multiaddrs)
+   - `PUBLIC_BOOTNODES`: `/ip4/169.155.48.188/tcp/4001` (hosted `boing-testnet-1` only; comma-separate only if you publish extra community bootnodes)
 
 **Wrangler deploy:**
 

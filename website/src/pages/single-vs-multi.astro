@@ -1,55 +1,67 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import CodeBlock from '../components/CodeBlock.astro';
+import { BOOTNODES_CSV, TESTNET_CHAIN_ID, TESTNET_RPC_URL } from '../config/testnet';
+
+const localNode = `./boing-node --rpc-port 8545 --data-dir ./data
+# Optional: produce blocks locally
+./boing-node --validator --rpc-port 8545 --data-dir ./data`;
+
+const publicPeer = `export BOING_CHAIN_ID=${TESTNET_CHAIN_ID}
+./boing-node \\
+  --data-dir ./boing-data \\
+  --p2p-listen /ip4/0.0.0.0/tcp/4001 \\
+  --bootnodes ${BOOTNODES_CSV} \\
+  --rpc-port 8545`;
 ---
 
 <Layout
   title="Single node vs multi-node"
-  description="When to run a single Boing node vs joining the multi-node testnet."
+  description="When to run a single Boing node vs joining the public multi-node testnet."
 >
   <article class="page-wrap-full">
     <header class="page-hero-full">
       <div class="page-wrap-inner">
-        <span class="stage-badge-global">Testnet</span>
+        <span class="stage-badge-global">Testnet · chain {TESTNET_CHAIN_ID}</span>
         <h1>Single node vs multi-node</h1>
         <p class="lead">
-          You can run Boing in two ways: <strong>single node</strong> (one machine, no P2P) or <strong>multi-node</strong> (join the testnet and sync with other nodes).
+          Pick one: a <strong>private local chain</strong> on your machine, or a node that
+          <strong>joins the public testnet</strong> and syncs with everyone else.
         </p>
       </div>
     </header>
     <div class="page-wrap-inner single-multi-content">
     <section class="section">
-      <h2>Single node</h2>
-      <p><strong>Use case:</strong> Local development, trying the chain on your laptop, or running a private instance. No need to connect to anyone else.</p>
-      <p>Run the node <strong>without</strong> <code>--p2p-listen</code>. The node runs in isolation: it produces blocks if you pass <code>--validator</code>, and serves RPC. No bootnodes needed.</p>
-      <pre class="code-block"><code># Full node (no block production)
-./boing-node --rpc-port 8545 --data-dir ./data
-
-# Validator (produces blocks)
-./boing-node --validator --rpc-port 8545 --data-dir ./data</code></pre>
-      <p>RPC is available at <code>http://127.0.0.1:8545/</code>. Ideal for building and testing dApps against a local chain.</p>
+      <h2>1. Single node (local only)</h2>
+      <p><strong>Use when:</strong> you are developing on a laptop and do not need the live network.</p>
+      <p>Do <strong>not</strong> pass <code>--p2p-listen</code> or <code>--bootnodes</code>. Your machine is the whole chain.</p>
+      <CodeBlock code={localNode} label="Local single node" />
+      <p>RPC: <code>http://127.0.0.1:8545/</code>. This does <strong>not</strong> sync with <code>{TESTNET_RPC_URL}</code>.</p>
     </section>
 
     <section class="section">
-      <h2>Multi-node testnet</h2>
-      <p><strong>Use case:</strong> Joining the public testnet — many nodes connected via P2P, syncing blocks and (optionally) validating together.</p>
-      <p>Run the node <strong>with</strong> <code>--p2p-listen</code> and <code>--bootnodes</code>. Your node will dial the bootnodes to discover the network, then sync and gossip with peers. If you pass <code>--validator</code>, it can produce blocks when it’s the leader.</p>
-      <pre class="code-block"><code>./boing-node --p2p-listen /ip4/0.0.0.0/tcp/4001 \
-  --bootnodes /ip4/&lt;BOOTNODE&gt;/tcp/4001 \
-  --validator --rpc-port 8545 --data-dir ./data</code></pre>
-      <p>See the <a href="/bootnodes">Bootnodes</a> page for how to get the official list, and <a href="/testnet/join">Join Testnet</a> for the full flow.</p>
+      <h2>2. Multi-node (public testnet)</h2>
+      <p><strong>Use when:</strong> you want to peer with chain <strong>{TESTNET_CHAIN_ID}</strong>, help soak the network, or become a validator later.</p>
+      <p>Pass <code>--p2p-listen</code> and the official <code>--bootnodes</code> address. Open inbound <strong>TCP 4001</strong> if others should dial you.</p>
+      <CodeBlock code={publicPeer} label="Join the public testnet" />
+      <p>
+        Next: <a href="/bootnodes">Bootnodes</a> ·
+        <a href="/testnet/join#run-a-node">Join Testnet — run a node</a> ·
+        <a href="/testnet/operators/validator">Become a validator</a>
+      </p>
     </section>
 
     <section class="section comparison">
       <h2>Quick comparison</h2>
       <table class="compare-table">
         <thead>
-          <tr><th></th><th>Single node</th><th>Multi-node</th></tr>
+          <tr><th></th><th>Single node</th><th>Public testnet peer</th></tr>
         </thead>
         <tbody>
-          <tr><td>P2P</td><td>Off</td><td>On (<code>--p2p-listen</code>)</td></tr>
-          <tr><td>Bootnodes</td><td>Not needed</td><td>Required (<code>--bootnodes</code>)</td></tr>
-          <tr><td>Sync</td><td>N/A (only your chain)</td><td>Syncs with peers</td></tr>
-          <tr><td>Best for</td><td>Local dev, private chain</td><td>Public testnet participation</td></tr>
+          <tr><td>Talks to other nodes</td><td>No</td><td>Yes (<code>--p2p-listen</code>)</td></tr>
+          <tr><td>Bootnode</td><td>Not needed</td><td>Required (<code>--bootnodes</code>)</td></tr>
+          <tr><td>Shares live chain history</td><td>No — your own chain</td><td>Yes — syncs with peers</td></tr>
+          <tr><td>Best for</td><td>Local dApp work</td><td>Operators and soak testing</td></tr>
         </tbody>
       </table>
     </section>
@@ -70,8 +82,6 @@ import Layout from '../layouts/Layout.astro';
   .section h2 { font-size: 1.25rem; color: var(--text-primary); margin-bottom: 0.5rem; }
   .section p { color: var(--text-secondary); }
   .section code { background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
-  .code-block { background: rgba(0,0,0,0.3); border: 1px solid rgba(34,211,238,0.2); border-radius: 8px; padding: 1rem; overflow-x: auto; }
-  .code-block code { background: none; padding: 0; font-size: 0.9rem; }
   .compare-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
   .compare-table th, .compare-table td { padding: 0.6rem 0.75rem; text-align: left; border: 1px solid rgba(34,211,238,0.2); color: var(--text-secondary); }
   .compare-table th { color: var(--text-primary); background: rgba(6,182,212,0.08); }
@@ -88,6 +98,5 @@ import Layout from '../layouts/Layout.astro';
     .compare-table { font-size: 0.85rem; }
     .compare-table th,
     .compare-table td { padding: 0.45rem 0.5rem; }
-    .code-block { font-size: 0.8rem; }
   }
 </style>

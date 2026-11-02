@@ -17,10 +17,16 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
         <span class="stage-badge-global">Testnet</span>
         <h1 class="page-title"><Icon name="faucet" size={32} class="title-icon" /> Testnet Faucet</h1>
         <p class="lead">
-          Get free testnet BOING to pay for fees. Paste your Boing address (or connect Boing Express) and request. Each request sends <strong>{FAUCET_AMOUNT_BOING}</strong> testnet BOING (the confirmation below shows the exact amount the node sent), limited to <strong>1 request per {FAUCET_COOLDOWN_SECONDS} seconds</strong> per address. A transfer costs about 1 BOING; deploying a native token costs about 10–20 BOING, so <strong>builders should plan on two requests</strong>.
+          Get free testnet BOING on chain <strong>6913</strong> to pay for fees (and the 100 BOING validator bond).
+          Paste your Boing address (or connect Boing Express) and request. Each request sends <strong>{FAUCET_AMOUNT_BOING}</strong> testnet BOING
+          (the confirmation below shows the exact amount the node sent), limited to <strong>1 request per {FAUCET_COOLDOWN_SECONDS} seconds</strong> per address.
+          A transfer costs about 1 BOING; deploying a native token costs about 10–20 BOING, so <strong>builders should plan on two requests</strong>;
+          validators should request enough times to cover the bond plus a few BOING for fees.
         </p>
         <p class="lead no-wallet">
-          No wallet yet? <a href="https://boing.express" target="_blank" rel="noopener">Create one at Boing Express</a> (web or Chrome extension), then come back. This is the canonical Boing faucet; the wallet and Boing Observer link here.
+          No wallet yet? <a href="https://boing.express" target="_blank" rel="noopener">Create one at Boing Express</a> (recommended 0.1.24; web or Chrome extension), then come back.
+          This is the canonical Boing faucet; Express and <a href="https://boing.observer" target="_blank" rel="noopener">Observer</a> link here.
+          Node operators: after funding, see <a href="/testnet/join#run-a-node">run a peer node</a>.
         </p>
       </div>
     </header>

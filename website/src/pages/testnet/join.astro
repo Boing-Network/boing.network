@@ -3,10 +3,18 @@ import ChainIdleNotice from '../../components/ChainIdleNotice.astro';
 import Layout from '../../layouts/Layout.astro';
 import Icon from '../../components/Icon.astro';
 import CopyButton from '../../components/CopyButton.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import IncentivizedTestnetNotice from '../../components/IncentivizedTestnetNotice.astro';
 import {
   TESTNET_RPC_URL,
   BOOTNODES,
+  BOOTNODES_CSV,
   isTestnetLive,
+  TESTNET_CHAIN_ID,
+  TESTNET_NODE_RELEASE,
+  RECOMMENDED_WALLET_VERSION,
+  RECOMMENDED_SDK_VERSION,
+  ECOSYSTEM,
   HOSTED_TESTNET_NATIVE_DEX_PUBLISHED,
   CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX,
   CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX,
@@ -14,239 +22,286 @@ import {
   CANONICAL_LINKED_NFT_TOKEN_REGISTRY_ACCOUNT_ID_HEX,
   CANONICAL_BUILDER_ATTESTATION_REGISTRY_ACCOUNT_ID_HEX,
 } from '../../config/testnet';
+
+const relUrl = `https://github.com/Boing-Network/boing.network/releases/tag/${TESTNET_NODE_RELEASE}`;
+const linuxZip = `https://github.com/Boing-Network/boing.network/releases/download/${TESTNET_NODE_RELEASE}/release-linux-x86_64.zip`;
+
+const getBinary = `curl -sSLO ${linuxZip}
+unzip release-linux-x86_64.zip
+mv boing-node-linux-x86_64 boing-node
+mv boing-linux-x86_64 boing
+chmod +x boing-node boing`;
+
+const runPeer = `export BOING_CHAIN_ID=${TESTNET_CHAIN_ID}
+./boing-node \\
+  --data-dir ./boing-data \\
+  --p2p-listen /ip4/0.0.0.0/tcp/4001 \\
+  --bootnodes ${BOOTNODES_CSV} \\
+  --rpc-port 8545`;
+
+const checkSync = `curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"boing_health","params":[]}'
+# Compare head_height with the public RPC at ${TESTNET_RPC_URL}`;
 ---
 
 <Layout
   title="Join Testnet"
-  description="Boing Network testnet: run a node, get testnet BOING from the faucet, and join as a validator."
+  description="Boing Network public testnet 6913: endpoints, run a node, bootnodes, faucet, Express / Finance / Observer."
 >
   <article class="page-wrap-full">
     <header class="page-hero-full">
       <div class="page-wrap-inner">
-        <span class="stage-badge-global">Testnet</span>
+        <span class="stage-badge-global">Public testnet · chain {TESTNET_CHAIN_ID}</span>
         <h1 class="page-title"><Icon name="network" size={32} class="title-icon" /> Join the Testnet</h1>
         <p class="lead">
-          Public testnet <strong>chain 6913</strong>: run a node, get testnet BOING from the faucet, and participate as a validator or developer.
-          Day-to-day hosted traffic still uses a <strong>single validator path</strong> — not multi-region HA. Incentivized rewards are <strong>not</strong> running.
-          Jump to <strong>Bootnodes</strong>, <strong>Single vs multi-node</strong>, the <strong>Faucet</strong>, or the <a href="/testnet">Testnet Hub</a>.
+          Connect to live chain <strong>{TESTNET_CHAIN_ID}</strong>: use the apps, run a peer node, or register as a validator.
+          Day-to-day hosted traffic still uses a <strong>single validator path</strong> (not multi-region HA).
+          Incentivized rewards are <strong>not</strong> running.
         </p>
       </div>
     </header>
     <div class="page-wrap-inner testnet-content">
     <ChainIdleNotice />
-    <div class="dedicated-cards">
-      <a href="/single-vs-multi" class="dedicated-card card-reveal">
-        <span class="card-icon"><Icon name="node" size={28} /></span>
-        <h2>Single node vs multi-node</h2>
-        <p>When to run alone vs joining the public testnet. Commands and comparison.</p>
-        <span class="card-arrow">Read more →</span>
-      </a>
-      <a href="/testnet/operators/validator" class="dedicated-card featured card-reveal">
-        <span class="card-icon"><Icon name="node" size={28} /></span>
-        <h2>Run a validator</h2>
-        <p>Hardware, node setup, keys, bootnodes, requesting stake, bonding and monitoring.</p>
-        <span class="card-arrow">Read the guide →</span>
-      </a>
-      <a href="/bootnodes" class="dedicated-card card-reveal">
-        <span class="card-icon"><Icon name="network" size={28} /></span>
-        <h2>Bootnodes</h2>
-        <p>What bootnodes are, how to use them, and where to get the official list.</p>
-        <span class="card-arrow">Read more →</span>
-      </a>
-      <a href="/faucet" class="dedicated-card featured card-reveal">
-        <span class="card-icon"><Icon name="faucet" size={28} /></span>
-        <h2>Faucet</h2>
-        <p>Get testnet BOING for gas and staking. One request per account per 60 seconds.</p>
-        <span class="card-arrow">Get testnet BOING →</span>
-      </a>
-      <a href="/testnet/users" class="dedicated-card card-reveal">
-        <span class="card-icon"><Icon name="quest" size={28} /></span>
-        <h2>Community Quests (Users)</h2>
-        <p>Quests across Express, Finance, Observer, faucet, and feedback. Practice only — no rewards; not a mainnet claim.</p>
-        <span class="card-arrow">Quests in portal →</span>
-      </a>
-      <a href="/testnet" class="dedicated-card card-reveal"><span class="card-icon"><Icon name="portal" size={28} /></span>
-        <h2>Dashboard</h2>
-        <p>Choose your path: developer, user, or node operator. Each role has its own hub with registration, dashboard, and resources.</p>
-        <span class="card-arrow">Open portal →</span>
-      </a>
-    </div>
+    <IncentivizedTestnetNotice />
 
-    <section class="section" id="quick-start">
-      <h2><Icon name="rocket" size={22} class="section-icon" /> Quick start</h2>
-      <ol>
-        <li>Build: <code>cargo build --release</code></li>
-        <li>Run a single node (validator): <code>./target/release/boing-node --validator --rpc-port 8545</code></li>
-        <li>Or join the public testnet: <code>--p2p-listen /ip4/0.0.0.0/tcp/4001 --bootnodes &lt;BOOTNODE_LIST&gt;</code> (see <a href="#endpoints">endpoints</a> below)</li>
-        <li>Get testnet BOING from the <a href="/faucet">faucet</a>.</li>
-      </ol>
-    </section>
-
-    <section class="section" id="single-vs-multi">
-      <h2>Single node vs multi-node</h2>
-      <p>Brief summary. For the full guide, see <a href="/single-vs-multi">Single node vs multi-node</a>.</p>
-      <ul>
-        <li><strong>Single node</strong> — Run without P2P. Good for local dev. No bootnodes needed.</li>
-        <li><strong>Multi-node testnet</strong> — Run with <code>--p2p-listen</code> and <code>--bootnodes</code> to join the public testnet.</li>
-      </ul>
-    </section>
-
-    <section class="section" id="endpoints">
-      <h2>Public testnet endpoints</h2>
+    <section class="section" id="at-a-glance">
+      <h2><Icon name="network" size={22} class="section-icon" /> At a glance</h2>
       {isTestnetLive ? (
-        <>
-          <p><strong>RPC URL (faucet and submissions):</strong></p>
-          <div class="copy-wrapper rpc-copy" data-copy-value={TESTNET_RPC_URL}>
-            <code class="rpc-url-display">{TESTNET_RPC_URL}</code>
-            <CopyButton label="Copy URL" copiedLabel="Copied!" />
+        <dl class="glance-grid">
+          <div class="glance-item">
+            <dt>RPC</dt>
+            <dd>
+              <div class="copy-wrapper rpc-copy" data-copy-value={TESTNET_RPC_URL}>
+                <code class="rpc-url-display">{TESTNET_RPC_URL}</code>
+                <CopyButton label="Copy" copiedLabel="Copied!" />
+              </div>
+            </dd>
           </div>
-          {BOOTNODES.length > 0 && (
-            <>
-              <p><strong>Bootnodes:</strong> use with <code>--bootnodes</code> (comma-separated)</p>
-              <pre class="code-block"><code>{BOOTNODES.join("\n")}</code></pre>
-            </>
-          )}
-        </>
+          <div class="glance-item">
+            <dt>Bootnode</dt>
+            <dd>
+              {BOOTNODES.map((bn) => (
+                <div class="copy-wrapper rpc-copy" data-copy-value={bn}>
+                  <code class="rpc-url-display">{bn}</code>
+                  <CopyButton label="Copy" copiedLabel="Copied!" />
+                </div>
+              ))}
+            </dd>
+          </div>
+          <div class="glance-item">
+            <dt>Node release</dt>
+            <dd><a href={relUrl} target="_blank" rel="noopener"><code>{TESTNET_NODE_RELEASE}</code></a> (or newer)</dd>
+          </div>
+          <div class="glance-item">
+            <dt>Wallet / SDK</dt>
+            <dd>
+              Express <strong>{RECOMMENDED_WALLET_VERSION}</strong> ·
+              <code>@boing-network/boing-sdk@^{RECOMMENDED_SDK_VERSION}</code>
+            </dd>
+          </div>
+        </dl>
       ) : (
-        <p>Once the testnet is live, the official RPC URL and bootnode list will appear here. Until then, use <code>http://127.0.0.1:8545</code> for local testing and run a <a href="/single-vs-multi">local multi-node</a> setup.</p>
+        <p>Endpoints appear here when the public testnet is configured.</p>
       )}
-    </section>
-
-    <section class="section" id="native-amm-pool">
-      <h2>Native AMM pool (chain 6913)</h2>
-      {HOSTED_TESTNET_NATIVE_DEX_PUBLISHED ? (
-        <>
-      <p>
-        Integrators and <a href="https://boing.finance" target="_blank" rel="noopener noreferrer">Boing Finance</a> use this
-        <strong>canonical constant-product pool</strong> account id on public testnet. Full RPC and storage layout:
-        <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md#native-constant-product-amm-chain-6913--integration-note" target="_blank" rel="noopener noreferrer">RPC-API-SPEC (GitHub)</a>
-        · <a href="/pdfs/RPC-API-SPEC.pdf" target="_blank" rel="noopener">RPC-API-SPEC (PDF)</a>.
-      </p>
-      <p><strong>Pool <code>AccountId</code> (copy for SDK / env):</strong></p>
-      <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX}>
-        <code class="rpc-url-display pool-id-display">{CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX}</code>
-        <CopyButton label="Copy pool id" copiedLabel="Copied!" />
-      </div>
       <p class="muted small-print">
-        Ops smoke (optional): <code>npm run check-canonical-pool</code> from the <a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener noreferrer">boing.network</a> repo root — verifies <code>boing_getContractStorage</code> against this pool on <code>BOING_RPC_URL</code>.
+        Official listing JSON: <a href="/api/networks">/api/networks</a>.
+        Only <strong>one</strong> hosted bootnode — the old companion IP was retired.
       </p>
-        </>
-      ) : (
-        <p>
-          The hosted Fly testnet at <code>{TESTNET_RPC_URL}</code> has <strong>not published</strong> a canonical native AMM pool yet.
-          Read <code>boing_getNetworkInfo.end_user.canonical_native_cp_pool</code> on that RPC (currently <code>null</code>).
-          After ops runs <code>npm run deploy-native-dex-full-stack</code> and sets <code>BOING_CANONICAL_NATIVE_*</code> on the nodes, this page will show the live pool id.
-          Spec: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md#native-constant-product-amm-chain-6913--integration-note" target="_blank" rel="noopener noreferrer">RPC-API-SPEC</a>
-          · <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/FLY-IO.md" target="_blank" rel="noopener noreferrer">FLY-IO.md</a>.
-        </p>
-      )}
     </section>
 
-    <section class="section" id="native-lp-vault-share">
-      <h2>Native LP vault &amp; share token (chain 6913)</h2>
-      {HOSTED_TESTNET_NATIVE_DEX_PUBLISHED ? (
-        <>
-      <p>
-        Optional <strong>CREATE2</strong> contracts for the wrapped-LP path (vault + transferable share token). Same canonical deployer and bytecode as
-        <a href="https://github.com/Boing-Network/boing.network/blob/main/scripts/canonical-testnet-dex-predicted.json" target="_blank" rel="noopener noreferrer"><code>canonical-testnet-dex-predicted.json</code></a>.
-        Operators run <code>npm run deploy-native-dex-lp-aux-contracts</code> from the repo, then <strong>set_minter_once</strong> (vault → minter) and vault <strong>configure(pool, share)</strong> — see
-        <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/NATIVE-AMM-LP-VAULT.md" target="_blank" rel="noopener noreferrer">NATIVE-AMM-LP-VAULT</a> /
-        <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/NATIVE-LP-SHARE-TOKEN.md" target="_blank" rel="noopener noreferrer">NATIVE-LP-SHARE-TOKEN</a>.
-      </p>
-      <p><strong>LP vault <code>AccountId</code>:</strong></p>
-      <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX}>
-        <code class="rpc-url-display pool-id-display">{CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX}</code>
-        <CopyButton label="Copy vault id" copiedLabel="Copied!" />
+    <section class="section" id="paths">
+      <h2>Choose a path</h2>
+      <div class="dedicated-cards">
+        <a href="#use-apps" class="dedicated-card card-reveal">
+          <span class="card-icon"><Icon name="quest" size={28} /></span>
+          <h2>Use the apps</h2>
+          <p>Express wallet, Finance DEX, Observer explorer, faucet.</p>
+          <span class="card-arrow">Skip to apps →</span>
+        </a>
+        <a href="#run-a-node" class="dedicated-card featured card-reveal">
+          <span class="card-icon"><Icon name="node" size={28} /></span>
+          <h2>Run a peer node</h2>
+          <p>Download the binary, dial the bootnode, sync. Copy-paste steps below.</p>
+          <span class="card-arrow">Step-by-step →</span>
+        </a>
+        <a href="/testnet/operators/validator" class="dedicated-card featured card-reveal">
+          <span class="card-icon"><Icon name="node" size={28} /></span>
+          <h2>Become a validator</h2>
+          <p>After syncing: 100 BOING bond via Express Validate (or CLI).</p>
+          <span class="card-arrow">Full guide →</span>
+        </a>
+        <a href="/bootnodes" class="dedicated-card card-reveal">
+          <span class="card-icon"><Icon name="network" size={28} /></span>
+          <h2>Bootnodes</h2>
+          <p>What they are and the official address to copy.</p>
+          <span class="card-arrow">Read more →</span>
+        </a>
+        <a href="/single-vs-multi" class="dedicated-card card-reveal">
+          <span class="card-icon"><Icon name="node" size={28} /></span>
+          <h2>Local vs public</h2>
+          <p>When to run alone on your laptop vs joining the live network.</p>
+          <span class="card-arrow">Compare →</span>
+        </a>
+        <a href="/testnet" class="dedicated-card card-reveal">
+          <span class="card-icon"><Icon name="portal" size={28} /></span>
+          <h2>Testnet Hub</h2>
+          <p>Register as user, developer, or operator.</p>
+          <span class="card-arrow">Open portal →</span>
+        </a>
       </div>
-      <p><strong>LP share token <code>AccountId</code>:</strong></p>
-      <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX}>
-        <code class="rpc-url-display pool-id-display">{CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX}</code>
-        <CopyButton label="Copy share token id" copiedLabel="Copied!" />
-      </div>
-        </>
-      ) : (
-        <p>
-          LP vault and share-token ids will appear here when the hosted testnet publishes
-          <code>end_user.canonical_native_amm_lp_vault</code> / <code>canonical_native_lp_share_token</code>.
-        </p>
-      )}
     </section>
 
-    <section class="section" id="linked-nft-token-registry">
-      <h2>Linked NFT ↔ token registry (chain 6913)</h2>
-      <p>
-        Enforced on-chain registry for official NFT collection ↔ fungible token pairs (dual asset-claimer auth, many-to-many, mutable).
-        Protocol: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-LINKED-NFT-TOKEN.md" target="_blank" rel="noopener noreferrer">BOING-LINKED-NFT-TOKEN.md</a>
-        · SDK <code>CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX</code> / <code>buildLinkedNftTokenRegisterFlowTxs</code>.
-        Salt <code>BOING_NFT_TOKEN_LINK_REG_V1</code>, selectors <code>0xE0</code>–<code>0xE6</code>.
+    <section class="section" id="run-a-node">
+      <h2><Icon name="rocket" size={22} class="section-icon" /> Run a peer node (step by step)</h2>
+      <p class="muted">
+        Goal: your machine syncs chain {TESTNET_CHAIN_ID} from the hosted bootnode.
+        You are <strong>not</strong> a validator yet — that is a separate registration step.
       </p>
-      <p><strong>Registry <code>AccountId</code> (public testnet):</strong></p>
-      <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_LINKED_NFT_TOKEN_REGISTRY_ACCOUNT_ID_HEX}>
-        <code class="rpc-url-display pool-id-display">{CANONICAL_LINKED_NFT_TOKEN_REGISTRY_ACCOUNT_ID_HEX}</code>
-        <CopyButton label="Copy registry id" copiedLabel="Copied!" />
-      </div>
+      <ol class="steps-plain">
+        <li>
+          <strong>Get the binary</strong> — download
+          <a href={relUrl} target="_blank" rel="noopener">{TESTNET_NODE_RELEASE}</a>
+          (Linux example; Windows and macOS zips are on the same release page). Rename the platform binaries:
+          <CodeBlock code={getBinary} label="Download Linux node binary" />
+          Prefer building from source? <code>cargo build --release -p boing-node -p boing-cli</code> — details in the
+          <a href="/testnet/operators/validator#node">validator guide</a>.
+        </li>
+        <li>
+          <strong>Start the node</strong> — listen for peers and dial the official bootnode:
+          <CodeBlock code={runPeer} label="Join as a peer" />
+          Open inbound <strong>TCP 4001</strong> in your firewall if you want others to connect to you.
+          Keep RPC on localhost unless you intend to serve public JSON-RPC.
+        </li>
+        <li>
+          <strong>Confirm sync</strong> — your <code>head_height</code> should track the public RPC:
+          <CodeBlock code={checkSync} label="Check local sync" />
+        </li>
+        <li>
+          <strong>Optional: validate</strong> — fund ~100+ BOING from the <a href="/faucet">faucet</a>, then follow
+          <a href="/testnet/operators/validator">Run a validator</a> (Express <strong>Validate</strong> tab or
+          <code>boing validator register</code>).
+        </li>
+      </ol>
       <p class="muted small-print">
-        RPC <code>{TESTNET_RPC_URL}</code>. Optional env for apps: <code>NEXT_PUBLIC_BOING_LINKED_NFT_TOKEN_REGISTRY</code> / <code>REACT_APP_BOING_LINKED_NFT_TOKEN_REGISTRY</code>.
-      </p>
-    </section>
-
-    <section class="section" id="builder-attestation-registry">
-      <h2>Builder attestation registry (chain 6913)</h2>
-      <p>
-        On-chain registry for optional <strong>builder attested</strong> signals on a collection + token pair
-        (dual asset-claimer auth, separate from companions). Companions remain project structure authority.
-        Protocol: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-BUILDER-ATTESTATION.md" target="_blank" rel="noopener noreferrer">BOING-BUILDER-ATTESTATION.md</a>
-        · SDK <code>CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX</code> / <code>buildBuilderAttestationAttestFlowTxs</code>.
-        Salt <code>BOING_BUILDER_ATTEST_REG_V1</code>, selectors <code>0xE0</code>–<code>0xE6</code>.
-      </p>
-      <p><strong>Registry <code>AccountId</code> (public testnet):</strong></p>
-      <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_BUILDER_ATTESTATION_REGISTRY_ACCOUNT_ID_HEX}>
-        <code class="rpc-url-display pool-id-display">{CANONICAL_BUILDER_ATTESTATION_REGISTRY_ACCOUNT_ID_HEX}</code>
-        <CopyButton label="Copy registry id" copiedLabel="Copied!" />
-      </div>
-      <p class="muted small-print">
-        RPC <code>{TESTNET_RPC_URL}</code>. Optional env for apps: <code>REACT_APP_BOING_BUILDER_ATTESTATION_REGISTRY</code> / <code>NEXT_PUBLIC_BOING_BUILDER_ATTESTATION_REGISTRY</code> / <code>VITE_BOING_BUILDER_ATTESTATION_REGISTRY</code>.
-        Soft wallet-signed proofs are not network authority.
+        Deeper ops: <a href="/pdfs/RUNBOOK.pdf" target="_blank" rel="noopener">RUNBOOK (PDF)</a> ·
+        <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET-VALIDATOR-GUIDE.md" target="_blank" rel="noopener">TESTNET-VALIDATOR-GUIDE.md</a> ·
+        <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/NODE-OPERATOR-COMMANDS.md" target="_blank" rel="noopener">NODE-OPERATOR-COMMANDS.md</a>.
       </p>
     </section>
 
     <section class="section" id="bootnodes">
       <h2>Bootnodes</h2>
-      <p>Bootnodes are stable peer addresses your node dials to join the testnet. Full details: <a href="/bootnodes">Bootnodes</a>.</p>
-      {!isTestnetLive && <p><em>Until the testnet is live, run a local multi-node setup by using the first node's address as <code>--bootnodes</code> for the second.</em></p>}
+      <p>
+        Bootnodes are the first peers your node dials. Public testnet currently publishes
+        <strong> one</strong> hosted address (Fly <code>boing-testnet-1</code>).
+        Full plain-language guide: <a href="/bootnodes">Bootnodes</a>.
+      </p>
+      {isTestnetLive && BOOTNODES.length > 0 && (
+        <pre class="code-block"><code>{BOOTNODES.join('\n')}</code></pre>
+      )}
     </section>
 
-    <section class="section" id="faucet">
-      <h2>Faucet</h2>
-      <p>Get testnet BOING for gas and staking on the dedicated faucet page.</p>
-      <a href="/faucet" class="cta-link">Go to Faucet →</a>
+    <section class="section" id="use-apps">
+      <h2>Apps on this testnet</h2>
+      <p class="muted">Same chain {TESTNET_CHAIN_ID}. Practice only — no rewards claim.</p>
+      <div class="eco-cards">
+        <a href={ECOSYSTEM.express} target="_blank" rel="noopener" class="eco-card">
+          <h3>Express</h3>
+          <p>Wallet — recommended {RECOMMENDED_WALLET_VERSION}. Create an account, Validate tab for bonding.</p>
+        </a>
+        <a href={ECOSYSTEM.finance} target="_blank" rel="noopener" class="eco-card">
+          <h3>Finance</h3>
+          <p>Native DEX — swaps, pools, NFTs against the public RPC.</p>
+        </a>
+        <a href={ECOSYSTEM.observer} target="_blank" rel="noopener" class="eco-card">
+          <h3>Observer</h3>
+          <p>Explorer — blocks, accounts, and QA visibility.</p>
+        </a>
+        <a href="/faucet" class="eco-card">
+          <h3>Faucet</h3>
+          <p>Free testnet BOING for fees and the 100 BOING validator bond.</p>
+        </a>
+      </div>
+      <p class="muted small-print">
+        Developers: install <code>@boing-network/boing-sdk@^{RECOMMENDED_SDK_VERSION}</code> (scoped package name).
+        Hub quests: <a href="/testnet/users">Community users</a> · <a href="/testnet/developers">Developers</a>.
+      </p>
+    </section>
+
+    <section class="section section-honesty" id="honest-limits">
+      <h2>Honest limits</h2>
+      <ul>
+        <li><strong>Testnet only</strong> — mainnet (6914) is not live; no TGE date here.</li>
+        <li><strong>Single hosted validator path</strong> for day-to-day public traffic (<code>boing-testnet-1</code>); not multi-region HA.</li>
+        <li><strong>One official bootnode</strong> — do not use the retired <code>boing-testnet-2</code> address.</li>
+        <li><strong>No incentivized rewards</strong> until rules are published and marked live.</li>
+        <li><strong>Testnet BOING</strong> has no cash value; the chain may reset.</li>
+        <li><strong>Blocks idle</strong> when there are no transactions — a faucet request produces a block.</li>
+      </ul>
     </section>
 
     <section class="section" id="node-listing">
-      <h2>Node package listing</h2>
+      <h2>Prebuilt packages</h2>
       <p>
-        The public listing at <a href="/api/networks">/api/networks</a> (JSON) includes <code>boing-devnet</code> (Windows), <code>boing-devnet-linux</code>, and <code>boing-devnet-macos</code> — each includes <code>platform</code>, download URL, and command template.
+        <a href="/api/networks">/api/networks</a> lists Windows, Linux, and macOS downloads plus a ready
+        <code>node_command_template</code> (includes open-validator consensus flags for fresh sync).
       </p>
       <p class="muted networks-api-line" id="networks-api-status" aria-live="polite">Checking network listing…</p>
     </section>
 
-    <section class="section incentivized-callout" id="incentivized-callout">
-      <h2>Incentivized testnet (path, not live)</h2>
-      <p>
-        <strong>Rewards are not currently running.</strong> Completing quests or operating a node does <strong>not</strong> create a mainnet BOING claim.
-        We plan to progress via an honest soak on chain <strong>6913</strong>, then a time-boxed incentivized phase with published rules and caps when ready — no invented start date here.
-        Until then the public testnet is open: <a href="/faucet">faucet</a>, <a href="/testnet">Testnet Hub</a>, and (to validate) <a href="/testnet/operators/validator">register your node</a> with a 100 BOING bond.
-        Framing: <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Tokenomics &amp; testnet (PDF)</a>.
-      </p>
-    </section>
+    <details class="section integrator-details" id="integrator-ids">
+      <summary>Integrator contract ids (DEX, registries)</summary>
+      <div class="integrator-body">
+        <p class="muted">
+          For app builders. Live truth is still <code>boing_getNetworkInfo.end_user</code> on the public RPC.
+        </p>
+        {HOSTED_TESTNET_NATIVE_DEX_PUBLISHED ? (
+          <>
+            <p><strong>Canonical CP pool</strong></p>
+            <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX}>
+              <code class="rpc-url-display pool-id-display">{CANONICAL_NATIVE_CP_POOL_ACCOUNT_ID_HEX}</code>
+              <CopyButton label="Copy" copiedLabel="Copied!" />
+            </div>
+            <p><strong>LP vault</strong></p>
+            <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX}>
+              <code class="rpc-url-display pool-id-display">{CANONICAL_NATIVE_AMM_LP_VAULT_ACCOUNT_ID_HEX}</code>
+              <CopyButton label="Copy" copiedLabel="Copied!" />
+            </div>
+            <p><strong>LP share token</strong></p>
+            <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX}>
+              <code class="rpc-url-display pool-id-display">{CANONICAL_NATIVE_LP_SHARE_TOKEN_ACCOUNT_ID_HEX}</code>
+              <CopyButton label="Copy" copiedLabel="Copied!" />
+            </div>
+          </>
+        ) : (
+          <p>Canonical native DEX ids are not published on the hosted RPC yet.</p>
+        )}
+        <p><strong>Linked NFT ↔ token registry</strong></p>
+        <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_LINKED_NFT_TOKEN_REGISTRY_ACCOUNT_ID_HEX}>
+          <code class="rpc-url-display pool-id-display">{CANONICAL_LINKED_NFT_TOKEN_REGISTRY_ACCOUNT_ID_HEX}</code>
+          <CopyButton label="Copy" copiedLabel="Copied!" />
+        </div>
+        <p><strong>Builder attestation registry</strong></p>
+        <div class="copy-wrapper rpc-copy" data-copy-value={CANONICAL_BUILDER_ATTESTATION_REGISTRY_ACCOUNT_ID_HEX}>
+          <code class="rpc-url-display pool-id-display">{CANONICAL_BUILDER_ATTESTATION_REGISTRY_ACCOUNT_ID_HEX}</code>
+          <CopyButton label="Copy" copiedLabel="Copied!" />
+        </div>
+        <p class="muted small-print">
+          Specs:
+          <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md" target="_blank" rel="noopener">RPC-API-SPEC</a> ·
+          <a href="/pdfs/RPC-API-SPEC.pdf" target="_blank" rel="noopener">PDF</a>
+        </p>
+      </div>
+    </details>
 
     <section class="section">
       <h2>Docs</h2>
       <ul class="docs-quick-links">
         <li><a href="/docs/getting-started">Getting started</a></li>
         <li><a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a> — Full testnet guide</li>
-        <li><a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Tokenomics &amp; incentivized testnet (PDF)</a> — Plain-language framing</li>
+        <li><a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Tokenomics &amp; incentivized testnet (PDF)</a></li>
         <li><a href="/pdfs/RUNBOOK.pdf" target="_blank" rel="noopener">RUNBOOK (PDF)</a> — Node setup and RPC</li>
+        <li><a href="/testnet/operators">Operator Hub</a> · <a href="/testnet/users">User Hub</a> · <a href="/testnet/developers">Developer Hub</a></li>
       </ul>
     </section>
     </div>
@@ -263,9 +318,8 @@ import {
     margin-bottom: 0.5rem;
   }
   .title-icon { color: var(--accent-teal); flex-shrink: 0; }
-  .testnet-page h1 { color: var(--text-primary); }
   .lead { color: var(--text-secondary); font-size: 1.1rem; }
-  .dedicated-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 2rem 0; }
+  .dedicated-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.25rem 0 0; }
   .dedicated-card {
     animation: card-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     opacity: 0;
@@ -276,10 +330,9 @@ import {
   .dedicated-card:nth-child(3) { animation-delay: 0.19s; }
   .dedicated-card:nth-child(4) { animation-delay: 0.26s; }
   .dedicated-card:nth-child(5) { animation-delay: 0.33s; }
+  .dedicated-card:nth-child(6) { animation-delay: 0.4s; }
   @keyframes card-reveal { to { opacity: 1; transform: translateY(0); } }
-  .dedicated-card:hover .card-icon {
-    transform: scale(1.08);
-  }
+  .dedicated-card:hover .card-icon { transform: scale(1.08); }
   .card-icon {
     display: block;
     margin-bottom: 0.75rem;
@@ -324,13 +377,11 @@ import {
   }
   .section p, .section li { color: var(--text-secondary); }
   .section code { background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
-  .section ol, .section ul { margin: 0.5rem 0 0 1.2rem; }
+  .steps-plain { margin: 0.75rem 0 0 1.2rem; }
+  .steps-plain > li { margin-bottom: 1.1rem; }
   .docs-quick-links { list-style: none; padding-left: 0; }
   .docs-quick-links li { margin-bottom: 0.5rem; }
   .docs-quick-links a { color: var(--accent-teal); font-weight: 500; }
-  .cta-link { display: inline-block; margin-top: 0.5rem; color: var(--accent-teal); font-weight: 600; }
-  .incentivized-callout { background: rgba(34,211,238,0.06); border: 1px solid rgba(34,211,238,0.25); border-radius: 0.75rem; padding: 1.25rem; }
-  .incentivized-callout a { color: var(--accent-teal); font-weight: 600; }
   .code-block { background: rgba(0,0,0,0.3); border: 1px solid rgba(34,211,238,0.2); border-radius: 8px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; }
   .code-block code { background: none; padding: 0; }
   @media (prefers-reduced-motion: reduce) { .dedicated-card:hover { transform: none; } }
@@ -352,16 +403,81 @@ import {
     max-width: min(100%, 42rem);
   }
   .small-print { font-size: 0.85rem; margin-top: 0.5rem; }
+  .muted { color: var(--text-tertiary); }
+  .glance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    margin: 0.75rem 0;
+  }
+  .glance-item {
+    margin: 0;
+    padding: 0.85rem 1rem;
+    background: rgba(30,41,59,0.35);
+    border: 1px solid rgba(34,211,238,0.2);
+    border-radius: 0.75rem;
+  }
+  .glance-item dt {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-tertiary);
+    margin-bottom: 0.35rem;
+  }
+  .glance-item dd { margin: 0; color: var(--text-secondary); }
+  .eco-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .eco-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.1rem;
+    background: rgba(30, 41, 59, 0.35);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .eco-card:hover { border-color: rgba(34, 211, 238, 0.5); transform: translateY(-2px); }
+  .eco-card h3 { margin: 0 0 0.4rem; font-size: 1.05rem; color: var(--text-primary); }
+  .eco-card p { margin: 0; font-size: 0.9rem; color: var(--text-secondary); }
+  .section-honesty {
+    padding: 1.25rem 1.5rem;
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    border-radius: 0.75rem;
+    background: rgba(6, 182, 212, 0.05);
+  }
+  .section-honesty ul { margin: 0.5rem 0 0 1.1rem; }
+  .integrator-details {
+    border: 1px solid rgba(34,211,238,0.2);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem 1rem;
+    background: rgba(30,41,59,0.25);
+  }
+  .integrator-details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-primary);
+    list-style: none;
+  }
+  .integrator-details summary::-webkit-details-marker { display: none; }
+  .integrator-details summary::before {
+    content: '▸ ';
+    color: var(--accent-teal);
+  }
+  .integrator-details[open] summary::before { content: '▾ '; }
+  .integrator-body { margin-top: 0.85rem; }
+  .integrator-body p { margin: 0.65rem 0 0.25rem; }
   @media (max-width: 640px) {
     .testnet-content { padding-bottom: 2rem; }
-    .dedicated-cards { margin: 1.5rem 0; gap: 0.75rem; }
+    .dedicated-cards { margin-top: 1rem; gap: 0.75rem; }
     .dedicated-card { padding: 1rem; }
     .section { margin-top: 1.5rem; }
-    .code-block { font-size: 0.8rem; padding: 0.75rem; }
-  }
-  @media (max-width: 375px) {
-    .dedicated-cards { min-width: 0; }
-    .section { margin-top: 1.25rem; }
+    .eco-card:hover { transform: none; }
   }
   .networks-api-line { font-size: 0.9rem; margin-top: 0.75rem; }
 </style>
@@ -397,16 +513,19 @@ import {
           if (n.node_download_url && n.node_command_template) ready.push(id);
           else missing.push(id);
         });
+        var tag = data.meta && data.meta.boing_testnet_download_tag;
+        var tagNote = tag ? ' Release tag: ' + tag + '.' : '';
         if (missing.length === 0) {
           el.textContent =
-            'Listings active: Windows, Linux, and macOS devnet packages are configured in /api/networks.';
+            'Listings active: Windows, Linux, and macOS packages are configured.' + tagNote;
         } else if (ready.length > 0) {
           el.textContent =
             'Partial: ' +
             ready.length +
             ' of 3 platform listings have download URL + command. Missing or incomplete: ' +
             missing.join(', ') +
-            '.';
+            '.' +
+            tagNote;
         } else {
           el.textContent =
             'Devnet entries exist but D1 has not set node_download_url / node_command_template yet (see website migrations).';

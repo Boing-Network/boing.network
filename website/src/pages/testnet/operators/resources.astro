@@ -17,32 +17,42 @@ import '../../../styles/hub-common.css';
     <HubNav hub="operator" current="resources" />
     <section class="section fade-in-up">
       <h1>Resources</h1>
-      <p class="muted">Links to run and operate a node on testnet.</p>
+      <p class="muted">Links to run and operate a node on public testnet 6913 (release <code>testnet-v0.1.24</code>+).</p>
       <ul class="resources-list hub-list-animate">
+        <li>
+          <span class="resource-icon"><Icon name="network" size={22} /></span>
+          <a href="/testnet/join#run-a-node">Join Testnet — run a peer node</a>
+          <p class="desc">Ordered copy-paste steps: download, bootnode, sync</p>
+        </li>
         <li>
           <span class="resource-icon"><Icon name="node" size={22} /></span>
           <a href="/testnet/operators/validator">Run a validator</a>
-          <p class="desc">Setup, stake, bonding, monitoring and duties</p>
-        </li>
-        <li>
-          <span class="resource-icon"><Icon name="network" size={22} /></span>
-          <a href="/testnet/join">Join Testnet</a>
-          <p class="desc">Quick start, bootnodes</p>
+          <p class="desc">Hardware, keys, 100 BOING bond, monitoring</p>
         </li>
         <li>
           <span class="resource-icon"><Icon name="node" size={22} /></span>
           <a href="/bootnodes">Bootnodes</a>
-          <p class="desc">What they are and how to use</p>
+          <p class="desc">Official Fly multiaddr (one hosted peer)</p>
+        </li>
+        <li>
+          <span class="resource-icon"><Icon name="network" size={22} /></span>
+          <a href="/single-vs-multi">Local vs public</a>
+          <p class="desc">When to run alone vs joining chain 6913</p>
         </li>
         <li>
           <span class="resource-icon"><Icon name="faucet" size={22} /></span>
           <a href="/faucet">Faucet</a>
-          <p class="desc">Get testnet BOING</p>
+          <p class="desc">Get testnet BOING for fees and the bond</p>
         </li>
         <li>
           <span class="resource-icon"><Icon name="document" size={22} /></span>
           <a href="/pdfs/RUNBOOK.pdf" target="_blank" rel="noopener">RUNBOOK (PDF)</a>
           <p class="desc">Node operations</p>
+        </li>
+        <li>
+          <span class="resource-icon"><Icon name="link" size={22} /></span>
+          <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET-VALIDATOR-GUIDE.md" target="_blank" rel="noopener">TESTNET-VALIDATOR-GUIDE.md</a>
+          <p class="desc">Deep validator docs in the repo</p>
         </li>
       </ul>
     </section>

@@ -4,15 +4,22 @@ import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNo
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import CodeBlock from '../../../components/CodeBlock.astro';
 import HubNav from '../../../components/HubNav.astro';
-import { BOOTNODES, TESTNET_RPC_URL } from '../../../config/testnet';
+import {
+  BOOTNODES,
+  BOOTNODES_CSV,
+  TESTNET_RPC_URL,
+  TESTNET_NODE_RELEASE,
+  RECOMMENDED_WALLET_VERSION,
+  ECOSYSTEM,
+} from '../../../config/testnet';
 import { FAUCET_AMOUNT_BOING } from '../../../config/faucet';
 import '../../../styles/hub-common.css';
 
-const REL = 'testnet-v0.1.24';
+const REL = TESTNET_NODE_RELEASE;
 const relUrl = `https://github.com/Boing-Network/boing.network/releases/tag/${REL}`;
-const boot = BOOTNODES.join(',');
+const boot = BOOTNODES_CSV;
 const contactEmail = 'nico.builds@boing.network';
-const discordUrl = 'https://discord.gg/K3w9nbUw4N';
+const discordUrl = ECOSYSTEM.discord;
 const guideUrl = 'https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET-VALIDATOR-GUIDE.md';
 
 const getBinary = `curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/${REL}/release-linux-x86_64.zip
@@ -79,7 +86,9 @@ curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \\
       <h1>Run a testnet validator</h1>
       <p class="lead">
         Public testnet: chain <strong>6913</strong> (<code>0x1b01</code>), RPC <code>{TESTNET_RPC_URL}</code>,
-        explorer <a href="https://boing.observer" target="_blank" rel="noopener">Boing Observer</a>.
+        explorer <a href={ECOSYSTEM.observer} target="_blank" rel="noopener">Boing Observer</a>,
+        wallet <a href={ECOSYSTEM.express} target="_blank" rel="noopener">Express {RECOMMENDED_WALLET_VERSION}</a>.
+        New here? Sync a peer first with the short steps on <a href="/testnet/join#run-a-node">Join Testnet</a>, then continue below.
       </p>
       <div class="vg-note">
         <strong>How to become a validator today: open registration.</strong> Anyone can join: run a synced node, then
