@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" fill="none">
+  <defs>
+    <linearGradient id="plate" x1="0" y1="0" x2="1920" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#050A1A"/><stop offset="1" stop-color="#0A1128"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#plate)"/>
+  
+      <rect x="280" y="420" width="180" height="90" rx="45" transform="rotate(-28 370 465)" stroke="#3B8CFF" stroke-width="14" opacity="0.55"/>
+      <rect x="390" y="490" width="180" height="90" rx="45" transform="rotate(28 480 535)" stroke="#8DB8FF" stroke-width="14" opacity="0.4"/>
+
+      <rect x="560" y="460" width="180" height="90" rx="45" transform="rotate(-28 650 505)" stroke="#3B8CFF" stroke-width="14" opacity="0.55"/>
+      <rect x="670" y="530" width="180" height="90" rx="45" transform="rotate(28 760 575)" stroke="#8DB8FF" stroke-width="14" opacity="0.4"/>
+
+      <rect x="840" y="420" width="180" height="90" rx="45" transform="rotate(-28 930 465)" stroke="#3B8CFF" stroke-width="14" opacity="0.55"/>
+      <rect x="950" y="490" width="180" height="90" rx="45" transform="rotate(28 1040 535)" stroke="#8DB8FF" stroke-width="14" opacity="0.4"/>
+
+      <rect x="1120" y="460" width="180" height="90" rx="45" transform="rotate(-28 1210 505)" stroke="#3B8CFF" stroke-width="14" opacity="0.55"/>
+      <rect x="1230" y="530" width="180" height="90" rx="45" transform="rotate(28 1320 575)" stroke="#8DB8FF" stroke-width="14" opacity="0.4"/>
+
+      <rect x="1400" y="420" width="180" height="90" rx="45" transform="rotate(-28 1490 465)" stroke="#3B8CFF" stroke-width="14" opacity="0.55"/>
+      <rect x="1510" y="490" width="180" height="90" rx="45" transform="rotate(28 1600 535)" stroke="#8DB8FF" stroke-width="14" opacity="0.4"/>
+  <circle cx="960" cy="540" r="8" fill="#3B8CFF"/>
+</svg>
