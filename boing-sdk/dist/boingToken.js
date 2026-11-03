@@ -234,9 +234,15 @@ export async function approveBoingToken(client, secretKey32, input) {
     const nonce = await resolveNonce(client, senderHex, input.nonce);
     return signAndMaybeSubmit(client, buildBoingTokenApproveTransaction({ nonce, senderHex, tokenHex: input.tokenHex, toHex: input.spenderHex, amount: input.amount }), secretKey32, !!input.dryRun);
 }
-/** `boing token allowance` (v2): read `allowance[owner][spender]` via `boing_getContractStorage`. */
-export async function getBoingTokenAllowance(client, tokenHex, ownerHex, spenderHex) {
-    const word = await client.getContractStorage(validateHex32(tokenHex), boingTokenAllowanceStorageKeyHex(ownerHex, spenderHex));
+/** Allowance storage key for the token's template version (v3 uses Blake3 keys). */
+export function boingTokenAllowanceStorageKeyForVersionHex(ownerHex, spenderHex, version = BOING_TOKEN_DEFAULT_VERSION) {
+    return version === 3
+        ? boingTokenAllowanceStorageKeyV3Hex(ownerHex, spenderHex)
+        : boingTokenAllowanceStorageKeyHex(ownerHex, spenderHex);
+}
+/** `boing token allowance [--version v3]`: read `allowance[owner][spender]` via `boing_getContractStorage`. */
+export async function getBoingTokenAllowance(client, tokenHex, ownerHex, spenderHex, version = BOING_TOKEN_DEFAULT_VERSION) {
+    const word = await client.getContractStorage(validateHex32(tokenHex), boingTokenAllowanceStorageKeyForVersionHex(ownerHex, spenderHex, version));
     if (typeof word?.value !== 'string')
         throw new Error('unexpected boing_getContractStorage result');
     return decodeBoingTokenBalanceWord(word.value);

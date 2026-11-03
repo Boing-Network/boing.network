@@ -121,6 +121,8 @@ export declare function approveBoingToken(client: BoingClient | null, secretKey3
     spenderHex: string;
     amount: bigint;
 } & BoingTokenSendOptions): Promise<BoingTokenSignedTx>;
-/** `boing token allowance` (v2): read `allowance[owner][spender]` via `boing_getContractStorage`. */
-export declare function getBoingTokenAllowance(client: BoingClient, tokenHex: string, ownerHex: string, spenderHex: string): Promise<bigint>;
+/** Allowance storage key for the token's template version (v3 uses Blake3 keys). */
+export declare function boingTokenAllowanceStorageKeyForVersionHex(ownerHex: string, spenderHex: string, version?: BoingTokenVersion): string;
+/** `boing token allowance [--version v3]`: read `allowance[owner][spender]` via `boing_getContractStorage`. */
+export declare function getBoingTokenAllowance(client: BoingClient, tokenHex: string, ownerHex: string, spenderHex: string, version?: BoingTokenVersion): Promise<bigint>;
 //# sourceMappingURL=boingToken.d.ts.map
