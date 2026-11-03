@@ -552,153 +552,7 @@ cargo build --release</code></pre>
     }
     syncTocOpenState();
     window.addEventListener('resize', syncTocOpenState);
-
-    // Color-code content links: docs (cyan), PDF (violet), apps/external (teal), leave TOC alone.
-    function classifyDocLinks() {
-      const appHosts = [
-        'boing.express',
-        'boing.finance',
-        'boing.observer',
-        'discord.com',
-        'discord.gg',
-        'twitter.com',
-        'x.com',
-        'npmjs.com',
-      ];
-      document.querySelectorAll('.docs-content a[href]').forEach((a) => {
-        if (a.classList.contains('resource-list-item') || a.classList.contains('resource-card')) {
-          a.classList.add('doc-link-pdf');
-          return;
-        }
-        const href = a.getAttribute('href') || '';
-        let kind = 'docs';
-        try {
-          if (/\.pdf($|\?)/i.test(href) || href.includes('/pdfs/')) {
-            kind = 'pdf';
-          } else if (href.startsWith('#') || href.startsWith('/#') || (href.startsWith('/') && !href.startsWith('//'))) {
-            kind = 'docs';
-          } else if (/^https?:\/\//i.test(href)) {
-            const url = new URL(href, window.location.origin);
-            const host = url.hostname.replace(/^www\./, '');
-            const path = url.pathname;
-            const isGithubDocs =
-              (host === 'github.com' || host.endsWith('.github.com')) &&
-              (/\.md($|\/)/i.test(path) || /\/blob\/[^/]+\/docs\//i.test(path) || /\/tree\/[^/]+\/docs(\/|$)/i.test(path));
-            if (isGithubDocs) kind = 'docs';
-            else if (appHosts.some((h) => host === h || host.endsWith('.' + h)) || host === 'github.com' || host.endsWith('.github.com')) {
-              kind = 'app';
-            } else {
-              kind = 'app';
-            }
-          }
-        } catch (_) {
-          kind = 'docs';
-        }
-        a.classList.remove('doc-link-docs', 'doc-link-pdf', 'doc-link-app');
-        a.classList.add('doc-link-' + kind);
-      });
-    }
-    classifyDocLinks();
-
-    function copyText(text) {
-      if (!text) return Promise.reject(new Error('empty'));
-      const fallback = () => new Promise((resolve, reject) => {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        try {
-          document.execCommand('copy') ? resolve() : reject(new Error('copy failed'));
-        } catch (err) {
-          reject(err);
-        } finally {
-          document.body.removeChild(ta);
-        }
-      });
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        return navigator.clipboard.writeText(text).catch(() => fallback());
-      }
-      return fallback();
-    }
-
-    let copyToastEl = null;
-    let copyToastTimer = null;
-    function showCopiedToast() {
-      if (!copyToastEl) {
-        copyToastEl = document.createElement('div');
-        copyToastEl.className = 'docs-copy-toast';
-        copyToastEl.setAttribute('role', 'status');
-        copyToastEl.setAttribute('aria-live', 'polite');
-        document.body.appendChild(copyToastEl);
-      }
-      copyToastEl.textContent = 'Copied to clipboard';
-      copyToastEl.classList.add('is-visible');
-      clearTimeout(copyToastTimer);
-      copyToastTimer = setTimeout(() => {
-        copyToastEl.classList.remove('is-visible');
-      }, 1600);
-    }
-
-    // Code / command blocks — click anywhere on the block to copy (no icon button).
-    document.querySelectorAll('.docs-content .doc-section pre').forEach((pre) => {
-      if (pre.closest('.code-block-wrapper')) return;
-      const wrapper = document.createElement('div');
-      wrapper.className = 'code-block-wrapper doc-copyable';
-      wrapper.setAttribute('role', 'button');
-      wrapper.setAttribute('tabindex', '0');
-      wrapper.setAttribute('title', 'Click to copy');
-      wrapper.setAttribute('aria-label', 'Copy command');
-      pre.parentNode.insertBefore(wrapper, pre);
-      wrapper.appendChild(pre);
-      wrapper.dataset.copyText = (pre.textContent || '').trim();
-
-      function copyBlock(e) {
-        if (e) e.preventDefault();
-        const text = wrapper.dataset.copyText || (pre.textContent || '').trim();
-        if (!text) return;
-        copyText(text).then(() => showCopiedToast()).catch(() => {});
-      }
-
-      wrapper.addEventListener('click', (e) => {
-        if (e.target.closest('a')) return;
-        copyBlock(e);
-      });
-      wrapper.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          copyBlock(e);
-        }
-      });
-    });
-
-    // Inline gold command/code text — click to copy (skip code inside links or pre).
-    document.querySelectorAll('.docs-content .doc-section code').forEach((code) => {
-      if (code.closest('a') || code.closest('pre') || code.classList.contains('doc-copyable')) return;
-      const inlineText = (code.textContent || '').trim();
-      if (!inlineText) return;
-      code.classList.add('doc-copyable', 'doc-copyable-inline');
-      code.dataset.copyText = inlineText;
-      code.setAttribute('role', 'button');
-      code.setAttribute('tabindex', '0');
-      code.setAttribute('title', 'Click to copy');
-      code.setAttribute('aria-label', 'Copy ' + inlineText);
-
-      function copyInline(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const text = code.dataset.copyText || '';
-        if (!text) return;
-        copyText(text).then(() => showCopiedToast()).catch(() => {});
-      }
-
-      code.addEventListener('click', copyInline);
-      code.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') copyInline(e);
-      });
-    });
+    // Semantic link colors + click-to-copy toast: Layout loads /js/semantic-links.js
   })();
 </script>
 
@@ -717,14 +571,6 @@ cargo build --release</code></pre>
   .docs-page {
     --docs-toc-width: 15.5rem;
     --docs-shell-gap: 0;
-    /* Typed link/code colors — navy/cyan brand base; violet only for PDFs; gold for CLI/code. */
-    --docs-link-docs: #5BA8FF;
-    --docs-link-docs-hover: #8CC4FF;
-    --docs-link-code: #FFC14D;
-    --docs-link-pdf: #C9B6FF;
-    --docs-link-pdf-hover: #DBCFFF;
-    --docs-link-app: #3DDCB4;
-    --docs-link-app-hover: #6FECC8;
     --docs-warn: #FFB800;
     max-width: 100%;
     margin: 0;
@@ -894,7 +740,7 @@ cargo build --release</code></pre>
   .doc-section > :last-child {
     margin-bottom: 0;
   }
-  /* Default content links = in-page / site docs (brand blue). */
+  /* Default content links = in-page / site docs (brand blue). Global semantic-links.css owns typed hues. */
   .docs-content a {
     color: var(--docs-link-docs);
     text-decoration-color: rgba(91, 168, 255, 0.45);
@@ -902,44 +748,6 @@ cargo build --release</code></pre>
   }
   .docs-content a:hover {
     color: var(--docs-link-docs-hover);
-  }
-  .docs-content a.doc-link-docs {
-    color: var(--docs-link-docs);
-  }
-  .docs-content a.doc-link-docs:hover {
-    color: var(--docs-link-docs-hover);
-  }
-  .docs-content a.doc-link-pdf,
-  .docs-content a[href*="/pdfs/"],
-  .docs-content a[href$=".pdf" i] {
-    color: var(--docs-link-pdf);
-    text-decoration-color: rgba(201, 182, 255, 0.45);
-  }
-  .docs-content a.doc-link-pdf:hover,
-  .docs-content a[href*="/pdfs/"]:hover,
-  .docs-content a[href$=".pdf" i]:hover {
-    color: var(--docs-link-pdf-hover);
-  }
-  .docs-content a.doc-link-app {
-    color: var(--docs-link-app);
-    text-decoration-color: rgba(61, 220, 180, 0.45);
-  }
-  .docs-content a.doc-link-app:hover {
-    color: var(--docs-link-app-hover);
-  }
-  /* Inline CLI / code / hex — gold; links wrapping code keep the link hue. */
-  .doc-section code {
-    font-family: var(--font-mono);
-    background: rgba(255, 184, 0, 0.1);
-    color: var(--docs-link-code);
-    padding: 0.15em 0.4em;
-    border-radius: 4px;
-    font-size: 0.9em;
-  }
-  .docs-content a code {
-    color: inherit;
-    background: rgba(255, 255, 255, 0.06);
-    cursor: inherit;
   }
   .doc-section .doc-warn,
   .doc-section .doc-caution {
@@ -961,62 +769,10 @@ cargo build --release</code></pre>
     cursor: inherit;
   }
   .code-block-wrapper {
-    position: relative;
     margin: 0 0 1.35rem;
-    cursor: pointer;
-  }
-  .code-block-wrapper:focus-visible {
-    outline: 2px solid var(--docs-link-code);
-    outline-offset: 2px;
-    border-radius: 0.5rem;
   }
   .code-block-wrapper pre {
     margin: 0;
-  }
-  .code-block-wrapper:hover pre {
-    border-color: rgba(255, 193, 77, 0.45);
-  }
-  .doc-copyable-inline {
-    cursor: pointer;
-    position: relative;
-    transition: background 0.15s ease, box-shadow 0.15s ease;
-  }
-  .doc-copyable-inline:hover {
-    background: rgba(255, 184, 0, 0.2);
-    box-shadow: 0 0 0 1px rgba(255, 193, 77, 0.35);
-  }
-  .doc-copyable-inline:focus-visible {
-    outline: 2px solid var(--docs-link-code);
-    outline-offset: 2px;
-  }
-  :global(.docs-copy-toast) {
-    position: fixed;
-    z-index: 10050;
-    left: 50%;
-    bottom: 1.5rem;
-    transform: translateX(-50%) translateY(12px);
-    padding: 0.65rem 1rem;
-    font-family: var(--font-sans);
-    font-size: 0.9rem;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    color: #0b1220;
-    background: var(--docs-link-code, #FFC14D);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 0.65rem;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.18s ease, transform 0.18s ease;
-  }
-  :global(.docs-copy-toast.is-visible) {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    :global(.docs-copy-toast) {
-      transition: opacity 0.12s ease;
-    }
   }
   .rpc-methods dt {
     margin-top: 1rem;

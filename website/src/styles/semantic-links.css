@@ -1,0 +1,200 @@
+/**
+ * Sitewide semantic link + CLI colors (marketing site + docs.boing.network).
+ * Match /docs#overview: docs cyan, CLI gold, PDF violet, product apps teal.
+ */
+:root {
+  --bn-link-docs: #5ba8ff;
+  --bn-link-docs-hover: #8cc4ff;
+  --bn-link-code: #ffc14d;
+  --bn-link-pdf: #c9b6ff;
+  --bn-link-pdf-hover: #dbcfff;
+  --bn-link-app: #3ddcb4;
+  --bn-link-app-hover: #6fecc8;
+
+  /* Aliases used by the on-site /docs page */
+  --docs-link-docs: var(--bn-link-docs);
+  --docs-link-docs-hover: var(--bn-link-docs-hover);
+  --docs-link-code: var(--bn-link-code);
+  --docs-link-pdf: var(--bn-link-pdf);
+  --docs-link-pdf-hover: var(--bn-link-pdf-hover);
+  --docs-link-app: var(--bn-link-app);
+  --docs-link-app-hover: var(--bn-link-app-hover);
+}
+
+/* ---- Classified content / footer links (nav chrome excluded in JS) ---- */
+main a.bn-link-docs,
+main a.doc-link-docs,
+.site-footer a.bn-link-docs,
+.site-footer a.doc-link-docs,
+.sl-markdown-content a.bn-link-docs,
+.sl-markdown-content a.doc-link-docs {
+  color: var(--bn-link-docs);
+  text-decoration-color: rgba(91, 168, 255, 0.45);
+  text-underline-offset: 0.15em;
+}
+main a.bn-link-docs:hover,
+main a.doc-link-docs:hover,
+.site-footer a.bn-link-docs:hover,
+.site-footer a.doc-link-docs:hover,
+.sl-markdown-content a.bn-link-docs:hover,
+.sl-markdown-content a.doc-link-docs:hover {
+  color: var(--bn-link-docs-hover);
+}
+
+main a.bn-link-pdf,
+main a.doc-link-pdf,
+main a[href*='/pdfs/'],
+main a[href$='.pdf' i],
+.site-footer a.bn-link-pdf,
+.site-footer a.doc-link-pdf,
+.site-footer a[href*='/pdfs/'],
+.site-footer a[href$='.pdf' i],
+.sl-markdown-content a.bn-link-pdf,
+.sl-markdown-content a.doc-link-pdf,
+.sl-markdown-content a[href*='/pdfs/'],
+.sl-markdown-content a[href$='.pdf' i] {
+  color: var(--bn-link-pdf);
+  text-decoration-color: rgba(201, 182, 255, 0.45);
+  text-underline-offset: 0.15em;
+}
+main a.bn-link-pdf:hover,
+main a.doc-link-pdf:hover,
+main a[href*='/pdfs/']:hover,
+main a[href$='.pdf' i]:hover,
+.site-footer a.bn-link-pdf:hover,
+.site-footer a.doc-link-pdf:hover,
+.site-footer a[href*='/pdfs/']:hover,
+.site-footer a[href$='.pdf' i]:hover,
+.sl-markdown-content a.bn-link-pdf:hover,
+.sl-markdown-content a.doc-link-pdf:hover,
+.sl-markdown-content a[href*='/pdfs/']:hover,
+.sl-markdown-content a[href$='.pdf' i]:hover {
+  color: var(--bn-link-pdf-hover);
+}
+
+main a.bn-link-app,
+main a.doc-link-app,
+.site-footer a.bn-link-app,
+.site-footer a.doc-link-app,
+.sl-markdown-content a.bn-link-app,
+.sl-markdown-content a.doc-link-app {
+  color: var(--bn-link-app);
+  text-decoration-color: rgba(61, 220, 180, 0.45);
+  text-underline-offset: 0.15em;
+}
+main a.bn-link-app:hover,
+main a.doc-link-app:hover,
+.site-footer a.bn-link-app:hover,
+.site-footer a.doc-link-app:hover,
+.sl-markdown-content a.bn-link-app:hover,
+.sl-markdown-content a.doc-link-app:hover {
+  color: var(--bn-link-app-hover);
+}
+
+/* Buttons / CTAs keep their own surfaces — never rainbow them */
+main a.btn.bn-link-docs,
+main a.btn.bn-link-pdf,
+main a.btn.bn-link-app,
+main a.btn.doc-link-docs,
+main a.btn.doc-link-pdf,
+main a.btn.doc-link-app,
+main a.sl-link-button.bn-link-docs,
+main a.sl-link-button.bn-link-pdf,
+main a.sl-link-button.bn-link-app {
+  color: inherit;
+  text-decoration-color: currentColor;
+}
+
+/* ---- Inline CLI / code: gold ---- */
+main :not(pre) > code,
+.sl-markdown-content :not(pre) > code {
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  background: rgba(255, 184, 0, 0.1);
+  color: var(--bn-link-code);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+main a code,
+.sl-markdown-content a code {
+  color: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: inherit;
+}
+
+main pre code,
+.sl-markdown-content pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  cursor: inherit;
+}
+
+/* Click-to-copy affordances */
+.bn-copyable-inline,
+.doc-copyable-inline {
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.bn-copyable-inline:hover,
+.doc-copyable-inline:hover {
+  background: rgba(255, 184, 0, 0.2);
+  box-shadow: 0 0 0 1px rgba(255, 193, 77, 0.35);
+}
+.bn-copyable-inline:focus-visible,
+.doc-copyable-inline:focus-visible {
+  outline: 2px solid var(--bn-link-code);
+  outline-offset: 2px;
+}
+
+.bn-code-block-wrapper,
+.code-block-wrapper.doc-copyable {
+  position: relative;
+  cursor: pointer;
+}
+.bn-code-block-wrapper:focus-visible,
+.code-block-wrapper.doc-copyable:focus-visible {
+  outline: 2px solid var(--bn-link-code);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+.bn-code-block-wrapper:hover pre,
+.code-block-wrapper.doc-copyable:hover pre {
+  border-color: rgba(255, 193, 77, 0.45);
+}
+
+/* Toast — never append “Copied” inline next to the code */
+.bn-copy-toast,
+.docs-copy-toast {
+  position: fixed;
+  z-index: 10050;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%) translateY(12px);
+  padding: 0.65rem 1rem;
+  font-family: var(--font-sans, 'Comfortaa', system-ui, sans-serif);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #0b1220;
+  background: var(--bn-link-code);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.65rem;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.bn-copy-toast.is-visible,
+.docs-copy-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bn-copy-toast,
+  .docs-copy-toast {
+    transition: opacity 0.12s ease;
+  }
+}

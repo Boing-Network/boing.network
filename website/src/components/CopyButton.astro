@@ -66,16 +66,20 @@ const { label = 'Copy', copiedLabel = 'Copied!', ariaLabel, class: className = '
           text = String(text).trim();
           if (!text) return;
           navigator.clipboard.writeText(text).then(function () {
-            const span = el.querySelector('.copy-btn-text');
-            const done = el.getAttribute('data-copy-done') || 'Copied!';
-            if (span) {
-              const orig = span.textContent;
-              span.textContent = done;
-              el.classList.add('copied');
-              setTimeout(function () {
-                span.textContent = orig || 'Copy';
-                el.classList.remove('copied');
-              }, 2000);
+            if (typeof (window as any).BoingShowCopiedToast === 'function') {
+              (window as any).BoingShowCopiedToast();
+            } else {
+              const span = el.querySelector('.copy-btn-text');
+              const done = el.getAttribute('data-copy-done') || 'Copied!';
+              if (span) {
+                const orig = span.textContent;
+                span.textContent = done;
+                el.classList.add('copied');
+                setTimeout(function () {
+                  span.textContent = orig || 'Copy';
+                  el.classList.remove('copied');
+                }, 2000);
+              }
             }
           });
         });

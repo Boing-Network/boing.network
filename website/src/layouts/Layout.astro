@@ -5,6 +5,7 @@ import '../styles/boing-design-kit.css';
 import '../styles/boing-theme.css';
 import '../styles/design-tokens-cosmic.css';
 import '../styles/boing-loader.css';
+import '../styles/semantic-links.css';
 import StoneEngravingOverlay from '../components/StoneEngravingOverlay.astro';
 import BoingMascot from '../components/BoingMascot.astro';
 import CollaborationBanner from '../components/CollaborationBanner.astro';
@@ -432,6 +433,7 @@ const navCurrent = {
       })();
     </script>
     <script is:inline src="/portal-session.js"></script>
+    <script is:inline src="/js/semantic-links.js"></script>
     <script is:inline>
       (function() {
         var p = window.location.pathname.replace(/\/$/, '') || '/';

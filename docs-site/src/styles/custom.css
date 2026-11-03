@@ -1,5 +1,6 @@
 /* Boing Network docs — brand tokens from BRAND.md / BOING-DESIGN-SYSTEM.md */
 @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap');
+@import './semantic-links.css';
 
 :root {
   --boing-navy-950: #050a1a;
@@ -11,6 +12,8 @@
   --sl-color-accent-low: #1a3a6e;
   --sl-font: 'Comfortaa', system-ui, sans-serif;
   --sl-font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  --font-sans: var(--sl-font);
+  --font-mono: var(--sl-font-mono);
 }
 
 :root[data-theme='dark'],
@@ -27,8 +30,11 @@
   font-weight: 700;
 }
 
-.sl-markdown-content a {
-  color: var(--boing-accent);
+/* Default markdown links = docs cyan until JS classifies PDF/app */
+.sl-markdown-content a:not(.sl-link-button):not(.bn-link-pdf):not(.bn-link-app):not(.doc-link-pdf):not(.doc-link-app) {
+  color: var(--bn-link-docs, #5ba8ff);
+  text-decoration-color: rgba(91, 168, 255, 0.45);
+  text-underline-offset: 0.15em;
 }
 
 .sl-markdown-content table {

@@ -36,6 +36,10 @@ export default defineConfig({
           tag: 'meta',
           attrs: { name: 'theme-color', content: '#050A1A' },
         },
+        {
+          tag: 'script',
+          attrs: { src: '/js/semantic-links.js', defer: true },
+        },
       ],
       sidebar: [
         {
