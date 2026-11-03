@@ -91,7 +91,7 @@ Allowance slot: `(owner[0..16] ‖ spender[0..16]) ^ REF_FUNGIBLE_ALLOWANCE_XOR`
 | `boing token transfer --token <id> --to <id> --amount N` | Reference `transfer`. |
 | `boing token balance --token <id> --holder <id>` | Reads `boing_getContractStorage` at `holder ^ REF_FUNGIBLE_BALANCE_XOR` and prints the `u128` balance. |
 | `boing token approve --token <id> --spender <id> --amount N` | v2 `approve` (overwrites). |
-| `boing token allowance --token <id> --owner <id> --spender <id>` | Reads the v2 allowance slot. |
+| `boing token allowance --token <id> --owner <id> --spender <id> [--version v3]` | Reads the allowance slot (v2 XOR key by default; `--version v3` uses the Blake3 key). |
 | `boing token bytecode [--version v2\|v1]` | Prints the template hex. |
 
 Signer is a 32-byte Ed25519 seed from `--secret-hex` or `BOING_SECRET_HEX`. `--nonce` overrides the `boing_getAccount` lookup; `--dry-run` prints signed tx hex instead of calling `boing_submitTransaction`. Global `--rpc-url` selects the node.
@@ -107,7 +107,7 @@ Signer is a 32-byte Ed25519 seed from `--secret-hex` or `BOING_SECRET_HEX`. `--n
 | `boing token transfer` | `transferBoingToken(client, secretKey32, { tokenHex, toHex, amount, nonce?, dryRun? })` |
 | `boing token balance` | `getBoingTokenBalance(client, tokenHex, holderHex)` returns `bigint` |
 | `boing token approve` | `approveBoingToken(client, secretKey32, { tokenHex, spenderHex, amount, nonce?, dryRun? })` |
-| `boing token allowance` | `getBoingTokenAllowance(client, tokenHex, ownerHex, spenderHex)` |
+| `boing token allowance` | `getBoingTokenAllowance(client, tokenHex, ownerHex, spenderHex, version?)` |
 | `boing token bytecode` | `boingTokenBytecodeHex(version = 2)` |
 
 `deployBoingToken` / `buildBoingTokenDeployTransaction` take `version` (default **2**, like the CLI). The original `token-cli-vectors.json` vectors are v1 (`version: 1`); v2 deploy/approve vectors and the allowance key come from the CLI's Rust test (`pool-cli-vectors.json`, `v8` block).

@@ -14,6 +14,7 @@ import {
   approveBoingToken,
   boingTokenAllowanceStorageKeyHex,
   getBoingTokenAllowance,
+  boingTokenAllowanceStorageKeyV3Hex,
   BOING_TOKEN_DEFAULT_VERSION,
 } from '../src/boingToken.js';
 import { DEFAULT_REFERENCE_FUNGIBLE_TEMPLATE_V2_BYTECODE_HEX } from '../src/defaultReferenceFungibleTemplateV2BytecodeHex.js';
@@ -152,6 +153,17 @@ describe('boing token v2 (approve / allowance): byte-identical to the Rust CLI',
     const client = { getContractStorage } as unknown as BoingClient;
     await expect(getBoingTokenAllowance(client, P.tokenAHex, P.senderHex, P.poolHex)).resolves.toBe(42n);
     expect(getContractStorage).toHaveBeenCalledWith(P.tokenAHex, key);
+  });
+
+  it('v3 allowance reads the Blake3 key (matches CLI vector)', async () => {
+    const o = `0x${'11'.repeat(32)}`;
+    const s = `0x${'22'.repeat(32)}`;
+    const v3 = boingTokenAllowanceStorageKeyV3Hex(o, s);
+    expect(v3.replace(/^0x/, '')).toBe('7ec66f40318cfc99cf099251fe58c28f5545143870ba5ecdb2d02fa86951530c');
+    const getContractStorage = vi.fn(async () => ({ value: `0x${'00'.repeat(31)}07` }));
+    const client = { getContractStorage } as unknown as BoingClient;
+    await expect(getBoingTokenAllowance(client, P.tokenAHex, o, s, 3)).resolves.toBe(7n);
+    expect(getContractStorage).toHaveBeenCalledWith(P.tokenAHex, v3);
   });
 });
 

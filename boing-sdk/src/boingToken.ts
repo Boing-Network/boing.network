@@ -365,14 +365,29 @@ export async function approveBoingToken(
   );
 }
 
-/** `boing token allowance` (v2): read `allowance[owner][spender]` via `boing_getContractStorage`. */
+/** Allowance storage key for the token's template version (v3 uses Blake3 keys). */
+export function boingTokenAllowanceStorageKeyForVersionHex(
+  ownerHex: string,
+  spenderHex: string,
+  version: BoingTokenVersion = BOING_TOKEN_DEFAULT_VERSION,
+): string {
+  return version === 3
+    ? boingTokenAllowanceStorageKeyV3Hex(ownerHex, spenderHex)
+    : boingTokenAllowanceStorageKeyHex(ownerHex, spenderHex);
+}
+
+/** `boing token allowance [--version v3]`: read `allowance[owner][spender]` via `boing_getContractStorage`. */
 export async function getBoingTokenAllowance(
   client: BoingClient,
   tokenHex: string,
   ownerHex: string,
   spenderHex: string,
+  version: BoingTokenVersion = BOING_TOKEN_DEFAULT_VERSION,
 ): Promise<bigint> {
-  const word = await client.getContractStorage(validateHex32(tokenHex), boingTokenAllowanceStorageKeyHex(ownerHex, spenderHex));
+  const word = await client.getContractStorage(
+    validateHex32(tokenHex),
+    boingTokenAllowanceStorageKeyForVersionHex(ownerHex, spenderHex, version),
+  );
   if (typeof word?.value !== 'string') throw new Error('unexpected boing_getContractStorage result');
   return decodeBoingTokenBalanceWord(word.value);
 }

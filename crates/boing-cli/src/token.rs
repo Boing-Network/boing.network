@@ -467,19 +467,18 @@ pub async fn approve(
     .await
 }
 
-/// `boing token allowance` (template v2): read `allowance[owner][spender]` from storage.
+/// `boing token allowance`: read `allowance[owner][spender]` from storage using the
+/// key layout of the token's template version (v3 uses Blake3 keys).
 pub async fn allowance(
     rpc_url: &str,
     token: &str,
     owner: &str,
     spender: &str,
+    version: TokenVersion,
 ) -> anyhow::Result<()> {
     let token = parse_account(token)?;
     let (owner, spender) = (parse_account(owner)?, parse_account(spender)?);
-    let key = format!(
-        "0x{}",
-        hex::encode(ref_fungible_allowance_key(&owner, &spender))
-    );
+    let key = format!("0x{}", hex::encode(version.allowance_key(&owner, &spender)));
     let r = rpc(
         rpc_url,
         "boing_getContractStorage",
@@ -637,6 +636,28 @@ mod tests {
         // v2 fixes v1's self-transfer double credit.
         run(&mut st, &build_transfer_tx(&k, 4, token, me, 100));
         assert_eq!(bal(&st, &token, &me), 500);
+    }
+
+    #[test]
+    fn allowance_key_follows_template_version() {
+        let (o, s) = (AccountId([0x11; 32]), AccountId([0x22; 32]));
+        assert_eq!(
+            TokenVersion(2).allowance_key(&o, &s),
+            ref_fungible_allowance_key(&o, &s)
+        );
+        assert_eq!(
+            TokenVersion(3).allowance_key(&o, &s),
+            ref_fungible_allowance_key_v3(&o, &s)
+        );
+        assert_ne!(
+            TokenVersion(3).allowance_key(&o, &s),
+            ref_fungible_allowance_key(&o, &s)
+        );
+        // Cross-check vector shared with boing-sdk tests/boingToken.test.ts.
+        assert_eq!(
+            hex::encode(TokenVersion(3).allowance_key(&o, &s)),
+            "7ec66f40318cfc99cf099251fe58c28f5545143870ba5ecdb2d02fa86951530c"
+        );
     }
 
     #[test]

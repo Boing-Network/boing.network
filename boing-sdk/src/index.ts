@@ -232,6 +232,8 @@ export {
   assertBoingTokenDeployable,
   REFERENCE_FUNGIBLE_ALLOWANCE_XOR,
   boingTokenAllowanceStorageKeyHex,
+  boingTokenAllowanceStorageKeyV3Hex,
+  boingTokenAllowanceStorageKeyForVersionHex,
   buildBoingTokenApproveTransaction,
   approveBoingToken,
   getBoingTokenAllowance,

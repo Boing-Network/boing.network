@@ -252,7 +252,7 @@ enum TokenCommands {
         #[command(flatten)]
         signer: SignerArgs,
     },
-    /// v2: read allowance[owner][spender]
+    /// v2/v3: read allowance[owner][spender] (pass --version v3 for v3 tokens)
     Allowance {
         #[arg(long)]
         token: String,
@@ -260,6 +260,9 @@ enum TokenCommands {
         owner: String,
         #[arg(long)]
         spender: String,
+        /// Token template version; v3 stores allowances under Blake3 keys
+        #[arg(long, default_value = "v2")]
+        version: token::TokenVersion,
     },
     /// Print the reference fungible template bytecode hex
     Bytecode {
@@ -767,7 +770,8 @@ async fn main() -> anyhow::Result<()> {
                 token: t,
                 owner,
                 spender,
-            } => token::allowance(&cli.rpc_url, &t, &owner, &spender).await,
+                version,
+            } => token::allowance(&cli.rpc_url, &t, &owner, &spender, version).await,
             TokenCommands::Bytecode { version } => {
                 token::print_bytecode(version);
                 Ok(())
