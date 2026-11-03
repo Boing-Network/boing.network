@@ -16,8 +16,9 @@
 |-------|--------|--------|
 | Public testnet chain id **6913** | **Fact** | Live; values are test-only |
 | Mainnet chain id **6914** | **Planned** | Not live |
-| Hard cap `MAX_SUPPLY` = **1,000,000,000** BOING | **Fact (code)** | Emission clamped so `balance + stake` cannot exceed cap ([audit #61 item 40](BOING-BLOCKCHAIN-DESIGN-PLAN.md#chosen-model-uncapped-supply-with-floor-triggered-waves)) |
-| Historical “uncapped + floor waves” narrative | **Context** | Kept in design plan; mainnet parameters may still evolve via governance |
+| Genesis / initial supply = **1,000,000,000** BOING (`INITIAL_SUPPLY`) | **Locked (BN-155)** | 1B at genesis only — schedule base for emissions; **not** a minting ceiling |
+| Supply ceiling after genesis | **Locked (BN-155): uncapped** | Block emissions continue past 1B under the declining schedule + floor; no hard-cap clamp ([design plan](BOING-BLOCKCHAIN-DESIGN-PLAN.md#chosen-model-uncapped-supply-with-floor-triggered-waves)) |
+| Historical hard-cap clamp (`MAX_SUPPLY` / audit #61 item 40) | **Superseded** | Clamp removed from producer/validation; `MAX_SUPPLY` remains an alias of `INITIAL_SUPPLY` only |
 | Incentivized testnet rewards program | **Not running** | Public testnet is open for soak; rewards are **not** live and do **not** create a mainnet claim |
 | TGE / mainnet calendar date | **Undecided** | Do not invent one |
 
@@ -35,7 +36,7 @@ High-level buckets already published on the site and in docs (staking / treasury
 
 | Bucket | Share of initial supply | Status | Purpose |
 |--------|------------------------:|--------|---------|
-| **Staking / validator rewards reserve** | **50%** | **Proposed** (was 55% on marketing charts) | Bootstrap security; topped up by emissions while under hard cap |
+| **Staking / validator rewards reserve** | **50%** | **Proposed** (was 55% on marketing charts) | Bootstrap security; topped up by ongoing block emissions (uncapped after genesis) |
 | **Protocol treasury** | **20%** | **Proposed** (was 30%) | Audits, infra, contingency, governance-approved spend |
 | **Community & Grants** | **15%** | **Proposed** (unchanged headline) | Quests/airdrop recognition, bug bounty, ecosystem grants, dApp incentives |
 | **Team & ops** | **15%** | **Proposed** | Founders + early ops; see equal-split note below |
@@ -78,7 +79,7 @@ Aligned with design plan + `boing-tokenomics` (decline toward a low floor; fee-d
 | Year 10+ | **1% floor** or **0%** if fees suffice | **Proposed** |
 
 Formula sketch: `emission_year_n = emission_year_1 × (decay)^(n-1)` with `decay ≈ 0.85`.  
-Emission to round **proposer** remains independent of the tx-fee split (`BLOCK_EMISSION_PROPOSER_BPS`). Minting **stops at `MAX_SUPPLY`**.
+Emission to round **proposer** remains independent of the tx-fee split (`BLOCK_EMISSION_PROPOSER_BPS`). Minting **continues past 1B** (uncapped after genesis); `INITIAL_SUPPLY` is only the genesis amount and the % base for the emission schedule.
 
 **Undecided:** year-1 absolute BOING/block at mainnet genesis; whether floor is 1% or fee-triggered 0%.
 
@@ -152,7 +153,7 @@ Do not contradict these in tokenomics marketing:
 | [BOING-BLOCKCHAIN-DESIGN-PLAN.md](BOING-BLOCKCHAIN-DESIGN-PLAN.md) | Long-form design + sustainability |
 | [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) | Protocol + product; no invented launch date |
 | [TESTNET.md](TESTNET.md) Part 3 | Incentivized program ops design |
-| `crates/boing-tokenomics` | Implemented emission / fee / cap constants |
+| `crates/boing-tokenomics` | Implemented emission / fee / `INITIAL_SUPPLY` constants (uncapped after genesis) |
 
 ---
 

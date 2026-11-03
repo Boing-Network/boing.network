@@ -15,38 +15,29 @@ use boing_primitives::{Account, AccountId, AccountState, TransactionPayload};
 pub use boing_primitives::{Denomination, BASE_UNITS_PER_BOING, BOING_DECIMALS};
 use boing_state::StateStore;
 
-/// Max supply (1 billion BOING). Hard cap on total native held (`balance + stake`);
-/// block emission is clamped so minting cannot push past this (audit #61 item 40).
-pub const MAX_SUPPLY: u128 = 1_000_000_000;
+/// Genesis / initial supply (1 billion BOING).
+///
+/// **Locked (BN-155):** this is the **initial** supply at genesis only — **not** a hard ceiling.
+/// Supply is **uncapped** afterward; block emissions continue under the declining schedule + floor
+/// and are **not** clamped against this constant.
+pub const INITIAL_SUPPLY: u128 = 1_000_000_000;
 
-/// [`MAX_SUPPLY`] in the ledger unit `denom`.
+/// Historical name for [`INITIAL_SUPPLY`]. Prefer [`INITIAL_SUPPLY`]; this is **not** a minting ceiling.
+pub const MAX_SUPPLY: u128 = INITIAL_SUPPLY;
+
+/// [`INITIAL_SUPPLY`] in the ledger unit `denom`.
 #[inline]
-pub fn max_supply_in(denom: Denomination) -> u128 {
+pub fn initial_supply_in(denom: Denomination) -> u128 {
     match denom {
-        Denomination::WholeBoing => MAX_SUPPLY,
-        Denomination::BaseUnits => MAX_SUPPLY.saturating_mul(BASE_UNITS_PER_BOING),
+        Denomination::WholeBoing => INITIAL_SUPPLY,
+        Denomination::BaseUnits => INITIAL_SUPPLY.saturating_mul(BASE_UNITS_PER_BOING),
     }
 }
 
-/// Clamp a proposed block emission so total native held never exceeds [`MAX_SUPPLY`].
-///
-/// `total_native_held` is [`boing_state::ChainNativeAggregates::total_native_held`] (sum of all
-/// account balances and stakes). Fee moves and burns do not mint; only emission increases the total.
+/// Historical alias for [`initial_supply_in`]. Prefer [`initial_supply_in`].
 #[inline]
-pub fn clamp_emission_to_hard_cap(
-    emission: u128,
-    total_native_held: u128,
-    denom: Denomination,
-) -> u128 {
-    if emission == 0 {
-        return 0;
-    }
-    let max = max_supply_in(denom);
-    if total_native_held >= max {
-        0
-    } else {
-        emission.min(max - total_native_held)
-    }
+pub fn max_supply_in(denom: Denomination) -> u128 {
+    initial_supply_in(denom)
 }
 
 /// Target block time in seconds.
@@ -612,10 +603,11 @@ pub enum FeeError {
 /// Block emission (proposer share) in the ledger unit `denom`.
 ///
 /// Both denominations share one integer schedule (no `f64`): year-1 emission per block from
-/// `MAX_SUPPLY` (× `10^18` for base units), decayed by [`EMISSION_DECAY_BPS`] per year, floored at
-/// [`EMISSION_FLOOR_BPS`] of supply per year, times the proposer share. Whole-BOING is the base-unit
-/// result truncated by `BASE_UNITS_PER_BOING` so the paths cannot diverge (audit #61 item 44).
-/// (The mainnet schedule replaces this; see MAINNET-READINESS plan item 2.)
+/// [`INITIAL_SUPPLY`] (× `10^18` for base units), decayed by [`EMISSION_DECAY_BPS`] per year, floored at
+/// [`EMISSION_FLOOR_BPS`] of initial supply per year, times the proposer share. Whole-BOING is the
+/// base-unit result truncated by `BASE_UNITS_PER_BOING` so the paths cannot diverge (audit #61 item 44).
+/// Emissions are **uncapped** relative to circulating supply (BN-155); [`INITIAL_SUPPLY`] is only the
+/// schedule base / genesis amount. (The mainnet schedule replaces this; see MAINNET-READINESS plan item 2.)
 pub fn block_emission_validators_in(block_height: u64, denom: Denomination) -> u128 {
     let base = block_emission_validators_base_units(block_height);
     match denom {
@@ -631,7 +623,7 @@ fn block_emission_validators_base_units(block_height: u64) -> u128 {
     if block_height == 0 {
         return 0;
     }
-    let supply = MAX_SUPPLY.saturating_mul(BASE_UNITS_PER_BOING);
+    let supply = INITIAL_SUPPLY.saturating_mul(BASE_UNITS_PER_BOING);
     let per_year = BLOCKS_PER_YEAR as u128;
     let floor = supply * EMISSION_FLOOR_BPS as u128 / 10_000 / per_year;
     let mut emission = supply * EMISSION_YEAR_1_BPS as u128 / 10_000 / per_year;
@@ -838,7 +830,7 @@ mod tests {
                 / 10_000;
         assert_eq!(
             far, floor,
-            "floor formula stays nonzero; hard cap stops minting"
+            "floor formula stays nonzero; supply is uncapped so floor can keep minting"
         );
         assert!(far > 0);
         assert_eq!(
@@ -878,27 +870,23 @@ mod tests {
     }
 
     #[test]
-    fn emission_hard_cap_clamps_and_zeros_at_max_supply() {
-        let d = Denomination::BaseUnits;
-        let max = max_supply_in(d);
-        let uncapped = block_emission_validators_in(1, d);
-        assert!(uncapped > 0);
-        assert_eq!(clamp_emission_to_hard_cap(uncapped, 0, d), uncapped);
+    fn initial_supply_is_one_billion_and_not_a_ceiling() {
+        assert_eq!(INITIAL_SUPPLY, 1_000_000_000);
+        assert_eq!(MAX_SUPPLY, INITIAL_SUPPLY);
         assert_eq!(
-            clamp_emission_to_hard_cap(uncapped, max - 1, d),
-            1,
-            "last remaining unit is mintable"
-        );
-        assert_eq!(clamp_emission_to_hard_cap(uncapped, max, d), 0);
-        assert_eq!(clamp_emission_to_hard_cap(uncapped, max + 1, d), 0);
-        assert_eq!(
-            clamp_emission_to_hard_cap(uncapped, MAX_SUPPLY - 1, Denomination::WholeBoing),
-            1
+            initial_supply_in(Denomination::WholeBoing),
+            INITIAL_SUPPLY
         );
         assert_eq!(
-            clamp_emission_to_hard_cap(uncapped, MAX_SUPPLY, Denomination::WholeBoing),
-            0
+            initial_supply_in(Denomination::BaseUnits),
+            INITIAL_SUPPLY.saturating_mul(BASE_UNITS_PER_BOING)
         );
+        // Emission schedule still references INITIAL_SUPPLY as the % base, and remains
+        // nonzero at "past 1B held" heights — there is no clamp against circulating supply.
+        let y1 = block_emission_validators_in(1, Denomination::BaseUnits);
+        assert!(y1 > 0);
+        let far = block_emission_validators_in(BLOCKS_PER_YEAR * 200 + 1, Denomination::BaseUnits);
+        assert!(far > 0, "uncapped: floor emission continues indefinitely");
     }
 
     #[test]

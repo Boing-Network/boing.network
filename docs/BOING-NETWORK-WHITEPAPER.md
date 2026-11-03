@@ -12,8 +12,8 @@ November 2026 · Public testnet (chain **6913**) · [boing.network](https://boin
 |----------|------|
 | [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md) | Plain-language product snapshot |
 | [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md) | Integrator / operator fact sheet |
-| [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md) | Plain-language tokenomics + incentivized-testnet framing |
-| [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) | Initial allocation draft (Proposed vs Undecided) |
+| [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md) | Plain-language tokenomics + incentivized-testnet framing (**BN-155:** 1B genesis, uncapped afterward; testnet ≠ mainnet claim) |
+| [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) | Initial allocation draft (Proposed vs Undecided); supply ceiling locked uncapped after 1B genesis |
 | [FEATURES.md](FEATURES.md) | Shipped / gated / deferred timeline with evidence |
 | [SIX-PILLARS.md](SIX-PILLARS.md) | Priority order when goals collide |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Deploy quality gate narrative |

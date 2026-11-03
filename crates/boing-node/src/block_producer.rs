@@ -154,16 +154,8 @@ impl BlockProducer {
             }
         };
 
-        // Credit block reward to proposer (clamped to MAX_SUPPLY hard cap).
-        let reward = {
-            let uncapped = executor.block_emission(height);
-            let held = state.compute_native_aggregates().total_native_held;
-            boing_tokenomics::clamp_emission_to_hard_cap(
-                uncapped,
-                held,
-                executor.denomination_at(height),
-            )
-        };
+        // Credit block reward to proposer (uncapped; INITIAL_SUPPLY is genesis only — BN-155).
+        let reward = executor.block_emission(height);
         if reward > 0 {
             match state.get_mut(&self.proposer) {
                 Some(s) => s.balance = s.balance.saturating_add(reward),

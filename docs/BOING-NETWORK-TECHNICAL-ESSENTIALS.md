@@ -223,7 +223,7 @@ Upgrading a personal laptop node does **not** change public explorer or gateway 
 - Env-gated until set: Blake3 opcode, governance consensus txs **37–39**, BLS media committee flip, mainnet tree activations.
 - AdvanceExecution / Execute as consensus wire; BLS ballots — out of scope per governance activation docs.
 - DHT / WebRTC / incentivized relays; light clients; bridges; mainnet launch.
-- Incentivized testnet rewards program (not currently running). Framing: [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md); draft tables: [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md).
+- Incentivized testnet rewards program (not currently running). Framing: [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md); draft tables: [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md). Supply policy (**BN-155**): **1B BOING genesis**, **uncapped** afterward — not a mainnet claim from testnet activity.
 - Durable planet-scale Observer (OBS-1) and full DEX subgraph history.
 
 Plans and backlog: [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md), [FEATURES.md](FEATURES.md) “Explicitly not yet”.

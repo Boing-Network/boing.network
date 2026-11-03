@@ -46,14 +46,14 @@ At mainnet launch, a **fixed initial supply** would be split into buckets. Exact
 
 A **team & ops** slice (with equal founder shares and vesting) is under discussion and **not locked**. See [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) for Proposed vs Undecided labels.
 
-**Hard cap in code today:** total native BOING held cannot grow past **1 billion** BOING. Older “uncapped waves” wording in design docs is historical context; shipping code enforces the cap.
+**Locked supply policy (BN-155):** **1 billion BOING** at genesis / initial supply, then **uncapped** — block emissions may continue past 1B under the declining schedule. There is **no** hard max-supply ceiling in shipping code.
 
 ---
 
 ## Fees and emissions (high level)
 
 - **Fees:** Everyday actions should stay cheap (Solana-like small base fees; optional tips when the network is busy). Design docs aim for most fee revenue to support validators and treasury over time. On the **current** public testnet, protocol gas mostly goes to the **treasury**; block rewards still go to the block proposer.
-- **Emissions:** New BOING from blocks is meant to **decline over years** toward a low floor (or stop if fees are enough), without sudden reward cliffs. Minting stops at the hard cap.
+- **Emissions:** New BOING from blocks is meant to **decline over years** toward a low floor (or stop if fees are enough), without sudden reward cliffs. Supply after the 1B genesis is **uncapped** — minting is not clamped at 1B.
 
 None of this is a promise of APY, price, or listing day.
 

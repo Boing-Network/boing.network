@@ -120,14 +120,14 @@ cargo build --release</code></pre>
         <p>Plain-language overview (allocation, fees, quest/bounty pots, testnet ≠ mainnet claim): <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET (PDF)</a>. Draft tables with Proposed vs Undecided: <a href="/pdfs/BOING-INITIAL-TOKENOMICS.pdf" target="_blank" rel="noopener">BOING-INITIAL-TOKENOMICS (PDF)</a>. No TGE date is asserted.</p>
         <h3>Supply model</h3>
         <ul>
-          <li><strong>Hard cap (code)</strong> — <code>MAX_SUPPLY</code> = 1 billion BOING; emission is clamped so total native held cannot exceed the cap.</li>
-          <li><strong>Initial supply</strong> — Fixed amount at mainnet launch (TBD); no infinite mint at genesis.</li>
-          <li><strong>Historical design note</strong> — Older “uncapped + floor-triggered waves” prose remains in the design plan for context; shipping code enforces the hard cap.</li>
+          <li><strong>Locked (BN-155)</strong> — <strong>1 billion BOING</strong> genesis / initial supply (<code>INITIAL_SUPPLY</code>); supply ceiling after genesis is <strong>uncapped</strong>.</li>
+          <li><strong>Emissions</strong> — Block rewards continue past 1B under the declining schedule + floor; shipping code does <strong>not</strong> clamp minting at 1B.</li>
+          <li><strong>Design narrative</strong> — Uncapped supply with floor-triggered rebalancing remains the long-form sustainability model in the design plan.</li>
         </ul>
         <h3>Fee allocation</h3>
         <p><strong>Design target:</strong> <strong>80% validators</strong>, <strong>20% treasury</strong> (burn optional 0%). <strong>Current public testnet runtime:</strong> protocol gas defaults to <strong>100% treasury</strong>; tips and block emission go to the proposer.</p>
         <h3>Initial supply allocation (at launch)</h3>
-        <p>Published working picture: Staking rewards ~55%, Treasury ~30%, Community &amp; grants ~15% (team/ops carve-out still under discussion — see initial tokenomics draft). Staking is topped up by emissions while under the hard cap.</p>
+        <p>Published working picture: Staking rewards ~55%, Treasury ~30%, Community &amp; grants ~15% (team/ops carve-out still under discussion — see initial tokenomics draft). Staking is topped up by ongoing block emissions (uncapped after the 1B genesis).</p>
         <h3>Floor-triggered waves</h3>
         <p><strong>Genesis</strong> — Fixed initial supply. <strong>Ongoing</strong> — Validators and treasury earn from fees; supply may decrease slowly until the floor. <strong>Floor</strong> — When circulating supply reaches the defined floor, the protocol triggers a rebalance. <strong>New wave</strong> — A new wave of tokens is minted (size and destination set by protocol/governance) to restore balance. All parameters (floor, wave size, trigger) are on-chain and transparent.</p>
         <h3>Emission schedule (block rewards)</h3>
