@@ -21,8 +21,7 @@ import {
   type BoingPoolSignedTx,
   type BoingPoolSendOptions,
 } from './boingPool.js';
-import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput,
-  signTransactionInputForClient, type Ed25519SecretKey32 } from './transactionBuilder.js';
+import { fetchNextNonce, senderHexFromSecretKey, signTransactionInputForClient, type Ed25519SecretKey32 } from './transactionBuilder.js';
 import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 
 export const BOING_CUSTODY_ROUTER_SELECTOR_SWAP = 0xf1;

@@ -290,13 +290,14 @@ function bytecodeBytesForPredict(hex) {
 export function buildLinkedNftTokenPairDeploys(input) {
     const deployer = validateHex32(input.deployerHex).toLowerCase();
     const salts = linkedNftTokenPairSalts(input.collectionSaltHex);
-    const collectionBytecode = input.collectionBytecodeHexOverride?.trim()
+    // Resolved for validation only (throws when no template is available); the plan carries the override.
+    void (input.collectionBytecodeHexOverride?.trim()
         ? (input.collectionBytecodeHexOverride.startsWith('0x')
             ? input.collectionBytecodeHexOverride
             : `0x${input.collectionBytecodeHexOverride}`)
         : resolveReferenceNftCollectionTemplateBytecodeHex({
             extraEnvKeys: input.collectionExtraEnvKeys,
-        });
+        }));
     const tokenBytecode = input.tokenBytecodeHexOverride?.trim()
         ? (input.tokenBytecodeHexOverride.startsWith('0x')
             ? input.tokenBytecodeHexOverride

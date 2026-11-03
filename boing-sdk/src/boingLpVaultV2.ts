@@ -12,8 +12,7 @@ import { bytesToHex, hexToAccountId, hexToBytes, validateHex32 } from './hex.js'
 import { calldataAccountIdWord, calldataSelectorLastByte, calldataU128BeWord, concatCalldata } from './calldata.js';
 import { buildBoingTokenApproveTransaction, decodeBoingTokenBalanceWord } from './boingToken.js';
 import { BOING_POOL_PURPOSE, buildBoingPoolCallTransaction, getBoingPoolState, quoteBoingPoolLpMinted, type BoingPoolSignedTx, type BoingPoolSendOptions } from './boingPool.js';
-import { fetchNextNonce, senderHexFromSecretKey, signTransactionInput,
-  signTransactionInputForClient, type Ed25519SecretKey32 } from './transactionBuilder.js';
+import { fetchNextNonce, senderHexFromSecretKey, signTransactionInputForClient, type Ed25519SecretKey32 } from './transactionBuilder.js';
 import { submitSignedTransactionIdempotent } from './submitIdempotent.js';
 
 export const BOING_LP_VAULT_V2_BYTECODE_HEX = NATIVE_LP_VAULT_V2_BYTECODE_HEX;

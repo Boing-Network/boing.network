@@ -22,7 +22,6 @@ import {
   fetchNextNonce,
   fetchSigningChainId,
   senderHexFromSecretKey,
-  signTransactionInput,
   signTransactionInputForClient,
   type Ed25519SecretKey32,
 } from './transactionBuilder.js';

@@ -13,7 +13,6 @@ import {
   buildDeployWithPurposeTransaction,
   buildTransferTransaction,
   fetchNextNonce,
-  signTransactionInput,
   signTransactionInputForClient,
   type Ed25519SecretKey32,
 } from './transactionBuilder.js';
