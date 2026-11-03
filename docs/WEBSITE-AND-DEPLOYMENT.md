@@ -195,6 +195,17 @@ If you see **504 Gateway Timeout** or "upstream request timeout" from the Cloudf
 2. Add `boing.network` and `www.boing.network`
 3. Cloudflare provisions SSL automatically
 
+### Step 6b: docs.boing.network (Starlight)
+
+Separate Pages project **`boing-docs`** for the left-nav docs site (Astro Starlight in `docs-site/`).
+
+1. Create project once: `npx wrangler pages project create boing-docs --production-branch main`
+2. Deploy: `cd docs-site && npm ci && npm run deploy` (or GitHub Action `Deploy docs.boing.network`)
+3. Custom domain: Pages → **boing-docs** → **Custom domains** → `docs.boing.network`
+4. DNS (if not auto-added): CNAME `docs` → `boing-docs.pages.dev` (proxied) on zone `boing.network`
+
+`docs-site` content is **authored** (codebase/RPC audit), not a copy of `docs/` or website `/docs`. Keep the PDF pipeline (`website` `build:pdfs` + `public/pdfs/`) intact and linked from the Starlight [PDF downloads](https://docs.boing.network/resources/pdfs/) page. Details: [`docs-site/README.md`](../docs-site/README.md).
+
 ### Step 7: Workers with D1 + R2 + KV (optional API)
 
 For API routes (e.g. `/api/status`, `/api/blocks/:height`), create a Worker with D1/R2/KV bindings and route via **Workers Routes** to `api.boing.network` or `boing.network/api/*`.

@@ -1,0 +1,65 @@
+---
+title: Boing Network Docs
+description: Fresh documentation for Boing Network builders and operators — audited against the live public testnet and monorepo. Mainnet is not live.
+template: splash
+hero:
+  title: Boing Network Docs
+  tagline: Quality, enforced by the protocol. Guides for the public testnet — written from the node, SDK, and product surfaces, not mirrored from legacy Markdown.
+  actions:
+    - text: Get started
+      link: /start/get-started/
+      icon: right-arrow
+      variant: primary
+    - text: JSON-RPC
+      link: /developers/rpc/
+      variant: minimal
+    - text: PDF library
+      link: /resources/pdfs/
+      icon: document
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+<p class="status-banner">
+  <strong>Status:</strong> public testnet (chain id <strong>6913</strong>) is live.
+  <strong>Mainnet is not live</strong> (planned chain id 6914).
+  Numbers below were checked against <code>https://testnet-rpc.boing.network/</code> — always re-probe with <code>boing_getNetworkInfo</code> before shipping.
+</p>
+
+## How this site is built
+
+These pages are **authored** for reading and onboarding. They are **not** a copy of the monorepo `docs/` tree or the marketing site `/docs` page. Specialist Markdown and PDFs remain the deep specs; this site links out when you need wire formats, runbooks, or printable decks.
+
+## Paths
+
+<CardGrid>
+  <LinkCard title="What is Boing" href="/start/what-is-boing/" description="Layer 1 identity, Quality Gate framing, and product map." />
+  <LinkCard title="Network & activations" href="/protocol/network/" description="Chain id, tip, and gated heights from the live node." />
+  <LinkCard title="JSON-RPC" href="/developers/rpc/" description="Public endpoint, discovery methods, and how to call the chain." />
+  <LinkCard title="SDK" href="/developers/sdk/" description="@boing-network/boing-sdk — createClient and chain constants." />
+  <LinkCard title="Join testnet" href="/testnet/join/" description="Wallet, faucet, explorer, and bootnode pointers." />
+  <LinkCard title="PDF downloads" href="/resources/pdfs/" description="Whitepaper, essentials, FEATURES, RPC spec, and more." />
+</CardGrid>
+
+## Live endpoints
+
+| Role | URL |
+|------|-----|
+| Public RPC | `https://testnet-rpc.boing.network/` |
+| Explorer | [boing.observer](https://boing.observer) |
+| Wallet | [boing.express](https://boing.express) |
+| DeFi / NFTs | [boing.finance](https://boing.finance) |
+| Faucet | [boing.network/faucet](https://boing.network/faucet) |
+| Marketing site | [boing.network](https://boing.network) |
+
+## Elsewhere
+
+<CardGrid>
+  <Card title="Monorepo" icon="github">
+    Protocol, node, SDK, and specialist docs: [Boing-Network/boing.network](https://github.com/Boing-Network/boing.network)
+  </Card>
+  <Card title="Community" icon="discord">
+    [Discord](https://discord.gg/K3w9nbUw4N)
+  </Card>
+</CardGrid>

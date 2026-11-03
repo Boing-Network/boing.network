@@ -2,7 +2,7 @@
 
 > **Quality, enforced by the protocol.** Brand foundation, naming and approved phrases: [../BRAND.md](../BRAND.md).
 
-This folder is the **canonical map** of protocol docs. Website pages and PDFs are generated from a subset of these files — keep them aligned with what is actually shipped.
+This folder is the **canonical map** of protocol docs. Website pages and PDFs are generated from a subset of these files — keep them aligned with what is actually shipped. The public left-nav docs site is **[docs.boing.network](https://docs.boing.network)** (Astro Starlight in [`docs-site/`](../docs-site/)): **authored** guides audited against the node/SDK/RPC — not a mirror of this folder. PDFs under `website/public/pdfs/` stay available.
 
 > 👋 **Everyday users:** start with [SIX-PILLARS.md](SIX-PILLARS.md), then the [Boing Express wallet](https://boing.express), [faucet](https://boing.network/faucet), and [Boing Observer explorer](https://boing.observer).
 > 🛠️ **Developers:** start with [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md), [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), and [boing-sdk](../boing-sdk/README.md).

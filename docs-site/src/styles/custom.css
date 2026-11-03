@@ -1,0 +1,45 @@
+/* Boing Network docs — brand tokens from BRAND.md / BOING-DESIGN-SYSTEM.md */
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap');
+
+:root {
+  --boing-navy-950: #050a1a;
+  --boing-navy-900: #0a1128;
+  --boing-navy-800: #101a38;
+  --boing-accent: #3b8cff;
+  --sl-color-accent: var(--boing-accent);
+  --sl-color-accent-high: #6aadff;
+  --sl-color-accent-low: #1a3a6e;
+  --sl-font: 'Comfortaa', system-ui, sans-serif;
+  --sl-font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+}
+
+:root[data-theme='dark'],
+:root:not([data-theme='light']) {
+  --sl-color-bg: var(--boing-navy-950);
+  --sl-color-bg-nav: var(--boing-navy-900);
+  --sl-color-bg-sidebar: var(--boing-navy-900);
+  --sl-color-hairline: #1a2748;
+  --sl-color-text: #e8eefc;
+  --sl-color-text-accent: var(--boing-accent);
+}
+
+.site-title {
+  font-weight: 700;
+}
+
+.sl-markdown-content a {
+  color: var(--boing-accent);
+}
+
+.sl-markdown-content table {
+  font-size: 0.92rem;
+}
+
+.status-banner {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--boing-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--boing-accent) 12%, transparent);
+  font-size: 0.95rem;
+}

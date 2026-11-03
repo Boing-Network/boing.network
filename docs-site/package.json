@@ -1,0 +1,21 @@
+{
+  "name": "boing-network-docs",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Public docs site for docs.boing.network (Astro Starlight). Authored from codebase/RPC audit — not a mirror of repo Markdown.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "npm run build && npx wrangler pages deploy dist --project-name=boing-docs"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.37.1",
+    "astro": "^5.16.0",
+    "sharp": "^0.34.4"
+  },
+  "devDependencies": {
+    "wrangler": "^4.153.0"
+  }
+}
