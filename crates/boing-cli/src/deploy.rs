@@ -11,8 +11,6 @@ use tracing::info;
 
 use crate::token::{account_of, hex_account, nonce_for, resolve_signing_key, submit};
 
-const DEFAULT_PURPOSE: &str = "dapp";
-
 /// Load bytecode bytes from `path` (file or project directory).
 pub fn load_bytecode(path: &str) -> anyhow::Result<(PathBuf, Vec<u8>)> {
     let p = Path::new(path);

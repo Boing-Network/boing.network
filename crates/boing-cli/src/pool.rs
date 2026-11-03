@@ -262,6 +262,7 @@ pub fn quote_lp_minted(ra: u128, rb: u128, total: u128, a: u128, b: u128) -> u12
 }
 
 /// LP minted by pool **v11** (first mint = ⌊√(a·b)⌋; then same pro-rata as v8–v10).
+#[cfg(test)]
 pub fn quote_lp_minted_v11(ra: u128, rb: u128, total: u128, a: u128, b: u128) -> u128 {
     if a == 0 || b == 0 {
         return 0;
