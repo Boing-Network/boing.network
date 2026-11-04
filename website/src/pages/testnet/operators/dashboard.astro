@@ -1,7 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
-import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import { TESTNET_RPC_URL, BOOTNODES, isTestnetLive } from '../../../config/testnet';
 import '../../../styles/hub-common.css';
@@ -13,7 +12,6 @@ import '../../../styles/hub-common.css';
 >
   <article class="portal-page role-hub operators-hub hub-page hub-operator" data-hub="node_operator">
     <script is:inline src="/portal-session.js"></script>
-    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Operator Hub', href: '/testnet/operators' }, { label: 'My Dashboard' }]} />
     <div class="hub-page-main">
       <HubNav hub="operator" current="dashboard" />
     <IncentivizedTestnetNotice />

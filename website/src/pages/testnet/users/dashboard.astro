@@ -1,7 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
-import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
 import { QUESTS } from '../../../config/quests';
 import '../../../styles/hub-common.css';
@@ -13,7 +12,6 @@ import '../../../styles/hub-common.css';
 >
   <article class="portal-page role-hub users-hub hub-page hub-community" data-hub="user">
     <script is:inline src="/portal-session.js"></script>
-    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Community Hub', href: '/testnet/users' }, { label: 'My Dashboard' }]} />
     <div class="hub-page-main">
     <HubNav hub="user" current="dashboard" />
     <IncentivizedTestnetNotice />

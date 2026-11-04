@@ -91,8 +91,12 @@
 .hub-page-main {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 1.5rem 3rem;
+  padding: 1.75rem 1.5rem 3rem;
   min-width: 0;
+}
+/* Pages that still render a breadcrumb bar above the main column keep the tighter top spacing. */
+.breadcrumbs + .hub-page-main {
+  padding-top: 0;
 }
 @media (min-width: 768px) {
   .hub-page-main {
