@@ -22,14 +22,36 @@ After changing SDK source in the monorepo, run `npm run build` inside `boing-sdk
 ## Core client
 
 ```ts
-import { createClient, BOING_TESTNET_CHAIN_ID_DECIMAL } from '@boing-network/boing-sdk';
+import {
+  createClient,
+  BoingRpcError,
+  explainBoingRpcError,
+  BOING_TESTNET_CHAIN_ID_DECIMAL,
+} from '@boing-network/boing-sdk';
 
-// URL string, or `{ baseUrl, fetch?, timeoutMs?, maxRetries? }` (not `rpcUrl`).
-const client = createClient('https://testnet-rpc.boing.network/');
+// Prefer an options object on public RPC so Cloudflare 429s can retry.
+// Default maxRetries is 0 (no retries) — fine for a local node, not for testnet-rpc.
+const client = createClient({
+  baseUrl: 'https://testnet-rpc.boing.network/',
+  maxRetries: 3,
+});
 
 const info = await client.getNetworkInfo(); // wraps boing_getNetworkInfo
 console.log(info.chain_id, BOING_TESTNET_CHAIN_ID_DECIMAL);
+
+try {
+  await client.chainHeight();
+} catch (e) {
+  if (e instanceof BoingRpcError) {
+    console.error(explainBoingRpcError(e)); // HTTP 429 / -32016 / gateway limits
+  }
+  throw e;
+}
 ```
+
+Config is a URL string or `{ baseUrl, fetch?, timeoutMs?, maxRetries? }` — not `rpcUrl`. A bare URL string keeps `maxRetries: 0`.
+
+**Public RPC note:** `https://testnet-rpc.boing.network/` is fronted by Cloudflare. Expect occasional **HTTP 429** (and faucet **-32016**). Set **`maxRetries: 2–3`** so the client backs off (honors `Retry-After` when present). Use `explainBoingRpcError` / `isRetriableBoingRpcError` for UX.
 
 Use `BOING_TESTNET_CHAIN_ID_DECIMAL` (**6913**) / `BOING_TESTNET_CHAIN_ID_HEX` (`0x1b01`) for local branching, but prefer the live `chain_id` when connected.
 

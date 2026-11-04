@@ -123,7 +123,11 @@ import {
   createClient,
 } from '@boing-network/boing-sdk';
 
-const client = createClient(rpcUrl);
+// Public RPC: set maxRetries (default 0). Cloudflare may return HTTP 429.
+const client = createClient({
+  baseUrl: rpcUrl,
+  maxRetries: 3,
+});
 const { tx, ui } = await buildAndPreflightReferenceFungibleDeploy(client, {
   assetName: values.name,
   assetSymbol: values.symbol,

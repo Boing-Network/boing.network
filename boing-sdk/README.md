@@ -42,7 +42,16 @@ When you change SDK **source** (`src/`), run `npm run build` in `boing-sdk` and 
 
 Package name on the registry: **`@boing-network/boing-sdk`** (scoped). Unscoped `boing-sdk` remains abandoned/locked and is **not** published from this workflow.
 
-Scoped publish is live. Routine releases use the **Publish boing-sdk** GitHub Action (`.github/workflows/boing-sdk-publish.yml`) on tags `boing-sdk/v*` with repository secret **`NPM_TOKEN`** (npm Automation or granular publish token for org **`boing-network`**, with bypass-2FA / Automation so CI does not need interactive OTP).
+Scoped publish is live. Routine releases use the **Publish boing-sdk** GitHub Action (`.github/workflows/boing-sdk-publish.yml`) on tags `boing-sdk/v*` with repository secret **`NPM_TOKEN`**.
+
+**Required GitHub secret (ENEEDAUTH if missing):**
+
+1. On [npmjs.com](https://www.npmjs.com/) as a user that can publish **`@boing-network/boing-sdk`**, create an **Automation** token (or granular token with publish on that package; Automation avoids interactive OTP in CI).
+2. In the **`Boing-Network/boing.network`** repo: **Settings → Secrets and variables → Actions → New repository secret**.
+3. Name: **`NPM_TOKEN`**. Value: the npm token (`npm_…`).
+4. Smoke-check without publishing: **Actions → Publish boing-sdk → Run workflow** with **auth_only = true** (expects `npm whoami` to succeed).
+
+Historical tag publishes failed with **`ENEEDAUTH`** when this secret was absent (empty `NODE_AUTH_TOKEN` in CI). The workflow now fails fast with a clear error if the secret is missing.
 
 **Each release** (after `package.json` version + `CHANGELOG` + committed `dist/` are on `main`):
 
@@ -65,9 +74,16 @@ Watch **Actions → Publish boing-sdk**. Then: `npm view @boing-network/boing-sd
 ## Quick start
 
 ```ts
-import { createClient, BoingRpcError } from '@boing-network/boing-sdk';
+import { createClient, BoingRpcError, explainBoingRpcError } from '@boing-network/boing-sdk';
 
-const client = createClient('http://localhost:8545');
+// Local node (no retries needed):
+const local = createClient('http://localhost:8545');
+
+// Public testnet RPC — recommend maxRetries (default is 0):
+const client = createClient({
+  baseUrl: 'https://testnet-rpc.boing.network/',
+  maxRetries: 3,
+});
 
 // Read chain and account state
 const height = await client.chainHeight();
@@ -83,7 +99,7 @@ if (qa.result === 'reject') {
   await client.submitTransaction(hexSignedTx);
 }
 
-// Handle structured QA errors on submit
+// Handle structured QA / rate-limit errors on submit
 try {
   await client.submitTransaction(hexSignedTx);
 } catch (e) {
@@ -91,13 +107,18 @@ try {
     const { rule_id, message } = e.qaData ?? {};
     console.error('Deployment rejected:', rule_id, message);
   }
+  if (e instanceof BoingRpcError) {
+    console.error(explainBoingRpcError(e)); // HTTP 429 / -32016 / gateway limits
+  }
   throw e;
 }
 ```
 
+**Public RPC / 429:** Cloudflare in front of `testnet-rpc.boing.network` may return **HTTP 429**. Default **`maxRetries` is `0`**; for public RPC pass **`maxRetries: 2–3`** so transient limits and faucet **-32016** can back off (honors `Retry-After`). See [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](../docs/BOING-RPC-ERROR-CODES-FOR-DAPPS.md).
+
 ## API
 
-- **createClient(config)** — `config` can be a URL string or `{ baseUrl, fetch?, timeoutMs? }`. Default timeout 30s; set `timeoutMs: 0` to disable.
+- **createClient(config)** — `config` can be a URL string or `{ baseUrl, fetch?, timeoutMs?, maxRetries?, retryBaseDelayMs? }`. Default timeout 30s; set `timeoutMs: 0` to disable. Default **`maxRetries: 0`** (no retries); use **`2–3`** against public testnet RPC.
 - **BoingClient** — typed methods for all RPCs (32-byte account/hash params are validated locally before sending):
   - **RPC probe** — **`probeBoingRpcCapabilities`** returns **`{ clientVersion, supportedMethods, methods }`** plus **`countAvailableBoingRpcMethods`**, **`explainBoingRpcProbeGaps`** (`rpcCapabilities.ts`): detect **-32601** missing methods; CLI: **`npm run build`** then **`npm run probe-rpc`** (or **`npm run probe-rpc`** from repo root); **`diagnosis`** in JSON explains stale node vs current repo; node discovery: **`boing_clientVersion`**, **`boing_rpcSupportedMethods`**
   - `chainHeight()`, `getBalance(hexAccountId)`, `getAccount(hexAccountId)`

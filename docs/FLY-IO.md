@@ -146,6 +146,7 @@ Phases **1–33** media + Phase **34** download ACL are documented in [BOING-L1-
 | Restart | `fly machines restart -a boing-testnet-1` |
 | Scale (keep 1) | Do not autostop; validators must stay up |
 | Secret rotate | `fly secrets set BOING_OPERATOR_RPC_TOKEN=… -a boing-testnet-1` |
+| Bump advisory SDK hint | `fly secrets set BOING_RECOMMENDED_SDK_VERSION=0.5.39 -a boing-testnet-1` (restarts machines; keeps volume). Confirm via `boing_getNetworkInfo.client_hints.recommended_sdk`. |
 
 ## Upgrade / restart public RPC node
 

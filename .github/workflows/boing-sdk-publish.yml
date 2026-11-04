@@ -1,8 +1,11 @@
 # Publish @boing-network/boing-sdk to the public npm registry (no interactive OTP).
 #
-# Trigger: push tag matching boing-sdk/v* (e.g. boing-sdk/v0.5.24).
+# Trigger: push tag matching boing-sdk/v* (e.g. boing-sdk/v0.5.24), or workflow_dispatch.
 # Secret: NPM_TOKEN — npm Automation or granular publish token for the
-# @boing-network org (user boing-network). Automation tokens do not require OTP per publish.
+# @boing-network org (npm user that owns the org packages). Automation tokens
+# do not require OTP per publish. The token must be set as a *repository* secret
+# named NPM_TOKEN (Settings → Secrets and variables → Actions). An empty or
+# missing secret produces ENEEDAUTH on `npm publish`.
 #
 # Unscoped `boing-sdk` remains owned by locked account `boing.network` — this workflow
 # publishes the scoped package only.
@@ -14,6 +17,12 @@ on:
   push:
     tags:
       - "boing-sdk/v*"
+  workflow_dispatch:
+    inputs:
+      auth_only:
+        description: "Only verify NPM_TOKEN auth (npm whoami); do not publish"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -38,10 +47,34 @@ jobs:
           cache-dependency-path: boing-sdk/package-lock.json
           scope: "@boing-network"
 
+      - name: Verify NPM_TOKEN is configured
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::Repository secret NPM_TOKEN is missing or empty."
+            echo "::error::Set Settings → Secrets and variables → Actions → NPM_TOKEN to an npm Automation (or granular publish) token for @boing-network/boing-sdk."
+            echo "::error::Without it, npm publish fails with ENEEDAUTH."
+            exit 1
+          fi
+          WHOAMI="$(npm whoami --registry https://registry.npmjs.org/)"
+          echo "npm whoami=${WHOAMI}"
+          if [ -z "${WHOAMI}" ]; then
+            echo "::error::npm whoami returned empty — NPM_TOKEN may be revoked or lack registry access."
+            exit 1
+          fi
+
+      - name: Auth-only mode (workflow_dispatch)
+        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.auth_only == true || inputs.auth_only == 'true') }}
+        run: echo "NPM_TOKEN auth verified; skipping publish (auth_only=true)."
+
       - name: Install dependencies
+        if: ${{ github.event_name != 'workflow_dispatch' || (inputs.auth_only != true && inputs.auth_only != 'true') }}
         run: npm ci
 
       - name: Verify package name and tag matches package.json version
+        if: github.event_name == 'push'
         run: |
           set -euo pipefail
           PKG_NAME="$(node -p "require('./package.json').name")"
@@ -58,6 +91,7 @@ jobs:
           fi
 
       - name: Skip if version already on npm
+        if: ${{ github.event_name != 'workflow_dispatch' || (inputs.auth_only != true && inputs.auth_only != 'true') }}
         id: already
         run: |
           set -euo pipefail
@@ -70,11 +104,11 @@ jobs:
           fi
 
       - name: Build
-        if: steps.already.outputs.already != 'true'
+        if: ${{ (github.event_name != 'workflow_dispatch' || (inputs.auth_only != true && inputs.auth_only != 'true')) && steps.already.outputs.already != 'true' }}
         run: npm run build
 
       - name: Verify committed dist/ matches TypeScript output
-        if: steps.already.outputs.already != 'true'
+        if: ${{ (github.event_name != 'workflow_dispatch' || (inputs.auth_only != true && inputs.auth_only != 'true')) && steps.already.outputs.already != 'true' }}
         run: |
           set -euo pipefail
           cd ..
@@ -84,11 +118,11 @@ jobs:
           }
 
       - name: Test
-        if: steps.already.outputs.already != 'true'
+        if: ${{ (github.event_name != 'workflow_dispatch' || (inputs.auth_only != true && inputs.auth_only != 'true')) && steps.already.outputs.already != 'true' }}
         run: npm test
 
       - name: Publish to npm
-        if: steps.already.outputs.already != 'true'
+        if: ${{ (github.event_name != 'workflow_dispatch' || (inputs.auth_only != true && inputs.auth_only != 'true')) && steps.already.outputs.already != 'true' }}
         run: npm publish --access public
         env:
           # setup-node writes //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}

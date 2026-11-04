@@ -47,6 +47,9 @@ Canonical definitions live in [RPC-API-SPEC.md](RPC-API-SPEC.md). This page is a
 - `e.isQaPoolVoterIneligible` for **-32053**
 - `e.isQaPoolDisabled`, `e.isQaPoolFull`, `e.isQaPoolDeployerCap` for **-32054..-32056**
 - **`explainBoingRpcError(e)`** for user-facing log/UI strings
+- **`isRetriableBoingRpcError(e)`** / **`e.isRateLimited`** for faucet **-32016** and gateway **HTTP 429** (often surfaces as **-32000** with an “HTTP 429 …” message)
+
+**Public RPC:** `createClient` defaults to **`maxRetries: 0`**. Against `https://testnet-rpc.boing.network/` (Cloudflare-limited), pass **`maxRetries: 2–3`** so the client can back off (honors `Retry-After` when present).
 
 ---
 
