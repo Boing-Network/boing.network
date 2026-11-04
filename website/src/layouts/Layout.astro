@@ -171,14 +171,14 @@ const navCurrent = {
               </div>
               <div class="site-nav-actions">
                 <BoingApps />
-                <a href="/testnet" class="nav-quiet">Dashboard</a>
+                <a href="/testnet" class="nav-quiet">Testnet</a>
                 <a href="/testnet/join" class="nav-cta">Get started</a>
               </div>
             </>
           ) : isTestnetApp ? (
             <>
               <div class="site-nav-cluster">
-                <a href="/testnet" class="nav-link" data-testnet-nav="dashboard" id="nav-testnet-dashboard" aria-current={navCurrent.dashboard ? 'page' : undefined}>Dashboard</a>
+                <a href="/testnet" class="nav-link" data-testnet-nav="dashboard" id="nav-testnet-dashboard" aria-current={navCurrent.dashboard ? 'page' : undefined}>Hub</a>
                 <span id="nav-testnet-hub-links" class="nav-hub-links" style="display: none;" aria-label="Hub pages">
                   <a href="/testnet/developers/resources" data-testnet-hub-link data-hub="developer">Resources</a>
                   <a href="/testnet/developers/community" data-testnet-hub-link data-hub="developer">Community</a>
@@ -220,7 +220,7 @@ const navCurrent = {
               </div>
               <div class="site-nav-actions">
                 <BoingApps />
-                <a href="/testnet" class="nav-quiet">Dashboard</a>
+                <a href="/testnet" class="nav-quiet">Testnet</a>
                 <a href="/testnet/join" class="nav-cta" aria-current={navCurrent.join ? 'page' : undefined}>Get started</a>
               </div>
             </>
@@ -249,7 +249,7 @@ const navCurrent = {
           <div class="footer-group">
             <h2 class="footer-heading">Network</h2>
             <ul class="footer-list">
-              <li><a href="/testnet">Dashboard</a></li>
+              <li><a href="/testnet">Testnet hub</a></li>
               <li><a href="/testnet/join">Join testnet</a></li>
               <li><a href="/faucet">Faucet</a></li>
               <li><a href="/testnet/operators/validator">Run a validator</a></li>

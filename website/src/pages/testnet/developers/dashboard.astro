@@ -18,7 +18,7 @@ import '../../../styles/hub-common.css';
     <IncentivizedTestnetNotice />
     <section class="section fade-in-up">
       <h1>Your dashboard</h1>
-      <p class="muted">Register with your testnet account to see your registered dApps here. On mainnet, use <code>boing_registerDappMetrics</code> and the chain indexer for live metrics.</p>
+      <p class="muted">Register with your testnet account to see your registered dApps here. When mainnet and metrics RPC exist, the planned method is <code>boing_registerDappMetrics</code> plus a chain indexer (not live today).</p>
       <div class="dashboard-load" id="dashboard-load">
         <label for="me-account">Account address to load dashboard</label>
         <input id="me-account" type="text" placeholder="0x..." maxlength="66" />
@@ -37,7 +37,7 @@ import '../../../styles/hub-common.css';
       <div id="dashboard-loaded" class="dashboard-loaded" style="display: none;"></div>
       <div id="dapp-register" class="subsection">
         <h2>Register a dApp (testnet)</h2>
-        <p>Add a contract address to track it on the testnet. Enter your account address (owner) if you're not logged in. At mainnet, use the RPC method <code>boing_registerDappMetrics</code>.</p>
+        <p>Add a contract address to track it on the testnet. Enter your account address (owner) if you're not logged in. When mainnet and metrics RPC exist, use <code>boing_registerDappMetrics</code> (planned; not a live mainnet action today).</p>
         <form id="dapp-form" class="compact-form">
           <input id="dapp-owner" type="text" aria-label="Your account address (optional if signed in)" placeholder="Your account address (0x..., optional if session exists)" title="32-byte hex account address" />
           <input id="dapp-contract" type="text" aria-label="Contract address (0x…)" placeholder="Contract address (0x...)" required />

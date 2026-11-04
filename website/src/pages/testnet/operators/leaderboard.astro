@@ -20,7 +20,11 @@ import '../../../styles/hub-common.css';
     <IncentivizedTestnetNotice />
     <section class="section fade-in-up">
       <h1>Leaderboard</h1>
-      <p class="muted">Blocks proposed and uptime will appear here once the testnet indexer is live. <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/INDEXER-OPERATOR-STATS.md" target="_blank" rel="noopener">What to build to enable live stats</a>. <a href="/testnet/register/operator">Register as node operator</a> to be counted.</p>
+      <p class="muted">
+        Practice rankings are <strong>not available yet</strong> — the operator indexer is still <strong>Soon</strong> (zeros below are real, not a bug).
+        Do not invent scores. When the indexer ships, blocks proposed and uptime will fill in.
+        Spec: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/INDEXER-OPERATOR-STATS.md" target="_blank" rel="noopener">INDEXER-OPERATOR-STATS.md</a>.
+      </p>
 
       <div class="hub-metrics">
         <div class="hub-metric-card">
@@ -35,6 +39,18 @@ import '../../../styles/hub-common.css';
           <span class="value" id="leaderboard-indexer-status">Soon</span>
           <span class="label">Indexer status</span>
         </div>
+      </div>
+
+      <div class="leaderboard-next-steps" id="leaderboard-next-steps" style="margin: 1.25rem 0 1.5rem;">
+        <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">What to do while ranking is empty</h2>
+        <p class="muted" style="margin-bottom: 0.75rem;">Soak multi-node paths first. Portal registration is optional and not incentivized today.</p>
+        <p>
+          <a href="/testnet/join#run-a-node" class="btn btn-primary">RPC &amp; run a node</a>
+          <a href="/testnet/operators/validator" class="btn btn-secondary">Validator guide</a>
+          <a href="/faucet" class="btn btn-secondary">Faucet</a>
+          <a href="/bootnodes" class="btn btn-secondary">Bootnodes</a>
+          <a href="/testnet/register/operator" class="btn btn-secondary">Register (optional)</a>
+        </p>
       </div>
 
       <table class="leaderboard-table hub-leaderboard-animate" aria-label="Operator leaderboard">
@@ -55,7 +71,7 @@ import '../../../styles/hub-common.css';
         </tbody>
       </table>
       <p class="leaderboard-placeholder-note" id="leaderboard-note">
-        Leaderboard and per-operator metrics expand as indexer data lands. Sync steps and the official bootnode:
+        Empty table is expected until indexer data lands. Sync steps and the official bootnode:
         <a href="/testnet/join#run-a-node">Join Testnet</a>.
       </p>
     </section>
@@ -65,7 +81,7 @@ import '../../../styles/hub-common.css';
       <p>
         Peer with copy-paste steps on <a href="/testnet/join#run-a-node">Join Testnet</a>.
         To validate, <a href="/testnet/operators/validator">register your node</a> with a <strong>100 BOING</strong> bond
-        (Express → Validate, or CLI) and keep it online.
+        (Express → Validate, or CLI) and keep it online. Running a testnet node is not incentivized today.
       </p>
       {isTestnetLive ? (
         <>
@@ -145,10 +161,12 @@ import '../../../styles/hub-common.css';
 
         var operators = data.operators || [];
         if (operators.length === 0) {
-          if (placeholderRow) placeholderRow.innerHTML = '<td colspan="4" style="text-align: center; color: var(--text-tertiary); padding: 2rem;">Leaderboard data will appear when the indexer is live.</td>';
+          if (placeholderRow) placeholderRow.innerHTML = '<td colspan="4" style="text-align: center; color: var(--text-tertiary); padding: 2rem;">No ranking data yet — indexer status Soon. Use the next steps above to run a peer or validator.</td>';
           return;
         }
         if (placeholderRow) placeholderRow.remove();
+        var nextSteps = document.getElementById('leaderboard-next-steps');
+        if (nextSteps) nextSteps.style.display = 'none';
         operators.forEach(function (op) {
           var tr = document.createElement('tr');
           tr.className = 'hub-leaderboard-row';
@@ -165,7 +183,7 @@ import '../../../styles/hub-common.css';
         if (noteEl) noteEl.style.display = 'none';
       })
       .catch(function () {
-        if (placeholderRow) placeholderRow.innerHTML = '<td colspan="4" style="text-align: center; color: var(--text-tertiary); padding: 2rem;">Leaderboard data will appear when the indexer is live.</td>';
+        if (placeholderRow) placeholderRow.innerHTML = '<td colspan="4" style="text-align: center; color: var(--text-tertiary); padding: 2rem;">Could not load leaderboard. Practice with Join → run a node and the validator guide meanwhile.</td>';
       });
   })();
 </script>

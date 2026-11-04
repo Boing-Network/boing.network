@@ -24,9 +24,12 @@ import '../../../styles/hub-common.css';
         Framing: <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Tokenomics &amp; testnet (PDF)</a>.
       </p>
       <div class="hub-ctas" id="hub-ctas">
-        <a href="/testnet/register/developer" class="btn btn-primary">Register as developer</a>
+        <a href="/developers/quickstart" class="btn btn-primary">Quickstart</a>
+        <a href="/faucet" class="btn btn-secondary">Get faucet BOING</a>
+        <a href="/testnet/join" class="btn btn-secondary">RPC &amp; endpoints</a>
+        <a href="/testnet/developers/resources" class="btn btn-secondary">Resources</a>
+        <a href="/testnet/register/developer" class="btn btn-secondary">Register (optional)</a>
         <a href="/testnet/sign-in" class="btn btn-secondary">Sign in</a>
-        <a href="/testnet/developers/dashboard" class="btn btn-secondary">Go to dashboard</a>
       </div>
     </div>
 
@@ -44,7 +47,6 @@ import '../../../styles/hub-common.css';
     <section class="section steps-section fade-in-up delay-1">
       <h2>Your journey</h2>
       <ol class="steps-list steps-list--numbered">
-        <li><strong>Register</strong> — Add your account address and optional GitHub/Discord on the <a href="/testnet/register/developer">developer registration</a> page.</li>
         <li><strong>Get testnet BOING</strong> — Use the <a href="/faucet">faucet</a> for gas and deployment. Public RPC: <code>https://testnet-rpc.boing.network/</code>.</li>
         <li>
           <strong>Build &amp; deploy</strong> — Follow the <a href="/developers/quickstart">quickstart</a> (CLI, SDK <code>@boing-network/boing-sdk@^0.5.38</code>). Deploy a contract. Endpoints and pool ids: <a href="/testnet/join">Join Testnet</a>. Native DEX routing and wallet handoff for sibling repos (Express, Observer) are documented in the open-source repo:
@@ -54,7 +56,8 @@ import '../../../styles/hub-common.css';
           Pinned **token** bytecode (minimal and secured), SDK helpers, and env overrides:
           <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md" target="_blank" rel="noopener">BOING-CANONICAL-DEPLOY-ARTIFACTS.md</a>.
         </li>
-        <li><strong>Register your dApp</strong> — Add your contract on the <a href="/testnet/developers/dashboard">Dashboard</a> (or use <code>boing_registerDappMetrics</code> at mainnet) to track it.</li>
+        <li><strong>Track your dApp on testnet</strong> — Add your contract on the <a href="/testnet/developers/dashboard">Dashboard</a>. When mainnet and metrics RPC exist, the planned method is <code>boing_registerDappMetrics</code> (not live today).</li>
+        <li><strong>Optional: register in the portal</strong> — Add your account and optional GitHub/Discord on the <a href="/testnet/register/developer">developer registration</a> page. Does not unlock incentive rewards today.</li>
       </ol>
     </section>
 
