@@ -7,7 +7,7 @@
     "generate:brand-raster": "node scripts/generate-brand-raster.mjs",
     "verify:site-layout": "node scripts/verify-site-pages-use-layout.mjs",
     "prebuild": "npm run generate:brand-raster && npm run verify:site-layout && node scripts/copy-passport-rules.mjs",
-    "test:passport": "node --test scripts/passport-verify.test.mjs scripts/passport-score.test.mjs scripts/discord-sync.test.mjs",
+    "test:passport": "node --test scripts/passport-verify.test.mjs scripts/passport-score.test.mjs scripts/discord-sync.test.mjs scripts/boing-signature.test.mjs",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",

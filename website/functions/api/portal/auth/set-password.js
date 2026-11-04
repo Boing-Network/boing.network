@@ -5,7 +5,7 @@
  * Message format: "Set portal password for Boing Portal\nOrigin: {origin}\nTimestamp: {timestamp}\nNonce: {nonce}"
  * Uses same nonce as sign-in (GET /api/portal/auth/nonce).
  */
-import { createPublicKey, verify } from 'node:crypto';
+import { verifyBoingMessageSignature } from '../_lib/boingSignature.js';
 import { hashPassword } from './password.js';
 
 export async function onRequestPost(context) {
@@ -41,7 +41,7 @@ export async function onRequestPost(context) {
       return Response.json({ ok: false, message: 'Invalid hex' }, { status: 400 });
     }
 
-    const valid = verifyEd25519(publicKeyBytes, Buffer.from(message, 'utf8'), signatureBytes);
+    const valid = verifyBoingMessageSignature(publicKeyBytes, message, signatureBytes);
     if (!valid) {
       return Response.json({ ok: false, message: 'Invalid signature' }, { status: 401 });
     }
@@ -98,19 +98,6 @@ function hexToBytes(hexStr) {
   return buf;
 }
 
-function verifyEd25519(publicKeyBytes, messageBytes, signatureBytes) {
-  if (publicKeyBytes.length !== 32 || signatureBytes.length !== 64) return false;
-  try {
-    const key = createPublicKey({
-      key: publicKeyBytes,
-      format: 'raw',
-      type: 'ed25519',
-    });
-    return verify(null, messageBytes, key, signatureBytes);
-  } catch {
-    return false;
-  }
-}
 
 function parseSetPasswordMessage(message) {
   const m = message.match(

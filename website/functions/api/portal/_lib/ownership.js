@@ -10,7 +10,7 @@
  *   Timestamp: {iso}
  *   Nonce: {nonce}
  */
-import { createPublicKey, verify } from 'node:crypto';
+import { verifyBoingMessageSignature } from './boingSignature.js';
 import { verifyPassword } from '../auth/password.js';
 import { hexToBytes, normalizeHex } from './hex.js';
 
@@ -61,7 +61,7 @@ export async function verifyAccountOwnership(env, accountIdHex, body, action, ex
     if (!publicKeyBytes || !signatureBytes) {
       return { ok: false, status: 400, message: 'Invalid hex', error_code: 'bad_hex' };
     }
-    if (!verifyEd25519(publicKeyBytes, Buffer.from(message, 'utf8'), signatureBytes)) {
+    if (!verifyBoingMessageSignature(publicKeyBytes, message, signatureBytes)) {
       return { ok: false, status: 401, message: 'Invalid signature', error_code: 'invalid_signature' };
     }
     const info = parseAuthorizeMessage(message);
@@ -93,19 +93,6 @@ export async function verifyAccountOwnership(env, accountIdHex, body, action, ex
   };
 }
 
-function verifyEd25519(publicKeyBytes, messageBytes, signatureBytes) {
-  if (publicKeyBytes.length !== 32 || signatureBytes.length !== 64) return false;
-  try {
-    const key = createPublicKey({
-      key: publicKeyBytes,
-      format: 'raw',
-      type: 'ed25519',
-    });
-    return verify(null, messageBytes, key, signatureBytes);
-  } catch {
-    return false;
-  }
-}
 
 function parseAuthorizeMessage(message) {
   const normalized = String(message || '')
