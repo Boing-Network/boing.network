@@ -11,6 +11,8 @@ on:
       - "website/functions/api/portal/_lib/passportVerify.js"
       - "website/functions/api/portal/_lib/quests.js"
       - "website/src/config/passport-rules-v1.json"
+      - "website/functions/api/portal/_lib/discordOAuth.js"
+      - "website/scripts/discord-sync.test.mjs"
       - ".github/workflows/credibility-indexer-worker.yml"
   workflow_dispatch:
 
@@ -35,7 +37,7 @@ jobs:
           cache-dependency-path: workers/credibility-indexer/package-lock.json
 
       - name: Scoring tests
-        run: node --test ../../website/scripts/passport-score.test.mjs
+        run: node --test ../../website/scripts/passport-score.test.mjs ../../website/scripts/discord-sync.test.mjs
 
       - name: Install and deploy
         run: npm ci && npx wrangler deploy

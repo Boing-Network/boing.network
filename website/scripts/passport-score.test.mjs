@@ -10,8 +10,8 @@ const day = (n) => 1_790_000_000 + n * 86400;
 let h = 0;
 const tx = (o) => ({ success: true, block_height: ++h, tx_index: 0, tx_id: 't' + h, sender: A, payload: { kind: 'transfer' }, ...o });
 
-test('rules 1.1.0 has badges and tiers for every track', () => {
-  assert.equal(PASSPORT_RULES.rules_version, '1.1.0');
+test('rules 1.2.0 has badges and tiers for every track', () => {
+  assert.equal(PASSPORT_RULES.rules_version, '1.2.0');
   for (const t of PASSPORT_RULES.tracks) assert.ok(PASSPORT_RULES.tiers[t.id].gold.requires_verified_social);
   const ids = new Set(PASSPORT_RULES.badges.map((b) => b.id));
   for (const t of PASSPORT_RULES.tracks) for (const k of ['bronze', 'silver', 'gold']) for (const r of PASSPORT_RULES.tiers[t.id][k].requires) assert.ok(ids.has(r), r);

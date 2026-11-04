@@ -18,3 +18,9 @@ Budget: ≤ ~40 subrequests/tick, ~10–40 D1 row writes/tick (≈2–6k/day), C
 
 Deploy: `.github/workflows/credibility-indexer-worker.yml` on push, or `npm ci && npx wrangler deploy`.
 Tables: `website/migrations/2026-11-04-testnet-passport-stage2.sql`.
+
+## Discord role sync (stage 4)
+
+No-op until configured. Secret: `npx wrangler secret put DISCORD_BOT_TOKEN`. Vars (dashboard, kept across deploys by `keep_vars = true`):
+`DISCORD_GUILD_ID`, `DISCORD_ROLE_BRONZE`, `DISCORD_ROLE_SILVER`, `DISCORD_ROLE_GOLD`, optional `DISCORD_ROLE_<TRACK>_<TIER>`.
+At most `DISCORD_MAX_CALLS` (8) role calls per tick; stops on 429. See `src/discord.js` and `docs/TESTNET-PASSPORT.md`.

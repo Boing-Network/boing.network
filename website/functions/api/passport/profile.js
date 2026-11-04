@@ -1,25 +1,28 @@
 /**
  * GET /api/passport/profile?account_id_hex=0x...
  * Public, read-only Passport profile: tracks, indexed signals, badges, tiers + next-tier progress.
- * Data is written by the boing-credibility-indexer Worker (every ~15 min). No PII is returned.
+ * Data is written by the boing-credibility-indexer Worker (every ~15 min). No PII is returned (Discord username masked).
  */
 import { isAccountHex, normalizeHex } from '../portal/_lib/hex.js';
 import { PASSPORT_RULES, TRACK_IDS } from '../portal/_lib/quests.js';
 import { nextTierProgress } from '../portal/_lib/passportScore.js';
+import { discordOAuthConfigured, maskUsername } from '../portal/_lib/discordOAuth.js';
 
 export async function onRequestGet({ env, request }) {
   const account = normalizeHex(new URL(request.url).searchParams.get('account_id_hex') || '');
   if (!isAccountHex(account)) return Response.json({ ok: false, message: 'Missing or invalid account_id_hex' }, { status: 400 });
   if (!env.DB) return Response.json({ ok: false, message: 'Database not configured' }, { status: 503 });
   try {
-    const [reg, tracks, signals, badges, tiers, quests] = await env.DB.batch([
+    const [reg, tracks, signals, badges, tiers, quests, discord] = await env.DB.batch([
       env.DB.prepare('SELECT role, created_at FROM portal_registrations WHERE lower(account_id_hex) = ?').bind(account),
       env.DB.prepare('SELECT track, joined_at FROM portal_tracks WHERE lower(account_id_hex) = ?').bind(account),
       env.DB.prepare('SELECT * FROM passport_signals WHERE account_id_hex = ?').bind(account),
       env.DB.prepare('SELECT badge_id, track, earned_at, historic, evidence FROM passport_badges WHERE account_id_hex = ? ORDER BY earned_at').bind(account),
       env.DB.prepare('SELECT track, tier, score, badge_count, updated_at FROM passport_tiers WHERE account_id_hex = ?').bind(account),
       env.DB.prepare('SELECT quest_id, verification_status, verified_at FROM quest_completions WHERE lower(account_id_hex) = ?').bind(account),
+      env.DB.prepare('SELECT discord_username, linked_at, in_guild, sync_error FROM discord_links WHERE account_id_hex = ?').bind(account),
     ]);
+    const d = discord.results?.[0] || null;
     const r = reg.results?.[0] || null;
     const trackIds = (tracks.results || []).map((t) => t.track).filter((t) => TRACK_IDS.includes(t));
     if (!trackIds.length && r && TRACK_IDS.includes(r.role)) trackIds.push(r.role);
@@ -46,6 +49,9 @@ export async function onRequestGet({ env, request }) {
       badges: badgeObjs,
       quests: quests.results || [],
       gold_note: PASSPORT_RULES.tiers.verified_social_status,
+      // Discord username is masked on this public endpoint; the raw Discord id is never returned.
+      discord: { enabled: discordOAuthConfigured(env), linked: !!d, username: d ? maskUsername(d.discord_username) : null,
+        linked_at: d?.linked_at || null, in_guild: d ? (d.in_guild == null ? null : !!d.in_guild) : null, sync_error: d?.sync_error || null },
     }, { headers: { 'cache-control': 'public, max-age=60' } });
   } catch (e) {
     return Response.json({ ok: false, message: 'Server error' }, { status: 500 });

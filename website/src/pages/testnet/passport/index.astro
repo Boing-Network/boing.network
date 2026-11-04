@@ -69,10 +69,11 @@ const trackLabel = Object.fromEntries(rules.tracks.map((t) => [t.id, t.label]));
       html += '<div class="hub-metrics">';
       (d.tracks || []).forEach(function (t) {
         var p = t.progress, prog = '';
-        if (p) prog = 'Next: ' + cap(p.next) + ' — ' + p.have_badges + '/' + p.need_badges + ' badges' + (p.missing_required.length ? ', needs ' + p.missing_required.map(esc).join(', ') : '') + (p.needs_verified_social ? ', verified Discord (coming)' : '');
+        if (p) prog = 'Next: ' + cap(p.next) + ' — ' + p.have_badges + '/' + p.need_badges + ' badges' + (p.missing_required.length ? ', needs ' + p.missing_required.map(esc).join(', ') : '') + (p.needs_verified_social && !(d.discord && d.discord.linked) ? ', verified Discord link' : '');
         html += '<div class="hub-metric-card"><span class="value">' + esc(cap(t.tier)) + '</span><span class="label">' + esc(trackLabel[t.track] || t.track) + ' · score ' + esc(t.score) + '</span><small class="muted">' + prog + '</small></div>';
       });
-      html += '</div><h2 style="margin-top:1.25rem;">Badges</h2><ul class="quest-list">';
+      html += '</div>' + discordHtml(d);
+      html += '<h2 style="margin-top:1.25rem;">Badges</h2><ul class="quest-list">';
       badgeDefs.forEach(function (b) {
         var e = earned[b.id];
         html += '<li class="quest-card" style="opacity:' + (e ? 1 : 0.55) + '"><h3>' + (e ? '✅ ' : '○ ') + esc(b.name) + ' <small class="muted">' + esc(b.track === 'all' ? 'all tracks' : (trackLabel[b.track] || b.track)) + ' · ' + b.points + ' pt</small></h3><p>' + esc(b.description) + '</p>' +
@@ -81,11 +82,45 @@ const trackLabel = Object.fromEntries(rules.tracks.map((t) => [t.id, t.label]));
       html += '</ul>';
       out.innerHTML = html;
     }
-    function load(acct) {
-      statusEl.textContent = 'Loading…'; out.innerHTML = '';
-      fetch('/api/passport/profile?account_id_hex=' + encodeURIComponent(acct))
+    var DISCORD_MSG = { linked: 'Discord linked. Your tiers are re-scored on the next indexer run (~15 min).', cancelled: 'Discord linking was cancelled.',
+      expired: 'That Discord link attempt expired. Please try again.', state_mismatch: 'Start Discord linking from this browser and try again.',
+      invalid_state: 'Invalid Discord link attempt. Please try again.', already_linked_elsewhere: 'That Discord account is already linked to another Boing account.',
+      token_error: 'Discord did not accept the sign-in. Please try again.', user_error: 'Could not read your Discord account. Please try again.', disabled: 'Discord linking is not enabled yet.' };
+    function isOwner(acct) { var s = window.BoingPortalSession && window.BoingPortalSession.getSession(); return !!(s && s.account_id_hex && s.account_id_hex.toLowerCase() === String(acct).toLowerCase()); }
+    function discordHtml(d) {
+      var x = d.discord || {}; var h = '<div class="hub-metric-card" id="pp-discord" style="margin-top:1rem; text-align:left;"><h3 style="margin:0 0 .35rem;">Discord</h3>';
+      if (x.linked) {
+        h += '<p>Linked as <strong>' + esc(x.username) + '</strong> · ' + esc(String(x.linked_at).slice(0, 10)) + (x.in_guild === false ? ' · <span class="muted">join the Boing Discord server to receive tier roles</span>' : '') + '</p>';
+        if (isOwner(d.account_id_hex)) h += '<div style="display:flex; gap:.5rem; flex-wrap:wrap;"><input id="pp-dc-pw" type="password" placeholder="Portal password" autocomplete="current-password" style="padding:.45rem;" aria-label="Portal password" /><button class="btn btn-secondary" type="button" data-dc="unlink">Unlink Discord</button></div>';
+      } else if (x.enabled) {
+        h += '<p class="muted">Link your Discord account (scope: identify only) to count as a verified social for Gold and to receive tier roles in the Boing Discord.</p>';
+        if (isOwner(d.account_id_hex)) h += '<div style="display:flex; gap:.5rem; flex-wrap:wrap;"><input id="pp-dc-pw" type="password" placeholder="Portal password" autocomplete="current-password" style="padding:.45rem;" aria-label="Portal password" /><button class="btn btn-primary" type="button" data-dc="link">Link Discord</button></div><p class="muted" style="font-size:.85rem;">No password? <a href="/testnet/set-password">Set one</a>.</p>';
+        else h += '<p class="muted">Sign in as this account to link Discord.</p>';
+      } else {
+        h += '<p class="muted">Discord linking is coming soon. Gold tiers need a verified Discord link.</p>';
+      }
+      return h + '<p class="muted" id="pp-dc-msg" style="font-size:.9rem; margin:.35rem 0 0;"></p></div>';
+    }
+    out.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('[data-dc]'); if (!btn) return;
+      var acct = input.value.trim().toLowerCase(); var pw = (document.getElementById('pp-dc-pw') || {}).value || '';
+      var msg = document.getElementById('pp-dc-msg'); if (!pw) { msg.textContent = 'Enter your portal password.'; return; }
+      btn.disabled = true; msg.textContent = 'Working…';
+      var path = btn.getAttribute('data-dc') === 'link' ? '/api/passport/discord/start' : '/api/passport/discord/unlink';
+      fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account_id_hex: acct, password: pw }) })
         .then(function (r) { return r.json(); })
-        .then(function (d) { if (!d.ok) { statusEl.textContent = d.message || 'Could not load'; return; } statusEl.textContent = ''; render(d); })
+        .then(function (r) {
+          if (!r.ok) { btn.disabled = false; msg.textContent = r.message || 'Failed'; return; }
+          if (r.url) { location.href = r.url; return; }
+          load(acct, 'Discord unlinked. Tier roles are removed on the next indexer run.');
+        })
+        .catch(function () { btn.disabled = false; msg.textContent = 'Request failed.'; });
+    });
+    function load(acct, note) {
+      statusEl.textContent = 'Loading…'; out.innerHTML = '';
+      fetch('/api/passport/profile?account_id_hex=' + encodeURIComponent(acct) + (note ? '&t=' + Date.now() : ''), note ? { cache: 'no-store' } : undefined)
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (!d.ok) { statusEl.textContent = d.message || 'Could not load'; return; } statusEl.textContent = note || ''; render(d); })
         .catch(function () { statusEl.textContent = 'Could not load Passport.'; });
     }
     form.addEventListener('submit', function (e) {
@@ -93,9 +128,9 @@ const trackLabel = Object.fromEntries(rules.tracks.map((t) => [t.id, t.label]));
       var a = input.value.trim().toLowerCase(); if (a && a.indexOf('0x') !== 0) a = '0x' + a;
       history.replaceState(null, '', '?account=' + a); load(a);
     });
-    var q = new URLSearchParams(location.search).get('account');
+    var qs = new URLSearchParams(location.search); var q = qs.get('account'); var dc = qs.get('discord');
     var s = window.BoingPortalSession && window.BoingPortalSession.getSession();
     var start = q || (s && s.account_id_hex);
-    if (start) { input.value = start; load(start); }
+    if (start) { input.value = start; load(start, dc ? (DISCORD_MSG[dc] || 'Discord: ' + dc) : undefined); }
   })();
 </script>

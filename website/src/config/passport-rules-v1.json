@@ -1,9 +1,9 @@
 {
   "name": "Boing Testnet Passport",
-  "rules_version": "1.1.0",
+  "rules_version": "1.2.0",
   "published": "2026-11-04",
   "chain_id": 6913,
-  "status": "stage-3",
+  "status": "stage-4",
   "disclaimer": "Testnet Passport records testnet participation. Activity recorded here may be considered in any future incentive or distribution program, but nothing here is a promise of tokens, an airdrop, or a mainnet claim. Rules may change; any change ships as a new rules_version.",
   "tracks": [
     {
@@ -188,6 +188,11 @@
       "version": "1.1.0",
       "date": "2026-11-04",
       "notes": "Badges, Bronze/Silver/Gold tiers per track, sampled validator uptime, weekly Merkle snapshots. Gold requires a verified Discord link (not yet available)."
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-11-04",
+      "notes": "Verified Discord link (OAuth2, scope identify) counts as the verified social for Gold; Discord tier roles synced by the credibility indexer. No badge or threshold changes."
     }
   ],
   "badges": [
@@ -439,6 +444,6 @@
         "requires_verified_social": true
       }
     },
-    "verified_social_status": "Discord OAuth linking ships in stage 4; until then no account reaches Gold."
+    "verified_social_status": "Gold needs a verified Discord link (OAuth, scope identify) from your Passport page. Linking is enabled once the Boing Discord app is configured."
   }
 }

@@ -8,6 +8,7 @@ import { rpcCall, fetchDexContracts } from '../../../website/functions/api/porta
 import {
   computeSignals, computeBadges, computeTiers, tierRank, snapshotLeaf, merkleRoot, isoWeek,
 } from '../../../website/functions/api/portal/_lib/passportScore.js';
+import { syncDiscordRoles } from './discord.js';
 
 const lc = (s) => String(s || '').toLowerCase();
 const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d);
@@ -45,10 +46,11 @@ async function refreshAccount(env, ctx, row) {
   const hist = await fetchHistory(ctx.rpc, acct, pages);
   ctx.pageBudget -= hist.pages;
 
-  const [tracksRes, questsRes, upRes] = await env.DB.batch([
+  const [tracksRes, questsRes, upRes, discordRes] = await env.DB.batch([
     env.DB.prepare('SELECT track FROM portal_tracks WHERE account_id_hex = ?').bind(acct),
     env.DB.prepare("SELECT quest_id, verified_at FROM quest_completions WHERE account_id_hex = ? AND verification_status = 'verified'").bind(acct),
     env.DB.prepare('SELECT AVG(uptime_pct) AS avg, COUNT(*) AS n FROM validator_uptime_samples WHERE (validator_id = ? OR owner = ?) AND in_set = 1').bind(acct, acct),
+    env.DB.prepare('SELECT 1 AS linked FROM discord_links WHERE account_id_hex = ?').bind(acct),
   ]);
   let tracks = (tracksRes.results || []).map((r) => r.track).filter((t) => TRACK_IDS.includes(t));
   if (!tracks.length && TRACK_IDS.includes(row.role)) tracks = [row.role];
@@ -58,7 +60,9 @@ async function refreshAccount(env, ctx, row) {
 
   const signals = computeSignals(acct, hist.txs, ctx.dex, ctx.validators);
   const badges = computeBadges({ signals, verifiedQuests, uptime, registeredAt: row.created_at, nowIso: ctx.nowIso });
-  const tiers = computeTiers(badges, tracks, { verifiedSocial: false }); // Gold unlocks with Discord OAuth (stage 4)
+  // Gold requires a verified social link: a Discord account linked via OAuth (stage 4).
+  const verifiedSocial = (discordRes.results || []).length > 0;
+  const tiers = computeTiers(badges, tracks, { verifiedSocial });
   const c = signals.counts;
 
   const stmts = [
@@ -133,6 +137,9 @@ export async function runTick(env, now = new Date()) {
     try { out.accounts.push(await refreshAccount(env, ctx, row)); }
     catch (e) { out.errors.push(`${String(row.account_id_hex).slice(0, 10)}: ${e.message}`); }
   }
+
+  // Discord tier-role sync (no-op until DISCORD_BOT_TOKEN, DISCORD_GUILD_ID and DISCORD_ROLE_* are set).
+  try { out.discord = await syncDiscordRoles(env, now); } catch (e) { out.errors.push(`discord: ${e.message}`); }
 
   const keep = new Date(now.getTime() - num(env.UPTIME_RETENTION_DAYS, 30) * 86400000).toISOString();
   await env.DB.prepare('DELETE FROM validator_uptime_samples WHERE sampled_at < ?').bind(keep).run();

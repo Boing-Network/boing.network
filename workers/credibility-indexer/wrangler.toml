@@ -9,6 +9,8 @@ compatibility_date = "2026-03-06"
 # Not publicly routable: only reachable through the service binding.
 workers_dev = false
 preview_urls = false
+# Keep vars set in the dashboard (Discord guild/role ids) across CI deploys.
+keep_vars = true
 
 [[d1_databases]]
 binding = "DB"
@@ -29,3 +31,14 @@ REFRESH_MINUTES = "60"
 # Total boing_getAccountTransactions pages per tick (each page = 1 subrequest, 100 txs).
 PAGE_BUDGET = "36"
 UPTIME_RETENTION_DAYS = "30"
+
+# --- Stage 4: Discord tier-role sync (no-op until configured) ---
+# Secret (never in this file):  npx wrangler secret put DISCORD_BOT_TOKEN
+# Vars: set here (uncomment) or in the dashboard. Values are Discord snowflake ids.
+# DISCORD_GUILD_ID = ""
+# DISCORD_ROLE_BRONZE = ""
+# DISCORD_ROLE_SILVER = ""
+# DISCORD_ROLE_GOLD = ""
+# Optional per-track roles: DISCORD_ROLE_USER_BRONZE ... DISCORD_ROLE_DEVELOPER_GOLD ... DISCORD_ROLE_NODE_OPERATOR_GOLD
+# Max Discord role API calls per tick (sequential; stops on 429).
+DISCORD_MAX_CALLS = "8"

@@ -63,7 +63,32 @@ APIs: `GET /api/passport/profile?account_id_hex=`, `GET /api/passport/leaderboar
 
 `/testnet/passport` (profile: tiers, progress, badges) and `/testnet/passport/leaderboard` (per-track, tier-ordered, shortened addresses).
 
-## Stage 4 (planned)
+## Stage 4 — Discord (shipped 2026-11-04, disabled until configured)
 
-- Discord OAuth linking (verified social → unlocks Gold); optional Discord role-sync bot (tier → role).
+**Linking (Pages Functions).** `POST /api/passport/discord/start` (portal password or signed `Authorize Boing Portal` message, action `discord_link`)
+creates a single-use 10-minute OAuth state in D1 `discord_oauth_states`, bound to the Boing account and to the browser via an HttpOnly cookie,
+and returns the Discord authorize URL (scope `identify` only). `GET /api/passport/discord/callback` checks state + cookie, exchanges the code,
+reads `/users/@me`, revokes the token, and stores `discord_links (account_id_hex, discord_id UNIQUE, discord_username, linked_at, ...)`.
+One Discord account can link to one Boing account. `POST /api/passport/discord/unlink` (action `discord_unlink`) deletes the link and queues
+removal of synced roles. The public profile shows a masked username only. A link counts as the verified social required for Gold (rules 1.2.0).
+
+**Role sync (credibility indexer tick, no extra cron).** With `DISCORD_BOT_TOKEN` + `DISCORD_GUILD_ID` + `DISCORD_ROLE_*` set, each tick makes at most
+`DISCORD_MAX_CALLS` (8) sequential role add/remove calls, stops on HTTP 429, and only touches roles it assigned (`discord_links.roles_synced`).
+`DISCORD_ROLE_BRONZE/SILVER/GOLD` = highest tier across tracks; optional `DISCORD_ROLE_<USER|DEVELOPER|NODE_OPERATOR>_<TIER>` per track.
+Members not in the guild are retried every 6 h. Roles must be created by an admin; the bot role must sit above them and have Manage Roles.
+
+**Configuration**
+
+| Where | Name | Kind |
+|---|---|---|
+| Pages project `boing-network` (Production) | `DISCORD_CLIENT_ID` | variable |
+| Pages project `boing-network` (Production) | `DISCORD_CLIENT_SECRET` | secret |
+| Pages project `boing-network` (optional) | `DISCORD_REDIRECT_URI` | variable (default `https://boing.network/api/passport/discord/callback`) |
+| Worker `boing-credibility-indexer` | `DISCORD_BOT_TOKEN` | secret (`wrangler secret put`) |
+| Worker `boing-credibility-indexer` | `DISCORD_GUILD_ID`, `DISCORD_ROLE_BRONZE`, `DISCORD_ROLE_SILVER`, `DISCORD_ROLE_GOLD` (+ optional per-track) | variables (dashboard; `keep_vars = true`) |
+
+Discord developer portal → OAuth2 → Redirects: `https://boing.network/api/passport/discord/callback`.
+
+## Later
+
 - GitHub/X links, sybil heuristics (funding graph, faucet-only accounts), reviewer queue for manual quests.
