@@ -1,6 +1,6 @@
 # boing-credibility-indexer
 
-Testnet Passport stage 2 Worker (Cloudflare Free plan). Cron `*/10 * * * *`.
+Testnet Passport stage 2 Worker (Cloudflare Free plan). Every 15 min, via `POST /tick` from boing-native-dex-indexer's `*/15` cron (service binding; the account is at the Workers Free cap of 5 crons). Not publicly routable.
 
 Each tick:
 1. `boing_getValidators` → one row per validator in `validator_uptime_samples` (pruned after 30 days).
@@ -14,7 +14,7 @@ Each tick:
 Scoring is shared with the Pages API: `website/functions/api/portal/_lib/passportScore.js`; rules in
 `website/src/config/passport-rules-v1.json`.
 
-Budget: ≤ ~40 subrequests/tick, ~10–40 D1 row writes/tick (≈2–6k/day), CPU dominated by JSON parse (~0.3 ms/page).
+Budget: ≤ ~40 subrequests/tick, ~10–40 D1 row writes/tick (≈2–6k/day), CPU dominated by JSON parse (~0.3 ms/page); ~96 ticks/day.
 
 Deploy: `.github/workflows/credibility-indexer-worker.yml` on push, or `npm ci && npx wrangler deploy`.
 Tables: `website/migrations/2026-11-04-testnet-passport-stage2.sql`.

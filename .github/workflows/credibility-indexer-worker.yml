@@ -1,4 +1,4 @@
-# Deploy Cloudflare Worker `boing-credibility-indexer` (Testnet Passport stage 2, cron */10).
+# Deploy Cloudflare Worker `boing-credibility-indexer` (Testnet Passport stage 2; ticked every 15 min by boing-native-dex-indexer via service binding).
 # Requires repository secret CLOUDFLARE_API_TOKEN (same as Pages deploy).
 name: Deploy credibility-indexer Worker
 

@@ -46,7 +46,7 @@ Migration `website/migrations/2026-11-03-testnet-passport-stage1.sql`: `portal_t
 
 ## Stage 2 — credibility indexer (shipped 2026-11-04, rules 1.1.0)
 
-Worker `boing-credibility-indexer` (`workers/credibility-indexer`, cron `*/10 * * * *`, Free plan) writes to D1:
+Worker `boing-credibility-indexer` (`workers/credibility-indexer`, every 15 min via a service binding from boing-native-dex-indexer's cron (Free plan 5-cron cap)) writes to D1:
 `passport_signals`, `passport_badges`, `passport_tiers`, `validator_uptime_samples`, `passport_snapshots`, `indexer_state`
 (migration `website/migrations/2026-11-04-testnet-passport-stage2.sql`).
 

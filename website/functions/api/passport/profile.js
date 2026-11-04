@@ -1,7 +1,7 @@
 /**
  * GET /api/passport/profile?account_id_hex=0x...
  * Public, read-only Passport profile: tracks, indexed signals, badges, tiers + next-tier progress.
- * Data is written by the boing-credibility-indexer Worker (every 10 min). No PII is returned.
+ * Data is written by the boing-credibility-indexer Worker (every ~15 min). No PII is returned.
  */
 import { isAccountHex, normalizeHex } from '../portal/_lib/hex.js';
 import { PASSPORT_RULES, TRACK_IDS } from '../portal/_lib/quests.js';

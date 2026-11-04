@@ -1,7 +1,7 @@
 /**
  * GET /api/portal/operator-leaderboard
  * Validators ranked by Passport tier, then sampled uptime. Live set comes from boing_getValidators;
- * history comes from validator_uptime_samples written every 10 min by boing-credibility-indexer.
+ * history comes from validator_uptime_samples written every ~15 min by boing-credibility-indexer.
  */
 import { rpcCall, DEFAULT_RPC_URL } from './_lib/passportVerify.js';
 import { shortHex, tierRank } from './_lib/passportScore.js';

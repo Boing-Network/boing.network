@@ -55,7 +55,7 @@
     ],
     "dex_pools_source": "boing_listDexPools",
     "max_history_pages": 10,
-    "uptime_sample_interval_minutes": 10,
+    "uptime_sample_interval_minutes": 15,
     "snapshot": {
       "cadence": "weekly (first indexer tick after Monday 00:00 UTC)",
       "leaf": "sha256(account_id_hex|track|tier|score)",
@@ -305,11 +305,11 @@
       "id": "validator_steady",
       "name": "Steady validator",
       "track": "node_operator",
-      "description": "Average sampled uptime >= 90% over 144+ samples (~1 day).",
+      "description": "Average sampled uptime >= 90% over 96+ samples (~1 day).",
       "rule": {
         "signal": "uptime",
         "min_pct": 90,
-        "min_samples": 144
+        "min_samples": 96
       },
       "points": 3
     },
@@ -317,11 +317,11 @@
       "id": "validator_veteran",
       "name": "Veteran validator",
       "track": "node_operator",
-      "description": "Average sampled uptime >= 95% over 1008+ samples (~7 days).",
+      "description": "Average sampled uptime >= 95% over 672+ samples (~7 days).",
       "rule": {
         "signal": "uptime",
         "min_pct": 95,
-        "min_samples": 1008
+        "min_samples": 672
       },
       "points": 4
     },

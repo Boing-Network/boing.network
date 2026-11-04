@@ -16,7 +16,7 @@ import '../../../styles/hub-common.css';
     <IncentivizedTestnetNotice />
     <section class="section fade-in-up">
       <h1>Passport leaderboards</h1>
-      <p class="muted">Ordered by tier (Gold → Silver → Bronze), then badge score. Addresses are shortened. Updated by the credibility indexer every ~10 minutes. Rules <a href="/testnet/passport/rules-v1.json">v{rules.rules_version}</a>.</p>
+      <p class="muted">Ordered by tier (Gold → Silver → Bronze), then badge score. Addresses are shortened. Updated by the credibility indexer every ~15 minutes. Rules <a href="/testnet/passport/rules-v1.json">v{rules.rules_version}</a>.</p>
       <div id="lb-tabs" style="display:flex; gap:.5rem; margin: 1rem 0;">
         {rules.tracks.map((t) => <button type="button" class="btn btn-secondary" data-track={t.id}>{t.label}</button>)}
       </div>

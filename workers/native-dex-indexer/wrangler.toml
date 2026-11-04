@@ -25,6 +25,11 @@ migrations_dir = "migrations"
 binding = "INDEXER_ARCHIVE_R2"
 bucket_name = "boing-native-dex-indexer-archive"
 
+# Testnet Passport: this cron also kicks boing-credibility-indexer (account is at the Free 5-cron cap).
+[[services]]
+binding = "CREDIBILITY_INDEXER"
+service = "boing-credibility-indexer"
+
 [triggers]
 crons = ["*/15 * * * *"]
 

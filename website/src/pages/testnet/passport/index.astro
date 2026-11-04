@@ -19,7 +19,7 @@ const trackLabel = Object.fromEntries(rules.tracks.map((t) => [t.id, t.label]));
     <section class="section fade-in-up">
       <h1>Testnet Passport</h1>
       <p class="muted">
-        Badges and tiers for Users, Builders and Validators, computed from on-chain activity every ~10 minutes (history credited from genesis — marked <em>historic</em>).
+        Badges and tiers for Users, Builders and Validators, computed from on-chain activity every ~15 minutes (history credited from genesis — marked <em>historic</em>).
         Rules <a href="/testnet/passport/rules-v1.json">v{rules.rules_version}</a> ·
         <a href="/testnet/passport/leaderboard">Leaderboards</a> ·
         <a href="/testnet/users/quests">Quests</a>
@@ -64,7 +64,7 @@ const trackLabel = Object.fromEntries(rules.tracks.map((t) => [t.id, t.label]));
       var earned = {}; (d.badges || []).forEach(function (b) { earned[b.id] = b; });
       var html = '';
       if (!d.registered) html += '<p class="muted">This account is not registered for the Passport. <a href="/testnet/register">Register</a> to be indexed (past activity counts as historic).</p>';
-      if (!d.indexed) html += '<p class="muted">Not indexed yet — the credibility indexer refreshes registered accounts every ~10 minutes.</p>';
+      if (!d.indexed) html += '<p class="muted">Not indexed yet — the credibility indexer refreshes registered accounts every ~15 minutes.</p>';
       else html += '<p class="muted">Indexed ' + esc(d.indexed_at) + ' · ' + esc(d.signals.tx_sent) + ' txs sent · ' + esc(d.signals.deploys) + ' deploys · ' + esc(d.signals.dex_calls) + ' DEX calls · ' + esc(d.signals.active_days) + ' active days' + (d.signals.history_complete ? '' : ' (recent history only)') + '</p>';
       html += '<div class="hub-metrics">';
       (d.tracks || []).forEach(function (t) {

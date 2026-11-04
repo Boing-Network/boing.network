@@ -1,6 +1,7 @@
 /**
  * boing-credibility-indexer — Testnet Passport stage 2.
- * Cron every 10 min. Read-only against the chain; writes only to D1 passport_* / validator_uptime_samples / indexer_state.
+ * Runs every 15 min: POST /tick from boing-native-dex-indexer's cron via service binding (no own cron: Free 5-cron cap).
+ * Also has a scheduled() handler so a cron can be re-added later. Read-only against the chain; writes only to D1 passport_* / validator_uptime_samples / indexer_state.
  */
 import { PASSPORT_RULES, TRACK_IDS } from '../../../website/functions/api/portal/_lib/quests.js';
 import { rpcCall, fetchDexContracts } from '../../../website/functions/api/portal/_lib/passportVerify.js';
@@ -148,9 +149,15 @@ export default {
   },
   async fetch(req, env) {
     const url = new URL(req.url);
+    if (url.pathname === '/tick' && req.method === 'POST') {
+      // workers_dev/preview URLs are off, so this is only reachable via the service binding.
+      const out = await runTick(env);
+      console.log(JSON.stringify(out));
+      return Response.json(out);
+    }
     if (url.pathname === '/health' || url.pathname === '/') {
       const row = await env.DB.prepare("SELECT value, updated_at FROM indexer_state WHERE key = 'credibility_last_tick'").first();
-      return Response.json({ ok: true, worker: 'boing-credibility-indexer', schedule: '*/10 * * * *', last_tick: row ? JSON.parse(row.value) : null },
+      return Response.json({ ok: true, worker: 'boing-credibility-indexer', schedule: '*/15 via boing-native-dex-indexer', last_tick: row ? JSON.parse(row.value) : null },
         { headers: { 'cache-control': 'no-store' } });
     }
     return new Response('not found', { status: 404 });

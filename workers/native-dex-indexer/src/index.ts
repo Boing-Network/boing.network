@@ -46,6 +46,8 @@ import {
 } from './directoryD1';
 
 type Env = {
+  /** Service binding to boing-credibility-indexer (Testnet Passport); kicked from this cron (Free plan cron cap). */
+  CREDIBILITY_INDEXER?: Fetcher;
   BOING_TESTNET_RPC_URL?: string;
   NATIVE_DEX_INDEXER_RPC_URL?: string;
   NATIVE_DEX_INDEXER_KV?: KVNamespace;
@@ -536,6 +538,9 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (env.CREDIBILITY_INDEXER) {
+      ctx.waitUntil(env.CREDIBILITY_INDEXER.fetch('https://credibility-indexer/tick', { method: 'POST' }).then(() => undefined, () => undefined));
+    }
     const disable = String(env.NATIVE_DEX_INDEXER_API_DISABLE || '').trim();
     if (disable === '1' || disable.toLowerCase() === 'true') return;
     ctx.waitUntil(
