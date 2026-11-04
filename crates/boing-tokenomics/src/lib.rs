@@ -873,10 +873,7 @@ mod tests {
     fn initial_supply_is_one_billion_and_not_a_ceiling() {
         assert_eq!(INITIAL_SUPPLY, 1_000_000_000);
         assert_eq!(MAX_SUPPLY, INITIAL_SUPPLY);
-        assert_eq!(
-            initial_supply_in(Denomination::WholeBoing),
-            INITIAL_SUPPLY
-        );
+        assert_eq!(initial_supply_in(Denomination::WholeBoing), INITIAL_SUPPLY);
         assert_eq!(
             initial_supply_in(Denomination::BaseUnits),
             INITIAL_SUPPLY.saturating_mul(BASE_UNITS_PER_BOING)
