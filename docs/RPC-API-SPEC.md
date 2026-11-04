@@ -511,7 +511,7 @@ Lightweight **liveness** and **build identity** for probes, dashboards, and load
   "client_hints": {
     "min_wallet_version": "0.1.18",
     "recommended_wallet_version": "0.1.24",
-    "recommended_sdk": "0.5.38",
+    "recommended_sdk": "0.5.39",
     "sdk_npm_package": "@boing-network/boing-sdk",
     "note": "Advisory only ..."
   },
@@ -606,7 +606,7 @@ Single-call snapshot for dApps: chain metadata (from env when configured), tip s
   "client_hints": {
     "min_wallet_version": "0.1.18",
     "recommended_wallet_version": "0.1.24",
-    "recommended_sdk": "0.5.38",
+    "recommended_sdk": "0.5.39",
     "sdk_npm_package": "@boing-network/boing-sdk"
   },
   "native_currency": {

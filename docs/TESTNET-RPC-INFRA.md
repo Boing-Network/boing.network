@@ -49,7 +49,7 @@ flowchart TB
 | **QA content policy** | **132-term** `content_blocklist` on public RPC (when applied) | `boing_getQaRegistry`; `npm run apply-public-testnet-qa-policy` after edits |
 | **Media blobs** | Phases **1–33** live; **PHASE7 256 MiB** active at H≥**1306**; Phase **34** download ACL shipped | [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) |
 | **Block JSON** | Byte fields as **`0x` hex**; optional **`include_code: false`** slim stubs for explorers | [RPC-API-SPEC.md](RPC-API-SPEC.md) |
-| **SDK** | **`@boing-network/boing-sdk@^0.5.38`** on npm | `npm view @boing-network/boing-sdk version` |
+| **SDK** | **`@boing-network/boing-sdk@^0.5.39`** on npm | `npm view @boing-network/boing-sdk version` |
 | **Canonical CP / DEX** | Treat live **`boing_getNetworkInfo.end_user`** as source of truth (factory/pool may be published after full-stack + `register_pair`) | `boing_getNetworkInfo`; `npm run check-canonical-pool` |
 | **QA registry vs docs** | Baseline in `docs/config/`; live may differ after operator apply | `npm run verify-qa-alignment` |
 | **Explorer** | **Live** — [boing.observer](https://boing.observer) | `/qa`, `/tokens`, `/dex/pools` |

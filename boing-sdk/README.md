@@ -21,7 +21,7 @@ flowchart LR
 npm install @boing-network/boing-sdk
 ```
 
-Current registry latest: see the npm package page (this repo's `package.json` is **`0.5.38`**). Package page: [npmjs.com/package/@boing-network/boing-sdk](https://www.npmjs.com/package/@boing-network/boing-sdk). Do **not** install unscoped [`boing-sdk`](https://www.npmjs.com/package/boing-sdk) — that name is abandoned/locked and is not updated by this repo.
+Current registry latest: see the npm package page (this repo's `package.json` is **`0.5.39`**). Package page: [npmjs.com/package/@boing-network/boing-sdk](https://www.npmjs.com/package/@boing-network/boing-sdk). Do **not** install unscoped [`boing-sdk`](https://www.npmjs.com/package/boing-sdk) — that name is abandoned/locked and is not updated by this repo.
 
 **Monorepo / contributors** (this directory):
 
@@ -48,7 +48,7 @@ Scoped publish is live. Routine releases use the **Publish boing-sdk** GitHub Ac
 
 ```bash
 git checkout main && git pull origin main
-node -p "require('./boing-sdk/package.json').version"   # e.g. 0.5.38
+node -p "require('./boing-sdk/package.json').version"   # e.g. 0.5.39
 git tag -a "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")" -m "@boing-network/boing-sdk $(node -p "require('./boing-sdk/package.json').version")"
 git push origin "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")"
 ```
@@ -107,7 +107,7 @@ try {
   - `getAccountProof(hexAccountId)`, `verifyAccountProof(hexProof, hexStateRoot)`
   - `simulateTransaction(hexSignedTx)`, `submitTransaction(hexSignedTx)`
   - High-level flows: `submitTransferWithSimulationRetry`, `submitContractCallWithSimulationRetry`, `submitDeployWithPurposeFlow` (see **Simulate → access list → submit** below)
-  - **Linked NFT ↔ token (on-chain registry)** — live public testnet registry **`CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX`** (`0xebf9f019…3dd8` on `https://testnet-rpc.boing.network/`, salt `BOING_NFT_TOKEN_LINK_REG_V1`, selectors `0xE0`–`0xE6`); dApp **`buildLinkedNftTokenProjectPack`** (joint deploy + claim×2 + register), **`buildLinkedNftTokenPairDeploys`**, **`buildLinkedNftTokenRegisterFlowTxs`**, registry deploy/encoders; optional cache schema **`boing.linked_nft_token.v1`** (`linkedNftTokenProjectPack.ts`, `linkedNftTokenRegistry.ts`, `linkedNftToken.ts`; [BOING-LINKED-NFT-TOKEN.md](../docs/BOING-LINKED-NFT-TOKEN.md))
+  - **Linked NFT ↔ token (on-chain registry)** — live public testnet registry **`CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX`** (`0xf704485a…655dd` on `https://testnet-rpc.boing.network/`, salt `BOING_NFT_TOKEN_LINK_REG_V2`, selectors `0xE0`–`0xE8`); v1 `0xebf9f019…3dd8` is history-only as **`CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_V1_HEX`**; dApp **`buildLinkedNftTokenProjectPack`** (joint deploy + claim×2 + register), **`buildLinkedNftTokenPairDeploys`**, **`buildLinkedNftTokenRegisterFlowTxs`**, registry deploy/encoders; optional cache schema **`boing.linked_nft_token.v1`** (`linkedNftTokenProjectPack.ts`, `linkedNftTokenRegistry.ts`, `linkedNftToken.ts`; [BOING-LINKED-NFT-TOKEN.md](../docs/BOING-LINKED-NFT-TOKEN.md))
   - **Builder attestation (on-chain registry)** — live public testnet registry **`CANONICAL_BOING_TESTNET_BUILDER_ATTESTATION_REGISTRY_HEX`** (`0x734077a9…1816` on `https://testnet-rpc.boing.network/`, salt `BOING_BUILDER_ATTEST_REG_V1`, selectors `0xE0`–`0xE6`); dual asset claimer **separate** from companions; **`buildBuilderAttestationAttestFlowTxs`**, deploy/encoders (`builderAttestationRegistry.ts`; [BOING-BUILDER-ATTESTATION.md](../docs/BOING-BUILDER-ATTESTATION.md)). Soft wallet proofs are not authority.
   - **Pinned native deploy (Boing Express tx objects)** — `buildContractDeployMetaTx` (optional **`create2SaltHex`** / **`create2_salt`**), **`buildReferenceFungibleDeployMetaTx`** / **`buildReferenceFungibleSecuredDeployMetaTx`** / **`buildReferenceNftCollectionDeployMetaTx`** (wizard-friendly one-call builders), `resolveReferenceFungibleTemplateBytecodeHex`, **`resolveReferenceFungibleSecuredTemplateBytecodeHex`**, `resolveReferenceNftCollectionTemplateBytecodeHex`, `ensure0xHex`, `DEFAULT_REFERENCE_FUNGIBLE_SECURED_TEMPLATE_BYTECODE_HEX`, `REFERENCE_FUNGIBLE_TEMPLATE_VERSION`, **`REFERENCE_FUNGIBLE_SECURED_TEMPLATE_VERSION`**, `REFERENCE_NFT_COLLECTION_TEMPLATE_VERSION` (`canonicalDeployArtifacts.ts`; [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](../docs/BOING-CANONICAL-DEPLOY-ARTIFACTS.md)); multi-network wizards: **`isBoingTestnetChainId`**, **`normalizeBoingChainIdHex`**, **`BOING_TESTNET_CHAIN_ID_*`** (`chainIds.ts`); review-step QA (`dappDeploy.ts`; [BOING-DAPP-INTEGRATION.md](../docs/BOING-DAPP-INTEGRATION.md) § **One wizard, two backends**): **`buildAndPreflightReferenceFungibleDeploy`**, **`buildAndPreflightReferenceNftCollectionDeployMeta`**, **`preflightContractDeployMetaWithUi`**, **`describeContractDeployMetaQaResponse`**, **`preflightContractDeployMetaQa`**, **`BOING_QA_PLACEHOLDER_DESCRIPTION_HASH_HEX`**
   - **Generic calldata words** — `calldataSelectorLastByte`, `calldataU128BeWord`, `calldataAccountIdWord`, `calldataFixedWord32`, `concatCalldata` (same layout as reference token/NFT encoders; use for custom contracts)

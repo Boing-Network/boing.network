@@ -28,7 +28,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | Tip (probe) | **1522** |
 | Bootnode | `/ip4/169.155.48.188/tcp/4001` ([FLY-IO.md](FLY-IO.md)) |
 | `boing-testnet-2` | **Retired 2026-10-24** |
-| Recommended SDK | **`@boing-network/boing-sdk@0.5.38`** (`client_hints`; tag `boing-sdk/v0.5.38` **2026-10-25**) |
+| Recommended SDK | **`@boing-network/boing-sdk@0.5.39`** (`client_hints`; tag `boing-sdk/v0.5.39`) |
 | Recommended wallet | Boing Express **0.1.24** (`client_hints`; min advisory **0.1.18**) |
 | Latest node tag | `testnet-v0.1.24` (**2026-11-01**) |
 | DEX discovery | `boing_listDexPools`, `boing_listDexTokens`, `boing_getDexToken` |
@@ -116,7 +116,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 |---------|--------|-----------------|------------|
 | Core JSON-RPC + method catalog (doc-enforced) | testnet live | [RPC-API-SPEC.md](RPC-API-SPEC.md); `cargo test -p boing-node` coverage | high |
 | `boing_getNetworkInfo` / `boing_health` activation fields | testnet live | live probe 2026-11-01 | high |
-| `client_hints` recommended SDK / wallet | testnet live | live 0.5.38 / 0.1.24 | high |
+| `client_hints` recommended SDK / wallet | testnet live | live 0.5.39 / 0.1.24 (after node/env pick-up) | high |
 | DEX discovery triple | testnet live | tag `testnet-v0.1.9` **2026-04-13** | high |
 | `boing_getTokenMetadata` / `boing_listTokens` | testnet live | commits ~**2026-10-28** | high |
 | Media blob RPC suite + `boing_getBlobAccess` | testnet live (with media activation) | RPC-API-SPEC; Phase 34 | high |
@@ -156,7 +156,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | Native-dex-indexer Worker + D1 directory | in-repo worker | [HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md](HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md) | high |
 | Canonical testnet pool publish | testnet live | ops **2026-05-21**; Fly `end_user` verified **2026-11-01** | high |
 | Finance Swap → default CP; Pools + Smart route | product live pattern | finance `native-dex.md` | high |
-| SDK `@boing-network/boing-sdk@^0.5.38` | published | tag **2026-10-25**; CHANGELOG | high |
+| SDK `@boing-network/boing-sdk@^0.5.39` | published | tag **2026-11-04**; CHANGELOG | high |
 | Planet-scale DEX subgraph / OBS-1 history | deferred / partial | NEXT-STEPS indexer | high |
 
 Capability overview: [BOING-NATIVE-DEX-CAPABILITY.md](BOING-NATIVE-DEX-CAPABILITY.md). Ops publish hub: [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md).

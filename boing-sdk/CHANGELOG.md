@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
 - **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
 
+## [0.5.39] - 2026-11-04
+
+### Fixed
+
+- **`boingSendTransaction`** — accept Boing Express **`{ tx_hash, tx_id }`** results (prefer **`tx_id`**) in addition to a bare hex string. Current Express returns an object; the helper previously threw `expected string tx hash`.
+- **`SDK_VERSION`** — align exported constant with `package.json` (**0.5.39**; was stuck at **0.1.0**).
+- **README** — linked NFT registry docs now point at the live **v2** canonical hex (`CANONICAL_BOING_TESTNET_LINKED_NFT_TOKEN_REGISTRY_HEX`), not retired v1.
+
 ## [0.5.38] - 2026-10-25
 
 ### Added

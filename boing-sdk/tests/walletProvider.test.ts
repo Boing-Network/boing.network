@@ -41,6 +41,27 @@ describe('walletProvider', () => {
     await expect(boingSendTransaction(provider, { type: 'transfer' })).resolves.toBe('0xabc');
   });
 
+  it('boingSendTransaction prefers tx_id from Express { tx_hash, tx_id }', async () => {
+    const provider: Eip1193Requester = {
+      request: vi.fn().mockResolvedValue({
+        tx_hash: '0x' + 'aa'.repeat(32),
+        tx_id: '0x' + 'bb'.repeat(32),
+      }),
+    };
+    await expect(boingSendTransaction(provider, { type: 'transfer' })).resolves.toBe(
+      '0x' + 'bb'.repeat(32),
+    );
+  });
+
+  it('boingSendTransaction falls back to tx_hash when tx_id missing', async () => {
+    const provider: Eip1193Requester = {
+      request: vi.fn().mockResolvedValue({ tx_hash: '0x' + 'cc'.repeat(32) }),
+    };
+    await expect(boingSendTransaction(provider, { type: 'transfer' })).resolves.toBe(
+      '0x' + 'cc'.repeat(32),
+    );
+  });
+
   it('requestAccounts falls back to eth_requestAccounts', async () => {
     const provider: Eip1193Requester = {
       request: vi

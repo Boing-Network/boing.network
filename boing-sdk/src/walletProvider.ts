@@ -59,16 +59,31 @@ export async function providerSupportsBoingNativeRpc(provider: Eip1193Requester)
   }
 }
 
-/** Call **`boing_sendTransaction`**; returns transaction hash string from the wallet. */
+/**
+ * Call **`boing_sendTransaction`**; returns a transaction id hex string for receipt polling.
+ *
+ * Boing Express returns **`{ tx_hash, tx_id }`** (prefer **`tx_id`**). Older / mock providers may
+ * return a bare hex string. Prefer **`tx_id`** when present — it is `Transaction::id()` for
+ * **`boing_getTransactionReceipt`**.
+ */
 export async function boingSendTransaction(
   provider: Eip1193Requester,
   tx: Record<string, unknown>,
 ): Promise<string> {
   const out = await provider.request({ method: BOING_SEND, params: [tx] });
-  if (typeof out !== 'string') {
-    throw new Error('boing_sendTransaction: expected string tx hash from wallet');
+  if (typeof out === 'string' && out.length > 0) {
+    return out;
   }
-  return out;
+  if (out != null && typeof out === 'object') {
+    const o = out as { tx_id?: unknown; tx_hash?: unknown };
+    if (typeof o.tx_id === 'string' && o.tx_id.length > 0) return o.tx_id;
+    if (typeof o.tx_hash === 'string' && o.tx_hash.length > 0 && o.tx_hash !== 'ok') {
+      return o.tx_hash;
+    }
+  }
+  throw new Error(
+    'boing_sendTransaction: expected string tx hash or { tx_id, tx_hash } from wallet',
+  );
 }
 
 /** **`boing_requestAccounts`** first, then **`eth_requestAccounts`**. */

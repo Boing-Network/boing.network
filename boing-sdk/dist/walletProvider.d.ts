@@ -24,7 +24,13 @@ export declare function getInjectedEip1193Provider(globalObj?: typeof globalThis
  * True if the wallet speaks Boing JSON-RPC aliases (**`boing_chainId`**), without sending a transaction.
  */
 export declare function providerSupportsBoingNativeRpc(provider: Eip1193Requester): Promise<boolean>;
-/** Call **`boing_sendTransaction`**; returns transaction hash string from the wallet. */
+/**
+ * Call **`boing_sendTransaction`**; returns a transaction id hex string for receipt polling.
+ *
+ * Boing Express returns **`{ tx_hash, tx_id }`** (prefer **`tx_id`**). Older / mock providers may
+ * return a bare hex string. Prefer **`tx_id`** when present — it is `Transaction::id()` for
+ * **`boing_getTransactionReceipt`**.
+ */
 export declare function boingSendTransaction(provider: Eip1193Requester, tx: Record<string, unknown>): Promise<string>;
 /** **`boing_requestAccounts`** first, then **`eth_requestAccounts`**. */
 export declare function requestAccounts(provider: Eip1193Requester): Promise<string[]>;

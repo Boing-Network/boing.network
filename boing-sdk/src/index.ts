@@ -10,7 +10,8 @@
  * `boing_sendTransaction`, or the Rust CLI.
  */
 
-export const SDK_VERSION = '0.1.0';
+/** Package semver — keep in sync with `package.json` `version` on each release. */
+export const SDK_VERSION = '0.5.39';
 
 export { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from './canonicalTestnet.js';
 export {

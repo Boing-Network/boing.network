@@ -8,13 +8,13 @@ description: Install and use @boing-network/boing-sdk against public testnet.
 | | |
 |--|--|
 | npm | **`@boing-network/boing-sdk`** |
-| Recommended (live `client_hints`) | **`^0.5.38`** |
+| Recommended (live `client_hints`) | **`^0.5.39`** |
 | Source | [`boing-sdk/`](https://github.com/Boing-Network/boing.network/tree/main/boing-sdk) |
 
 Install the **scoped** package. Do not depend on an unscoped `boing-sdk` name for external apps.
 
 ```bash
-npm install @boing-network/boing-sdk@^0.5.38
+npm install @boing-network/boing-sdk@^0.5.39
 ```
 
 After changing SDK source in the monorepo, run `npm run build` inside `boing-sdk/` so `dist/` matches `src/` (tutorial packages consume `file:../../boing-sdk`).
@@ -22,11 +22,10 @@ After changing SDK source in the monorepo, run `npm run build` inside `boing-sdk
 ## Core client
 
 ```ts
-import { BoingClient, BOING_TESTNET_CHAIN_ID_DECIMAL } from '@boing-network/boing-sdk';
+import { createClient, BOING_TESTNET_CHAIN_ID_DECIMAL } from '@boing-network/boing-sdk';
 
-const client = new BoingClient({
-  rpcUrl: 'https://testnet-rpc.boing.network/',
-});
+// URL string, or `{ baseUrl, fetch?, timeoutMs?, maxRetries? }` (not `rpcUrl`).
+const client = createClient('https://testnet-rpc.boing.network/');
 
 const info = await client.getNetworkInfo(); // wraps boing_getNetworkInfo
 console.log(info.chain_id, BOING_TESTNET_CHAIN_ID_DECIMAL);

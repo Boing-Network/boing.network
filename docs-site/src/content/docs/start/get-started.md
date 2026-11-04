@@ -9,7 +9,7 @@ description: First path on Boing public testnet — wallet, faucet, explorer, an
 2. Create or import an account. Addresses are 32-byte AccountIds (`0x` + 64 hex).
 3. Confirm the extension points at the public testnet RPC (`https://testnet-rpc.boing.network/` by default).
 
-Live advisory versions from `boing_getNetworkInfo.client_hints`: minimum wallet **0.1.18**, recommended wallet **0.1.24**, recommended SDK **0.5.38** (`@boing-network/boing-sdk`). These hints are **never enforced** by the node.
+Live advisory versions from `boing_getNetworkInfo.client_hints`: minimum wallet **0.1.18**, recommended wallet **0.1.24**, recommended SDK **0.5.39** (`@boing-network/boing-sdk`). These hints are **never enforced** by the node.
 
 ## 2. Get testnet BOING
 
