@@ -188,7 +188,32 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
             params: [accountHex],
           }),
         });
-        const data = await res.json();
+        let data: {
+          error?: { code?: number; message?: string };
+          result?: { ok?: boolean; amount?: string; message?: string; tip_height?: number; warning?: string };
+        };
+        try {
+          data = await res.json();
+        } catch {
+          if (res.status === 429) {
+            setMessage('Public RPC rate limit (HTTP 429). Wait about 10 seconds and try again — the node is usually fine.', true);
+            return;
+          }
+          setMessage('RPC returned HTTP ' + res.status + ' with a non-JSON body.', true);
+          return;
+        }
+
+        // HTTP 429 = Cloudflare / gateway edge guard (often ~10 s). Node faucet cooldown is HTTP 200 + -32016.
+        if (res.status === 429) {
+          const retry = res.headers.get('Retry-After');
+          const hint = retry ? ` Retry in about ${retry}s.` : ' Wait about 10 seconds and try again.';
+          setMessage((data.error?.message || 'Public RPC rate limit exceeded.') + hint, true);
+          return;
+        }
+        if (!res.ok) {
+          setMessage(data.error?.message || 'RPC HTTP ' + res.status + '.', true);
+          return;
+        }
 
         if (data.error) {
           setMessage(data.error.message || 'Request failed.', true);
