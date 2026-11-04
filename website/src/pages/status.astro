@@ -52,33 +52,80 @@ import { TESTNET_RPC_URL } from '../config/testnet';
     const el = box?.querySelector('[data-field="' + k + '"]');
     if (el) el.textContent = v;
   };
-  async function refresh() {
-    const rpc = box?.getAttribute('data-rpc');
-    if (!rpc) return;
+  const RPC_TIMEOUT_MS = 15000;
+
+  async function rpcPost(rpc: string, id: number, method: string, params: unknown[]) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), RPC_TIMEOUT_MS);
     try {
       const res = await fetch(rpc, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'boing_getNetworkInfo', params: [] }),
+        body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+        signal: ctrl.signal,
       });
-      const j = await res.json();
+      let j: { result?: unknown; error?: { code?: number; message?: string } } | null = null;
+      try {
+        j = await res.json();
+      } catch {
+        j = null;
+      }
+      return { res, j };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async function rpcPostWithBriefRetry(rpc: string, id: number, method: string, params: unknown[]) {
+    let attempt = await rpcPost(rpc, id, method, params);
+    if (attempt.res.status === 429) {
+      const retryAfter = Number(attempt.res.headers.get('retry-after') || '2');
+      const waitMs = Math.min(12_000, Math.max(1_000, (Number.isFinite(retryAfter) ? retryAfter : 2) * 1000));
+      await sleep(waitMs);
+      attempt = await rpcPost(rpc, id, method, params);
+    }
+    return attempt;
+  }
+
+  async function refresh() {
+    const rpc = box?.getAttribute('data-rpc');
+    if (!rpc) return;
+    try {
+      const { res, j } = await rpcPostWithBriefRetry(rpc, 1, 'boing_getNetworkInfo', []);
+      if (res.status === 429 || j?.error?.code === -32016) {
+        set(
+          'state',
+          'Public RPC is rate-limited at the edge for this IP (usually ~10 s). The node is likely fine — wait a moment and this panel will refresh.'
+        );
+        box?.setAttribute('data-state', 'limited');
+        return;
+      }
+      if (!res.ok) throw new Error('http ' + res.status);
       const r = j && j.result;
-      if (!r) throw new Error('no result');
-      set('height', String(r.head_height ?? '–'));
-      set('validators', String(r.consensus?.validator_count ?? '–'));
-      const stake = r.chain_native?.total_stake;
+      if (!r || typeof r !== 'object') throw new Error('no result');
+      const info = r as {
+        head_height?: number;
+        consensus?: { validator_count?: number };
+        chain_native?: { total_stake?: number | string };
+        chain_id?: number;
+        client_version?: string;
+      };
+      set('height', String(info.head_height ?? '–'));
+      set('validators', String(info.consensus?.validator_count ?? '–'));
+      const stake = info.chain_native?.total_stake;
       set('stake', stake != null ? Number(stake).toLocaleString('en-US') + ' BOING' : '–');
-      set('chain', r.chain_id != null ? r.chain_id + ' (0x' + Number(r.chain_id).toString(16) + ')' : '–');
-      set('version', String(r.client_version ?? '–'));
+      set('chain', info.chain_id != null ? info.chain_id + ' (0x' + Number(info.chain_id).toString(16) + ')' : '–');
+      set('version', String(info.client_version ?? '–'));
       let idle = false;
       try {
-        const bres = await fetch(rpc, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'boing_getBlockByHeight', params: [r.head_height, false] }),
-        });
-        const bj = await bres.json();
-        const ts = Number(bj?.result?.header?.timestamp);
+        const block = await rpcPost(rpc, 2, 'boing_getBlockByHeight', [info.head_height, false]);
+        const ts = Number(
+          (block.j?.result as { header?: { timestamp?: number } } | undefined)?.header?.timestamp
+        );
         if (ts) {
           const ageMin = Math.max(0, Math.floor((Date.now() - ts * 1000) / 60000));
           set('lastblock', ageMin < 1 ? 'under a minute ago' : ageMin < 120 ? ageMin + ' min ago' : Math.floor(ageMin / 60) + ' h ago');
@@ -94,8 +141,14 @@ import { TESTNET_RPC_URL } from '../config/testnet';
           : 'RPC reachable · updated ' + new Date().toLocaleTimeString()
       );
       box?.setAttribute('data-state', 'ok');
-    } catch {
-      set('state', 'The public RPC is not responding right now. Wallets and the faucet will fail until it is back; check again in a minute.');
+    } catch (e) {
+      const timedOut = e instanceof Error && e.name === 'AbortError';
+      set(
+        'state',
+        timedOut
+          ? 'Public RPC probe timed out. This is often a brief edge delay — check again in a minute.'
+          : 'The public RPC is not responding right now. Wallets and the faucet will fail until it is back; check again in a minute.'
+      );
       box?.setAttribute('data-state', 'down');
     }
   }
@@ -108,6 +161,7 @@ import { TESTNET_RPC_URL } from '../config/testnet';
   .live-status h2 { margin: 0 0 0.25rem; font-size: 1.1rem; }
   .live-state { font-size: 0.9rem; margin: 0 0 0.75rem; }
   .live-status[data-state='down'] .live-state { color: #ffb4a8; }
+  .live-status[data-state='limited'] .live-state { color: #ffd29a; }
   .live-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin: 0; }
   .live-grid dt { font-size: 0.8rem; color: var(--text-secondary); }
   .live-grid dd { margin: 0.15rem 0 0; font-size: 1.05rem; font-variant-numeric: tabular-nums; word-break: break-word; }
