@@ -13,17 +13,14 @@ const trackLabel = Object.fromEntries(rules.tracks.map((t) => [t.id, t.label]));
 >
   <article class="portal-page hub-page passport-page">
     <script is:inline src="/portal-session.js"></script>
+    <script is:inline src="/portal-wallet.js"></script>
     <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Passport' }]} />
     <div class="hub-page-main">
     <IncentivizedTestnetNotice />
     <section class="section fade-in-up">
       <h1>Testnet Passport</h1>
-      <p class="muted">
-        Badges and tiers for Users, Builders and Validators, computed from on-chain activity every ~15 minutes (history credited from genesis — marked <em>historic</em>).
-        Rules <a href="/testnet/passport/rules-v1.json">v{rules.rules_version}</a> ·
-        <a href="/testnet/passport/leaderboard">Leaderboards</a> ·
-        <a href="/testnet/users/quests">Quests</a>
-      </p>
+      <p class="muted pp-lede">Badges and Bronze / Silver / Gold tiers for Users, Builders and Validators, scored from on-chain activity every ~15 minutes.</p>
+      <p class="pp-links"><a href="/testnet/passport/rules-v1.json">Rules v{rules.rules_version}</a><span aria-hidden="true">·</span><a href="/testnet/passport/leaderboard">Leaderboards</a><span aria-hidden="true">·</span><a href="/testnet/users/quests">Quests</a></p>
       <p class="muted" style="font-size: 0.9rem;">{rules.disclaimer}</p>
 
       <form id="pp-form" style="display:flex; gap:.5rem; flex-wrap:wrap; margin: 1rem 0;">
@@ -58,79 +55,181 @@ const trackLabel = Object.fromEntries(rules.tracks.map((t) => [t.id, t.label]));
     var input = document.getElementById('pp-account');
     var statusEl = document.getElementById('pp-status');
     var out = document.getElementById('pp-out');
+    var badgeName = {}; badgeDefs.forEach(function (b) { badgeName[b.id] = b.name; });
+    var current = null;
+    var nice = { dex_regular: 'Regular DEX trader', active_3d: 'Active on 3 days', active_10d: 'Active on 10 days', multi_deploy: 'Multiple deploys', validator_joined: 'Joined validator set' };
     function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
     function cap(t) { return t && t !== 'none' ? t.charAt(0).toUpperCase() + t.slice(1) : 'No tier yet'; }
+    function norm(a) { a = String(a || '').trim().toLowerCase(); if (a && a.indexOf('0x') !== 0) a = '0x' + a; return a; }
+    function short(a) { return a ? a.slice(0, 8) + '…' + a.slice(-6) : ''; }
+    function session() { var S = window.BoingPortalSession; var s = S && S.getSession && S.getSession(); return s && s.account_id_hex ? norm(s.account_id_hex) : null; }
+    function ago(iso) {
+      var t = Date.parse(iso); if (!t) return '';
+      var s = Math.max(0, Math.round((Date.now() - t) / 1000));
+      if (s < 60) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago';
+      if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago';
+    }
+    function tierCard(t, d) {
+      var p = t.progress, tier = t.tier || 'none';
+      var initial = tier === 'none' ? '–' : tier.charAt(0).toUpperCase();
+      var h = '<div class="pp-tier" data-tier="' + esc(tier) + '"><div class="pp-medal" aria-hidden="true">' + initial + '</div><div class="pp-tier-body">' +
+        '<p class="pp-track">' + esc(trackLabel[t.track] || t.track) + '</p><p class="pp-tier-name">' + esc(cap(tier)) + '</p><p class="pp-score">Score ' + esc(t.score) + '</p>';
+      if (p) {
+        var pct = p.need_badges ? Math.min(100, Math.round(100 * p.have_badges / p.need_badges)) : 0;
+        h += '<div class="pp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + p.need_badges + '" aria-valuenow="' + p.have_badges + '"><span style="width:' + pct + '%"></span></div>' +
+          '<div class="pp-next"><span>Next: <strong style="color:#e2e8f0">' + esc(cap(p.next)) + '</strong></span><span>' + p.have_badges + ' / ' + p.need_badges + ' badges</span></div>';
+        var chips = (p.missing_required || []).map(function (id) { return '<span class="pp-chip">' + esc(nice[id] || badgeName[id] || id.replace(/_/g, ' ')) + '</span>'; });
+        if (p.needs_verified_social && !(d.discord && d.discord.linked)) chips.push('<span class="pp-chip discord">Verified Discord</span>');
+        if (chips.length) h += '<div class="pp-chips" aria-label="Still needed">' + chips.join('') + '</div>';
+      } else if (tier === 'gold') h += '<p class="pp-max">Top tier reached ✦</p>';
+      return h + '</div></div>';
+    }
     function render(d) {
+      current = d;
       var earned = {}; (d.badges || []).forEach(function (b) { earned[b.id] = b; });
       var html = '';
       if (!d.registered) html += '<p class="muted">This account is not registered for the Passport. <a href="/testnet/register">Register</a> to be indexed (past activity counts as historic).</p>';
       if (!d.indexed) html += '<p class="muted">Not indexed yet — the credibility indexer refreshes registered accounts every ~15 minutes.</p>';
-      else html += '<p class="muted">Indexed ' + esc(d.indexed_at) + ' · ' + esc(d.signals.tx_sent) + ' txs sent · ' + esc(d.signals.deploys) + ' deploys · ' + esc(d.signals.dex_calls) + ' DEX calls · ' + esc(d.signals.active_days) + ' active days' + (d.signals.history_complete ? '' : ' (recent history only)') + '</p>';
-      html += '<div class="hub-metrics">';
-      (d.tracks || []).forEach(function (t) {
-        var p = t.progress, prog = '';
-        if (p) prog = 'Next: ' + cap(p.next) + ' — ' + p.have_badges + '/' + p.need_badges + ' badges' + (p.missing_required.length ? ', needs ' + p.missing_required.map(esc).join(', ') : '') + (p.needs_verified_social && !(d.discord && d.discord.linked) ? ', verified Discord link' : '');
-        html += '<div class="hub-metric-card"><span class="value">' + esc(cap(t.tier)) + '</span><span class="label">' + esc(trackLabel[t.track] || t.track) + ' · score ' + esc(t.score) + '</span><small class="muted">' + prog + '</small></div>';
-      });
-      html += '</div>' + discordHtml(d);
+      else html += '<p class="pp-meta" title="' + esc(d.indexed_at) + '">Updated ' + esc(ago(d.indexed_at)) + ' · ' + esc(d.signals.tx_sent) + ' txs · ' + esc(d.signals.deploys) + ' deploys · ' + esc(d.signals.dex_calls) + ' DEX calls · ' + esc(d.signals.active_days) + ' active days' + (d.signals.history_complete ? '' : ' (recent history only)') + '</p>';
+      html += '<div class="pp-tiers">' + (d.tracks || []).map(function (t) { return tierCard(t, d); }).join('') + '</div>';
+      html += '<div id="pp-discord-wrap">' + discordHtml(d) + '</div>';
       html += '<h2 style="margin-top:1.25rem;">Badges</h2><ul class="quest-list">';
       badgeDefs.forEach(function (b) {
         var e = earned[b.id];
         html += '<li class="quest-card" style="opacity:' + (e ? 1 : 0.55) + '"><h3>' + (e ? '✅ ' : '○ ') + esc(b.name) + ' <small class="muted">' + esc(b.track === 'all' ? 'all tracks' : (trackLabel[b.track] || b.track)) + ' · ' + b.points + ' pt</small></h3><p>' + esc(b.description) + '</p>' +
           (e ? '<p class="muted">Earned ' + esc(String(e.earned_at).slice(0, 10)) + (e.historic ? ' · historic' : '') + '</p>' : '') + '</li>';
       });
-      html += '</ul>';
-      out.innerHTML = html;
+      out.innerHTML = html + '</ul>';
     }
     var DISCORD_MSG = { linked: 'Discord linked. Your tiers are re-scored on the next indexer run (~15 min).', cancelled: 'Discord linking was cancelled.',
       expired: 'That Discord link attempt expired. Please try again.', state_mismatch: 'Start Discord linking from this browser and try again.',
       invalid_state: 'Invalid Discord link attempt. Please try again.', already_linked_elsewhere: 'That Discord account is already linked to another Boing account.',
       token_error: 'Discord did not accept the sign-in. Please try again.', user_error: 'Could not read your Discord account. Please try again.', disabled: 'Discord linking is not enabled yet.' };
-    function isOwner(acct) { var s = window.BoingPortalSession && window.BoingPortalSession.getSession(); return !!(s && s.account_id_hex && s.account_id_hex.toLowerCase() === String(acct).toLowerCase()); }
-    function discordHtml(d) {
-      var x = d.discord || {}; var h = '<div class="hub-metric-card" id="pp-discord" style="margin-top:1rem; text-align:left;"><h3 style="margin:0 0 .35rem;">Discord</h3>';
-      if (x.linked) {
-        h += '<p>Linked as <strong>' + esc(x.username) + '</strong> · ' + esc(String(x.linked_at).slice(0, 10)) + (x.in_guild === false ? ' · <span class="muted">join the Boing Discord server to receive tier roles</span>' : '') + '</p>';
-        if (isOwner(d.account_id_hex)) h += '<div style="display:flex; gap:.5rem; flex-wrap:wrap;"><input id="pp-dc-pw" type="password" placeholder="Portal password" autocomplete="current-password" style="padding:.45rem;" aria-label="Portal password" /><button class="btn btn-secondary" type="button" data-dc="unlink">Unlink Discord</button></div>';
-      } else if (x.enabled) {
-        h += '<p class="muted">Link your Discord account (scope: identify only) to count as a verified social for Gold and to receive tier roles in the Boing Discord.</p>';
-        if (isOwner(d.account_id_hex)) h += '<div style="display:flex; gap:.5rem; flex-wrap:wrap;"><input id="pp-dc-pw" type="password" placeholder="Portal password" autocomplete="current-password" style="padding:.45rem;" aria-label="Portal password" /><button class="btn btn-primary" type="button" data-dc="link">Link Discord</button></div><p class="muted" style="font-size:.85rem;">No password? <a href="/testnet/set-password">Set one</a>.</p>';
-        else h += '<p class="muted">Sign in as this account to link Discord.</p>';
-      } else {
-        h += '<p class="muted">Discord linking is coming soon. Gold tiers need a verified Discord link.</p>';
-      }
-      return h + '<p class="muted" id="pp-dc-msg" style="font-size:.9rem; margin:.35rem 0 0;"></p></div>';
+    var signInHref = '/testnet/sign-in';
+    function authOptions(verb) {
+      var v = verb === 'unlink' ? 'Unlink Discord' : 'Link Discord', cls = verb === 'unlink' ? 'btn btn-secondary' : 'btn btn-primary';
+      return '<div class="pp-dc-opts">' +
+        '<div class="pp-dc-opt"><h4>With portal password</h4><div class="pp-row"><input id="pp-dc-pw" type="password" placeholder="Portal password" autocomplete="current-password" aria-label="Portal password" /><button class="' + cls + '" type="button" data-dc="' + verb + '" data-auth="password">' + v + '</button></div>' +
+        '<p class="pp-small">No password (wallet-only account)? Use Boing Express, or <a href="/testnet/set-password">set a password</a>.</p></div>' +
+        '<div class="pp-dc-opt"><h4>With Boing Express</h4><button class="' + cls + '" type="button" data-dc="' + verb + '" data-auth="wallet">' + v + ' with Boing Express</button>' +
+        '<p class="pp-small">Signs a one-time authorization message (no transaction, no fee). <a href="https://boing.express" target="_blank" rel="noopener">Get Boing Express</a></p></div></div>';
     }
-    out.addEventListener('click', function (e) {
-      var btn = e.target.closest && e.target.closest('[data-dc]'); if (!btn) return;
-      var acct = input.value.trim().toLowerCase(); var pw = (document.getElementById('pp-dc-pw') || {}).value || '';
-      var msg = document.getElementById('pp-dc-msg'); if (!pw) { msg.textContent = 'Enter your portal password.'; return; }
-      btn.disabled = true; msg.textContent = 'Working…';
-      var path = btn.getAttribute('data-dc') === 'link' ? '/api/passport/discord/start' : '/api/passport/discord/unlink';
-      fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account_id_hex: acct, password: pw }) })
-        .then(function (r) { return r.json(); })
-        .then(function (r) {
-          if (!r.ok) { btn.disabled = false; msg.textContent = r.message || 'Failed'; return; }
-          if (r.url) { location.href = r.url; return; }
-          load(acct, 'Discord unlinked. Tier roles are removed on the next indexer run.');
-        })
-        .catch(function () { btn.disabled = false; msg.textContent = 'Request failed.'; });
+    function discordHtml(d) {
+      var x = d.discord || {}, acct = norm(d.account_id_hex), me = session();
+      var h = '<div class="pp-card" id="pp-discord"><h3>Discord</h3>';
+      if (!x.enabled) return h + '<p class="muted">Discord linking is coming soon. Gold tiers need a verified Discord link.</p></div>';
+      if (x.linked) {
+        h += '<p>Linked as <strong>' + esc(x.username) + '</strong> · since ' + esc(String(x.linked_at).slice(0, 10)) + (x.in_guild === false ? ' · <span class="muted">join the Boing Discord server to receive tier roles</span>' : '') + (x.sync_error ? ' · <span class="muted">role sync pending</span>' : '') + '</p>';
+        h += '<details style="margin-top:.5rem;"><summary class="muted" style="cursor:pointer;">Unlink Discord</summary>' + authOptions('unlink') + '</details>';
+      } else {
+        h += '<p class="muted">Link your Discord (scope: <em>identify</em> only — we never see your messages or servers) to count as the verified social for Gold and to get tier roles in the Boing Discord.</p>';
+        if (me && me !== acct) h += '<p class="pp-small">You are signed in as <strong>' + esc(short(me)) + '</strong>, not this account. <a href="?account=' + esc(me) + '">View your own Passport</a> or <a href="' + esc(signInHref) + '">switch account</a>. You can still prove ownership of this account below.</p>';
+        else if (!me) h += '<p class="pp-small">Not signed in? Prove you own this account below, or <a href="' + esc(signInHref) + '">sign in to the portal</a>.</p>';
+        h += authOptions('link');
+      }
+      return h + '<p class="pp-msg" id="pp-dc-msg" role="status"></p></div>';
+    }
+    function setMsg(t, err) { var m = document.getElementById('pp-dc-msg'); if (m) { m.textContent = t; m.className = 'pp-msg' + (err ? ' err' : ''); } }
+    function call(m) { return function (provider, params) { return provider.request({ method: m[0], params: params }).catch(function (e) { if (!m[1]) throw e; return provider.request({ method: m[1], params: params }); }); }; }
+    var requestAccounts = call(['boing_requestAccounts', 'eth_requestAccounts']), signMessage = call(['boing_signMessage', 'personal_sign']);
+    async function walletAuth(acct, action) {
+      var W = window.BoingPortalWallet; var provider = (W && W.getProvider && W.getProvider()) || window.boing;
+      if (!provider) throw new Error('Boing Express not detected. Install it from boing.express, unlock it, and reload this page.');
+      setMsg('Connect Boing Express…');
+      var accs = await requestAccounts(provider, []); var addr = norm(Array.isArray(accs) ? accs[0] : '');
+      if (addr !== acct) throw new Error('Boing Express is on ' + short(addr) + ', not this account. Switch accounts in the wallet and try again.');
+      var nr = await fetch('/api/portal/auth/nonce?origin=' + encodeURIComponent(location.origin)); var nd = await nr.json().catch(function () { return {}; });
+      if (!nr.ok || !nd.ok || !nd.nonce) throw new Error(nd.message || 'Could not get a sign-in nonce.');
+      var message = 'Authorize Boing Portal\nAction: ' + action + '\nAccount: ' + acct + '\nOrigin: ' + nd.origin + '\nTimestamp: ' + new Date().toISOString() + '\nNonce: ' + nd.nonce;
+      setMsg('Approve the signature in Boing Express…');
+      var signature = await signMessage(provider, [message, addr]);
+      if (!signature || typeof signature !== 'string') throw new Error('Signing was cancelled.');
+      return { message: message, signature: signature };
+    }
+    out.addEventListener('click', async function (e) {
+      var btn = e.target.closest && e.target.closest('[data-dc]'); if (!btn || !current) return;
+      var verb = btn.getAttribute('data-dc'), acct = norm(current.account_id_hex), body = { account_id_hex: acct };
+      btn.disabled = true;
+      try {
+        if (btn.getAttribute('data-auth') === 'password') {
+          var pw = (document.getElementById('pp-dc-pw') || {}).value || '';
+          if (!pw) { setMsg('Enter your portal password.', true); btn.disabled = false; return; }
+          body.password = pw;
+        } else {
+          var sig = await walletAuth(acct, verb === 'link' ? 'discord_link' : 'discord_unlink');
+          body.message = sig.message; body.signature = sig.signature;
+        }
+        setMsg(verb === 'link' ? 'Opening Discord…' : 'Unlinking…');
+        var r = await fetch(verb === 'link' ? '/api/passport/discord/start' : '/api/passport/discord/unlink', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        var j = await r.json().catch(function () { return {}; });
+        if (!j.ok) {
+          var m = j.message || 'Failed';
+          if (j.error_code === 'need_signature_or_password') m = 'This account has no portal password (wallet-only). Use "with Boing Express", or set a password first.';
+          setMsg(m, true); btn.disabled = false; return;
+        }
+        if (j.url) { location.href = j.url; return; }
+        load(acct, 'Discord unlinked. Tier roles are removed on the next indexer run.');
+      } catch (err) {
+        var em = err && err.message ? err.message : 'Request failed.';
+        if (window.BoingPortalWallet && window.BoingPortalWallet.normalizeWalletError) em = window.BoingPortalWallet.normalizeWalletError(em);
+        setMsg(em, true); btn.disabled = false;
+      }
     });
     function load(acct, note) {
-      statusEl.textContent = 'Loading…'; out.innerHTML = '';
+      acct = norm(acct); statusEl.textContent = 'Loading…'; out.innerHTML = '';
       fetch('/api/passport/profile?account_id_hex=' + encodeURIComponent(acct) + (note ? '&t=' + Date.now() : ''), note ? { cache: 'no-store' } : undefined)
         .then(function (r) { return r.json(); })
         .then(function (d) { if (!d.ok) { statusEl.textContent = d.message || 'Could not load'; return; } statusEl.textContent = note || ''; render(d); })
         .catch(function () { statusEl.textContent = 'Could not load Passport.'; });
     }
     form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var a = input.value.trim().toLowerCase(); if (a && a.indexOf('0x') !== 0) a = '0x' + a;
+      e.preventDefault(); var a = norm(input.value); input.value = a;
       history.replaceState(null, '', '?account=' + a); load(a);
     });
     var qs = new URLSearchParams(location.search); var q = qs.get('account'); var dc = qs.get('discord');
-    var s = window.BoingPortalSession && window.BoingPortalSession.getSession();
-    var start = q || (s && s.account_id_hex);
+    var start = q ? norm(q) : session();
     if (start) { input.value = start; load(start, dc ? (DISCORD_MSG[dc] || 'Discord: ' + dc) : undefined); }
   })();
 </script>
+
+<style is:global>
+  .passport-page .hub-page-main { padding-top: 2.5rem; }
+  .pp-lede { max-width: 60rem; margin-bottom: .35rem; }
+  .pp-links { display:flex; gap:.5rem; flex-wrap:wrap; font-size:.95rem; margin:0 0 .5rem; }
+  .pp-links span { color: rgba(148,163,184,.6); }
+  .pp-meta { color:#94a3b8; font-size:.92rem; margin:.25rem 0 1rem; }
+  .pp-tiers { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:1rem; margin: .5rem 0 1.25rem; }
+  .pp-tier { position:relative; display:flex; gap:1.25rem; align-items:center; padding:1.4rem 1.5rem; border-radius:18px;
+    background: linear-gradient(145deg, rgba(30,58,138,.35), rgba(15,23,42,.85)); border:1px solid rgba(96,165,250,.22);
+    box-shadow: 0 10px 30px rgba(2,6,23,.45), inset 0 1px 0 rgba(255,255,255,.04); overflow:hidden; }
+  .pp-tier::after { content:''; position:absolute; inset:auto -30% -60% auto; width:220px; height:220px; border-radius:50%; background: var(--tier-glow, rgba(59,130,246,.15)); filter: blur(40px); pointer-events:none; }
+  .pp-medal { flex:0 0 auto; width:84px; height:84px; border-radius:50%; display:grid; place-items:center; font-weight:800; font-size:1.6rem; color:#0b1020;
+    background: var(--tier-grad); box-shadow: 0 0 0 4px rgba(15,23,42,.9), 0 0 0 6px var(--tier-ring), 0 8px 24px var(--tier-glow); text-shadow: 0 1px 0 rgba(255,255,255,.45); }
+  .pp-tier[data-tier="bronze"] { --tier-grad: linear-gradient(135deg,#f3c79b,#b8733a 45%,#7a4419 70%,#e0a26b); --tier-ring:#b8733a; --tier-glow: rgba(205,127,50,.35); }
+  .pp-tier[data-tier="silver"] { --tier-grad: linear-gradient(135deg,#ffffff,#c7d0db 40%,#8a96a6 70%,#e6ebf1); --tier-ring:#aab4c2; --tier-glow: rgba(203,213,225,.28); }
+  .pp-tier[data-tier="gold"]   { --tier-grad: linear-gradient(135deg,#fff3b0,#f5c542 40%,#b8860b 70%,#ffe27a); --tier-ring:#e0b030; --tier-glow: rgba(250,204,21,.35); }
+  .pp-tier[data-tier="none"]   { --tier-grad: linear-gradient(135deg,#334155,#1e293b); --tier-ring:#334155; --tier-glow: rgba(59,130,246,.15); }
+  .pp-tier[data-tier="none"] .pp-medal { color:#94a3b8; }
+  .pp-tier-body { flex:1; min-width:0; position:relative; z-index:1; }
+  .pp-track { font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; color:#93c5fd; margin:0; }
+  .pp-tier-name { font-size:1.65rem; font-weight:700; color:#f8fafc; margin:.1rem 0 .15rem; line-height:1.1; }
+  .pp-score { color:#cbd5e1; font-size:.92rem; margin:0 0 .7rem; }
+  .pp-bar { height:8px; border-radius:999px; background: rgba(148,163,184,.18); overflow:hidden; }
+  .pp-bar > span { display:block; height:100%; border-radius:inherit; background: linear-gradient(90deg,#3b82f6,#22d3ee); }
+  .pp-next { display:flex; justify-content:space-between; gap:.5rem; font-size:.85rem; color:#94a3b8; margin:.4rem 0 .55rem; }
+  .pp-chips { display:flex; flex-wrap:wrap; gap:.4rem; }
+  .pp-chip { font-size:.78rem; padding:.22rem .6rem; border-radius:999px; background: rgba(59,130,246,.14); border:1px solid rgba(96,165,250,.35); color:#bfdbfe; }
+  .pp-chip.discord { background: rgba(88,101,242,.18); border-color: rgba(129,140,248,.45); color:#c7d2fe; }
+  .pp-max { font-size:.85rem; color:#fde68a; margin:.2rem 0 0; }
+  .pp-card { margin:1rem 0; padding:1.25rem 1.4rem; border-radius:16px; background: rgba(15,23,42,.75); border:1px solid rgba(96,165,250,.22); }
+  .pp-card h3 { margin:0 0 .4rem; display:flex; align-items:center; gap:.5rem; }
+  .pp-dc-opts { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:1rem; margin-top:.75rem; }
+  .pp-dc-opt { padding:1rem; border-radius:12px; background: rgba(30,41,59,.55); border:1px solid rgba(148,163,184,.18); }
+  .pp-dc-opt h4 { margin:0 0 .5rem; font-size:.95rem; color:#e2e8f0; }
+  .pp-row { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+  .pp-row input { flex:1; min-width:160px; padding:.55rem .7rem; border-radius:10px; border:1px solid rgba(148,163,184,.3); background: rgba(2,6,23,.6); color:#f1f5f9; }
+  .pp-small { font-size:.85rem; color:#94a3b8; margin:.5rem 0 0; }
+  .pp-msg { font-size:.9rem; margin:.6rem 0 0; color:#93c5fd; min-height:1.2em; }
+  .pp-msg.err { color:#fca5a5; }
+  @media (max-width: 520px) { .pp-tier { flex-direction:column; text-align:center; } .pp-next, .pp-chips { justify-content:center; } }
+</style>
