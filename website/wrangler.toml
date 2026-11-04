@@ -10,3 +10,7 @@ pages_build_output_dir = "dist"
 binding = "DB"
 database_name = "boing-network-db"
 database_id = "8cafc32c-5d92-42f3-8c4e-5277b20006c5"
+
+# Plain vars live here (wrangler.toml is the source of truth for Pages plain-text vars; secrets stay in the dashboard).
+[vars]
+DISCORD_CLIENT_ID = "1566183924068122704"
