@@ -80,6 +80,29 @@ import { TESTNET_RPC_URL } from '../config/testnet';
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  /** Format ledger/base-unit amount (u128 decimal string) as whole BOING for display. */
+  function formatBoingFromLedger(raw: number | string, decimals: number): string {
+    const text = typeof raw === 'string' ? raw.trim() : String(Math.trunc(Number(raw)));
+    if (!/^-?\d+$/.test(text)) return '–';
+    const units = BigInt(text);
+    const neg = units < 0n;
+    const abs = neg ? -units : units;
+    const d = Number.isFinite(decimals) && decimals > 0 ? Math.floor(decimals) : 0;
+    if (d === 0) {
+      return (neg ? '-' : '') + abs.toLocaleString('en-US');
+    }
+    const base = 10n ** BigInt(d);
+    const whole = abs / base;
+    const frac = abs % base;
+    let out = whole.toLocaleString('en-US');
+    if (frac !== 0n) {
+      // Keep up to 6 fractional digits; trim trailing zeros.
+      const fracStr = frac.toString().padStart(d, '0').slice(0, 6).replace(/0+$/, '');
+      if (fracStr) out += '.' + fracStr;
+    }
+    return (neg ? '-' : '') + out;
+  }
+
   async function rpcPostWithBriefRetry(rpc: string, id: number, method: string, params: unknown[]) {
     let attempt = await rpcPost(rpc, id, method, params);
     if (attempt.res.status === 429) {
@@ -111,13 +134,19 @@ import { TESTNET_RPC_URL } from '../config/testnet';
         head_height?: number;
         consensus?: { validator_count?: number };
         chain_native?: { total_stake?: number | string };
+        native_currency?: { decimals?: number; base_unit_decimals?: number };
         chain_id?: number;
         client_version?: string;
       };
       set('height', String(info.head_height ?? '–'));
       set('validators', String(info.consensus?.validator_count ?? '–'));
       const stake = info.chain_native?.total_stake;
-      set('stake', stake != null ? Number(stake).toLocaleString('en-US') + ' BOING' : '–');
+      const decimals =
+        info.native_currency?.decimals ?? info.native_currency?.base_unit_decimals ?? 18;
+      set(
+        'stake',
+        stake != null ? formatBoingFromLedger(stake, decimals) + ' BOING' : '–'
+      );
       set('chain', info.chain_id != null ? info.chain_id + ' (0x' + Number(info.chain_id).toString(16) + ')' : '–');
       set('version', String(info.client_version ?? '–'));
       let idle = false;
