@@ -103,13 +103,15 @@ import Layout from '../layouts/Layout.astro';
 
     <section class="investor-section">
       <h2>Tokenomics & Value Creation</h2>
-      <p><strong>Uncapped supply with floor-triggered waves.</strong> Initial supply fixed at mainnet launch. When circulating supply reaches a floor, new waves mint to restore balance.</p>
+      <p><strong>Locked (BN-155):</strong> <strong>1 billion BOING</strong> genesis / initial supply, then <strong>uncapped</strong> ongoing emissions (not a 1B hard cap). <strong>18 decimals</strong>. No TGE / mainnet calendar date. Testnet ≠ mainnet claim.</p>
+      <p><strong>Proposed</strong> genesis allocation (exact buckets still Undecided):</p>
       <div class="tokenomics-breakdown">
-        <div class="token-row"><span class="token-pct">55%</span> Staking Rewards</div>
-        <div class="token-row"><span class="token-pct">30%</span> Treasury (grants, audits, ecosystem)</div>
+        <div class="token-row"><span class="token-pct">50%</span> Staking</div>
+        <div class="token-row"><span class="token-pct">20%</span> Treasury (grants, audits, ecosystem)</div>
         <div class="token-row"><span class="token-pct">15%</span> Community & Grants</div>
+        <div class="token-row"><span class="token-pct">15%</span> Team & ops</div>
       </div>
-      <p>Fee split: 70–80% to validators, 20–30% to treasury. At maturity, <strong>fee revenue dominates</strong>—validators and treasury earn from transactions; emissions decline (Year 1 ~8%, Year 10+ targets 1% floor or 0% if fees sufficient). dApp incentives (success-based, per-dApp capped) align developer success with adoption. Cross-chain DeFi via Boing Finance captures value from swap fees and liquidity.</p>
+      <p><strong>Proposed</strong> fee split at maturity: 80% validators / 20% treasury. Emissions: ~8% Y1 of the 1B base, decay ≈ 0.85, floor 1%; shipping code mints ~70% of each block emission to the proposer. At maturity, <strong>fee revenue dominates</strong>. dApp incentives (success-based, per-dApp capped) align developer success with adoption. Cross-chain DeFi via Boing Finance captures value from swap fees and liquidity.</p>
     </section>
 
     <section class="investor-section">
@@ -181,8 +183,9 @@ import Layout from '../layouts/Layout.astro';
           </div>
           <div class="deck-slide" data-slide="6">
             <h3>Tokenomics & Value</h3>
-            <p><strong>55%</strong> Staking · <strong>30%</strong> Treasury · <strong>15%</strong> Community & Grants</p>
-            <p>Fee revenue dominates at maturity. No reward cliffs.</p>
+            <p><strong>Locked:</strong> 1B genesis · uncapped after · 18 decimals</p>
+            <p><strong>Proposed:</strong> <strong>50%</strong> Staking · <strong>20%</strong> Treasury · <strong>15%</strong> Community · <strong>15%</strong> Team</p>
+            <p>~8% Y1 → decay 0.85 → 1% floor · ~70% proposer mint. Fee revenue dominates at maturity. No TGE date.</p>
           </div>
           <div class="deck-slide" data-slide="7">
             <h3>Validation</h3>

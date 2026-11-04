@@ -120,18 +120,19 @@ cargo build --release</code></pre>
         <p>Plain-language overview (allocation, fees, quest/bounty pots, testnet ≠ mainnet claim): <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET (PDF)</a>. Draft tables with Proposed vs Undecided: <a href="/pdfs/BOING-INITIAL-TOKENOMICS.pdf" target="_blank" rel="noopener">BOING-INITIAL-TOKENOMICS (PDF)</a>. No TGE date is asserted.</p>
         <h3>Supply model</h3>
         <ul>
-          <li><strong>Locked (BN-155)</strong> — <strong>1 billion BOING</strong> genesis / initial supply (<code>INITIAL_SUPPLY</code>); supply ceiling after genesis is <strong>uncapped</strong>.</li>
-          <li><strong>Emissions</strong> — Block rewards continue past 1B under the declining schedule + floor; shipping code does <strong>not</strong> clamp minting at 1B.</li>
-          <li><strong>Design narrative</strong> — Uncapped supply with floor-triggered rebalancing remains the long-form sustainability model in the design plan.</li>
+          <li><strong>Locked (BN-155)</strong> — <strong>1 billion BOING</strong> genesis / initial supply (<code>INITIAL_SUPPLY</code>); supply ceiling after genesis is <strong>uncapped</strong> (not a 1B hard cap).</li>
+          <li><strong>Decimals</strong> — <strong>18</strong> (1 BOING = 10<sup>18</sup> base units).</li>
+          <li><strong>Emissions</strong> — Block rewards continue past 1B under the declining schedule + floor; shipping code does <strong>not</strong> clamp minting at 1B. Code mints ~70% of each block emission to the proposer.</li>
+          <li><strong>Design narrative</strong> — Uncapped supply with floor-triggered rebalancing remains the long-form sustainability model in the design plan. No TGE / mainnet calendar date is asserted. Testnet ≠ mainnet claim.</li>
         </ul>
         <h3>Fee allocation</h3>
-        <p><strong>Design target:</strong> <strong>80% validators</strong>, <strong>20% treasury</strong> (burn optional 0%). <strong>Current public testnet runtime:</strong> protocol gas defaults to <strong>100% treasury</strong>; tips and block emission go to the proposer.</p>
+        <p><strong>Proposed design target:</strong> <strong>80% validators</strong>, <strong>20% treasury</strong> (burn optional 0%). <strong>Current public testnet runtime:</strong> protocol gas defaults to <strong>100% treasury</strong>; tips and block emission go to the proposer.</p>
         <h3>Initial supply allocation (at launch)</h3>
-        <p>Published working picture: Staking rewards ~55%, Treasury ~30%, Community &amp; grants ~15% (team/ops carve-out still under discussion — see initial tokenomics draft). Staking is topped up by ongoing block emissions (uncapped after the 1B genesis).</p>
+        <p><strong>Proposed</strong> genesis pie (not final — exact buckets still <strong>Undecided</strong>): <strong>Staking 50%</strong> · <strong>Treasury 20%</strong> · <strong>Community &amp; Grants 15%</strong> · <strong>Team &amp; ops 15%</strong>. Older marketing charts used ~55 / 30 / 15 without a Team line; see <a href="/pdfs/BOING-INITIAL-TOKENOMICS.pdf" target="_blank" rel="noopener">initial tokenomics draft</a>. Staking is topped up by ongoing block emissions (uncapped after the 1B genesis).</p>
         <h3>Floor-triggered waves</h3>
-        <p><strong>Genesis</strong> — Fixed initial supply. <strong>Ongoing</strong> — Validators and treasury earn from fees; supply may decrease slowly until the floor. <strong>Floor</strong> — When circulating supply reaches the defined floor, the protocol triggers a rebalance. <strong>New wave</strong> — A new wave of tokens is minted (size and destination set by protocol/governance) to restore balance. All parameters (floor, wave size, trigger) are on-chain and transparent.</p>
+        <p><strong>Genesis</strong> — 1B initial supply. <strong>Ongoing</strong> — Validators and treasury earn from fees; emissions continue uncapped under the declining schedule. <strong>Floor</strong> — When circulating supply reaches the defined floor, the protocol can trigger a rebalance. <strong>New wave</strong> — A new wave of tokens may be minted (size and destination set by protocol/governance) to restore balance. All parameters (floor, wave size, trigger) are intended to be on-chain and transparent.</p>
         <h3>Emission schedule (block rewards)</h3>
-        <p>Declining over time: Year 1 ~8%, Year 2 ~6%, then lower; Year 10+ targets a 1% floor or 0% if fees are sufficient. Formula: <code>emission_year_n = emission_year_1 × (decay)^(n-1)</code> with decay ~0.85.</p>
+        <p><strong>Proposed:</strong> Year 1 ~8% of the 1B base, then decay ≈ 0.85 per year; Year 10+ targets a <strong>1% floor</strong> (or 0% if fees suffice). Formula: <code>emission_year_n = emission_year_1 × (decay)^(n-1)</code>. Shipping mint path credits ~70% of the year-N emission to the round proposer.</p>
         <h3>Staking and validator economics</h3>
         <ul>
           <li><strong>Min stake</strong> — Accessible (e.g. 10,000 BOING) for broad participation.</li>

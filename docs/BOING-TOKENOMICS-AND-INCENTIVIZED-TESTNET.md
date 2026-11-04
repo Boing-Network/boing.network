@@ -36,24 +36,25 @@ We want people on the testnet to learn the stack and help find bugs — not to t
 
 ## Initial allocation (draft)
 
-At mainnet launch, a **fixed initial supply** would be split into buckets. Exact percents are still being finalized. The working picture on the website has been roughly:
+At mainnet launch, the **1 billion BOING genesis** supply would be split into buckets. Exact percents are still **Undecided** (final lock pending). The **Proposed** working picture on the marketing site is:
 
-| Bucket | About | What it’s for |
-|--------|------:|---------------|
-| Staking / validator rewards | ~half or a bit more | Pay for security early on |
-| Treasury | roughly a quarter to a third | Audits, ops, long-term runway |
-| Community & Grants | about 15% | Quests / recognition, bug bounties, grants, successful dApps |
+| Bucket | Share (Proposed) | What it’s for |
+|--------|-----------------:|---------------|
+| Staking / validator rewards | **50%** | Pay for security early on; topped up by ongoing emissions |
+| Treasury | **20%** | Audits, ops, long-term runway |
+| Community & Grants | **15%** | Quests / recognition, bug bounties, grants, successful dApps |
+| Team & ops | **15%** | Founders + early ops (vesting / equal-split details still Undecided) |
 
-A **team & ops** slice (with equal founder shares and vesting) is under discussion and **not locked**. See [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) for Proposed vs Undecided labels.
+Older charts used ~55 / 30 / 15 without a Team line. Charts that show the pie must be labeled **Proposed**, not final. See [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) for Proposed vs Undecided labels.
 
-**Locked supply policy (BN-155):** **1 billion BOING** at genesis / initial supply, then **uncapped** — block emissions may continue past 1B under the declining schedule. There is **no** hard max-supply ceiling in shipping code.
+**Locked supply policy (BN-155):** **1 billion BOING** at genesis / initial supply (**18 decimals**), then **uncapped** — block emissions may continue past 1B under the declining schedule. There is **no** hard max-supply ceiling in shipping code.
 
 ---
 
 ## Fees and emissions (high level)
 
 - **Fees:** Everyday actions should stay cheap (Solana-like small base fees; optional tips when the network is busy). Design docs aim for most fee revenue to support validators and treasury over time. On the **current** public testnet, protocol gas mostly goes to the **treasury**; block rewards still go to the block proposer.
-- **Emissions:** New BOING from blocks is meant to **decline over years** toward a low floor (or stop if fees are enough), without sudden reward cliffs. Supply after the 1B genesis is **uncapped** — minting is not clamped at 1B.
+- **Emissions (Proposed):** ~8% Year 1 of the 1B base, decay ≈ 0.85, floor ~1% (or 0% if fees suffice). Shipping code mints ~70% of each block emission to the proposer. Supply after the 1B genesis is **uncapped** — minting is not clamped at 1B. No TGE / mainnet calendar date.
 
 None of this is a promise of APY, price, or listing day.
 

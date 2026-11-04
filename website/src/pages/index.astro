@@ -215,45 +215,49 @@ import Layout from '../layouts/Layout.astro';
   <!-- Tokenomics -->
   <section class="section section-alt" id="tokenomics">
     <h2 class="section-reveal">Tokenomics</h2>
-    <p class="section-lead section-reveal delay-1">Sustainable value design — <strong>1B BOING genesis / initial supply</strong>, then <strong>uncapped</strong> ongoing emissions (locked BN-155). Draft allocation and incentivized-testnet framing (not live; not a claim): <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">plain-language PDF</a>.</p>
+    <p class="section-lead section-reveal delay-1">Sustainable value design — <strong>1 billion BOING</strong> at genesis, then <strong>uncapped</strong> ongoing emissions (locked BN-155). <strong>18 decimals</strong>. Genesis allocation chart below is <strong>Proposed</strong>, not final. Draft framing (not live; not a claim): <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">plain-language PDF</a>.</p>
     <div class="stats-grid">
-      <div class="stat-card section-reveal delay-2"><span class="stat-value">Uncapped</span><span class="stat-label">Total Supply</span></div>
-      <div class="stat-card section-reveal delay-3"><span class="stat-value">Set at launch</span><span class="stat-label">Initial Supply</span></div>
-      <div class="stat-card section-reveal delay-4"><span class="stat-value">~2s</span><span class="stat-label">Target Block Time (when transactions are pending)</span></div>
+      <div class="stat-card section-reveal delay-2"><span class="stat-value">Uncapped</span><span class="stat-label">Supply after genesis</span></div>
+      <div class="stat-card section-reveal delay-3"><span class="stat-value">1B</span><span class="stat-label">Genesis / initial supply</span></div>
+      <div class="stat-card section-reveal delay-4"><span class="stat-value">18</span><span class="stat-label">Decimals</span></div>
     </div>
     <div class="chart-card chart-fullwidth section-reveal delay-5">
-      <h3>Initial Supply Allocation</h3>
-      <p class="chart-intro">How the fixed initial supply (at mainnet launch) is allocated. Staking rewards are topped up by new waves when supply reaches the floor, so the initial allocation leans more toward treasury and community.</p>
+      <h3>Initial Supply Allocation <span class="chart-badge">Proposed</span></h3>
+      <p class="chart-intro">How the <strong>1B genesis</strong> supply would be split at mainnet launch. Exact bucket sizes are still <strong>Undecided</strong> (final lock pending). Staking reserve is topped up by ongoing block emissions (uncapped after genesis).</p>
       <div class="chart-wrapper chart-supply chart-pie-wrap">
-        <svg viewBox="0 0 100 100" class="supply-pie-svg">
-          <circle cx="50" cy="50" r="40" fill="none" class="stroke-teal" stroke-width="40" stroke-dasharray="138.2 113.1" stroke-dashoffset="0" transform="rotate(-90 50 50)" stroke-linecap="butt" />
-          <circle cx="50" cy="50" r="40" fill="none" class="stroke-cyan" stroke-width="40" stroke-dasharray="75.4 175.9" stroke-dashoffset="-138.2" transform="rotate(-90 50 50)" stroke-linecap="butt" />
-          <circle cx="50" cy="50" r="40" fill="none" class="stroke-success" stroke-width="40" stroke-dasharray="37.7 213.6" stroke-dashoffset="-213.6" transform="rotate(-90 50 50)" stroke-linecap="butt" />
+        <svg viewBox="0 0 100 100" class="supply-pie-svg" role="img" aria-label="Proposed genesis allocation: Staking 50 percent, Treasury 20 percent, Community 15 percent, Team 15 percent">
+          <!-- Circumference ≈ 251.3; slices 50 / 20 / 15 / 15 -->
+          <circle cx="50" cy="50" r="40" fill="none" class="stroke-teal" stroke-width="40" stroke-dasharray="125.7 125.7" stroke-dashoffset="0" transform="rotate(-90 50 50)" stroke-linecap="butt" />
+          <circle cx="50" cy="50" r="40" fill="none" class="stroke-gold" stroke-width="40" stroke-dasharray="50.3 201.0" stroke-dashoffset="-125.7" transform="rotate(-90 50 50)" stroke-linecap="butt" />
+          <circle cx="50" cy="50" r="40" fill="none" class="stroke-success" stroke-width="40" stroke-dasharray="37.7 213.6" stroke-dashoffset="-176.0" transform="rotate(-90 50 50)" stroke-linecap="butt" />
+          <circle cx="50" cy="50" r="40" fill="none" class="stroke-purple" stroke-width="40" stroke-dasharray="37.7 213.6" stroke-dashoffset="-213.7" transform="rotate(-90 50 50)" stroke-linecap="butt" />
         </svg>
       </div>
       <ul class="legend legend-inline">
-        <li><span class="dot dot-teal"></span> Staking Rewards 55%</li>
-        <li><span class="dot dot-cyan"></span> Treasury 30%</li>
-        <li><span class="dot dot-success"></span> Community & Grants 15%</li>
+        <li><span class="dot dot-teal"></span> Staking 50%</li>
+        <li><span class="dot dot-gold"></span> Treasury 20%</li>
+        <li><span class="dot dot-success"></span> Community 15%</li>
+        <li><span class="dot dot-purple"></span> Team 15%</li>
       </ul>
-      <p class="chart-note">Locked: 1B BOING at genesis, uncapped afterward. Initial allocation buckets and community sub-pots are still draft — see the tokenomics PDF. No TGE date. Testnet ≠ mainnet claim.</p>
+      <p class="chart-note"><strong>Locked:</strong> 1B BOING at genesis, uncapped afterward, 18 decimals. <strong>Proposed</strong> (not final): genesis pie 50 / 20 / 15 / 15. Vesting, community sub-pots, and exact Team carve-out remain <strong>Undecided</strong>. No TGE / mainnet calendar date. Testnet ≠ mainnet claim.</p>
     </div>
     <div class="charts-row">
       <div class="chart-card section-reveal delay-6">
-        <h3>Fee Allocation</h3>
+        <h3>Fee Allocation <span class="chart-badge">Proposed</span></h3>
         <div class="chart-wrapper chart-doughnut">
           <svg viewBox="0 0 100 100" class="doughnut-svg">
             <circle cx="50" cy="50" r="40" fill="none" class="stroke-teal" stroke-width="20" stroke-dasharray="201 50.3" stroke-dashoffset="0" transform="rotate(-90 50 50)" />
-            <circle cx="50" cy="50" r="40" fill="none" class="stroke-cyan" stroke-width="20" stroke-dasharray="50.3 201" stroke-dashoffset="-201" transform="rotate(-90 50 50)" />
+            <circle cx="50" cy="50" r="40" fill="none" class="stroke-gold" stroke-width="20" stroke-dasharray="50.3 201" stroke-dashoffset="-201" transform="rotate(-90 50 50)" />
           </svg>
         </div>
         <ul class="legend">
           <li><span class="dot dot-teal"></span> Validators 80%</li>
-          <li><span class="dot dot-cyan"></span> Treasury 20%</li>
+          <li><span class="dot dot-gold"></span> Treasury 20%</li>
         </ul>
+        <p class="chart-note chart-note-tight">Design maturity target. Public testnet today: protocol gas mostly treasury; tips + block emission to proposer.</p>
       </div>
       <div class="chart-card section-reveal delay-7">
-        <h3>Emission Schedule</h3>
+        <h3>Emission Schedule <span class="chart-badge">Proposed</span></h3>
         <div class="chart-wrapper chart-line">
           <svg viewBox="0 0 200 120" class="line-svg" preserveAspectRatio="none">
             <defs>
@@ -266,6 +270,7 @@ import Layout from '../layouts/Layout.astro';
             <polyline points="0,24 33,48 67,66 100,79 133,90 200,108" fill="none" class="stroke-teal" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
+        <p class="chart-note chart-note-tight">~8% Y1 of the 1B base, decay ≈ 0.85, floor 1%. Shipping code mints ~70% of each block emission to the proposer. No TGE date.</p>
       </div>
     </div>
     <p class="value-loop section-reveal delay-8"><strong>Usage ↑</strong> → Fees ↑ → Validators & Treasury ↑ → Security & Ecosystem ↑ → <strong>Value ↑</strong></p>
@@ -555,10 +560,29 @@ import Layout from '../layouts/Layout.astro';
   .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.25rem; vertical-align: middle; }
   .dot-teal { background: var(--accent-teal); }
   .dot-cyan { background: var(--accent-cyan); }
+  .dot-gold { background: var(--accent-gold); }
+  .dot-purple { background: var(--accent-purple); }
   .dot-success { background: var(--success-color); }
   .stroke-teal { stroke: var(--accent-teal); }
   .stroke-cyan { stroke: var(--accent-cyan); }
+  .stroke-gold { stroke: var(--accent-gold); }
+  .stroke-purple { stroke: var(--accent-purple); }
   .stroke-success { stroke: var(--success-color); }
+  .chart-badge {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.12rem 0.45rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    vertical-align: middle;
+    color: var(--accent-gold);
+    border: 1px solid color-mix(in srgb, var(--accent-gold) 55%, transparent);
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, var(--accent-gold) 12%, transparent);
+  }
+  .chart-note-tight { margin-top: 0.75rem; font-size: 0.85rem; }
   .value-loop { text-align: center; font-family: var(--font-mono); color: var(--accent-teal); background: var(--bg-tertiary); border: 1px solid var(--border-color); padding: 1rem; border-radius: 0.5rem; font-size: 0.95rem; }
 
   .t-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: rgba(16, 26, 56, 0.85); border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); transition: transform 0.2s ease-out, border-color 0.2s ease-out; transition-delay: 0; }
