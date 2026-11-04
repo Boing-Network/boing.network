@@ -154,6 +154,29 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
       messageEl.style.color = '';
     }
 
+    /** Format ledger/base-unit amount (u128 decimal string) as whole BOING for display. */
+    function formatBoingFromLedger(raw: number | string, decimals: number): string {
+      const text = typeof raw === 'string' ? raw.trim() : String(Math.trunc(Number(raw)));
+      if (!/^-?\d+$/.test(text)) return '–';
+      const units = BigInt(text);
+      const neg = units < 0n;
+      const abs = neg ? -units : units;
+      const d = Number.isFinite(decimals) && decimals > 0 ? Math.floor(decimals) : 0;
+      if (d === 0) {
+        return (neg ? '-' : '') + abs.toLocaleString('en-US');
+      }
+      const base = 10n ** BigInt(d);
+      const whole = abs / base;
+      const frac = abs % base;
+      let out = whole.toLocaleString('en-US');
+      if (frac !== 0n) {
+        // Keep up to 6 fractional digits; trim trailing zeros.
+        const fracStr = frac.toString().padStart(d, '0').slice(0, 6).replace(/0+$/, '');
+        if (fracStr) out += '.' + fracStr;
+      }
+      return (neg ? '-' : '') + out;
+    }
+
     btn?.addEventListener('click', async () => {
       const rpcUrl = (rpcInput?.value || '').trim().replace(/\/$/, '');
       let accountHex = (accountInput?.value || '').trim();
@@ -190,7 +213,15 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
         });
         let data: {
           error?: { code?: number; message?: string };
-          result?: { ok?: boolean; amount?: string; message?: string; tip_height?: number; warning?: string };
+          result?: {
+            ok?: boolean;
+            amount?: string | number;
+            amount_boing?: string;
+            decimals?: number;
+            message?: string;
+            tip_height?: number;
+            warning?: string;
+          };
         };
         try {
           data = await res.json();
@@ -225,7 +256,15 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
           const warn = data.result.warning
             ? ` Warning: ${data.result.warning}`
             : '';
-          const base = `Faucet accepted ${data.result.amount} testnet BOING into the mempool. ${data.result.message || ''}${tip}${warn}`;
+          const decimals =
+            typeof data.result.decimals === 'number' ? data.result.decimals : 18;
+          // Prefer amount_boing when the node provides it; otherwise ÷ 10^decimals like status.astro.
+          const amountLabel =
+            (typeof data.result.amount_boing === 'string' && data.result.amount_boing.trim()) ||
+            (data.result.amount != null
+              ? formatBoingFromLedger(data.result.amount, decimals)
+              : '–');
+          const base = `Faucet accepted ${amountLabel} testnet BOING into the mempool. ${data.result.message || ''}${tip}${warn}`;
           setMessage(base, Boolean(data.result.warning));
           showNextSteps(accountHex);
         } else {
