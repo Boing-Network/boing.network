@@ -273,7 +273,12 @@ import Layout from '../layouts/Layout.astro';
         <p class="chart-note chart-note-tight">~8% Y1 of the 1B base, decay ≈ 0.85, floor 1%. Shipping code mints ~70% of each block emission to the proposer. No TGE date.</p>
       </div>
     </div>
-    <p class="value-loop section-reveal delay-8"><strong>Usage ↑</strong> → Fees ↑ → Validators & Treasury ↑ → Security & Ecosystem ↑ → <strong>Value ↑</strong></p>
+    <div class="tokenomics-faq section-reveal delay-8">
+      <h3>Why uncapped max supply?</h3>
+      <p><strong>Uncapped ≠ free print.</strong> Genesis is fixed at <strong>1 billion BOING</strong>. After that, supply only grows through a <strong>documented declining emission schedule</strong> (Proposed: ~8% Year&nbsp;1 of the 1B base → ~1% floor; shipping code mints ~70% of each block emission to the proposer). Markets care about <strong>circulating supply and the inflation path</strong> (order of ~1.3B by Year&nbsp;10 under that sketch)—not a marketing “max.”</p>
+      <p>Hard caps can <strong>starve the long-run security budget</strong> when base fees stay intentionally low (Boing prefers Solana-like small gas). Raising a hard cap later usually means a messy crisis hard-fork. An open, decaying schedule is the more honest design: emission discipline is written down, growth is predictable, and the protocol is not locked into a ceiling that would force a contentious raise if fees alone cannot fund validators.</p>
+    </div>
+    <p class="value-loop section-reveal delay-9"><strong>Usage ↑</strong> → Fees ↑ → Validators & Treasury ↑ → Security & Ecosystem ↑ → <strong>Value ↑</strong></p>
   </section>
   <!-- Build & Resources (merged: innovations, testnet CTA, CTA banner, resources) -->
   <section class="section" id="build">
@@ -583,6 +588,26 @@ import Layout from '../layouts/Layout.astro';
     background: color-mix(in srgb, var(--accent-gold) 12%, transparent);
   }
   .chart-note-tight { margin-top: 0.75rem; font-size: 0.85rem; }
+  .tokenomics-faq {
+    max-width: 48rem;
+    margin: 0 auto 1.5rem;
+    padding: 1.25rem 1.35rem;
+    background: rgba(16, 26, 56, 0.72);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+  }
+  .tokenomics-faq h3 {
+    margin: 0 0 0.65rem;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+  }
+  .tokenomics-faq p {
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+  }
+  .tokenomics-faq p:last-child { margin-bottom: 0; }
   .value-loop { text-align: center; font-family: var(--font-mono); color: var(--accent-teal); background: var(--bg-tertiary); border: 1px solid var(--border-color); padding: 1rem; border-radius: 0.5rem; font-size: 0.95rem; }
 
   .t-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: rgba(16, 26, 56, 0.85); border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); transition: transform 0.2s ease-out, border-color 0.2s ease-out; transition-delay: 0; }

@@ -83,6 +83,16 @@ Emission to round **proposer** remains independent of the tx-fee split (`BLOCK_E
 
 **Undecided:** year-1 absolute BOING/block at mainnet genesis; whether floor is 1% or fee-triggered 0%.
 
+### FAQ — Why uncapped max supply? (BN-155)
+
+**Uncapped ≠ free print.** Genesis is fixed at **1B BOING** (`INITIAL_SUPPLY`). Growth after genesis is only via the documented declining emission schedule (Proposed: ~8% Y1 of the 1B base → ~1% floor; shipping code ~70% proposer share of each block emission). Under that sketch, circulating supply is order-of-magnitude **~1.3B by Year 10**—markets price circulating + inflation path, not a marketing max.
+
+**Technical rationale (lead with this in public copy):**
+
+1. **Security budget** — Hard caps can starve long-run validator incentives when fees stay intentionally low (Boing prefers Solana-like small base gas). Ongoing, decaying emissions keep a predictable security subsidy until fee revenue can dominate.
+2. **Avoid crisis hard-forks** — Raising a hard cap later is usually a messy, contentious fork. Publishing an open emission schedule up front is more honest than pretending a ceiling that later must be broken.
+3. **Emission discipline** — Uncapped is not discretionary minting; parameters are documented (and intended to be on-chain / governance-visible). Flexibility for long-horizon security exists *because* the schedule is open, not because supply can be printed ad hoc.
+
 ---
 
 ## 4. Fee split

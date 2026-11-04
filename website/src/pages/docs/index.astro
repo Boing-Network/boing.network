@@ -133,6 +133,8 @@ cargo build --release</code></pre>
         <p><strong>Genesis</strong> — 1B initial supply. <strong>Ongoing</strong> — Validators and treasury earn from fees; emissions continue uncapped under the declining schedule. <strong>Floor</strong> — When circulating supply reaches the defined floor, the protocol can trigger a rebalance. <strong>New wave</strong> — A new wave of tokens may be minted (size and destination set by protocol/governance) to restore balance. All parameters (floor, wave size, trigger) are intended to be on-chain and transparent.</p>
         <h3>Emission schedule (block rewards)</h3>
         <p><strong>Proposed:</strong> Year 1 ~8% of the 1B base, then decay ≈ 0.85 per year; Year 10+ targets a <strong>1% floor</strong> (or 0% if fees suffice). Formula: <code>emission_year_n = emission_year_1 × (decay)^(n-1)</code>. Shipping mint path credits ~70% of the year-N emission to the round proposer.</p>
+        <h3>FAQ — Why uncapped max supply?</h3>
+        <p><strong>Uncapped ≠ free print.</strong> Genesis is fixed at 1B BOING; growth after that follows a documented decaying emission schedule (~8% Y1 → ~1% floor; ~70% proposer share in shipping code). Hard caps can starve long-run validator security when fees stay intentionally low (Solana-like small base gas). Raising a hard cap later is usually a messy crisis hard-fork—an open schedule is the more honest security budget. Markets price circulating supply and the inflation path (order of ~1.3B by Y10 under the Proposed sketch), not a marketing max.</p>
         <h3>Staking and validator economics</h3>
         <ul>
           <li><strong>Min stake</strong> — Accessible (e.g. 10,000 BOING) for broad participation.</li>

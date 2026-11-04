@@ -49,6 +49,12 @@ Older charts used ~55 / 30 / 15 without a Team line. Charts that show the pie mu
 
 **Locked supply policy (BN-155):** **1 billion BOING** at genesis / initial supply (**18 decimals**), then **uncapped** — block emissions may continue past 1B under the declining schedule. There is **no** hard max-supply ceiling in shipping code.
 
+### FAQ — Why uncapped max supply?
+
+**Uncapped does not mean “print freely.”** Genesis is fixed at **1 billion BOING**. After that, supply only grows through a **documented declining emission schedule** (Proposed: ~8% Year 1 of the 1B base → ~1% floor; shipping code mints ~70% of each block emission to the proposer). Markets care about **circulating supply and the inflation path** (order of ~1.3B by Year 10 under that sketch)—not a marketing “max.”
+
+Hard caps can **starve the long-run security budget** when base fees stay intentionally low (Boing prefers Solana-like small gas). Raising a hard cap later usually means a messy crisis hard-fork. An open, decaying schedule is the more honest design: emission discipline is written down, growth is predictable, and the protocol is not locked into a ceiling that would force a contentious raise if fees alone cannot fund validators.
+
 ---
 
 ## Fees and emissions (high level)
