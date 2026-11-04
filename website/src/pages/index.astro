@@ -6,244 +6,170 @@ import Layout from '../layouts/Layout.astro';
   description="Boing is an independent Layer 1 where quality is enforced by the protocol, with transparent deployment checks and open participation for users, developers and validators. Public testnet; mainnet not live."
   canonical="/"
 >
-  <!-- Hero -->
+  <!-- Hero: one composition — brand, headline, support, CTAs, dominant mark -->
   <section class="hero" id="hero">
-    <div class="hero-grid" aria-hidden="true"></div>
+    <div class="hero-atmosphere" aria-hidden="true">
+      <div class="hero-glow"></div>
+      <div class="hero-grid"></div>
+    </div>
     <div class="hero-content">
-      <span class="stage-badge">Public testnet &mdash; mainnet not live</span>
-      <img src="/logo.svg" alt="Boing Network" class="hero-logo-img" width="96" height="96" />
+      <img src="/logo.svg" alt="" class="hero-logo-img" width="168" height="168" decoding="async" />
+      <p class="hero-brand font-display">Boing Network</p>
       <h1 class="hero-title font-display">Quality, enforced by the protocol.</h1>
-      <p class="hero-brandline">Boing Network &mdash; the quality-assured Layer 1</p>
-      <p class="tagline">Boing is an independent Layer 1 built from first principles, with transparent deployment checks and open participation for users, developers and validators.</p>
+      <p class="tagline">An independent Layer 1 with transparent deployment checks and open participation for users, developers, and validators.</p>
       <div class="cta">
         <a href="/testnet" class="btn btn-primary">Explore the testnet</a>
         <a href="/developers/quickstart" class="btn btn-secondary">Build on Boing</a>
-        <a href="/testnet/join" class="btn btn-outline">Run a node</a>
       </div>
-      <ul class="proof-chips" aria-label="Proof points">
-        <li>Public testnet and faucet</li>
-        <li>Purpose-built VM, not EVM-compatible</li>
-        <li>~2-second target block time under load</li>
-        <li>Open validator and node participation</li>
-      </ul>
+      <p class="hero-stage">Public testnet — mainnet not live</p>
     </div>
   </section>
 
-  <!-- The problem -->
+  <!-- Quality Gate -->
   <section class="section" id="problem">
-    <h2 class="section-reveal">Blockchains make it easy to deploy. Boing adds a quality gate.</h2>
-    <p class="section-lead section-reveal delay-1">The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. Automated checks handle clear cases; a decentralized community pool reviews edge cases.</p>
-    <div class="problem-grid">
-      <div class="info-card section-reveal delay-2">
-        <h3>What it is</h3>
-        <p>Boing introduces protocol-level deployment checks designed to identify and restrict deployments that fail transparent quality criteria before they are accepted on-chain.</p>
-      </div>
-      <div class="info-card section-reveal delay-3">
-        <h3>What it is designed to do</h3>
-        <p>Designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks. The rules are public, and outcomes remain visible.</p>
-      </div>
-      <div class="info-card section-reveal delay-4">
-        <h3>What it does not claim</h3>
-        <p>No gate can prevent every kind of abuse. The Quality Gate reduces risk and makes decisions auditable; it does not replace your own review of an application. <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">Read the QA design (PDF)</a>.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- How it works -->
-  <section class="section section-alt" id="how">
-    <h2 class="section-reveal">How the Quality Gate works</h2>
-    <p class="section-lead section-reveal delay-1">Five steps from submission to a public, auditable outcome.</p>
-    <ol class="gate-steps">
-      <li class="section-reveal delay-2"><span class="gate-num">1</span><div><h3>Deployment submitted</h3><p>A developer submits contract bytecode with a declared purpose.</p></div></li>
-      <li class="section-reveal delay-3"><span class="gate-num">2</span><div><h3>Automated checks evaluate it</h3><p>Transparent rules cover bytecode, size, opcodes and declared purpose.</p></div></li>
-      <li class="section-reveal delay-4"><span class="gate-num">3</span><div><h3>Clear cases are decided by the protocol</h3><p>Deployments that clearly meet or clearly fail the rules are accepted or rejected, with the rule that applied.</p></div></li>
-      <li class="section-reveal delay-5"><span class="gate-num">4</span><div><h3>Edge cases go to the community pool</h3><p>When the rules cannot decide, a decentralized pool of reviewers does.</p></div></li>
-      <li class="section-reveal delay-6"><span class="gate-num">5</span><div><h3>Outcomes remain visible and auditable</h3><p>Decisions are observable in <a href="https://boing.observer/qa" target="_blank" rel="noopener">Boing Observer</a>, not hidden in a private process.</p></div></li>
+    <h2 class="reveal">A quality gate before the ledger</h2>
+    <p class="section-lead reveal delay-1">Boing screens deployments against transparent rules before they reach the chain. Clear cases are decided by the protocol; edge cases go to a community pool. Outcomes stay visible — the gate reduces risk, it does not replace your own review. <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QA design (PDF)</a></p>
+    <ol class="gate-flow reveal delay-2">
+      <li><span class="gate-num">1</span><div><strong>Submit</strong> bytecode with a declared purpose</div></li>
+      <li><span class="gate-num">2</span><div><strong>Automate</strong> checks on size, opcodes, and rules</div></li>
+      <li><span class="gate-num">3</span><div><strong>Decide</strong> clear accept or reject in protocol</div></li>
+      <li><span class="gate-num">4</span><div><strong>Review</strong> edge cases in the community pool</div></li>
+      <li><span class="gate-num">5</span><div><strong>Observe</strong> outcomes in <a href="https://boing.observer/qa" target="_blank" rel="noopener">Boing Observer</a></div></li>
     </ol>
   </section>
 
-  <!-- Built from first principles -->
-  <section class="section" id="principles">
-    <h2 class="section-reveal">Built from first principles</h2>
-    <p class="section-lead section-reveal delay-1">An independent chain with its own stack, not a fork or an EVM-compatibility layer.</p>
-    <div class="spec-grid">
-      <div class="spec section-reveal delay-2"><strong>Rust</strong><span>Protocol and node implementation</span></div>
-      <div class="spec section-reveal delay-2"><strong>HotStuff PoS</strong><span>Proof-of-stake consensus</span></div>
-      <div class="spec section-reveal delay-3"><strong>Ed25519</strong><span>Signatures</span></div>
-      <div class="spec section-reveal delay-3"><strong>BLAKE3</strong><span>Hashing</span></div>
-      <div class="spec section-reveal delay-4"><strong>Purpose-built VM</strong><span>Not EVM-compatible</span></div>
-      <div class="spec section-reveal delay-4"><strong>~2 s blocks</strong><span>Target block time when transactions are pending</span></div>
-    </div>
-    <div class="grid pillars-secondary">
-      <div class="card section-reveal delay-5"><h3>Secure by design</h3><p>Rust, HotStuff proof of stake, Ed25519 and BLAKE3.</p></div>
-      <div class="card section-reveal delay-6"><h3>Open participation</h3><p>Permissionless for users, developers and validators.</p></div>
-      <div class="card section-reveal delay-7"><h3>Transparent by default</h3><p>Observable rules, deployments and outcomes.</p></div>
-      <div class="card section-reveal delay-8"><h3>Built for real applications</h3><p>Native accounts, adaptive gas and cross-chain liquidity.</p></div>
-    </div>
+  <!-- Stack -->
+  <section class="section section-alt" id="principles">
+    <h2 class="reveal">Built from first principles</h2>
+    <p class="section-lead reveal delay-1">An independent chain with its own stack — not a fork or an EVM-compatibility layer.</p>
+    <dl class="spec-row reveal delay-2">
+      <div><dt>Rust</dt><dd>Protocol &amp; node</dd></div>
+      <div><dt>HotStuff PoS</dt><dd>Consensus</dd></div>
+      <div><dt>Ed25519</dt><dd>Signatures</dd></div>
+      <div><dt>BLAKE3</dt><dd>Hashing</dd></div>
+      <div><dt>Purpose-built VM</dt><dd>Not EVM-compatible</dd></div>
+      <div><dt>~2 s blocks</dt><dd>When txs are pending</dd></div>
+    </dl>
   </section>
 
-  <!-- Choose your role -->
-  <section class="section section-alt" id="roles">
-    <h2 class="section-reveal">Choose your role</h2>
-    <p class="section-lead section-reveal delay-1">Start where you are. Everything below runs on the public testnet.</p>
+  <!-- Roles -->
+  <section class="section" id="roles">
+    <h2 class="reveal">Choose your role</h2>
+    <p class="section-lead reveal delay-1">Everything below runs on the public testnet.</p>
     <div class="roles-grid">
-      <article class="role-card section-reveal delay-2">
+      <a href="/testnet/users" class="role-link reveal delay-2">
         <h3>Use the network</h3>
-        <p class="role-line">A safer way to explore on-chain applications.</p>
-        <ul>
-          <li>Create a wallet with Boing Express</li>
-          <li>Get testnet BOING from the faucet</li>
-          <li>Send and receive</li>
-          <li>Explore accounts, blocks and transactions in Boing Observer</li>
-          <li>Connect to applications</li>
-        </ul>
-        <div class="role-links"><a href="https://boing.express" target="_blank" rel="noopener">Boing Express</a><a href="/faucet">Faucet</a><a href="https://boing.observer" target="_blank" rel="noopener">Boing Observer</a></div>
-      </article>
-      <article class="role-card section-reveal delay-3">
+        <p>Wallet, faucet, send, and explore on-chain activity.</p>
+        <span class="role-cta">Start as a user</span>
+      </a>
+      <a href="/developers/quickstart" class="role-link reveal delay-3">
         <h3>Build an application</h3>
-        <p class="role-line">Build on an independent chain with native account and application primitives.</p>
-        <ul>
-          <li>JSON-RPC and the Boing SDK</li>
-          <li>Purpose-built VM</li>
-          <li>Native account abstraction, session keys and social recovery</li>
-          <li>Adaptive gas</li>
-          <li>Deployment QA requirements</li>
-          <li>Clear testnet docs</li>
-        </ul>
-        <div class="role-links"><a href="/developers/quickstart">Quickstart</a><a href="/docs/rpc-api">RPC API</a><a href="/docs">Docs</a></div>
-      </article>
-      <article class="role-card section-reveal delay-4">
+        <p>JSON-RPC, SDK, native accounts, and deployment QA.</p>
+        <span class="role-cta">Developer quickstart</span>
+      </a>
+      <a href="/testnet/join" class="role-link reveal delay-4">
         <h3>Run a node</h3>
-        <p class="role-line">Help operate an open network with transparent participation rules.</p>
-        <ul>
-          <li>Rust node with HotStuff consensus</li>
-          <li>Public testnet and node setup guides</li>
-          <li>Validator registration</li>
-          <li>Slashing and appeals rules</li>
-          <li>Launch-partner pathway</li>
-          <li>Mainnet readiness milestones</li>
-        </ul>
-        <div class="role-links"><a href="/testnet/join">Run a node</a><a href="/testnet/operators">Operators</a><a href="/bootnodes">Bootnodes</a></div>
-      </article>
+        <p>Join the open validator and operator path.</p>
+        <span class="role-cta">Operator setup</span>
+      </a>
     </div>
-    <p class="institution-note section-reveal delay-5">For institutions: Boing is designed for verifiability and institutional review, with transparent, rule-based infrastructure for applications that require verifiable deployment standards. Audits, genesis, incident response and mainnet readiness are still open items; see the roadmap below.</p>
   </section>
 
-  <!-- Honest roadmap -->
-  <section class="section" id="roadmap">
-    <h2 class="section-reveal">Honest roadmap</h2>
-    <p class="section-lead section-reveal delay-1">Testnet status is a strength: here is what exists, what is being built, and what must be true before mainnet.</p>
+  <!-- Roadmap -->
+  <section class="section section-alt" id="roadmap">
+    <h2 class="reveal">Honest roadmap</h2>
+    <p class="section-lead reveal delay-1">What exists on testnet, what is in progress, and what mainnet still requires.</p>
     <div class="road-grid">
-      <div class="road-col section-reveal delay-2">
-        <span class="road-tag road-live">Live on testnet</span>
+      <div class="road-col reveal delay-2">
+        <h3 class="road-live">Live on testnet</h3>
         <ul>
-          <li>Public testnet RPC and faucet</li>
-          <li>Quality Gate deployment checks, with a published rule registry</li>
-          <li>Boing Express wallet (web and Chrome extension)</li>
-          <li>Boing Observer explorer, including QA visibility</li>
-          <li>Node, CLI and SDK tooling</li>
+          <li>Public RPC and faucet</li>
+          <li>Quality Gate with published rules</li>
+          <li>Express wallet &amp; Observer explorer</li>
+          <li>Node, CLI, and SDK tooling</li>
         </ul>
       </div>
-      <div class="road-col section-reveal delay-3">
-        <span class="road-tag road-dev">In development</span>
+      <div class="road-col reveal delay-3">
+        <h3 class="road-dev">In development</h3>
         <ul>
-          <li>Community review pool for edge cases</li>
-          <li>Validator set growth and production hardening</li>
-          <li>Cross-chain liquidity routes in Boing Finance</li>
-          <li>Incentivized testnet (not currently running)</li>
+          <li>Community review pool</li>
+          <li>Validator growth &amp; hardening</li>
+          <li>Finance liquidity routes</li>
+          <li>Incentivized testnet (not running)</li>
         </ul>
       </div>
-      <div class="road-col section-reveal delay-4">
-        <span class="road-tag road-req">Required before mainnet</span>
+      <div class="road-col reveal delay-4">
+        <h3 class="road-req">Before mainnet</h3>
         <ul>
           <li>Independent security audits</li>
-          <li>Genesis and launch-partner validator readiness</li>
-          <li>Finalized slashing and appeals process</li>
-          <li>Incident-response process</li>
-          <li>Published mainnet readiness milestones met</li>
-        </ul>
-      </div>
-      <div class="road-col section-reveal delay-5">
-        <span class="road-tag road-no">Not yet complete</span>
-        <ul>
-          <li>Mainnet: not live</li>
-          <li>Independent audits: not complete</li>
-          <li>Institutional review materials</li>
+          <li>Genesis &amp; launch-partner readiness</li>
+          <li>Finalized slashing &amp; incident response</li>
+          <li>Mainnet still not live</li>
         </ul>
       </div>
     </div>
   </section>
 
   <!-- Ecosystem -->
-  <section class="section section-alt" id="ecosystem">
-    <h2 class="section-reveal">The Boing ecosystem</h2>
-    <p class="section-lead section-reveal delay-1">Four products, one network. Start on the public testnet in three steps.</p>
-    <ol class="first-steps section-reveal delay-2" aria-label="First steps on the Boing testnet">
-      <li><a href="https://boing.express" target="_blank" rel="noopener"><strong>1. Get a wallet</strong><span>Create a Boing Express wallet (web or Chrome extension).</span></a></li>
-      <li><a href="/faucet"><strong>2. Get testnet BOING</strong><span>Request free testnet BOING for fees.</span></a></li>
-      <li><a href="https://boing.observer" target="_blank" rel="noopener"><strong>3. Send and verify</strong><span>Send your first transaction, then find it in Boing Observer.</span></a></li>
+  <section class="section" id="ecosystem">
+    <h2 class="reveal">The Boing ecosystem</h2>
+    <p class="section-lead reveal delay-1">Four products, one network. Three steps onto the public testnet.</p>
+    <ol class="first-steps reveal delay-2" aria-label="First steps on the Boing testnet">
+      <li><a href="https://boing.express" target="_blank" rel="noopener"><strong>1. Get a wallet</strong><span>Boing Express — web or Chrome</span></a></li>
+      <li><a href="/faucet"><strong>2. Get testnet BOING</strong><span>Free fees from the faucet</span></a></li>
+      <li><a href="https://boing.observer" target="_blank" rel="noopener"><strong>3. Send and verify</strong><span>Confirm in Boing Observer</span></a></li>
     </ol>
     <div class="apps-row">
-      <a href="/docs/getting-started" class="app-card section-reveal delay-3">
+      <a href="/docs/getting-started" class="app-link reveal delay-3">
         <h3>Boing Network</h3>
-        <p class="app-tag">The quality-assured Layer 1</p>
-        <p>The core protocol and ecosystem: docs, faucet, node setup and the Quality Gate.</p>
-        <span class="app-status live">Public testnet</span>
+        <p>Protocol, docs, faucet, Quality Gate</p>
       </a>
-      <a href="https://boing.express" class="app-card section-reveal delay-4" target="_blank" rel="noopener">
+      <a href="https://boing.express" class="app-link reveal delay-3" target="_blank" rel="noopener">
         <h3>Boing Express</h3>
-        <p class="app-tag">Your gateway to Boing</p>
-        <p>A non-custodial wallet designed for the Boing ecosystem, for the web and Chrome.</p>
-        <span class="app-status live">Public testnet</span>
+        <p>Non-custodial wallet for Boing</p>
       </a>
-      <a href="https://boing.observer" class="app-card section-reveal delay-5" target="_blank" rel="noopener">
+      <a href="https://boing.observer" class="app-link reveal delay-4" target="_blank" rel="noopener">
         <h3>Boing Observer</h3>
-        <p class="app-tag">See what happens on-chain</p>
-        <p>An explorer with integrated QA transparency: blocks, transactions, accounts and Quality Gate decisions.</p>
-        <span class="app-status live">Public testnet</span>
+        <p>Explorer with QA transparency</p>
       </a>
-      <a href="https://boing.finance" class="app-card section-reveal delay-6" target="_blank" rel="noopener">
+      <a href="https://boing.finance" class="app-link reveal delay-4" target="_blank" rel="noopener">
         <h3>Boing Finance</h3>
-        <p class="app-tag">Native DEX swaps, pools, and NFTs</p>
-        <p>Swap, provide liquidity, and mint NFTs on Boing’s native DEX (public testnet soak).</p>
-        <span class="app-status build">Evolving</span>
+        <p>Native DEX swaps, pools, NFTs</p>
       </a>
     </div>
   </section>
 
-
   <!-- Tokenomics -->
   <section class="section section-alt" id="tokenomics">
-    <h2 class="section-reveal">Tokenomics</h2>
-    <p class="section-lead section-reveal delay-1">Sustainable value design — <strong>1 billion BOING</strong> at genesis, then <strong>uncapped</strong> ongoing emissions (locked BN-155). <strong>18 decimals</strong>. Genesis allocation chart below is <strong>Proposed</strong>, not final. Draft framing (not live; not a claim): <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">plain-language PDF</a>.</p>
-    <div class="stats-grid">
-      <div class="stat-card section-reveal delay-2"><span class="stat-value">Uncapped</span><span class="stat-label">Supply after genesis</span></div>
-      <div class="stat-card section-reveal delay-3"><span class="stat-value">1B</span><span class="stat-label">Genesis / initial supply</span></div>
-      <div class="stat-card section-reveal delay-4"><span class="stat-value">18</span><span class="stat-label">Decimals</span></div>
+    <h2 class="reveal">Tokenomics</h2>
+    <p class="section-lead reveal delay-1"><strong>1 billion BOING</strong> at genesis, then <strong>uncapped</strong> ongoing emissions. <strong>18 decimals</strong>. Genesis pie below is <strong>Proposed</strong>, not final. <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Plain-language PDF</a></p>
+    <div class="stats-row reveal delay-2">
+      <div><span class="stat-value">Uncapped</span><span class="stat-label">After genesis</span></div>
+      <div><span class="stat-value">1B</span><span class="stat-label">Genesis supply</span></div>
+      <div><span class="stat-value">18</span><span class="stat-label">Decimals</span></div>
     </div>
-    <div class="chart-card chart-fullwidth section-reveal delay-5">
-      <h3>Initial Supply Allocation <span class="chart-badge">Proposed</span></h3>
-      <p class="chart-intro">How the <strong>1B genesis</strong> supply would be split at mainnet launch. Exact bucket sizes are still <strong>Undecided</strong> (final lock pending). Staking reserve is topped up by ongoing block emissions (uncapped after genesis).</p>
-      <div class="chart-wrapper chart-supply chart-pie-wrap">
+    <div class="tokenomics-block reveal delay-3">
+      <h3>Initial supply allocation <span class="chart-badge">Proposed</span></h3>
+      <p class="chart-intro">How the <strong>1B genesis</strong> would split at mainnet. Exact buckets remain <strong>Undecided</strong>.</p>
+      <div class="chart-wrapper chart-supply">
         <svg viewBox="0 0 100 100" class="supply-pie-svg" role="img" aria-label="Proposed genesis allocation: Staking 50 percent, Treasury 20 percent, Community 15 percent, Team 15 percent">
-          <!-- Circumference ≈ 251.3; slices 50 / 20 / 15 / 15 -->
           <circle cx="50" cy="50" r="40" fill="none" class="stroke-teal" stroke-width="40" stroke-dasharray="125.7 125.7" stroke-dashoffset="0" transform="rotate(-90 50 50)" stroke-linecap="butt" />
           <circle cx="50" cy="50" r="40" fill="none" class="stroke-gold" stroke-width="40" stroke-dasharray="50.3 201.0" stroke-dashoffset="-125.7" transform="rotate(-90 50 50)" stroke-linecap="butt" />
           <circle cx="50" cy="50" r="40" fill="none" class="stroke-success" stroke-width="40" stroke-dasharray="37.7 213.6" stroke-dashoffset="-176.0" transform="rotate(-90 50 50)" stroke-linecap="butt" />
-          <circle cx="50" cy="50" r="40" fill="none" class="stroke-purple" stroke-width="40" stroke-dasharray="37.7 213.6" stroke-dashoffset="-213.7" transform="rotate(-90 50 50)" stroke-linecap="butt" />
+          <circle cx="50" cy="50" r="40" fill="none" class="stroke-soft" stroke-width="40" stroke-dasharray="37.7 213.6" stroke-dashoffset="-213.7" transform="rotate(-90 50 50)" stroke-linecap="butt" />
         </svg>
       </div>
-      <ul class="legend legend-inline">
+      <ul class="legend">
         <li><span class="dot dot-teal"></span> Staking 50%</li>
         <li><span class="dot dot-gold"></span> Treasury 20%</li>
         <li><span class="dot dot-success"></span> Community 15%</li>
-        <li><span class="dot dot-purple"></span> Team 15%</li>
+        <li><span class="dot dot-soft"></span> Team 15%</li>
       </ul>
-      <p class="chart-note"><strong>Locked:</strong> 1B BOING at genesis, uncapped afterward, 18 decimals. <strong>Proposed</strong> (not final): genesis pie 50 / 20 / 15 / 15. Vesting, community sub-pots, and exact Team carve-out remain <strong>Undecided</strong>. No TGE / mainnet calendar date. Testnet ≠ mainnet claim.</p>
+      <p class="chart-note"><strong>Locked:</strong> 1B at genesis, uncapped after, 18 decimals. Vesting and sub-pots remain Undecided. No TGE date.</p>
     </div>
     <div class="charts-row">
-      <div class="chart-card section-reveal delay-6">
-        <h3>Fee Allocation <span class="chart-badge">Proposed</span></h3>
+      <div class="tokenomics-block reveal delay-4">
+        <h3>Fee allocation <span class="chart-badge">Proposed</span></h3>
         <div class="chart-wrapper chart-doughnut">
           <svg viewBox="0 0 100 100" class="doughnut-svg">
             <circle cx="50" cy="50" r="40" fill="none" class="stroke-teal" stroke-width="20" stroke-dasharray="201 50.3" stroke-dashoffset="0" transform="rotate(-90 50 50)" />
@@ -254,330 +180,513 @@ import Layout from '../layouts/Layout.astro';
           <li><span class="dot dot-teal"></span> Validators 80%</li>
           <li><span class="dot dot-gold"></span> Treasury 20%</li>
         </ul>
-        <p class="chart-note chart-note-tight">Design maturity target. Public testnet today: protocol gas mostly treasury; tips + block emission to proposer.</p>
       </div>
-      <div class="chart-card section-reveal delay-7">
-        <h3>Emission Schedule <span class="chart-badge">Proposed</span></h3>
+      <div class="tokenomics-block reveal delay-5">
+        <h3>Emission schedule <span class="chart-badge">Proposed</span></h3>
         <div class="chart-wrapper chart-line">
           <svg viewBox="0 0 200 120" class="line-svg" preserveAspectRatio="none">
             <defs>
               <linearGradient id="emissionGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--accent-teal)" stop-opacity="0.3" />
-                <stop offset="100%" stop-color="var(--accent-teal)" stop-opacity="0" />
+                <stop offset="0%" stop-color="var(--boing-accent)" stop-opacity="0.3" />
+                <stop offset="100%" stop-color="var(--boing-accent)" stop-opacity="0" />
               </linearGradient>
             </defs>
             <polyline points="0,24 33,48 67,66 100,79 133,90 200,108 200,120 0,120" fill="url(#emissionGrad)" stroke="none" />
             <polyline points="0,24 33,48 67,66 100,79 133,90 200,108" fill="none" class="stroke-teal" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
-        <p class="chart-note chart-note-tight">~8% Y1 of the 1B base, decay ≈ 0.85, floor 1%. Shipping code mints ~70% of each block emission to the proposer. No TGE date.</p>
+        <p class="chart-note">~8% Y1 of the 1B base, decay ≈ 0.85, floor 1%. No TGE date.</p>
       </div>
     </div>
-    <div class="tokenomics-faq section-reveal delay-8">
+    <div class="tokenomics-faq reveal delay-6">
       <h3>Why uncapped max supply?</h3>
-      <p><strong>Uncapped ≠ free print.</strong> Genesis is fixed at <strong>1 billion BOING</strong>. After that, supply only grows through a <strong>documented declining emission schedule</strong> (Proposed: ~8% Year&nbsp;1 of the 1B base → ~1% floor; shipping code mints ~70% of each block emission to the proposer). Markets care about <strong>circulating supply and the inflation path</strong> (order of ~1.3B by Year&nbsp;10 under that sketch)—not a marketing “max.”</p>
-      <p>Hard caps can <strong>starve the long-run security budget</strong> when base fees stay intentionally low (Boing prefers Solana-like small gas). Raising a hard cap later usually means a messy crisis hard-fork. An open, decaying schedule is the more honest design: emission discipline is written down, growth is predictable, and the protocol is not locked into a ceiling that would force a contentious raise if fees alone cannot fund validators.</p>
+      <p><strong>Uncapped ≠ free print.</strong> Genesis is fixed at <strong>1 billion BOING</strong>. After that, supply grows only through a documented declining emission schedule. Hard caps can starve long-run security when base fees stay intentionally low; an open decaying schedule keeps the inflation path honest and predictable.</p>
     </div>
-    <p class="value-loop section-reveal delay-9"><strong>Usage ↑</strong> → Fees ↑ → Validators & Treasury ↑ → Security & Ecosystem ↑ → <strong>Value ↑</strong></p>
   </section>
-  <!-- Build & Resources (merged: innovations, testnet CTA, CTA banner, resources) -->
-  <section class="section" id="build">
-    <h2 class="section-reveal">Built for real applications</h2>
-    <p class="section-lead section-reveal delay-1">Native accounts, adaptive gas and cross-chain liquidity as supporting capabilities.</p>
-    <div class="grid">
-      <div class="card section-reveal delay-2"><h3>Native Account Abstraction</h3><p>Gasless txs, social recovery, session keys — built into the protocol.</p></div>
-      <div class="card section-reveal delay-3"><h3>Adaptive Gas Model</h3><p>Dynamic gas that responds to network conditions with predictable caps.</p></div>
-      <div class="card section-reveal delay-4"><h3>Cross-chain liquidity</h3><p>Protocol-level primitives for liquidity routing across chains.</p></div>
-      <div class="card section-reveal delay-5"><h3>Transparent Slashing</h3><p>Auditable slashing conditions and appeal mechanisms.</p></div>
-    </div>
-    <div class="build-banners-row">
-      <div class="testnet-banner section-reveal delay-6">
-        <h3>Join the testnet</h3>
-        <p>Run a node, get testnet BOING from the faucet, and help secure the network. Single node for local dev or multi-node to join the public testnet.</p>
-        <div class="testnet-banner-btns">
-          <a href="/testnet/join" class="btn btn-testnet">Join Testnet</a>
-          <a href="/faucet" class="btn btn-secondary">Get testnet BOING</a>
-        </div>
-      </div>
-      <div class="cta-banner section-reveal delay-7">
-        <h3>Build on Boing</h3>
-        <p>An independent Layer 1 with native account abstraction, adaptive gas and transparent deployment checks. Public testnet; mainnet not live.</p>
-        <div class="cta-banner-links">
-          <a href="/testnet/join">Join Testnet</a>
-          <span class="sep">•</span>
-          <a href="/docs/getting-started">Get Started</a>
-          <span class="sep">•</span>
-          <a href="/developers/quickstart">Developers</a>
-          <span class="sep">•</span>
-          <a href="https://boing.finance" target="_blank" rel="noopener">Boing Finance</a>
-        </div>
-      </div>
-    </div>
-    <h2 class="section-subtitle section-reveal delay-8">Resources</h2>
-    <div class="link-grid">
-      <a href="/testnet" class="link-highlight link-3d">Dashboard</a>
-      <a href="/resources" class="link-highlight link-3d">Resources</a>
-      <a href="/testnet/join" class="link-highlight link-3d">Join Testnet</a>
-      <a href="/faucet" class="link-3d">Faucet</a>
-      <a href="/docs/getting-started" class="link-3d">Getting Started</a>
-      <a href="/docs/rpc-api" class="link-3d">RPC API</a>
-      <a href="/developers/quickstart" class="link-3d">Developer Quickstart</a>
-      <a href="/status" class="link-3d">Network Status</a>
-      <a href="/about" class="link-3d">About</a>
-      <a href="/community" class="link-3d">Community</a>
+
+  <!-- Build CTA -->
+  <section class="section section-close" id="build">
+    <h2 class="reveal">Build on Boing</h2>
+    <p class="section-lead reveal delay-1">Native accounts, adaptive gas, and transparent deployment checks — on a public testnet today.</p>
+    <div class="cta reveal delay-2">
+      <a href="/testnet/join" class="btn btn-primary">Join the testnet</a>
+      <a href="/docs/getting-started" class="btn btn-secondary">Get started</a>
     </div>
   </section>
 </Layout>
 
+<script>
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce) {
+    const nodes = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            io.unobserve(entry.target);
+          }
+        }
+      },
+      { rootMargin: '0px 0px -8% 0px', threshold: 0.12 }
+    );
+    nodes.forEach((el) => io.observe(el));
+  } else {
+    document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-visible'));
+  }
+</script>
+
 <style>
-  /* Boing rebrand: hero, Quality Gate sections, roles, roadmap. Tokens: BRAND.md */
-  .hero { position: relative; text-align: center; padding: 5rem 1.5rem 4rem; overflow: hidden; display: grid; place-items: center; min-height: 85vh; background: radial-gradient(ellipse at 50% 30%, rgba(var(--boing-accent-rgb), 0.14), transparent 60%); }
-  @media (max-width: 480px) { .hero { padding: 3rem 1rem; min-height: 80vh; } }
-  .hero-grid { position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(var(--boing-accent-rgb), 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--boing-accent-rgb), 0.08) 1px, transparent 1px); background-size: 48px 48px; -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 15%, transparent 72%); mask-image: radial-gradient(ellipse at 50% 40%, #000 15%, transparent 72%); }
-  .hero-content { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; }
-  .hero-title { font-size: clamp(2.1rem, 5.5vw, 3.75rem); line-height: 1.1; font-weight: 800; margin: 0.5rem 0 0.75rem; color: var(--boing-text); letter-spacing: -0.01em; }
-  .hero-brandline { margin: 0 0 1rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.85rem; color: var(--boing-accent-soft); }
-  .hero .tagline { font-size: clamp(1.05rem, 2.2vw, 1.3rem); color: var(--text-secondary); max-width: 40rem; margin: 0 auto 1.75rem; line-height: 1.55; }
-  .hero .stage-badge { display: inline-block; margin-bottom: 1rem; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: var(--boing-warning); border: 1px solid rgba(251, 191, 36, 0.45); background: rgba(251, 191, 36, 0.08); }
-  .hero .btn-primary { background: var(--boing-accent); color: var(--boing-accent-ink); }
-  .hero .btn-primary:hover { background: var(--boing-accent-soft); filter: none; }
-  .proof-chips { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 0.75rem; padding: 0; margin: 2rem 0 0; }
-  .proof-chips li { padding: 0.35rem 0.8rem; border-radius: 999px; font-size: 0.85rem; color: var(--text-secondary); border: 1px solid var(--boing-line); background: rgba(16, 26, 56, 0.6); }
-  .problem-grid, .roles-grid, .road-grid { display: grid; gap: 1.25rem; }
-  .problem-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-  .roles-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-  .road-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-  .info-card, .role-card, .road-col { background: rgba(16, 26, 56, 0.88); border: 1px solid var(--boing-line); border-radius: 1rem; padding: 1.35rem; }
-  .info-card h3, .role-card h3 { margin: 0 0 0.5rem; font-size: 1.05rem; color: var(--text-primary); }
-  .info-card p, .role-card li, .road-col li { color: var(--text-secondary); font-size: 0.92rem; line-height: 1.5; }
-  .info-card p { margin: 0; }
-  .info-card a, .role-links a { color: var(--boing-accent-soft); }
-  .gate-steps { list-style: none; padding: 0; margin: 0 auto; max-width: 760px; display: grid; gap: 0.9rem; counter-reset: gate; }
-  .gate-steps li { display: flex; gap: 1rem; align-items: flex-start; padding: 1rem 1.25rem; border: 1px solid var(--boing-line); border-left: 3px solid var(--boing-accent); border-radius: 0.75rem; background: rgba(16, 26, 56, 0.88); }
-  .gate-num { flex: none; width: 2rem; height: 2rem; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: var(--boing-accent-ink); background: var(--boing-accent); }
-  .gate-steps h3 { margin: 0 0 0.2rem; font-size: 1rem; color: var(--text-primary); }
-  .gate-steps p { margin: 0; font-size: 0.9rem; color: var(--text-secondary); }
-  .gate-steps a { color: var(--boing-accent-soft); }
-  .spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.9rem; margin-bottom: 2rem; }
-  .spec { display: flex; flex-direction: column; gap: 0.2rem; padding: 1rem 1.1rem; border: 1px solid var(--boing-line); border-radius: 0.75rem; background: rgba(10, 17, 40, 0.9); font-family: var(--font-mono); }
-  .spec strong { color: var(--boing-accent-soft); font-size: 1rem; }
-  .spec span { color: var(--text-secondary); font-size: 0.8rem; }
-  .role-line { font-weight: 600; color: var(--boing-text); font-size: 0.95rem; margin: 0 0 0.75rem; }
-  .role-card ul, .road-col ul { margin: 0 0 1rem; padding-left: 1.1rem; }
-  .role-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.9rem; }
-  .institution-note { max-width: 760px; margin: 1.75rem auto 0; text-align: center; font-size: 0.85rem; color: var(--text-tertiary, var(--text-secondary)); }
-  .road-tag { display: inline-block; margin-bottom: 0.75rem; padding: 0.2rem 0.65rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid currentColor; }
+  /* ——— Hero: one composition, brand-first, atmospheric navy/cyan ——— */
+  .hero {
+    position: relative;
+    text-align: center;
+    padding: 4.5rem 1.5rem 3.5rem;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    min-height: min(92vh, 920px);
+    background:
+      radial-gradient(ellipse 80% 55% at 50% 18%, rgba(var(--boing-accent-rgb), 0.22), transparent 58%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(37, 99, 235, 0.12), transparent 50%),
+      linear-gradient(180deg, #050A1A 0%, #0A1128 55%, #050A1A 100%);
+  }
+  @media (max-width: 480px) {
+    .hero { padding: 3rem 1rem 2.5rem; min-height: 80vh; }
+  }
+
+  .hero-atmosphere {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero-glow {
+    position: absolute;
+    width: min(70vw, 520px);
+    height: min(70vw, 520px);
+    left: 50%;
+    top: 18%;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(var(--boing-accent-rgb), 0.28), transparent 68%);
+    animation: hero-glow-pulse 7s ease-in-out infinite;
+  }
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(var(--boing-accent-rgb), 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(var(--boing-accent-rgb), 0.07) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 38%, #000 12%, transparent 70%);
+    mask-image: radial-gradient(ellipse at 50% 38%, #000 12%, transparent 70%);
+    animation: hero-grid-drift 28s linear infinite;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .hero-logo-img {
+    display: block;
+    width: clamp(112px, 22vw, 168px);
+    height: auto;
+    margin: 0 auto 1rem;
+    object-fit: contain;
+    filter: drop-shadow(0 0 28px rgba(var(--boing-accent-rgb), 0.55));
+    animation: hero-mark-in 1s cubic-bezier(0.22, 1, 0.36, 1) both, hero-mark-float 8s ease-in-out 1s infinite;
+  }
+  .hero-brand {
+    margin: 0 0 0.85rem;
+    font-size: clamp(1.65rem, 4.2vw, 2.35rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--boing-text);
+    text-shadow: 0 0 32px rgba(var(--boing-accent-rgb), 0.35);
+    animation: hero-copy-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+  }
+  .hero-title {
+    font-size: clamp(1.55rem, 3.8vw, 2.35rem);
+    line-height: 1.18;
+    font-weight: 700;
+    margin: 0 0 0.85rem;
+    color: var(--boing-accent-soft);
+    letter-spacing: -0.01em;
+    text-shadow: none;
+    animation: hero-copy-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.22s both;
+  }
+  .tagline {
+    font-size: clamp(1rem, 2vw, 1.15rem);
+    color: var(--text-secondary);
+    max-width: 36rem;
+    margin: 0 auto 1.75rem;
+    line-height: 1.55;
+    animation: hero-copy-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.32s both;
+  }
+  .hero-stage {
+    margin: 1.5rem 0 0;
+    font-size: 0.85rem;
+    color: var(--boing-warning);
+    letter-spacing: 0.02em;
+    animation: hero-copy-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.48s both;
+  }
+
+  .cta {
+    display: flex;
+    gap: 0.85rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    animation: hero-copy-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+  }
+  .btn {
+    padding: 0.8rem 1.45rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  }
+  .btn-primary {
+    background: var(--boing-accent);
+    color: var(--boing-accent-ink);
+    border: none;
+  }
+  .btn-primary:hover {
+    background: var(--boing-accent-soft);
+    transform: translateY(-1px);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--boing-line);
+  }
+  .btn-secondary:hover {
+    border-color: var(--boing-accent);
+    color: var(--boing-accent-soft);
+  }
+
+  /* ——— Sections ——— */
+  .section {
+    position: relative;
+    z-index: 1;
+    padding: 4.25rem 2rem;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  @media (max-width: 640px) { .section { padding: 3rem 1.25rem; } }
+  @media (max-width: 480px) { .section { padding: 2.5rem 1rem; } }
+  .section > * {
+    max-width: 1080px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .section-alt {
+    background: linear-gradient(180deg, transparent, rgba(16, 26, 56, 0.35), transparent);
+  }
+  .section-close {
+    text-align: center;
+    padding-bottom: 5rem;
+  }
+  .section h2 {
+    text-align: center;
+    margin-bottom: 0.65rem;
+    color: var(--text-primary);
+  }
+  .section-lead {
+    text-align: center;
+    color: var(--text-secondary);
+    margin: 0 auto 2rem;
+    max-width: 42rem;
+    font-size: 1.02rem;
+    line-height: 1.55;
+  }
+  .section-lead a { color: var(--boing-accent-soft); }
+
+  /* Quality Gate flow — no card boxes */
+  .gate-flow {
+    list-style: none;
+    padding: 0;
+    margin: 0 auto;
+    max-width: 560px;
+    display: grid;
+    gap: 0;
+  }
+  .gate-flow li {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--boing-line);
+    color: var(--text-secondary);
+    font-size: 0.98rem;
+    line-height: 1.45;
+  }
+  .gate-flow li:last-child { border-bottom: none; }
+  .gate-flow strong { color: var(--text-primary); font-weight: 700; }
+  .gate-flow a { color: var(--boing-accent-soft); }
+  .gate-num {
+    flex: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--boing-accent-ink);
+    background: var(--boing-accent);
+    margin-top: 0.1rem;
+  }
+
+  /* Specs — open row, no cards */
+  .spec-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1.25rem 1.5rem;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+  }
+  .spec-row div { margin: 0; }
+  .spec-row dt {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--boing-accent-soft);
+    font-size: 1rem;
+    margin: 0 0 0.2rem;
+  }
+  .spec-row dd {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+  }
+
+  /* Roles — interactive link surfaces only */
+  .roles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+  .role-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 1.35rem 1.25rem;
+    text-decoration: none;
+    color: inherit;
+    border-top: 2px solid var(--boing-accent);
+    background: transparent;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  .role-link:hover {
+    background: rgba(var(--boing-accent-rgb), 0.06);
+    border-color: var(--boing-accent-soft);
+  }
+  .role-link h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+  }
+  .role-link p {
+    margin: 0;
+    flex: 1;
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+  }
+  .role-cta {
+    margin-top: 0.65rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--boing-accent-soft);
+  }
+
+  /* Roadmap — open columns */
+  .road-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem 1.75rem;
+  }
+  .road-col h3 {
+    margin: 0 0 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
   .road-live { color: var(--boing-success); }
   .road-dev { color: var(--boing-accent-soft); }
   .road-req { color: var(--boing-warning); }
-  .road-no { color: var(--boing-danger); }
-  .road-col ul { margin-bottom: 0; }
-  .app-tag { font-weight: 600; color: var(--boing-accent-soft) !important; margin-bottom: 0.35rem !important; }
-  .pillars-secondary { margin-top: 0.5rem; }
-  @media (prefers-reduced-motion: reduce) { .hero-grid { opacity: 0.6; } }
-
-
-  /* One proximity snap stop per major homepage section (no nested snap children, no 100vh force). */
-  :global(html.page-home) {
-    scroll-snap-type: y proximity;
-    scroll-behavior: smooth;
-  }
-  /* Only top-level homepage blocks carry .hero / .section — no nested snap children. */
-  :global(html.page-home) .hero,
-  :global(html.page-home) .section {
-    scroll-snap-align: start;
-    scroll-snap-stop: normal;
-    /* Match fixed header + collaboration banner (Layout --site-header-offset). */
-    scroll-margin-top: var(--site-header-offset, 7.5rem);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    :global(html.page-home) {
-      scroll-snap-type: none;
-      scroll-behavior: auto;
-    }
-  }
-  /* Allow browser to skip layout/paint for off-screen sections (scroll perf) */
-  :global(html.page-home) .section {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 80vh;
+  .road-col ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    line-height: 1.55;
   }
 
-  /* Hero + animation */
-  .hero-content {
+  /* Ecosystem */
+  .first-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.75rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+  }
+  .first-steps a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--boing-line);
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+  .first-steps a:hover,
+  .first-steps a:focus-visible {
+    border-color: var(--boing-accent);
+  }
+  .first-steps strong { color: var(--text-primary); font-size: 0.95rem; }
+  .first-steps span { color: var(--text-secondary); font-size: 0.85rem; }
+
+  .apps-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem 1.5rem;
+  }
+  .app-link {
+    display: block;
+    padding: 1rem 0;
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px solid var(--boing-line);
+    transition: border-color 0.2s ease;
+  }
+  .app-link:hover { border-color: var(--boing-accent); }
+  .app-link h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    color: var(--boing-accent-soft);
+  }
+  .app-link p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+  }
+
+  /* Tokenomics — lighter chrome */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+  @media (max-width: 640px) { .stats-row { grid-template-columns: 1fr; } }
+  .stat-value {
+    display: block;
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--boing-accent);
+    font-family: var(--font-display);
+  }
+  .stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  .tokenomics-block {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--boing-line);
+  }
+  .tokenomics-block h3 {
+    font-size: 1rem;
+    margin: 0 0 0.5rem;
+    color: var(--text-primary);
+  }
+  .chart-intro {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0 0 0.75rem;
+    line-height: 1.45;
+  }
+  .chart-note {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    margin: 0.65rem 0 0;
+    line-height: 1.45;
+  }
+  .chart-wrapper {
     position: relative;
-    z-index: 3;
-    max-width: 800px;
+    width: 100%;
+    height: 200px;
+    min-height: 200px;
+  }
+  .chart-supply {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .chart-supply .supply-pie-svg {
+    width: 100%;
+    height: 100%;
+    max-width: 200px;
+    max-height: 200px;
+    display: block;
     margin: 0 auto;
   }
-  .hero-logo-img { display: block; max-width: min(120px, 28vw); height: auto; margin: 0 auto 0.5rem; object-fit: contain; filter: drop-shadow(0 0 16px var(--glow-cyan)); }
-  .hero-title { font-size: clamp(2rem, 5vw, 3.5rem); margin: 0 0 0.5rem; }
-  .tagline { margin: 0 0 0.5rem; }
-  .stage-badge {
-    display: inline-block;
-    padding: 0.35rem 0.85rem;
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #FFB800;
-    background: rgba(255, 184, 0, 0.15);
-    border: 1px solid rgba(255, 184, 0, 0.4);
-    border-radius: 999px;
-    margin-bottom: 0.75rem;
-  }
-  .hero-stage {
-    font-size: 1rem;
-    color: var(--text-secondary);
-    margin: 0 0 1rem;
-  }
-  .hero-stage strong { color: #FFB800; }
-  .hero-highlights { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; justify-content: center; margin: 1.5rem 0 2rem; }
-  .hero-highlight { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.75rem; border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); background: rgba(16, 26, 56, 0.85); border: 1px solid var(--border-color); transition: border-color 0.2s ease-out, transform 0.2s ease-out, box-shadow 0.2s ease-out, color 0.2s ease-out; transition-delay: 0; }
-  .hero-highlight:hover { border-color: var(--border-hover); transform: scale(1.05); box-shadow: 0 4px 16px var(--glow-cyan); color: var(--text-primary); }
-  .hl-icon { font-size: 1rem; }
-  .cta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-  .btn { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 600; text-decoration: none; transition: all 0.2s; }
-  .btn-primary { background: linear-gradient(to right, var(--primary-color), var(--secondary-color)); color: white; border: none; }
-  .btn-primary:hover { filter: brightness(1.1); }
-  .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); }
-  .btn-secondary:hover { border-color: var(--accent-neon); color: var(--accent-neon); }
-  .btn-outline { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-color); }
-  .btn-outline:hover { border-color: var(--accent-neon); color: var(--accent-neon); }
-
-  /* Sections: full viewport width with inner max-width for readability */
-  .section {
-    position: relative;
-    z-index: 1;
-    padding: 4rem 2rem;
-    max-width: 100%;
+  .chart-doughnut .doughnut-svg {
     width: 100%;
-    box-sizing: border-box;
+    height: 100%;
+    max-width: 180px;
+    max-height: 180px;
+    margin: 0 auto;
+    display: block;
   }
-  @media (max-width: 640px) {
-    .section { padding: 3rem 1.25rem; }
-  }
-  @media (max-width: 480px) {
-    .section { padding: 2.5rem 1rem; }
-  }
-  @media (max-width: 375px) {
-    .section { padding: 2rem 0.75rem; }
-  }
-  .section > * {
-    max-width: 1280px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .section-alt { background: transparent; }
-  .section h2 { text-align: center; margin-bottom: 0.5rem; color: var(--text-primary); }
-  .section h2.section-subtitle { margin-top: 3rem; font-size: 1.35rem; }
-  .section-lead { text-align: center; color: var(--text-secondary); margin-bottom: 2rem; font-size: 1rem; }
-  .section-lead a { color: var(--accent-teal); }
-  #build .section-subtitle { margin-top: 2.5rem; }
-
-  .build-banners-row {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-    margin-top: 2rem;
-    align-items: start;
-  }
-  @media (min-width: 720px) {
-    .build-banners-row { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-  }
-  .build-banners-row .testnet-banner,
-  .build-banners-row .cta-banner { margin: 0; }
-
-  /* Section reveal: stronger entrance with stagger */
-  .section-reveal { opacity: 0; transform: translateY(28px); animation: section-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-  .section-reveal.delay-1 { animation-delay: 0.06s; }
-  .section-reveal.delay-2 { animation-delay: 0.12s; }
-  .section-reveal.delay-3 { animation-delay: 0.18s; }
-  .section-reveal.delay-4 { animation-delay: 0.24s; }
-  .section-reveal.delay-5 { animation-delay: 0.3s; }
-  .section-reveal.delay-6 { animation-delay: 0.36s; }
-  .section-reveal.delay-7 { animation-delay: 0.42s; }
-  .section-reveal.delay-8 { animation-delay: 0.48s; }
-  .section-reveal.delay-9 { animation-delay: 0.54s; }
-  .section-reveal.delay-10 { animation-delay: 0.6s; }
-  .section-reveal.delay-11 { animation-delay: 0.66s; }
-  .section-reveal.delay-12 { animation-delay: 0.72s; }
-  .section-reveal.delay-13 { animation-delay: 0.78s; }
-  @keyframes section-reveal { to { opacity: 1; transform: translateY(0); } }
-  @media (prefers-reduced-motion: reduce) {
-    .section-reveal { animation: none; opacity: 1; transform: none; }
-    .pillar-card:hover { transform: none; }
-    .pillar-img { filter: none; }
-  }
-
-  /* Sections: full viewport width with inner max-width for readability */
-  .section {
-    position: relative;
-    z-index: 1;
-    padding: 4rem 2rem;
-    max-width: 100%;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  @media (max-width: 640px) {
-    .section { padding: 3rem 1.25rem; }
-  }
-  @media (max-width: 480px) {
-    .section { padding: 2.5rem 1rem; }
-  }
-  @media (max-width: 375px) {
-    .section { padding: 2rem 0.75rem; }
-  }
-  .section > * {
-    max-width: 1280px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .section-alt { background: transparent; }
-  .section h2 { text-align: center; margin-bottom: 0.5rem; color: var(--text-primary); }
-  .section h2.section-subtitle { margin-top: 3rem; font-size: 1.35rem; }
-  .section-lead { text-align: center; color: var(--text-secondary); margin-bottom: 2rem; font-size: 1rem; }
-  .section-lead a { color: var(--accent-teal); }
-  #build .section-subtitle { margin-top: 2.5rem; }
-
-  /* Tokenomics */
-  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
-  .stat-card { background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; text-align: center; transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out; transition-delay: 0; }
-  .stat-card:hover { box-shadow: 0 8px 24px var(--glow-cyan); border-color: var(--border-hover); }
-  .stat-value { display: block; font-size: 1.5rem; font-weight: 700; color: var(--accent-teal); }
-  .stat-label { font-size: 0.85rem; color: var(--text-secondary); }
-  .chart-fullwidth { margin-bottom: 1.5rem; }
-  .chart-wrapper.chart-supply { height: 220px; min-height: 220px; display: flex; align-items: center; justify-content: center; }
-  .chart-supply .supply-pie-svg { width: 100%; height: 100%; max-width: 220px; max-height: 220px; display: block; margin: 0 auto; }
-  .chart-intro { font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 0.75rem; line-height: 1.45; }
-  .chart-note { font-size: 0.8rem; color: var(--text-tertiary); margin: 0.5rem 0 0; font-style: italic; }
-  .legend-inline { justify-content: flex-start; margin-top: 0.75rem; }
-  .charts-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
-  @media (max-width: 320px) {
-    .charts-row { grid-template-columns: 1fr; gap: 1rem; }
-  }
-  .chart-card { background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
-  .chart-card:hover { border-color: var(--border-hover); box-shadow: 0 8px 24px var(--glow-cyan); }
-  .chart-card h3 { font-size: 1rem; margin: 0 0 0.75rem; color: var(--text-primary); }
-  .chart-wrapper { position: relative; width: 100%; height: 220px; min-height: 220px; }
-  .chart-doughnut .doughnut-svg { width: 100%; height: 100%; max-width: 200px; max-height: 200px; margin: 0 auto; display: block; }
   .chart-line .line-svg { width: 100%; height: 100%; display: block; }
-  .legend { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-secondary); }
-  .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.25rem; vertical-align: middle; }
-  .dot-teal { background: var(--accent-teal); }
-  .dot-cyan { background: var(--accent-cyan); }
+  .charts-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .legend {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  .legend .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.25rem;
+    vertical-align: middle;
+  }
+  .dot-teal { background: var(--boing-accent); }
   .dot-gold { background: var(--accent-gold); }
-  .dot-purple { background: var(--accent-purple); }
-  .dot-success { background: var(--success-color); }
-  .stroke-teal { stroke: var(--accent-teal); }
-  .stroke-cyan { stroke: var(--accent-cyan); }
+  .dot-success { background: var(--boing-success); }
+  .dot-soft { background: var(--boing-accent-soft); }
+  .stroke-teal { stroke: var(--boing-accent); }
   .stroke-gold { stroke: var(--accent-gold); }
-  .stroke-purple { stroke: var(--accent-purple); }
-  .stroke-success { stroke: var(--success-color); }
+  .stroke-success { stroke: var(--boing-success); }
+  .stroke-soft { stroke: var(--boing-accent-soft); }
   .chart-badge {
     display: inline-block;
-    margin-left: 0.4rem;
-    padding: 0.12rem 0.45rem;
-    font-size: 0.7rem;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -585,98 +694,100 @@ import Layout from '../layouts/Layout.astro';
     color: var(--accent-gold);
     border: 1px solid color-mix(in srgb, var(--accent-gold) 55%, transparent);
     border-radius: 0.25rem;
-    background: color-mix(in srgb, var(--accent-gold) 12%, transparent);
   }
-  .chart-note-tight { margin-top: 0.75rem; font-size: 0.85rem; }
   .tokenomics-faq {
-    max-width: 48rem;
-    margin: 0 auto 1.5rem;
-    padding: 1.25rem 1.35rem;
-    background: rgba(16, 26, 56, 0.72);
-    border: 1px solid var(--border-color);
-    border-radius: 0.75rem;
+    max-width: 42rem;
+    margin: 0 auto;
   }
   .tokenomics-faq h3 {
-    margin: 0 0 0.65rem;
+    margin: 0 0 0.55rem;
     font-size: 1.05rem;
     color: var(--text-primary);
   }
   .tokenomics-faq p {
-    margin: 0 0 0.75rem;
-    font-size: 0.9rem;
+    margin: 0;
+    font-size: 0.92rem;
     line-height: 1.55;
     color: var(--text-secondary);
   }
-  .tokenomics-faq p:last-child { margin-bottom: 0; }
-  .value-loop { text-align: center; font-family: var(--font-mono); color: var(--accent-teal); background: var(--bg-tertiary); border: 1px solid var(--border-color); padding: 1rem; border-radius: 0.5rem; font-size: 0.95rem; }
 
-  .t-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: rgba(16, 26, 56, 0.85); border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); transition: transform 0.2s ease-out, border-color 0.2s ease-out; transition-delay: 0; }
-  .t-item.complete { border-color: rgba(16,185,129,0.4); color: var(--success-color); }
-  .t-item.in-progress { border-color: var(--accent-teal); color: var(--accent-teal); }
-  .t-marker { font-size: 0.75rem; }
-
-  /* Ecosystem */
-  .apps-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
-  .app-card { background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.25rem; text-decoration: none; color: inherit; transition: transform 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
-  .app-card:hover { border-color: var(--border-hover); box-shadow: 0 12px 32px var(--glow-cyan); }
-  .app-card.featured { border-color: var(--accent-cyan); }
-  .app-card h3 { font-size: 1rem; margin: 0 0 0.5rem; color: var(--text-primary); }
-  .app-card p { font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 0.75rem; line-height: 1.4; }
-  .app-status { font-size: 0.75rem; text-transform: uppercase; font-weight: 600; }
-  .app-status.live { color: var(--success-color); }
-  .app-status.build { color: var(--accent-teal); }
-
-  .first-steps { list-style: none; padding: 0; margin: 0 0 1.25rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
-  .first-steps a { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.9rem 1rem; border-radius: 0.75rem; border: 1px dashed var(--accent-teal); color: inherit; text-decoration: none; background: rgba(16, 26, 56, 0.6); }
-  .first-steps a:hover, .first-steps a:focus-visible { border-style: solid; box-shadow: 0 8px 24px var(--glow-cyan); }
-  .first-steps strong { color: var(--text-primary); font-size: 0.95rem; }
-  .first-steps span { color: var(--text-secondary); font-size: 0.85rem; }
-
-  /* Innovations grid */
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
-  .card { padding: 1.25rem; background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-color); border-radius: 1rem; transition: transform 0.2s ease-out, border-color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
-  .card:hover { border-color: var(--border-hover); box-shadow: 0 10px 28px var(--glow-cyan); }
-  .card h3 { font-size: 0.95rem; margin: 0 0 0.5rem; color: var(--text-primary); }
-  .card p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
-
-  /* Testnet CTA banner */
-  .testnet-banner { padding: 1.75rem 2rem; border-radius: 1rem; background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-hover); text-align: center; }
-  .testnet-banner h3 { margin: 0 0 0.5rem; font-size: 1.2rem; color: var(--text-primary); }
-  .testnet-banner p { margin: 0 0 1.25rem; font-size: 0.95rem; color: var(--text-secondary); line-height: 1.45; }
-  .testnet-banner-btns { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
-  .testnet-banner-btns .btn { padding: 0.6rem 1.25rem; font-size: 0.95rem; }
-
-  /* CTA Banner */
-  .cta-banner { padding: 1.5rem 2rem; border-radius: 1rem; background: rgba(16, 26, 56, 0.88); border: 1px solid var(--border-color); text-align: center; }
-  .cta-banner h3 { margin: 0 0 0.5rem; font-size: 1.1rem; color: var(--text-primary); }
-  .cta-banner p { margin: 0 0 1rem; font-size: 0.9rem; color: var(--text-secondary); }
-  .cta-banner-links { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; align-items: center; font-size: 0.9rem; }
-  .cta-banner-links a { color: var(--accent-teal); text-decoration: underline; }
-  .cta-banner-links a:hover { color: var(--accent-cyan); }
-  .cta-banner-links .sep { color: var(--text-tertiary); margin: 0 0.25rem; }
-
-  /* Links */
-  .link-grid { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
-  .link-grid a { padding: 0.5rem 1rem; border-radius: 0.5rem; background: rgba(16, 26, 56, 0.85); border: 1px solid var(--border-color); transition: border-color 0.2s ease-out, color 0.2s ease-out, box-shadow 0.2s ease-out; transition-delay: 0; }
-  .link-grid a:hover { border-color: var(--border-hover); color: var(--accent-teal); box-shadow: 0 4px 12px var(--glow-cyan); }
-  .link-grid a.link-highlight { border-color: var(--border-hover); background: var(--bg-tertiary); font-weight: 600; }
-  .link-grid a.link-highlight:hover { border-color: var(--accent-teal); box-shadow: 0 0 12px var(--glow-cyan); }
-
-  @media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr; } }
-  @media (max-width: 640px) {
-    .timeline-compact { display: flex; flex-direction: column; gap: 0.5rem; }
-    .testnet-banner { padding: 1.25rem 1rem; }
-    .cta-banner { padding: 1.25rem 1rem; }
+  /* Scroll reveals */
+  .reveal {
+    opacity: 0;
+    transform: translateY(22px);
+    transition:
+      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
   }
-  @media (max-width: 375px) {
-    .testnet-banner { padding: 1rem 0.75rem; }
-    .cta-banner { padding: 1rem 0.75rem; }
-    .testnet-banner-btns { flex-direction: column; }
-    .cta-banner-links { flex-direction: column; }
+  .reveal.delay-1 { transition-delay: 0.06s; }
+  .reveal.delay-2 { transition-delay: 0.12s; }
+  .reveal.delay-3 { transition-delay: 0.18s; }
+  .reveal.delay-4 { transition-delay: 0.24s; }
+  .reveal.delay-5 { transition-delay: 0.3s; }
+  .reveal.delay-6 { transition-delay: 0.36s; }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
   }
-  .t-item:hover { transform: scale(1.02); }
+
+  /* Scroll snap (preserved) */
+  :global(html.page-home) {
+    scroll-snap-type: y proximity;
+    scroll-behavior: smooth;
+  }
+  :global(html.page-home) .hero,
+  :global(html.page-home) .section {
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+    scroll-margin-top: var(--site-header-offset, 7.5rem);
+  }
+  :global(html.page-home) .section {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 70vh;
+  }
+
+  @keyframes hero-glow-pulse {
+    0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
+    50% { opacity: 1; transform: translateX(-50%) scale(1.08); }
+  }
+  @keyframes hero-grid-drift {
+    from { background-position: 0 0; }
+    to { background-position: 56px 56px; }
+  }
+  @keyframes hero-mark-in {
+    from { opacity: 0; transform: translateY(16px) scale(0.94); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes hero-mark-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  @keyframes hero-copy-in {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .card:hover, .app-card:hover, .stat-card:hover, .t-item:hover { transform: none; }
+    .hero-glow,
+    .hero-grid,
+    .hero-logo-img,
+    .hero-brand,
+    .hero-title,
+    .tagline,
+    .cta,
+    .hero-stage {
+      animation: none !important;
+    }
+    .hero-logo-img { opacity: 1; transform: none; }
+    .reveal {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+    :global(html.page-home) {
+      scroll-snap-type: none;
+      scroll-behavior: auto;
+    }
+    .btn-primary:hover { transform: none; }
   }
 </style>
-
