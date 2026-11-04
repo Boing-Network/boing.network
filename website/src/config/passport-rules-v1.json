@@ -1,14 +1,26 @@
 {
   "name": "Boing Testnet Passport",
-  "rules_version": "1.0.0",
-  "published": "2026-11-03",
+  "rules_version": "1.1.0",
+  "published": "2026-11-04",
   "chain_id": 6913,
-  "status": "stage-1",
+  "status": "stage-3",
   "disclaimer": "Testnet Passport records testnet participation. Activity recorded here may be considered in any future incentive or distribution program, but nothing here is a promise of tokens, an airdrop, or a mainnet claim. Rules may change; any change ships as a new rules_version.",
   "tracks": [
-    { "id": "user", "label": "Users", "description": "Use the testnet: wallet, faucet, transactions, Boing Finance, QA votes." },
-    { "id": "developer", "label": "Builders", "description": "Deploy contracts that pass the QA gate, create tokens and pools, contribute code." },
-    { "id": "node_operator", "label": "Validators", "description": "Run a node, join the open validator set, stay live, upgrade on time." }
+    {
+      "id": "user",
+      "label": "Users",
+      "description": "Use the testnet: wallet, faucet, transactions, Boing Finance, QA votes."
+    },
+    {
+      "id": "developer",
+      "label": "Builders",
+      "description": "Deploy contracts that pass the QA gate, create tokens and pools, contribute code."
+    },
+    {
+      "id": "node_operator",
+      "label": "Validators",
+      "description": "Run a node, join the open validator set, stay live, upgrade on time."
+    }
   ],
   "policy": {
     "registration_required": true,
@@ -16,8 +28,14 @@
     "historic_credit_from_genesis": true,
     "multiple_tracks_per_account": true,
     "scoring": "badges_and_tiers",
-    "tiers": ["bronze", "silver", "gold"],
-    "verified_socials_required_for": ["gold"],
+    "tiers": [
+      "bronze",
+      "silver",
+      "gold"
+    ],
+    "verified_socials_required_for": [
+      "gold"
+    ],
     "snapshot_cadence": "weekly",
     "leaderboard": "public, ordered by tier, shortened addresses",
     "validator_uptime_method": "sampled boing_getValidators",
@@ -36,71 +54,391 @@
       "0x806b2462b28f2f5772bbf5ae2628ad3a333bd2c5fa341144e0400ef5c2f1e4c6"
     ],
     "dex_pools_source": "boing_listDexPools",
-    "max_history_pages": 10
+    "max_history_pages": 10,
+    "uptime_sample_interval_minutes": 10,
+    "snapshot": {
+      "cadence": "weekly (first indexer tick after Monday 00:00 UTC)",
+      "leaf": "sha256(account_id_hex|track|tier|score)",
+      "tree": "sorted leaves, sha256(left||right), odd node promoted"
+    }
   },
   "quests": [
     {
-      "id": "faucet", "name": "First drip", "tracks": ["user"],
+      "id": "faucet",
+      "name": "First drip",
+      "tracks": [
+        "user"
+      ],
       "description": "Request testnet BOING from the faucet.",
       "howToComplete": "Go to the Faucet page, paste your Boing address (or connect Boing Express), and request testnet BOING. Then submit this quest; we check the chain for a faucet transfer to your account.",
-      "verificationType": "on_chain", "rewardTier": "base",
+      "verificationType": "on_chain",
+      "rewardTier": "base",
       "check": "Any successful transfer to the account sent by the faucet account (boing_getAccountTransactions)."
     },
     {
-      "id": "first_tx", "name": "First transaction", "tracks": ["user", "developer", "node_operator"],
+      "id": "first_tx",
+      "name": "First transaction",
+      "tracks": [
+        "user",
+        "developer",
+        "node_operator"
+      ],
       "description": "Send any transaction on testnet.",
       "howToComplete": "Use Boing Express or the RPC to send any transaction from your account, then submit this quest.",
-      "verificationType": "on_chain", "rewardTier": "base",
+      "verificationType": "on_chain",
+      "rewardTier": "base",
       "check": "Any successful transaction sent by the account (boing_getAccountTransactions, direction out)."
     },
     {
-      "id": "express_wallet", "name": "Open Express", "tracks": ["user"],
+      "id": "express_wallet",
+      "name": "Open Express",
+      "tracks": [
+        "user"
+      ],
       "description": "Create or unlock a Boing Express wallet and copy your testnet address.",
       "howToComplete": "Install or open https://boing.express, create or unlock a wallet on chain 6913, then submit your address here.",
-      "verificationType": "manual", "rewardTier": "ecosystem",
+      "verificationType": "manual",
+      "rewardTier": "ecosystem",
       "check": "Manual review (no on-chain marker distinguishes wallets)."
     },
     {
-      "id": "finance_swap", "name": "Try Finance", "tracks": ["user"],
+      "id": "finance_swap",
+      "name": "Try Finance",
+      "tracks": [
+        "user"
+      ],
       "description": "Swap tokens or add liquidity on Boing Finance.",
       "howToComplete": "Visit https://boing.finance, connect Boing Express, then make a small swap on Swap or add liquidity on Pools. Submit this quest; we check the chain for a call to a Boing DEX contract or pool.",
-      "verificationType": "on_chain", "rewardTier": "ecosystem",
+      "verificationType": "on_chain",
+      "rewardTier": "ecosystem",
       "check": "Any successful contract call (or batch step) from the account to a canonical native DEX contract or a pool from boing_listDexPools."
     },
     {
-      "id": "observer_lookup", "name": "Look up on Observer", "tracks": ["user"],
+      "id": "observer_lookup",
+      "name": "Look up on Observer",
+      "tracks": [
+        "user"
+      ],
       "description": "Find your account or a recent block on Boing Observer.",
       "howToComplete": "Open https://boing.observer, search your address or a block height, and submit the explorer URL you used.",
-      "verificationType": "manual", "rewardTier": "ecosystem",
+      "verificationType": "manual",
+      "rewardTier": "ecosystem",
       "check": "Manual review of the submitted URL."
     },
     {
-      "id": "first_deploy", "name": "Ship a contract", "tracks": ["developer"],
+      "id": "first_deploy",
+      "name": "Ship a contract",
+      "tracks": [
+        "developer"
+      ],
       "description": "Deploy a contract that passes the on-chain QA gate.",
       "howToComplete": "Deploy any contract from your account (SDK, CLI, or a dApp). Deploys that the QA gate rejects never commit, so a committed deploy counts. Then submit this quest.",
-      "verificationType": "on_chain", "rewardTier": "ecosystem",
+      "verificationType": "on_chain",
+      "rewardTier": "ecosystem",
       "check": "Any successful contract_deploy transaction sent by the account."
     },
     {
-      "id": "validator_connect", "name": "Join the validator set", "tracks": ["node_operator"],
+      "id": "validator_connect",
+      "name": "Join the validator set",
+      "tracks": [
+        "node_operator"
+      ],
       "description": "Run a node and register it as an open validator.",
       "howToComplete": "Run boing-node with --p2p-listen and the official bootnodes (see the validator guide), fund the 100 BOING bond, and register as a validator from your account. Then submit this quest.",
-      "verificationType": "on_chain", "rewardTier": "validator",
+      "verificationType": "on_chain",
+      "rewardTier": "validator",
       "check": "Account appears in boing_getValidators (id or owner), or has sent a successful validator_register transaction."
     },
     {
-      "id": "feedback", "name": "Share feedback", "tracks": ["user", "developer", "node_operator"],
+      "id": "feedback",
+      "name": "Share feedback",
+      "tracks": [
+        "user",
+        "developer",
+        "node_operator"
+      ],
       "description": "Answer a few short questions about UX, docs, or bugs.",
       "howToComplete": "Submit a link to your feedback (GitHub issue, Discord message link, or doc).",
-      "verificationType": "manual", "rewardTier": "bonus",
+      "verificationType": "manual",
+      "rewardTier": "bonus",
       "check": "Manual review."
     },
     {
-      "id": "social", "name": "Join community", "tracks": ["user", "developer", "node_operator"],
+      "id": "social",
+      "name": "Join community",
+      "tracks": [
+        "user",
+        "developer",
+        "node_operator"
+      ],
       "description": "Join Discord and post in #testnet-intros.",
       "howToComplete": "Join our Discord and post in #testnet-intros with your testnet account address. Submit your Discord handle.",
-      "verificationType": "manual", "rewardTier": "bonus",
+      "verificationType": "manual",
+      "rewardTier": "bonus",
       "check": "Manual review (verified Discord linking arrives in a later stage)."
     }
-  ]
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-03",
+      "notes": "Quests, tracks, on-chain auto verification."
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-11-04",
+      "notes": "Badges, Bronze/Silver/Gold tiers per track, sampled validator uptime, weekly Merkle snapshots. Gold requires a verified Discord link (not yet available)."
+    }
+  ],
+  "badges": [
+    {
+      "id": "first_drip",
+      "name": "First drip",
+      "track": "user",
+      "description": "Received testnet BOING from the faucet.",
+      "rule": {
+        "signal": "faucet_drips",
+        "gte": 1
+      },
+      "points": 1
+    },
+    {
+      "id": "first_tx",
+      "name": "First transaction",
+      "track": "all",
+      "description": "Sent a successful transaction.",
+      "rule": {
+        "signal": "tx_sent",
+        "gte": 1
+      },
+      "points": 1
+    },
+    {
+      "id": "dex_trader",
+      "name": "DEX trader",
+      "track": "user",
+      "description": "Swapped or added liquidity on the native DEX (Boing Finance).",
+      "rule": {
+        "signal": "dex_calls",
+        "gte": 1
+      },
+      "points": 2
+    },
+    {
+      "id": "dex_regular",
+      "name": "DEX regular",
+      "track": "user",
+      "description": "10+ native DEX interactions.",
+      "rule": {
+        "signal": "dex_calls",
+        "gte": 10
+      },
+      "points": 3
+    },
+    {
+      "id": "active_3d",
+      "name": "Regular",
+      "track": "user",
+      "description": "Sent transactions on 3+ different days.",
+      "rule": {
+        "signal": "active_days",
+        "gte": 3
+      },
+      "points": 2
+    },
+    {
+      "id": "active_10d",
+      "name": "Committed",
+      "track": "user",
+      "description": "Sent transactions on 10+ different days.",
+      "rule": {
+        "signal": "active_days",
+        "gte": 10
+      },
+      "points": 3
+    },
+    {
+      "id": "first_deploy",
+      "name": "First deploy",
+      "track": "developer",
+      "description": "Deployed a contract that passed the QA gate.",
+      "rule": {
+        "signal": "deploys",
+        "gte": 1
+      },
+      "points": 2
+    },
+    {
+      "id": "multi_deploy",
+      "name": "Builder",
+      "track": "developer",
+      "description": "3+ contract deploys.",
+      "rule": {
+        "signal": "deploys",
+        "gte": 3
+      },
+      "points": 3
+    },
+    {
+      "id": "prolific_builder",
+      "name": "Prolific builder",
+      "track": "developer",
+      "description": "10+ contract deploys.",
+      "rule": {
+        "signal": "deploys",
+        "gte": 10
+      },
+      "points": 4
+    },
+    {
+      "id": "validator_joined",
+      "name": "Validator",
+      "track": "node_operator",
+      "description": "Joined the open validator set (or registered).",
+      "rule": {
+        "signal": "validator_joined",
+        "gte": 1
+      },
+      "points": 2
+    },
+    {
+      "id": "validator_steady",
+      "name": "Steady validator",
+      "track": "node_operator",
+      "description": "Average sampled uptime >= 90% over 144+ samples (~1 day).",
+      "rule": {
+        "signal": "uptime",
+        "min_pct": 90,
+        "min_samples": 144
+      },
+      "points": 3
+    },
+    {
+      "id": "validator_veteran",
+      "name": "Veteran validator",
+      "track": "node_operator",
+      "description": "Average sampled uptime >= 95% over 1008+ samples (~7 days).",
+      "rule": {
+        "signal": "uptime",
+        "min_pct": 95,
+        "min_samples": 1008
+      },
+      "points": 4
+    },
+    {
+      "id": "quest_express_wallet",
+      "name": "Express wallet",
+      "track": "user",
+      "description": "Verified quest: express_wallet.",
+      "rule": {
+        "quest": "express_wallet"
+      },
+      "points": 1
+    },
+    {
+      "id": "quest_observer_lookup",
+      "name": "Explorer",
+      "track": "user",
+      "description": "Verified quest: observer_lookup.",
+      "rule": {
+        "quest": "observer_lookup"
+      },
+      "points": 1
+    },
+    {
+      "id": "quest_feedback",
+      "name": "Feedback",
+      "track": "all",
+      "description": "Verified quest: feedback.",
+      "rule": {
+        "quest": "feedback"
+      },
+      "points": 2
+    },
+    {
+      "id": "quest_social",
+      "name": "Community",
+      "track": "all",
+      "description": "Verified quest: social.",
+      "rule": {
+        "quest": "social"
+      },
+      "points": 1
+    }
+  ],
+  "tiers": {
+    "method": "Per track, count badges that apply to the track (track badges plus 'all' badges). A tier needs the badge count AND every required badge.",
+    "order": [
+      "none",
+      "bronze",
+      "silver",
+      "gold"
+    ],
+    "user": {
+      "bronze": {
+        "min_badges": 2,
+        "requires": [
+          "first_tx"
+        ]
+      },
+      "silver": {
+        "min_badges": 4,
+        "requires": [
+          "dex_trader",
+          "active_3d"
+        ]
+      },
+      "gold": {
+        "min_badges": 7,
+        "requires": [
+          "dex_regular",
+          "active_10d"
+        ],
+        "requires_verified_social": true
+      }
+    },
+    "developer": {
+      "bronze": {
+        "min_badges": 2,
+        "requires": [
+          "first_deploy"
+        ]
+      },
+      "silver": {
+        "min_badges": 3,
+        "requires": [
+          "multi_deploy"
+        ]
+      },
+      "gold": {
+        "min_badges": 5,
+        "requires": [
+          "prolific_builder"
+        ],
+        "requires_verified_social": true
+      }
+    },
+    "node_operator": {
+      "bronze": {
+        "min_badges": 1,
+        "requires": [
+          "validator_joined"
+        ]
+      },
+      "silver": {
+        "min_badges": 3,
+        "requires": [
+          "validator_steady"
+        ]
+      },
+      "gold": {
+        "min_badges": 4,
+        "requires": [
+          "validator_veteran"
+        ],
+        "requires_verified_social": true
+      }
+    },
+    "verified_social_status": "Discord OAuth linking ships in stage 4; until then no account reaches Gold."
+  }
 }

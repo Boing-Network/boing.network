@@ -1,0 +1,28 @@
+# Testnet Passport credibility indexer (stage 2). See ../../docs/TESTNET-PASSPORT.md
+# Every 10 minutes: samples validator uptime, refreshes stale registered accounts (signals -> badges -> tiers),
+# prunes old samples, and writes one weekly snapshot with a Merkle root. Writes to D1 boing-network-db.
+# Free plan: <=45 RPC subrequests/tick, ~10-30 D1 row writes/tick (~4k/day).
+name = "boing-credibility-indexer"
+main = "src/index.js"
+compatibility_date = "2026-03-06"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "boing-network-db"
+database_id = "8cafc32c-5d92-42f3-8c4e-5277b20006c5"
+
+[observability]
+enabled = true
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+[vars]
+RPC_URL = "https://testnet-rpc.boing.network/"
+# Accounts refreshed per tick (stale-first) and the account refresh interval.
+ACCOUNTS_PER_TICK = "4"
+REFRESH_MINUTES = "60"
+# Total boing_getAccountTransactions pages per tick (each page = 1 subrequest, 100 txs).
+PAGE_BUDGET = "36"
+UPTIME_RETENTION_DAYS = "30"

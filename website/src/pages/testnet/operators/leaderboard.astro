@@ -21,9 +21,9 @@ import '../../../styles/hub-common.css';
     <section class="section fade-in-up">
       <h1>Leaderboard</h1>
       <p class="muted">
-        Practice rankings are <strong>not available yet</strong> — the operator indexer is still <strong>Soon</strong> (zeros below are real, not a bug).
-        Do not invent scores. When the indexer ships, blocks proposed and uptime will fill in.
-        Spec: <a href="https://github.com/Boing-Network/boing.network/blob/main/docs/INDEXER-OPERATOR-STATS.md" target="_blank" rel="noopener">INDEXER-OPERATOR-STATS.md</a>.
+        Validators ranked by <a href="/testnet/passport/leaderboard?track=node_operator">Testnet Passport</a> tier, then sampled uptime.
+        The credibility indexer samples <code>boing_getValidators</code> every 10 minutes; averages build up over time.
+        Blocks proposed = scheduled minus missed proposals in the current liveness window.
       </p>
 
       <div class="hub-metrics">
@@ -36,7 +36,7 @@ import '../../../styles/hub-common.css';
           <span class="label">Blocks (total)</span>
         </div>
         <div class="hub-metric-card">
-          <span class="value" id="leaderboard-indexer-status">Soon</span>
+          <span class="value" id="leaderboard-indexer-status">—</span>
           <span class="label">Indexer status</span>
         </div>
       </div>
@@ -58,20 +58,23 @@ import '../../../styles/hub-common.css';
           <tr>
             <th>Rank</th>
             <th>Account</th>
+            <th>Tier</th>
+            <th>Status</th>
             <th>Blocks proposed</th>
-            <th>Uptime</th>
+            <th>Uptime (now)</th>
+            <th>Uptime (avg, samples)</th>
           </tr>
         </thead>
         <tbody id="leaderboard-tbody">
           <tr id="leaderboard-placeholder-row">
-            <td colspan="4" class="leaderboard-loading-cell">
+            <td colspan="7" class="leaderboard-loading-cell">
               <BoingLoader block label="Loading leaderboard" />
             </td>
           </tr>
         </tbody>
       </table>
       <p class="leaderboard-placeholder-note" id="leaderboard-note">
-        Empty table is expected until indexer data lands. Sync steps and the official bootnode:
+        Empty table means no validators are registered yet. Sync steps and the official bootnode:
         <a href="/testnet/join#run-a-node">Join Testnet</a>.
       </p>
     </section>
@@ -133,13 +136,9 @@ import '../../../styles/hub-common.css';
       return hex.slice(0, 10) + '…' + hex.slice(-6);
     }
 
-    function formatUptime(first, last) {
-      if (!first && !last) return '—';
-      var f = first ? first.slice(0, 10) : '';
-      var l = last ? last.slice(0, 10) : '';
-      if (f && l) return f === l ? f : f + ' – ' + l;
-      return f || l;
-    }
+    function pct(v) { return (v == null || isNaN(Number(v))) ? '—' : Number(v).toFixed(1) + '%'; }
+    function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+    function tierLabel(t) { return t && t !== 'none' ? t.charAt(0).toUpperCase() + t.slice(1) : '—'; }
 
     var tbody = document.getElementById('leaderboard-tbody');
     var placeholderRow = document.getElementById('leaderboard-placeholder-row');
@@ -152,16 +151,16 @@ import '../../../styles/hub-common.css';
       .then(function (res) { return res.json().catch(function () { return {}; }); })
       .then(function (data) {
         if (!data.ok) {
-          if (placeholderRow) placeholderRow.innerHTML = '<td colspan="4" style="text-align: center; color: var(--text-tertiary); padding: 2rem;">Unable to load leaderboard.</td>';
+          if (placeholderRow) placeholderRow.innerHTML = '<td colspan="7" style="text-align: center; color: var(--text-tertiary); padding: 2rem;">Unable to load leaderboard.</td>';
           return;
         }
         if (operatorCountEl) operatorCountEl.textContent = data.total_operators ?? 0;
         if (totalBlocksEl) totalBlocksEl.textContent = data.total_blocks ?? 0;
-        if (indexerStatusEl) indexerStatusEl.textContent = (data.total_blocks > 0) ? 'Live' : 'Soon';
+        if (indexerStatusEl) indexerStatusEl.textContent = data.indexer_last_tick ? 'Live' : 'Starting';
 
         var operators = data.operators || [];
         if (operators.length === 0) {
-          if (placeholderRow) placeholderRow.innerHTML = '<td colspan="4" style="text-align: center; color: var(--text-tertiary); padding: 2rem;">No ranking data yet — indexer status Soon. Use the next steps above to run a peer or validator.</td>';
+          if (placeholderRow) placeholderRow.innerHTML = '<td colspan="7" style="text-align: center; color: var(--text-tertiary); padding: 2rem;">No validators yet. Use the next steps above to run a peer or validator.</td>';
           return;
         }
         if (placeholderRow) placeholderRow.remove();
@@ -170,20 +169,21 @@ import '../../../styles/hub-common.css';
         operators.forEach(function (op) {
           var tr = document.createElement('tr');
           tr.className = 'hub-leaderboard-row';
-          if (op.rank === 1) tr.classList.add('hub-leaderboard-row--gold');
-          else if (op.rank === 2) tr.classList.add('hub-leaderboard-row--silver');
-          else if (op.rank === 3) tr.classList.add('hub-leaderboard-row--bronze');
+          if (op.tier === 'gold' || op.tier === 'silver' || op.tier === 'bronze') tr.classList.add('hub-leaderboard-row--' + op.tier);
           tr.innerHTML =
             '<td>' + op.rank + '</td>' +
-            '<td><code class="account-short" title="' + (op.proposer || '') + '">' + shortAccount(op.proposer) + '</code></td>' +
-            '<td>' + op.blocks_proposed + '</td>' +
-            '<td>' + formatUptime(op.first_block_at, op.last_block_at) + '</td>';
+            '<td><code class="account-short" title="validator ' + esc(op.id_short) + ' · owner ' + esc(op.owner_short) + '">' + esc(op.id_short) + '</code>' + (op.kind === 'anchor' ? ' <small class="muted">anchor</small>' : '') + '</td>' +
+            '<td>' + tierLabel(op.tier) + '</td>' +
+            '<td>' + esc(op.status || (op.in_set ? 'active' : '—')) + '</td>' +
+            '<td>' + (op.blocks_proposed == null ? '—' : op.blocks_proposed) + '</td>' +
+            '<td>' + pct(op.uptime_pct) + '</td>' +
+            '<td>' + pct(op.avg_uptime) + ' <small class="muted">(' + (op.samples || 0) + ')</small></td>';
           if (tbody) tbody.appendChild(tr);
         });
         if (noteEl) noteEl.style.display = 'none';
       })
       .catch(function () {
-        if (placeholderRow) placeholderRow.innerHTML = '<td colspan="4" style="text-align: center; color: var(--text-tertiary); padding: 2rem;">Could not load leaderboard. Practice with Join → run a node and the validator guide meanwhile.</td>';
+        if (placeholderRow) placeholderRow.innerHTML = '<td colspan="7" style="text-align: center; color: var(--text-tertiary); padding: 2rem;">Could not load leaderboard. Practice with Join → run a node and the validator guide meanwhile.</td>';
       });
   })();
 </script>

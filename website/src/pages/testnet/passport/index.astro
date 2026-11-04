@@ -1,0 +1,101 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import rules from '../../../config/passport-rules-v1.json';
+import '../../../styles/hub-common.css';
+const trackLabel = Object.fromEntries(rules.tracks.map((t) => [t.id, t.label]));
+---
+
+<Layout
+  title="Testnet Passport — Testnet Portal"
+  description="Your Boing testnet Passport: badges, Bronze/Silver/Gold tiers per track, and progress."
+>
+  <article class="portal-page hub-page passport-page">
+    <script is:inline src="/portal-session.js"></script>
+    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Passport' }]} />
+    <div class="hub-page-main">
+    <IncentivizedTestnetNotice />
+    <section class="section fade-in-up">
+      <h1>Testnet Passport</h1>
+      <p class="muted">
+        Badges and tiers for Users, Builders and Validators, computed from on-chain activity every ~10 minutes (history credited from genesis — marked <em>historic</em>).
+        Rules <a href="/testnet/passport/rules-v1.json">v{rules.rules_version}</a> ·
+        <a href="/testnet/passport/leaderboard">Leaderboards</a> ·
+        <a href="/testnet/users/quests">Quests</a>
+      </p>
+      <p class="muted" style="font-size: 0.9rem;">{rules.disclaimer}</p>
+
+      <form id="pp-form" style="display:flex; gap:.5rem; flex-wrap:wrap; margin: 1rem 0;">
+        <input id="pp-account" type="text" placeholder="0x… account (64 hex)" style="flex:1; min-width: 260px; padding:.5rem;" aria-label="Account" />
+        <button class="btn btn-primary" type="submit">View Passport</button>
+      </form>
+      <div id="pp-status" class="muted"></div>
+      <div id="pp-out"></div>
+    </section>
+
+    <section class="section fade-in-up delay-1">
+      <h2>How tiers work</h2>
+      <table class="leaderboard-table">
+        <thead><tr><th>Track</th><th>Bronze</th><th>Silver</th><th>Gold</th></tr></thead>
+        <tbody>
+          {rules.tracks.map((t) => {
+            const s = rules.tiers[t.id];
+            const fmt = (x) => `${x.min_badges}+ badges · needs ${x.requires.join(', ')}${x.requires_verified_social ? ' · verified Discord' : ''}`;
+            return <tr><td>{t.label}</td><td>{fmt(s.bronze)}</td><td>{fmt(s.silver)}</td><td>{fmt(s.gold)}</td></tr>;
+          })}
+        </tbody>
+      </table>
+      <p class="muted" style="margin-top:.5rem;">{rules.tiers.verified_social_status}</p>
+    </section>
+    </div>
+  </article>
+</Layout>
+
+<script is:inline define:vars={{ badgeDefs: rules.badges, trackLabel }}>
+  (function () {
+    var form = document.getElementById('pp-form');
+    var input = document.getElementById('pp-account');
+    var statusEl = document.getElementById('pp-status');
+    var out = document.getElementById('pp-out');
+    function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+    function cap(t) { return t && t !== 'none' ? t.charAt(0).toUpperCase() + t.slice(1) : 'No tier yet'; }
+    function render(d) {
+      var earned = {}; (d.badges || []).forEach(function (b) { earned[b.id] = b; });
+      var html = '';
+      if (!d.registered) html += '<p class="muted">This account is not registered for the Passport. <a href="/testnet/register">Register</a> to be indexed (past activity counts as historic).</p>';
+      if (!d.indexed) html += '<p class="muted">Not indexed yet — the credibility indexer refreshes registered accounts every ~10 minutes.</p>';
+      else html += '<p class="muted">Indexed ' + esc(d.indexed_at) + ' · ' + esc(d.signals.tx_sent) + ' txs sent · ' + esc(d.signals.deploys) + ' deploys · ' + esc(d.signals.dex_calls) + ' DEX calls · ' + esc(d.signals.active_days) + ' active days' + (d.signals.history_complete ? '' : ' (recent history only)') + '</p>';
+      html += '<div class="hub-metrics">';
+      (d.tracks || []).forEach(function (t) {
+        var p = t.progress, prog = '';
+        if (p) prog = 'Next: ' + cap(p.next) + ' — ' + p.have_badges + '/' + p.need_badges + ' badges' + (p.missing_required.length ? ', needs ' + p.missing_required.map(esc).join(', ') : '') + (p.needs_verified_social ? ', verified Discord (coming)' : '');
+        html += '<div class="hub-metric-card"><span class="value">' + esc(cap(t.tier)) + '</span><span class="label">' + esc(trackLabel[t.track] || t.track) + ' · score ' + esc(t.score) + '</span><small class="muted">' + prog + '</small></div>';
+      });
+      html += '</div><h2 style="margin-top:1.25rem;">Badges</h2><ul class="quest-list">';
+      badgeDefs.forEach(function (b) {
+        var e = earned[b.id];
+        html += '<li class="quest-card" style="opacity:' + (e ? 1 : 0.55) + '"><h3>' + (e ? '✅ ' : '○ ') + esc(b.name) + ' <small class="muted">' + esc(b.track === 'all' ? 'all tracks' : (trackLabel[b.track] || b.track)) + ' · ' + b.points + ' pt</small></h3><p>' + esc(b.description) + '</p>' +
+          (e ? '<p class="muted">Earned ' + esc(String(e.earned_at).slice(0, 10)) + (e.historic ? ' · historic' : '') + '</p>' : '') + '</li>';
+      });
+      html += '</ul>';
+      out.innerHTML = html;
+    }
+    function load(acct) {
+      statusEl.textContent = 'Loading…'; out.innerHTML = '';
+      fetch('/api/passport/profile?account_id_hex=' + encodeURIComponent(acct))
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (!d.ok) { statusEl.textContent = d.message || 'Could not load'; return; } statusEl.textContent = ''; render(d); })
+        .catch(function () { statusEl.textContent = 'Could not load Passport.'; });
+    }
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var a = input.value.trim().toLowerCase(); if (a && a.indexOf('0x') !== 0) a = '0x' + a;
+      history.replaceState(null, '', '?account=' + a); load(a);
+    });
+    var q = new URLSearchParams(location.search).get('account');
+    var s = window.BoingPortalSession && window.BoingPortalSession.getSession();
+    var start = q || (s && s.account_id_hex);
+    if (start) { input.value = start; load(start); }
+  })();
+</script>

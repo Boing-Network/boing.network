@@ -1,0 +1,59 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import rules from '../../../config/passport-rules-v1.json';
+import '../../../styles/hub-common.css';
+---
+
+<Layout
+  title="Passport leaderboards — Testnet Portal"
+  description="Public Boing testnet Passport leaderboards per track, ordered by tier."
+>
+  <article class="portal-page hub-page passport-page">
+    <Breadcrumbs items={[{ label: 'Testnet Portal', href: '/testnet' }, { label: 'Passport', href: '/testnet/passport' }, { label: 'Leaderboards' }]} />
+    <div class="hub-page-main">
+    <IncentivizedTestnetNotice />
+    <section class="section fade-in-up">
+      <h1>Passport leaderboards</h1>
+      <p class="muted">Ordered by tier (Gold → Silver → Bronze), then badge score. Addresses are shortened. Updated by the credibility indexer every ~10 minutes. Rules <a href="/testnet/passport/rules-v1.json">v{rules.rules_version}</a>.</p>
+      <div id="lb-tabs" style="display:flex; gap:.5rem; margin: 1rem 0;">
+        {rules.tracks.map((t) => <button type="button" class="btn btn-secondary" data-track={t.id}>{t.label}</button>)}
+      </div>
+      <div class="hub-metrics" id="lb-metrics"></div>
+      <table class="leaderboard-table" aria-label="Passport leaderboard">
+        <thead><tr><th>Rank</th><th>Account</th><th>Tier</th><th>Score</th><th>Badges</th></tr></thead>
+        <tbody id="lb-tbody"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+      </table>
+      <p class="muted" id="lb-note"></p>
+    </section>
+    </div>
+  </article>
+</Layout>
+
+<script is:inline>
+  (function () {
+    var tbody = document.getElementById('lb-tbody');
+    var metrics = document.getElementById('lb-metrics');
+    var note = document.getElementById('lb-note');
+    var btns = document.querySelectorAll('#lb-tabs button');
+    function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+    function cap(t) { return t && t !== 'none' ? t.charAt(0).toUpperCase() + t.slice(1) : '—'; }
+    function load(track) {
+      btns.forEach(function (b) { b.className = 'btn ' + (b.dataset.track === track ? 'btn-primary' : 'btn-secondary'); });
+      tbody.innerHTML = '<tr><td colspan="5" class="muted">Loading…</td></tr>';
+      fetch('/api/passport/leaderboard?track=' + track).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.ok) { tbody.innerHTML = '<tr><td colspan="5">Could not load.</td></tr>'; return; }
+        var t = d.tiers || {};
+        metrics.innerHTML = ['gold', 'silver', 'bronze'].map(function (k) { return '<div class="hub-metric-card"><span class="value">' + (t[k] || 0) + '</span><span class="label">' + cap(k) + '</span></div>'; }).join('');
+        note.textContent = d.indexer_last_tick ? 'Indexer last ran ' + d.indexer_last_tick + '. Gold requires a verified Discord link (coming soon).' : 'Indexer has not run yet.';
+        if (!d.entries.length) { tbody.innerHTML = '<tr><td colspan="5" class="muted">No indexed accounts on this track yet. <a href="/testnet/register">Register</a> to appear.</td></tr>'; return; }
+        tbody.innerHTML = d.entries.map(function (e) {
+          return '<tr class="hub-leaderboard-row' + (e.tier !== 'none' ? ' hub-leaderboard-row--' + esc(e.tier) : '') + '"><td>' + e.rank + '</td><td><code class="account-short">' + esc(e.account) + '</code></td><td>' + cap(e.tier) + '</td><td>' + esc(e.score) + '</td><td>' + esc(e.badges) + '</td></tr>';
+        }).join('');
+      }).catch(function () { tbody.innerHTML = '<tr><td colspan="5">Could not load.</td></tr>'; });
+    }
+    btns.forEach(function (b) { b.addEventListener('click', function () { history.replaceState(null, '', '?track=' + b.dataset.track); load(b.dataset.track); }); });
+    load(new URLSearchParams(location.search).get('track') || 'user');
+  })();
+</script>

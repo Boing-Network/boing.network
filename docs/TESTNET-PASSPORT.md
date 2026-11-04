@@ -44,10 +44,26 @@ Reads up to `max_history_pages` × 100 txs from `boing_getAccountTransactions`; 
 
 Migration `website/migrations/2026-11-03-testnet-passport-stage1.sql`: `portal_tracks` (backfilled from `portal_registrations.role`), `quest_completions.verification_status` / `verified_by`, quest rows upserted from the rules.
 
-## Stage 2 (next)
+## Stage 2 — credibility indexer (shipped 2026-11-04, rules 1.1.0)
 
-- Indexer / weekly snapshot job (Cron Worker) computing badges and tiers from chain + D1.
-- Passport page and badges/tiers UI; public tier-ordered leaderboard.
-- Verified Discord/GitHub/X OAuth links (Gold requirement).
-- Sybil heuristics (funding graph, faucet-only accounts), validator uptime sampling.
-- Reviewer queue for manual quests.
+Worker `boing-credibility-indexer` (`workers/credibility-indexer`, cron `*/10 * * * *`, Free plan) writes to D1:
+`passport_signals`, `passport_badges`, `passport_tiers`, `validator_uptime_samples`, `passport_snapshots`, `indexer_state`
+(migration `website/migrations/2026-11-04-testnet-passport-stage2.sql`).
+
+- Registered accounts are refreshed stale-first (≤4 per tick, hourly) from `boing_getAccountTransactions` (≤10 pages = most recent 1000 txs).
+- Activity before registration is credited and flagged `historic`. Badges are permanent once earned.
+- Validator uptime: one `boing_getValidators` sample per validator per tick; badges use the average of in-set samples.
+- Weekly snapshot: first tick of each ISO week → JSON of (account, track, tier, score) + sha256 Merkle root (`GET /api/passport/snapshots/latest`).
+- Tiers per track (see `tiers` in the rules JSON): Bronze / Silver / Gold = badge count + required badges; Gold also needs a verified social link.
+
+APIs: `GET /api/passport/profile?account_id_hex=`, `GET /api/passport/leaderboard?track=`, `GET /api/passport/snapshots/latest`,
+`GET /api/portal/operator-leaderboard` (now from uptime samples + live validator set).
+
+## Stage 3 — UI (shipped 2026-11-04)
+
+`/testnet/passport` (profile: tiers, progress, badges) and `/testnet/passport/leaderboard` (per-track, tier-ordered, shortened addresses).
+
+## Stage 4 (planned)
+
+- Discord OAuth linking (verified social → unlocks Gold); optional Discord role-sync bot (tier → role).
+- GitHub/X links, sybil heuristics (funding graph, faucet-only accounts), reviewer queue for manual quests.
