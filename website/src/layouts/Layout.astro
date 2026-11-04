@@ -37,7 +37,6 @@ const isHome = path === '/' || path === '';
 const navCurrent = {
   overview: isHome,
   resources: path === '/resources' || path.startsWith('/resources/'),
-  downloads: path === '/downloads' || path.startsWith('/downloads/'),
   about: path === '/about',
   community: path === '/community' || path.startsWith('/community/'),
   dashboard: pathNorm === 'testnet',
@@ -166,7 +165,6 @@ const navCurrent = {
                 <a href="#build" class="nav-section" data-nav-section="build">Build</a>
                 <a href="https://docs.boing.network" class="nav-link" target="_blank" rel="noopener">Docs</a>
                 <a href="/resources" class="nav-link">Resources</a>
-                <a href="/downloads" class="nav-link">Downloads</a>
                 <a href="/faucet" class="nav-link">Faucet</a>
               </div>
               <div class="site-nav-actions">
@@ -212,7 +210,6 @@ const navCurrent = {
                 <a href="/" class="nav-link" aria-current={navCurrent.overview ? 'page' : undefined}>Overview</a>
                 <a href="https://docs.boing.network" class="nav-link" target="_blank" rel="noopener">Docs</a>
                 <a href="/resources" class="nav-link" aria-current={navCurrent.resources ? 'page' : undefined}>Resources</a>
-                <a href="/downloads" class="nav-link" aria-current={navCurrent.downloads ? 'page' : undefined}>Downloads</a>
                 <a href="/about" class="nav-link" aria-current={navCurrent.about ? 'page' : undefined}>About</a>
                 <a href="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" target="_blank" rel="noopener" class="nav-link">Whitepaper</a>
                 <a href="/community" class="nav-link" aria-current={navCurrent.community ? 'page' : undefined}>Community</a>
