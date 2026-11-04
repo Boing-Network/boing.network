@@ -62,6 +62,16 @@ export async function onRequestPost(context) {
       created_at: row.created_at,
     };
 
+    try {
+      const tr = await env.DB.prepare('SELECT track FROM portal_tracks WHERE account_id_hex = ? ORDER BY joined_at')
+        .bind(row.account_id_hex)
+        .all();
+      result.tracks = (tr.results || []).map((t) => t.track);
+    } catch (_) {
+      result.tracks = [];
+    }
+    if (!result.tracks.includes(row.role)) result.tracks.unshift(row.role);
+
     if (row.role === 'developer') {
       const dapps = await env.DB.prepare(
         'SELECT contract_hex, name, registered_at FROM portal_dapps WHERE owner_account_hex = ? ORDER BY registered_at DESC'
@@ -71,9 +81,9 @@ export async function onRequestPost(context) {
       result.dapps = dapps.results || [];
     }
 
-    if (row.role === 'user') {
+    {
       const quests = await env.DB.prepare(
-        'SELECT quest_id, submitted_at, verified_at FROM quest_completions WHERE account_id_hex = ? ORDER BY submitted_at DESC'
+        'SELECT quest_id, submitted_at, verified_at, verification_status FROM quest_completions WHERE account_id_hex = ? ORDER BY submitted_at DESC'
       )
         .bind(account_id_hex)
         .all();

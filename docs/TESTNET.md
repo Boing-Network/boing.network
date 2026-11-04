@@ -4,7 +4,7 @@
 > 🛠️ **Developers:** public RPC is `https://testnet-rpc.boing.network/`. Smoke with `npm run preflight-rpc` from the tutorial package.  
 > 🛰️ **Operators:** Part 1 (nodes + bootnodes), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), and §9 release tags.
 
-> **Incentivized testnet status:** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Running a testnet node is currently not incentivized. **Testnet activity ≠ mainnet claim** unless a live rules page says otherwise. Plain framing: [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md).
+> **Incentivized testnet status:** The incentivized testnet is not currently running. We hope to run one in the future; announcements will be posted on our official channels. Running a testnet node is currently not incentivized. **Testnet Passport:** verified activity may be considered for any future program; it is not a promise of tokens or a mainnet claim ([TESTNET-PASSPORT.md](TESTNET-PASSPORT.md)). Plain framing: [BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md](BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md).
 
 **Purpose:** Single guide for joining the testnet, using the Testnet Portal, and the design notes for a future incentivized testnet program (readiness, promotion, mainnet migration).  
 **References:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) (single map: testnet ops + public RPC + infra), [RUNBOOK.md](RUNBOOK.md), [TESTNET.md](TESTNET.md#31-readiness--launch), [RPC-API-SPEC.md](RPC-API-SPEC.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [NETWORKS-API.md](NETWORKS-API.md), [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md)
@@ -336,7 +336,7 @@ The **Join Testnet** hub is at `/testnet/join` (bootnodes, faucet, single-vs-mul
 
 ### Users
 
-- **Community page:** `/testnet/users` — Quests, faucet link, feedback. **Dashboard:** Quest progress, faucet/first tx badges. **Rewards:** None currently; the incentivized testnet is not running. The text below is design notes for a future program.
+- **Community page:** `/testnet/users` — Quests, faucet link, feedback. **Dashboard:** Quest progress, faucet/first tx badges. **Testnet Passport:** verified activity is recorded and may be considered for any future program — not a promise of tokens, an airdrop, or a mainnet claim. See [TESTNET-PASSPORT.md](TESTNET-PASSPORT.md).
 
 ### Node operators
 
@@ -375,7 +375,7 @@ CREATE INDEX IF NOT EXISTS idx_portal_dapps_owner ON portal_dapps(owner_account_
 | GET | `/api/portal/me?account_id_hex=0x...` | Registration + role-specific summary |
 | GET | `/api/portal/leaderboard?role=node_operator&limit=20` | Leaderboard for operators |
 | POST | `/api/portal/dapps` | Register a dApp (dev only) |
-| GET | `/api/quests/status?account_id_hex=0x...` | Quest progress for users |
+| GET | `/api/portal/me?account_id_hex=0x...` | Tracks + quest progress (all tracks) |
 
 ## 2.6 Implementation Phases
 
@@ -390,16 +390,21 @@ CREATE INDEX IF NOT EXISTS idx_portal_dapps_owner ON portal_dapps(owner_account_
 
 Community quests are user-facing tasks (e.g. "Use the faucet", "Send a transaction", "Share feedback") that qualify participants for testnet rewards. Completion can be **auto-verifiable on-chain** or **manual with proof**.
 
-### Quest types (examples)
+### Quests (Testnet Passport rules v1.0.0)
 
-| Quest ID | Name | Verification | Reward tier |
-|----------|------|--------------|-------------|
-| `faucet` | First drip | On-chain: faucet tx or balance > 0 | Base user |
-| `first_tx` | First transaction | On-chain: nonce ≥ 1 or tx in block | Base user |
-| `validator_connect` | Join the network | Manual: node ID / multiaddr or screenshot | Validator |
-| `feedback` | Share feedback | Manual: form + account ID | Bonus |
-| `social` | Join community | Manual: Discord handle + account ID | Bonus |
-| `docs` | Read and confirm | Manual: "I have read" + account ID | Base user |
+Source of truth: [`website/src/config/passport-rules-v1.json`](../website/src/config/passport-rules-v1.json), published at [`/testnet/passport/rules-v1.json`](https://boing.network/testnet/passport/rules-v1.json). Full design: [TESTNET-PASSPORT.md](TESTNET-PASSPORT.md).
+
+| Quest ID | Name | Tracks | Verification | What counts |
+|----------|------|--------|--------------|-------------|
+| `faucet` | First drip | Users | Auto (RPC) | Request testnet BOING from the faucet. |
+| `first_tx` | First transaction | Users, Builders, Validators | Auto (RPC) | Send any transaction on testnet. |
+| `express_wallet` | Open Express | Users | Manual | Create or unlock a Boing Express wallet and copy your testnet address. |
+| `finance_swap` | Try Finance | Users | Auto (RPC) | Swap tokens or add liquidity on Boing Finance. |
+| `observer_lookup` | Look up on Observer | Users | Manual | Find your account or a recent block on Boing Observer. |
+| `first_deploy` | Ship a contract | Builders | Auto (RPC) | Deploy a contract that passes the on-chain QA gate. |
+| `validator_connect` | Join the validator set | Validators | Auto (RPC) | Run a node and register it as an open validator. |
+| `feedback` | Share feedback | Users, Builders, Validators | Manual | Answer a few short questions about UX, docs, or bugs. |
+| `social` | Join community | Users, Builders, Validators | Manual | Join Discord and post in #testnet-intros. |
 
 ### D1 tables (quests)
 
@@ -436,9 +441,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_quest_completions_unique ON quest_completi
 |--------|------|---------|
 | GET | `/api/quests` | List active quests |
 | POST | `/api/quests/submit` | Submit a completion |
-| GET | `/api/quests/status?account_id_hex=0x...` | Quest progress for account |
+| GET | `/api/portal/me?account_id_hex=0x...` | Tracks + quest completions (with `verification_status`) |
+| GET | `/api/passport/rules` | Current Passport rules JSON |
+| GET | `/api/passport/check?account_id_hex=0x...` | Read-only dry run of the auto quests (no writes) |
 
-Define incentive rules on a single **Incentivized Testnet Rules** page (e.g. `/incentivized-rules`); link from Quests and announcements.
+Rules are versioned in the Passport rules JSON; any change bumps `rules_version`.
 
 ---
 

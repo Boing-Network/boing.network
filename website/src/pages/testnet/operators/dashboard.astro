@@ -100,7 +100,7 @@ import '../../../styles/hub-common.css';
     var meInput = document.getElementById('me-account');
     var loadBtn = document.getElementById('me-load-btn');
 
-    if (session && session.role !== expectedRole) {
+    if (session && !(window.BoingPortalSession && window.BoingPortalSession.hasTrack(session, expectedRole))) {
       var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '/testnet';
       window.location.href = path;
       return;
@@ -197,7 +197,7 @@ import '../../../styles/hub-common.css';
 
     renderAuth();
 
-    if (session && session.role === expectedRole && session.account_id_hex) {
+    if (session && (window.BoingPortalSession && window.BoingPortalSession.hasTrack(session, expectedRole)) && session.account_id_hex) {
       loadDashboard(session.account_id_hex);
       if (meInput) meInput.value = session.account_id_hex;
     } else if (meInput && loadBtn && registrationContent) {

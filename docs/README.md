@@ -53,6 +53,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) | Draft allocation / emissions / fee split with Proposed vs Undecided markers |
 | [FEATURES.md](FEATURES.md) | Product/protocol features with **when implemented** + status (also `/pdfs/FEATURES.pdf`) |
 | [TESTNET.md](TESTNET.md) | Join testnet, faucet, portal, quests |
+| [TESTNET-PASSPORT.md](TESTNET-PASSPORT.md) | Testnet Passport: tracks, auto-verified quests, rules JSON, roadmap |
 | [BOING-EXPRESS-WALLET.md](BOING-EXPRESS-WALLET.md) | How the wallet works (product lives at [boing.express](https://boing.express)) |
 | [BOING-OBSERVER-AND-EXPRESS.md](BOING-OBSERVER-AND-EXPRESS.md) | Explorer + wallet: what each app is for |
 | [QUALITY-ASSURANCE-NETWORK.md](QUALITY-ASSURANCE-NETWORK.md) | Allow / Reject / Unsure in plain language + deployer checklist |

@@ -304,7 +304,7 @@ import Layout from '../../layouts/Layout.astro';
               return;
             }
             if (window.BoingPortalSession) {
-              window.BoingPortalSession.setSession(data.account_id_hex, data.role);
+              window.BoingPortalSession.setSession(data.account_id_hex, data.role, data.tracks);
             }
             setMessage('Signed in. Redirecting…', false, true);
             var appPath = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(data.role) : '/testnet';
@@ -367,7 +367,7 @@ import Layout from '../../layouts/Layout.astro';
         }
 
         if (window.BoingPortalSession) {
-          window.BoingPortalSession.setSession(accountHex, data.role);
+          window.BoingPortalSession.setSession(accountHex, data.role, data.tracks);
         }
         var appPath = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(data.role) : '/testnet';
         setMessage('Signed in. Redirecting…', false, true);

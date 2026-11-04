@@ -1,0 +1,106 @@
+{
+  "name": "Boing Testnet Passport",
+  "rules_version": "1.0.0",
+  "published": "2026-11-03",
+  "chain_id": 6913,
+  "status": "stage-1",
+  "disclaimer": "Testnet Passport records testnet participation. Activity recorded here may be considered in any future incentive or distribution program, but nothing here is a promise of tokens, an airdrop, or a mainnet claim. Rules may change; any change ships as a new rules_version.",
+  "tracks": [
+    { "id": "user", "label": "Users", "description": "Use the testnet: wallet, faucet, transactions, Boing Finance, QA votes." },
+    { "id": "developer", "label": "Builders", "description": "Deploy contracts that pass the QA gate, create tokens and pools, contribute code." },
+    { "id": "node_operator", "label": "Validators", "description": "Run a node, join the open validator set, stay live, upgrade on time." }
+  ],
+  "policy": {
+    "registration_required": true,
+    "pre_registration_activity_counts": true,
+    "historic_credit_from_genesis": true,
+    "multiple_tracks_per_account": true,
+    "scoring": "badges_and_tiers",
+    "tiers": ["bronze", "silver", "gold"],
+    "verified_socials_required_for": ["gold"],
+    "snapshot_cadence": "weekly",
+    "leaderboard": "public, ordered by tier, shortened addresses",
+    "validator_uptime_method": "sampled boing_getValidators",
+    "on_chain_attestations": "deferred"
+  },
+  "verification": {
+    "faucet_account_hex": "0x1e1a11f9eb8612aee66bdf0286dbb29ca662cadf7d76e384ac19449d62433615",
+    "dex_contracts_hex": [
+      "0x7322ccec1ffdbf25d3f60384db0f9a38f8d6121233daccd48d4477d6036aff2a",
+      "0x371b4cd7e3b88e06e6b89bdc86214918a7e7ec73b62deb7f9975e4166736d54d",
+      "0xd39d7bb18e986a6e39a69521d9b6f1fe403ff757ee8d409b89f2bcccc4df7980",
+      "0x082a13685fbb69999f2d1378b2f704f3103ae6929b18a87510b513cb790c53c9",
+      "0xd8504729900a2d6dc8b8afc7bf24a18dc08732d24a4d2e3555ea5b7f28f3672c",
+      "0xac7a635931b192f5cff054e9994242f54fbda579a46eba21d9787600971ec90f",
+      "0x236a851dd50faaa268e2e1b7ba95cfb9993773abf63a4c0d949183d8302e65c7",
+      "0x806b2462b28f2f5772bbf5ae2628ad3a333bd2c5fa341144e0400ef5c2f1e4c6"
+    ],
+    "dex_pools_source": "boing_listDexPools",
+    "max_history_pages": 10
+  },
+  "quests": [
+    {
+      "id": "faucet", "name": "First drip", "tracks": ["user"],
+      "description": "Request testnet BOING from the faucet.",
+      "howToComplete": "Go to the Faucet page, paste your Boing address (or connect Boing Express), and request testnet BOING. Then submit this quest; we check the chain for a faucet transfer to your account.",
+      "verificationType": "on_chain", "rewardTier": "base",
+      "check": "Any successful transfer to the account sent by the faucet account (boing_getAccountTransactions)."
+    },
+    {
+      "id": "first_tx", "name": "First transaction", "tracks": ["user", "developer", "node_operator"],
+      "description": "Send any transaction on testnet.",
+      "howToComplete": "Use Boing Express or the RPC to send any transaction from your account, then submit this quest.",
+      "verificationType": "on_chain", "rewardTier": "base",
+      "check": "Any successful transaction sent by the account (boing_getAccountTransactions, direction out)."
+    },
+    {
+      "id": "express_wallet", "name": "Open Express", "tracks": ["user"],
+      "description": "Create or unlock a Boing Express wallet and copy your testnet address.",
+      "howToComplete": "Install or open https://boing.express, create or unlock a wallet on chain 6913, then submit your address here.",
+      "verificationType": "manual", "rewardTier": "ecosystem",
+      "check": "Manual review (no on-chain marker distinguishes wallets)."
+    },
+    {
+      "id": "finance_swap", "name": "Try Finance", "tracks": ["user"],
+      "description": "Swap tokens or add liquidity on Boing Finance.",
+      "howToComplete": "Visit https://boing.finance, connect Boing Express, then make a small swap on Swap or add liquidity on Pools. Submit this quest; we check the chain for a call to a Boing DEX contract or pool.",
+      "verificationType": "on_chain", "rewardTier": "ecosystem",
+      "check": "Any successful contract call (or batch step) from the account to a canonical native DEX contract or a pool from boing_listDexPools."
+    },
+    {
+      "id": "observer_lookup", "name": "Look up on Observer", "tracks": ["user"],
+      "description": "Find your account or a recent block on Boing Observer.",
+      "howToComplete": "Open https://boing.observer, search your address or a block height, and submit the explorer URL you used.",
+      "verificationType": "manual", "rewardTier": "ecosystem",
+      "check": "Manual review of the submitted URL."
+    },
+    {
+      "id": "first_deploy", "name": "Ship a contract", "tracks": ["developer"],
+      "description": "Deploy a contract that passes the on-chain QA gate.",
+      "howToComplete": "Deploy any contract from your account (SDK, CLI, or a dApp). Deploys that the QA gate rejects never commit, so a committed deploy counts. Then submit this quest.",
+      "verificationType": "on_chain", "rewardTier": "ecosystem",
+      "check": "Any successful contract_deploy transaction sent by the account."
+    },
+    {
+      "id": "validator_connect", "name": "Join the validator set", "tracks": ["node_operator"],
+      "description": "Run a node and register it as an open validator.",
+      "howToComplete": "Run boing-node with --p2p-listen and the official bootnodes (see the validator guide), fund the 100 BOING bond, and register as a validator from your account. Then submit this quest.",
+      "verificationType": "on_chain", "rewardTier": "validator",
+      "check": "Account appears in boing_getValidators (id or owner), or has sent a successful validator_register transaction."
+    },
+    {
+      "id": "feedback", "name": "Share feedback", "tracks": ["user", "developer", "node_operator"],
+      "description": "Answer a few short questions about UX, docs, or bugs.",
+      "howToComplete": "Submit a link to your feedback (GitHub issue, Discord message link, or doc).",
+      "verificationType": "manual", "rewardTier": "bonus",
+      "check": "Manual review."
+    },
+    {
+      "id": "social", "name": "Join community", "tracks": ["user", "developer", "node_operator"],
+      "description": "Join Discord and post in #testnet-intros.",
+      "howToComplete": "Join our Discord and post in #testnet-intros with your testnet account address. Submit your Discord handle.",
+      "verificationType": "manual", "rewardTier": "bonus",
+      "check": "Manual review (verified Discord linking arrives in a later stage)."
+    }
+  ]
+}

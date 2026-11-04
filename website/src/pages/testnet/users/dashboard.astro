@@ -34,7 +34,7 @@ import '../../../styles/hub-common.css';
       </div>
       <div id="quest-progress-placeholder" class="dashboard-placeholder">
         <p>Enter your account address above (or sign in) to load quest completions from the portal API.</p>
-        <p class="muted">No completions yet? Start at the <a href="/faucet">faucet</a>, then <a href="/testnet/users/quests">Quests</a>. Practice only — no rewards today.</p>
+        <p class="muted">No completions yet? Start at the <a href="/faucet">faucet</a>, then <a href="/testnet/users/quests">Quests</a>. Activity may count toward your Testnet Passport — not a promise of tokens.</p>
       </div>
       <div id="dashboard-loaded" class="dashboard-loaded" style="display: none;"></div>
       <p><a href="/testnet/users/quests" class="btn btn-primary">Go to Quests</a></p>
@@ -52,7 +52,7 @@ import '../../../styles/hub-common.css';
     var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
     var authEl = document.getElementById('portal-auth');
     var dashboardLoad = document.getElementById('dashboard-load');
-    if (session && session.role !== expectedRole) {
+    if (session && !(window.BoingPortalSession && window.BoingPortalSession.hasTrack(session, expectedRole))) {
       var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '/testnet';
       window.location.href = path;
       return;
@@ -134,7 +134,7 @@ import '../../../styles/hub-common.css';
 
     renderAuth();
 
-    if (session && session.role === expectedRole && session.account_id_hex) {
+    if (session && (window.BoingPortalSession && window.BoingPortalSession.hasTrack(session, expectedRole)) && session.account_id_hex) {
       loadDashboard(session.account_id_hex);
       if (meInput) meInput.value = session.account_id_hex;
     } else if (meInput && loadBtn && placeholder && loaded) {

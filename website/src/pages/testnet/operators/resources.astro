@@ -66,7 +66,7 @@ import '../../../styles/hub-common.css';
     var expectedRole = 'node_operator';
     var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
     var authEl = document.getElementById('portal-auth');
-    if (session && session.role !== expectedRole) {
+    if (session && !(window.BoingPortalSession && window.BoingPortalSession.hasTrack(session, expectedRole))) {
       var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '/testnet';
       window.location.href = path;
       return;

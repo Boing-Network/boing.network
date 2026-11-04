@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS quest_completions (
   submitted_at TEXT NOT NULL,
   verified_at TEXT,
   rejected_reason TEXT,
+  verification_status TEXT, -- pending | verified | rejected (Testnet Passport)
+  verified_by TEXT,         -- rpc | reviewer id
   FOREIGN KEY (quest_id) REFERENCES quests(id)
 );
 
@@ -53,13 +55,20 @@ CREATE INDEX IF NOT EXISTS idx_quest_completions_account ON quest_completions(ac
 CREATE INDEX IF NOT EXISTS idx_quest_completions_quest ON quest_completions(quest_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_quest_completions_unique ON quest_completions(quest_id, account_id_hex);
 
--- Seed quests (ids must match website/src/config/quests.ts)
-INSERT OR IGNORE INTO quests (id, name, description, verification_type, reward_tier, active, created_at) VALUES
+-- Seed quests (generated from website/src/config/passport-rules-v1.json; keep in sync)
+INSERT INTO quests (id, name, description, verification_type, reward_tier, active, created_at) VALUES
   ('faucet', 'First drip', 'Request testnet BOING from the faucet.', 'on_chain', 'base', 1, datetime('now')),
   ('first_tx', 'First transaction', 'Send any transaction on testnet.', 'on_chain', 'base', 1, datetime('now')),
-  ('validator_connect', 'Join the network', 'Run a node connected to testnet bootnodes.', 'manual', 'validator', 1, datetime('now')),
+  ('express_wallet', 'Open Express', 'Create or unlock a Boing Express wallet and copy your testnet address.', 'manual', 'ecosystem', 1, datetime('now')),
+  ('finance_swap', 'Try Finance', 'Swap tokens or add liquidity on Boing Finance.', 'on_chain', 'ecosystem', 1, datetime('now')),
+  ('observer_lookup', 'Look up on Observer', 'Find your account or a recent block on Boing Observer.', 'manual', 'ecosystem', 1, datetime('now')),
+  ('first_deploy', 'Ship a contract', 'Deploy a contract that passes the on-chain QA gate.', 'on_chain', 'ecosystem', 1, datetime('now')),
+  ('validator_connect', 'Join the validator set', 'Run a node and register it as an open validator.', 'on_chain', 'validator', 1, datetime('now')),
   ('feedback', 'Share feedback', 'Answer a few short questions about UX, docs, or bugs.', 'manual', 'bonus', 1, datetime('now')),
-  ('social', 'Join community', 'Join Discord and post in #testnet-intros.', 'manual', 'bonus', 1, datetime('now'));
+  ('social', 'Join community', 'Join Discord and post in #testnet-intros.', 'manual', 'bonus', 1, datetime('now'))
+ON CONFLICT(id) DO UPDATE SET name = excluded.name, description = excluded.description,
+  verification_type = excluded.verification_type, reward_tier = excluded.reward_tier, active = 1;
+UPDATE quests SET active = 0 WHERE id NOT IN ('faucet','first_tx','express_wallet','finance_swap','observer_lookup','first_deploy','validator_connect','feedback','social');
 
 -- Testnet portal: registration and developer dApps. See docs/TESTNET.md Part 2.
 CREATE TABLE IF NOT EXISTS portal_registrations (
@@ -113,3 +122,12 @@ CREATE TABLE IF NOT EXISTS network_listings (
   node_binary_sha256 TEXT,
   updated_at TEXT
 );
+
+-- Testnet Passport: an account can join several tracks (user | developer | node_operator).
+CREATE TABLE IF NOT EXISTS portal_tracks (
+  account_id_hex TEXT NOT NULL,
+  track TEXT NOT NULL,
+  joined_at TEXT NOT NULL,
+  PRIMARY KEY (account_id_hex, track)
+);
+CREATE INDEX IF NOT EXISTS idx_portal_tracks_track ON portal_tracks(track);

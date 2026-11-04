@@ -1,6 +1,7 @@
 /**
  * Testnet portal session (localStorage). Load on portal pages via <script src="/portal-session.js">.
- * Usage: BoingPortalSession.getSession() | .setSession(accountIdHex, role) | .clearSession()
+ * Usage: BoingPortalSession.getSession() | .setSession(accountIdHex, role, tracks?) | .hasTrack(session, track) | .clearSession()
+ * Testnet Passport: an account can hold several tracks (user | developer | node_operator); `role` is the primary one.
  */
 (function () {
   var key = 'boing_portal_session';
@@ -12,13 +13,27 @@
       return null;
     }
   }
-  function setSession(accountIdHex, role) {
+  function setSession(accountIdHex, role, tracks) {
     try {
-      localStorage.setItem(key, JSON.stringify({ account_id_hex: accountIdHex, role: role }));
+      var prev = getSession();
+      var merged = [];
+      function add(t) { if (t && merged.indexOf(t) === -1) merged.push(t); }
+      if (prev && prev.account_id_hex && accountIdHex && String(prev.account_id_hex).toLowerCase() === String(accountIdHex).toLowerCase()) {
+        (prev.tracks || []).forEach(add);
+        add(prev.role);
+      }
+      (tracks || []).forEach(add);
+      add(role);
+      localStorage.setItem(key, JSON.stringify({ account_id_hex: accountIdHex, role: role, tracks: merged }));
       return true;
     } catch (e) {
       return false;
     }
+  }
+  function hasTrack(session, track) {
+    if (!session) return false;
+    if (session.role === track) return true;
+    return Array.isArray(session.tracks) && session.tracks.indexOf(track) !== -1;
   }
   function clearSession() {
     try {
@@ -38,6 +53,7 @@
   window.BoingPortalSession = {
     getSession: getSession,
     setSession: setSession,
+    hasTrack: hasTrack,
     clearSession: clearSession,
     logout: logout,
     shortAccount: shortAccount,

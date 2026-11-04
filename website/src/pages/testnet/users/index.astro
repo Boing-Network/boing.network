@@ -22,7 +22,7 @@ import '../../../styles/hub-common.css';
         Use the faucet, try <a href="https://boing.express" target="_blank" rel="noopener">Express</a>,
         <a href="https://boing.finance" target="_blank" rel="noopener">Finance</a>, and
         <a href="https://boing.observer" target="_blank" rel="noopener">Observer</a>, complete quests, and share feedback.
-        This hub is for <strong>community users</strong> only. <strong>No rewards</strong> are offered today — practice is not a mainnet claim.
+        This hub is for <strong>community users</strong>. Verified activity is recorded in your <strong>Testnet Passport</strong> and may be considered for any future program — it is not a promise of tokens, an airdrop, or a mainnet claim.
         Background: <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Tokenomics &amp; testnet (PDF)</a>
         · <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">Testnet doc (PDF)</a>.
       </p>
@@ -52,7 +52,7 @@ import '../../../styles/hub-common.css';
       <h2>Your journey</h2>
       <ol class="steps-list steps-list--numbered">
         <li><strong>Get testnet BOING</strong> — Use the <a href="/faucet">faucet</a> (one request per account per 60 seconds).</li>
-        <li><strong>Practice the apps</strong> — Try <a href="https://boing.express" target="_blank" rel="noopener">Express</a>, <a href="https://boing.finance" target="_blank" rel="noopener">Finance</a> (native DEX), and <a href="https://boing.observer" target="_blank" rel="noopener">Observer</a>. No rewards for this practice.</li>
+        <li><strong>Practice the apps</strong> — Try <a href="https://boing.express" target="_blank" rel="noopener">Express</a>, <a href="https://boing.finance" target="_blank" rel="noopener">Finance</a> (Swap, Pools, Portfolio, Bridge), and <a href="https://boing.observer" target="_blank" rel="noopener">Observer</a>. Finance swaps and liquidity auto-verify as a quest.</li>
         <li><strong>Complete quests</strong> — Faucet, first tx, Express / Finance / Observer tasks, feedback, community. See the <a href="/testnet/users/quests">Quests</a> page.</li>
         <li><strong>Submit completions</strong> — Sign in as a registered user and use the form on the Quests page. Need help or an outage? <a href="https://discord.gg/K3w9nbUw4N" target="_blank" rel="noopener">Discord #testnet</a>.</li>
         <li><strong>Optional: register</strong> — Add your account on the <a href="/testnet/register/user">user registration</a> page to track progress. Registration does not unlock incentives today.</li>
@@ -73,7 +73,7 @@ import '../../../styles/hub-common.css';
     var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
     var authEl = document.getElementById('portal-auth');
     var hubCtas = document.getElementById('hub-ctas');
-    if (session && session.role !== expectedRole) {
+    if (session && !(window.BoingPortalSession && window.BoingPortalSession.hasTrack(session, expectedRole))) {
       var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '/testnet';
       window.location.href = path;
       return;

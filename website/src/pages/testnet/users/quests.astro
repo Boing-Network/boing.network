@@ -3,7 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import IncentivizedTestnetNotice from '../../../components/IncentivizedTestnetNotice.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import HubNav from '../../../components/HubNav.astro';
-import { QUESTS, EXTERNAL_QUEST_FORM_URL } from '../../../config/quests';
+import { QUESTS, EXTERNAL_QUEST_FORM_URL, PASSPORT_RULES_VERSION } from '../../../config/quests';
 import '../../../styles/hub-common.css';
 ---
 
@@ -18,8 +18,8 @@ import '../../../styles/hub-common.css';
     <HubNav hub="user" current="quests" />
     <IncentivizedTestnetNotice />
     <section class="section fade-in-up">
-      <h1>Community quests</h1>
-      <p class="muted">Quests track participation on the testnet. No rewards are currently offered.</p>
+      <h1>Testnet Passport quests</h1>
+      <p class="muted">Quests record your testnet participation in your Testnet Passport. Auto quests are checked against the chain when you submit; manual quests are reviewed. Rules: <a href="/testnet/passport/rules-v1.json">rules v{PASSPORT_RULES_VERSION}</a>.</p>
       <div class="hub-metrics" style="margin-bottom: 1rem;">
         <div class="hub-metric-card"><span class="value">{QUESTS.length}</span><span class="label">Quests available</span></div>
       </div>
@@ -31,7 +31,8 @@ import '../../../styles/hub-common.css';
             <p class="quest-desc">{q.description}</p>
             <p class="quest-how"><strong>How:</strong> {q.howToComplete}</p>
             <p class="quest-meta">
-              <span class="badge">{q.verificationType === 'on_chain' ? 'Auto' : 'Manual'}</span>
+              <span class="badge">{q.verificationType === 'on_chain' ? 'Auto-verified on-chain' : 'Manual review'}</span>
+              {q.tracks.map((t) => <span class="badge tier">{t === 'user' ? 'Users' : t === 'developer' ? 'Builders' : 'Validators'}</span>)}
               
             </p>
           </li>
@@ -45,7 +46,7 @@ import '../../../styles/hub-common.css';
         <p><a href={EXTERNAL_QUEST_FORM_URL} class="btn btn-primary" target="_blank" rel="noopener">Open submission form →</a></p>
       ) : (
         <>
-          <p>Sign in as a registered user, then submit with your portal password (or a wallet authorize signature). For manual quests, add proof (tx hash, Discord handle, or feedback link).</p>
+          <p>Sign in with your registered account (any track), then submit with your portal password (or a wallet authorize signature). Auto quests need no proof; for manual quests add proof (explorer URL, Discord handle, or feedback link).</p>
           <form id="quest-submit-form" class="quest-form">
             <label for="account-id">Account address (32-byte hex)</label>
             <input id="account-id" name="account_id" type="text" placeholder="0x..." maxlength="66" required />
@@ -64,7 +65,7 @@ import '../../../styles/hub-common.css';
             <button type="submit" id="submit-btn">Submit</button>
             <p id="form-message" class="form-message" aria-live="polite"></p>
           </form>
-          <p class="form-note">Portal submit API is live. Need help or an outage? Ask in <a href="https://discord.gg/K3w9nbUw4N" target="_blank" rel="noopener">Discord #testnet</a>. Quests track practice only — no rewards today.</p>
+          <p class="form-note">Portal submit API is live. Need help or an outage? Ask in <a href="https://discord.gg/K3w9nbUw4N" target="_blank" rel="noopener">Discord #testnet</a>. Activity may be considered in any future program; nothing here is a promise of tokens.</p>
         </>
       )}
     </section>
@@ -78,16 +79,11 @@ import '../../../styles/hub-common.css';
 </Layout>
 
 <script is:inline src="/portal-session.js"></script>
-<script>
+<script define:vars={{ totalQuests: QUESTS.length }}>
   (function () {
-    var expectedRole = 'user';
+    // Testnet Passport: every registered track (user, developer, node_operator) can submit quests.
     var session = window.BoingPortalSession && window.BoingPortalSession.getSession();
     var authEl = document.getElementById('portal-auth');
-    if (session && session.role !== expectedRole) {
-      var path = window.BoingPortalSession ? window.BoingPortalSession.roleAppPath(session.role) : '/testnet';
-      window.location.href = path;
-      return;
-    }
     function renderAuth() {
       if (!authEl) return;
       if (!session) {
@@ -105,18 +101,18 @@ import '../../../styles/hub-common.css';
     renderAuth();
 
     var progressEl = document.getElementById('quests-progress');
-    if (session && session.role === expectedRole && session.account_id_hex && progressEl) {
+    if (session && session.account_id_hex && progressEl) {
       fetch('/api/portal/me?account_id_hex=' + encodeURIComponent(session.account_id_hex))
         .then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function (data) {
-          var completed = (data.ok && data.quest_completions) ? data.quest_completions.length : 0;
-          var pct = QUESTS.length ? Math.round((completed / QUESTS.length) * 100) : 0;
+          var completed = (data.ok && data.quest_completions) ? data.quest_completions.filter(function (c) { return !!c.verified_at; }).length : 0;
+          var pct = totalQuests ? Math.round((completed / totalQuests) * 100) : 0;
           progressEl.style.setProperty('--progress', pct);
         });
     } else if (progressEl) progressEl.style.setProperty('--progress', 0);
 
     var accountInput = document.getElementById('account-id');
-    if (session && session.role === expectedRole && accountInput) accountInput.value = session.account_id_hex;
+    if (session && accountInput) accountInput.value = session.account_id_hex;
 
     var form = document.getElementById('quest-submit-form');
     if (form) {
@@ -130,8 +126,8 @@ import '../../../styles/hub-common.css';
       }
       form.addEventListener('submit', function (e) {
         e.preventDefault();
-        if (!session || session.role !== expectedRole) {
-          setMessage('Sign in as a registered user before submitting.', true);
+        if (!session) {
+          setMessage('Sign in with your registered account before submitting.', true);
           return;
         }
         var accountHex = (accountInput && accountInput.value || '').trim();
@@ -161,9 +157,9 @@ import '../../../styles/hub-common.css';
             var data = out.data;
             var res = out.res;
             if (data.ok) {
-              setMessage('Submitted.');
+              setMessage(data.verified ? 'Verified on-chain. Nice work.' : 'Submitted for review.');
               form.reset();
-              if (session && session.role === expectedRole && accountInput) accountInput.value = session.account_id_hex;
+              if (session && accountInput) accountInput.value = session.account_id_hex;
             } else if (res.status === 404 || res.status === 502) setMessage('API not available. Submit in Discord.', true);
             else setMessage(data.message || 'Failed.', true);
           })

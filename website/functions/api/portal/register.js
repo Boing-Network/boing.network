@@ -89,6 +89,7 @@ export async function onRequestPost(context) {
         )
         .run();
 
+      await addTrack(env, account_id_hex, role, now);
       return Response.json({ ok: true, message: 'Updated', updated: true });
     }
 
@@ -122,6 +123,7 @@ export async function onRequestPost(context) {
       throw insertErr;
     }
 
+    await addTrack(env, account_id_hex, role, now);
     return Response.json({ ok: true, message: 'Registered' });
   } catch (e) {
     return Response.json({ ok: false, message: 'Server error' }, { status: 500 });
@@ -135,4 +137,14 @@ function sanitizeOptionalText(value, maxLen) {
   if (!t) return null;
   // Strip angle brackets to reduce stored XSS risk if values are ever rendered unsafely.
   return t.replace(/[<>]/g, '').slice(0, maxLen) || null;
+}
+
+async function addTrack(env, account_id_hex, track, now) {
+  try {
+    await env.DB.prepare('INSERT OR IGNORE INTO portal_tracks (account_id_hex, track, joined_at) VALUES (?, ?, ?)')
+      .bind(account_id_hex, track, now)
+      .run();
+  } catch (_) {
+    /* portal_tracks missing before the Testnet Passport migration; registration still succeeds */
+  }
 }
