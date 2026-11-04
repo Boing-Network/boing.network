@@ -91,6 +91,12 @@ import Icon from '../components/Icon.astro';
           <p>Whitepaper, six pillars, and network essentials (plain + technical) as PDFs.</p>
           <span class="resource-tile-cta">About →</span>
         </a>
+        <a href="/brand" class="resource-tile">
+          <span class="resource-tile-icon"><Icon name="document" size={40} /></span>
+          <h2>Brand</h2>
+          <p>Official logos, wordmarks, color tokens, mascot poses, and promo assets for press and partners.</p>
+          <span class="resource-tile-cta">Brand assets →</span>
+        </a>
         <a href="/community" class="resource-tile">
           <span class="resource-tile-icon"><Icon name="quest" size={40} /></span>
           <h2>Community</h2>
@@ -197,6 +203,7 @@ import Icon from '../components/Icon.astro';
   .resource-tile:nth-child(10) { animation-delay: 0.5s; }
   .resource-tile:nth-child(11) { animation-delay: 0.55s; }
   .resource-tile:nth-child(12) { animation-delay: 0.6s; }
+  .resource-tile:nth-child(13) { animation-delay: 0.65s; }
   @keyframes resource-tile-reveal { to { opacity: 1; transform: translateY(0); } }
   .resource-tile:hover .resource-tile-icon {
     transform: scale(1.12);

@@ -1,0 +1,770 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const colorTokens = [
+  { name: 'Navy 950', token: '--boing-navy-950', hex: '#050A1A', use: 'Page background' },
+  { name: 'Navy 900', token: '--boing-navy-900', hex: '#0A1128', use: 'Surfaces, sections' },
+  { name: 'Navy 800', token: '--boing-navy-800', hex: '#101A38', use: 'Cards, raised plates' },
+  { name: 'Navy 700', token: '--boing-navy-700', hex: '#18244A', use: 'Hover surfaces' },
+  { name: 'Accent', token: '--boing-accent', hex: '#3B8CFF', use: 'Primary brand cyan' },
+  { name: 'Accent soft', token: '--boing-accent-soft', hex: '#8DB8FF', use: 'Hover / soft fill' },
+  { name: 'Text', token: '--boing-text', hex: '#F0F4F8', use: 'Primary text' },
+  { name: 'Success', token: '--boing-success', hex: '#34D399', use: 'Success status' },
+  { name: 'Warning', token: '--boing-warning', hex: '#FBBF24', use: 'Testnet label only' },
+  { name: 'Danger', token: '--boing-danger', hex: '#F87171', use: 'Errors' },
+];
+
+const logos = [
+  {
+    title: 'Arc Slab mark',
+    note: 'SVG · Network mark',
+    href: '/logo.svg',
+    preview: '/logo.svg',
+    previewClass: 'brand-preview--mark',
+  },
+  {
+    title: 'Wordmark',
+    note: 'SVG · mark + Boing Network',
+    href: '/assets/boing-network-wordmark.svg',
+    preview: '/assets/boing-network-wordmark.svg',
+    previewClass: 'brand-preview--wordmark',
+  },
+  {
+    title: 'Transparent mark',
+    note: 'PNG · icon-only',
+    href: '/assets/icon-only-transparent.png',
+    preview: '/assets/icon-only-transparent.png',
+    previewClass: 'brand-preview--mark',
+  },
+  {
+    title: 'Promo wordmark · dark',
+    note: 'SVG · cyan on dark footage',
+    href: '/assets/promo/boing-wordmark-dark.svg',
+    preview: '/assets/promo/boing-wordmark-dark.svg',
+    previewClass: 'brand-preview--wordmark brand-preview--on-dark',
+  },
+  {
+    title: 'Promo wordmark · light',
+    note: 'SVG · navy on light plates',
+    href: '/assets/promo/boing-wordmark-light.svg',
+    preview: '/assets/promo/boing-wordmark-light.svg',
+    previewClass: 'brand-preview--wordmark brand-preview--on-light',
+  },
+  {
+    title: 'Promo mark',
+    note: 'SVG · Arc Slab',
+    href: '/assets/promo/boing-mark.svg',
+    preview: '/assets/promo/boing-mark.svg',
+    previewClass: 'brand-preview--mark',
+  },
+];
+
+const logoRasters = [
+  { label: 'Mark 512', href: '/assets/promo/boing-mark-512.png' },
+  { label: 'Mark 1024', href: '/assets/promo/boing-mark-1024.png' },
+  { label: 'Mark 2048', href: '/assets/promo/boing-mark-2048.png' },
+  { label: 'Wordmark dark 2048', href: '/assets/promo/boing-wordmark-dark-2048.png' },
+  { label: 'Wordmark dark 3840', href: '/assets/promo/boing-wordmark-dark-3840.png' },
+  { label: 'Wordmark light 2048', href: '/assets/promo/boing-wordmark-light-2048.png' },
+  { label: 'Wordmark light 3840', href: '/assets/promo/boing-wordmark-light-3840.png' },
+  { label: 'Logo 192', href: '/assets/logo-192.png' },
+  { label: 'Logo 512 maskable', href: '/assets/logo-512-maskable.png' },
+  { label: 'OG card', href: '/og.png' },
+  { label: 'YouTube banner', href: '/assets/boing-network-youtube-banner-2048x1152.png' },
+];
+
+const mascots = [
+  { name: 'Default', src: '/assets/mascot-default.png', href: '/assets/mascot-default.png', use: 'Corner presence, calm UI' },
+  { name: 'Excited', src: '/assets/mascot-excited.png', href: '/assets/mascot-excited.png', use: 'Hero, celebration' },
+  { name: 'Thinking', src: '/assets/mascot-thinking.png', href: '/assets/mascot-thinking.png', use: 'Help, FAQ, empty states' },
+  { name: 'Winking', src: '/assets/mascot-winking.png', href: '/assets/mascot-winking.png', use: 'Success, playful CTAs' },
+];
+
+const mascotPromo = [
+  { pose: 'default', label: 'Default' },
+  { pose: 'excited', label: 'Excited' },
+  { pose: 'thinking', label: 'Thinking' },
+  { pose: 'winking', label: 'Winking' },
+] as const;
+
+const promoPack = [
+  { label: 'Title card 1920×1080', href: '/assets/promo/boing-title-card-1920x1080.png' },
+  { label: 'Title card 1080×1920', href: '/assets/promo/boing-title-card-1080x1920.png' },
+  { label: 'Lower third', href: '/assets/promo/boing-lower-third-1920x220.png' },
+  { label: 'End-card overlay 1100', href: '/assets/promo/boing-endcard-wordmark-overlay-1100.png' },
+  { label: 'Accent bar', href: '/assets/promo/boing-accent-bar-1920x8.png' },
+  { label: 'Safe zone 16:9', href: '/assets/promo/boing-safezone-overlay-1920x1080.png' },
+  { label: 'End slate · excited', href: '/assets/promo/network/end-slate-mascot-1920x1080.png' },
+  { label: 'End slate · default', href: '/assets/promo/network/end-slate-default-1920x1080.png' },
+  { label: 'Mascot hero vertical', href: '/assets/promo/network/mascot-hero-1080x1920.png' },
+  { label: 'Hex motif', href: '/assets/promo/network/hex-motif-1920x1080.png' },
+  { label: 'Manifest JSON', href: '/assets/promo/manifest.json' },
+];
+
+const themeIcons = [
+  'authenticity',
+  'decentralization',
+  'scalability',
+  'security',
+  'transparency',
+  'quality-gate',
+  'developers',
+  'community',
+  'operators',
+  'wallet',
+  'dex',
+  'observer',
+  'testnet',
+] as const;
+---
+
+<Layout
+  title="Brand"
+  description="Official Boing Network logos, wordmarks, color tokens, mascot poses, and promo assets for press and partners. Public testnet — mainnet not live."
+  canonical="/brand"
+>
+  <article class="brand-page">
+    <header class="brand-hero full-width">
+      <div class="brand-hero-visual" aria-hidden="true">
+        <img
+          class="brand-hero-wordmark"
+          src="/assets/boing-network-wordmark.svg"
+          alt=""
+          width="720"
+          height="160"
+        />
+      </div>
+      <div class="brand-hero-copy">
+        <p class="brand-kicker">Official assets</p>
+        <h1 class="brand-title">Boing Network</h1>
+        <p class="brand-lead">
+          Logos, color tokens, mascot poses, and promo plates for press, partners, and editors. Quality, enforced by the protocol.
+        </p>
+        <div class="brand-hero-actions">
+          <a class="brand-cta" href="#logos">Browse assets</a>
+          <a class="brand-cta brand-cta--quiet" href="/assets/promo/manifest.json">Promo manifest</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="brand-body full-width">
+      <div class="brand-body-inner">
+        <nav class="brand-jump" aria-label="On this page">
+          <a href="#logos">Logos</a>
+          <a href="#colors">Colors</a>
+          <a href="#mascot">Mascot</a>
+          <a href="#promo">Promo pack</a>
+          <a href="#usage">Usage</a>
+        </nav>
+
+        <section id="logos" class="brand-section section-reveal delay-1" aria-labelledby="logos-heading">
+          <h2 id="logos-heading">Logos &amp; wordmarks</h2>
+          <p class="brand-section-lead">
+            Arc Slab family only — no alternate marks. Wordmark text is “Boing Network” in Comfortaa Bold.
+          </p>
+          <div class="brand-logo-grid">
+            {logos.map((item) => (
+              <a class="brand-asset" href={item.href} download>
+                <span class:list={['brand-preview', item.previewClass]}>
+                  <img src={item.preview} alt="" loading="lazy" />
+                </span>
+                <span class="brand-asset-meta">
+                  <strong>{item.title}</strong>
+                  <span>{item.note}</span>
+                  <span class="brand-dl">Download →</span>
+                </span>
+              </a>
+            ))}
+          </div>
+          <ul class="brand-link-list">
+            {logoRasters.map((item) => (
+              <li><a href={item.href} download>{item.label}</a></li>
+            ))}
+          </ul>
+        </section>
+
+        <section id="colors" class="brand-section section-reveal delay-2" aria-labelledby="colors-heading">
+          <h2 id="colors-heading">Color tokens</h2>
+          <p class="brand-section-lead">
+            Shared across boing.network, Express, Observer, and Finance. Amber is reserved for testnet status — not a second brand accent.
+          </p>
+          <div class="brand-swatches" role="list">
+            {colorTokens.map((c) => (
+              <div class="brand-swatch" role="listitem">
+                <button
+                  type="button"
+                  class="brand-swatch-chip"
+                  style={`background:${c.hex}`}
+                  data-hex={c.hex}
+                  aria-label={`Copy ${c.name} ${c.hex}`}
+                  title={`Copy ${c.hex}`}
+                ></button>
+                <div class="brand-swatch-copy">
+                  <strong>{c.name}</strong>
+                  <code>{c.hex}</code>
+                  <span class="brand-swatch-token">{c.token}</span>
+                  <span class="brand-swatch-use">{c.use}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="mascot" class="brand-section section-reveal delay-3" aria-labelledby="mascot-heading">
+          <h2 id="mascot-heading">Mascot</h2>
+          <p class="brand-section-lead">
+            Four official poses for onboarding, empty states, and community material. Keep docs and data-heavy tools restrained.
+          </p>
+          <div class="brand-mascot-grid">
+            {mascots.map((m) => (
+              <a class="brand-mascot" href={m.href} download>
+                <img src={m.src} alt={`Boing mascot — ${m.name}`} width="280" height="280" loading="lazy" />
+                <strong>{m.name}</strong>
+                <span>{m.use}</span>
+                <span class="brand-dl">Download →</span>
+              </a>
+            ))}
+          </div>
+          <h3 class="brand-subhead">Promo exports</h3>
+          <p class="brand-section-lead brand-section-lead--tight">
+            Clean square, circle crop, and soft navy plate — 512 / 1024 / 2048 under <code>/assets/promo/mascot/</code>.
+          </p>
+          <div class="brand-mascot-promo">
+            {mascotPromo.map((m) => (
+              <figure class="brand-mascot-promo-item">
+                <img
+                  src={`/assets/promo/mascot/${m.pose}-plate-512.png`}
+                  alt={`${m.label} mascot on navy plate`}
+                  width="160"
+                  height="160"
+                  loading="lazy"
+                />
+                <figcaption>
+                  <strong>{m.label}</strong>
+                  <a href={`/assets/promo/mascot/${m.pose}-512.png`} download>Clean</a>
+                  <a href={`/assets/promo/mascot/${m.pose}-circle-512.png`} download>Circle</a>
+                  <a href={`/assets/promo/mascot/${m.pose}-plate-512.png`} download>Plate</a>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+
+        <section id="promo" class="brand-section section-reveal delay-4" aria-labelledby="promo-heading">
+          <h2 id="promo-heading">Promo pack</h2>
+          <p class="brand-section-lead">
+            Editor-ready plates under <code>/assets/promo/</code> — title cards, lower thirds, thematic icons, and network motifs. On-graphic text is “Boing Network” only.
+          </p>
+          <div class="brand-promo-spotlight">
+            <img
+              src="/assets/promo/boing-title-card-1920x1080.png"
+              alt="Boing Network title card"
+              width="960"
+              height="540"
+              loading="lazy"
+            />
+          </div>
+          <ul class="brand-link-list brand-link-list--dense">
+            {promoPack.map((item) => (
+              <li><a href={item.href} download={item.href.endsWith('.json') ? undefined : true}>{item.label}</a></li>
+            ))}
+          </ul>
+          <h3 class="brand-subhead">Thematic icons</h3>
+          <div class="brand-icon-row">
+            {themeIcons.map((name) => (
+              <a class="brand-icon" href={`/assets/promo/icons/${name}.svg`} download title={name}>
+                <img src={`/assets/promo/icons/${name}-512.png`} alt="" width="72" height="72" loading="lazy" />
+                <span>{name.replace(/-/g, ' ')}</span>
+              </a>
+            ))}
+          </div>
+          <p class="brand-folder-note">
+            Full tree: <a href="/assets/promo/manifest.json"><code>/assets/promo/</code></a>
+            · icons · mascot · network · plus site sources in <a href="/assets/ASSETS-README.md"><code>/assets/</code></a>.
+          </p>
+        </section>
+
+        <section id="usage" class="brand-section section-reveal delay-5" aria-labelledby="usage-heading">
+          <h2 id="usage-heading">Usage</h2>
+          <ul class="brand-usage">
+            <li>Keep the Arc Slab mark intact — do not restyle, recolor arbitrarily, or invent a new logo.</li>
+            <li>Prefer navy <code>#0A1128</code> / <code>#050A1A</code> with accent <code>#3B8CFF</code>; soft accent <code>#8DB8FF</code> for hover on dark.</li>
+            <li>Typography: Comfortaa for brand wordmarks and marketing UI.</li>
+            <li>Do not imply mainnet is live, announce a TGE, or promise returns on any asset or caption.</li>
+            <li>Canonical brand guidance lives in the repo <a href="https://github.com/Boing-Network/boing.network/blob/main/BRAND.md" target="_blank" rel="noopener">BRAND.md</a>.</li>
+          </ul>
+          <p class="brand-footer-links">
+            <a href="/about">About</a> ·
+            <a href="/resources">Resources</a> ·
+            <a href="/community">Community</a> ·
+            <a href="/downloads">Hub downloads</a>
+          </p>
+        </section>
+      </div>
+    </div>
+  </article>
+
+  <script>
+    document.querySelectorAll('.brand-swatch-chip').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const hex = btn.getAttribute('data-hex');
+        if (!hex) return;
+        try {
+          await navigator.clipboard.writeText(hex);
+          btn.classList.add('is-copied');
+          window.setTimeout(() => btn.classList.remove('is-copied'), 1200);
+        } catch {
+          /* ignore */
+        }
+      });
+    });
+  </script>
+</Layout>
+
+<style>
+  .full-width {
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+  }
+
+  .brand-hero {
+    position: relative;
+    min-height: min(88vh, 820px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 5rem 1.5rem 3.5rem;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 80% 55% at 50% 18%, rgba(59, 140, 255, 0.22), transparent 58%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(141, 184, 255, 0.08), transparent 50%),
+      linear-gradient(180deg, #050A1A 0%, #0A1128 55%, #040814 100%);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .brand-hero-visual {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    padding: 1rem 0 2rem;
+  }
+
+  .brand-hero-wordmark {
+    width: min(720px, 88vw);
+    height: auto;
+    filter: drop-shadow(0 0 28px rgba(59, 140, 255, 0.35));
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+    animation: brand-hero-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.05s forwards;
+  }
+
+  .brand-hero-copy {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .brand-kicker,
+  .brand-title,
+  .brand-lead,
+  .brand-hero-actions {
+    opacity: 0;
+    transform: translateY(16px);
+    animation: brand-hero-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .brand-kicker { animation-delay: 0.18s; }
+  .brand-title { animation-delay: 0.28s; }
+  .brand-lead { animation-delay: 0.38s; }
+  .brand-hero-actions { animation-delay: 0.48s; }
+
+  @keyframes brand-hero-in {
+    to { opacity: 1; transform: none; }
+  }
+
+  .brand-kicker {
+    margin: 0 0 0.65rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--boing-accent-soft, #8DB8FF);
+  }
+
+  .brand-title {
+    margin: 0 0 0.75rem;
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 8vw, 4.25rem);
+    font-weight: 700;
+    line-height: 1.05;
+    color: #F0F4F8;
+    letter-spacing: -0.02em;
+  }
+
+  .brand-lead {
+    margin: 0 auto 1.5rem;
+    max-width: 34rem;
+    font-size: 1.1rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+  }
+
+  .brand-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+  }
+
+  .brand-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.35rem;
+    border-radius: 0.65rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: #040814;
+    background: #3B8CFF;
+    border: 1px solid transparent;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .brand-cta:hover {
+    background: #8DB8FF;
+    box-shadow: 0 0 24px rgba(59, 140, 255, 0.35);
+  }
+  .brand-cta--quiet {
+    color: #F0F4F8;
+    background: transparent;
+    border-color: rgba(59, 140, 255, 0.4);
+  }
+  .brand-cta--quiet:hover {
+    background: rgba(59, 140, 255, 0.12);
+    color: #F0F4F8;
+  }
+
+  .brand-body {
+    padding: 2.5rem 0 4rem;
+  }
+  .brand-body-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  .brand-jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1.1rem;
+    margin: 0 0 2.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .brand-jump a {
+    color: var(--accent-teal);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .brand-jump a:hover { text-decoration: underline; }
+
+  .brand-section { margin-bottom: 3.25rem; scroll-margin-top: 6rem; }
+  .brand-section h2 {
+    margin: 0 0 0.5rem;
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 3vw, 1.85rem);
+    color: var(--text-primary);
+  }
+  .brand-section-lead {
+    margin: 0 0 1.5rem;
+    max-width: 42rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+  .brand-section-lead--tight { margin-bottom: 1rem; }
+  .brand-section-lead code,
+  .brand-folder-note code,
+  .brand-usage code {
+    font-size: 0.9em;
+    color: var(--boing-accent-soft, #8DB8FF);
+  }
+  .brand-subhead {
+    margin: 2rem 0 0.5rem;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+  }
+
+  .brand-logo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+    gap: 1rem;
+  }
+  .brand-asset {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.875rem;
+    overflow: hidden;
+    background: linear-gradient(168deg, rgba(4, 8, 20, 0.9) 0%, rgba(10, 17, 40, 0.95) 100%);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .brand-asset:hover {
+    border-color: rgba(59, 140, 255, 0.35);
+    transform: translateY(-2px);
+  }
+  .brand-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 140px;
+    padding: 1.25rem;
+    background:
+      linear-gradient(45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.03) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.03) 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  }
+  .brand-preview--on-light { background: #F0F4F8; }
+  .brand-preview--on-dark { background: #050A1A; }
+  .brand-preview img {
+    max-width: 100%;
+    max-height: 88px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+  .brand-preview--mark img { max-height: 72px; }
+  .brand-asset-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.9rem 1rem 1.05rem;
+  }
+  .brand-asset-meta strong { color: var(--text-primary); font-size: 0.98rem; }
+  .brand-asset-meta span { color: var(--text-tertiary); font-size: 0.82rem; }
+  .brand-dl {
+    margin-top: 0.35rem !important;
+    color: var(--accent-teal) !important;
+    font-weight: 600;
+    font-size: 0.88rem !important;
+  }
+
+  .brand-link-list {
+    list-style: none;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+  }
+  .brand-link-list a {
+    color: var(--accent-teal);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+  .brand-link-list a:hover { text-decoration: underline; }
+  .brand-link-list--dense {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.45rem 1rem;
+  }
+
+  .brand-swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+    gap: 0.85rem;
+  }
+  .brand-swatch {
+    display: flex;
+    gap: 0.75rem;
+    align-items: stretch;
+    padding: 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    background: rgba(4, 8, 20, 0.45);
+  }
+  .brand-swatch-chip {
+    width: 3.25rem;
+    flex-shrink: 0;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+  }
+  .brand-swatch-chip:hover {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 2px rgba(59, 140, 255, 0.35);
+  }
+  .brand-swatch-chip.is-copied {
+    box-shadow: 0 0 0 2px #34D399;
+  }
+  .brand-swatch-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+  .brand-swatch-copy strong {
+    font-size: 0.92rem;
+    color: var(--text-primary);
+  }
+  .brand-swatch-copy code {
+    font-size: 0.82rem;
+    color: var(--accent-teal);
+  }
+  .brand-swatch-token,
+  .brand-swatch-use {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    line-height: 1.35;
+  }
+
+  .brand-mascot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+    gap: 1rem;
+  }
+  .brand-mascot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    padding: 1rem 0.85rem 1.15rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.875rem;
+    background: linear-gradient(180deg, rgba(16, 26, 56, 0.55), rgba(4, 8, 20, 0.7));
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .brand-mascot:hover {
+    border-color: rgba(59, 140, 255, 0.35);
+    transform: translateY(-3px);
+  }
+  .brand-mascot img {
+    width: min(180px, 70%);
+    height: auto;
+    margin-bottom: 0.75rem;
+    filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.35));
+  }
+  .brand-mascot strong { color: var(--text-primary); }
+  .brand-mascot span { font-size: 0.82rem; color: var(--text-tertiary); margin-top: 0.2rem; }
+
+  .brand-mascot-promo {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+  }
+  .brand-mascot-promo-item {
+    margin: 0;
+    text-align: center;
+  }
+  .brand-mascot-promo-item img {
+    width: 100%;
+    max-width: 140px;
+    height: auto;
+    border-radius: 0.75rem;
+  }
+  .brand-mascot-promo-item figcaption {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+  }
+  .brand-mascot-promo-item strong { color: var(--text-primary); }
+  .brand-mascot-promo-item a { color: var(--accent-teal); text-decoration: none; }
+  .brand-mascot-promo-item a:hover { text-decoration: underline; }
+
+  .brand-promo-spotlight {
+    margin: 0 0 1.25rem;
+    border-radius: 0.875rem;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .brand-promo-spotlight img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .brand-icon-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+  .brand-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    text-decoration: none;
+    color: var(--text-tertiary);
+    font-size: 0.68rem;
+    text-transform: capitalize;
+    text-align: center;
+  }
+  .brand-icon img {
+    width: 64px;
+    height: 64px;
+    border-radius: 0.5rem;
+    transition: transform 0.2s ease;
+  }
+  .brand-icon:hover img { transform: scale(1.06); }
+  .brand-icon:hover { color: var(--accent-teal); }
+
+  .brand-folder-note {
+    margin: 1.25rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+  }
+  .brand-folder-note a { color: var(--accent-teal); }
+
+  .brand-usage {
+    margin: 0;
+    padding-left: 1.15rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    max-width: 44rem;
+  }
+  .brand-usage li { margin-bottom: 0.55rem; }
+  .brand-usage a { color: var(--accent-teal); }
+
+  .brand-footer-links {
+    margin-top: 1.75rem;
+    color: var(--text-tertiary);
+  }
+  .brand-footer-links a { color: var(--accent-teal); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brand-hero-wordmark,
+    .brand-kicker,
+    .brand-title,
+    .brand-lead,
+    .brand-hero-actions {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+    .brand-asset:hover,
+    .brand-mascot:hover { transform: none; }
+  }
+
+  @media (max-width: 640px) {
+    .brand-hero {
+      min-height: auto;
+      padding: 3.5rem 1.15rem 2.5rem;
+    }
+    .brand-hero-visual { min-height: 140px; padding-bottom: 1rem; }
+    .brand-body-inner { padding: 0 1.25rem; }
+    .brand-body { padding: 2rem 0 3rem; }
+  }
+</style>

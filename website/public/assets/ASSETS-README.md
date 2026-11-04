@@ -24,6 +24,19 @@ Place the following assets in this directory (`/public/assets/`) so they resolve
 | **mascot-thinking.png** | FAQ, help, or “considering” UI states. |
 | **mascot-winking.png** | Success, confirmation, or playful CTAs. |
 
+## Promo pack (`/assets/promo/`)
+
+Editor-ready branding for video and press. Public page: **[/brand](/brand)**. Inventory: [`promo/manifest.json`](./promo/manifest.json).
+
+| Path | Contents |
+|------|----------|
+| **promo/** | Wordmarks, Arc Slab mark rasters, title cards, lower-thirds, overlays |
+| **promo/icons/** | Thematic icons (SVG + PNG 512/1024) |
+| **promo/mascot/** | Pose exports: clean / circle / navy plate at 512–2048 |
+| **promo/network/** | Motifs, end slates, vertical hero plate |
+
+On-graphic text is “Boing Network” only — no mainnet/TGE claims. Do not invent a new logo mark.
+
 ## Already in repo
 
 - **hex-grid.svg** — Hexagonal grid for app pages (`.page-app`). No action needed.

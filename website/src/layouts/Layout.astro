@@ -38,6 +38,7 @@ const navCurrent = {
   overview: isHome,
   resources: path === '/resources' || path.startsWith('/resources/'),
   about: path === '/about',
+  brand: path === '/brand' || path.startsWith('/brand/'),
   community: path === '/community' || path.startsWith('/community/'),
   dashboard: pathNorm === 'testnet',
   developers: pathNorm.startsWith('testnet/developers'),
@@ -165,6 +166,7 @@ const navCurrent = {
                 <a href="#build" class="nav-section" data-nav-section="build">Build</a>
                 <a href="https://docs.boing.network" class="nav-link" target="_blank" rel="noopener">Docs</a>
                 <a href="/resources" class="nav-link">Resources</a>
+                <a href="/brand" class="nav-link">Brand</a>
                 <a href="/faucet" class="nav-link">Faucet</a>
               </div>
               <div class="site-nav-actions">
@@ -211,6 +213,7 @@ const navCurrent = {
                 <a href="https://docs.boing.network" class="nav-link" target="_blank" rel="noopener">Docs</a>
                 <a href="/resources" class="nav-link" aria-current={navCurrent.resources ? 'page' : undefined}>Resources</a>
                 <a href="/about" class="nav-link" aria-current={navCurrent.about ? 'page' : undefined}>About</a>
+                <a href="/brand" class="nav-link" aria-current={navCurrent.brand ? 'page' : undefined}>Brand</a>
                 <a href="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" target="_blank" rel="noopener" class="nav-link">Whitepaper</a>
                 <a href="/community" class="nav-link" aria-current={navCurrent.community ? 'page' : undefined}>Community</a>
                 <a href="/faucet" class="nav-link" aria-current={navCurrent.faucet ? 'page' : undefined}>Faucet</a>
@@ -269,6 +272,7 @@ const navCurrent = {
               <li><a href="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" target="_blank" rel="noopener">Whitepaper</a></li>
               <li><a href="/resources">Resources</a></li>
               <li><a href="/about">About</a></li>
+              <li><a href="/brand">Brand</a></li>
             </ul>
           </div>
           <div class="footer-group">

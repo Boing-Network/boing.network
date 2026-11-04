@@ -1,0 +1,23 @@
+{
+  "brand": {
+    "navy": "#0A1128",
+    "navyDeep": "#050A1A",
+    "accent": "#3B8CFF",
+    "soft": "#8DB8FF"
+  },
+  "sources": [
+    "public/logo.svg",
+    "public/assets/boing-network-wordmark.svg"
+  ],
+  "files": [
+    "wordmark-transparent.png",
+    "wordmark-dark.png",
+    "wordmark-light.png",
+    "icon-transparent.png",
+    "title-card-1920x1080.png",
+    "title-card-1080x1920.png",
+    "lower-third.png",
+    "wordmark-wide-1200.png"
+  ],
+  "notes": "On-graphic text is \"Boing Network\" only. No mainnet/TGE claims."
+}
