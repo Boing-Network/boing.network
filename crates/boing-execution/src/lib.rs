@@ -20,6 +20,7 @@ pub mod history;
 mod interface_blob_store;
 mod linked_nft_token_registry;
 mod linked_nft_token_registry_v2;
+mod native_dex_create_and_seed;
 mod native_dex_factory;
 pub use history::{ExecutionHistory, FeeEra};
 mod interface_registry;
@@ -140,6 +141,11 @@ pub use native_dex_custody_router::{
     custody_router_lock_key, encode_custody_router_swap_calldata,
     native_dex_custody_router_bytecode, CustodyHop, CUSTODY_ROUTER_MAX_HOPS,
     NATIVE_DEX_CUSTODY_ROUTER_CREATE2_SALT_V1, SELECTOR_CUSTODY_ROUTER_SWAP,
+};
+pub use native_dex_create_and_seed::{
+    encode_create_and_seed_calldata, native_dex_create_and_seed_bytecode,
+    NATIVE_DEX_CREATE_AND_SEED_CREATE2_SALT_V1, NATIVE_DEX_CREATE_AND_SEED_MAX_POOL_BYTES,
+    NATIVE_DEX_CREATE_AND_SEED_TOPIC, SELECTOR_CREATE_AND_SEED,
 };
 pub use native_dex_factory::{
     encode_get_pair_at_calldata, encode_pairs_count_calldata, encode_register_pair_calldata,

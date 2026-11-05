@@ -11,7 +11,7 @@
  */
 
 /** Package semver — keep in sync with `package.json` `version` on each release. */
-export const SDK_VERSION = '0.5.39';
+export const SDK_VERSION = '0.5.40';
 
 export { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from './canonicalTestnet.js';
 export {
@@ -298,6 +298,21 @@ export {
   encodeNativeDexGetPairAtCalldata,
   encodeNativeDexGetPairAtCalldataHex,
 } from './nativeDexFactory.js';
+export {
+  SELECTOR_NATIVE_DEX_CREATE_AND_SEED,
+  NATIVE_DEX_CREATE_AND_SEED_MAX_POOL_BYTES,
+  NATIVE_DEX_CREATE_AND_SEED_CREATE2_SALT_V1_HEX,
+  NATIVE_DEX_CREATE_AND_SEED_TOPIC_HEX,
+  NATIVE_DEX_CREATE_AND_SEED_BYTECODE_HEX,
+  randomCreateAndSeedPoolSaltHex,
+  encodeNativeDexCreateAndSeedCalldata,
+  encodeNativeDexCreateAndSeedCalldataHex,
+  predictCreateAndSeedPoolAddress,
+  predictNativeDexCreateAndSeedFactoryCreate2Address,
+  buildCreateAndSeedBatchCalls,
+  buildCreateAndSeedBatchTransaction,
+  type CreateAndSeedBatchInput,
+} from './nativeDexCreateAndSeed.js';
 export {
   NATIVE_DEX_FACTORY_COUNT_KEY_HEX,
   buildNativeDexFactoryAccessList,

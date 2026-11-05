@@ -38,7 +38,7 @@ Together, these are enough for **swaps**, **liquidity**, **registry**, **routing
 
 | Limitation | Detail |
 |------------|--------|
-| **Shipping factory = register, not in-contract deploy** | Pools are **`ContractDeploy` txs** + optional **`register_pair`**. The VM **has `CREATE2` (`0xf5`)** for other contracts; the canonical pair directory bytecode **does not** deploy pairs itself. See [NATIVE-DEX-FACTORY.md](./NATIVE-DEX-FACTORY.md) and [NATIVE-DEX-LIMITS-RATIONALE.md](./NATIVE-DEX-LIMITS-RATIONALE.md). |
+| **Pair directory = register, not deploy** | The canonical directory only **`register_pair`**s. Permissionless CREATE2 pool create lives in the separate **create-and-seed** factory ([NATIVE-DEX-CREATE-AND-SEED.md](./NATIVE-DEX-CREATE-AND-SEED.md)); seed liquidity stays a sender-`CALLER` Batch step. See [NATIVE-DEX-FACTORY.md](./NATIVE-DEX-FACTORY.md) and [NATIVE-DEX-LIMITS-RATIONALE.md](./NATIVE-DEX-LIMITS-RATIONALE.md). |
 | No Uniswap V3–style **concentrated liquidity** in canonical bytecode | Only the shipped **constant-product** programs; new curves need new VM contracts. |
 | **LP** is pool-internal accounting by default | Not an ERC-20 LP token unless you add a separate token contract and wire it in product design. |
 | **On-chain O(1) (tokenA, tokenB) → pool** | Pair directory uses indexed / scan patterns; no keccak mapping in baseline factory. |
@@ -49,7 +49,7 @@ Together, these are enough for **swaps**, **liquidity**, **registry**, **routing
 
 **Yes:** a **functional** DEX (swap, LP, list pairs, route, **2-hop** and **multihop** bundles) can exist **entirely** on Boing VM with the artifacts above plus reference tokens and off-chain/indexer support.
 
-**No:** it is **not** a byte-for-byte Uniswap clone; factory-in-one-tx, concentrated liquidity, and permissionless in-contract pool creation are **out of scope** for pure VM bytecode until the protocol adds in-contract deploy or new precompiles.
+**No:** it is **not** a byte-for-byte Uniswap clone; concentrated liquidity remains out of scope. **Permissionless CREATE2 pool create** is available via the create-and-seed factory (pool bytecode in calldata + Batch seed); the pair directory itself stays register-only.
 
 For **why** these differ from EVM and what extensions cost, see [NATIVE-DEX-LIMITS-RATIONALE.md](./NATIVE-DEX-LIMITS-RATIONALE.md). Engineering checklist and product-surface matrix are below.
 

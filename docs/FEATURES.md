@@ -151,6 +151,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | Native CP AMM (swap / add / remove, 30 bps, Log2) | testnet live | NEXT-STEPS NAMM; [NATIVE-AMM-CALLDATA.md](NATIVE-AMM-CALLDATA.md) | high |
 | Adjustable-fee / fee-on-input pool versions | shipped in VM templates | NEXT-STEPS | high |
 | Native DEX factory (`register_pair`, Log3) | testnet live (when deployed/published) | [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md); live `end_user` factory | high |
+| Create-and-seed factory (CREATE2 + bind + register) | shipped (bytecode); deploy + publish AccountId for one-approval Finance create | [NATIVE-DEX-CREATE-AND-SEED.md](NATIVE-DEX-CREATE-AND-SEED.md) | high |
 | Ledger / swap2 / multihop routers | in-repo + testnet when published | NATIVE-DEX-* docs; live end_user ids | high |
 | L1 discovery RPCs | testnet live | since `testnet-v0.1.9` **2026-04-13** | high |
 | Native-dex-indexer Worker + D1 directory | in-repo worker | [HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md](HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md) | high |

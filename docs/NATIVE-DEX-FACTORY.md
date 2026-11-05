@@ -14,7 +14,7 @@ This document specifies the **pair directory** bytecode produced by `native_dex_
 
 **This bytecode** is a **registry**, not a deployer: each pool is deployed with a **`ContractDeploy` / `ContractDeployWithPurpose` transaction** (optional CREATE2 salt), then optionally **`register_pair`**. That keeps new pool bytecode on the **signed deploy + QA** path operators already use.
 
-**VM nuance:** The interpreter **does** implement **`CREATE2` (`0xf5`)** for in-execution child deploys when storage supports it (`crates/boing-execution/src/interpreter.rs` → `apply_in_tx_create2`). There is **no EVM-style saltless `CREATE`** opcode. A *different* factory contract *could* deploy children via **`CREATE2`** if child init bytecode is allowed by QA — that would be **new audited bytecode and policy**, not a change to *this* pair-directory spec. The **shipping** directory stays register-only for predictable tooling and manifests.
+**VM nuance:** The interpreter **does** implement **`CREATE2` (`0xf5`)** for in-execution child deploys when storage supports it (`crates/boing-execution/src/interpreter.rs` → `apply_in_tx_create2`). There is **no EVM-style saltless `CREATE`** opcode. For **one-approval pool create**, use the separate **create-and-seed** factory ([NATIVE-DEX-CREATE-AND-SEED.md](./NATIVE-DEX-CREATE-AND-SEED.md)): it CREATE2s a custody pool from calldata-supplied runtime, calls `set_tokens`, and may `CALL` this directory’s `register_pair`. This **shipping** directory stays register-only for predictable tooling and manifests.
 
 The supported pattern is:
 
