@@ -55,7 +55,8 @@ pub fn encode_create_and_seed_calldata(
     pool_bytecode: &[u8],
 ) -> Vec<u8> {
     assert!(
-        !pool_bytecode.is_empty() && pool_bytecode.len() as u64 <= NATIVE_DEX_CREATE_AND_SEED_MAX_POOL_BYTES,
+        !pool_bytecode.is_empty()
+            && pool_bytecode.len() as u64 <= NATIVE_DEX_CREATE_AND_SEED_MAX_POOL_BYTES,
         "pool bytecode length out of range"
     );
     let mut v = w_sel(SELECTOR_CREATE_AND_SEED).to_vec();
@@ -245,13 +246,7 @@ mod tests {
         let salt = [7u8; 32];
         let predicted = create2_contract_address(&FACTORY, &salt, &pool_code);
 
-        let cd = encode_create_and_seed_calldata(
-            &salt,
-            &TA,
-            &TB,
-            Some(&DIRECTORY),
-            &pool_code,
-        );
+        let cd = encode_create_and_seed_calldata(&salt, &TA, &TB, Some(&DIRECTORY), &pool_code);
         call(&mut state, USER, FACTORY, cd);
 
         let installed = state.get_contract_code(&predicted).expect("pool code");
