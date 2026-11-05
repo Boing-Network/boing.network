@@ -62,7 +62,7 @@ This complements [BOING-NATIVE-DEX-CAPABILITY.md](./BOING-NATIVE-DEX-CAPABILITY.
 | Extension | Rough effort / risk | Notes |
 |-----------|---------------------|--------|
 | **7+ hop router** | Medium — new artifact + SDK + ops | Bounded; breaks “canonical router” unless versioned (v2 router salt). |
-| **CREATE2-based pair factory (new contract)** | High — audit + QA policy for children | VM opcode exists; policy and bytecode design dominate. |
+| **CREATE2 create-and-seed factory** | **Shipped** — [NATIVE-DEX-CREATE-AND-SEED.md](./NATIVE-DEX-CREATE-AND-SEED.md) | Pool runtime in calldata; bind + optional `register_pair` on-chain; seed via Batch with `CALLER` = user. |
 | **Concentrated liquidity pool** | Very high | New pool type end-to-end. |
 | **O(1) on-chain pair map** | Medium–high | VM/storage design or new opcodes. |
 

@@ -103,6 +103,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [WINDOWS-AUTHENTICODE.md](WINDOWS-AUTHENTICODE.md) | Hub Windows Authenticode secrets + readiness CI (no .pfx in repo) |
 | [NATIVE-LP-VAULT-V2.md](NATIVE-LP-VAULT-V2.md) | LP vault v2 (token-pair pools) |
 | [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) | Pair directory VM |
+| [NATIVE-DEX-CREATE-AND-SEED.md](NATIVE-DEX-CREATE-AND-SEED.md) | CREATE2 create-and-seed factory (one-approval pool create) |
 | [NATIVE-DEX-LEDGER-ROUTER.md](NATIVE-DEX-LEDGER-ROUTER.md) | Ledger forwarders v1–v3 |
 | [NATIVE-DEX-SWAP2-ROUTER.md](NATIVE-DEX-SWAP2-ROUTER.md) | Two-hop router |
 | [NATIVE-DEX-MULTIHOP-SWAP-ROUTER.md](NATIVE-DEX-MULTIHOP-SWAP-ROUTER.md) | Multihop router (2–6 hops) |

@@ -7,15 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.40] - 2026-11-05
+
 ### Added
 
-- **Token metadata for every token** — `getTokenMetadata(id)` (`boing_getTokenMetadata`) and `listTokensPage({ cursor, limit })` (`boing_listTokens`) return name, symbol, decimals and total supply for any token contract, not only tokens in a DEX pool; types `TokenMetadata`, `TokenListPage`, `TokenStandard`. Fields the chain does not hold come back `null`. Older nodes answer method-not-found: fall back to `getDexToken`.
-- **PutBlob / BlobAnnounce `maxBytes`** — `validatePutBlob`, `validateBlobAnnounce`, and `putBlobPayload` accept an optional size cap (default remains **16 MiB**). Pass `mediaBlobMaxBytesAt(true)` / RPC `effectiveMaxBytesAtTip` when Phase 7 **256 MiB** is active so clients can publish larger media without a separate SDK fork.
-- **Public exports** — `extractBoingBlobUri` and `blobIdHexFromBoingUri` from `metadataMedia` are re-exported from the package root (dApps resolving `boing://blob/…`).
-
-- **Optional priority tips** — `TransactionInput.priorityTip`, `withPriorityTip`, `signableTransactionHashWithTip` / `TX_SIGNING_DOMAIN_PRIORITY`. Zero tip keeps historical encode/sign; non-zero tips bind into the signature and wire encoding.
-- **Micro-fee helpers** — `MICRO_FEE_EXECUTION_GAS_BPS` (100 → ~0.00021 BOING/transfer), `estimateExecutionGasFee`, `estimateMicroTransferFee`, `suggestPriorityTipLadder`, `estimateTotalFeeWithTip`, `formatBoingFromBaseUnits`, `formatTipLadderForUi`. Product target is a tiny base fee + optional tip (not free-by-default). See [OPTIONAL-PRIORITY-FEES.md](../docs/OPTIONAL-PRIORITY-FEES.md).
-- **Tip split knobs** (node / policy JSON) — `tip_proposer_bps` / `tip_treasury_bps` / `tip_burn_bps` (default 100% proposer).
+- **Create-and-seed factory** — `nativeDexCreateAndSeed.ts`: `encodeNativeDexCreateAndSeedCalldata`, `buildCreateAndSeedBatchCalls` / `buildCreateAndSeedBatchTransaction`, predictors, `NATIVE_DEX_CREATE_AND_SEED_BYTECODE_HEX`. One Express Batch: approve → CREATE2 pool + bind + register → `add_liquidity`. See [NATIVE-DEX-CREATE-AND-SEED.md](../docs/NATIVE-DEX-CREATE-AND-SEED.md).
 
 ## [0.5.39] - 2026-11-04
 

@@ -20,6 +20,7 @@ pub mod history;
 mod interface_blob_store;
 mod linked_nft_token_registry;
 mod linked_nft_token_registry_v2;
+mod native_dex_create_and_seed;
 mod native_dex_factory;
 pub use history::{ExecutionHistory, FeeEra};
 mod interface_registry;
@@ -135,6 +136,11 @@ pub use native_amm_v8::{
     encode_v8_remove_liquidity_to_calldata, encode_v8_swap_calldata, encode_v8_swap_to_calldata,
     isqrt_u128, pool_v8_lock_key, NATIVE_CP_POOL_CREATE2_SALT_V10, NATIVE_CP_POOL_CREATE2_SALT_V11,
     NATIVE_CP_POOL_CREATE2_SALT_V8, NATIVE_CP_POOL_CREATE2_SALT_V9,
+};
+pub use native_dex_create_and_seed::{
+    encode_create_and_seed_calldata, native_dex_create_and_seed_bytecode,
+    NATIVE_DEX_CREATE_AND_SEED_CREATE2_SALT_V1, NATIVE_DEX_CREATE_AND_SEED_MAX_POOL_BYTES,
+    NATIVE_DEX_CREATE_AND_SEED_TOPIC, SELECTOR_CREATE_AND_SEED,
 };
 pub use native_dex_custody_router::{
     custody_router_lock_key, encode_custody_router_swap_calldata,
