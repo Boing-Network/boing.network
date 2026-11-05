@@ -21,7 +21,7 @@ flowchart LR
 npm install @boing-network/boing-sdk
 ```
 
-Current registry latest: see the npm package page (this repo's `package.json` is **`0.5.39`**). Package page: [npmjs.com/package/@boing-network/boing-sdk](https://www.npmjs.com/package/@boing-network/boing-sdk). Do **not** install unscoped [`boing-sdk`](https://www.npmjs.com/package/boing-sdk) — that name is abandoned/locked and is not updated by this repo.
+Current registry latest: see the npm package page (this repo's `package.json` is **`0.5.40`**). Package page: [npmjs.com/package/@boing-network/boing-sdk](https://www.npmjs.com/package/@boing-network/boing-sdk). Do **not** install unscoped [`boing-sdk`](https://www.npmjs.com/package/boing-sdk) — that name is abandoned/locked and is not updated by this repo.
 
 **Monorepo / contributors** (this directory):
 
@@ -57,7 +57,7 @@ Historical tag publishes failed with **`ENEEDAUTH`** when this secret was absent
 
 ```bash
 git checkout main && git pull origin main
-node -p "require('./boing-sdk/package.json').version"   # e.g. 0.5.39
+node -p "require('./boing-sdk/package.json').version"   # e.g. 0.5.40
 git tag -a "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")" -m "@boing-network/boing-sdk $(node -p "require('./boing-sdk/package.json').version")"
 git push origin "boing-sdk/v$(node -p "require('./boing-sdk/package.json').version")"
 ```
