@@ -15,6 +15,9 @@ RPC_BACKENDS = "https://boing-testnet-1.fly.dev"
 # Method allow-list + per-IP class limits (src/edgePolicy.ts): "log" = observe only, "enforce" = reject, "off".
 # Enforcing since 2026-10-28 after two days of log mode (5 of 35,796 requests would have been denied, all unknown methods). Rollback: set "log" or "off" and redeploy, or `wrangler rollback`. Optional secret: EDGE_TRUSTED_TOKEN.
 EDGE_POLICY_MODE = "enforce"
+# Faucet abuse checks (src/faucetGuard.ts), Nov 2026: per-address cooldown and successful claims per IP per rolling day. 0 disables.
+FAUCET_ADDRESS_COOLDOWN_SECS = "86400"
+FAUCET_IP_MAX_PER_DAY = "3"
 
 # Workers Logs: persisted, queryable in the dashboard (Workers & Pages > boing-public-rpc-gateway > Logs) and via the telemetry API.
 [observability]

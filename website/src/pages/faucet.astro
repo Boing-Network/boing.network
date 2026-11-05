@@ -4,7 +4,7 @@ import Icon from '../components/Icon.astro';
 import CopyButton from '../components/CopyButton.astro';
 import ChainIdleNotice from '../components/ChainIdleNotice.astro';
 import { TESTNET_RPC_URL } from '../config/testnet';
-import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
+import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_LABEL, FAUCET_IP_MAX_PER_DAY } from '../config/faucet';
 ---
 
 <Layout
@@ -19,7 +19,7 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
         <p class="lead">
           Get free testnet BOING on chain <strong>6913</strong> to pay for fees (and the 100 BOING validator bond).
           Paste your Boing address (or connect Boing Express) and request. Each request sends <strong>{FAUCET_AMOUNT_BOING}</strong> testnet BOING
-          (the confirmation below shows the exact amount the node sent), limited to <strong>1 request per {FAUCET_COOLDOWN_SECONDS} seconds</strong> per address.
+          (the confirmation below shows the exact amount the node sent), limited to <strong>1 request per address every {FAUCET_COOLDOWN_LABEL}</strong> and <strong>{FAUCET_IP_MAX_PER_DAY} requests per network per day</strong>.
           A transfer costs about 1 BOING; deploying a native token costs about 10–20 BOING, so <strong>builders should plan on two requests</strong>;
           validators should request enough times to cover the bond plus a few BOING for fees.
         </p>
@@ -235,6 +235,12 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_SECONDS } from '../config/faucet';
         }
 
         // HTTP 429 = Cloudflare / gateway edge guard (often ~10 s). Node faucet cooldown is HTTP 200 + -32016.
+        const reason = (data.error as { data?: { reason?: string } } | undefined)?.data?.reason;
+        // Faucet cooldown / daily limit (edge or node): the message already says how long to wait.
+        if (typeof reason === 'string' && reason.startsWith('faucet_')) {
+          setMessage(data.error?.message || 'Faucet limit reached. Try again later.', true);
+          return;
+        }
         if (res.status === 429) {
           const retry = res.headers.get('Retry-After');
           const hint = retry ? ` Retry in about ${retry}s.` : ' Wait about 10 seconds and try again.';

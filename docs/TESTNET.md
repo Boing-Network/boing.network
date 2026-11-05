@@ -116,7 +116,7 @@ When the node is started with **`--faucet-enable`**, it accepts:
 
 | Method | Params | Description |
 |--------|--------|-------------|
-| `boing_faucetRequest` | `[hex_account_id]` | Send **20** testnet BOING (`FAUCET_DISPENSE_AMOUNT` in `crates/boing-node/src/faucet.rs`; the RPC `amount` field reports what was sent) to the given account (32-byte hex). After the 18-decimal switch (height **1050**), ledger amounts are base units (`20 × 10^18`); a simple transfer costs about **0.021 BOING** at full fee schedule (**~0.00021 BOING** with micro fees), so one faucet fill covers many transfers. A few requests cover the **100 BOING** validator registration bond. Rate limit: **1 request per 60 seconds per account**, plus node-wide **`BOING_FAUCET_MAX_PER_MINUTE`** (default **30**). |
+| `boing_faucetRequest` | `[hex_account_id]` | Send **20** testnet BOING (`FAUCET_DISPENSE_AMOUNT` in `crates/boing-node/src/faucet.rs`; the RPC `amount` field reports what was sent) to the given account (32-byte hex). After the 18-decimal switch (height **1050**), ledger amounts are base units (`20 × 10^18`); a simple transfer costs about **0.021 BOING** at full fee schedule (**~0.00021 BOING** with micro fees), so one faucet fill covers many transfers. A few requests cover the **100 BOING** validator registration bond. Rate limit: **1 request per 24 hours per account** (node `BOING_FAUCET_COOLDOWN_SECS`, default **86400**), node-wide **`BOING_FAUCET_MAX_PER_MINUTE`** (default **30**) and **`BOING_FAUCET_MAX_PER_HOUR`** (default **120**). The public RPC edge (`workers/public-rpc-gateway`) also enforces the 24 h per-address cooldown (`FAUCET_ADDRESS_COOLDOWN_SECS`), **3 successful requests per IP per day** (`FAUCET_IP_MAX_PER_DAY`) and refuses faucet calls inside batches; blocked requests return HTTP 429 with JSON-RPC `-32016` and `error.data.reason` / `retry_after_secs`. |
 
 **Example (curl):**
 
@@ -146,7 +146,7 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 - Only nodes started with `--faucet-enable` support this. **Do not use on mainnet.**
 - The faucet signing key is **intentionally public** (derived from `hash("boing-testnet-faucet-v1")`). Anyone can derive it and submit transfers; treat the faucet as shared testnet infrastructure, not a secret. **Mainnet must never reuse this scheme** (the node refuses `--faucet-enable` on chain id 6914).
 - The faucet account is funded at genesis with 10,000,000 testnet BOING; each request sends **20** (`FAUCET_DISPENSE_AMOUNT`); the RPC response `amount` reports the amount actually sent.
-- If you get "Faucet cooldown", wait 60 seconds and try again for the same account.
+- If you get "Faucet cooldown", wait until the time in the message (24 hours per address by default) and try again.
 
 ### 5.2 Public faucet page
 

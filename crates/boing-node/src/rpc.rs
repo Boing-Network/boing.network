@@ -1649,6 +1649,56 @@ fn faucet_window_admit(
 static FAUCET_RECENT: std::sync::Mutex<std::collections::VecDeque<Instant>> =
     std::sync::Mutex::new(std::collections::VecDeque::new());
 
+static FAUCET_RECENT_HOUR: std::sync::Mutex<std::collections::VecDeque<Instant>> =
+    std::sync::Mutex::new(std::collections::VecDeque::new());
+
+/// Default per-address faucet cooldown: 24 hours (faucet farming, Nov 2026).
+pub const DEFAULT_FAUCET_COOLDOWN_SECS: u64 = 24 * 60 * 60;
+
+fn parse_faucet_cooldown_secs(raw: Option<&str>) -> u64 {
+    raw.and_then(|s| s.trim().parse::<u64>().ok())
+        .unwrap_or(DEFAULT_FAUCET_COOLDOWN_SECS)
+}
+
+/// Per-address faucet cooldown. `BOING_FAUCET_COOLDOWN_SECS`, default 86400 (24 h); 0 disables it.
+fn faucet_cooldown() -> Duration {
+    static PARSED: OnceLock<u64> = OnceLock::new();
+    Duration::from_secs(*PARSED.get_or_init(|| {
+        parse_faucet_cooldown_secs(std::env::var("BOING_FAUCET_COOLDOWN_SECS").ok().as_deref())
+    }))
+}
+
+/// Node-wide faucet budget per hour: bounds farming with fresh addresses over a whole night.
+/// `BOING_FAUCET_MAX_PER_HOUR`, default 120; 0 = unlimited.
+fn faucet_max_per_hour() -> usize {
+    static PARSED: OnceLock<usize> = OnceLock::new();
+    *PARSED.get_or_init(|| {
+        std::env::var("BOING_FAUCET_MAX_PER_HOUR")
+            .ok()
+            .and_then(|s| s.trim().parse::<usize>().ok())
+            .unwrap_or(120)
+    })
+}
+
+/// Time left before `last` may claim again, or None when the cooldown has passed.
+fn faucet_cooldown_remaining(last: Instant, now: Instant, cooldown: Duration) -> Option<Duration> {
+    let elapsed = now.saturating_duration_since(last);
+    (elapsed < cooldown).then(|| cooldown - elapsed)
+}
+
+/// "5h 12m", "12m 3s", "40s" for user-facing faucet errors.
+fn human_wait(d: Duration) -> String {
+    let s = d.as_secs().max(1);
+    let (h, m, sec) = (s / 3600, (s % 3600) / 60, s % 60);
+    if h > 0 {
+        format!("{}h {}m", h, m)
+    } else if m > 0 {
+        format!("{}m {}s", m, sec)
+    } else {
+        format!("{}s", sec)
+    }
+}
+
 /// When set, `GET /ready` returns **503** unless `connected_peers().len() >= N`. Unset = no peer check.
 fn ready_min_peers() -> Option<u32> {
     static PARSED: OnceLock<Option<u32>> = OnceLock::new();
@@ -1975,6 +2025,66 @@ mod abuse_limit_tests {
             parse_ws_max_connections(Some("junk")),
             DEFAULT_WS_MAX_CONNECTIONS
         );
+    }
+
+    #[test]
+    fn faucet_cooldown_defaults_to_24h_and_is_configurable() {
+        assert_eq!(parse_faucet_cooldown_secs(None), 86_400);
+        assert_eq!(parse_faucet_cooldown_secs(Some(" 3600 ")), 3600);
+        assert_eq!(parse_faucet_cooldown_secs(Some("0")), 0);
+        assert_eq!(parse_faucet_cooldown_secs(Some("nope")), 86_400);
+    }
+
+    #[test]
+    fn faucet_cooldown_rejects_repeat_claims_until_it_expires() {
+        let day = Duration::from_secs(86_400);
+        let t0 = Instant::now();
+        // Rapid repeat claims (the Nov 2026 farming pattern was 1-10 minutes apart) are refused.
+        for gap in [1u64, 60, 600, 3600, 86_399] {
+            let left = faucet_cooldown_remaining(t0, t0 + Duration::from_secs(gap), day);
+            assert_eq!(left, Some(day - Duration::from_secs(gap)), "gap {gap}s");
+        }
+        assert_eq!(faucet_cooldown_remaining(t0, t0 + day, day), None);
+        assert_eq!(faucet_cooldown_remaining(t0, t0 + day * 2, day), None);
+        assert_eq!(
+            faucet_cooldown_remaining(t0, t0 + Duration::from_secs(5), Duration::ZERO),
+            None,
+            "0 disables"
+        );
+    }
+
+    #[test]
+    fn faucet_hourly_window_caps_fresh_address_farming() {
+        let mut recent = std::collections::VecDeque::new();
+        let t0 = Instant::now();
+        let hour = Duration::from_secs(3600);
+        for i in 0..120u64 {
+            assert!(faucet_window_admit(
+                &mut recent,
+                t0 + Duration::from_secs(i * 10),
+                120,
+                hour
+            ));
+        }
+        assert!(!faucet_window_admit(
+            &mut recent,
+            t0 + Duration::from_secs(1300),
+            120,
+            hour
+        ));
+        assert!(faucet_window_admit(
+            &mut recent,
+            t0 + hour + Duration::from_secs(1),
+            120,
+            hour
+        ));
+    }
+
+    #[test]
+    fn human_wait_is_readable() {
+        assert_eq!(human_wait(Duration::from_secs(86_399)), "23h 59m");
+        assert_eq!(human_wait(Duration::from_secs(125)), "2m 5s");
+        assert_eq!(human_wait(Duration::from_secs(0)), "1s");
     }
 
     #[test]
@@ -5392,7 +5502,7 @@ async fn dispatch_jsonrpc_request(
             arr.copy_from_slice(&to_bytes);
             let to_id = AccountId(arr);
 
-            const COOLDOWN: Duration = Duration::from_secs(60);
+            let cooldown_dur = faucet_cooldown();
 
             // Serialize per-node faucet work *before* cooldown / window checks so two concurrent
             // requests for the same address cannot both pass the cooldown (issue #61 item 17).
@@ -5402,16 +5512,23 @@ async fn dispatch_jsonrpc_request(
             {
                 let map = cooldown.lock().unwrap_or_else(|e| e.into_inner());
                 if let Some(&last) = map.get(&to_id) {
-                    if last.elapsed() < COOLDOWN {
+                    if let Some(left) =
+                        faucet_cooldown_remaining(last, Instant::now(), cooldown_dur)
+                    {
                         return (
                             StatusCode::OK,
-                            rpc_error(
+                            rpc_error_with_data(
                                 id,
                                 -32016,
                                 format!(
-                                    "Faucet cooldown: try again in {} seconds.",
-                                    (COOLDOWN.as_secs()).saturating_sub(last.elapsed().as_secs())
+                                    "Faucet cooldown: this address already received testnet BOING. Try again in {}.",
+                                    human_wait(left)
                                 ),
+                                serde_json::json!({
+                                    "reason": "faucet_cooldown",
+                                    "retry_after_secs": left.as_secs().max(1),
+                                    "cooldown_secs": cooldown_dur.as_secs(),
+                                }),
                             ),
                         );
                     }
@@ -5428,11 +5545,32 @@ async fn dispatch_jsonrpc_request(
                 ) {
                     return (
                         StatusCode::OK,
-                        rpc_error(
+                        rpc_error_with_data(
                             id,
                             -32016,
                             "Faucet is busy (node-wide limit reached); try again in a minute."
                                 .into(),
+                            serde_json::json!({ "reason": "faucet_busy", "retry_after_secs": 60 }),
+                        ),
+                    );
+                }
+            }
+
+            {
+                let mut recent = FAUCET_RECENT_HOUR.lock().unwrap_or_else(|e| e.into_inner());
+                if !faucet_window_admit(
+                    &mut recent,
+                    Instant::now(),
+                    faucet_max_per_hour(),
+                    Duration::from_secs(3600),
+                ) {
+                    return (
+                        StatusCode::OK,
+                        rpc_error_with_data(
+                            id,
+                            -32016,
+                            "Faucet hourly budget used up; try again later in the hour.".into(),
+                            serde_json::json!({ "reason": "faucet_hourly_budget", "retry_after_secs": 600 }),
                         ),
                     );
                 }
@@ -5487,7 +5625,7 @@ async fn dispatch_jsonrpc_request(
                     let _ = n.p2p.broadcast_signed_transaction(&gossip_copy);
                     if let Ok(mut map) = cooldown.lock() {
                         // Drop expired entries so fresh-address requests cannot grow the map forever.
-                        map.retain(|_, t| t.elapsed() < COOLDOWN);
+                        map.retain(|_, t| t.elapsed() < cooldown_dur);
                         map.insert(to_id, Instant::now());
                     }
                     info!(

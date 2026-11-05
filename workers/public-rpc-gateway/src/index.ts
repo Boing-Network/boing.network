@@ -16,6 +16,18 @@ import {
   type Denial,
   type Violation,
 } from "./edgePolicy";
+import {
+  checkFaucet,
+  createGuardStore,
+  faucetGuardConfig,
+  faucetKeys,
+  isFaucetSuccess,
+  normalizeAddress,
+  recordFaucet,
+  type FaucetGuardConfig,
+  type FaucetKeys,
+  type GuardStore,
+} from "./faucetGuard";
 
 type Env = {
   RPC_BACKENDS?: string;
@@ -357,7 +369,7 @@ async function proxySubmitFanout(origins: string[], req: Request, body: ArrayBuf
   });
 }
 
-type Note = { value: string | null };
+type Note = { value: string | null; faucet?: { cfg: FaucetGuardConfig; keys: FaucetKeys } };
 
 /**
  * Immutable lookups (a block at a given height/hash) whose upstream answer was over MAX_RESPONSE_BYTES.
@@ -467,10 +479,82 @@ async function edgeGate(req: Request, env: Env, body: ArrayBuffer | null, note: 
   return new Response(JSON.stringify(d.body), { status: d.status, headers });
 }
 
+let faucetStore: GuardStore | null = null;
+function faucetGuardStore(): GuardStore {
+  faucetStore ??= createGuardStore(cacheApi());
+  return faucetStore;
+}
+
+/** Test helper: forget faucet guard state. */
+export function resetFaucetGuard(): void {
+  faucetStore = null;
+}
+
+/**
+ * Per-address cooldown and per-IP daily budget for boing_faucetRequest (see faucetGuard.ts). Follows
+ * EDGE_POLICY_MODE like edgeGate; trusted callers skip it. Never throws.
+ */
+async function faucetGate(req: Request, env: Env, body: ArrayBuffer | null, note: Note): Promise<Response | null> {
+  const mode = parseMode(env.EDGE_POLICY_MODE);
+  if (mode === "off" || req.method !== "POST" || !body) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(new TextDecoder().decode(body));
+  } catch {
+    return null;
+  }
+  const isFaucet = (v: unknown) => !!v && typeof v === "object" && (v as { method?: unknown }).method === "boing_faucetRequest";
+  const calls = Array.isArray(parsed) ? parsed : [parsed];
+  if (!calls.some(isFaucet)) return null;
+  if (env.EDGE_TRUSTED_TOKEN && sameToken(req.headers.get("x-boing-edge-trusted") ?? "", env.EDGE_TRUSTED_TOKEN)) return null;
+
+  const deny = (status: number, id: unknown, reason: string, message: string, retryAfter?: number): Response | null => {
+    console.warn(JSON.stringify({ faucet_guard: mode, reason }));
+    if (mode === "log") {
+      note.value = `would-deny:${reason}`;
+      return null;
+    }
+    const headers = withCors(new Headers({ "Content-Type": "application/json", "X-Boing-Edge-Policy": `denied:${reason}` }));
+    if (retryAfter) headers.set("Retry-After", String(retryAfter));
+    const data: Record<string, unknown> = { reason };
+    if (retryAfter) data.retry_after_secs = retryAfter;
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id, error: { code: -32016, message, data } }), { status, headers });
+  };
+
+  if (Array.isArray(parsed)) {
+    return deny(400, null, "faucet_batch", "boing_faucetRequest cannot be sent in a batch; send one request per address.");
+  }
+  try {
+    const call = parsed as { id?: unknown; params?: unknown };
+    const address = normalizeAddress(Array.isArray(call.params) ? call.params[0] : null);
+    const cfg = faucetGuardConfig(env);
+    const keys = await faucetKeys(req.headers.get("cf-connecting-ip") ?? "unknown", address);
+    const verdict = await checkFaucet(faucetGuardStore(), cfg, keys);
+    if (!verdict.ok) return deny(429, call.id ?? null, verdict.reason, verdict.message, verdict.retryAfter);
+    note.faucet = { cfg, keys };
+  } catch (e) {
+    console.warn(JSON.stringify({ faucet_guard: "error", detail: String(e).slice(0, 120) }));
+  }
+  return null;
+}
+
+/** Record a successful faucet claim (after the node accepted it). Never throws. */
+async function recordFaucetIfOk(res: Response, note: Note): Promise<void> {
+  if (!note.faucet || res.status !== 200) return;
+  try {
+    if (isFaucetSuccess(await res.clone().text())) {
+      await recordFaucet(faucetGuardStore(), note.faucet.cfg, note.faucet.keys);
+    }
+  } catch {
+    /* best effort */
+  }
+}
+
 export default {
   async fetch(req: Request, env: Env, ctx?: { waitUntil(p: Promise<unknown>): void }): Promise<Response> {
     const note: Note = { value: null };
     const res = await handle(req, env, note, ctx);
+    await recordFaucetIfOk(res, note);
     if (!note.value) return res;
     const headers = new Headers(res.headers);
     headers.set("X-Boing-Edge-Policy", note.value);
@@ -520,6 +604,8 @@ async function handle(
 
     const denied = await edgeGate(req, env, body, note);
     if (denied) return denied;
+    const faucetDenied = await faucetGate(req, env, body, note);
+    if (faucetDenied) return faucetDenied;
 
     if (req.method === "POST" && FANOUT_RPC_METHODS.has(jsonRpcMethod(body) ?? "")) {
       return proxySubmitFanout(origins, req, body);
