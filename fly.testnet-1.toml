@@ -29,6 +29,8 @@ primary_region = "iad"
   BOING_RPC_PORT = "8545"
   BOING_VALIDATOR = "1"
   BOING_FAUCET_ENABLE = "1"
+  BOING_FAUCET_COOLDOWN_SECS = "86400"
+  BOING_FAUCET_MAX_PER_HOUR = "120"
   BOING_RATE_PROFILE = "dev"
   # Native name registry (.boing): activates at this height on every node (must match across nodes)
   BOING_NAME_REGISTRY_ACTIVATION_HEIGHT = "640"
