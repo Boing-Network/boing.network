@@ -35,7 +35,7 @@ Use these names consistently. Do not switch between "Boing", "Boing Network" and
 | **Boing Network** | Core protocol and ecosystem | The quality-assured Layer 1 | Boing Network is an independent Layer 1 where quality is enforced by the protocol. |
 | **Boing Express** | Wallet and account access | Your gateway to Boing | A non-custodial wallet designed for the Boing ecosystem. |
 | **Boing Observer** | Explorer and transparency layer | See what happens on-chain | An explorer with integrated QA transparency. |
-| **Boing Finance** | DeFi and liquidity app | Move liquidity across chains | A cross-chain liquidity interface spanning Boing and external networks. |
+| **Boing Finance** | DeFi and liquidity app | The DEX for Boing Network | Swap and provide liquidity on native Boing pools with Boing Express. Public testnet; mainnet is not live. |
 
 - Write product names in title case in prose ("Boing Finance"). Domain names (`boing.finance`) appear only as URLs or in technical contexts.
 - "Boing" alone is fine for the chain in running prose after "Boing Network" has been introduced ("Build on Boing").

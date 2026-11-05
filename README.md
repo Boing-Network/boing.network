@@ -29,7 +29,7 @@ flowchart LR
 |---|---|
 | 👛 Your gateway to Boing: create a wallet and get testnet BOING | [Boing Express](https://boing.express) → [Faucet](https://boing.network/faucet) |
 | 🔭 See what happens on-chain: blocks, accounts, QA decisions and DEX | [Boing Observer](https://boing.observer) |
-| 💱 Move liquidity across chains | [Boing Finance](https://boing.finance) |
+| 💱 The DEX for Boing Network | [Boing Finance](https://boing.finance) |
 | 📖 Read the written pillars | [docs/SIX-PILLARS.md](docs/SIX-PILLARS.md) · [PDF](website/public/pdfs/SIX-PILLARS.pdf) |
 | 🛠️ Call JSON-RPC or ship a dApp | [docs/RPC-API-SPEC.md](docs/RPC-API-SPEC.md) · [docs/BOING-DAPP-INTEGRATION.md](docs/BOING-DAPP-INTEGRATION.md) |
 | 🛰️ Run a node or join testnet | [docs/TESTNET.md](docs/TESTNET.md) · [docs/RUNBOOK.md](docs/RUNBOOK.md) |

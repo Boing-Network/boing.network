@@ -30,7 +30,7 @@ const path = (Astro.url.pathname || '/').replace(/\/$/, '') || '';
 const pathNorm = path.replace(/^\//, '');
 const isTestnetApp = pathNorm === 'testnet' || pathNorm.startsWith('testnet/');
 const canonicalUrl = canonical ? `${siteUrl}${canonical.startsWith('/') ? canonical : '/' + canonical}` : `${siteUrl}${path || '/'}`;
-const ogImage = `${siteUrl}/og.png`;
+const ogImage = `${siteUrl}/og.png?v=7`;
 const isAuthPage = /^testnet\/(sign-in|register|set-password)(\/|$)/.test(pathNorm);
 const noindex = isAuthPage;
 const isHome = path === '/' || path === '';
@@ -61,7 +61,7 @@ const navCurrent = {
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonicalUrl} />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=6" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=7" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/assets/logo-192.png" />
