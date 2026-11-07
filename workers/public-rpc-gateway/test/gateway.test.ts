@@ -16,14 +16,17 @@ const ORIGIN = "https://boing-testnet-1.fly.dev";
 const OK_BODY = JSON.stringify({ jsonrpc: "2.0", id: 1, result: "ok" });
 
 let upstreamPosts: string[] = [];
+let upstreamHeaderSnaps: Headers[] = [];
 
 beforeEach(() => {
   upstreamPosts = [];
+  upstreamHeaderSnaps = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       if (url === `${ORIGIN}/live`) return new Response("ok", { status: 200 });
+      if (init?.headers) upstreamHeaderSnaps.push(new Headers(init.headers as HeadersInit));
       if (init?.method === "POST") upstreamPosts.push(String(init.body ? new TextDecoder().decode(init.body as ArrayBuffer) : ""));
       return new Response(OK_BODY, { status: 200, headers: { "Content-Type": "application/json" } });
     })
@@ -154,6 +157,41 @@ describe("gateway with the policy off, and non-RPC routes", () => {
     const res = await worker.fetch(new Request("https://testnet-rpc.boing.network/", { method: "OPTIONS" }), env("enforce"));
     expect(res.status).toBe(204);
     expect(res.headers.get("Access-Control-Expose-Headers")).toContain("X-Boing-Edge-Policy");
+    const allow = res.headers.get("Access-Control-Allow-Headers") ?? "";
+    for (const h of [
+      "X-Boing-Blob-Download",
+      "X-Boing-Blob-Downloader",
+      "X-Boing-Blob-Expires",
+      "X-Boing-Blob-Nonce",
+      "X-Boing-Blob-Signature",
+    ]) {
+      expect(allow).toContain(h);
+    }
+  });
+
+  it("forwards Phase 34 blob download proof headers to the upstream origin", async () => {
+    const proof = {
+      "X-Boing-Blob-Download": "dl-token",
+      "X-Boing-Blob-Downloader": `0x${"11".repeat(32)}`,
+      "X-Boing-Blob-Expires": "1893456000",
+      "X-Boing-Blob-Nonce": `0x${"22".repeat(32)}`,
+      "X-Boing-Blob-Signature": `0x${"33".repeat(64)}`,
+    };
+    const res = await worker.fetch(
+      new Request("https://testnet-rpc.boing.network/v1/media/blob?id=0x01", {
+        method: "GET",
+        headers: proof,
+      }),
+      env("log")
+    );
+    expect(res.status).toBe(200);
+    expect(upstreamHeaderSnaps.length).toBeGreaterThan(0);
+    const hop = upstreamHeaderSnaps[upstreamHeaderSnaps.length - 1]!;
+    expect(hop.get("X-Boing-Blob-Download")).toBe("dl-token");
+    expect(hop.get("X-Boing-Blob-Downloader")).toBe(proof["X-Boing-Blob-Downloader"]);
+    expect(hop.get("X-Boing-Blob-Expires")).toBe("1893456000");
+    expect(hop.get("X-Boing-Blob-Nonce")).toBe(proof["X-Boing-Blob-Nonce"]);
+    expect(hop.get("X-Boing-Blob-Signature")).toBe(proof["X-Boing-Blob-Signature"]);
   });
 
   it("rejects methods other than GET, HEAD, POST and OPTIONS", async () => {

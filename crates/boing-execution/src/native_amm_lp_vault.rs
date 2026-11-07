@@ -3,13 +3,11 @@
 //! [`Opcode::Call`] [`crate::native_lp_share_token::lp_share_token_bytecode`] **`mint`** to the
 //! transaction caller.
 //!
-//! **Atomicity note:** The Boing VM does not roll back nested calls. If the pool call succeeds but
-//! the vault aborts (e.g. LP return word zero or `LP < min_lp`), pool reserves and pool LP credited
-//! to this vault **remain updated** while share **`mint`** is skipped. Callers should align
-//! **`min_lp`** with the inner **`add_liquidity`** `min_liquidity` word and keep slippage checks
-//! consistent.
+//! **Atomicity:** Abort paths after the pool `Call` use **`Fault`** so the outer transaction
+//! fails and the block executor reverts nested state (same model as LP vault v2). Prefer
+//! [`crate::native_lp_vault_v2`] for custody (v8+) pools.
 //!
-//! See `docs/NATIVE-AMM-LP-VAULT.md`.
+//! See `docs/NATIVE-AMM-LP-VAULT.md` and `docs/NATIVE-LP-VAULT-V2.md`.
 
 use boing_primitives::AccountId;
 
@@ -272,7 +270,11 @@ pub fn native_amm_lp_vault_bytecode() -> Vec<u8> {
     let off_abort = c.len();
     patch_push32_dest(&mut c, fix_abort_lp0, off_abort);
     patch_push32_dest(&mut c, fix_abort_slip, off_abort);
-    c.push(Opcode::Stop as u8);
+    // Fault via out-of-range Jump (same pattern as Asm::fault / vault v2): LP==0 / slippage
+    // after a successful pool Call must fail the outer tx so nested reserve/LP writes do not
+    // stick without a share mint (audit H8).
+    push32(&mut c, &[0xffu8; 32]);
+    c.push(Opcode::Jump as u8);
 
     let off_after_dep = c.len();
     patch_push32_dest(&mut c, fix_skip_dep, off_after_dep);

@@ -435,6 +435,7 @@ fn pool_v8_family(swap_returns_out: bool, u128_bound: bool, first_mint_sqrt: boo
     p.a.jump(fail);
 
     // --- set_tokens(a, b): once, before liquidity, both non-zero and distinct.
+    // Binds fee_admin = Caller so pre-LP fee/admin changes are not a free-for-all (audit H9).
     p.a.mark(set_tokens);
     p.a.sload_key(&tokens_configured_key()).jumpi(fail);
     p.a.mcopy(32, TA).mcopy(64, TB);
@@ -444,29 +445,30 @@ fn pool_v8_family(swap_returns_out: bool, u128_bound: bool, first_mint_sqrt: boo
     p.a.mload(TA).sstore_key(&token_a_key());
     p.a.mload(TB).sstore_key(&token_b_key());
     p.a.push_u(1).sstore_key(&tokens_configured_key());
+    p.a.op(Opcode::Caller).sstore_key(&fee_admin_key());
     p.unlock_stop();
 
-    // --- set_swap_fee_bps(fee): LP == 0 or caller == fee admin; 1..=10_000.
+    // --- set_swap_fee_bps(fee): caller == fee admin; 1..=10_000.
     p.a.mark(set_fee);
-    let auth = p.a.label();
     p.a.mcopy(32, FEE);
-    p.a.sload_key(&total_lp_supply_key())
-        .op(Opcode::IsZero)
-        .jumpi(auth);
     p.a.op(Opcode::Caller)
         .sload_key(&fee_admin_key())
         .op(Opcode::Eq)
-        .jumpi(auth);
-    p.a.jump(fail);
-    p.a.mark(auth);
+        .op(Opcode::IsZero)
+        .jumpi(fail);
     p.nonzero(FEE);
     p.a.mload(FEE).push_u(10_000).op(Opcode::Gt).jumpi(fail);
     p.a.mload(FEE).sstore_key(&swap_fee_bps_key());
     p.unlock_stop();
 
-    // --- set_fee_admin(admin): LP == 0.
+    // --- set_fee_admin(admin): LP == 0 and caller == current fee admin.
     p.a.mark(set_admin);
     p.a.sload_key(&total_lp_supply_key()).jumpi(fail);
+    p.a.op(Opcode::Caller)
+        .sload_key(&fee_admin_key())
+        .op(Opcode::Eq)
+        .op(Opcode::IsZero)
+        .jumpi(fail);
     p.a.mload(32).sstore_key(&fee_admin_key());
     p.unlock_stop();
 
@@ -1225,6 +1227,15 @@ mod tests {
     #[test]
     fn fee_and_fee_admin_rules() {
         let mut e = setup();
+        // set_tokens already bound fee_admin = ADMIN; stranger cannot seize pre-LP.
+        assert!(
+            !e.pool(LP1, encode_set_fee_admin_calldata(&LP1)).ok,
+            "pre-LP fee_admin only for current admin"
+        );
+        assert!(
+            !e.pool(LP1, encode_set_swap_fee_bps_calldata(100)).ok,
+            "pre-LP fee only for fee admin"
+        );
         assert!(e.pool(ADMIN, encode_set_fee_admin_calldata(&ADMIN)).ok);
         let raw_fee = |n: u128| {
             let mut v = w_sel(SELECTOR_SET_SWAP_FEE_BPS).to_vec();

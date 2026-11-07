@@ -13,7 +13,7 @@ use boing_primitives::AccountId;
 
 use crate::asm::{w_sel, Asm};
 use crate::bytecode::Opcode;
-use crate::native_amm::SELECTOR_SET_TOKENS;
+use crate::native_amm::{SELECTOR_SET_FEE_ADMIN, SELECTOR_SET_TOKENS};
 use crate::native_dex_factory::SELECTOR_REGISTER_PAIR;
 use crate::reference_token::amount_word;
 
@@ -103,13 +103,25 @@ pub fn native_dex_create_and_seed_bytecode() -> Vec<u8> {
         .op(Opcode::Create2);
     a.mstore(POOL);
 
-    // set_tokens(token_a, token_b) on the new pool.
+    // set_tokens(token_a, token_b) on the new pool (binds fee_admin = this factory).
     a.push(&w_sel(SELECTOR_SET_TOKENS)).mstore(CB);
     a.mcopy(TOKEN_A, CB + 32).mcopy(TOKEN_B, CB + 64);
     a.push_u(0).mstore(RET);
     a.mload(POOL)
         .push_u(CB)
         .push_u(96)
+        .push_u(RET)
+        .push_u(0)
+        .op(Opcode::Call);
+    a.op(Opcode::IsZero).jumpi(fail);
+
+    // Hand fee_admin to the tx sender (factory Caller) so pre-LP fee control stays with the user.
+    a.push(&w_sel(SELECTOR_SET_FEE_ADMIN)).mstore(CB);
+    a.op(Opcode::Caller).mstore(CB + 32);
+    a.push_u(0).mstore(RET);
+    a.mload(POOL)
+        .push_u(CB)
+        .push_u(64)
         .push_u(RET)
         .push_u(0)
         .op(Opcode::Call);

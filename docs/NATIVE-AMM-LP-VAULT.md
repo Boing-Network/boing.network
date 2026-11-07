@@ -21,9 +21,9 @@ Pool **LP** from that add accrues to **`Caller` = vault** (see [NATIVE-AMM-CALLD
 | **`0xC0`** | `configure` | **96** bytes: word0 + **pool** + **share_token** |
 | **`0xC1`** | `deposit_add` | **192** bytes: word0 + **128-byte** inner `add_liquidity` + **`min_lp`** word |
 
-## Atomicity caveat
+## Atomicity
 
-The Boing VM does **not** roll back nested **`Call`s**. If the pool call succeeds but the vault aborts (e.g. **`min_lp`** vs return word), **pool state may already be updated** while **share `mint`** does not run. Align **`min_lp`** with the inner **`min_liquidity`** and treat outer **`min_lp`** as an extra guard, not a cross-call revert.
+Abort paths after the pool **`Call`** (LP return zero / below **`min_lp`**) use an out-of-range **`Jump`** fault so the **outer transaction fails** and the block executor reverts nested state (aligned with LP vault v2). Prefer [NATIVE-LP-VAULT-V2.md](./NATIVE-LP-VAULT-V2.md) for custody (v8+) pools. Still keep **`min_lp`** aligned with the inner **`min_liquidity`**.
 
 ## Access list (SDK)
 

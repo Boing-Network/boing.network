@@ -13,7 +13,7 @@ Custody pool create used to need a top-level **`ContractDeploy*`** (QA path) plu
 This factory is that CREATE2 product:
 
 1. Caller supplies **pool runtime bytecode** in calldata (v8–v11 templates from `boing-execution` / boing-sdk). Embedding the ~16 KiB pool in the factory would blow the 32 KiB QA cap (no `CODECOPY`).
-2. Factory **`CREATE2`**s the pool, **`CALL`s `set_tokens`**, optionally **`CALL`s directory `register_pair`**, emits **`Log3`**, returns the pool id.
+2. Factory **`CREATE2`**s the pool, **`CALL`s `set_tokens`**, **`CALL`s `set_fee_admin(tx sender)`** (so pre-LP fee control is not stuck on the factory), optionally **`CALL`s directory `register_pair`**, emits **`Log3`**, returns the pool id. Pool runtime still comes from calldata — apply the canonical QA **v1–v7 hash blocklist** so CREATE2 rejects ledger-only templates.
 3. **Liquidity seed** stays a separate step with **`CALLER` = tx sender** (custody pools pull with `transfer_from(CALLER,…)` and mint LP to `CALLER`). Nesting `add_liquidity` inside the factory would mint LP to the factory.
 
 ## One user approval (Finance / SDK)

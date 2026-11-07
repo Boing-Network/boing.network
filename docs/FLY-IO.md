@@ -21,9 +21,19 @@ flowchart LR
 
 | Fly app | Role | HTTPS RPC | P2P |
 |---|---|---|---|
-| **`boing-testnet-1`** | Validator + faucet + public RPC | `https://boing-testnet-1.fly.dev/` | TCP **4001** |
+| **`boing-testnet-1`** | Validator + faucet + origin RPC (behind Worker) | `https://boing-testnet-1.fly.dev/` (ops/failover; **not** the wallet URL) | TCP **4001** |
 
 `boing-testnet-2` (former full-node companion) was **retired 2026-10-24**. Its `fly.testnet-2.toml` was removed 2026-10-31 (restore with `git show dda495d:fly.testnet-2.toml`).
+
+### Public RPC edge
+
+- **Wallet / dApp / explorer RPC URL:** `https://testnet-rpc.boing.network/` (Worker WAF, method allow-list, body caps).
+- **`*.fly.dev`:** keep for gateway failover and operator curls. Prefer **Cloudflare Access** or an IP allowlist on the Fly HTTP service so anonymous internet traffic is not the bypass path around the Worker (audit H5). Operator methods still require `BOING_OPERATOR_RPC_TOKEN` (`-32057` without it).
+- **Rate profile:** `fly.testnet-1.toml` uses **`BOING_RATE_PROFILE=mainnet`**. Do **not** set `dev` on a publicly reachable origin ([RUNBOOK.md](RUNBOOK.md) §2, [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md)).
+
+### Consensus / capacity honesty
+
+Public testnet is a **single-validator soak** (`validator_count: 1` on the live tip). It is **not** multi-validator BFT. PHASE7 **256 MiB** blob caps are active on a **2 GiB** VM — large Puts can OOM; prefer smaller blobs or scale memory before advertising heavy media load ([BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)).
 
 The live app:
 
@@ -32,9 +42,10 @@ The live app:
 - Stays running (`auto_stop_machines = "off"`, `min_machines_running = 1`)
 - Sets **`BOING_CHAIN_ID=6913`**, **`BOING_CHAIN_NAME=Boing Testnet`**, browser CORS for the official sites
 - Requires **`BOING_OPERATOR_RPC_TOKEN`** for operator QA RPCs
+- Sets **`BOING_BLOB_GET_REQUIRE_AUTH=1`** so JSON-RPC blob bytes match HTTP download auth
 - Optional fee market: set **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`**, then **`npm run apply-micro-fee-policy`** for Solana-like micro fees ([OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md))
 
-Only **testnet-1** runs `--validator`. Promote a second validator later with a shared `--validators` / `BOING_VALIDATOR_KEY` set ([TESTNET.md](TESTNET.md) §1, [RUNBOOK.md](RUNBOOK.md) §8.1).
+Only **testnet-1** runs `--validator`. Promote a second validator later with a shared `--validators` / `BOING_VALIDATOR_KEY` set ([TESTNET.md](TESTNET.md) §1, [RUNBOOK.md](RUNBOOK.md) §8.1) before claiming HA.
 
 ## Prerequisites
 

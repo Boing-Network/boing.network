@@ -2631,3 +2631,39 @@ mod tests {
         assert_eq!(rb2, u128::from(rb - dy));
     }
 }
+
+#[cfg(test)]
+mod protocol_high_qa_blocklist_tests {
+    use super::*;
+    use boing_qa::{check_contract_deploy_full, QaResult, RuleRegistry};
+
+    /// Canonical registry blocklists ledger-only pool v1–v7 (audit H7).
+    #[test]
+    fn canonical_qa_registry_blocklists_legacy_pool_templates() {
+        let json = include_str!("../../../docs/config/qa_registry.canonical.json");
+        let reg: RuleRegistry = serde_json::from_str(json).expect("canonical qa registry json");
+        assert_eq!(reg.blocklist().len(), 7);
+        for (label, code) in [
+            ("v1", constant_product_pool_bytecode()),
+            ("v2", constant_product_pool_bytecode_v2()),
+            ("v3", constant_product_pool_bytecode_v3()),
+            ("v4", constant_product_pool_bytecode_v4()),
+            ("v5", constant_product_pool_bytecode_v5()),
+            ("v6", constant_product_pool_bytecode_v6()),
+            ("v7", constant_product_pool_bytecode_v7()),
+        ] {
+            let r = check_contract_deploy_full(&code, Some("dapp"), None, &reg);
+            assert!(
+                matches!(r, QaResult::Reject(_)),
+                "{label} should be QA-rejected by canonical blocklist, got {r:?}"
+            );
+        }
+        // Custody templates remain deployable.
+        let v8 = crate::native_amm_v8::constant_product_pool_bytecode_v8();
+        let r = check_contract_deploy_full(&v8, Some("dapp"), None, &reg);
+        assert!(
+            matches!(r, QaResult::Allow | QaResult::Unsure),
+            "v8 must remain allowed, got {r:?}"
+        );
+    }
+}

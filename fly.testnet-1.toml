@@ -31,7 +31,14 @@ primary_region = "iad"
   BOING_FAUCET_ENABLE = "1"
   BOING_FAUCET_COOLDOWN_SECS = "86400"
   BOING_FAUCET_MAX_PER_HOUR = "120"
-  BOING_RATE_PROFILE = "dev"
+  # Public ingress should be the Worker (`testnet-rpc.boing.network`). Keep mainnet-style limits on
+  # this origin so a direct `*.fly.dev` hit is not the ultra-permissive `dev` profile (audit H5).
+  BOING_RATE_PROFILE = "mainnet"
+  # Align JSON-RPC `boing_getBlob` with HTTP `/v1/media/blob` when download tokens / ACL are set (H4).
+  BOING_BLOB_GET_REQUIRE_AUTH = "1"
+  # Phase 34 private-by-default HTTP download (set identical H on every public node). Secrets already
+  # gate downloads; this also auto-aligns getBlob when BOING_BLOB_GET_REQUIRE_AUTH is unset.
+  # BOING_BLOB_ACL_ACTIVATION_HEIGHT = "1317"
   # Native name registry (.boing): activates at this height on every node (must match across nodes)
   BOING_NAME_REGISTRY_ACTIVATION_HEIGHT = "640"
   # Storage tree v2 (full 256-bit key routing): ONE-WAY activation, must match on every testnet node. Matches the testnet preset (1500, from testnet-v0.1.21); never change once the chain passes it. See docs/STORAGE-TREE-V2-ACTIVATION.md
@@ -41,6 +48,9 @@ primary_region = "iad"
   BOING_DEX_TOKEN_DECIMALS_JSON = '{"0x6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93":0,"0x6fce9d3e3f13df9fc17e3fd947148a4e6ce6966538b7dd9bf2a891d3b9699c6b":0}'  # testnet USDC / BOING token v2 are whole-unit
   BOING_RPC_CORS_EXTRA_ORIGINS = "https://boing.network,https://www.boing.network,https://boing.observer,https://boing.express,https://boing.finance"
 
+# HTTPS on *.fly.dev remains reachable for gateway failover and operator curls. Prefer locking the
+# origin with Cloudflare Access / IP allowlist so the Worker is the only anonymous public ingress
+# (docs/FLY-IO.md § Public RPC edge). Do not advertise fly.dev as the wallet/dApp RPC URL.
 [http_service]
   internal_port = 8545
   force_https = true

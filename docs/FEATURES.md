@@ -88,7 +88,8 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | Stake-derived validator epochs + unbonding | opt-in done | RUNBOOK §8.1; NEXT-STEPS | high |
 | Open validator registration | testnet live | H=**400** when set; [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md) | high |
 | VRF leader election (ECVRF + gossip) | opt-in done | NEXT-STEPS | high |
-| Equivocation + liveness slashing (+ appeals) | code live; **ReportEquivocation consensus slash gated** | H=**1600** for slash activation; ENVIRONMENT-VARIABLES | high |
+| Equivocation slash (+ appeals) | code live; **ReportEquivocation consensus slash gated**; unbond bucket slashable | H=**1600**; ENVIRONMENT-VARIABLES | high |
+| Stake-mode liveness slash | **not shipped** (diagnostics / open-jail only) | NEXT-STEPS; `tick_liveness` | high |
 | Operator governance RPC (propose / vote / cooling / execute) | testnet live | node-local `governance.json`; RPC-API-SPEC | high |
 | Stake-weighted quorum (`strict_quorum`) | shipped | PRs #153 / #149; [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md) | high |
 | Governance consensus txs 37–39 + StateStore registry | gated | wire shipped; admission off until height set; PR #156 **2026-10-31** | high |

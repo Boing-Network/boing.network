@@ -94,8 +94,10 @@ pub struct RpcState {
     /// (`GET /v1/media/blob?id=…` and optionally `boing_getBlob`). From
     /// **`BOING_BLOB_DOWNLOAD_TOKENS`** (comma-separated).
     pub blob_download_tokens: Arc<Vec<String>>,
-    /// When true **and** download auth is configured, `boing_getBlob` requires the same
-    /// credentials as the HTTP download path (`BOING_BLOB_GET_REQUIRE_AUTH=1`).
+    /// When true **and** download auth is configured / ACL active, `boing_getBlob` requires the
+    /// same credentials as the HTTP download path. Set explicitly with
+    /// `BOING_BLOB_GET_REQUIRE_AUTH=1`, or auto-enabled when download tokens or
+    /// `BOING_BLOB_ACL_ACTIVATION_HEIGHT` are configured (`=0`/`false` forces off).
     pub blob_get_require_auth: bool,
     /// Broadcast channel for WebSocket **`/ws`** **newHeads** subscribers (clone per connection).
     pub head_broadcast: Option<broadcast::Sender<serde_json::Value>>,
@@ -303,14 +305,25 @@ fn parse_blob_download_tokens_env() -> Arc<Vec<String>> {
     Arc::new(tokens)
 }
 
-fn blob_get_require_auth_env() -> bool {
-    matches!(
-        std::env::var("BOING_BLOB_GET_REQUIRE_AUTH")
-            .ok()
-            .as_deref()
-            .map(str::trim),
-        Some("1") | Some("true") | Some("TRUE") | Some("yes") | Some("YES")
-    )
+/// Resolve `boing_getBlob` auth gate.
+///
+/// - Explicit `1`/`true`/`yes` → on
+/// - Explicit `0`/`false`/`no` → off (keeps NFT/SDK meta public even if download secrets exist)
+/// - Unset → on when `BOING_BLOB_DOWNLOAD_TOKENS` is non-empty **or**
+///   `BOING_BLOB_ACL_ACTIVATION_HEIGHT` is set (aligns JSON-RPC with private HTTP downloads)
+fn blob_get_require_auth_resolved(blob_download_tokens: &[String]) -> bool {
+    match std::env::var("BOING_BLOB_GET_REQUIRE_AUTH")
+        .ok()
+        .as_deref()
+        .map(str::trim)
+    {
+        Some("1") | Some("true") | Some("TRUE") | Some("yes") | Some("YES") => true,
+        Some("0") | Some("false") | Some("FALSE") | Some("no") | Some("NO") => false,
+        _ => {
+            !blob_download_tokens.is_empty()
+                || boing_primitives::phase34_blob_acl_activation_height().is_some()
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -5836,7 +5849,7 @@ pub fn rpc_router(
     let rate_limit_requests_per_sec = rate_limit.requests_per_sec;
     let rpc_metrics = Arc::new(RpcHttpMetrics::default());
     let blob_download_tokens = parse_blob_download_tokens_env();
-    let blob_get_require_auth = blob_get_require_auth_env();
+    let blob_get_require_auth = blob_get_require_auth_resolved(blob_download_tokens.as_ref());
     if !blob_download_tokens.is_empty() {
         tracing::info!(
             tokens = blob_download_tokens.len(),
@@ -5845,7 +5858,7 @@ pub fn rpc_router(
     }
     if blob_get_require_auth {
         tracing::info!(
-            "BOING_BLOB_GET_REQUIRE_AUTH is set: boing_getBlob requires download/operator credentials when configured"
+            "boing_getBlob requires download/operator credentials or Phase 34 proof when download auth is configured (BOING_BLOB_GET_REQUIRE_AUTH / auto)"
         );
     }
 

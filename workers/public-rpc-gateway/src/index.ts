@@ -73,7 +73,7 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, Accept, Authorization, X-Boing-Operator, X-Boing-Blob-Download, X-Boing-Edge-Trusted, User-Agent",
+    "Content-Type, Accept, Authorization, X-Boing-Operator, X-Boing-Blob-Download, X-Boing-Blob-Downloader, X-Boing-Blob-Expires, X-Boing-Blob-Nonce, X-Boing-Blob-Signature, X-Boing-Edge-Trusted, User-Agent",
   "Access-Control-Expose-Headers": "X-Boing-Edge-Policy, Retry-After",
   "Access-Control-Max-Age": "86400",
 };
@@ -159,7 +159,20 @@ const UPSTREAM_ACCEPT_ENCODING = "identity";
 function hopHeaders(req: Request): Headers {
   const headers = new Headers();
   headers.set("Accept-Encoding", UPSTREAM_ACCEPT_ENCODING);
-  const pass = ["content-type", "accept", "authorization", "x-boing-operator", "user-agent"];
+  // Forward operator auth, blob download tokens, and Phase 34 wallet proof headers to Fly.
+  const pass = [
+    "content-type",
+    "accept",
+    "authorization",
+    "x-boing-operator",
+    "x-boing-blob-download",
+    "x-boing-blob-downloader",
+    "x-boing-blob-expires",
+    "x-boing-blob-nonce",
+    "x-boing-blob-signature",
+    "x-boing-edge-trusted",
+    "user-agent",
+  ];
   for (const name of pass) {
     const v = req.headers.get(name);
     if (v) headers.set(name, v);

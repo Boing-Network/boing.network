@@ -29,6 +29,9 @@ pub const NATIVE_DEX_FACTORY_CREATE2_SALT_V1: [u8; 32] =
 /// Inclusive upper bound on stored pairs (**index** runs **0 .. count**).
 pub const NATIVE_DEX_FACTORY_MAX_PAIRS: u64 = 4096;
 
+/// Domain mixed into the unordered-pair occupancy key (`token_a XOR token_b XOR domain`).
+const NATIVE_DEX_FACTORY_PAIR_KEY_DOMAIN: [u8; 32] = *b"BOINGDEXPAIRUNIQ1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+
 fn push32(code: &mut Vec<u8>, w: &[u8; 32]) {
     code.push(Opcode::Push32 as u8);
     code.extend_from_slice(w);
@@ -59,6 +62,17 @@ pub fn native_dex_factory_triplet_base_word() -> [u8; 32] {
     let mut w = [0u8; 32];
     w[0..11].copy_from_slice(b"BOINGDEXDIR");
     w
+}
+
+/// Occupancy key for an unordered `(token_a, token_b)` pair (`token_a XOR token_b XOR domain`).
+/// Non-zero means the pair is already registered (audit H6 uniqueness).
+#[must_use]
+pub fn native_dex_factory_pair_occupied_key(token_a: &AccountId, token_b: &AccountId) -> [u8; 32] {
+    let mut k = [0u8; 32];
+    for i in 0..32 {
+        k[i] = token_a.0[i] ^ token_b.0[i] ^ NATIVE_DEX_FACTORY_PAIR_KEY_DOMAIN[i];
+    }
+    k
 }
 
 /// `SLOAD` key for **`token_a`** (**`field` 0**), **`token_b`** (**1**), or **`pool`** (**2**) at pair index **`index`** (0-based).
@@ -173,6 +187,44 @@ pub fn native_dex_factory_bytecode() -> Vec<u8> {
     let off_register = c.len();
     patch_push32_dest(&mut c, fix_reg, off_register);
 
+    // Reject zero token_a / token_b / pool.
+    push32(&mut c, &word_u64(32));
+    c.push(Opcode::MLoad as u8);
+    c.push(Opcode::IsZero as u8);
+    let fix_reg_abort_zero_a = c.len();
+    push32(&mut c, &[0u8; 32]);
+    c.push(Opcode::JumpI as u8);
+    push32(&mut c, &word_u64(64));
+    c.push(Opcode::MLoad as u8);
+    c.push(Opcode::IsZero as u8);
+    let fix_reg_abort_zero_b = c.len();
+    push32(&mut c, &[0u8; 32]);
+    c.push(Opcode::JumpI as u8);
+    push32(&mut c, &word_u64(96));
+    c.push(Opcode::MLoad as u8);
+    c.push(Opcode::IsZero as u8);
+    let fix_reg_abort_zero_p = c.len();
+    push32(&mut c, &[0u8; 32]);
+    c.push(Opcode::JumpI as u8);
+
+    // Unordered pair occupancy: key = ta XOR tb XOR domain; abort if already set.
+    const MEM_PAIR_KEY: u64 = 160;
+    push32(&mut c, &word_u64(32));
+    c.push(Opcode::MLoad as u8);
+    push32(&mut c, &word_u64(64));
+    c.push(Opcode::MLoad as u8);
+    c.push(Opcode::Xor as u8);
+    push32(&mut c, &NATIVE_DEX_FACTORY_PAIR_KEY_DOMAIN);
+    c.push(Opcode::Xor as u8);
+    push32(&mut c, &word_u64(MEM_PAIR_KEY));
+    c.push(Opcode::MStore as u8);
+    push32(&mut c, &word_u64(MEM_PAIR_KEY));
+    c.push(Opcode::MLoad as u8);
+    c.push(Opcode::SLoad as u8);
+    let fix_reg_abort_dup = c.len();
+    push32(&mut c, &[0u8; 32]);
+    c.push(Opcode::JumpI as u8);
+
     // cnt = SLOAD count; MStore cnt at MEM_IDX (Dup, push MEM_IDX, MStore)
     push32(&mut c, &native_dex_factory_count_key());
     c.push(Opcode::SLoad as u8);
@@ -193,6 +245,13 @@ pub fn native_dex_factory_bytecode() -> Vec<u8> {
     append_sstore_triplet_field(&mut c, MEM_IDX, 0, 32);
     append_sstore_triplet_field(&mut c, MEM_IDX, 1, 64);
     append_sstore_triplet_field(&mut c, MEM_IDX, 2, 96);
+
+    // Mark unordered pair occupied (store pool id).
+    push32(&mut c, &word_u64(96));
+    c.push(Opcode::MLoad as u8);
+    push32(&mut c, &word_u64(MEM_PAIR_KEY));
+    c.push(Opcode::MLoad as u8);
+    c.push(Opcode::SStore as u8);
 
     // count + 1 → SSTORE count
     push32(&mut c, &word_u64(MEM_IDX));
@@ -220,6 +279,10 @@ pub fn native_dex_factory_bytecode() -> Vec<u8> {
     c.push(Opcode::Stop as u8);
 
     patch_push32_dest(&mut c, fix_reg_abort, off_abort);
+    patch_push32_dest(&mut c, fix_reg_abort_zero_a, off_abort);
+    patch_push32_dest(&mut c, fix_reg_abort_zero_b, off_abort);
+    patch_push32_dest(&mut c, fix_reg_abort_zero_p, off_abort);
+    patch_push32_dest(&mut c, fix_reg_abort_dup, off_abort);
 
     // --- pairs_count ---
     let off_cnt = c.len();
@@ -349,6 +412,32 @@ mod tests {
         want.extend_from_slice(&tb.0);
         want.extend_from_slice(&pool.0);
         assert_eq!(it4.return_data.as_deref(), Some(want.as_slice()));
+
+        // Duplicate unordered pair (reversed tokens) must not append.
+        let mut it_dup = Interpreter::new(native_dex_factory_bytecode(), 5_000_000);
+        it_dup
+            .run(
+                AccountId([0xee; 32]),
+                factory,
+                &encode_register_pair_calldata(&tb, &ta, &AccountId([0x44; 32])),
+                &mut state,
+            )
+            .unwrap();
+        assert!(it_dup.logs.is_empty());
+        let mut it_cnt = Interpreter::new(native_dex_factory_bytecode(), 5_000_000);
+        it_cnt
+            .run(
+                AccountId([0xee; 32]),
+                factory,
+                &encode_pairs_count_calldata(),
+                &mut state,
+            )
+            .unwrap();
+        assert_eq!(it_cnt.return_data.as_deref(), Some(&exp[..]));
+        assert_eq!(
+            state.get_contract_storage(&factory, &native_dex_factory_pair_occupied_key(&ta, &tb)),
+            pool.0
+        );
     }
 
     #[test]

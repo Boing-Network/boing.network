@@ -123,41 +123,65 @@ pub const LIVENESS_APPEAL_WINDOW_BLOCKS: u64 = EQUIVOCATION_APPEAL_WINDOW_BLOCKS
 /// Default: 3× [`BLOCK_TIME_SECS`].
 pub const LIVENESS_LEADER_TIMEOUT_SECS: u64 = BLOCK_TIME_SECS.saturating_mul(3);
 
-/// Slash active stake for consensus equivocation; burned amount is credited to [`FEE_BURN_SINK`].
-/// Returns the amount slashed (0 if account missing or stake is 0).
+/// Slashable bonded capital: active stake plus unbonding bucket.
+///
+/// `Unbond` moves stake into `pending_unbond` immediately. Equivocation (and any future
+/// consensus-ordered liveness slash) must cover that bucket so validators cannot escape a
+/// slash by unbonding before evidence executes.
+#[inline]
+fn slashable_stake(st: &boing_primitives::AccountState) -> u128 {
+    st.stake.saturating_add(st.pending_unbond)
+}
+
+/// Debit `amount` from `stake` first, then `pending_unbond`.
+fn debit_slashable(st: &mut boing_primitives::AccountState, amount: u128) {
+    let from_stake = amount.min(st.stake);
+    st.stake = st.stake.saturating_sub(from_stake);
+    let from_pending = amount.saturating_sub(from_stake);
+    st.pending_unbond = st.pending_unbond.saturating_sub(from_pending);
+}
+
+/// Slash bonded stake for consensus equivocation; burned amount is credited to [`FEE_BURN_SINK`].
+/// Covers **`stake + pending_unbond`** (unbond does not escape slash). Restores still credit
+/// `stake` via [`restore_equivocation_slash`].
+/// Returns the amount slashed (0 if account missing or slashable balance is 0).
 pub fn slash_equivocation_stake(state: &mut StateStore, validator: &AccountId) -> u128 {
     let amount = {
         let Some(st) = state.get_mut(validator) else {
             return 0;
         };
-        if st.stake == 0 {
+        let slashable = slashable_stake(st);
+        if slashable == 0 {
             return 0;
         }
-        let mut amount = st.stake.saturating_mul(EQUIVOCATION_SLASH_BPS as u128) / 10_000;
+        let mut amount = slashable.saturating_mul(EQUIVOCATION_SLASH_BPS as u128) / 10_000;
         if amount == 0 {
-            amount = 1u128.min(st.stake);
+            amount = 1u128.min(slashable);
         }
-        st.stake = st.stake.saturating_sub(amount);
+        debit_slashable(st, amount);
         amount
     };
     credit_account(state, FEE_BURN_SINK, amount);
     amount
 }
 
-/// Slash active stake for liveness failure; burned amount is credited to [`FEE_BURN_SINK`].
+/// Slash bonded stake for liveness failure; burned amount is credited to [`FEE_BURN_SINK`].
+/// Same slashable base as [`slash_equivocation_stake`]. **Not** called from consensus yet —
+/// stake-mode liveness still needs a block-ordered evidence path (see node `tick_liveness`).
 pub fn slash_liveness_stake(state: &mut StateStore, validator: &AccountId) -> u128 {
     let amount = {
         let Some(st) = state.get_mut(validator) else {
             return 0;
         };
-        if st.stake == 0 {
+        let slashable = slashable_stake(st);
+        if slashable == 0 {
             return 0;
         }
-        let mut amount = st.stake.saturating_mul(LIVENESS_SLASH_BPS as u128) / 10_000;
+        let mut amount = slashable.saturating_mul(LIVENESS_SLASH_BPS as u128) / 10_000;
         if amount == 0 {
-            amount = 1u128.min(st.stake);
+            amount = 1u128.min(slashable);
         }
-        st.stake = st.stake.saturating_sub(amount);
+        debit_slashable(st, amount);
         amount
     };
     credit_account(state, FEE_BURN_SINK, amount);
@@ -984,6 +1008,47 @@ mod tests {
         assert_eq!(burned, 5_000);
         assert_eq!(state.get(&v).unwrap().stake, 5_000);
         assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 5_000);
+    }
+
+    #[test]
+    fn slash_equivocation_covers_pending_unbond() {
+        let v = AccountId([9u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: v,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 0,
+                pending_unbond: 10_000,
+                ..Default::default()
+            },
+        });
+        let burned = slash_equivocation_stake(&mut state, &v);
+        assert_eq!(burned, 5_000);
+        assert_eq!(state.get(&v).unwrap().stake, 0);
+        assert_eq!(state.get(&v).unwrap().pending_unbond, 5_000);
+        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 5_000);
+    }
+
+    #[test]
+    fn slash_equivocation_drains_stake_then_pending_unbond() {
+        let v = AccountId([9u8; 32]);
+        let mut state = StateStore::new();
+        state.insert(Account {
+            id: v,
+            state: AccountState {
+                balance: 0,
+                nonce: 0,
+                stake: 1_000,
+                pending_unbond: 9_000,
+                ..Default::default()
+            },
+        });
+        let burned = slash_equivocation_stake(&mut state, &v);
+        assert_eq!(burned, 5_000);
+        assert_eq!(state.get(&v).unwrap().stake, 0);
+        assert_eq!(state.get(&v).unwrap().pending_unbond, 5_000);
     }
 
     #[test]

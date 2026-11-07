@@ -150,6 +150,7 @@ pub use native_dex_custody_router::{
 pub use native_dex_factory::{
     encode_get_pair_at_calldata, encode_pairs_count_calldata, encode_register_pair_calldata,
     native_dex_factory_bytecode, native_dex_factory_count_key,
+    native_dex_factory_pair_occupied_key,
     native_dex_factory_triplet_base_word, native_dex_factory_triplet_storage_key,
     NATIVE_DEX_FACTORY_CREATE2_SALT_V1, NATIVE_DEX_FACTORY_MAX_PAIRS,
     NATIVE_DEX_FACTORY_TOPIC_REGISTER, SELECTOR_GET_PAIR_AT, SELECTOR_PAIRS_COUNT,

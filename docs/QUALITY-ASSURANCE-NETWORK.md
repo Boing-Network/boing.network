@@ -38,7 +38,7 @@ flowchart TD
 
 | File | Meaning |
 |------|--------|
-| [`qa_registry.canonical.json`](config/qa_registry.canonical.json) | Recommended rule registry baseline (32 KiB size cap, English content blocklist from [`qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json), empty deploy-hash / scam lists until curated). Fresh `RuleRegistry::new()` is minimal until an operator applies this JSON via `boing_operatorApplyQaPolicy` / `npm run apply-public-testnet-qa-policy`. |
+| [`qa_registry.canonical.json`](config/qa_registry.canonical.json) | Recommended rule registry baseline (32 KiB size cap, English content blocklist from [`qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json), **BLAKE3 deploy-hash blocklist for native CP pool v1–v7** (ledger-only / fake-deposit era; also blocks in-tx CREATE2 via create-and-seed), empty scam list until curated). Fresh `RuleRegistry::new()` is minimal until an operator applies this JSON via `boing_operatorApplyQaPolicy` / `npm run apply-public-testnet-qa-policy`. |
 | [`qa_content_blocklist.en.json`](config/qa_content_blocklist.en.json) | English content-policy terms for `asset_name` / `asset_symbol`. |
 | [`qa_pool_config.public-testnet.json`](config/qa_pool_config.public-testnet.json) | Open testnet pool governance (dev voting, generous caps). |
 | [`qa_pool_config.canonical.json`](config/qa_pool_config.canonical.json) | Production-style pool governance (`public_membership`, quorum floor, voter reward). |
