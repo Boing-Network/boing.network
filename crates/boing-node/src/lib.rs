@@ -14,6 +14,7 @@ pub use node::ChainBlockProvider;
 pub mod dapp_registry;
 pub mod intent_pool;
 pub mod logging;
+pub mod blob_download_nonce_cache;
 pub mod media_blob_config;
 pub mod media_blob_store;
 pub mod media_blobs_rpc;

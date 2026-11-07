@@ -72,7 +72,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | L1 media blobs Phases 1–33 | testnet live | admission H=**1200**; [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) | high |
 | PHASE7 256 MiB consensus cap | testnet live | H=**1306** | high |
 | Phase 34 Grant/Revoke blob download ACL | code live; private-by-default **uncertain** | SDK `boing-sdk/v0.5.38` **2026-10-25**; [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md); verify ACL activation on RPC | medium |
-| Phase 34.1 HTTP capability tickets | deferred | HANDOFF ACL “Phase 34.1” | high |
+| Phase 34.1 download-proof nonce consume | **partial** (process-local single-use cache) | [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md); capability tickets / epoch bind still deferred | high |
 | ReservedRealV1 DAS verify (IPA/KZG/SNARK) | deferred / NotWired | media Phase 33 notes | high |
 | BLS committee flip (tx 32→33 multi-pin) | gated | env unset | high |
 | Name registry `.boing` | testnet live | H=**640** when ops set env | high |

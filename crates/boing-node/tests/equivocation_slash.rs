@@ -522,7 +522,8 @@ fn operator_resolve_rpc_does_not_mutate_committed_state() {
         .find_equivocation_at_round(&offender, 1)
         .unwrap()
         .id;
-    // Seed local mirror and approve via deprecated operator RPC — must not restore stake.
+    // Seed local mirror for the same slash_id that consensus owns — operator resolve must
+    // fail-closed (M16) and must not restore stake.
     node.slash_registry.record_slash_with_id(
         slash_id,
         offender.0,
@@ -535,7 +536,15 @@ fn operator_resolve_rpc_does_not_mutate_committed_state() {
         .slash_registry
         .submit_appeal(slash_id, b"rpc".to_vec(), 1)
         .unwrap();
-    assert_eq!(node.resolve_slash_appeal(appeal_id, true).unwrap(), 0);
+    assert!(matches!(
+        node.resolve_slash_appeal(appeal_id, true),
+        Err(boing_governance::SlashingError::ConsensusBookOwnsSlash)
+    ));
+    // Direct local-mirror resolve is also refused via Node::submit when consensus owns the id.
+    assert!(matches!(
+        node.submit_slash_appeal(slash_id, b"again".to_vec()),
+        Err(boing_governance::SlashingError::ConsensusBookOwnsSlash)
+    ));
     assert_eq!(node.state.get(&offender).unwrap().stake, 5_000);
 }
 

@@ -108,6 +108,8 @@ pub struct RpcState {
     pub rate_limit_requests_per_sec: u32,
     /// Cumulative HTTP / JSON-RPC diagnostics (also returned on **`boing_health`**).
     pub rpc_metrics: Arc<RpcHttpMetrics>,
+    /// Phase 34.1 partial: single-use download-proof nonce cache (process-local).
+    pub blob_download_nonce_cache: Arc<crate::blob_download_nonce_cache::BlobDownloadNonceCache>,
 }
 
 /// Monotonic counters for RPC UX / operator dashboards (best-effort; not a billing metric).
@@ -212,7 +214,13 @@ impl RpcState {
         if self.blob_download_auth_configured() && self.blob_download_secret_authorized(headers) {
             return true;
         }
-        if blob_download_proof_authorized(headers, blob_id, tip, store) {
+        if blob_download_proof_authorized(
+            headers,
+            blob_id,
+            tip,
+            store,
+            &self.blob_download_nonce_cache,
+        ) {
             return true;
         }
         if !self.blob_download_auth_configured()
@@ -236,11 +244,13 @@ fn parse_hex_header_bytes(headers: &HeaderMap, name: &str, expected_len: usize) 
 
 /// Phase 34 signed download proof headers:
 /// `X-Boing-Blob-Downloader`, `X-Boing-Blob-Expires`, `X-Boing-Blob-Nonce`, `X-Boing-Blob-Signature`.
+/// On success, consumes `(blob_id, nonce)` so the proof cannot be replayed until expiry (M8 / Phase 34.1 partial).
 fn blob_download_proof_authorized(
     headers: &HeaderMap,
     blob_id: &boing_primitives::BlobId,
     _tip: u64,
     store: &crate::media_blob_store::MediaBlobStore,
+    nonce_cache: &crate::blob_download_nonce_cache::BlobDownloadNonceCache,
 ) -> bool {
     let Some(downloader_bytes) = parse_hex_header_bytes(headers, "x-boing-blob-downloader", 32)
     else {
@@ -291,7 +301,11 @@ fn blob_download_proof_authorized(
     ) {
         return false;
     }
-    store.may_download(blob_id, &signer)
+    if !store.may_download(blob_id, &signer) {
+        return false;
+    }
+    // Consume only after ACL/publisher check so rejected signers cannot burn a valid nonce.
+    nonce_cache.try_consume(blob_id, &nonce, expires_at_unix, now_unix)
 }
 
 fn parse_blob_download_tokens_env() -> Arc<Vec<String>> {
@@ -5928,5 +5942,8 @@ pub fn rpc_router(
             ws_max_connections,
             rate_limit_requests_per_sec,
             rpc_metrics,
+            blob_download_nonce_cache: Arc::new(
+                crate::blob_download_nonce_cache::BlobDownloadNonceCache::new(),
+            ),
         })
 }

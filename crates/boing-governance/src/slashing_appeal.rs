@@ -341,4 +341,10 @@ pub enum SlashingError {
     AppealWindowClosed,
     #[error("Appeal evidence exceeds {max} bytes")]
     EvidenceTooLarge { max: usize },
+    /// Consensus `SlashAppealRegistry` already owns this `slash_id` — operator local-mirror
+    /// submit/resolve is refused (audit M16). Prefer SubmitSlashAppeal / ResolveSlashAppeal txs.
+    #[error(
+        "Consensus slash-appeal book owns this slash_id; use SubmitSlashAppeal / ResolveSlashAppeal txs (not operator local-mirror RPC)"
+    )]
+    ConsensusBookOwnsSlash,
 }

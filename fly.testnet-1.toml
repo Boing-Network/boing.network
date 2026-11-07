@@ -34,6 +34,9 @@ primary_region = "iad"
   # Public ingress should be the Worker (`testnet-rpc.boing.network`). Keep mainnet-style limits on
   # this origin so a direct `*.fly.dev` hit is not the ultra-permissive `dev` profile (audit H5).
   BOING_RATE_PROFILE = "mainnet"
+  # Reject BLAKE3 stub VRF proofs on the public profile (ECVRF only). Unset ALLOW defaults off
+  # outside `BOING_RATE_PROFILE=dev` (audit L3); set explicitly for clarity.
+  BOING_ALLOW_STUB_VRF = "0"
   # Align JSON-RPC `boing_getBlob` with HTTP `/v1/media/blob` when download tokens / ACL are set (H4).
   BOING_BLOB_GET_REQUIRE_AUTH = "1"
   # Phase 34 private-by-default HTTP download (set identical H on every public node). Secrets already

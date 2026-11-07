@@ -7,9 +7,9 @@
 //! |---|---|
 //! | `0xC0` configure | `pool`, `token_a`, `token_b` (once; **first-writer-wins**; non-zero, distinct tokens) |
 //!
-//! **Configure (M14):** there is no owner lock — the first successful `configure` wins; later
-//! calls are no-ops / rejected by the configured flag. Deploy + configure in one **Batch** so a
-//! third party cannot front-run the pairing.
+//! **Configure (M14 residual):** still no deployer-bound owner lock — the first successful
+//! `configure` wins; later calls fault on the configured flag. Deploy + configure in one **Batch**
+//! so a third party cannot front-run the pairing. Owner-at-deploy needs a new vault revision/salt.
 //! | `0xC1` deposit | `amount_a`, `amount_b`, `min_shares`, `deadline` -> returns shares minted |
 //! | `0xC2` withdraw | `shares`, `min_a`, `min_b`, `deadline` |
 //! | `0xC3` transfer_shares | `to`, `amount` |

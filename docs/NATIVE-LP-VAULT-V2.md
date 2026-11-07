@@ -18,7 +18,7 @@ SDK constant `CANONICAL_BOING_TESTNET_LP_VAULT_V2_HEX`; manifest key `lp_vault_v
 
 | Selector | Words after selector | Notes |
 |---|---|---|
-| `0xC0` configure | `pool`, `token_a`, `token_b` | **First-writer-wins** (no owner lock): once; all non-zero, tokens distinct. Deploy + configure in one **Batch** (or immediately back-to-back) and verify the stored config (`getBoingLpVaultV2State`) so a third party cannot front-run the pairing. |
+| `0xC0` configure | `pool`, `token_a`, `token_b` | **First-writer-wins** (no deployer-bound owner lock this revision): once; all non-zero, tokens distinct. **Required:** deploy + configure in one **Batch** (or immediately back-to-back) and verify the stored config (`getBoingLpVaultV2State`) so a third party cannot front-run the pairing. A CREATE2-address race without a Batch is still a product foot-gun; owner-at-deploy needs a new vault salt/revision. |
 | `0xC1` deposit | `amount_a`, `amount_b`, `min_shares`, `deadline` | returns shares minted |
 | `0xC2` withdraw | `shares`, `min_a`, `min_b`, `deadline` | pool pays the caller |
 | `0xC3` transfer_shares | `to`, `amount` | `to == caller` is a no-op |

@@ -1,6 +1,6 @@
 # Handoff: Phase 34 deployer-owned media blob download ACL
 
-**Status:** implemented on node/SDK/observer (capability tickets deferred to Phase 34.1)  
+**Status:** implemented on node/SDK/observer — download-proof **single-use nonce cache** (process-local) shipped; capability tickets / ACL-epoch bind still deferred to Phase 34.1  
 **Related:** [BOING-L1-MEDIA-BLOBS.md](./BOING-L1-MEDIA-BLOBS.md)
 
 **Not this layer:** multi-Put **publish** approvals (`boing_requestPutBlobSession`) live in **Boing Express** — download ACL below is about who may fetch raw bytes after a PutBlob lands.
@@ -32,12 +32,15 @@ Wallet path: compute preimage → `boing_signMessage(0x<preimage hex>)` → atta
 
 Allow if signer is `meta.publisher` or ACL grantee. Operator / `BOING_BLOB_DOWNLOAD_TOKENS` remain break-glass.
 
+**Nonce consume (Phase 34.1 partial):** after signature + ACL checks succeed, the node consumes `(blob_id, nonce)` in a bounded in-memory cache so the same proof cannot be replayed on that process until expiry (or eviction). Residual: cache is **not** persisted across restart — a captured proof can still be reused after a bounce until `Expires`. Capability tickets / epoch bind remain deferred.
+
 ## Operator notes
 
 1. Set `BOING_BLOB_ACL_ACTIVATION_HEIGHT` on Fly / public RPC when ready for private-by-default.
 2. Keep `BOING_OPERATOR_RPC_TOKEN` for observer proxy and ops break-glass.
 3. ACL is node-local sidecar (same class as blob bytes) — not in the account SMT / state root.
-4. Capability tickets (`BOING_BLOB_CAP_V1`) are coded in primitives but not yet wired on HTTP (Phase 34.1).
+4. Capability tickets (`BOING_BLOB_CAP_V1`) are coded in primitives but not yet wired on HTTP (remaining Phase 34.1).
+5. Download-proof nonce replay protection is process-local; multi-node / restart-durable consume needs the epoch/ticket path.
 
 ## Acceptance
 

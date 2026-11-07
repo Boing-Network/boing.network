@@ -30,7 +30,7 @@ Lookup by token pair is **off-chain** in the protocol: scan **`Log3`** events (`
 
 - At most **4096** entries (`NATIVE_DEX_FACTORY_MAX_PAIRS`). Further `register_pair` calls **stop** without state change (same silent failure style as invalid native AMM calls).
 - **Unordered pair uniqueness:** `register_pair` stores an occupancy key `token_a XOR token_b XOR domain`. A second register for the same unordered pair (either token order) **stops** without appending. Zero `token_a` / `token_b` / `pool` also abort. Redeploy the directory bytecode to pick this up on an existing chain.
-- Still **permissionless** (no owner/bond gate). Clients should trust only known AMM code hashes and prefer discovery filters (`minReserveProduct`, hide zero-reserve).
+- Still **permissionless** (no owner/bond gate and **no on-chain pool code-hash check** — the VM has no `ExtCodeHash`, so a template-hash gate needs a new activation-gated opcode or an off-chain / create-and-seed allowlist). Clients **must** trust only known AMM code hashes (v8+) and prefer discovery filters (`minReserveProduct`, hide zero-reserve). Unordered-pair uniqueness + zero checks are on-chain.
 
 ## Calldata
 

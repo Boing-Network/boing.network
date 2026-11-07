@@ -14,7 +14,7 @@ use boing_primitives::AccountId;
 use crate::asm::{w_sel, Asm};
 use crate::bytecode::Opcode;
 use crate::native_amm::{SELECTOR_SET_FEE_ADMIN, SELECTOR_SET_TOKENS};
-use crate::native_dex_factory::SELECTOR_REGISTER_PAIR;
+use crate::native_dex_factory::{SELECTOR_PAIRS_COUNT, SELECTOR_REGISTER_PAIR};
 use crate::reference_token::amount_word;
 
 /// `create_and_seed(salt, token_a, token_b, directory, bytecode_len, bytecode…)` — selector **`0xC0`**.
@@ -128,7 +128,21 @@ pub fn native_dex_create_and_seed_bytecode() -> Vec<u8> {
     a.op(Opcode::IsZero).jumpi(fail);
 
     // Optional directory.register_pair(token_a, token_b, pool).
+    // Soft-STOP aborts on the directory still return Call success=1 (interpreter property), so
+    // verify pairs_count increased (M12 residual — create-and-seed path only).
     a.mload(DIRECTORY).op(Opcode::IsZero).jumpi(skip_reg);
+    // count_before = pairs_count()
+    a.push(&w_sel(SELECTOR_PAIRS_COUNT)).mstore(CB);
+    a.push_u(0).mstore(RET);
+    a.mload(DIRECTORY)
+        .push_u(CB)
+        .push_u(32)
+        .push_u(RET)
+        .push_u(32)
+        .op(Opcode::Call);
+    a.op(Opcode::IsZero).jumpi(fail);
+    // Scratch: stash count at LOG_DATA (reused before Log3).
+    a.mcopy(RET, LOG_DATA);
     a.push(&w_sel(SELECTOR_REGISTER_PAIR)).mstore(CB);
     a.mcopy(TOKEN_A, CB + 32)
         .mcopy(TOKEN_B, CB + 64)
@@ -141,6 +155,18 @@ pub fn native_dex_create_and_seed_bytecode() -> Vec<u8> {
         .push_u(0)
         .op(Opcode::Call);
     a.op(Opcode::IsZero).jumpi(fail);
+    // count_after = pairs_count(); require count_after == count_before + 1
+    a.push(&w_sel(SELECTOR_PAIRS_COUNT)).mstore(CB);
+    a.push_u(0).mstore(RET);
+    a.mload(DIRECTORY)
+        .push_u(CB)
+        .push_u(32)
+        .push_u(RET)
+        .push_u(32)
+        .op(Opcode::Call);
+    a.op(Opcode::IsZero).jumpi(fail);
+    a.mload(LOG_DATA).push_u(1).op(Opcode::Add);
+    a.mload(RET).op(Opcode::Eq).op(Opcode::IsZero).jumpi(fail);
     a.jump(after_reg);
     a.mark(skip_reg);
     a.mark(after_reg);
@@ -297,6 +323,55 @@ mod tests {
         assert_eq!(
             u128_word(state.get_contract_storage(&predicted, &lp_balance_storage_key(&USER.0))),
             1_000
+        );
+    }
+
+    #[test]
+    fn create_and_seed_faults_when_register_pair_soft_stops() {
+        // Directory soft-STOP on duplicate pair still returns Call success=1; factory must
+        // detect unchanged pairs_count and fault (M12).
+        let mut state = StateStore::new();
+        for (id, code) in [
+            (FACTORY, native_dex_create_and_seed_bytecode()),
+            (DIRECTORY, native_dex_factory_bytecode()),
+            (TA, reference_fungible_template_v2_bytecode()),
+            (TB, reference_fungible_template_v2_bytecode()),
+        ] {
+            state.insert(Account {
+                id,
+                state: Default::default(),
+            });
+            state.set_contract_code(id, code);
+        }
+        state.insert(Account {
+            id: USER,
+            state: Default::default(),
+        });
+
+        use crate::native_dex_factory::encode_register_pair_calldata;
+        let prior_pool = AccountId([0x33; 32]);
+        call(
+            &mut state,
+            USER,
+            DIRECTORY,
+            encode_register_pair_calldata(&TA, &TB, &prior_pool),
+        );
+        assert_eq!(
+            u128_word(state.get_contract_storage(&DIRECTORY, &native_dex_factory_count_key())),
+            1
+        );
+
+        let pool_code = constant_product_pool_bytecode_v8();
+        let salt = [8u8; 32];
+        let cd = encode_create_and_seed_calldata(&salt, &TA, &TB, Some(&DIRECTORY), &pool_code);
+        let code = state.get_contract_code(&FACTORY).unwrap().clone();
+        let mut it = Interpreter::new(code, 40_000_000);
+        it.run_with_qa(USER, FACTORY, &cd, &mut state, &RuleRegistry::new(), ctx())
+            .expect_err("duplicate directory register must fault");
+        // Directory count unchanged (soft-STOP register did not append).
+        assert_eq!(
+            u128_word(state.get_contract_storage(&DIRECTORY, &native_dex_factory_count_key())),
+            1
         );
     }
 

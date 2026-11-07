@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use boing_governance::{Governance, SlashRegistry};
 use boing_primitives::{
     decode_bls_dual_key_registry, encode_bls_dual_key_registry, AccountId, AccountState, Block,
-    BlsDualKeyRegistry, ExecutionReceipt, Hash, PHASE27_BLS_DUAL_KEY_REGISTRY_FILE,
+    BlsDualKeyRegistry, ConsensusVote, ExecutionReceipt, Hash, PHASE27_BLS_DUAL_KEY_REGISTRY_FILE,
 };
 use boing_qa::pool_config::QaPoolGovernanceConfig;
 use boing_qa::RuleRegistry;
@@ -96,6 +96,8 @@ const BLOCKS_DIR: &str = "blocks";
 const CHAIN_META_FILE: &str = "meta.bin";
 /// Last round this validator signed a local consensus vote (anti-equivocation across restarts).
 const LAST_LOCAL_VOTE_ROUND_FILE: &str = "last_local_vote_round.bin";
+/// Bounded peer `(round, validator) → vote` window for equivocation evidence across restarts (M3).
+const OBSERVED_VOTES_FILE: &str = "observed_votes.bin";
 const STATE_DIR: &str = "state";
 const STATE_FILE: &str = "accounts.bin";
 const QA_REGISTRY_FILE: &str = "qa_registry.json";
@@ -382,6 +384,41 @@ impl Persistence {
         let bytes = read_file_limited(&path, MAX_PERSIST_SMALL_FILE_BYTES)?;
         let round: u64 = decode_bincode_limited(&bytes, MAX_PERSIST_SMALL_FILE_BYTES)?;
         Ok(Some(round))
+    }
+
+    /// Persist the bounded peer vote window (`Vec<(round, validator, vote)>`).
+    pub fn save_observed_votes(
+        &self,
+        votes: &std::collections::HashMap<(u64, AccountId), ConsensusVote>,
+    ) -> Result<(), PersistenceError> {
+        self.ensure_dirs()?;
+        let path = self.chain_dir().join(OBSERVED_VOTES_FILE);
+        let rows: Vec<(u64, AccountId, ConsensusVote)> = votes
+            .iter()
+            .map(|((r, v), vote)| (*r, *v, vote.clone()))
+            .collect();
+        let bytes = bincode::serialize(&rows)
+            .map_err(|e| PersistenceError::Serialization(e.to_string()))?;
+        write_atomic(&path, &bytes)?;
+        Ok(())
+    }
+
+    pub fn load_observed_votes(
+        &self,
+    ) -> Result<Option<std::collections::HashMap<(u64, AccountId), ConsensusVote>>, PersistenceError>
+    {
+        let path = self.chain_dir().join(OBSERVED_VOTES_FILE);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = read_file_limited(&path, MAX_PERSIST_SMALL_FILE_BYTES)?;
+        let rows: Vec<(u64, AccountId, ConsensusVote)> =
+            decode_bincode_limited(&bytes, MAX_PERSIST_SMALL_FILE_BYTES)?;
+        let mut out = std::collections::HashMap::with_capacity(rows.len());
+        for (round, validator, vote) in rows {
+            out.insert((round, validator), vote);
+        }
+        Ok(Some(out))
     }
 
     /// Save execution receipts for a block height (`chain/blocks/receipts_{height}.bin`).

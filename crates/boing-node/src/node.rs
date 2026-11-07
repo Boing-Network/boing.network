@@ -523,6 +523,18 @@ impl BoingNode {
                     Ok(None) => {}
                     Err(e) => logging::log_persistence_warn("load_last_local_vote_round", &e),
                 }
+                match p.load_observed_votes() {
+                    Ok(Some(votes)) => {
+                        let tip = node.chain.height();
+                        let keep_from = tip.saturating_sub(64);
+                        node.observed_votes = votes
+                            .into_iter()
+                            .filter(|((r, _), _)| *r >= keep_from)
+                            .collect();
+                    }
+                    Ok(None) => {}
+                    Err(e) => logging::log_persistence_warn("load_observed_votes", &e),
+                }
             }
         }
 
@@ -886,6 +898,10 @@ impl BoingNode {
                 if let Err(e) = p.save_last_local_vote_round(round) {
                     logging::log_persistence_warn("save_last_local_vote_round", &e);
                 }
+            }
+            // Persist peer vote window so equivocation evidence survives restart (audit M3).
+            if let Err(e) = p.save_observed_votes(&self.observed_votes) {
+                logging::log_persistence_warn("save_observed_votes", &e);
             }
         }
         self.refresh_native_aggregates();
@@ -1295,14 +1311,14 @@ impl BoingNode {
     ///
     /// **Deprecated for FailedServe / equivocation / liveness:** prefer consensus tx
     /// `SubmitSlashAppeal` (index 30). This RPC only mutates the node-local `SlashRegistry` mirror.
+    /// Fail-closed when the consensus book already owns `slash_id` (audit M16).
     pub fn submit_slash_appeal(
         &mut self,
         slash_id: u64,
         evidence: Vec<u8>,
     ) -> Result<u64, SlashingError> {
         if self.state.slash_appeals().get_slash(slash_id).is_some() {
-            // Consensus book owns appeals for this slash_id; avoid dual-path confusion.
-            return Err(SlashingError::AppealAlreadyExists);
+            return Err(SlashingError::ConsensusBookOwnsSlash);
         }
         let id = self
             .slash_registry
@@ -1315,11 +1331,20 @@ impl BoingNode {
     ///
     /// Stake / balance restore must use consensus txs `ResolveSlashAppeal` (31) /
     /// `ResolveSlashAppealAttested` (32) so every validator replays the same economics.
+    /// Fail-closed when the consensus book owns the appeal's `slash_id` (audit M16).
     pub fn resolve_slash_appeal(
         &mut self,
         appeal_id: u64,
         approved: bool,
     ) -> Result<u128, SlashingError> {
+        let slash_id = self
+            .slash_registry
+            .get_appeal(appeal_id)
+            .map(|a| a.slash_id)
+            .ok_or(SlashingError::AppealNotFound)?;
+        if self.state.slash_appeals().get_slash(slash_id).is_some() {
+            return Err(SlashingError::ConsensusBookOwnsSlash);
+        }
         self.slash_registry.resolve_appeal(appeal_id, approved)?;
         self.persist_slash_registry();
         // Never credit StateStore from operator RPC — that diverged state roots across nodes.

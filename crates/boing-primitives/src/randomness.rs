@@ -142,15 +142,18 @@ pub fn verify_ecvrf_output(public_key: &AccountId, round: u64, vrf: &VrfOutput) 
 /// (32 bytes). Prefer [`ecvrf_prove`] / [`verify_ecvrf_output`] for production validator keys.
 /// Whether 32-byte BLAKE3 stub VRF proofs are accepted by [`verify_vrf_output`].
 ///
-/// Default **true** for local/testnet leader fallback. Set `BOING_ALLOW_STUB_VRF=0` (or `false`)
-/// on production validators so only ECVRF proofs verify (audit #61 item 36).
+/// - Explicit `BOING_ALLOW_STUB_VRF=1`/`true` → allow; `0`/`false`/`no`/`off` → deny.
+/// - When unset: allow only under **`BOING_RATE_PROFILE=dev`** (local / relaxed test).
+///   Public / mainnet-profile nodes default **deny** so only ECVRF verifies (audit L3 / #61 item 36).
 pub fn stub_vrf_allowed() -> bool {
     match std::env::var("BOING_ALLOW_STUB_VRF") {
         Ok(v) => {
             let v = v.trim().to_ascii_lowercase();
             !(v.is_empty() || v == "0" || v == "false" || v == "no" || v == "off")
         }
-        Err(_) => true,
+        Err(_) => std::env::var("BOING_RATE_PROFILE")
+            .ok()
+            .is_some_and(|p| p.trim().eq_ignore_ascii_case("dev")),
     }
 }
 
@@ -202,8 +205,10 @@ mod tests {
         let a = dummy_vrf_output(7);
         let b = dummy_vrf_output(7);
         assert_eq!(a, b);
+        std::env::set_var("BOING_ALLOW_STUB_VRF", "1");
         assert!(verify_vrf_output(7, &a, None));
         assert!(!verify_vrf_output(8, &a, None));
+        std::env::remove_var("BOING_ALLOW_STUB_VRF");
     }
 
     #[test]
@@ -256,5 +261,18 @@ mod tests {
         std::env::set_var("BOING_ALLOW_STUB_VRF", "1");
         assert!(verify_vrf_output(7, &a, None));
         std::env::remove_var("BOING_ALLOW_STUB_VRF");
+    }
+
+    #[test]
+    fn stub_default_off_outside_dev_rate_profile() {
+        let a = dummy_vrf_output(11);
+        std::env::remove_var("BOING_ALLOW_STUB_VRF");
+        std::env::set_var("BOING_RATE_PROFILE", "mainnet");
+        assert!(!verify_vrf_output(11, &a, None));
+        std::env::set_var("BOING_RATE_PROFILE", "dev");
+        assert!(verify_vrf_output(11, &a, None));
+        std::env::remove_var("BOING_RATE_PROFILE");
+        // Unset profile (not explicitly `dev`) → deny.
+        assert!(!verify_vrf_output(11, &a, None));
     }
 }
