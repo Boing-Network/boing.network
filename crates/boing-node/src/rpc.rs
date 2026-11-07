@@ -4078,7 +4078,13 @@ async fn dispatch_jsonrpc_request(
                     ),
                 );
             }
-            if req.method == "boing_getBlob" && state.blob_get_require_auth {
+            // L2: DAS sample/batch paths leak chunk bytes — same gate as `boing_getBlob` when auth required.
+            let blob_auth_methods = [
+                "boing_getBlob",
+                "boing_getBlobDasSample",
+                "boing_getBlobDasLightClientBatch",
+            ];
+            if blob_auth_methods.contains(&req.method.as_str()) && state.blob_get_require_auth {
                 let params = req
                     .params
                     .clone()
@@ -5747,19 +5753,35 @@ fn build_rpc_cors_layer() -> CorsLayer {
         HeaderValue::from_static("https://www.boing.finance"),
         HeaderValue::from_static("https://bootnode2.boing.network"),
         HeaderValue::from_static("https://testnet-rpc-2.boing.network"),
-        HeaderValue::from_static("http://localhost:3000"),
-        HeaderValue::from_static("http://localhost:4321"),
-        HeaderValue::from_static("http://127.0.0.1:3000"),
-        HeaderValue::from_static("http://127.0.0.1:4321"),
-        HeaderValue::from_static("http://localhost:5173"),
-        HeaderValue::from_static("http://127.0.0.1:5173"),
-        HeaderValue::from_static("http://localhost:5174"),
-        HeaderValue::from_static("http://127.0.0.1:5174"),
-        HeaderValue::from_static("http://localhost:4173"),
-        HeaderValue::from_static("http://127.0.0.1:4173"),
-        HeaderValue::from_static("http://localhost:8080"),
-        HeaderValue::from_static("http://127.0.0.1:8080"),
     ];
+    // Localhost origins only in `BOING_RATE_PROFILE=dev` or when explicitly enabled.
+    // Public / mainnet-profile nodes should not advertise loopback CORS by default (M10).
+    let allow_localhost = std::env::var("BOING_RPC_CORS_ALLOW_LOCALHOST")
+        .ok()
+        .as_deref()
+        .map(str::trim)
+        .is_some_and(|v| matches!(v, "1" | "true" | "TRUE" | "yes" | "YES"))
+        || std::env::var("BOING_RATE_PROFILE")
+            .ok()
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|v| v.eq_ignore_ascii_case("dev"));
+    if allow_localhost {
+        origins.extend([
+            HeaderValue::from_static("http://localhost:3000"),
+            HeaderValue::from_static("http://localhost:4321"),
+            HeaderValue::from_static("http://127.0.0.1:3000"),
+            HeaderValue::from_static("http://127.0.0.1:4321"),
+            HeaderValue::from_static("http://localhost:5173"),
+            HeaderValue::from_static("http://127.0.0.1:5173"),
+            HeaderValue::from_static("http://localhost:5174"),
+            HeaderValue::from_static("http://127.0.0.1:5174"),
+            HeaderValue::from_static("http://localhost:4173"),
+            HeaderValue::from_static("http://127.0.0.1:4173"),
+            HeaderValue::from_static("http://localhost:8080"),
+            HeaderValue::from_static("http://127.0.0.1:8080"),
+        ]);
+    }
     let mut cors_extra_merged: usize = 0;
     if let Ok(raw) = std::env::var("BOING_RPC_CORS_EXTRA_ORIGINS") {
         for part in raw.split(',') {

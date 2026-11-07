@@ -10,7 +10,7 @@
 ```mermaid
 flowchart TB
   subgraph protocol [Protocol]
-    BFT[HotStuff BFT]
+    BFT[HotStuff-style quorum commit]
     Crypto[Ed25519 + BLAKE3]
     QA[Deploy QA]
   end
@@ -39,11 +39,11 @@ flowchart TB
 
 ## 1. Protocol-Level Security
 
-### 1.1 Consensus (HotStuff BFT + PoS)
+### 1.1 Consensus (HotStuff-style single-round quorum commit + PoS)
 
 | Measure | Description | Status |
 |---------|-------------|--------|
-| **Byzantine Fault Tolerance** | Network operates correctly with up to 1/3 malicious validators | ✓ HotStuff |
+| **Byzantine Fault Tolerance** | Network operates correctly with up to 1/3 malicious validators | ✓ Quorum commit (2f+1); not certified HotStuff |
 | **PoS + Slashing** | Validators stake BOING; malicious behavior penalized | ✓ Implemented |
 | **VRF Leader Selection** | Unpredictable, unbiased leader election (`LeaderElection::Vrf` / `BOING_LEADER_ELECTION=vrf`, ECVRF proofs; RoundRobin remains default) | ✓ Implemented (optional; flag + tests) |
 | **Equivocation Detection** | Double-signing detected and slashed | ✓ Consensus |

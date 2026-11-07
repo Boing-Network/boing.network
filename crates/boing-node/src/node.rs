@@ -1253,7 +1253,8 @@ impl BoingNode {
         let sender = AccountId(sk.verifying_key().to_bytes());
         let chain_nonce = self.state.get(&sender).map(|s| s.nonce).unwrap_or(0);
         let nonce = self.mempool.suggested_next_nonce(sender, chain_nonce);
-        let burn_sink = boing_tokenomics::FEE_BURN_SINK;
+        let slash_id = self.state.slash_appeals().peek_next_slash_id();
+        let slash_escrow = boing_tokenomics::slash_escrow_account(slash_id);
         let tx = Transaction {
             nonce,
             sender,
@@ -1261,8 +1262,8 @@ impl BoingNode {
                 evidence: evidence.clone(),
             },
             access_list: AccessList::new(
-                vec![sender, validator, burn_sink],
-                vec![sender, validator, burn_sink],
+                vec![sender, validator, slash_escrow],
+                vec![sender, validator, slash_escrow],
             ),
         };
         let signed = SignedTransaction::new(tx, sk);

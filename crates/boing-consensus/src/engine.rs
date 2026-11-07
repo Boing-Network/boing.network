@@ -1,4 +1,4 @@
-//! HotStuff-style BFT consensus engine.
+//! HotStuff-style **single-round quorum commit** consensus engine (wall-clock pacemaker; not certified HotStuff).
 //!
 //! Phases: Propose → Vote → Commit (when 2f+1 votes).
 

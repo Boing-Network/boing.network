@@ -55,7 +55,7 @@ Consensus is HotStuff-style BFT over a validator set. Public testnet day-to-day 
 | **1188** | Micro fees (`execution_gas_fee_bps=100`) | Crossed |
 | **1200** | Media blob Put/Announce admission | Live |
 | **1306** | PHASE7 **256 MiB** blob consensus cap | Live |
-| ~1317 | Phase 34 private-by-default ACL | Confirm on live `boing_getMediaBlobParams` / ACL fields |
+| 1317 | Phase 34 private-by-default ACL | Live Fly secret; `boing_getMediaBlobParams.aclActivationHeight` |
 | **1500** | Storage-tree v2 + account-tree v3 + VM hardening | **Crossed** |
 | **1600** | Equivocation slash + strict JUMPI / NATIVE_TRANSFER reporting | **Gated** (tip &lt; 1600 at last FEATURES probe) |
 | **1700** | Canonical on-chain QA policy + public Unsure pool semantics | **Gated** |
@@ -155,7 +155,7 @@ Public gateway and explorer proxies cap JSON bodies (≈ **6 MiB**) and reject t
 
 ## 8. L1 media blobs
 
-Phases **1–33** live; Put/Announce admission from height **1200**. **PHASE7 256 MiB** consensus cap active from **1306**. Phase **34** download ACL (Grant/Revoke) is shipped; private-by-default activation around **1317** should be confirmed on live params.
+Phases **1–33** live; Put/Announce admission from height **1200**. **PHASE7 256 MiB** consensus cap active from **1306**. Phase **34** download ACL (Grant/Revoke) is shipped; private-by-default activation height on public testnet is **1317** (`BOING_BLOB_ACL_ACTIVATION_HEIGHT`; also on `boing_getMediaBlobParams`).
 
 - Separate **blob fee path** — not account `SSTORE`.
 - Block JSON: byte fields as **`0x` hex**; large vectors stubbed when `include_code: false`.

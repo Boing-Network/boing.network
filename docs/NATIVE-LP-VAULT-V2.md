@@ -18,7 +18,7 @@ SDK constant `CANONICAL_BOING_TESTNET_LP_VAULT_V2_HEX`; manifest key `lp_vault_v
 
 | Selector | Words after selector | Notes |
 |---|---|---|
-| `0xC0` configure | `pool`, `token_a`, `token_b` | once; all non-zero, tokens distinct. Anyone can call it first, so deploy and configure back-to-back and verify the stored config (`getBoingLpVaultV2State`). |
+| `0xC0` configure | `pool`, `token_a`, `token_b` | **First-writer-wins** (no owner lock): once; all non-zero, tokens distinct. Deploy + configure in one **Batch** (or immediately back-to-back) and verify the stored config (`getBoingLpVaultV2State`) so a third party cannot front-run the pairing. |
 | `0xC1` deposit | `amount_a`, `amount_b`, `min_shares`, `deadline` | returns shares minted |
 | `0xC2` withdraw | `shares`, `min_a`, `min_b`, `deadline` | pool pays the caller |
 | `0xC3` transfer_shares | `to`, `amount` | `to == caller` is a no-op |

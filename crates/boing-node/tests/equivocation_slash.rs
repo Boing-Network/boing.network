@@ -104,14 +104,15 @@ fn apply_report_equivocation(
 ) {
     let nonce = node.state.get(&reporter).map(|s| s.nonce).unwrap_or(0);
     let offender = evidence.validator();
-    let burn = boing_tokenomics::FEE_BURN_SINK;
+    let slash_id = node.state.slash_appeals().peek_next_slash_id();
+    let escrow = boing_tokenomics::slash_escrow_account(slash_id);
     let tx = Transaction {
         nonce,
         sender: reporter,
         payload: TransactionPayload::ReportEquivocation { evidence },
         access_list: AccessList::new(
-            vec![reporter, offender, burn],
-            vec![reporter, offender, burn],
+            vec![reporter, offender, escrow],
+            vec![reporter, offender, escrow],
         ),
     };
     let vm = Vm::new();
@@ -159,12 +160,12 @@ fn equivocation_slash_burns_half_active_stake() {
             round,
         } => {
             assert_eq!(v, v2);
-            let burned = boing_tokenomics::slash_equivocation_stake(&mut node.state, &v);
+            let burned = boing_tokenomics::slash_equivocation_stake(&mut node.state, &v, 1);
             assert_eq!(burned, 5_000);
             assert_eq!(node.state.get(&v2).unwrap().stake, 5_000);
             assert_eq!(
                 node.state
-                    .get(&boing_tokenomics::FEE_BURN_SINK)
+                    .get(&boing_tokenomics::slash_escrow_account(1))
                     .unwrap()
                     .balance,
                 5_000
@@ -241,14 +242,14 @@ fn report_equivocation_is_idempotent_across_two_state_clones() {
     });
     let mut state_b = state_a.snapshot();
 
-    let burn = boing_tokenomics::FEE_BURN_SINK;
+    let escrow = boing_tokenomics::slash_escrow_account(state_a.slash_appeals().peek_next_slash_id());
     let mk_tx = |nonce: u64, evidence: EquivocationEvidence| Transaction {
         nonce,
         sender: reporter,
         payload: TransactionPayload::ReportEquivocation { evidence },
         access_list: AccessList::new(
-            vec![reporter, offender, burn],
-            vec![reporter, offender, burn],
+            vec![reporter, offender, escrow],
+            vec![reporter, offender, escrow],
         ),
     };
     let vm = Vm::new();
@@ -593,14 +594,14 @@ fn report_equivocation_is_inert_before_activation_height() {
             ..Default::default()
         },
     });
-    let burn = boing_tokenomics::FEE_BURN_SINK;
+    let escrow = boing_tokenomics::slash_escrow_account(state.slash_appeals().peek_next_slash_id());
     let tx = Transaction {
         nonce: 0,
         sender: reporter,
         payload: TransactionPayload::ReportEquivocation { evidence: ev },
         access_list: AccessList::new(
-            vec![reporter, offender, burn],
-            vec![reporter, offender, burn],
+            vec![reporter, offender, escrow],
+            vec![reporter, offender, escrow],
         ),
     };
     let mut vm = Vm::new();

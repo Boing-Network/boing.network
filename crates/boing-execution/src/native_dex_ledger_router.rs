@@ -12,6 +12,13 @@
 //!
 //! **v5** pools: **v2** router for **`swap_to`**; **v3** router for **`remove_liquidity_to`**; or call the pool directly.
 //!
+//! # Soft-STOP / Call success (M12)
+//!
+//! Nested [`Opcode::Call`] currently always pushes success=`1` even when the callee soft-`STOP`s
+//! (legacy v1–v7 pools). These routers do **not** inspect Call success or return data after the
+//! forward — prefer **v8+ faulting pools** and the **custody router** for user swaps. Changing Call
+//! success semantics would break soft-STOP success paths on legacy templates and is deferred.
+//!
 //! See `docs/NATIVE-DEX-LEDGER-ROUTER.md`.
 
 use crate::bytecode::Opcode;

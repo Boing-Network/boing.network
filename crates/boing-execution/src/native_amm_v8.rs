@@ -11,6 +11,9 @@
 //!   **deadline block height** word (`0` = none; `BlockHeight > deadline` faults).
 //! - Every rejection is a VM **fault** (failed receipt, state reverted) instead of a silent `STOP`.
 //! - Reentrancy lock ([`pool_v8_lock_key`]): any call while the lock is set faults.
+//! - **Honest fungible only (M15):** reserves are updated from calldata amounts (no balance-delta
+//!   skim). Fee-on-transfer / fake-success tokens can desync ledger vs balances — use reference
+//!   fungible templates (or allowlisted honest ERC-20 analogues) only.
 //! - Reserves stay below `2^64` (u64 ledger convention shared with the SDK quotes).
 //!
 //! Storage keys, LP balance slots, fee semantics (fee-on-input, default 30 bps, fee admin) and log

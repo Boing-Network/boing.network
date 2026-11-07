@@ -137,7 +137,7 @@ Deterministic stack machine (`boing-execution`). Opcode families include arithme
 | 1188 | Micro fees (`execution_gas_fee_bps=100`) | Crossed |
 | 1200 | Media blob Put/Announce admission | Live |
 | **1306** | PHASE7 **256 MiB** blob consensus cap | Live |
-| ~1317 | Phase 34 private-by-default ACL | Confirm on live media params |
+| 1317 | Phase 34 private-by-default ACL | Live on public testnet; see `boing_getMediaBlobParams` |
 | **1500** | Storage-tree v2 + account-tree v3 + VM hardening | **Crossed** |
 | **1600** | Equivocation slash + strict JUMPI / NATIVE_TRANSFER reporting | **Gated** |
 | **1700** | Canonical on-chain QA policy + public Unsure pool semantics | **Gated** |

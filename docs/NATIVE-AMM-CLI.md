@@ -55,6 +55,10 @@ The v8 template itself is tested in `crates/boing-execution/src/native_amm_v8.rs
 
 These sit alongside the existing template tests in `crates/boing-execution/src/native_amm.rs` and `tests/proptest_native_amm.rs`.
 
+## Honest fungible only (v8+; M15)
+
+v8+ custody pools update reserves from **calldata amounts** (no balance-delta skim). **Fee-on-transfer**, rebasing, or fake-success tokens can desync pool ledger vs real balances. Integrate only **honest** reference fungibles (or allowlisted equivalents) that transfer exactly the requested amount and return success truthfully.
+
 ## Custody: v1–v7 are ledger-only, v8 pulls tokens
 
 Every older template (v1–v7) is **ledger-only on the way in**: `add_liquidity` and the swap `amount_in` credit reserves from calldata and never pull tokens.

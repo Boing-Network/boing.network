@@ -634,7 +634,9 @@ impl Vm {
                     .stake
                     .checked_sub(*amount)
                     .ok_or(VmError::InsufficientBalance)?;
-                // Restart the unlock clock for the combined pending amount.
+                // Intentional anti-partial-exit (M2): a single unlock height covers the
+                // combined `pending_unbond` bucket. Each Unbond restarts the delay for **all**
+                // pending funds — there is no per-chunk unlock schedule in AccountState.
                 sender_state.pending_unbond = sender_state.pending_unbond.saturating_add(*amount);
                 sender_state.unbond_unlock_height = height.saturating_add(delay);
                 sender_state.nonce = sender_state
@@ -1591,10 +1593,13 @@ impl Vm {
                 logs: Vec::new(),
             });
         }
-        let burned = boing_tokenomics::slash_equivocation_stake(state, &offender);
-        let slash_id = state
+        let slash_id = state.slash_appeals().peek_next_slash_id();
+        let burned =
+            boing_tokenomics::slash_equivocation_stake(state, &offender, slash_id);
+        state
             .slash_appeals_mut()
-            .record_slash(
+            .record_slash_with_id(
+                slash_id,
                 offender,
                 burned,
                 boing_state::ConsensusSlashReason::Equivocation,
@@ -1903,21 +1908,26 @@ impl Vm {
                 .get_slash(slash_id)
                 .cloned()
                 .ok_or_else(|| VmError::MediaBlob("slash not found after finalize".into()))?;
-            let restored = match slash.reason {
+            match slash.reason {
                 boing_state::ConsensusSlashReason::BlobFailedServe => {
                     boing_tokenomics::restore_failed_serve_penalty(
                         state,
                         &slash.account,
+                        slash_id,
                         slash.amount,
                     )
+                    .map_err(|e| VmError::MediaBlob(e.to_string()))?;
                 }
-                _ => boing_tokenomics::restore_equivocation_slash(
-                    state,
-                    &slash.account,
-                    slash.amount,
-                ),
+                _ => {
+                    boing_tokenomics::restore_equivocation_slash(
+                        state,
+                        &slash.account,
+                        slash_id,
+                        slash.amount,
+                    )
+                    .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+                }
             };
-            let _ = restored;
         }
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
         sender_state.nonce = sender_state
@@ -2046,19 +2056,25 @@ impl Vm {
                 .get_slash(slash_id)
                 .cloned()
                 .ok_or_else(|| VmError::MediaBlob("slash not found after finalize".into()))?;
-            let _ = match slash.reason {
+            match slash.reason {
                 boing_state::ConsensusSlashReason::BlobFailedServe => {
                     boing_tokenomics::restore_failed_serve_penalty(
                         state,
                         &slash.account,
+                        slash_id,
                         slash.amount,
                     )
+                    .map_err(|e| VmError::MediaBlob(e.to_string()))?;
                 }
-                _ => boing_tokenomics::restore_equivocation_slash(
-                    state,
-                    &slash.account,
-                    slash.amount,
-                ),
+                _ => {
+                    boing_tokenomics::restore_equivocation_slash(
+                        state,
+                        &slash.account,
+                        slash_id,
+                        slash.amount,
+                    )
+                    .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+                }
             };
         }
 
@@ -2559,7 +2575,6 @@ pub fn settle_expired_serve_challenges(
         return Ok(0);
     }
     let escrow = blob_sample_serve_challenge_bond_escrow_account();
-    let burn = boing_tokenomics::FEE_BURN_SINK;
     let mut n = 0usize;
     for c in failed {
         if c.bond_settled {
@@ -2569,9 +2584,16 @@ pub fn settle_expired_serve_challenges(
         if c.bond_amount > 0 {
             move_native(state, escrow, c.challenger, c.bond_amount)?;
         }
-        // Penalty was escrowed from provider at open → burn.
+        // Phase 15: allocate slash id first so the provider penalty moves into a
+        // per-slash escrow (not FEE_BURN_SINK) for fail-closed approve restores.
+        let slash_id = state.slash_appeals().peek_next_slash_id();
         if c.provider_penalty > 0 {
-            move_native(state, escrow, burn, c.provider_penalty)?;
+            move_native(
+                state,
+                escrow,
+                boing_tokenomics::slash_escrow_account(slash_id),
+                c.provider_penalty,
+            )?;
         }
         state.sample_serve_mut().mark_bond_settled(
             &c.blob_id,
@@ -2579,11 +2601,11 @@ pub fn settle_expired_serve_challenges(
             &c.provider,
             &c.challenger,
         );
-        // Phase 15: allocate from the shared consensus slash-id allocator, then pin onto the
-        // challenge so FailedServe ids cannot collide with equivocation/liveness rows.
-        let slash_id = state
+        // Pin onto the challenge so FailedServe ids cannot collide with equivocation/liveness.
+        state
             .slash_appeals_mut()
-            .record_slash(
+            .record_slash_with_id(
+                slash_id,
                 c.provider,
                 c.provider_penalty,
                 boing_state::ConsensusSlashReason::BlobFailedServe,

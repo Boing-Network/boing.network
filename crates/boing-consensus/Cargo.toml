@@ -2,7 +2,7 @@
 name = "boing-consensus"
 version = "0.1.0"
 edition = "2021"
-description = "PoS + HotStuff BFT consensus for Boing blockchain"
+description = "PoS + HotStuff-style single-round quorum commit consensus for Boing blockchain"
 
 [dependencies]
 boing-primitives = { path = "../boing-primitives" }

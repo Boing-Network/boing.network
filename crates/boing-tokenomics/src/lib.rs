@@ -80,12 +80,41 @@ pub const PROTOCOL_TREASURY: AccountId = AccountId([
     0, 0, 0, 0, 0, 0, 0, 1,
 ]);
 
-/// Burn sink AccountId (FEE_BURN_BPS of fees are sent here and never spent by protocol logic).
+/// Fee-burn sink AccountId (`FEE_BURN_BPS` of tx fees land here).
+///
+/// **Fee burns stay here permanently** (not spent for protocol payouts). Slash / FailedServe
+/// penalties use a **separate** per-slash escrow ([`slash_escrow_account`]) so fee burns cannot
+/// under-fund approved restores. Pre-escrow rows may still reverse from this sink (legacy).
 /// Distinct from the all-zero id so it does not collide with common test/dev accounts.
 pub const FEE_BURN_SINK: AccountId = AccountId([
     b'B', b'U', b'R', b'N', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 1,
 ]);
+
+/// Deterministic escrow account holding one consensus slash / FailedServe penalty until
+/// approve-restore or permanent burn (reject / expire leaves the balance stranded as burned).
+#[inline]
+#[must_use]
+pub fn slash_escrow_account(slash_id: u64) -> AccountId {
+    let mut id = [0u8; 32];
+    id[..5].copy_from_slice(b"SLASH");
+    id[8..16].copy_from_slice(&slash_id.to_le_bytes());
+    id[31] = 1;
+    AccountId(id)
+}
+
+/// Error when an approved slash restore cannot cover the full recorded amount.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+pub enum SlashRestoreError {
+    #[error(
+        "slash escrow underfunded for slash_id={slash_id}: need {needed}, have {available} (fail-closed)"
+    )]
+    InsufficientEscrow {
+        slash_id: u64,
+        needed: u128,
+        available: u128,
+    },
+}
 
 /// Emission decay factor per year. Year N emission = Year 1 * DECAY^(N-1).
 pub const EMISSION_DECAY: f64 = 0.85;
@@ -141,11 +170,16 @@ fn debit_slashable(st: &mut boing_primitives::AccountState, amount: u128) {
     st.pending_unbond = st.pending_unbond.saturating_sub(from_pending);
 }
 
-/// Slash bonded stake for consensus equivocation; burned amount is credited to [`FEE_BURN_SINK`].
-/// Covers **`stake + pending_unbond`** (unbond does not escape slash). Restores still credit
+/// Slash bonded stake for consensus equivocation; amount is credited to
+/// [`slash_escrow_account`] for `slash_id` (not [`FEE_BURN_SINK`]).
+/// Covers **`stake + pending_unbond`** (unbond does not escape slash). Restores credit
 /// `stake` via [`restore_equivocation_slash`].
 /// Returns the amount slashed (0 if account missing or slashable balance is 0).
-pub fn slash_equivocation_stake(state: &mut StateStore, validator: &AccountId) -> u128 {
+pub fn slash_equivocation_stake(
+    state: &mut StateStore,
+    validator: &AccountId,
+    slash_id: u64,
+) -> u128 {
     let amount = {
         let Some(st) = state.get_mut(validator) else {
             return 0;
@@ -161,14 +195,18 @@ pub fn slash_equivocation_stake(state: &mut StateStore, validator: &AccountId) -
         debit_slashable(st, amount);
         amount
     };
-    credit_account(state, FEE_BURN_SINK, amount);
+    credit_account(state, slash_escrow_account(slash_id), amount);
     amount
 }
 
-/// Slash bonded stake for liveness failure; burned amount is credited to [`FEE_BURN_SINK`].
+/// Slash bonded stake for liveness failure; amount is credited to [`slash_escrow_account`].
 /// Same slashable base as [`slash_equivocation_stake`]. **Not** called from consensus yet —
 /// stake-mode liveness still needs a block-ordered evidence path (see node `tick_liveness`).
-pub fn slash_liveness_stake(state: &mut StateStore, validator: &AccountId) -> u128 {
+pub fn slash_liveness_stake(
+    state: &mut StateStore,
+    validator: &AccountId,
+    slash_id: u64,
+) -> u128 {
     let amount = {
         let Some(st) = state.get_mut(validator) else {
             return 0;
@@ -184,76 +222,105 @@ pub fn slash_liveness_stake(state: &mut StateStore, validator: &AccountId) -> u1
         debit_slashable(st, amount);
         amount
     };
-    credit_account(state, FEE_BURN_SINK, amount);
+    credit_account(state, slash_escrow_account(slash_id), amount);
     amount
 }
 
-/// Reverse an equivocation slash: debit [`FEE_BURN_SINK`] and restore `amount` to the validator's stake.
-/// Returns the amount actually restored (may be less if the burn sink is short).
+/// Debit the full `amount` from per-slash escrow (or legacy [`FEE_BURN_SINK`] when escrow is empty).
+/// Fail-closed: returns [`SlashRestoreError`] if funds are short — never partially restores.
+fn debit_slash_restore_source(
+    state: &mut StateStore,
+    slash_id: u64,
+    amount: u128,
+) -> Result<(), SlashRestoreError> {
+    if amount == 0 {
+        return Ok(());
+    }
+    let escrow = slash_escrow_account(slash_id);
+    let escrow_bal = state.get(&escrow).map(|s| s.balance).unwrap_or(0);
+    if escrow_bal >= amount {
+        if let Some(sink) = state.get_mut(&escrow) {
+            sink.balance = sink.balance.saturating_sub(amount);
+        }
+        return Ok(());
+    }
+    // Legacy pre-escrow rows credited [`FEE_BURN_SINK`] and left escrow empty.
+    // Do not mix partial escrow + sink (ambiguous / under-fund risk) — fail closed.
+    if escrow_bal > 0 {
+        return Err(SlashRestoreError::InsufficientEscrow {
+            slash_id,
+            needed: amount,
+            available: escrow_bal,
+        });
+    }
+    let sink_bal = state.get(&FEE_BURN_SINK).map(|s| s.balance).unwrap_or(0);
+    if sink_bal < amount {
+        return Err(SlashRestoreError::InsufficientEscrow {
+            slash_id,
+            needed: amount,
+            available: sink_bal,
+        });
+    }
+    if let Some(sink) = state.get_mut(&FEE_BURN_SINK) {
+        sink.balance = sink.balance.saturating_sub(amount);
+    }
+    Ok(())
+}
+
+/// Reverse an equivocation slash: debit per-slash escrow (legacy: [`FEE_BURN_SINK`]) and restore
+/// `amount` to the validator's stake. **Fail-closed** if underfunded.
 pub fn restore_equivocation_slash(
     state: &mut StateStore,
     validator: &AccountId,
+    slash_id: u64,
     amount: u128,
-) -> u128 {
+) -> Result<u128, SlashRestoreError> {
+    debit_slash_restore_source(state, slash_id, amount)?;
     if amount == 0 {
-        return 0;
-    }
-    let available = state.get(&FEE_BURN_SINK).map(|s| s.balance).unwrap_or(0);
-    let restore = amount.min(available);
-    if restore == 0 {
-        return 0;
-    }
-    if let Some(sink) = state.get_mut(&FEE_BURN_SINK) {
-        sink.balance = sink.balance.saturating_sub(restore);
+        return Ok(0);
     }
     if let Some(st) = state.get_mut(validator) {
-        st.stake = st.stake.saturating_add(restore);
+        st.stake = st.stake.saturating_add(amount);
     } else {
         state.insert(Account {
             id: *validator,
             state: AccountState {
                 balance: 0,
                 nonce: 0,
-                stake: restore,
+                stake: amount,
                 ..Default::default()
             },
         });
     }
-    restore
+    Ok(amount)
 }
 
-/// Reverse a media-blob FailedServe penalty: debit [`FEE_BURN_SINK`] and credit provider **balance**.
-/// Returns the amount actually restored (may be less if the burn sink is short).
+/// Reverse a media-blob FailedServe penalty: debit per-slash escrow (legacy: [`FEE_BURN_SINK`])
+/// and credit provider **balance**. **Fail-closed** if underfunded.
 pub fn restore_failed_serve_penalty(
     state: &mut StateStore,
     provider: &AccountId,
+    slash_id: u64,
     amount: u128,
-) -> u128 {
+) -> Result<u128, SlashRestoreError> {
+    debit_slash_restore_source(state, slash_id, amount)?;
     if amount == 0 {
-        return 0;
-    }
-    let available = state.get(&FEE_BURN_SINK).map(|s| s.balance).unwrap_or(0);
-    let restore = amount.min(available);
-    if restore == 0 {
-        return 0;
-    }
-    if let Some(sink) = state.get_mut(&FEE_BURN_SINK) {
-        sink.balance = sink.balance.saturating_sub(restore);
+        return Ok(0);
     }
     if let Some(st) = state.get_mut(provider) {
-        st.balance = st.balance.saturating_add(restore);
+        st.balance = st.balance.saturating_add(amount);
     } else {
         state.insert(Account {
             id: *provider,
             state: AccountState {
-                balance: restore,
+                balance: amount,
                 nonce: 0,
                 stake: 0,
                 ..Default::default()
             },
         });
     }
-    restore
+    Ok(amount)
 }
 
 /// dApp incentive cap per epoch (governance parameter; placeholder).
@@ -1004,10 +1071,14 @@ mod tests {
                 ..Default::default()
             },
         });
-        let burned = slash_equivocation_stake(&mut state, &v);
+        let burned = slash_equivocation_stake(&mut state, &v, 42);
         assert_eq!(burned, 5_000);
         assert_eq!(state.get(&v).unwrap().stake, 5_000);
-        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 5_000);
+        assert_eq!(
+            state.get(&slash_escrow_account(42)).unwrap().balance,
+            5_000
+        );
+        assert_eq!(state.get(&FEE_BURN_SINK).map(|s| s.balance).unwrap_or(0), 0);
     }
 
     #[test]
@@ -1024,11 +1095,14 @@ mod tests {
                 ..Default::default()
             },
         });
-        let burned = slash_equivocation_stake(&mut state, &v);
+        let burned = slash_equivocation_stake(&mut state, &v, 7);
         assert_eq!(burned, 5_000);
         assert_eq!(state.get(&v).unwrap().stake, 0);
         assert_eq!(state.get(&v).unwrap().pending_unbond, 5_000);
-        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 5_000);
+        assert_eq!(
+            state.get(&slash_escrow_account(7)).unwrap().balance,
+            5_000
+        );
     }
 
     #[test]
@@ -1045,14 +1119,14 @@ mod tests {
                 ..Default::default()
             },
         });
-        let burned = slash_equivocation_stake(&mut state, &v);
+        let burned = slash_equivocation_stake(&mut state, &v, 1);
         assert_eq!(burned, 5_000);
         assert_eq!(state.get(&v).unwrap().stake, 0);
         assert_eq!(state.get(&v).unwrap().pending_unbond, 5_000);
     }
 
     #[test]
-    fn restore_equivocation_returns_stake_from_burn_sink() {
+    fn restore_equivocation_returns_stake_from_slash_escrow() {
         let v = AccountId([9u8; 32]);
         let mut state = StateStore::new();
         state.insert(Account {
@@ -1064,15 +1138,39 @@ mod tests {
                 ..Default::default()
             },
         });
-        let burned = slash_equivocation_stake(&mut state, &v);
-        let restored = restore_equivocation_slash(&mut state, &v, burned);
+        let burned = slash_equivocation_stake(&mut state, &v, 9);
+        // Competing fee burn must not under-fund the restore.
+        credit_account(&mut state, FEE_BURN_SINK, 1);
+        let restored = restore_equivocation_slash(&mut state, &v, 9, burned).unwrap();
         assert_eq!(restored, burned);
         assert_eq!(state.get(&v).unwrap().stake, 10_000);
-        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 0);
+        assert_eq!(
+            state.get(&slash_escrow_account(9)).map(|s| s.balance).unwrap_or(0),
+            0
+        );
+        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 1);
     }
 
     #[test]
-    fn restore_failed_serve_returns_balance_from_burn_sink() {
+    fn restore_fail_closed_when_escrow_short() {
+        let v = AccountId([9u8; 32]);
+        let mut state = StateStore::new();
+        credit_account(&mut state, slash_escrow_account(3), 100);
+        credit_account(&mut state, FEE_BURN_SINK, 10_000);
+        let err = restore_equivocation_slash(&mut state, &v, 3, 500).unwrap_err();
+        assert!(matches!(
+            err,
+            SlashRestoreError::InsufficientEscrow {
+                slash_id: 3,
+                needed: 500,
+                available: 100
+            }
+        ));
+        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 10_000);
+    }
+
+    #[test]
+    fn restore_failed_serve_legacy_from_fee_burn_sink() {
         let p = AccountId([7u8; 32]);
         let mut state = StateStore::new();
         state.insert(Account {
@@ -1084,8 +1182,9 @@ mod tests {
                 ..Default::default()
             },
         });
+        // Empty escrow + funded FEE_BURN_SINK = pre-escrow slash row.
         credit_account(&mut state, FEE_BURN_SINK, 1_000);
-        let restored = restore_failed_serve_penalty(&mut state, &p, 1_000);
+        let restored = restore_failed_serve_penalty(&mut state, &p, 99, 1_000).unwrap();
         assert_eq!(restored, 1_000);
         assert_eq!(state.get(&p).unwrap().balance, 1_100);
         assert_eq!(state.get(&p).unwrap().stake, 50);
@@ -1105,9 +1204,12 @@ mod tests {
                 ..Default::default()
             },
         });
-        let burned = slash_liveness_stake(&mut state, &v);
+        let burned = slash_liveness_stake(&mut state, &v, 11);
         assert_eq!(burned, 1_000);
         assert_eq!(state.get(&v).unwrap().stake, 9_000);
-        assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 1_000);
+        assert_eq!(
+            state.get(&slash_escrow_account(11)).unwrap().balance,
+            1_000
+        );
     }
 }

@@ -339,6 +339,16 @@ pub fn dispatch(node: &BoingNode, method: &str, params: &Value) -> Result<Value,
             );
             put(
                 &mut m,
+                "aclActivationHeight",
+                json!(phase34_blob_acl_activation_height()),
+            );
+            put(
+                &mut m,
+                "aclActiveAtTip",
+                json!(phase34_blob_acl_active_at_tip(node.chain.height())),
+            );
+            put(
+                &mut m,
                 "effectiveMaxBytesAtTip",
                 json!(node.executor.vm().media_blob_max_bytes(next)),
             );

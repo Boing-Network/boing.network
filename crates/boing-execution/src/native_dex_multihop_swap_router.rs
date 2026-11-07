@@ -1,5 +1,8 @@
 //! **Multihop swap router:** **2–6** sequential [`Opcode::Call`]s to native CP pools in **one** transaction.
 //!
+//! **M12 note:** like the ledger router, this template does not treat soft-`STOP` callees as Call
+//! failures (Call always reports success=`1`). Prefer custody router + v8+ faulting pools.
+//!
 //! Selectors **`0xE5`–`0xEE`** cover **128**-byte inners (ledger **`swap`**) and **160**-byte inners (v5 **`swap_to`**).
 //! See `docs/NATIVE-DEX-MULTIHOP-SWAP-ROUTER.md`.
 

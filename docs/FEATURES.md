@@ -46,7 +46,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | 1188 | Micro fees (`execution_gas_fee_bps=100`) | crossed (`testnet-v0.1.19+` preset) |
 | 1200 | Media blob Put/Announce admission | live |
 | 1306 | PHASE7 **256 MiB** consensus cap | live |
-| ~1317 | Phase 34 HTTP ACL private-by-default | **uncertain on probe** — docs cite 1317; confirm `boing_getMediaBlobParams` / ACL fields before assuming active |
+| 1317 | Phase 34 HTTP ACL private-by-default | **Live:** Fly secret `BOING_BLOB_ACL_ACTIVATION_HEIGHT=1317`; exposed on `boing_getMediaBlobParams.aclActivationHeight` / `aclActiveAtTip` |
 | **1500** | Storage-tree v2 + account-tree v3 + VM hardening | **crossed** (2026-10-30; tags `testnet-v0.1.20` / `0.1.21`) |
 | **1600** | Equivocation slash + strict JUMPI / NATIVE_TRANSFER reporting | **gated** (tip &lt; 1600) |
 | **1700** | Canonical on-chain QA policy (+ public Unsure pool semantics in `0.1.24`) | **gated** |
@@ -84,7 +84,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 
 | Feature | Status | When / evidence | Confidence |
 |---------|--------|-----------------|------------|
-| HotStuff multi-validator MVP | testnet live (ops often single-validator) | NEXT-STEPS; RUNBOOK multi-validator section | high |
+| Single-round quorum-commit multi-validator MVP (HotStuff-style) | testnet live (ops often single-validator) | NEXT-STEPS; RUNBOOK multi-validator section | high |
 | Stake-derived validator epochs + unbonding | opt-in done | RUNBOOK §8.1; NEXT-STEPS | high |
 | Open validator registration | testnet live | H=**400** when set; [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md) | high |
 | VRF leader election (ECVRF + gossip) | opt-in done | NEXT-STEPS | high |
