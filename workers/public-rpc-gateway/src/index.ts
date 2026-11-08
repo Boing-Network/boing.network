@@ -35,6 +35,19 @@ type Env = {
   EDGE_POLICY_MODE?: string;
   /** Optional secret: callers presenting it in `X-Boing-Edge-Trusted` skip rate limits (never the blocklist). */
   EDGE_TRUSTED_TOKEN?: string;
+  /**
+   * Optional Cloudflare Access service-token pair for upstream origin fetches.
+   * When both are set, every probe/proxy request to `RPC_BACKENDS` includes
+   * `CF-Access-Client-Id` / `CF-Access-Client-Secret`. Leave unset until Access
+   * is applied on the origin hostname (see Project docs/fly-origin-access-lockdown.md).
+   */
+  CF_ACCESS_CLIENT_ID?: string;
+  CF_ACCESS_CLIENT_SECRET?: string;
+  /**
+   * Optional shared secret for a Fly-side HTTP companion gate (`X-Boing-Origin-Gate`).
+   * Used with Access so naked `*.fly.dev` can reject unauthenticated clients.
+   */
+  BOING_ORIGIN_GATE_TOKEN?: string;
   [binding: string]: unknown;
 };
 
@@ -113,11 +126,30 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-async function probeLive(origin: string): Promise<boolean> {
+/** Attach Access service-token + optional origin-gate headers when secrets are configured. */
+function applyUpstreamAuth(headers: Headers, env: Env): void {
+  const id = typeof env.CF_ACCESS_CLIENT_ID === "string" ? env.CF_ACCESS_CLIENT_ID.trim() : "";
+  const secret =
+    typeof env.CF_ACCESS_CLIENT_SECRET === "string" ? env.CF_ACCESS_CLIENT_SECRET.trim() : "";
+  if (id && secret) {
+    headers.set("CF-Access-Client-Id", id);
+    headers.set("CF-Access-Client-Secret", secret);
+  }
+  const gate =
+    typeof env.BOING_ORIGIN_GATE_TOKEN === "string" ? env.BOING_ORIGIN_GATE_TOKEN.trim() : "";
+  if (gate) headers.set("X-Boing-Origin-Gate", gate);
+}
+
+async function probeLive(origin: string, env: Env): Promise<boolean> {
   try {
+    const headers = new Headers({
+      Accept: "text/plain",
+      "User-Agent": "boing-public-rpc-gateway/1",
+    });
+    applyUpstreamAuth(headers, env);
     const res = await fetch(`${origin}/live`, {
       method: "GET",
-      headers: { Accept: "text/plain", "User-Agent": "boing-public-rpc-gateway/1" },
+      headers,
       signal: AbortSignal.timeout(4_000),
     });
     return res.ok;
@@ -126,12 +158,12 @@ async function probeLive(origin: string): Promise<boolean> {
   }
 }
 
-async function liveMap(origins: string[]): Promise<Map<string, boolean>> {
+async function liveMap(origins: string[], env: Env): Promise<Map<string, boolean>> {
   const now = Date.now();
   if (healthCache && now - healthCache.at < HEALTH_TTL_MS) {
     return healthCache.live;
   }
-  const pairs = await Promise.all(origins.map(async (o) => [o, await probeLive(o)] as const));
+  const pairs = await Promise.all(origins.map(async (o) => [o, await probeLive(o, env)] as const));
   const live = new Map(pairs);
   healthCache = { at: now, live };
   return live;
@@ -156,7 +188,7 @@ function shouldFailover(status: number): boolean {
  */
 const UPSTREAM_ACCEPT_ENCODING = "identity";
 
-function hopHeaders(req: Request): Headers {
+function hopHeaders(req: Request, env: Env): Headers {
   const headers = new Headers();
   headers.set("Accept-Encoding", UPSTREAM_ACCEPT_ENCODING);
   // Forward operator auth, blob download tokens, and Phase 34 wallet proof headers to Fly.
@@ -178,6 +210,7 @@ function hopHeaders(req: Request): Headers {
     if (v) headers.set(name, v);
   }
   if (!headers.has("User-Agent")) headers.set("User-Agent", "boing-public-rpc-gateway/1");
+  applyUpstreamAuth(headers, env);
   return headers;
 }
 
@@ -185,13 +218,14 @@ async function proxyOnce(
   origin: string,
   req: Request,
   body: ArrayBuffer | null,
+  env: Env,
   timeoutMs = UPSTREAM_TIMEOUT_MS
 ): Promise<Response> {
   const url = new URL(req.url);
   const target = `${origin}${url.pathname}${url.search}`;
   return fetch(target, {
     method: req.method,
-    headers: hopHeaders(req),
+    headers: hopHeaders(req, env),
     body: body && req.method !== "GET" && req.method !== "HEAD" ? body : undefined,
     redirect: "manual",
     signal: AbortSignal.timeout(timeoutMs),
@@ -322,11 +356,16 @@ export function isAlreadyInMempoolBody(text: string): boolean {
   }
 }
 
-async function proxySubmitFanout(origins: string[], req: Request, body: ArrayBuffer | null): Promise<Response> {
+async function proxySubmitFanout(
+  origins: string[],
+  req: Request,
+  body: ArrayBuffer | null,
+  env: Env
+): Promise<Response> {
   const settled = await Promise.all(
     origins.map(async (origin): Promise<FanoutAttempt> => {
       try {
-        const upstream = await proxyOnce(origin, req, body, SUBMIT_UPSTREAM_TIMEOUT_MS);
+        const upstream = await proxyOnce(origin, req, body, env, SUBMIT_UPSTREAM_TIMEOUT_MS);
         const text = await upstream.text();
         const headers = new Headers(upstream.headers);
         if (upstream.status >= 200 && upstream.status < 300) {
@@ -590,7 +629,7 @@ async function handle(
     const url = new URL(req.url);
 
     if (url.pathname === "/__gateway/health") {
-      const live = await liveMap(origins);
+      const live = await liveMap(origins, env);
       return json({
         ok: [...live.values()].some(Boolean),
         backends: origins.map((origin) => ({ origin, live: live.get(origin) === true })),
@@ -621,7 +660,7 @@ async function handle(
     if (faucetDenied) return faucetDenied;
 
     if (req.method === "POST" && FANOUT_RPC_METHODS.has(jsonRpcMethod(body) ?? "")) {
-      return proxySubmitFanout(origins, req, body);
+      return proxySubmitFanout(origins, req, body, env);
     }
 
     const sizeKey = req.method === "POST" ? oversizeKey(body) : null;
@@ -632,7 +671,7 @@ async function handle(
       );
     }
 
-    const live = await liveMap(origins);
+    const live = await liveMap(origins, env);
     const order = orderedBackends(origins, live);
     let lastStatus = 502;
     let lastText = "no healthy RPC backend";
@@ -640,7 +679,7 @@ async function handle(
     for (let i = 0; i < order.length; i += 1) {
       const origin = order[i];
       try {
-        const upstream = await proxyOnce(origin, req, body);
+        const upstream = await proxyOnce(origin, req, body, env);
         if (shouldFailover(upstream.status) && i < order.length - 1) {
           lastStatus = upstream.status;
           lastText = `backend ${origin} returned HTTP ${upstream.status}`;
