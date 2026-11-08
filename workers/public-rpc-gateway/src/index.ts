@@ -49,9 +49,10 @@ type Env = {
    */
   BOING_ORIGIN_GATE_TOKEN?: string;
   /**
-   * Service binding to `boing-origin-access-proxy`. Prefer `RPC_BACKENDS=service:ORIGIN_PROXY`
-   * over fetching the Access-protected custom hostname (Workers→Access on the same zone is unreliable).
-   * Typed locally — this package's tsconfig uses `"types": []` (no Cloudflare ambient `Fetcher`).
+   * Optional service binding to `boing-origin-access-proxy` for dual-hop rollback /
+   * Access break-glass only. Hot path uses `RPC_BACKENDS=https://boing-testnet-1.fly.dev`
+   * + `BOING_ORIGIN_GATE_TOKEN` (single Worker hop). Typed locally — this package's
+   * tsconfig uses `"types": []` (no Cloudflare ambient `Fetcher`).
    */
   ORIGIN_PROXY?: { fetch: typeof fetch };
   [binding: string]: unknown;
