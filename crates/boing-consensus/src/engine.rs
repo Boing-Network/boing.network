@@ -934,7 +934,10 @@ mod tests {
         let vrf0 = boing_primitives::dummy_vrf_output(0);
         let expected0 = boing_primitives::leader_from_vrf(&validators, &vrf0).unwrap();
         assert_eq!(engine.leader(0), expected0);
+        // Stub verify is deny-by-default outside BOING_RATE_PROFILE=dev (audit L3).
+        std::env::set_var("BOING_ALLOW_STUB_VRF", "1");
         assert!(boing_primitives::verify_vrf_output(1, &vrf1, None));
+        std::env::remove_var("BOING_ALLOW_STUB_VRF");
     }
 
     #[test]

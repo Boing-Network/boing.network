@@ -45,7 +45,13 @@ impl BlobDownloadNonceCache {
 
     /// Returns `true` if this `(blob_id, nonce)` was not yet consumed; inserts it with `expires_at_unix`.
     /// Returns `false` on replay. Prunes expired entries opportunistically; may evict oldest when full.
-    pub fn try_consume(&self, blob_id: &BlobId, nonce: &[u8; 32], expires_at_unix: u64, now_unix: u64) -> bool {
+    pub fn try_consume(
+        &self,
+        blob_id: &BlobId,
+        nonce: &[u8; 32],
+        expires_at_unix: u64,
+        now_unix: u64,
+    ) -> bool {
         let mut g = match self.inner.lock() {
             Ok(g) => g,
             Err(p) => p.into_inner(),

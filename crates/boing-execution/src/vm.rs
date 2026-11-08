@@ -1594,8 +1594,7 @@ impl Vm {
             });
         }
         let slash_id = state.slash_appeals().peek_next_slash_id();
-        let burned =
-            boing_tokenomics::slash_equivocation_stake(state, &offender, slash_id);
+        let burned = boing_tokenomics::slash_equivocation_stake(state, &offender, slash_id);
         state
             .slash_appeals_mut()
             .record_slash_with_id(

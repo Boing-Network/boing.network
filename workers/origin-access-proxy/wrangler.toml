@@ -1,0 +1,19 @@
+# Access-fronted reverse proxy for the Fly validator HTTP origin.
+# Hostname: https://origin-testnet.boing.network/  (Cloudflare Access + this Worker)
+# Upstream: https://boing-testnet-1.fly.dev  (optionally gated by BOING_ORIGIN_GATE_TOKEN on the node)
+name = "boing-origin-access-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-03-06"
+# Keep workers.dev off so the gate-injecting proxy is not a public bypass of Access.
+workers_dev = false
+
+[[routes]]
+pattern = "origin-testnet.boing.network/*"
+zone_name = "boing.network"
+
+[vars]
+UPSTREAM_ORIGIN = "https://boing-testnet-1.fly.dev"
+
+[observability]
+enabled = true
+head_sampling_rate = 1

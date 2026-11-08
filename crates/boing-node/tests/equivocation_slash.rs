@@ -242,7 +242,8 @@ fn report_equivocation_is_idempotent_across_two_state_clones() {
     });
     let mut state_b = state_a.snapshot();
 
-    let escrow = boing_tokenomics::slash_escrow_account(state_a.slash_appeals().peek_next_slash_id());
+    let escrow =
+        boing_tokenomics::slash_escrow_account(state_a.slash_appeals().peek_next_slash_id());
     let mk_tx = |nonce: u64, evidence: EquivocationEvidence| Transaction {
         nonce,
         sender: reporter,

@@ -30,7 +30,8 @@ pub const NATIVE_DEX_FACTORY_CREATE2_SALT_V1: [u8; 32] =
 pub const NATIVE_DEX_FACTORY_MAX_PAIRS: u64 = 4096;
 
 /// Domain mixed into the unordered-pair occupancy key (`token_a XOR token_b XOR domain`).
-const NATIVE_DEX_FACTORY_PAIR_KEY_DOMAIN: [u8; 32] = *b"BOINGDEXPAIRUNIQ1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+const NATIVE_DEX_FACTORY_PAIR_KEY_DOMAIN: [u8; 32] =
+    *b"BOINGDEXPAIRUNIQ1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
 fn push32(code: &mut Vec<u8>, w: &[u8; 32]) {
     code.push(Opcode::Push32 as u8);

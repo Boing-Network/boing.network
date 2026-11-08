@@ -13,6 +13,9 @@ primary_region = "iad"
 # Secrets (set with `fly secrets set`, never in this file):
 #   BOING_OPERATOR_RPC_TOKEN  operator RPC auth (fail-closed: operator methods return -32057 without it).
 #   fly secrets set BOING_OPERATOR_RPC_TOKEN="$(openssl rand -hex 32)" -a <app>
+#   BOING_ORIGIN_GATE_TOKEN   companion gate vs naked *.fly.dev HTTP (X-Boing-Origin-Gate); pair with
+#                             Cloudflare Access on origin-testnet.boing.network + Worker secret of the same name.
+#   fly secrets set BOING_ORIGIN_GATE_TOKEN="$(openssl rand -hex 32)" -a <app>
 
 [env]
   RUST_LOG = "info"

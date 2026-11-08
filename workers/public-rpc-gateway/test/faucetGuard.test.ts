@@ -118,7 +118,8 @@ describe("faucet guard through the gateway (enforce)", () => {
     expect(j.id).toBe(7);
     expect(j.error.code).toBe(-32016);
     expect(j.error.data.reason).toBe("faucet_address_cooldown");
-    expect(j.error.message).toMatch(/Try again in 23h 59m/);
+    // Ceiling can land on 24h 0m or 23h 59m depending on ms timing.
+    expect(j.error.message).toMatch(/Try again in 2[34]h \d+m/);
     expect(posts).toBe(1);
   });
 
