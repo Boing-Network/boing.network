@@ -51,8 +51,9 @@ type Env = {
   /**
    * Service binding to `boing-origin-access-proxy`. Prefer `RPC_BACKENDS=service:ORIGIN_PROXY`
    * over fetching the Access-protected custom hostname (Workers→Access on the same zone is unreliable).
+   * Typed locally — this package's tsconfig uses `"types": []` (no Cloudflare ambient `Fetcher`).
    */
-  ORIGIN_PROXY?: Fetcher;
+  ORIGIN_PROXY?: { fetch: typeof fetch };
   [binding: string]: unknown;
 };
 

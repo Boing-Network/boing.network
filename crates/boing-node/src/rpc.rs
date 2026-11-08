@@ -2235,10 +2235,7 @@ mod origin_gate_tests {
         assert!(origin_gate_authorized("gate-secret", &ok));
         assert!(!origin_gate_authorized("gate-secret", &HeaderMap::new()));
         let mut bad = HeaderMap::new();
-        bad.insert(
-            "x-boing-origin-gate",
-            HeaderValue::from_static("wrong"),
-        );
+        bad.insert("x-boing-origin-gate", HeaderValue::from_static("wrong"));
         assert!(!origin_gate_authorized("gate-secret", &bad));
     }
 }

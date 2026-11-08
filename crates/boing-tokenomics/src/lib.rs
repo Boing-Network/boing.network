@@ -202,11 +202,7 @@ pub fn slash_equivocation_stake(
 /// Slash bonded stake for liveness failure; amount is credited to [`slash_escrow_account`].
 /// Same slashable base as [`slash_equivocation_stake`]. **Not** called from consensus yet —
 /// stake-mode liveness still needs a block-ordered evidence path (see node `tick_liveness`).
-pub fn slash_liveness_stake(
-    state: &mut StateStore,
-    validator: &AccountId,
-    slash_id: u64,
-) -> u128 {
+pub fn slash_liveness_stake(state: &mut StateStore, validator: &AccountId, slash_id: u64) -> u128 {
     let amount = {
         let Some(st) = state.get_mut(validator) else {
             return 0;
@@ -1074,10 +1070,7 @@ mod tests {
         let burned = slash_equivocation_stake(&mut state, &v, 42);
         assert_eq!(burned, 5_000);
         assert_eq!(state.get(&v).unwrap().stake, 5_000);
-        assert_eq!(
-            state.get(&slash_escrow_account(42)).unwrap().balance,
-            5_000
-        );
+        assert_eq!(state.get(&slash_escrow_account(42)).unwrap().balance, 5_000);
         assert_eq!(state.get(&FEE_BURN_SINK).map(|s| s.balance).unwrap_or(0), 0);
     }
 
@@ -1099,10 +1092,7 @@ mod tests {
         assert_eq!(burned, 5_000);
         assert_eq!(state.get(&v).unwrap().stake, 0);
         assert_eq!(state.get(&v).unwrap().pending_unbond, 5_000);
-        assert_eq!(
-            state.get(&slash_escrow_account(7)).unwrap().balance,
-            5_000
-        );
+        assert_eq!(state.get(&slash_escrow_account(7)).unwrap().balance, 5_000);
     }
 
     #[test]
@@ -1145,7 +1135,10 @@ mod tests {
         assert_eq!(restored, burned);
         assert_eq!(state.get(&v).unwrap().stake, 10_000);
         assert_eq!(
-            state.get(&slash_escrow_account(9)).map(|s| s.balance).unwrap_or(0),
+            state
+                .get(&slash_escrow_account(9))
+                .map(|s| s.balance)
+                .unwrap_or(0),
             0
         );
         assert_eq!(state.get(&FEE_BURN_SINK).unwrap().balance, 1);
@@ -1207,9 +1200,6 @@ mod tests {
         let burned = slash_liveness_stake(&mut state, &v, 11);
         assert_eq!(burned, 1_000);
         assert_eq!(state.get(&v).unwrap().stake, 9_000);
-        assert_eq!(
-            state.get(&slash_escrow_account(11)).unwrap().balance,
-            1_000
-        );
+        assert_eq!(state.get(&slash_escrow_account(11)).unwrap().balance, 1_000);
     }
 }

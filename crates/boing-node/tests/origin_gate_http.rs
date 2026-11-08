@@ -92,10 +92,7 @@ async fn gate_on_allows_rpc_with_matching_header() {
 #[tokio::test]
 async fn gate_on_still_allows_live_without_header() {
     // Fly http_service.checks hit GET /live with no gate header.
-    assert_eq!(
-        live_status(Some("gate-secret"), None).await,
-        StatusCode::OK
-    );
+    assert_eq!(live_status(Some("gate-secret"), None).await, StatusCode::OK);
 }
 
 #[tokio::test]
