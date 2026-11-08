@@ -462,7 +462,7 @@ fn parse_origin_gate_token_env() -> Option<Arc<str>> {
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .map(|s| Arc::<str>::from(s))
+        .map(Arc::<str>::from)
 }
 
 fn origin_gate_path_exempt(method: &Method, path: &str) -> bool {
@@ -1408,10 +1408,9 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
             "votes": votes_out,
         });
         if let Some(note) = pin_set_note {
-            appeal_obj
-                .as_object_mut()
-                .unwrap()
-                .insert("pinSetNote".into(), serde_json::json!(note));
+            if let Some(map) = appeal_obj.as_object_mut() {
+                map.insert("pinSetNote".into(), serde_json::json!(note));
+            }
         }
         appeals_out.push(appeal_obj);
     }
@@ -1423,9 +1422,9 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
         "note": "Read-only Phase 22 audit: dual-verifies stored Ed25519 resolve ballots (V2 then V1); does not expire, restore, or mutate state.",
     });
     if let Some(m) = registry_commitment_match {
-        out.as_object_mut()
-            .unwrap()
-            .insert("registryCommitmentMatch".into(), serde_json::json!(m));
+        if let Some(map) = out.as_object_mut() {
+            map.insert("registryCommitmentMatch".into(), serde_json::json!(m));
+        }
     }
     out
 }
@@ -1873,9 +1872,7 @@ fn well_known_boing_rpc_document() -> serde_json::Value {
 /// Optional 32-byte `AccountId` from env for **`boing_getNetworkInfo.end_user`** (lowercase `0x` + 64 hex).
 /// Malformed values are logged and ignored so a typo does not break JSON-RPC.
 fn optional_account_id_hex(var: &'static str, raw: Option<String>) -> Option<String> {
-    let Some(raw) = raw else {
-        return None;
-    };
+    let raw = raw?;
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return None;
@@ -3055,10 +3052,12 @@ async fn dispatch_jsonrpc_request(
                                 "weight": v.weight.to_string(),
                             });
                             if let Some(sig) = v.ballot_signature {
-                                obj.as_object_mut().unwrap().insert(
-                                    "ballotSignatureHex".into(),
-                                    serde_json::json!(format!("0x{}", hex::encode(sig.0))),
-                                );
+                                if let Some(map) = obj.as_object_mut() {
+                                    map.insert(
+                                        "ballotSignatureHex".into(),
+                                        serde_json::json!(format!("0x{}", hex::encode(sig.0))),
+                                    );
+                                }
                             }
                             obj
                         })

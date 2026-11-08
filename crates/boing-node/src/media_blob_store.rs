@@ -538,6 +538,10 @@ impl MediaBlobStore {
             .entries
             .len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[cfg(test)]
@@ -636,6 +640,15 @@ mod tests {
         assert_eq!(store.get_bytes(&id).unwrap().unwrap(), data);
         assert_eq!(store.put_gossip_bytes_if_known(&id, data).unwrap(), false);
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn store_is_empty_when_fresh() {
+        let dir = tmp_dir("is_empty");
+        let store = MediaBlobStore::open(&dir).unwrap();
+        assert!(store.is_empty());
+        assert_eq!(store.len(), 0);
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
