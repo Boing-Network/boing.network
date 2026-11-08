@@ -25,8 +25,8 @@ beforeEach(() => {
     "fetch",
     vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
-      if (url === `${ORIGIN}/live`) return new Response("ok", { status: 200 });
       if (init?.headers) upstreamHeaderSnaps.push(new Headers(init.headers as HeadersInit));
+      if (url === `${ORIGIN}/live`) return new Response("ok", { status: 200 });
       if (init?.method === "POST") upstreamPosts.push(String(init.body ? new TextDecoder().decode(init.body as ArrayBuffer) : ""));
       return new Response(OK_BODY, { status: 200, headers: { "Content-Type": "application/json" } });
     })
@@ -211,5 +211,50 @@ describe("gateway with the policy off, and non-RPC routes", () => {
     const res = await worker.fetch(new Request("https://testnet-rpc.boing.network/live", { method: "GET" }), env("enforce"));
     expect(res.status).toBe(200);
     expect(res.headers.get("X-Boing-Edge-Policy")).toBeNull();
+  });
+});
+
+describe("optional Cloudflare Access / origin-gate upstream auth", () => {
+  it("omits Access headers when secrets are unset (Access stays off)", async () => {
+    await worker.fetch(rpc(call("boing_getBalance")), env("log"));
+    expect(upstreamHeaderSnaps.length).toBeGreaterThan(0);
+    const hop = upstreamHeaderSnaps[upstreamHeaderSnaps.length - 1]!;
+    expect(hop.get("CF-Access-Client-Id")).toBeNull();
+    expect(hop.get("CF-Access-Client-Secret")).toBeNull();
+    expect(hop.get("X-Boing-Origin-Gate")).toBeNull();
+  });
+
+  it("attaches Access + origin-gate headers on proxy and /live probes when secrets are set", async () => {
+    const e = env("log", {
+      CF_ACCESS_CLIENT_ID: "gateway-client-id.access",
+      CF_ACCESS_CLIENT_SECRET: "gateway-client-secret",
+      BOING_ORIGIN_GATE_TOKEN: "origin-gate-secret",
+    });
+    await worker.fetch(rpc(call("boing_getBalance")), e);
+    const hop = upstreamHeaderSnaps[upstreamHeaderSnaps.length - 1]!;
+    expect(hop.get("CF-Access-Client-Id")).toBe("gateway-client-id.access");
+    expect(hop.get("CF-Access-Client-Secret")).toBe("gateway-client-secret");
+    expect(hop.get("X-Boing-Origin-Gate")).toBe("origin-gate-secret");
+
+    // Expire the module health cache so /__gateway/health re-probes /live.
+    vi.useFakeTimers({ now: Date.now() + 30_000 });
+    upstreamHeaderSnaps = [];
+    await worker.fetch(new Request("https://testnet-rpc.boing.network/__gateway/health"), e);
+    vi.useRealTimers();
+    expect(upstreamHeaderSnaps.length).toBeGreaterThan(0);
+    const probe = upstreamHeaderSnaps[upstreamHeaderSnaps.length - 1]!;
+    expect(probe.get("CF-Access-Client-Id")).toBe("gateway-client-id.access");
+    expect(probe.get("CF-Access-Client-Secret")).toBe("gateway-client-secret");
+    expect(probe.get("X-Boing-Origin-Gate")).toBe("origin-gate-secret");
+  });
+
+  it("does not send Access headers when only one of the pair is set", async () => {
+    await worker.fetch(
+      rpc(call("boing_getBalance")),
+      env("log", { CF_ACCESS_CLIENT_ID: "only-id.access" })
+    );
+    const hop = upstreamHeaderSnaps[upstreamHeaderSnaps.length - 1]!;
+    expect(hop.get("CF-Access-Client-Id")).toBeNull();
+    expect(hop.get("CF-Access-Client-Secret")).toBeNull();
   });
 });
