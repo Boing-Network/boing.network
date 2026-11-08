@@ -433,6 +433,8 @@ pub(crate) fn predicted_deploy_addresses(tx: &Transaction) -> Vec<AccountId> {
     v
 }
 
+type DeployTokenMetaMap = HashMap<AccountId, (String, String, &'static str)>;
+
 /// `token_id` -> `(symbol, name, metadata_source)` from recent **`ContractDeployWithPurposeAndMetadata`** txs.
 /// Scans **newest-first** and stops when every wanted id is resolved. Returns
 /// **`(map, blocks_considered, matched_count, unmatched_want)`**.
@@ -440,12 +442,7 @@ fn scan_deploy_token_metadata(
     chain: &ChainState,
     want: &HashSet<AccountId>,
     max_blocks: u64,
-) -> (
-    HashMap<AccountId, (String, String, &'static str)>,
-    u64,
-    usize,
-    usize,
-) {
+) -> (DeployTokenMetaMap, u64, usize, usize) {
     let tip = chain.height();
     let low = tip.saturating_sub(max_blocks);
     let mut out: HashMap<AccountId, (String, String, &'static str)> = HashMap::new();

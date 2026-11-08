@@ -32,6 +32,8 @@ pub const MAX_PERSIST_REGISTRY_FILE_BYTES: u64 = 512 * 1024 * 1024;
 /// Default cap for the full state snapshot `accounts.bin` (override: `BOING_PERSIST_MAX_STATE_BYTES`).
 pub const DEFAULT_MAX_PERSIST_STATE_BYTES: u64 = 32 * 1024 * 1024 * 1024;
 
+pub type ObservedVotesMap = std::collections::HashMap<(u64, AccountId), ConsensusVote>;
+
 fn max_state_file_bytes() -> u64 {
     std::env::var("BOING_PERSIST_MAX_STATE_BYTES")
         .ok()
@@ -403,10 +405,7 @@ impl Persistence {
         Ok(())
     }
 
-    pub fn load_observed_votes(
-        &self,
-    ) -> Result<Option<std::collections::HashMap<(u64, AccountId), ConsensusVote>>, PersistenceError>
-    {
+    pub fn load_observed_votes(&self) -> Result<Option<ObservedVotesMap>, PersistenceError> {
         let path = self.chain_dir().join(OBSERVED_VOTES_FILE);
         if !path.exists() {
             return Ok(None);

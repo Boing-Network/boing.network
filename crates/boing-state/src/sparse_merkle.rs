@@ -295,11 +295,12 @@ impl SparseMerkleTree {
     /// Empty tree that routes on the first `max_depth` key bits ([`LEGACY_MAX_DEPTH`] or
     /// [`DEEP_MAX_DEPTH`]).
     pub fn with_max_depth(max_depth: u32) -> Self {
-        let mut trie = Trie::default();
-        trie.max_depth = max_depth;
         Self {
             leaves: HashMap::new(),
-            trie,
+            trie: Trie {
+                max_depth,
+                ..Default::default()
+            },
             max_depth,
         }
     }
