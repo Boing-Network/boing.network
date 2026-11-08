@@ -110,6 +110,9 @@ pub struct RpcState {
     pub rpc_metrics: Arc<RpcHttpMetrics>,
     /// Phase 34.1 partial: single-use download-proof nonce cache (process-local).
     pub blob_download_nonce_cache: Arc<crate::blob_download_nonce_cache::BlobDownloadNonceCache>,
+    /// When set (`BOING_ORIGIN_GATE_TOKEN`), all HTTP except Fly health `GET|HEAD /live`
+    /// requires matching `X-Boing-Origin-Gate` (companion to Cloudflare Access on the custom hostname).
+    pub origin_gate_token: Option<Arc<str>>,
 }
 
 /// Monotonic counters for RPC UX / operator dashboards (best-effort; not a billing metric).
@@ -450,6 +453,50 @@ fn operator_token_matches(expected: Option<&str>, headers: &HeaderMap) -> bool {
         .get("x-boing-operator")
         .and_then(|v| v.to_str().ok())
         .is_some_and(|v| secret_eq(v, expected))
+}
+
+/// Optional companion gate for naked `*.fly.dev` HTTP (pairs with Cloudflare Access on a custom hostname).
+/// Read once at router build; unset = gate off (default).
+fn parse_origin_gate_token_env() -> Option<Arc<str>> {
+    std::env::var("BOING_ORIGIN_GATE_TOKEN")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .map(|s| Arc::<str>::from(s))
+}
+
+fn origin_gate_path_exempt(method: &Method, path: &str) -> bool {
+    // Fly `http_service.checks` probe GET /live without operator headers; keep them working when the
+    // gate is on. JSON-RPC and other surfaces still require `X-Boing-Origin-Gate`.
+    matches!(*method, Method::GET | Method::HEAD) && (path == "/live" || path == "/live.json")
+}
+
+fn origin_gate_authorized(expected: &str, headers: &HeaderMap) -> bool {
+    headers
+        .get("x-boing-origin-gate")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| secret_eq(v, expected))
+}
+
+async fn require_origin_gate(
+    State(state): State<RpcState>,
+    req: IncomingRequest,
+    next: Next,
+) -> Response {
+    let Some(expected) = state.origin_gate_token.as_deref() else {
+        return next.run(req).await;
+    };
+    if origin_gate_path_exempt(req.method(), req.uri().path()) {
+        return next.run(req).await;
+    }
+    if origin_gate_authorized(expected, req.headers()) {
+        return next.run(req).await;
+    }
+    let body = serde_json::json!({
+        "error": "origin_gate",
+        "message": "Unauthorized: set X-Boing-Origin-Gate to match BOING_ORIGIN_GATE_TOKEN (public clients must use https://testnet-rpc.boing.network/).",
+    });
+    (StatusCode::UNAUTHORIZED, Json(body)).into_response()
 }
 
 /// Domain-separated message for local-mirror `boing_submitSlashAppeal` without operator token.
@@ -2161,6 +2208,38 @@ mod secret_eq_tests {
         assert!(!secret_eq("", "a"));
         assert!(!secret_eq("s3cret-token\0", "s3cret-token"));
         assert!(!secret_eq("s3cret-token", "s3cret-token\0"));
+    }
+}
+
+#[cfg(test)]
+mod origin_gate_tests {
+    use super::{origin_gate_authorized, origin_gate_path_exempt};
+    use axum::http::{HeaderMap, HeaderValue, Method};
+
+    #[test]
+    fn live_probes_are_exempt() {
+        assert!(origin_gate_path_exempt(&Method::GET, "/live"));
+        assert!(origin_gate_path_exempt(&Method::HEAD, "/live.json"));
+        assert!(!origin_gate_path_exempt(&Method::POST, "/live"));
+        assert!(!origin_gate_path_exempt(&Method::GET, "/ready"));
+        assert!(!origin_gate_path_exempt(&Method::GET, "/"));
+    }
+
+    #[test]
+    fn header_must_match_secret() {
+        let mut ok = HeaderMap::new();
+        ok.insert(
+            "x-boing-origin-gate",
+            HeaderValue::from_static("gate-secret"),
+        );
+        assert!(origin_gate_authorized("gate-secret", &ok));
+        assert!(!origin_gate_authorized("gate-secret", &HeaderMap::new()));
+        let mut bad = HeaderMap::new();
+        bad.insert(
+            "x-boing-origin-gate",
+            HeaderValue::from_static("wrong"),
+        );
+        assert!(!origin_gate_authorized("gate-secret", &bad));
     }
 }
 
@@ -5898,6 +5977,33 @@ pub fn rpc_router(
         );
     }
 
+    let origin_gate_token = parse_origin_gate_token_env();
+    if origin_gate_token.is_some() {
+        tracing::info!(
+            "BOING_ORIGIN_GATE_TOKEN is set: HTTP requires X-Boing-Origin-Gate (GET|HEAD /live exempt for Fly health checks)"
+        );
+    }
+
+    let state = RpcState {
+        node,
+        rate_limiter,
+        faucet_signer,
+        faucet_cooldown,
+        faucet_submit_lock,
+        operator_rpc_token,
+        blob_download_tokens,
+        blob_get_require_auth,
+        head_broadcast,
+        ws_active,
+        ws_max_connections,
+        rate_limit_requests_per_sec,
+        rpc_metrics,
+        blob_download_nonce_cache: Arc::new(
+            crate::blob_download_nonce_cache::BlobDownloadNonceCache::new(),
+        ),
+        origin_gate_token,
+    };
+
     Router::new()
         .route(
             "/",
@@ -5928,22 +6034,9 @@ pub fn rpc_router(
         .layer(DefaultBodyLimit::max(max_rpc_body_bytes()))
         .layer(cors)
         .layer(middleware::from_fn(map_payload_too_large_to_json))
-        .with_state(RpcState {
-            node,
-            rate_limiter,
-            faucet_signer,
-            faucet_cooldown,
-            faucet_submit_lock,
-            operator_rpc_token,
-            blob_download_tokens,
-            blob_get_require_auth,
-            head_broadcast,
-            ws_active,
-            ws_max_connections,
-            rate_limit_requests_per_sec,
-            rpc_metrics,
-            blob_download_nonce_cache: Arc::new(
-                crate::blob_download_nonce_cache::BlobDownloadNonceCache::new(),
-            ),
-        })
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_origin_gate,
+        ))
+        .with_state(state)
 }

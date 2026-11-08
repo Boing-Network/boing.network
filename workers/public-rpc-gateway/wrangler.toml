@@ -10,10 +10,15 @@ pattern = "testnet-rpc.boing.network/*"
 zone_name = "boing.network"
 
 [vars]
-# Single hosted backend: boing-testnet-2 retired 2026-10-24.
-# After Access lockdown apply: switch to https://origin-testnet.boing.network
-# and set secrets CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET (see README).
-RPC_BACKENDS = "https://boing-testnet-1.fly.dev"
+# Prefer the ORIGIN_PROXY service binding (avoids Workers→Access same-zone fetch issues).
+# Rollback: RPC_BACKENDS = "https://boing-testnet-1.fly.dev"
+# Secrets: BOING_ORIGIN_GATE_TOKEN (node companion gate); CF_ACCESS_* optional for Access hostname curls.
+RPC_BACKENDS = "service:ORIGIN_PROXY"
+
+# Service binding to workers/origin-access-proxy (Access hostname + Fly reverse proxy).
+[[services]]
+binding = "ORIGIN_PROXY"
+service = "boing-origin-access-proxy"
 # Method allow-list + per-IP class limits (src/edgePolicy.ts): "log" = observe only, "enforce" = reject, "off".
 # Enforcing since 2026-10-28 after two days of log mode (5 of 35,796 requests would have been denied, all unknown methods). Rollback: set "log" or "off" and redeploy, or `wrangler rollback`. Optional secret: EDGE_TRUSTED_TOKEN.
 EDGE_POLICY_MODE = "enforce"

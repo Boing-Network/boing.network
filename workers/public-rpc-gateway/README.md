@@ -6,26 +6,27 @@ Cloudflare Worker that serves **`https://testnet-rpc.boing.network/`** and proxi
 Clients (observer, website, SDK)
   → testnet-rpc.boing.network
     → this Worker
-      → RPC_BACKENDS origin (today: boing-testnet-1.fly.dev;
-         after Access lockdown: origin-testnet.boing.network)
+      → service:ORIGIN_PROXY  (Worker binding → boing-origin-access-proxy)
+        → https://boing-testnet-1.fly.dev  (+ X-Boing-Origin-Gate when configured)
+
+Operators / break-glass
+  → https://origin-testnet.boing.network  (Cloudflare Access)
+    → same origin-access-proxy Worker → Fly
 ```
 
 This replaces a home **Cloudflare Tunnel** connector as the origin. The public hostname stays stable so explorer, wallet, and website env do not need to change.
 
-**Writes:** `boing_submitTransaction` is posted to **every** configured backend in parallel (validator `boing-testnet-1` first in `RPC_BACKENDS`). Extra backends are optional; today the Worker is pinned to testnet-1 only. Reads pick the first healthy origin.
+**Writes:** `boing_submitTransaction` is posted to **every** configured backend in parallel. Reads pick the first healthy origin.
 
-### Optional Cloudflare Access origin auth (off by default)
-
-When both secrets are set, upstream fetches include Access service-token headers (and optional origin gate):
+### Origin lockdown (Access + companion gate)
 
 | Secret / var | Purpose |
 |--------------|---------|
-| `CF_ACCESS_CLIENT_ID` | Access service token Client ID |
-| `CF_ACCESS_CLIENT_SECRET` | Access service token Client Secret |
-| `BOING_ORIGIN_GATE_TOKEN` | Optional `X-Boing-Origin-Gate` for a Fly-side HTTP companion gate |
-| `RPC_BACKENDS` | After lockdown: `https://origin-testnet.boing.network` |
+| `RPC_BACKENDS` | Prefer `service:ORIGIN_PROXY` (service binding). Rollback: `https://boing-testnet-1.fly.dev` |
+| `BOING_ORIGIN_GATE_TOKEN` | Optional `X-Boing-Origin-Gate` for the Fly-side HTTP companion gate (same value as node `BOING_ORIGIN_GATE_TOKEN`) |
+| `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` | Optional; only needed if this Worker fetches the Access hostname directly (not used with the service binding path) |
 
-Leave the Access secrets **unset** until Access is applied on the custom origin hostname. Runbook: Project `docs/fly-origin-access-lockdown.md`. **Do not** put secrets in `wrangler.toml`.
+`workers/origin-access-proxy` terminates the Access hostname and injects the origin gate toward Fly. Runbook: Project `docs/fly-origin-access-lockdown.md`. **Do not** put secrets in `wrangler.toml`.
 
 ## Deploy
 

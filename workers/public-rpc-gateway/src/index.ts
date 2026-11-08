@@ -48,8 +48,16 @@ type Env = {
    * Used with Access so naked `*.fly.dev` can reject unauthenticated clients.
    */
   BOING_ORIGIN_GATE_TOKEN?: string;
+  /**
+   * Service binding to `boing-origin-access-proxy`. Prefer `RPC_BACKENDS=service:ORIGIN_PROXY`
+   * over fetching the Access-protected custom hostname (Workers→Access on the same zone is unreliable).
+   */
+  ORIGIN_PROXY?: Fetcher;
   [binding: string]: unknown;
 };
+
+/** Synthetic origin for the ORIGIN_PROXY service binding (see wrangler.toml [[services]]). */
+const SERVICE_ORIGIN_PROXY = "service:ORIGIN_PROXY";
 
 
 /** Strip internal *.fly.dev hostnames from client-visible error text (audit #61 item 74). */
@@ -140,6 +148,25 @@ function applyUpstreamAuth(headers: Headers, env: Env): void {
   if (gate) headers.set("X-Boing-Origin-Gate", gate);
 }
 
+/** Fetch an upstream origin, including `service:ORIGIN_PROXY` via Worker service binding. */
+async function upstreamFetch(
+  origin: string,
+  pathWithSearch: string,
+  init: RequestInit,
+  env: Env
+): Promise<Response> {
+  if (origin === SERVICE_ORIGIN_PROXY) {
+    const fetcher = env.ORIGIN_PROXY;
+    if (!fetcher) {
+      throw new Error("ORIGIN_PROXY service binding is not configured");
+    }
+    const path = pathWithSearch.startsWith("/") ? pathWithSearch : `/${pathWithSearch}`;
+    return fetcher.fetch(new Request(`https://origin-proxy.internal${path}`, init));
+  }
+  const base = origin.replace(/\/$/, "");
+  return fetch(`${base}${pathWithSearch.startsWith("/") ? pathWithSearch : `/${pathWithSearch}`}`, init);
+}
+
 async function probeLive(origin: string, env: Env): Promise<boolean> {
   try {
     const headers = new Headers({
@@ -147,11 +174,11 @@ async function probeLive(origin: string, env: Env): Promise<boolean> {
       "User-Agent": "boing-public-rpc-gateway/1",
     });
     applyUpstreamAuth(headers, env);
-    const res = await fetch(`${origin}/live`, {
+    const res = await upstreamFetch(origin, "/live", {
       method: "GET",
       headers,
       signal: AbortSignal.timeout(4_000),
-    });
+    }, env);
     return res.ok;
   } catch {
     return false;
@@ -222,14 +249,19 @@ async function proxyOnce(
   timeoutMs = UPSTREAM_TIMEOUT_MS
 ): Promise<Response> {
   const url = new URL(req.url);
-  const target = `${origin}${url.pathname}${url.search}`;
-  return fetch(target, {
-    method: req.method,
-    headers: hopHeaders(req, env),
-    body: body && req.method !== "GET" && req.method !== "HEAD" ? body : undefined,
-    redirect: "manual",
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+  const pathWithSearch = `${url.pathname}${url.search}`;
+  return upstreamFetch(
+    origin,
+    pathWithSearch,
+    {
+      method: req.method,
+      headers: hopHeaders(req, env),
+      body: body && req.method !== "GET" && req.method !== "HEAD" ? body : undefined,
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
+    },
+    env
+  );
 }
 
 /**
