@@ -12,7 +12,7 @@ fuzz_target!(|data: &[u8]| {
     if pattern.is_empty() {
         return;
     }
-    let mut reg = boing_qa::RuleRegistry::new().with_scam_patterns(vec![pattern.to_vec()]);
+    let reg = boing_qa::RuleRegistry::new().with_scam_patterns(vec![pattern.to_vec()]);
     let _ = reg.validate();
     let _ = boing_qa::check_contract_deploy_full(bytecode, Some("dapp"), None, &reg);
 });

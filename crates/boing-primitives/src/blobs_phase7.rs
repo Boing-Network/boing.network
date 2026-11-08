@@ -115,7 +115,9 @@ pub fn das_light_client_seed_from_vrf(blob_id: &BlobId, vrf_output: &[u8; 32]) -
     h.update(vrf_output);
     let dig = h.finalize();
     let b = dig.as_bytes();
-    u64::from_le_bytes(b[0..8].try_into().unwrap())
+    let mut seed_bytes = [0u8; 8];
+    seed_bytes.copy_from_slice(&b[0..8]);
+    u64::from_le_bytes(seed_bytes)
 }
 
 /// VRF-bound sample indices (same mixer as Phase 6, different seed domain).

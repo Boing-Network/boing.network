@@ -48,8 +48,8 @@ impl IntentPool {
         }
         let id = signed.intent.id();
         let mut inner = self.inner.write().unwrap();
-        if inner.intents.contains_key(&id.0) {
-            inner.intents.insert(id.0, signed);
+        if let std::collections::hash_map::Entry::Occupied(mut e) = inner.intents.entry(id.0) {
+            e.insert(signed);
             return Ok(id);
         }
         while inner.intents.len() >= self.max_intents {

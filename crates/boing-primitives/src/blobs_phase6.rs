@@ -409,7 +409,9 @@ pub fn das_light_client_seed(blob_id: &BlobId, tip_height: u64) -> u64 {
     h.update(&tip_height.to_le_bytes());
     let dig = h.finalize();
     let b = dig.as_bytes();
-    u64::from_le_bytes(b[0..8].try_into().unwrap())
+    let mut seed_bytes = [0u8; 8];
+    seed_bytes.copy_from_slice(&b[0..8]);
+    u64::from_le_bytes(seed_bytes)
 }
 
 /// Deterministic sample indices for a light client.
