@@ -383,47 +383,53 @@ pub async fn deploy(
     Ok(())
 }
 
+pub struct TokenActionSigner {
+    pub secret: Option<String>,
+    pub secret_file: Option<String>,
+    pub nonce: Option<u64>,
+    pub dry_run: bool,
+}
+
 pub async fn mint(
     rpc_url: &str,
-    secret: Option<String>,
-    secret_file: Option<String>,
+    signer: TokenActionSigner,
     token: &str,
     to: Option<String>,
     amount: u128,
-    nonce: Option<u64>,
-    dry_run: bool,
 ) -> anyhow::Result<()> {
-    let key = resolve_signing_key(secret, secret_file)?;
+    let key = resolve_signing_key(signer.secret, signer.secret_file)?;
     let token = parse_account(token)?;
     let to = match to {
         Some(s) => parse_account(&s)?,
         None => account_of(&key),
     };
-    let n = nonce_for(rpc_url, &key, nonce).await?;
-    submit(rpc_url, &build_mint_tx(&key, n, token, to, amount), dry_run).await
+    let n = nonce_for(rpc_url, &key, signer.nonce).await?;
+    submit(
+        rpc_url,
+        &build_mint_tx(&key, n, token, to, amount),
+        signer.dry_run,
+    )
+    .await
 }
 
 pub async fn transfer(
     rpc_url: &str,
-    secret: Option<String>,
-    secret_file: Option<String>,
+    signer: TokenActionSigner,
     token: &str,
     to: &str,
     amount: u128,
-    nonce: Option<u64>,
-    dry_run: bool,
 ) -> anyhow::Result<()> {
     if amount == 0 {
         anyhow::bail!("amount must be > 0");
     }
-    let key = resolve_signing_key(secret, secret_file)?;
+    let key = resolve_signing_key(signer.secret, signer.secret_file)?;
     let (token, to) = (parse_account(token)?, parse_account(to)?);
     check_not_self_transfer(&account_of(&key), &to)?;
-    let n = nonce_for(rpc_url, &key, nonce).await?;
+    let n = nonce_for(rpc_url, &key, signer.nonce).await?;
     submit(
         rpc_url,
         &build_transfer_tx(&key, n, token, to, amount),
-        dry_run,
+        signer.dry_run,
     )
     .await
 }
@@ -448,21 +454,18 @@ pub async fn balance(rpc_url: &str, token: &str, holder: &str) -> anyhow::Result
 /// `boing token approve` (template v2 only).
 pub async fn approve(
     rpc_url: &str,
-    secret: Option<String>,
-    secret_file: Option<String>,
+    signer: TokenActionSigner,
     token: &str,
     spender: &str,
     amount: u128,
-    nonce: Option<u64>,
-    dry_run: bool,
 ) -> anyhow::Result<()> {
-    let key = resolve_signing_key(secret, secret_file)?;
+    let key = resolve_signing_key(signer.secret, signer.secret_file)?;
     let (token, spender) = (parse_account(token)?, parse_account(spender)?);
-    let n = nonce_for(rpc_url, &key, nonce).await?;
+    let n = nonce_for(rpc_url, &key, signer.nonce).await?;
     submit(
         rpc_url,
         &build_approve_tx(&key, n, token, spender, amount),
-        dry_run,
+        signer.dry_run,
     )
     .await
 }

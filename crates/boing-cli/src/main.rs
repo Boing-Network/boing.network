@@ -717,13 +717,15 @@ async fn main() -> anyhow::Result<()> {
             } => {
                 token::mint(
                     &cli.rpc_url,
-                    signer.secret_hex,
-                    signer.secret_file,
+                    token::TokenActionSigner {
+                        secret: signer.secret_hex,
+                        secret_file: signer.secret_file,
+                        nonce: signer.nonce,
+                        dry_run: signer.dry_run,
+                    },
                     &t,
                     to,
                     amount,
-                    signer.nonce,
-                    signer.dry_run,
                 )
                 .await
             }
@@ -735,13 +737,15 @@ async fn main() -> anyhow::Result<()> {
             } => {
                 token::transfer(
                     &cli.rpc_url,
-                    signer.secret_hex,
-                    signer.secret_file,
+                    token::TokenActionSigner {
+                        secret: signer.secret_hex,
+                        secret_file: signer.secret_file,
+                        nonce: signer.nonce,
+                        dry_run: signer.dry_run,
+                    },
                     &t,
                     &to,
                     amount,
-                    signer.nonce,
-                    signer.dry_run,
                 )
                 .await
             }
@@ -756,13 +760,15 @@ async fn main() -> anyhow::Result<()> {
             } => {
                 token::approve(
                     &cli.rpc_url,
-                    signer.secret_hex,
-                    signer.secret_file,
+                    token::TokenActionSigner {
+                        secret: signer.secret_hex,
+                        secret_file: signer.secret_file,
+                        nonce: signer.nonce,
+                        dry_run: signer.dry_run,
+                    },
                     &t,
                     &spender,
                     amount,
-                    signer.nonce,
-                    signer.dry_run,
                 )
                 .await
             }

@@ -88,7 +88,9 @@ pub fn build_router_swap_tx(
     build_pool_call_tx(key, nonce, router, cd, &ex)
 }
 
-fn split_hop(s: &str) -> anyhow::Result<(AccountId, u8, Option<(AccountId, AccountId)>)> {
+type ParsedHop = (AccountId, u8, Option<(AccountId, AccountId)>);
+
+fn split_hop(s: &str) -> anyhow::Result<ParsedHop> {
     let parts: Vec<&str> = s.split(':').collect();
     let (pool, dir) = match parts.as_slice() {
         [p, d] | [p, d, _, _] => (parse_account(p)?, parse_direction(d)? as u8),

@@ -145,6 +145,7 @@ pub fn encode_swap3_router_calldata_160(
 
 /// Encode **672** bytes: **`0xE9`** + four (**pool**, **128-byte** inner) pairs.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn encode_swap4_router_calldata_128(
     pool1: &[u8; 32],
     inner1: &[u8],
@@ -171,6 +172,7 @@ pub fn encode_swap4_router_calldata_128(
 
 /// Encode **800** bytes: **`0xEA`** + four (**pool**, **160-byte** inner) pairs.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn encode_swap4_router_calldata_160(
     pool1: &[u8; 32],
     inner1: &[u8],
@@ -197,6 +199,7 @@ pub fn encode_swap4_router_calldata_160(
 
 /// Encode **832** bytes: **`0xEB`** + five (**pool**, **128-byte** inner) pairs.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn encode_swap5_router_calldata_128(
     pool1: &[u8; 32],
     inner1: &[u8],
@@ -226,6 +229,7 @@ pub fn encode_swap5_router_calldata_128(
 
 /// Encode **992** bytes: **`0xEC`** + five (**pool**, **160-byte** inner) pairs.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn encode_swap5_router_calldata_160(
     pool1: &[u8; 32],
     inner1: &[u8],
@@ -255,6 +259,7 @@ pub fn encode_swap5_router_calldata_160(
 
 /// Encode **992** bytes: **`0xED`** + six (**pool**, **128-byte** inner) pairs.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn encode_swap6_router_calldata_128(
     pool1: &[u8; 32],
     inner1: &[u8],
@@ -287,6 +292,7 @@ pub fn encode_swap6_router_calldata_128(
 
 /// Encode **1184** bytes: **`0xEE`** + six (**pool**, **160-byte** inner) pairs.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn encode_swap6_router_calldata_160(
     pool1: &[u8; 32],
     inner1: &[u8],
