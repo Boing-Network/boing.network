@@ -69,6 +69,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | Micro fee market + optional priority tips | testnet live | H=**1188**; [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md) | high |
 | Blake3 VM opcode `0x20` + fungible template v3 | gated | env `BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT` unset = never; PR #157 **2026-10-31** | high |
 | Pool v11 first-mint √(A·B) | shipped | new CREATE2 only; no height gate; PR #154 | high |
+| Reference multi-token v1 (shared item types, ERC-1155-style) | shipped (template; no protocol change) | **2026-11-09**; [BOING-REFERENCE-MULTI-TOKEN.md](BOING-REFERENCE-MULTI-TOKEN.md); SDK 0.5.41 (unpublished until tag); `boing items` CLI | high |
 | L1 media blobs Phases 1–33 | testnet live | admission H=**1200**; [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) | high |
 | PHASE7 256 MiB consensus cap | testnet live | H=**1306** | high |
 | Phase 34 Grant/Revoke blob download ACL | code live; private-by-default **uncertain** | SDK `boing-sdk/v0.5.38` **2026-10-25**; [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md); verify ACL activation on RPC | medium |

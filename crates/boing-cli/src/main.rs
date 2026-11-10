@@ -9,6 +9,7 @@ mod deploy;
 mod dev;
 mod iface;
 mod init;
+mod items;
 mod metrics_register;
 mod name;
 mod pool;
@@ -99,6 +100,9 @@ enum Commands {
     /// Boing-native fungible token: deploy / mint / transfer / balance (reference template)
     #[command(subcommand)]
     Token(TokenCommands),
+    /// Boing-native multi-token (shared item types, ERC-1155-style): deploy / mint / transfer / balance
+    #[command(subcommand)]
+    Items(ItemsCommands),
     /// Boing-native constant-product AMM pool: create / add / remove / swap / quote / reserves
     #[command(subcommand)]
     Pool(PoolCommands),
@@ -268,6 +272,96 @@ enum TokenCommands {
     Bytecode {
         #[arg(long, default_value = "v2")]
         version: token::TokenVersion,
+    },
+}
+#[derive(Subcommand)]
+enum ItemsCommands {
+    /// Deploy the reference multi-token template (purpose `nft`; admin = deployer)
+    Deploy {
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long)]
+        symbol: Option<String>,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Admin: mint `--amount` of item `--item` to `--to` (default: signer)
+    Mint {
+        #[arg(long)]
+        contract: String,
+        #[arg(long)]
+        to: Option<String>,
+        #[arg(long)]
+        item: u64,
+        #[arg(long)]
+        amount: u128,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Admin: mint several items in one tx, `--entries 1:10,2:5` (max 16)
+    MintBatch {
+        #[arg(long)]
+        contract: String,
+        #[arg(long)]
+        to: Option<String>,
+        #[arg(long)]
+        entries: String,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Transfer `--amount` of item `--item` from the signer to `--to`
+    Transfer {
+        #[arg(long)]
+        contract: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        item: u64,
+        #[arg(long)]
+        amount: u128,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Admin: set the type-level 32-byte metadata hash for `--item`
+    SetMetadata {
+        #[arg(long)]
+        contract: String,
+        #[arg(long)]
+        item: u64,
+        #[arg(long)]
+        hash: String,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Admin: hand mint rights to `--new-admin`
+    TransferAdmin {
+        #[arg(long)]
+        contract: String,
+        #[arg(long)]
+        new_admin: String,
+        #[command(flatten)]
+        signer: SignerArgs,
+    },
+    /// Read balance[item][holder] (boing_getContractStorage)
+    Balance {
+        #[arg(long)]
+        contract: String,
+        #[arg(long)]
+        holder: String,
+        #[arg(long)]
+        item: u64,
+    },
+    /// Read admin, and supply + metadata hash for `--item`
+    Info {
+        #[arg(long)]
+        contract: String,
+        #[arg(long)]
+        item: Option<u64>,
+    },
+    /// Print the pinned deploy payload hex (`--runtime` for the installed runtime)
+    Bytecode {
+        #[arg(long)]
+        runtime: bool,
     },
 }
 #[derive(Subcommand)]
@@ -777,6 +871,137 @@ async fn main() -> anyhow::Result<()> {
                 Ok(())
             }
         },
+        Commands::Items(cmd) => {
+            let rpc_url = cli.rpc_url.as_str();
+            match cmd {
+                ItemsCommands::Deploy {
+                    name,
+                    symbol,
+                    signer,
+                } => {
+                    items::deploy(
+                        rpc_url,
+                        signer.secret_hex,
+                        signer.secret_file,
+                        name,
+                        symbol,
+                        signer.nonce,
+                        signer.dry_run,
+                    )
+                    .await
+                }
+                ItemsCommands::Mint {
+                    contract,
+                    to,
+                    item,
+                    amount,
+                    signer,
+                } => {
+                    items::call(
+                        rpc_url,
+                        signer.secret_hex,
+                        signer.secret_file,
+                        &contract,
+                        |me| {
+                            let to = match to {
+                                Some(s) => token::parse_account(&s)?,
+                                None => *me,
+                            };
+                            items::mint_calldata(to, item, amount)
+                        },
+                        signer.nonce,
+                        signer.dry_run,
+                    )
+                    .await
+                }
+                ItemsCommands::MintBatch {
+                    contract,
+                    to,
+                    entries,
+                    signer,
+                } => {
+                    items::call(
+                        rpc_url,
+                        signer.secret_hex,
+                        signer.secret_file,
+                        &contract,
+                        |me| {
+                            let to = match to {
+                                Some(s) => token::parse_account(&s)?,
+                                None => *me,
+                            };
+                            items::mint_batch_calldata(to, &entries)
+                        },
+                        signer.nonce,
+                        signer.dry_run,
+                    )
+                    .await
+                }
+                ItemsCommands::Transfer {
+                    contract,
+                    to,
+                    item,
+                    amount,
+                    signer,
+                } => {
+                    items::call(
+                        rpc_url,
+                        signer.secret_hex,
+                        signer.secret_file,
+                        &contract,
+                        |_| items::transfer_calldata(token::parse_account(&to)?, item, amount),
+                        signer.nonce,
+                        signer.dry_run,
+                    )
+                    .await
+                }
+                ItemsCommands::SetMetadata {
+                    contract,
+                    item,
+                    hash,
+                    signer,
+                } => {
+                    items::call(
+                        rpc_url,
+                        signer.secret_hex,
+                        signer.secret_file,
+                        &contract,
+                        |_| items::set_metadata_calldata(item, &hash),
+                        signer.nonce,
+                        signer.dry_run,
+                    )
+                    .await
+                }
+                ItemsCommands::TransferAdmin {
+                    contract,
+                    new_admin,
+                    signer,
+                } => {
+                    items::call(
+                        rpc_url,
+                        signer.secret_hex,
+                        signer.secret_file,
+                        &contract,
+                        |_| items::transfer_admin_calldata(&new_admin),
+                        signer.nonce,
+                        signer.dry_run,
+                    )
+                    .await
+                }
+                ItemsCommands::Balance {
+                    contract,
+                    holder,
+                    item,
+                } => items::balance(rpc_url, &contract, &holder, item).await,
+                ItemsCommands::Info { contract, item } => {
+                    items::info(rpc_url, &contract, item).await
+                }
+                ItemsCommands::Bytecode { runtime } => {
+                    items::print_bytecode(runtime);
+                    Ok(())
+                }
+            }
+        }
         Commands::Pool(cmd) => {
             let sg = |s: SignerArgs| pool::Signer {
                 secret: s.secret_hex,

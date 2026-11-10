@@ -11,7 +11,7 @@
  */
 
 /** Package semver — keep in sync with `package.json` `version` on each release. */
-export const SDK_VERSION = '0.5.40';
+export const SDK_VERSION = '0.5.41';
 
 export { CANONICAL_BOING_TESTNET_NATIVE_CP_POOL_HEX } from './canonicalTestnet.js';
 export {
@@ -497,6 +497,56 @@ export {
   type DecodedReferenceOwnerOf,
   type DecodedReferenceNftCall,
 } from './referenceNft.js';
+export {
+  SELECTOR_MT_BALANCE_OF,
+  SELECTOR_MT_TRANSFER,
+  SELECTOR_MT_MINT,
+  SELECTOR_MT_SET_ITEM_METADATA,
+  SELECTOR_MT_MINT_BATCH,
+  SELECTOR_MT_TRANSFER_BATCH,
+  SELECTOR_MT_TOTAL_SUPPLY,
+  SELECTOR_MT_ITEM_METADATA,
+  SELECTOR_MT_ADMIN,
+  SELECTOR_MT_TRANSFER_ADMIN,
+  MAX_REFERENCE_MULTI_TOKEN_BATCH,
+  REFERENCE_MULTI_TOKEN_ARTIFACT_ID,
+  REFERENCE_MULTI_TOKEN_TEMPLATE_VERSION,
+  REF_MT_BALANCE_XOR_HEX,
+  REF_MT_SUPPLY_XOR_HEX,
+  REF_MT_METADATA_XOR_HEX,
+  REF_MT_TOPIC_TRANSFER_HEX,
+  REF_MT_TOPIC_METADATA_HEX,
+  REF_MT_TOPIC_ADMIN_HEX,
+  REF_MT_ADMIN_KEY_HEX,
+  DEFAULT_REFERENCE_MULTI_TOKEN_DEPLOY_BYTECODE_HEX,
+  DEFAULT_REFERENCE_MULTI_TOKEN_RUNTIME_BYTECODE_HEX,
+  multiTokenItemIdWord,
+  multiTokenAmountWord,
+  multiTokenBalanceStorageKey,
+  multiTokenSupplyStorageKey,
+  multiTokenMetadataStorageKey,
+  encodeMultiTokenBalanceOfCalldata,
+  encodeMultiTokenTransferCalldata,
+  encodeMultiTokenMintCalldata,
+  encodeMultiTokenSetItemMetadataCalldata,
+  encodeMultiTokenMintBatchCalldata,
+  encodeMultiTokenTransferBatchCalldata,
+  encodeMultiTokenTotalSupplyCalldata,
+  encodeMultiTokenItemMetadataCalldata,
+  encodeMultiTokenTransferAdminCalldata,
+  decodeMultiTokenCalldata,
+  decodeMultiTokenTransferLog,
+  multiTokenAmountFromStorageWord,
+  fetchMultiTokenBalance,
+  fetchMultiTokenBalances,
+  fetchMultiTokenItemInfo,
+  isReferenceMultiTokenBytecode,
+  buildReferenceMultiTokenDeployMetaTx,
+  type MultiTokenBatchEntry,
+  type DecodedMultiTokenCall,
+  type MultiTokenTransferLog,
+  type BuildReferenceMultiTokenDeployMetaTxInput,
+} from './referenceMultiToken.js';
 export {
   ipfsUriToGatewayUrl,
   extractHttpOrIpfsUrl,

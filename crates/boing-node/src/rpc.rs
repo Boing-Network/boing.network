@@ -1486,7 +1486,7 @@ pub(crate) fn protocol_params_json(
 /// had the v2 transaction domain, so it would mis-display amounts on testnet from that height.
 const DEFAULT_MIN_WALLET_VERSION: &str = "0.1.18";
 const DEFAULT_RECOMMENDED_WALLET_VERSION: &str = "0.1.24";
-const DEFAULT_RECOMMENDED_SDK_VERSION: &str = "0.5.40";
+const DEFAULT_RECOMMENDED_SDK_VERSION: &str = "0.5.41";
 
 fn env_or_default(var: &str, default: &str) -> String {
     std::env::var(var)

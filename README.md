@@ -54,7 +54,7 @@ curl -s -X POST http://127.0.0.1:8545/ -H "Content-Type: application/json" \
 
 **Public testnet RPC:** `https://testnet-rpc.boing.network/` (Cloudflare Worker → Fly `boing-testnet-1`). Do not point that hostname at a home tunnel.
 
-**TypeScript:** install **`@boing-network/boing-sdk@^0.5.40`** from npm (`npm i @boing-network/boing-sdk`), or build the in-repo package under `boing-sdk/` for monorepo / `file:` consumers. See [boing-sdk/README.md](boing-sdk/README.md). Do **not** install unscoped `boing-sdk` (abandoned/locked on npm).
+**TypeScript:** install **`@boing-network/boing-sdk@^0.5.41`** from npm (`npm i @boing-network/boing-sdk`), or build the in-repo package under `boing-sdk/` for monorepo / `file:` consumers. See [boing-sdk/README.md](boing-sdk/README.md). Do **not** install unscoped `boing-sdk` (abandoned/locked on npm).
 
 **Tutorial CLI from repo root** (after `boing-sdk` build + `examples/native-boing-tutorial` install): `npm run preflight-rpc`, `npm run deploy-native-dex-full-stack`, `npm run fetch-native-amm-reserves`, `npm run print-native-dex-routes`. Full command map: [docs/NODE-OPERATOR-COMMANDS.md](docs/NODE-OPERATOR-COMMANDS.md).
 

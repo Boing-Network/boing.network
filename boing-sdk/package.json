@@ -1,6 +1,6 @@
 {
   "name": "@boing-network/boing-sdk",
-  "version": "0.5.40",
+  "version": "0.5.41",
   "description": "Seamless SDK for building on Boing Network",
   "type": "module",
   "main": "dist/index.js",
@@ -12,6 +12,7 @@
     "verify": "node scripts/verify.mjs",
     "embed-fungible-hex": "node scripts/embed-reference-fungible-template-hex.mjs",
     "embed-nft-hex": "node scripts/embed-reference-nft-collection-template-hex.mjs",
+    "embed-multi-token-hex": "node scripts/embed-reference-multi-token-hex.mjs",
     "generate-operator-key": "node scripts/generate-operator-key.mjs",
     "probe-rpc": "node scripts/probe-rpc.mjs",
     "prepublishOnly": "npm run build"

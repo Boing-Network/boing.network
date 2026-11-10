@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.41] - 2026-11-09
+
+### Added
+
+- **Reference multi-token (ERC-1155-style shared item types)** — `referenceMultiToken.ts`: selectors `0x20`–`0x29`, `MAX_REFERENCE_MULTI_TOKEN_BATCH` (**16**), calldata encoders (`encodeMultiToken{BalanceOf,Transfer,Mint,SetItemMetadata,MintBatch,TransferBatch,TotalSupply,ItemMetadata,TransferAdmin}Calldata`), `decodeMultiTokenCalldata`, `decodeMultiTokenTransferLog`, slot keys (`multiTokenBalanceStorageKey` / `multiTokenSupplyStorageKey` / `multiTokenMetadataStorageKey`), storage reads (`fetchMultiTokenBalance(s)`, `fetchMultiTokenItemInfo`), pinned `DEFAULT_REFERENCE_MULTI_TOKEN_{DEPLOY,RUNTIME}_BYTECODE_HEX`, `isReferenceMultiTokenBytecode`, `buildReferenceMultiTokenDeployMetaTx` (purpose `nft`). Regenerate hex with `npm run embed-multi-token-hex`. See [BOING-REFERENCE-MULTI-TOKEN.md](../docs/BOING-REFERENCE-MULTI-TOKEN.md).
+
 ## [0.5.40] - 2026-11-05
 
 ### Added
