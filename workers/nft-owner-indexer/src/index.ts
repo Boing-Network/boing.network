@@ -34,8 +34,15 @@ import {
   upsertIngestCursor,
 } from './persist.js';
 import { parseMaxReorgRewindSteps, rewindStaleTipIfNeeded } from './reorg.js';
+import {
+  catchUpItems,
+  listItemHolders,
+  listItemsByOwner,
+  parseItemIdParam,
+  type ItemsEnv,
+} from './items.js';
 
-export interface Env {
+export interface Env extends ItemsEnv {
   NFT_OWNER_DB: D1Database;
   BOING_RPC_URL: string;
   BOING_CHAIN_ID?: string;
@@ -125,7 +132,6 @@ async function indexHeightRange(
   for (const bundle of bundles) {
     const height = bundle.height;
     const block = bundle.block as {
-      hash?: string;
       header?: { parent_hash?: unknown };
       hash?: unknown;
     };
@@ -333,6 +339,10 @@ export default {
             'GET /v1/sync',
             'POST /v1/sync',
             'POST /v1/backfill?from=&to=',
+            'GET /v1/items/by-owner?owner=[&contract=&includeEmpty=1]',
+            'GET /v1/items/holders?contract=&itemId=',
+            'GET /v1/items/meta',
+            'POST /v1/items/sync',
             'GET /health',
           ],
         },
@@ -550,6 +560,49 @@ export default {
         cors,
         origin
       );
+    }
+
+    // Reference multi-token (game items): request-driven touch index, no cron (see src/items.ts).
+    if (path === '/v1/items/meta' && req.method === 'GET') {
+      const catchUp = await catchUpItems(env);
+      return jsonRes({ service: 'boing-nft-owner-indexer', index: 'multi-token-items', catchUp }, 200, cors, origin);
+    }
+
+    if (path === '/v1/items/sync' && req.method === 'POST') {
+      if (!authorized(req, env)) {
+        return jsonRes({ error: 'unauthorized' }, 401, cors, origin);
+      }
+      try {
+        return jsonRes({ ok: true, ...(await catchUpItems(env, { force: true, maxBlocks: 500 })) }, 200, cors, origin);
+      } catch (e) {
+        return jsonRes({ ok: false, error: e instanceof Error ? e.message : String(e) }, 502, cors, origin);
+      }
+    }
+
+    if ((path === '/v1/items/by-owner' || path === '/v1/items/holders') && req.method === 'GET') {
+      let catchUp;
+      try {
+        catchUp = await catchUpItems(env);
+      } catch (e) {
+        catchUp = { ran: false, error: e instanceof Error ? e.message : String(e) };
+      }
+      const limit = Math.min(200, parsePositiveInt(url.searchParams.get('limit') ?? undefined, 50));
+      const includeEmpty = url.searchParams.get('includeEmpty') === '1';
+      const contract = normalizeHex64(url.searchParams.get('contract'));
+      if (path === '/v1/items/by-owner') {
+        const owner = normalizeHex64(url.searchParams.get('owner') ?? url.searchParams.get('id'));
+        if (!owner) {
+          return jsonRes({ error: 'Missing or invalid owner (32-byte AccountId hex)' }, 400, cors, origin);
+        }
+        const items = await listItemsByOwner(env, owner, { contract, limit, includeEmpty });
+        return jsonRes({ owner, items, indexer: catchUp }, 200, cors, origin);
+      }
+      const itemId = parseItemIdParam(url.searchParams.get('itemId') ?? url.searchParams.get('item'));
+      if (!contract || itemId == null) {
+        return jsonRes({ error: 'Missing contract (32-byte hex) and/or itemId (u64 decimal)' }, 400, cors, origin);
+      }
+      const holders = await listItemHolders(env, contract, itemId, { limit, includeEmpty });
+      return jsonRes({ contract, itemId, holders, indexer: catchUp }, 200, cors, origin);
     }
 
     return jsonRes({ error: 'not found' }, 404, cors, origin);
