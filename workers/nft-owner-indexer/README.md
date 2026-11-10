@@ -20,11 +20,11 @@ Base URL after deploy: `https://boing-nft-owner-indexer.<account>.workers.dev` (
 | **GET** | **`/v1/items/by-owner?owner=0x…64`** | Reference **multi-token** (game items) the account touched, with **live** balances read from contract storage. Optional `contract=`, `limit` (≤200), `includeEmpty=1`. |
 | **GET** | **`/v1/items/holders?contract=&itemId=`** | Accounts that touched one item type, with live balances. |
 | **GET** | **`/v1/items/meta`** | Items cursor (`lastScannedHeight`). |
-| **POST** | **`/v1/items/sync`** | Force an items catch-up of up to 500 heights. Same bearer. |
+| **POST** | **`/v1/items/sync`** | Force an items catch-up of up to 40 heights (Free-plan subrequest cap). Same bearer. |
 
 ### Multi-token items index (request-driven, no cron)
 
-`migrations/0003_multi_token_items.sql` adds `mt_cursor`, `mt_contracts`, `mt_holdings`. There is **no new cron**: every `/v1/items/*` read first runs a bounded catch-up (`BOING_ITEMS_MAX_BLOCKS_PER_REQUEST`, default 48 heights, at most once per `BOING_ITEMS_MIN_INTERVAL_SEC`, default 10 s) from `BOING_ITEMS_FROM_HEIGHT` (37540 on testnet; the template went live at 37545). Only direct `ContractCall`s to contracts whose installed code is the pinned `boing.reference_multi_token.v1` runtime are indexed (logs carry no emitter address). The table stores *which* (contract, item, account) pairs moved; balances are always read live, so a reorged-out touch only shows a zero balance and needs no rewind. Spec: [docs/BOING-REFERENCE-MULTI-TOKEN.md](../../docs/BOING-REFERENCE-MULTI-TOKEN.md).
+`migrations/0003_multi_token_items.sql` adds `mt_cursor`, `mt_contracts`, `mt_holdings`. There is **no new cron**: every `/v1/items/*` read first runs a bounded catch-up (`BOING_ITEMS_MAX_BLOCKS_PER_REQUEST`, default 16 heights, at most once per `BOING_ITEMS_MIN_INTERVAL_SEC`, default 10 s) from `BOING_ITEMS_FROM_HEIGHT` (37540 on testnet; the template went live at 37545). Only direct `ContractCall`s to contracts whose installed code is the pinned `boing.reference_multi_token.v1` runtime are indexed (logs carry no emitter address). The table stores *which* (contract, item, account) pairs moved; balances are always read live (within the Free-plan 50-subrequest budget per request; rows past it return `balance: null` for the caller to read itself), so a reorged-out touch only shows a zero balance and needs no rewind. Spec: [docs/BOING-REFERENCE-MULTI-TOKEN.md](../../docs/BOING-REFERENCE-MULTI-TOKEN.md).
 
 ### `GET /v1/nfts/by-owner` response shape
 

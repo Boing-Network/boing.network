@@ -143,8 +143,13 @@ async function isReferenceContract(
   return ok;
 }
 
+/** Workers Free plan allows 50 subrequests per invocation; keep catch-up + live reads under it. */
+export const ITEMS_SUBREQUEST_BUDGET = 45;
+
 export type ItemsCatchUp = {
   ran: boolean;
+  /** RPC subrequests this catch-up used (chain height + blocks + code checks). */
+  subrequests?: number;
   fromHeight?: number;
   toHeight?: number;
   scanned?: number;
@@ -165,16 +170,16 @@ export async function catchUpItems(env: ItemsEnv, opts?: { force?: boolean; maxB
   const last = cur ? cur.last_scanned_height : int(env.BOING_ITEMS_FROM_HEIGHT, 0) - 1;
   const minInterval = int(env.BOING_ITEMS_MIN_INTERVAL_SEC, 10);
   if (!opts?.force && cur && nowSec - cur.updated_at < minInterval) {
-    return { ran: false, lastScannedHeight: last };
+    return { ran: false, subrequests: 0, lastScannedHeight: last };
   }
   const client = createClient(env.BOING_RPC_URL);
   let tip: number;
   try {
     tip = await client.chainHeight();
   } catch (e) {
-    return { ran: false, lastScannedHeight: last, error: e instanceof Error ? e.message : String(e) };
+    return { ran: false, subrequests: 1, lastScannedHeight: last, error: e instanceof Error ? e.message : String(e) };
   }
-  const maxBlocks = Math.max(1, opts?.maxBlocks ?? int(env.BOING_ITEMS_MAX_BLOCKS_PER_REQUEST, 48));
+  const maxBlocks = Math.max(1, opts?.maxBlocks ?? int(env.BOING_ITEMS_MAX_BLOCKS_PER_REQUEST, 16));
   const fromHeight = last + 1;
   const toHeight = Math.min(tip, fromHeight + maxBlocks - 1);
   if (toHeight < fromHeight) {
@@ -182,7 +187,7 @@ export async function catchUpItems(env: ItemsEnv, opts?: { force?: boolean; maxB
       .prepare('INSERT OR REPLACE INTO mt_cursor (chain_id, last_scanned_height, updated_at) VALUES (?, ?, ?)')
       .bind(chainId, last, nowSec)
       .run();
-    return { ran: true, scanned: 0, touches: 0, lastScannedHeight: last };
+    return { ran: true, subrequests: 1, scanned: 0, touches: 0, lastScannedHeight: last };
   }
   const bundles = await fetchBlocksWithReceiptsForHeightRange(client, fromHeight, toHeight, {
     maxConcurrent: Math.max(1, int(env.BOING_MAX_CONCURRENT, 4)),
@@ -192,8 +197,12 @@ export async function catchUpItems(env: ItemsEnv, opts?: { force?: boolean; maxB
   for (const bundle of bundles) touches.push(...extractItemTouchesFromBlock(bundle.block, bundle.height));
   const verdict = new Map<string, boolean>();
   const stmts: D1PreparedStatement[] = [];
+  let codeLookups = 0;
   for (const t of touches) {
-    if (!verdict.has(t.contractHex)) verdict.set(t.contractHex, await isReferenceContract(db, client, t.contractHex, nowSec));
+    if (!verdict.has(t.contractHex)) {
+      codeLookups++;
+      verdict.set(t.contractHex, await isReferenceContract(db, client, t.contractHex, nowSec));
+    }
     if (!verdict.get(t.contractHex)) continue;
     stmts.push(
       db
@@ -212,34 +221,48 @@ export async function catchUpItems(env: ItemsEnv, opts?: { force?: boolean; maxB
       .bind(chainId, toHeight, nowSec)
   );
   await db.batch(stmts);
-  return { ran: true, fromHeight, toHeight, scanned: bundles.length, touches: stmts.length - 1, lastScannedHeight: toHeight };
+  return {
+    ran: true,
+    subrequests: 1 + (toHeight - fromHeight + 1) + codeLookups,
+    fromHeight,
+    toHeight,
+    scanned: bundles.length,
+    touches: stmts.length - 1,
+    lastScannedHeight: toHeight,
+  };
 }
 
 export type ItemHoldingRow = {
   contract: string;
   itemId: string;
   account: string;
-  balance: string;
+  /** Live u128 balance (decimal), or null when this response ran out of RPC budget (read the slot yourself). */
+  balance: string | null;
   lastBlockHeight: number;
   lastTxId: string;
 };
 
 async function withLiveBalances(
   env: ItemsEnv,
+  budget: number,
   rows: { contract_hex: string; item_id: string; account_hex: string; last_block_height: number; last_tx_id: string }[]
 ): Promise<ItemHoldingRow[]> {
   const client = createClient(env.BOING_RPC_URL);
   const out: ItemHoldingRow[] = new Array(rows.length);
   let i = 0;
+  let left = Math.max(0, budget);
   async function worker() {
     while (i < rows.length) {
       const idx = i++;
       const r = rows[idx]!;
-      let balance = '0';
-      try {
-        balance = (await fetchMultiTokenBalance(client, r.contract_hex, r.account_hex, BigInt(r.item_id))).toString();
-      } catch {
-        balance = 'unknown';
+      let balance: string | null = null;
+      for (let attempt = 0; attempt < 2 && balance == null && left > 0; attempt++) {
+        left--;
+        try {
+          balance = (await fetchMultiTokenBalance(client, r.contract_hex, r.account_hex, BigInt(r.item_id))).toString();
+        } catch {
+          await new Promise((res) => setTimeout(res, 200));
+        }
       }
       out[idx] = {
         contract: r.contract_hex,
@@ -251,7 +274,7 @@ async function withLiveBalances(
       };
     }
   }
-  await Promise.all(Array.from({ length: Math.min(4, rows.length) }, () => worker()));
+  await Promise.all(Array.from({ length: Math.min(2, rows.length) }, () => worker()));
   return out;
 }
 
@@ -259,7 +282,7 @@ async function withLiveBalances(
 export async function listItemsByOwner(
   env: ItemsEnv,
   owner: string,
-  opts: { contract?: string | null; limit: number; includeEmpty?: boolean }
+  opts: { contract?: string | null; limit: number; includeEmpty?: boolean; budget: number }
 ): Promise<ItemHoldingRow[]> {
   const q = opts.contract
     ? env.NFT_OWNER_DB.prepare(
@@ -277,7 +300,7 @@ export async function listItemsByOwner(
     last_block_height: number;
     last_tx_id: string;
   }>();
-  const rows = await withLiveBalances(env, results ?? []);
+  const rows = await withLiveBalances(env, opts.budget, results ?? []);
   return opts.includeEmpty ? rows : rows.filter((r) => r.balance !== '0');
 }
 
@@ -286,7 +309,7 @@ export async function listItemHolders(
   env: ItemsEnv,
   contract: string,
   itemId: string,
-  opts: { limit: number; includeEmpty?: boolean }
+  opts: { limit: number; includeEmpty?: boolean; budget: number }
 ): Promise<ItemHoldingRow[]> {
   const { results } = await env.NFT_OWNER_DB.prepare(
     `SELECT contract_hex, item_id, account_hex, last_block_height, last_tx_id FROM mt_holdings
@@ -294,7 +317,7 @@ export async function listItemHolders(
   )
     .bind(contract, itemId, opts.limit)
     .all<{ contract_hex: string; item_id: string; account_hex: string; last_block_height: number; last_tx_id: string }>();
-  const rows = await withLiveBalances(env, results ?? []);
+  const rows = await withLiveBalances(env, opts.budget, results ?? []);
   return opts.includeEmpty ? rows : rows.filter((r) => r.balance !== '0');
 }
 

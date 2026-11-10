@@ -35,6 +35,7 @@ import {
 } from './persist.js';
 import { parseMaxReorgRewindSteps, rewindStaleTipIfNeeded } from './reorg.js';
 import {
+  ITEMS_SUBREQUEST_BUDGET,
   catchUpItems,
   listItemHolders,
   listItemsByOwner,
@@ -573,19 +574,20 @@ export default {
         return jsonRes({ error: 'unauthorized' }, 401, cors, origin);
       }
       try {
-        return jsonRes({ ok: true, ...(await catchUpItems(env, { force: true, maxBlocks: 500 })) }, 200, cors, origin);
+        return jsonRes({ ok: true, ...(await catchUpItems(env, { force: true, maxBlocks: 40 })) }, 200, cors, origin);
       } catch (e) {
         return jsonRes({ ok: false, error: e instanceof Error ? e.message : String(e) }, 502, cors, origin);
       }
     }
 
     if ((path === '/v1/items/by-owner' || path === '/v1/items/holders') && req.method === 'GET') {
-      let catchUp;
+      let catchUp: Awaited<ReturnType<typeof catchUpItems>> | { ran: false; subrequests: number; error: string };
       try {
         catchUp = await catchUpItems(env);
       } catch (e) {
-        catchUp = { ran: false, error: e instanceof Error ? e.message : String(e) };
+        catchUp = { ran: false, subrequests: ITEMS_SUBREQUEST_BUDGET / 3, error: e instanceof Error ? e.message : String(e) };
       }
+      const budget = ITEMS_SUBREQUEST_BUDGET - (catchUp.subrequests ?? 0);
       const limit = Math.min(200, parsePositiveInt(url.searchParams.get('limit') ?? undefined, 50));
       const includeEmpty = url.searchParams.get('includeEmpty') === '1';
       const contract = normalizeHex64(url.searchParams.get('contract'));
@@ -594,14 +596,14 @@ export default {
         if (!owner) {
           return jsonRes({ error: 'Missing or invalid owner (32-byte AccountId hex)' }, 400, cors, origin);
         }
-        const items = await listItemsByOwner(env, owner, { contract, limit, includeEmpty });
+        const items = await listItemsByOwner(env, owner, { contract, limit, includeEmpty, budget });
         return jsonRes({ owner, items, indexer: catchUp }, 200, cors, origin);
       }
       const itemId = parseItemIdParam(url.searchParams.get('itemId') ?? url.searchParams.get('item'));
       if (!contract || itemId == null) {
         return jsonRes({ error: 'Missing contract (32-byte hex) and/or itemId (u64 decimal)' }, 400, cors, origin);
       }
-      const holders = await listItemHolders(env, contract, itemId, { limit, includeEmpty });
+      const holders = await listItemHolders(env, contract, itemId, { limit, includeEmpty, budget });
       return jsonRes({ contract, itemId, holders, indexer: catchUp }, 200, cors, origin);
     }
 
