@@ -98,3 +98,75 @@
 - **Arithmetic Safety**: Arithmetic operations across tokenomics, rewards, gas metering, and AMM pricing continue to enforce checked, saturating, or bounded math.
 - **RPC & SDK Synchronization**: All 95 supported RPC methods documented in `docs/RPC-API-SPEC.md` match `BOING_RPC_SUPPORTED_METHODS` in `crates/boing-node/src/rpc.rs` and the SDK client methods.
 - **Operator Security**: Privileged RPC endpoints (`boing_operator*`) strictly require the secret token header `x-operator-token` and fail closed when unset.
+
+---
+---
+
+# AUDIT LOG — PASS 2026-11-10 (hardening-20261110)
+
+**Date:** 2026-11-10
+**Branch:** `agent/hardening-20261110`
+**Auditor / Engineer:** automated hardening agent
+
+Baseline commit: `2e31e70` (headers preserved above). This pass is additive: it starts from a clean
+tree (only intended edits are staged/committed here) and does not regress the 2026-03-30 work.
+
+## 5. Environment
+
+- Rust **not** present initially; installed stable `rustc`/`cargo` **1.99.1** + `rustfmt` + `clippy`
+  under `~/.cargo/bin`.
+- `/workspaces` volume is small (32 GB). Default `target/` (16 GB) filled it; the workspace build
+  now uses `CARGO_TARGET_DIR=/tmp/opencode/cargo-target` and `CARGO_INCREMENTAL=0`. The stale
+  in-repo `target/` was removed (untracked build artifact only).
+- Node/npm available; `boing-network-hub` (Tauri/GUI) still cannot build here (GTK/WebKit absent).
+
+## 6. Baseline vs Final Verification Matrix
+
+| Subsystem | Command | Baseline | Final | Notes |
+|---|---|---|---|---|
+| Rust format | `cargo fmt --all -- --check` | PASS | PASS | After all edits. |
+| Rust build | `cargo build --workspace --exclude boing-network-hub` | PASS | PASS | |
+| Rust tests | `cargo test --workspace --exclude boing-network-hub` | 941 passed / 0 failed | **945 passed / 0 failed / 0 ignored** | +4 net new regression tests. |
+| Rust clippy | `cargo clippy --workspace --exclude boing-network-hub --all-targets` | 0 errors; 17 `assertions_on_constants` + `too_many_arguments` | **0 errors; 0 `assertions_on_constants`**; only pre-existing `too_many_arguments` (preserved public APIs) | |
+| SDK | `cd boing-sdk && npm ci && npm run build && npm test` | 77 files / 508 passed, 0 npm vulns | not re-run (SDK source untouched) | Unaffected by this pass. |
+| JS/TS (12 checks) | website, docs-site, desktop-hub, 4 workers, 3 examples | all PASS | all PASS (`/tmp/opencode/jschecks.log`) | Includes `boing-dapp-starter` after lockfile fix. |
+| Fuzz | `cargo check --manifest-path fuzz/Cargo.toml` | NOT RUN | NOT VERIFIED (BLOCKED) | Toolchain has no `cargo-fuzz`/nightly in this host session. |
+| Benches | `cargo bench --no-run` | NOT RUN | NOT VERIFIED (BLOCKED) | Skipped under the same `/tmp` target to bound build time. |
+| Desktop hub (Tauri) | `cargo build -p boing-network-hub` | NOT VERIFIED (BLOCKED) | NOT VERIFIED (BLOCKED) | GTK/WebKit system libraries absent (consistent with 2026-03-30). |
+
+## 7. Issues Inventory & Remediation (this pass)
+
+| ID | Severity | Component | File:Line | Root Cause | Fix | Status |
+|---|---|---|---|---|---|---|
+| ISS-100 | **P1** | `boing-execution` | `native_amm.rs` (`constant_product_amount_out_after_fee_with_bps`, `..._fee_on_input_with_bps`) | `10_000 - fee_bps` underflowed (debug panic / wrong quote in release) when an operator-supplied `fee_bps > 10_000` reached the quote helpers | Early-return `0` for `fee_bps > 10_000`; regression `out_of_range_fee_bps_quotes_zero_without_panicking` | Fixed |
+| ISS-101 | **P1** | `boing-node` | `mempool.rs` | Any panic while holding the pool lock poisoned the `Mutex`; every later `lock().unwrap()` panicked, **permanently bricking admission/RPC** | `lock_inner()` via `PoisonError::into_inner`; regression `poisoned_mutex_does_not_brick_pool` | Fixed |
+| ISS-102 | **P1** | `boing-node` | `intent_pool.rs` | Same poisoning on `RwLock` | `read_inner()`/`write_inner()` recovery; regression `poisoned_lock_does_not_brick_pool` | Fixed |
+| ISS-103 | **P1** | `boing-node` | `chain.rs` | Same poisoning on the chain `RwLock`; bricks tip/block RPC | `read_inner()`/`write_inner()` recovery; regression `poisoned_lock_does_not_brick_chain` | Fixed |
+| ISS-104 | **P2** | `boing-node` | `dapp_registry.rs` | Same poisoning on registry `RwLock` | recovery helpers; regression `poisoned_lock_does_not_brick_registry` | Fixed |
+| ISS-105 | **P2** | `boing-qa` | `pool.rs` | Same poisoning on both QA pool mutexes; bricks `boing_qaPool*` | `lock_governance()`/`lock_inner()`; regression `poisoned_mutex_does_not_brick_pool` | Fixed |
+| ISS-106 | **P2** | `boing-node` | `token_metadata.rs` | `index.lock().unwrap()` poisoning risk | `lock_index()` recovery helper | Fixed |
+| ISS-107 | **P2** | `examples/boing-dapp-starter` | `package-lock.json` | Lock still referenced unscoped `boing-sdk` v0.3.1 / missing `@boing-network/boing-sdk` name → `npm ci` failed | Regenerated lock against `file:../../boing-sdk` (0.5.40); `npm ci` + typecheck PASS | Fixed |
+| ISS-108 | **P3** | `boing-primitives`, `boing-execution` | `blobs_phase{6,26..33}.rs`, `vm.rs`, `reference_nft.rs` (tests) | Clippy `assertions_on_constants` (17) | `const { assert!(...) }`; lint now zero | Fixed |
+| ISS-109 | **P3** | `docs` | `ENVIRONMENT-VARIABLES.md` | `BOING_FAUCET_COOLDOWN_SECS` / `BOING_FAUCET_MAX_PER_HOUR` read in `rpc.rs` but undocumented | Added rows | Fixed |
+
+## 8. Protocol-Sensitive Findings (documented only — no code change)
+
+| ID | Severity | Component | Finding | Decision |
+|---|---|---|---|---|
+| PS-01 | P3 | `boing-qa/src/pool_config.rs:258` | `quorum_decision` uses `f64` division for quorum/threshold ratios. Governed by `validate()` (rejects non-finite / out-of-`(0,1]` fractions) called on RPC apply (`rpc.rs:3708`) and node load (`node.rs:655`), so values are bounded and representable; residual risk is future divergence from byte-exact integer math. | No code change — protocol-sensitive. Proposal: migrate to integer basis-point math in a future config-versioned change. |
+| PS-02 | P3 | `blob_download_nonce_cache.rs` | Single-use download-proof nonce cache is process-local (documented residual): a replay is possible after a node restart until proof expiry. | No change — documented follow-up (Phase 34.1 capability tickets). |
+
+## 9. Invariants & Protocol Freeze Compliance (this pass)
+
+- **Zero protocol changes**: no edits to wire encoding, signing domains/chain IDs, genesis, addresses,
+  tokenomics, fee/slashing formulas, consensus, or testnet infrastructure.
+- All changes are **liveness/DoS-hardening, test-only cleanups, docs, or an off-chain quote-helper guard**.
+- The AMM guard only affects values that previously **panicked** (debug) or produced a non-quote;
+  valid ranges (`fee_bps <= 10_000`) are byte-identical to before.
+- Operator auth, CORS, and rate limits in `rpc.rs` unchanged.
+
+## 10. Blocked / Not Verified
+
+- `fuzz/` compile and targets: NOT VERIFIED (BLOCKED) — no nightly/`cargo-fuzz`.
+- `cargo bench --no-run`: NOT VERIFIED (BLOCKED) — time/diskspace bound in this host session.
+- `boing-network-hub` (Tauri): NOT VERIFIED (BLOCKED) — GTK/WebKit unavailable.
