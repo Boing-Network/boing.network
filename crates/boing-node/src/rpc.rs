@@ -462,7 +462,7 @@ fn parse_origin_gate_token_env() -> Option<Arc<str>> {
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .map(|s| Arc::<str>::from(s))
+        .map(Arc::<str>::from)
 }
 
 fn origin_gate_path_exempt(method: &Method, path: &str) -> bool {
@@ -1127,12 +1127,14 @@ mod phase22_reverify_tests {
             &reg,
             Some(&[v_ok, v_bad, v_un]),
             chain_id,
-            Some(aid),
-            None,
-            true,
-            false,
-            true, // include_resolved — Pending audit trail still present
-            Some(reg.commitment()),
+            super::ReverifySlashAppealBallotsOptions {
+                filter_appeal_id: Some(aid),
+                filter_slash_id: None,
+                include_unattested: true,
+                include_expired: false,
+                include_resolved: true, // include_resolved — Pending audit trail still present
+                expected_registry_commitment: Some(reg.commitment()),
+            },
         );
         assert_eq!(out["registryCommitmentMatch"], true);
         assert_eq!(out["appeals"][0]["pinSetMatch"], true);
@@ -1169,12 +1171,14 @@ mod phase22_reverify_tests {
             &reg2,
             Some(&[v1]),
             chain_id,
-            None,
-            None,
-            true,
-            false,
-            true, // finalized Approved still listed when include_resolved
-            None,
+            super::ReverifySlashAppealBallotsOptions {
+                filter_appeal_id: None,
+                filter_slash_id: None,
+                include_unattested: true,
+                include_expired: false,
+                include_resolved: true, // finalized Approved still listed when include_resolved
+                expected_registry_commitment: None,
+            },
         );
         assert_eq!(out2["appeals"][0]["okCount"], 1);
         assert_eq!(out2["appeals"][0]["votes"][0]["domain"], "v1");
@@ -1204,11 +1208,31 @@ mod phase22_reverify_tests {
             boing_state::ConsensusAppealStatus::Expired
         );
         let skip = build_reverify_slash_appeal_ballots(
-            &reg, None, 6913, None, None, true, false, false, None,
+            &reg,
+            None,
+            6913,
+            super::ReverifySlashAppealBallotsOptions {
+                filter_appeal_id: None,
+                filter_slash_id: None,
+                include_unattested: true,
+                include_expired: false,
+                include_resolved: false,
+                expected_registry_commitment: None,
+            },
         );
         assert!(skip["appeals"].as_array().unwrap().is_empty());
         let keep = build_reverify_slash_appeal_ballots(
-            &reg, None, 6913, None, None, true, true, false, None,
+            &reg,
+            None,
+            6913,
+            super::ReverifySlashAppealBallotsOptions {
+                filter_appeal_id: None,
+                filter_slash_id: None,
+                include_unattested: true,
+                include_expired: true,
+                include_resolved: false,
+                expected_registry_commitment: None,
+            },
         );
         assert_eq!(keep["appeals"].as_array().unwrap().len(), 1);
         assert_eq!(keep["appeals"][0]["status"], "expired");
@@ -1240,11 +1264,31 @@ mod phase22_reverify_tests {
             boing_state::ConsensusAppealStatus::Approved
         );
         let skip = build_reverify_slash_appeal_ballots(
-            &reg, None, 6913, None, None, true, false, false, None,
+            &reg,
+            None,
+            6913,
+            super::ReverifySlashAppealBallotsOptions {
+                filter_appeal_id: None,
+                filter_slash_id: None,
+                include_unattested: true,
+                include_expired: false,
+                include_resolved: false,
+                expected_registry_commitment: None,
+            },
         );
         assert!(skip["appeals"].as_array().unwrap().is_empty());
         let keep = build_reverify_slash_appeal_ballots(
-            &reg, None, 6913, None, None, true, false, true, None,
+            &reg,
+            None,
+            6913,
+            super::ReverifySlashAppealBallotsOptions {
+                filter_appeal_id: None,
+                filter_slash_id: None,
+                include_unattested: true,
+                include_expired: false,
+                include_resolved: true,
+                expected_registry_commitment: None,
+            },
         );
         assert_eq!(keep["appeals"].as_array().unwrap().len(), 1);
         assert_eq!(keep["appeals"][0]["status"], "approved");
@@ -1273,17 +1317,28 @@ fn parse_hex32_opt(s: &str) -> Option<[u8; 32]> {
 /// reports pin-set match vs live pins, and echoes registry commitment.
 /// Phase 23: when `include_expired` is false (default for RPC), skip Expired appeals.
 /// Phase 25: when `include_resolved` is false (default for RPC), skip Approved/Rejected.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ReverifySlashAppealBallotsOptions {
+    pub filter_appeal_id: Option<u64>,
+    pub filter_slash_id: Option<u64>,
+    pub include_unattested: bool,
+    pub include_expired: bool,
+    pub include_resolved: bool,
+    pub expected_registry_commitment: Option<[u8; 32]>,
+}
+
 pub(crate) fn build_reverify_slash_appeal_ballots(
     reg: &boing_state::SlashAppealRegistry,
     live_pinned: Option<&[boing_primitives::AccountId]>,
     chain_id: u64,
-    filter_appeal_id: Option<u64>,
-    filter_slash_id: Option<u64>,
-    include_unattested: bool,
-    include_expired: bool,
-    include_resolved: bool,
-    expected_registry_commitment: Option<[u8; 32]>,
+    opts: ReverifySlashAppealBallotsOptions,
 ) -> serde_json::Value {
+    let filter_appeal_id = opts.filter_appeal_id;
+    let filter_slash_id = opts.filter_slash_id;
+    let include_unattested = opts.include_unattested;
+    let include_expired = opts.include_expired;
+    let include_resolved = opts.include_resolved;
+    let expected_registry_commitment = opts.expected_registry_commitment;
     use boing_primitives::{
         phase20_is_legacy_electorate_snapshot, phase20_pin_set_commitment,
         verify_slash_appeal_resolve_ballot_dual,
@@ -1408,10 +1463,9 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
             "votes": votes_out,
         });
         if let Some(note) = pin_set_note {
-            appeal_obj
-                .as_object_mut()
-                .unwrap()
-                .insert("pinSetNote".into(), serde_json::json!(note));
+            if let Some(map) = appeal_obj.as_object_mut() {
+                map.insert("pinSetNote".into(), serde_json::json!(note));
+            }
         }
         appeals_out.push(appeal_obj);
     }
@@ -1423,9 +1477,9 @@ pub(crate) fn build_reverify_slash_appeal_ballots(
         "note": "Read-only Phase 22 audit: dual-verifies stored Ed25519 resolve ballots (V2 then V1); does not expire, restore, or mutate state.",
     });
     if let Some(m) = registry_commitment_match {
-        out.as_object_mut()
-            .unwrap()
-            .insert("registryCommitmentMatch".into(), serde_json::json!(m));
+        if let Some(map) = out.as_object_mut() {
+            map.insert("registryCommitmentMatch".into(), serde_json::json!(m));
+        }
     }
     out
 }
@@ -1873,9 +1927,7 @@ fn well_known_boing_rpc_document() -> serde_json::Value {
 /// Optional 32-byte `AccountId` from env for **`boing_getNetworkInfo.end_user`** (lowercase `0x` + 64 hex).
 /// Malformed values are logged and ignored so a typo does not break JSON-RPC.
 fn optional_account_id_hex(var: &'static str, raw: Option<String>) -> Option<String> {
-    let Some(raw) = raw else {
-        return None;
-    };
+    let raw = raw?;
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return None;
@@ -3055,10 +3107,12 @@ async fn dispatch_jsonrpc_request(
                                 "weight": v.weight.to_string(),
                             });
                             if let Some(sig) = v.ballot_signature {
-                                obj.as_object_mut().unwrap().insert(
-                                    "ballotSignatureHex".into(),
-                                    serde_json::json!(format!("0x{}", hex::encode(sig.0))),
-                                );
+                                if let Some(map) = obj.as_object_mut() {
+                                    map.insert(
+                                        "ballotSignatureHex".into(),
+                                        serde_json::json!(format!("0x{}", hex::encode(sig.0))),
+                                    );
+                                }
                             }
                             obj
                         })
@@ -3185,12 +3239,14 @@ async fn dispatch_jsonrpc_request(
                 n.state.slash_appeals(),
                 pinned.as_deref(),
                 chain_id,
-                filter_appeal_id,
-                filter_slash_id,
-                include_unattested,
-                include_expired,
-                include_resolved,
-                expected_registry_commitment,
+                ReverifySlashAppealBallotsOptions {
+                    filter_appeal_id,
+                    filter_slash_id,
+                    include_unattested,
+                    include_expired,
+                    include_resolved,
+                    expected_registry_commitment,
+                },
             );
             rpc_ok(id, result)
         }
@@ -5813,7 +5869,7 @@ fn rpc_http_make_span<B>(req: &HttpRequest<B>) -> tracing::Span {
     )
 }
 
-fn rpc_http_trace_layer() -> TraceLayer<
+type RpcHttpTraceLayer = TraceLayer<
     tower_http::classify::SharedClassifier<tower_http::classify::ServerErrorsAsFailures>,
     fn(&HttpRequest<axum::body::Body>) -> tracing::Span,
     DefaultOnRequest,
@@ -5821,7 +5877,9 @@ fn rpc_http_trace_layer() -> TraceLayer<
     tower_http::trace::DefaultOnBodyChunk,
     tower_http::trace::DefaultOnEos,
     DefaultOnFailure,
-> {
+>;
+
+fn rpc_http_trace_layer() -> RpcHttpTraceLayer {
     TraceLayer::new_for_http()
         .make_span_with(rpc_http_make_span as fn(&HttpRequest<axum::body::Body>) -> tracing::Span)
         .on_request(DefaultOnRequest::new().level(Level::DEBUG))

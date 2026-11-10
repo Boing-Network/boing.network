@@ -38,11 +38,10 @@ async fn deliver(cfg: GossipConfig, payload: MediaBlobGossip) -> bool {
     // The gossipsub mesh needs a few heartbeats after connect; keep re-publishing.
     while tokio::time::Instant::now() < deadline {
         let _ = publisher.broadcast_media_blob(&payload);
-        if let Ok(Some(ev)) = tokio::time::timeout(Duration::from_millis(1500), sub_rx.recv()).await
+        if let Ok(Some(P2pEvent::MediaBlobReceived(b))) =
+            tokio::time::timeout(Duration::from_millis(1500), sub_rx.recv()).await
         {
-            if let P2pEvent::MediaBlobReceived(b) = ev {
-                return b == payload;
-            }
+            return b == payload;
         }
     }
     false

@@ -431,7 +431,7 @@ mod tests {
 
     #[test]
     fn wired_flag_and_indices() {
-        assert!(PHASE27_BLS_AGGREGATE_WIRED);
+        const { assert!(PHASE27_BLS_AGGREGATE_WIRED) };
         assert_eq!(PHASE27_SUBMIT_SLASH_APPEAL_TX_INDEX, 30);
         assert_eq!(PHASE27_RESOLVE_SLASH_APPEAL_TX_INDEX, 31);
         assert_eq!(PHASE27_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, 32);

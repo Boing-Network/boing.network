@@ -2,7 +2,7 @@
 //! Stub implementation; production would persist and integrate with solver network.
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use boing_primitives::{Hash, SignedIntent};
 
@@ -41,15 +41,37 @@ impl IntentPool {
         }
     }
 
+    /// Read lock that survives a poisoned mutex (a panic elsewhere must not brick the pool).
+    fn read_inner(&self) -> RwLockReadGuard<'_, IntentPoolInner> {
+        self.inner.read().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "intent pool lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
+    }
+
+    /// Write lock that survives a poisoned mutex.
+    fn write_inner(&self) -> RwLockWriteGuard<'_, IntentPoolInner> {
+        self.inner.write().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "intent pool lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
+    }
+
     /// Submit a signed intent. Returns intent ID (hash) if accepted.
     pub fn submit(&self, signed: SignedIntent) -> Result<Hash, IntentPoolError> {
         if signed.verify().is_err() {
             return Err(IntentPoolError::InvalidSignature);
         }
         let id = signed.intent.id();
-        let mut inner = self.inner.write().unwrap();
-        if inner.intents.contains_key(&id.0) {
-            inner.intents.insert(id.0, signed);
+        let mut inner = self.write_inner();
+        if let std::collections::hash_map::Entry::Occupied(mut e) = inner.intents.entry(id.0) {
+            e.insert(signed);
             return Ok(id);
         }
         while inner.intents.len() >= self.max_intents {
@@ -64,7 +86,7 @@ impl IntentPool {
     }
 
     pub fn len(&self) -> usize {
-        self.inner.read().unwrap().intents.len()
+        self.read_inner().intents.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -119,5 +141,23 @@ mod tests {
         pool.submit(c).unwrap();
         assert_eq!(pool.len(), 2);
         assert!(!pool.inner.read().unwrap().intents.contains_key(&id_a.0));
+    }
+
+    #[test]
+    fn poisoned_lock_does_not_brick_pool() {
+        // Regression: `inner.write().unwrap()` panicked forever after any panic poisoned the lock.
+        let pool = IntentPool::new();
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = pool.inner.write().unwrap();
+            panic!("simulated panic while holding the intent-pool lock");
+        }));
+        std::panic::set_hook(prev);
+        assert!(poisoned.is_err());
+        assert!(pool.inner.is_poisoned(), "test setup must poison the lock");
+        assert_eq!(pool.len(), 0);
+        assert!(pool.submit(signed_intent(7)).is_ok());
+        assert_eq!(pool.len(), 1);
     }
 }

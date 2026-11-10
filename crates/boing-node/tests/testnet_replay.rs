@@ -107,10 +107,11 @@ fn testnet_node(local: AccountId, with_preset: bool) -> BoingNode {
     if with_preset {
         network_preset::apply_preset(&mut n, &network_preset::boing_testnet_preset());
     }
-    let mut open = boing_state::OpenValidatorParams::default();
-    open.activation_height = TESTNET_OPEN_ACTIVATION;
-    open.anchors = vec![BOING_TESTNET_GENESIS_ACCOUNT];
-    n.enable_open_validator_set(open);
+    n.enable_open_validator_set(boing_state::OpenValidatorParams {
+        activation_height: TESTNET_OPEN_ACTIVATION,
+        anchors: vec![BOING_TESTNET_GENESIS_ACCOUNT],
+        ..Default::default()
+    });
     n.enable_name_registry(boing_state::NameRegistryParams {
         activation_height: TESTNET_NAME_ACTIVATION,
         ..Default::default()
@@ -764,10 +765,11 @@ fn explicit_live_settings_on_top_of_the_preset_replay_identically() {
     node.enable_media_blobs(1_200);
     node.enable_media_blobs_phase7_cap(1_306);
     node.set_fee_policy(boing_tokenomics::NetworkFeePolicy::micro_fee_default());
-    let mut open = boing_state::OpenValidatorParams::default();
-    open.activation_height = TESTNET_OPEN_ACTIVATION;
-    open.anchors = vec![BOING_TESTNET_GENESIS_ACCOUNT];
-    node.enable_open_validator_set(open);
+    node.enable_open_validator_set(boing_state::OpenValidatorParams {
+        activation_height: TESTNET_OPEN_ACTIVATION,
+        anchors: vec![BOING_TESTNET_GENESIS_ACCOUNT],
+        ..Default::default()
+    });
     node.enable_name_registry(boing_state::NameRegistryParams {
         activation_height: TESTNET_NAME_ACTIVATION,
         ..Default::default()

@@ -99,10 +99,7 @@ pub type Phase32BlsError = Phase31BlsError;
 
 /// True when flip is configured and `height >= flip_from`.
 pub fn phase32_bls_committee_flip_active(height: u64, flip_from: Option<u64>) -> bool {
-    match flip_from {
-        Some(h) if height >= h => true,
-        _ => false,
-    }
+    matches!(flip_from, Some(h) if height >= h)
 }
 
 /// When flip **not** active: same as Phase 31 (`pinned_len > 1` ⇒ require Ed25519 **32**).
@@ -310,8 +307,8 @@ mod tests {
 
     #[test]
     fn consensus_wired_and_defaults() {
-        assert!(PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED);
-        assert!(PHASE32_BLS_LIVE_TX32_STILL_ED25519);
+        const { assert!(PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED) };
+        const { assert!(PHASE32_BLS_LIVE_TX32_STILL_ED25519) };
         assert_eq!(
             PHASE32_BLS_COMMITTEE_FLIP_ENV,
             "BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT"

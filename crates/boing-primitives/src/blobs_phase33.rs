@@ -381,7 +381,7 @@ mod tests {
 
     #[test]
     fn reserved_real_not_wired_and_is_implemented_false() {
-        assert!(!PHASE33_RESERVED_REAL_VERIFIER_WIRED);
+        const { assert!(!PHASE33_RESERVED_REAL_VERIFIER_WIRED) };
         assert!(phase33_reserved_real_verifier_backend().is_none());
         assert!(!DasSuccinctProofKind::ReservedRealV1.is_implemented());
         assert!(DasSuccinctProofKind::StubBlake3V0.is_implemented());

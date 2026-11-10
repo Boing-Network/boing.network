@@ -71,7 +71,7 @@ enum Undo {
     Account(AccountId, Option<AccountState>),
     Code(AccountId, Option<Vec<u8>>),
     Storage((AccountId, [u8; 32]), Option<[u8; 32]>),
-    QaPending(Hash, Option<QaPendingRecord>),
+    QaPending(Hash, Option<Box<QaPendingRecord>>),
     /// Whole-registry snapshot, taken at most once per checkpoint level (registries are small and
     /// capped / paid; recorded only when a tx actually touches them).
     OpenValidators(Box<OpenValidatorRegistry>),
@@ -223,7 +223,7 @@ impl StateStore {
     fn record_qa(&mut self, subject: &Hash) {
         self.mark_qa(subject);
         if self.journaling() {
-            let prev = self.qa_pending.get(subject).cloned();
+            let prev = self.qa_pending.get(subject).cloned().map(Box::new);
             self.journal.push(Undo::QaPending(*subject, prev));
         }
     }
@@ -628,7 +628,7 @@ impl StateStore {
                 }
                 Undo::QaPending(k, Some(r)) => {
                     self.mark_qa(&k);
-                    self.qa_pending.insert(k, r);
+                    self.qa_pending.insert(k, *r);
                 }
                 Undo::QaPending(k, None) => {
                     self.mark_qa(&k);

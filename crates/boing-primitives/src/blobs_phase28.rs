@@ -288,8 +288,8 @@ mod tests {
 
     #[test]
     fn flags_and_plan() {
-        assert!(PHASE28_BLS_POP_REQUIRED);
-        assert!(PHASE28_BLS_AGGREGATE_WIRED);
+        const { assert!(PHASE28_BLS_POP_REQUIRED) };
+        const { assert!(PHASE28_BLS_AGGREGATE_WIRED) };
         assert_eq!(PHASE28_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, 32);
         let plan = phase28_das_succinct_proof_plan();
         assert!(plan

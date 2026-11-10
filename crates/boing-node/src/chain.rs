@@ -1,7 +1,7 @@
 //! Chain state — tracks latest block and height.
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use boing_primitives::{AccountId, Block, Hash};
 
@@ -73,22 +73,50 @@ impl ChainState {
         }
     }
 
+    /// Read lock that survives a poisoned mutex.
+    ///
+    /// A panic anywhere in a lock-holding path must not permanently brick the chain (every later
+    /// `read().unwrap()` would panic, taking the whole node's block/tip RPC surface down).
+    ///
+    /// Caveat: nothing reconciles state on recovery. A panic mid-[`Self::append`] could leave the
+    /// block maps and head fields out of step in this in-memory cache; [`Self::append`] still
+    /// rejects any block that does not chain on the recorded head, and committed state lives in
+    /// the state store / persistence, not here. Recovery is logged and the poison flag cleared.
+    fn read_inner(&self) -> RwLockReadGuard<'_, ChainStateInner> {
+        self.inner.read().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "chain state lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
+    }
+
+    /// Write lock that survives a poisoned mutex (same caveat as [`Self::read_inner`]).
+    fn write_inner(&self) -> RwLockWriteGuard<'_, ChainStateInner> {
+        self.inner.write().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "chain state lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
+    }
+
     /// Cap how many recent heights stay resident (`0` = keep all). Genesis (height 0) is always kept.
     pub fn set_memory_window(&self, window: u64) {
-        let mut inner = self.inner.write().unwrap();
+        let mut inner = self.write_inner();
         inner.memory_window = window;
         Self::prune_locked(&mut inner);
     }
 
     pub fn height(&self) -> u64 {
-        self.inner.read().unwrap().height
+        self.read_inner().height
     }
 
     /// Tip block timestamp (0 if tip is missing — should not happen after genesis).
     pub fn tip_timestamp(&self) -> u64 {
-        self.inner
-            .read()
-            .unwrap()
+        self.read_inner()
             .latest_block
             .as_ref()
             .map(|b| b.header.timestamp)
@@ -96,16 +124,16 @@ impl ChainState {
     }
 
     pub fn latest_hash(&self) -> Hash {
-        self.inner.read().unwrap().latest_hash
+        self.read_inner().latest_hash
     }
 
     pub fn parent_hash(&self) -> Hash {
-        self.inner.read().unwrap().latest_hash
+        self.read_inner().latest_hash
     }
 
     /// Append a committed block. Returns error if block doesn't chain.
     pub fn append(&self, block: Block) -> Result<(), ChainError> {
-        let mut inner = self.inner.write().unwrap();
+        let mut inner = self.write_inner();
         if block.header.parent_hash != inner.latest_hash {
             return Err(ChainError::BlockNotChained);
         }
@@ -146,33 +174,23 @@ impl ChainState {
 
     /// Number of blocks currently held in RAM (including genesis).
     pub fn cached_block_count(&self) -> usize {
-        self.inner.read().unwrap().blocks_by_height.len()
+        self.read_inner().blocks_by_height.len()
     }
 
     /// Get block by height, if present.
     pub fn get_block_by_height(&self, height: u64) -> Option<Block> {
-        self.inner
-            .read()
-            .unwrap()
-            .blocks_by_height
-            .get(&height)
-            .cloned()
+        self.read_inner().blocks_by_height.get(&height).cloned()
     }
 
     /// Run `f` on the block at `height` without cloning it (read-only; holds the chain read lock for
     /// the duration of `f`, so keep it short and never call back into [`ChainState`] from `f`).
     pub fn with_block_by_height<R>(&self, height: u64, f: impl FnOnce(&Block) -> R) -> Option<R> {
-        self.inner
-            .read()
-            .unwrap()
-            .blocks_by_height
-            .get(&height)
-            .map(f)
+        self.read_inner().blocks_by_height.get(&height).map(f)
     }
 
     /// Get block by hash, if present.
     pub fn get_block_by_hash(&self, hash: &Hash) -> Option<Block> {
-        self.inner.read().unwrap().blocks_by_hash.get(hash).cloned()
+        self.read_inner().blocks_by_hash.get(hash).cloned()
     }
 }
 
@@ -218,5 +236,42 @@ mod tests {
         assert!(chain.get_block_by_height(3).is_some());
         assert!(chain.get_block_by_height(5).is_some());
         assert!(chain.cached_block_count() <= 4); // genesis + window
+    }
+
+    #[test]
+    fn poisoned_lock_does_not_brick_chain() {
+        // Regression: `read()/write().unwrap()` panicked forever once a panic poisoned the lock,
+        // permanently taking every chain/tip RPC path down with it.
+        let chain = ChainState::new(AccountId([1u8; 32]));
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _g = chain.inner.write().unwrap();
+            panic!("simulated panic while holding the chain lock");
+        }));
+        std::panic::set_hook(prev);
+        assert!(poisoned.is_err());
+        assert!(chain.inner.is_poisoned(), "test setup must poison the lock");
+        // Reads and appends must keep working after poisoning.
+        assert_eq!(chain.height(), 0);
+        let parent = chain.latest_hash();
+        let block = Block {
+            header: boing_primitives::BlockHeader {
+                parent_hash: parent,
+                height: 1,
+                timestamp: 1,
+                proposer: AccountId([1u8; 32]),
+                tx_root: Hash::ZERO,
+                receipts_root: Hash::ZERO,
+                state_root: Hash::ZERO,
+                blobs_root: None,
+            },
+            transactions: vec![],
+            signatures: vec![],
+            priority_tips: vec![],
+        };
+        assert!(chain.append(block).is_ok());
+        assert_eq!(chain.height(), 1);
+        assert!(chain.get_block_by_height(1).is_some());
     }
 }

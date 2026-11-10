@@ -73,7 +73,7 @@ fn decode_bytecode_bytes(raw: &[u8], path: &Path) -> anyhow::Result<Vec<u8>> {
         .trim_start_matches("0X")
         .to_string();
     if !compact.is_empty()
-        && compact.len() % 2 == 0
+        && compact.len().is_multiple_of(2)
         && compact.chars().all(|c| c.is_ascii_hexdigit())
     {
         return hex::decode(&compact)

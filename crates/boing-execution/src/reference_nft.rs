@@ -857,12 +857,12 @@ mod tests {
     #[test]
     fn mint_batch_n_max_fits_production_call_gas() {
         // Measured n=500 owner+metadata ≈ 33_319_882 (template v3); budget 40M leaves headroom.
-        assert!(
-            crate::vm::GAS_PER_CONTRACT_CALL >= 40_000_000,
-            "call budget must cover n={} owner+metadata SSTOREs; got {}",
-            MAX_REFERENCE_NFT_MINT_BATCH,
-            crate::vm::GAS_PER_CONTRACT_CALL
-        );
+        const {
+            assert!(
+                crate::vm::GAS_PER_CONTRACT_CALL >= 40_000_000,
+                "GAS_PER_CONTRACT_CALL must still cover the measured n=500 owner+metadata SSTOREs"
+            )
+        };
         let deployer = AccountId([0x91u8; 32]);
         let to = AccountId([0x92u8; 32]);
         let collection = AccountId([0x93u8; 32]);

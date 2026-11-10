@@ -189,17 +189,12 @@ async fn rpc_submitted_tx_propagates_to_peer_mempool_via_gossip() {
 
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    for i in 0..N {
-        for j in 0..N {
+    for (i, node) in nodes.iter().enumerate().take(N) {
+        for (j, addr) in addrs.iter().enumerate().take(N) {
             if i == j {
                 continue;
             }
-            nodes[i]
-                .read()
-                .await
-                .p2p
-                .dial(&addrs[j])
-                .expect("full mesh dial");
+            node.read().await.p2p.dial(addr).expect("full mesh dial");
         }
     }
 

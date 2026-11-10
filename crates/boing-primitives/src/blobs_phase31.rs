@@ -256,8 +256,8 @@ mod tests {
 
     #[test]
     fn consensus_wired_and_verify_still_works() {
-        assert!(PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED);
-        assert!(PHASE31_BLS_LIVE_TX32_STILL_ED25519);
+        const { assert!(PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED) };
+        const { assert!(PHASE31_BLS_LIVE_TX32_STILL_ED25519) };
         assert!(phase31_admit_bls_aggregate_resolve_tx().is_ok());
         let ikm1 = [41u8; 32];
         let ikm2 = [42u8; 32];

@@ -4,7 +4,7 @@
 //! See QUALITY-ASSURANCE-NETWORK.md §8.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use boing_primitives::{AccountId, Hash, SignedTransaction};
@@ -146,8 +146,33 @@ impl PendingQaQueue {
         }
     }
 
+    /// Lock the governance config, recovering from a poisoned mutex.
+    ///
+    /// A panic in any lock-holding path must not permanently brick QA. Config contents are always
+    /// fully written before publication, so resuming with the poisoned guard is safe.
+    fn lock_governance(&self) -> MutexGuard<'_, QaPoolGovernanceConfig> {
+        self.governance.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "QA pool governance lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.governance.clear_poison();
+            poisoned.into_inner()
+        })
+    }
+
+    /// Lock the pending-items map, recovering from a poisoned mutex.
+    fn lock_inner(&self) -> MutexGuard<'_, PendingQaQueueInner> {
+        self.inner.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "QA pool items lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
+    }
+
     pub fn governance_config(&self) -> QaPoolGovernanceConfig {
-        self.governance.lock().unwrap().clone()
+        self.lock_governance().clone()
     }
 
     /// Replace governance parameters (e.g. after a governance proposal executes). Pending items are kept.
@@ -163,15 +188,15 @@ impl PendingQaQueue {
             accepts = config.accepts_new_pending(),
             "QA pool governance config updated"
         );
-        *self.governance.lock().unwrap() = config;
+        *self.lock_governance() = config;
     }
 
     pub fn accepts_new_pending(&self) -> bool {
-        self.governance.lock().unwrap().accepts_new_pending()
+        self.lock_governance().accepts_new_pending()
     }
 
     pub fn pending_len(&self) -> usize {
-        self.inner.lock().unwrap().items.len()
+        self.lock_inner().items.len()
     }
 
     fn deployer_pending_count(inner: &PendingQaQueueInner, deployer: AccountId) -> usize {
@@ -184,11 +209,11 @@ impl PendingQaQueue {
 
     /// Add an item that received Unsure from automation.
     pub fn add(&self, item: PendingQaItem) -> Result<(), PoolError> {
-        let cfg = self.governance.lock().unwrap().clone();
+        let cfg = self.lock_governance().clone();
         if !cfg.accepts_new_pending() {
             return Err(PoolError::PoolDisabled);
         }
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock_inner();
         if inner.items.contains_key(&item.tx_hash) {
             return Err(PoolError::Duplicate);
         }
@@ -220,8 +245,8 @@ impl PendingQaQueue {
         vote: QaPoolVote,
         voter_stake: Option<u128>,
     ) -> Result<(), PoolError> {
-        let cfg = self.governance.lock().unwrap().clone();
-        let mut inner = self.inner.lock().unwrap();
+        let cfg = self.lock_governance().clone();
+        let mut inner = self.lock_inner();
         let item = inner.items.get_mut(&tx_hash).ok_or(PoolError::NotFound)?;
         if cfg
             .voter_eligibility(voter, Some(item.deployer), voter_stake)
@@ -235,13 +260,13 @@ impl PendingQaQueue {
 
     /// Evaluate quorum / thresholds / expiry. Removes item when resolved.
     pub fn resolve(&self, tx_hash: Hash) -> PoolResolution {
-        let cfg = self.governance.lock().unwrap().clone();
+        let cfg = self.lock_governance().clone();
         let max_time = Duration::from_secs(cfg.review_window_secs);
         let default_on_expiry = match cfg.default_on_expiry {
             QaPoolExpiryPolicy::Reject => DefaultOnExpiry::Reject,
             QaPoolExpiryPolicy::Allow => DefaultOnExpiry::Allow,
         };
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock_inner();
         let Some(item) = inner.items.get(&tx_hash) else {
             return PoolResolution::Pending;
         };
@@ -291,12 +316,12 @@ impl PendingQaQueue {
 
     /// Get a pending item by tx hash.
     pub fn get(&self, tx_hash: &Hash) -> Option<PendingQaItem> {
-        self.inner.lock().unwrap().items.get(tx_hash).cloned()
+        self.lock_inner().items.get(tx_hash).cloned()
     }
 
     /// List all pending items (includes bincode; use [`Self::list_summaries`] for RPC).
     pub fn list(&self) -> Vec<PendingQaItem> {
-        self.inner.lock().unwrap().items.values().cloned().collect()
+        self.lock_inner().items.values().cloned().collect()
     }
 
     /// JSON-friendly rows without signed tx bytes.
@@ -323,7 +348,7 @@ impl PendingQaQueue {
 
     /// Remove expired items and return resolutions (for background tick).
     pub fn prune_expired(&self) -> Vec<(Hash, PoolResolution)> {
-        let cfg = self.governance.lock().unwrap().clone();
+        let cfg = self.lock_governance().clone();
         let max_time = Duration::from_secs(cfg.review_window_secs);
         let default_on_expiry = match cfg.default_on_expiry {
             QaPoolExpiryPolicy::Reject => DefaultOnExpiry::Reject,
@@ -331,7 +356,7 @@ impl PendingQaQueue {
         };
         drop(cfg);
 
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock_inner();
         let mut out = Vec::new();
         let to_check: Vec<Hash> = inner.items.keys().copied().collect();
         for h in to_check {
@@ -553,6 +578,42 @@ mod tests {
         assert_eq!(rows[0].purpose_category.as_deref(), Some("token"));
         assert_eq!(rows[0].asset_name.as_deref(), Some("Review Me"));
         assert_eq!(rows[0].asset_symbol.as_deref(), Some("RVM"));
+    }
+
+    #[test]
+    fn poisoned_mutex_does_not_brick_pool() {
+        // Regression: `lock().unwrap()` panicked forever once a panic poisoned either mutex,
+        // permanently taking QA pool RPC paths (`boing_qaPool*`) down with it.
+        let queue =
+            PendingQaQueue::from_governance_config(QaPoolGovernanceConfig::development_default());
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _g = queue.inner.lock().unwrap();
+            panic!("simulated panic while holding the QA pool items lock");
+        }));
+        let poisoned_gov = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _g = queue.governance.lock().unwrap();
+            panic!("simulated panic while holding the QA pool governance lock");
+        }));
+        std::panic::set_hook(prev);
+        assert!(poisoned.is_err() && poisoned_gov.is_err());
+        assert!(
+            queue.inner.is_poisoned() && queue.governance.is_poisoned(),
+            "test setup must poison both mutexes"
+        );
+
+        // Every public entry point must recover instead of panicking.
+        assert_eq!(queue.pending_len(), 0);
+        assert!(queue.governance_config().accepts_new_pending());
+        let signed = sample_deploy_tx();
+        let tx_hash = signed.tx.id();
+        assert!(queue
+            .add(PendingQaItem::from_signed(&signed).unwrap())
+            .is_ok());
+        assert_eq!(queue.pending_len(), 1);
+        assert!(matches!(queue.resolve(tx_hash), PoolResolution::Pending));
+        assert_eq!(queue.list().len(), 1);
     }
 }
 
