@@ -7,6 +7,9 @@
 //! backoff whenever they are not connected (see [`crate::redial`]); `/dns*` bootnodes are re-resolved on
 //! every dial; a libp2p `ping` every [`PING_INTERVAL`] detects dead links so they are closed (and redialed)
 //! instead of lingering as half-open connections.
+//!
+//! Every outbound dial uses a fresh ephemeral source port (`outbound_dial`); see there for why the
+//! libp2p default of reusing the listen port breaks simultaneous mutual dials.
 
 use std::collections::HashMap;
 use std::net::{IpAddr, ToSocketAddrs};
@@ -20,6 +23,7 @@ use libp2p::gossipsub::{IdentTopic, MessageAcceptance, MessageAuthenticity, Vali
 use libp2p::mdns::tokio::Behaviour as Mdns;
 use libp2p::multiaddr::Protocol;
 use libp2p::request_response::{self, ProtocolSupport};
+use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
 use libp2p::StreamProtocol;
 use libp2p::{gossipsub, SwarmBuilder};
@@ -148,6 +152,23 @@ fn parse_listen_addrs(listen_addr: &str) -> Result<Vec<libp2p::Multiaddr>, P2pEr
         ));
     }
     Ok(out)
+}
+
+/// Dial options for every outbound connection: unknown peer id, **fresh ephemeral source port**.
+///
+/// libp2p's default `PortUse::Reuse` binds outgoing TCP sockets to the local *listen* port. When two
+/// nodes dial each other at the same time (mutual bootnodes, all-to-all dials, both sides redialing
+/// after a drop) A->B and B->A then share one TCP 4-tuple, and the OS either rejects one connect
+/// (`EADDRINUSE` / WSAEADDRINUSE 10048, also while an earlier connection on that tuple is still in
+/// TIME_WAIT) or TCP simultaneous-open merges both SYNs into a single socket on which *both* ends run
+/// the dialer side of the TLS/Noise upgrade, so the handshake fails. If both directions of a pair
+/// lose, the pair never connects. Boing does not use hole punching or observed-address discovery, so
+/// reusing the listen port buys nothing; a fresh port per dial makes the two directions independent.
+fn outbound_dial(addr: libp2p::Multiaddr) -> DialOpts {
+    DialOpts::unknown_peer_id()
+        .address(addr)
+        .allocate_new_port()
+        .build()
 }
 
 fn direction(endpoint: &libp2p_core::connection::ConnectedPoint) -> &'static str {
@@ -410,7 +431,7 @@ impl P2pNode {
                             }
                             Some(Command::Dial(addr)) => {
                                 if let Ok(ma) = addr.parse::<libp2p::Multiaddr>() {
-                                    if let Err(e) = swarm.dial(ma) {
+                                    if let Err(e) = swarm.dial(outbound_dial(ma)) {
                                         boing_telemetry::component_warn(
                                             "boing_p2p::swarm",
                                             "p2p",
@@ -442,7 +463,7 @@ impl P2pNode {
                     _ = redial_tick.tick(), if !redial.is_empty() => {
                         for addr in redial.due(Instant::now()) {
                             // Addresses come from operator config; log only that a dial happened.
-                            match swarm.dial(addr) {
+                            match swarm.dial(outbound_dial(addr)) {
                                 Ok(()) => debug!(
                                     "P2P: dialing bootnode ({} of {} connected, peers={})",
                                     redial.connected_count(),
