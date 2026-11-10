@@ -14,7 +14,7 @@ description: User, developer, and light operator paths onto Boing public testnet
 ## Developers
 
 1. Point RPC at `https://testnet-rpc.boing.network/`
-2. Install `@boing-network/boing-sdk@^0.5.39`
+2. Install `@boing-network/boing-sdk@^0.5.41`
 3. Read [JSON-RPC](/developers/rpc/) and [SDK](/developers/sdk/)
 4. Use Express for signing; never paste private keys into websites
 5. Portal: [testnet developers hub](https://boing.network/testnet/developers)

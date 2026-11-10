@@ -123,8 +123,8 @@ Deterministic stack machine (`boing-execution`). Opcode families include arithme
 | Chain | **6913** / Boing Testnet |
 | Tip (probe) | **1523** |
 | Public RPC | Cloudflare Worker gateway → Fly `boing-testnet-1` |
-| Recommended SDK | `@boing-network/boing-sdk@^0.5.39` |
-| Recommended wallet | Boing Express **0.1.24** (min advisory **0.1.18**) |
+| Recommended SDK | `@boing-network/boing-sdk@^0.5.41` |
+| Recommended wallet | Boing Express **0.1.25** (min advisory **0.1.18**) |
 | DEX discovery | `boing_listDexPools`, `boing_listDexTokens`, `boing_getDexToken` |
 | Canonical CP pool / factory | Published under `end_user` — prefer live fields |
 
@@ -198,11 +198,11 @@ Protocol detail: [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md), [HANDOFF_BL
 
 | Surface | Role | Notes |
 |---------|------|-------|
-| **Boing Express** | Non-custodial wallet | Recommended **0.1.24**; `window.boing`; v2 signing; PutBlob publish sessions |
+| **Boing Express** | Non-custodial wallet | Recommended **0.1.25**; `window.boing`; v2 signing; PutBlob publish sessions |
 | **Boing Finance** | Swaps, pools, tokens, NFTs | Native VM `AccountId`s — not EVM addresses on 6913 |
 | **Boing Observer** | Explorer | Public testnet RPC via same-origin proxy; slim blocks; QA visibility |
 | **Website / faucet** | Docs, portal, faucet | [boing.network](https://boing.network) |
-| **@boing-network/boing-sdk** | TypeScript client | **^0.5.39** on npm (scoped package name required) |
+| **@boing-network/boing-sdk** | TypeScript client | **^0.5.41** on npm (scoped package name required) |
 
 Integration entry: [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md). Everyday overview: [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md).
 

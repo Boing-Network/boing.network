@@ -28,8 +28,8 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | Tip (probe) | **1522** |
 | Bootnode | `/ip4/169.155.48.188/tcp/4001` ([FLY-IO.md](FLY-IO.md)) |
 | `boing-testnet-2` | **Retired 2026-10-24** |
-| Recommended SDK | **`@boing-network/boing-sdk@0.5.39`** (`client_hints`; tag `boing-sdk/v0.5.39`) |
-| Recommended wallet | Boing Express **0.1.24** (`client_hints`; min advisory **0.1.18**) |
+| Recommended SDK | **`@boing-network/boing-sdk@0.5.41`** (`client_hints`; tag `boing-sdk/v0.5.41`) |
+| Recommended wallet | Boing Express **0.1.25** (`client_hints`; min advisory **0.1.18**) |
 | Latest node tag | `testnet-v0.1.24` (**2026-11-01**) |
 | DEX discovery | `boing_listDexPools`, `boing_listDexTokens`, `boing_getDexToken` |
 | Canonical CP pool | Published in `end_user` (ops freeze **2026-05-21**; Fly advertise verified **2026-11-01**) — prefer live `end_user` |
@@ -69,7 +69,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | Micro fee market + optional priority tips | testnet live | H=**1188**; [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md) | high |
 | Blake3 VM opcode `0x20` + fungible template v3 | gated | env `BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT` unset = never; PR #157 **2026-10-31** | high |
 | Pool v11 first-mint √(A·B) | shipped | new CREATE2 only; no height gate; PR #154 | high |
-| Reference multi-token v1 (shared item types, ERC-1155-style) | shipped (template; no protocol change) | **2026-11-09**; [BOING-REFERENCE-MULTI-TOKEN.md](BOING-REFERENCE-MULTI-TOKEN.md); SDK 0.5.41 (unpublished until tag); `boing items` CLI | high |
+| Reference multi-token v1 (shared item types, ERC-1155-style) | shipped (template; no protocol change) | **2026-11-09**; [BOING-REFERENCE-MULTI-TOKEN.md](BOING-REFERENCE-MULTI-TOKEN.md); SDK 0.5.41 (published 2026-11-09); `boing items` CLI | high |
 | L1 media blobs Phases 1–33 | testnet live | admission H=**1200**; [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) | high |
 | PHASE7 256 MiB consensus cap | testnet live | H=**1306** | high |
 | Phase 34 Grant/Revoke blob download ACL | code live; private-by-default **uncertain** | SDK `boing-sdk/v0.5.38` **2026-10-25**; [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md); verify ACL activation on RPC | medium |
@@ -118,7 +118,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 |---------|--------|-----------------|------------|
 | Core JSON-RPC + method catalog (doc-enforced) | testnet live | [RPC-API-SPEC.md](RPC-API-SPEC.md); `cargo test -p boing-node` coverage | high |
 | `boing_getNetworkInfo` / `boing_health` activation fields | testnet live | live probe 2026-11-01 | high |
-| `client_hints` recommended SDK / wallet | testnet live | live 0.5.39 / 0.1.24 (after node/env pick-up) | high |
+| `client_hints` recommended SDK / wallet | testnet defaults | node defaults 0.5.41 / 0.1.25; the live node reports what it was built/configured with (0.5.40 / 0.1.24 on 2026-11-09) until its next deploy or env update | high |
 | DEX discovery triple | testnet live | tag `testnet-v0.1.9` **2026-04-13** | high |
 | `boing_getTokenMetadata` / `boing_listTokens` | testnet live | commits ~**2026-10-28** | high |
 | Media blob RPC suite + `boing_getBlobAccess` | testnet live (with media activation) | RPC-API-SPEC; Phase 34 | high |
@@ -159,7 +159,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | Native-dex-indexer Worker + D1 directory | in-repo worker | [HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md](HANDOFF_NATIVE_DEX_DIRECTORY_R2_AND_CHAIN.md) | high |
 | Canonical testnet pool publish | testnet live | ops **2026-05-21**; Fly `end_user` verified **2026-11-01** | high |
 | Finance Swap → default CP; Pools + Smart route | product live pattern | finance `native-dex.md` | high |
-| SDK `@boing-network/boing-sdk@^0.5.39` | published | tag **2026-11-04**; CHANGELOG | high |
+| SDK `@boing-network/boing-sdk@^0.5.41` | published | tag **2026-11-09** (multi-token helpers); CHANGELOG | high |
 | Planet-scale DEX subgraph / OBS-1 history | deferred / partial | NEXT-STEPS indexer | high |
 
 Capability overview: [BOING-NATIVE-DEX-CAPABILITY.md](BOING-NATIVE-DEX-CAPABILITY.md). Ops publish hub: [OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md](OPS-CANONICAL-TESTNET-NATIVE-AMM-POOL.md).
