@@ -408,7 +408,7 @@ mod tests {
         assert_eq!(PHASE26_RESOLVE_SLASH_APPEAL_ATTESTED_TX_INDEX, 32);
         assert_eq!(PHASE26_BLS_PUBLIC_KEY_G1_BYTES, 48);
         assert_eq!(PHASE26_BLS_SIGNATURE_G2_BYTES, 96);
-        assert!(!PHASE26_BLS_AGGREGATE_WIRED);
+        const { assert!(!PHASE26_BLS_AGGREGATE_WIRED) };
         assert_eq!(
             PHASE26_RESOLVED_APPEAL_RETENTION_BLOCKS,
             PHASE25_RESOLVED_APPEAL_RETENTION_BLOCKS

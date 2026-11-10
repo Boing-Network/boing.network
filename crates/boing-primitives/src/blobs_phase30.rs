@@ -367,8 +367,8 @@ mod tests {
             Err(Phase30BlsError::ConsensusSubmitNotWired)
         );
         assert_eq!(PHASE30_RESOLVE_SLASH_APPEAL_BLS_AGGREGATE_TX_INDEX, 33);
-        assert!(PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED);
-        assert!(!PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED);
+        const { assert!(PHASE30_BLS_AGGREGATE_SELF_CONTAINED_WIRED) };
+        const { assert!(!PHASE30_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED) };
     }
 
     #[test]

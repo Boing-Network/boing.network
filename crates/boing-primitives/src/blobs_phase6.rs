@@ -566,7 +566,7 @@ mod tests {
 
     #[test]
     fn phase6_target_is_above_live_cap() {
-        assert!(PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES > MAX_MEDIA_BLOB_BYTES);
+        const { assert!(PHASE6_TARGET_MAX_MEDIA_BLOB_BYTES > MAX_MEDIA_BLOB_BYTES) };
         assert_eq!(PHASE6_VIDEO_SEGMENT_TARGET_BYTES, MAX_MEDIA_BLOB_BYTES);
     }
 

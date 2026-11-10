@@ -307,8 +307,8 @@ mod tests {
 
     #[test]
     fn consensus_wired_and_defaults() {
-        assert!(PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED);
-        assert!(PHASE32_BLS_LIVE_TX32_STILL_ED25519);
+        const { assert!(PHASE32_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED) };
+        const { assert!(PHASE32_BLS_LIVE_TX32_STILL_ED25519) };
         assert_eq!(
             PHASE32_BLS_COMMITTEE_FLIP_ENV,
             "BOING_MEDIA_BLOBS_BLS_COMMITTEE_FLIP_HEIGHT"

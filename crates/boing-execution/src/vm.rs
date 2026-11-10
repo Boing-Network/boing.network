@@ -4420,8 +4420,8 @@ mod slash_appeal_phase14_tests {
             PHASE31_BLS_LIVE_TX32_STILL_ED25519,
         };
 
-        assert!(PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED);
-        assert!(PHASE31_BLS_LIVE_TX32_STILL_ED25519);
+        const { assert!(PHASE31_BLS_AGGREGATE_SUBMIT_CONSENSUS_WIRED) };
+        const { assert!(PHASE31_BLS_LIVE_TX32_STILL_ED25519) };
 
         let provider = AccountId([0x61; 32]);
         let a1 = AccountId([0x62; 32]);
