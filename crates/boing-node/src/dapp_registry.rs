@@ -2,7 +2,7 @@
 //! Stub implementation; production would persist and sync across nodes.
 
 use std::collections::HashSet;
-use std::sync::{Arc, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use boing_primitives::AccountId;
 use boing_tokenomics::dapp_incentives::DappRegistration;
@@ -31,12 +31,24 @@ impl DappRegistry {
 
     /// Read lock that survives a poisoned mutex (a panic must not brick dApp registration RPCs).
     fn read_inner(&self) -> RwLockReadGuard<'_, DappRegistryInner> {
-        self.inner.read().unwrap_or_else(PoisonError::into_inner)
+        self.inner.read().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "dApp registry lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
     }
 
     /// Write lock that survives a poisoned mutex.
     fn write_inner(&self) -> RwLockWriteGuard<'_, DappRegistryInner> {
-        self.inner.write().unwrap_or_else(PoisonError::into_inner)
+        self.inner.write().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "dApp registry lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
     }
 
     /// Register a contract for dApp incentive tracking. Idempotent (re-register updates owner).

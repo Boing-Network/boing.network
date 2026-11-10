@@ -363,16 +363,22 @@ fn object_params(params: &Option<Value>) -> Result<Map<String, Value>, DexDiscov
     }
 }
 
-/// `boing_getTokenMetadata`: `params` = `["0x<64 hex>"]`, `[{"id": "0x…"}]` or `{"id": "0x…"}`.
-/// Returns `null` when the account is neither a recorded deploy nor a contract with code.
 /// Lock the token index, recovering from a poisoned mutex so a panic in one RPC call cannot
-/// permanently brick `boing_getTokenMetadata` / `boing_listTokens`.
+/// permanently brick `boing_getTokenMetadata` / `boing_listTokens`. The index is a derived
+/// read-side cache of chain data (not consensus state), so continuing past a poisoned lock is
+/// safe; the recovery is logged and the poison flag is cleared.
 fn lock_index(index: &Mutex<TokenIndex>) -> std::sync::MutexGuard<'_, TokenIndex> {
-    index
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+    index.lock().unwrap_or_else(|poisoned| {
+        tracing::warn!(
+            "token metadata index lock poisoned by an earlier panic; recovered, poison cleared"
+        );
+        index.clear_poison();
+        poisoned.into_inner()
+    })
 }
 
+/// `boing_getTokenMetadata`: `params` = `["0x<64 hex>"]`, `[{"id": "0x…"}]` or `{"id": "0x…"}`.
+/// Returns `null` when the account is neither a recorded deploy nor a contract with code.
 pub fn get_token_metadata(
     index: &Mutex<TokenIndex>,
     state: &StateStore,

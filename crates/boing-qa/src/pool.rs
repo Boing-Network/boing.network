@@ -4,7 +4,7 @@
 //! See QUALITY-ASSURANCE-NETWORK.md §8.
 
 use std::collections::HashMap;
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use boing_primitives::{AccountId, Hash, SignedTransaction};
@@ -151,14 +151,24 @@ impl PendingQaQueue {
     /// A panic in any lock-holding path must not permanently brick QA. Config contents are always
     /// fully written before publication, so resuming with the poisoned guard is safe.
     fn lock_governance(&self) -> MutexGuard<'_, QaPoolGovernanceConfig> {
-        self.governance
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
+        self.governance.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "QA pool governance lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.governance.clear_poison();
+            poisoned.into_inner()
+        })
     }
 
     /// Lock the pending-items map, recovering from a poisoned mutex.
     fn lock_inner(&self) -> MutexGuard<'_, PendingQaQueueInner> {
-        self.inner.lock().unwrap_or_else(PoisonError::into_inner)
+        self.inner.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "QA pool items lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
     }
 
     pub fn governance_config(&self) -> QaPoolGovernanceConfig {

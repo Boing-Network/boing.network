@@ -1,7 +1,7 @@
 //! Chain state — tracks latest block and height.
 
 use std::collections::HashMap;
-use std::sync::{Arc, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use boing_primitives::{AccountId, Block, Hash};
 
@@ -76,17 +76,31 @@ impl ChainState {
     /// Read lock that survives a poisoned mutex.
     ///
     /// A panic anywhere in a lock-holding path must not permanently brick the chain (every later
-    /// `read().unwrap()` would panic, taking the whole node's block/tip RPC surface down). The
-    /// head fields are re-derivable from the block maps, so resuming with the poisoned guard is
-    /// safe; a panic mid-[`Self::append`] can leave the maps/head slightly out of step, which the
-    /// node's next block import reconciles.
+    /// `read().unwrap()` would panic, taking the whole node's block/tip RPC surface down).
+    ///
+    /// Caveat: nothing reconciles state on recovery. A panic mid-[`Self::append`] could leave the
+    /// block maps and head fields out of step in this in-memory cache; [`Self::append`] still
+    /// rejects any block that does not chain on the recorded head, and committed state lives in
+    /// the state store / persistence, not here. Recovery is logged and the poison flag cleared.
     fn read_inner(&self) -> RwLockReadGuard<'_, ChainStateInner> {
-        self.inner.read().unwrap_or_else(PoisonError::into_inner)
+        self.inner.read().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "chain state lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
     }
 
-    /// Write lock that survives a poisoned mutex.
+    /// Write lock that survives a poisoned mutex (same caveat as [`Self::read_inner`]).
     fn write_inner(&self) -> RwLockWriteGuard<'_, ChainStateInner> {
-        self.inner.write().unwrap_or_else(PoisonError::into_inner)
+        self.inner.write().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "chain state lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
     }
 
     /// Cap how many recent heights stay resident (`0` = keep all). Genesis (height 0) is always kept.

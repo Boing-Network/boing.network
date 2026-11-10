@@ -2,7 +2,7 @@
 //! Stub implementation; production would persist and integrate with solver network.
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use boing_primitives::{Hash, SignedIntent};
 
@@ -43,12 +43,24 @@ impl IntentPool {
 
     /// Read lock that survives a poisoned mutex (a panic elsewhere must not brick the pool).
     fn read_inner(&self) -> RwLockReadGuard<'_, IntentPoolInner> {
-        self.inner.read().unwrap_or_else(PoisonError::into_inner)
+        self.inner.read().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "intent pool lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
     }
 
     /// Write lock that survives a poisoned mutex.
     fn write_inner(&self) -> RwLockWriteGuard<'_, IntentPoolInner> {
-        self.inner.write().unwrap_or_else(PoisonError::into_inner)
+        self.inner.write().unwrap_or_else(|poisoned| {
+            tracing::warn!(
+                "intent pool lock poisoned by an earlier panic; recovered, poison cleared"
+            );
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
     }
 
     /// Submit a signed intent. Returns intent ID (hash) if accepted.

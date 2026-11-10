@@ -2,7 +2,7 @@
 //! Runs protocol QA on ContractDeploy before accepting; rejects with structured reason when QA fails.
 
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Mutex, MutexGuard};
 
 use boing_primitives::{AccountId, Hash, SignedTransaction};
 use boing_qa::{check_contract_deploy_full_with_metadata, QaReject, QaResult, RuleRegistry};
@@ -108,10 +108,17 @@ impl Mempool {
     ///
     /// A panic anywhere in a lock-holding code path must not permanently brick admission (every
     /// later `lock().unwrap()` would panic, taking the node's JSON-RPC/mempool paths down with it).
-    /// Pool invariants are re-derived from the maps themselves, so resuming with the poisoned guard
-    /// is safe; matches the recovery already used by [`crate::security`].
+    /// Caveat: invariants are **not** re-derived on recovery. A panic mid-insert/eviction can leave the
+    /// cached `len` counter or `by_id`/`by_sender` maps slightly out of step; that only affects
+    /// local admission limits and block-template selection (never consensus, since every block is
+    /// re-validated on execution). Recovery is logged and the poison flag cleared. Same pattern as
+    /// [`crate::security`].
     fn lock_inner(&self) -> MutexGuard<'_, MempoolInner> {
-        self.inner.lock().unwrap_or_else(PoisonError::into_inner)
+        self.inner.lock().unwrap_or_else(|poisoned| {
+            tracing::warn!("mempool lock poisoned by an earlier panic; recovered, poison cleared");
+            self.inner.clear_poison();
+            poisoned.into_inner()
+        })
     }
 
     pub fn with_max_pending_per_sender(mut self, max: usize) -> Self {
