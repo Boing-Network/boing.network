@@ -9,3 +9,5 @@ desktop-hub/src-tauri/** text eol=lf
 desktop-hub/src-tauri/icons/** binary
 # Shell scripts run inside Linux images (Fly entrypoint): CRLF breaks the shebang
 *.sh text eol=lf
+# boing-sdk build output: tsc always emits LF; keep the working copy LF so a local rebuild on Windows is not a spurious diff
+boing-sdk/dist/** text eol=lf
