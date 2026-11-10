@@ -189,7 +189,7 @@ SDK: **`@boing-network/boing-sdk@^0.5.41`** (npm; not unscoped `boing-sdk`). Tut
 | Surface | Role | Technical notes |
 |---------|------|-----------------|
 | **@boing-network/boing-sdk** | TypeScript client | Recommended **0.5.41**; signing, RPC helpers, blob ACL APIs; rebuild `dist/` after local SDK edits |
-| **Boing Express** | Wallet | Recommended **0.1.25** (`client_hints`; min advisory **0.1.18**); `window.boing`; PutBlob publish sessions; v2 signing + tips |
+| **Boing Express** | Wallet | Recommended **0.1.26** (`client_hints`; min advisory **0.1.18**); `window.boing`; PutBlob publish sessions; v2 signing + tips |
 | **Boing Finance** | Swaps / pools / tokens / NFTs | Native VM `AccountId`s in `contracts.js` / env — not EVM addresses on 6913 |
 | **Boing Observer** | Explorer | Public testnet RPC; same-origin `/api/rpc`; slim blocks; QA / activation visibility |
 | **Website / faucet** | Docs, join, faucet | [boing.network](https://boing.network) |

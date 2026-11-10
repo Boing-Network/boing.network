@@ -46,7 +46,7 @@ Operators set many of these via `BOING_*` env / CLI flags; mismatched heights ac
 `client_hints` on network info / health (advisory only):
 
 - `min_wallet_version`: **0.1.18**
-- `recommended_wallet_version`: **0.1.25**
+- `recommended_wallet_version`: **0.1.26**
 - `recommended_sdk`: **0.5.41**
 - `sdk_npm_package`: **`@boing-network/boing-sdk`**
 

@@ -29,7 +29,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | Bootnode | `/ip4/169.155.48.188/tcp/4001` ([FLY-IO.md](FLY-IO.md)) |
 | `boing-testnet-2` | **Retired 2026-10-24** |
 | Recommended SDK | **`@boing-network/boing-sdk@0.5.41`** (`client_hints`; tag `boing-sdk/v0.5.41`) |
-| Recommended wallet | Boing Express **0.1.25** (`client_hints`; min advisory **0.1.18**) |
+| Recommended wallet | Boing Express **0.1.26** (`client_hints`; min advisory **0.1.18**) |
 | Latest node tag | `testnet-v0.1.24` (**2026-11-01**) |
 | DEX discovery | `boing_listDexPools`, `boing_listDexTokens`, `boing_getDexToken` |
 | Canonical CP pool | Published in `end_user` (ops freeze **2026-05-21**; Fly advertise verified **2026-11-01**) — prefer live `end_user` |
@@ -118,7 +118,7 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 |---------|--------|-----------------|------------|
 | Core JSON-RPC + method catalog (doc-enforced) | testnet live | [RPC-API-SPEC.md](RPC-API-SPEC.md); `cargo test -p boing-node` coverage | high |
 | `boing_getNetworkInfo` / `boing_health` activation fields | testnet live | live probe 2026-11-01 | high |
-| `client_hints` recommended SDK / wallet | testnet defaults | node defaults 0.5.41 / 0.1.25; the live node reports what it was built/configured with (0.5.40 / 0.1.24 on 2026-11-09) until its next deploy or env update | high |
+| `client_hints` recommended SDK / wallet | testnet defaults | node defaults 0.5.41 / 0.1.26; the live testnet node sets them via Fly secrets `BOING_RECOMMENDED_SDK_VERSION` / `BOING_RECOMMENDED_WALLET_VERSION` (0.5.41 / 0.1.26 since 2026-11-10) | high |
 | DEX discovery triple | testnet live | tag `testnet-v0.1.9` **2026-04-13** | high |
 | `boing_getTokenMetadata` / `boing_listTokens` | testnet live | commits ~**2026-10-28** | high |
 | Media blob RPC suite + `boing_getBlobAccess` | testnet live (with media activation) | RPC-API-SPEC; Phase 34 | high |
