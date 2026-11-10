@@ -11,12 +11,12 @@ import {
   createClient,
   decodeMultiTokenCalldata,
   decodeMultiTokenTransferLog,
-  fetchBlocksWithReceiptsForHeightRange,
   fetchMultiTokenBalance,
   isReferenceMultiTokenBytecode,
   type BoingClient,
 } from '@boing-network/boing-sdk';
 import { normalizeHex64 } from './cors.js';
+import { fetchBlocksBatched, jsonRpcPoster } from './batchFetch.js';
 
 export type ItemTouch = {
   contractHex: string;
@@ -110,6 +110,7 @@ export interface ItemsEnv {
   BOING_RPC_URL: string;
   BOING_CHAIN_ID?: string;
   BOING_MAX_CONCURRENT?: string;
+  BOING_RPC_BATCH_SIZE?: string;
   /** First height to scan on a cold items cursor (template went live on testnet at 37545). */
   BOING_ITEMS_FROM_HEIGHT?: string;
   /** Max heights scanned per items request (default 48). */
@@ -189,10 +190,18 @@ export async function catchUpItems(env: ItemsEnv, opts?: { force?: boolean; maxB
       .run();
     return { ran: true, subrequests: 1, scanned: 0, touches: 0, lastScannedHeight: last };
   }
-  const bundles = await fetchBlocksWithReceiptsForHeightRange(client, fromHeight, toHeight, {
-    maxConcurrent: Math.max(1, int(env.BOING_MAX_CONCURRENT, 4)),
-    onMissingBlock: 'omit',
+  // JSON-RPC batches (<= 32 heights per subrequest). Gateway-oversize heights (media-blob blocks) are skipped.
+  const heights = Array.from({ length: toHeight - fromHeight + 1 }, (_, i) => fromHeight + i);
+  const batchSize = Math.max(1, Math.min(32, int(env.BOING_RPC_BATCH_SIZE, 32)));
+  const fetched = await fetchBlocksBatched(jsonRpcPoster(env.BOING_RPC_URL), heights, {
+    batchSize,
+    omitMissing: true,
+    single: (h) => client.getBlockByHeight(h, true),
   });
+  const bundles = fetched.filter((b) => b.oversize == null) as Array<{
+    height: number;
+    block: Parameters<typeof extractItemTouchesFromBlock>[0];
+  }>;
   const touches: ItemTouch[] = [];
   for (const bundle of bundles) touches.push(...extractItemTouchesFromBlock(bundle.block, bundle.height));
   const verdict = new Map<string, boolean>();
@@ -223,7 +232,7 @@ export async function catchUpItems(env: ItemsEnv, opts?: { force?: boolean; maxB
   await db.batch(stmts);
   return {
     ran: true,
-    subrequests: 1 + (toHeight - fromHeight + 1) + codeLookups,
+    subrequests: 1 + Math.ceil(heights.length / batchSize) + codeLookups,
     fromHeight,
     toHeight,
     scanned: bundles.length,

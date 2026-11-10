@@ -32,8 +32,9 @@ BOING_MAX_CONCURRENT = "4"
 BOING_OMIT_MISSING = "1"
 BOING_MAX_REORG_REWIND_STEPS = "4096"
 # Multi-token items index (request-driven, no cron): first height scanned on a cold cursor.
+# 128 blocks per request = 4 batched RPC subrequests (+ tip + code lookups).
 BOING_ITEMS_FROM_HEIGHT = "37540"
-BOING_ITEMS_MAX_BLOCKS_PER_REQUEST = "16"
+BOING_ITEMS_MAX_BLOCKS_PER_REQUEST = "128"
 BOING_ITEMS_MIN_INTERVAL_SEC = "10"
 # Optional: comma-separated browser origins; omit → Access-Control-Allow-Origin: *
 # BOING_CORS_ORIGINS = "https://boing.express,https://boing.observer"
