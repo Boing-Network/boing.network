@@ -130,8 +130,8 @@ tree (only intended edits are staged/committed here) and does not regress the 20
 | Rust clippy | `cargo clippy --workspace --exclude boing-network-hub --all-targets` | 0 errors; 17 `assertions_on_constants` + `too_many_arguments` | **0 errors; 0 `assertions_on_constants`**; only pre-existing `too_many_arguments` (preserved public APIs) | |
 | SDK | `cd boing-sdk && npm ci && npm run build && npm test` | 77 files / 508 passed, 0 npm vulns | not re-run (SDK source untouched) | Unaffected by this pass. |
 | JS/TS (12 checks) | website, docs-site, desktop-hub, 4 workers, 3 examples | all PASS | all PASS (`/tmp/opencode/jschecks.log`) | Includes `boing-dapp-starter` after lockfile fix. |
-| Fuzz | `cargo check --manifest-path fuzz/Cargo.toml` | NOT RUN | NOT VERIFIED (BLOCKED) | Toolchain has no `cargo-fuzz`/nightly in this host session. |
-| Benches | `cargo bench --no-run` | NOT RUN | NOT VERIFIED (BLOCKED) | Skipped under the same `/tmp` target to bound build time. |
+| Fuzz compile | `cargo check --manifest-path fuzz/Cargo.toml` | NOT RUN | PASS | Compiles on stable. **Dynamic fuzzing** (libFuzzer sanitizer coverage) still requires nightly, which this host lacks — NOT VERIFIED (BLOCKED). |
+| Benches compile | `cargo bench --workspace --exclude boing-network-hub --no-run` | NOT RUN | PASS | All criterion benches compile (release). Benchmarks not executed (no perf comparison requested). |
 | Desktop hub (Tauri) | `cargo build -p boing-network-hub` | NOT VERIFIED (BLOCKED) | NOT VERIFIED (BLOCKED) | GTK/WebKit system libraries absent (consistent with 2026-03-30). |
 
 ## 7. Issues Inventory & Remediation (this pass)
@@ -167,6 +167,6 @@ tree (only intended edits are staged/committed here) and does not regress the 20
 
 ## 10. Blocked / Not Verified
 
-- `fuzz/` compile and targets: NOT VERIFIED (BLOCKED) — no nightly/`cargo-fuzz`.
-- `cargo bench --no-run`: NOT VERIFIED (BLOCKED) — time/diskspace bound in this host session.
-- `boing-network-hub` (Tauri): NOT VERIFIED (BLOCKED) — GTK/WebKit unavailable.
+- Fuzz **runtime** (libFuzzer): NOT VERIFIED (BLOCKED) — no nightly toolchain; targets compile on stable.
+- `boing-network-hub` (Tauri desktop): NOT VERIFIED (BLOCKED) — GTK/WebKit system libraries unavailable.
+- `cargo bench` execution: not run by design (compile check only).
