@@ -99,10 +99,7 @@ pub type Phase32BlsError = Phase31BlsError;
 
 /// True when flip is configured and `height >= flip_from`.
 pub fn phase32_bls_committee_flip_active(height: u64, flip_from: Option<u64>) -> bool {
-    match flip_from {
-        Some(h) if height >= h => true,
-        _ => false,
-    }
+    matches!(flip_from, Some(h) if height >= h)
 }
 
 /// When flip **not** active: same as Phase 31 (`pinned_len > 1` ⇒ require Ed25519 **32**).

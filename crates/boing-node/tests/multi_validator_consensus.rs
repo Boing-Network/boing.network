@@ -175,12 +175,12 @@ async fn four_validators_quorum_commit_via_votes() {
             .unwrap();
     }
 
-    for i in 0..addrs.len() {
-        for j in 0..addrs.len() {
+    for (i, node_rx) in nodes_and_rx.iter().enumerate().take(addrs.len()) {
+        for (j, addr) in addrs.iter().enumerate() {
             if i == j {
                 continue;
             }
-            let _ = nodes_and_rx[i].0.read().await.p2p.dial(&addrs[j]);
+            let _ = node_rx.0.read().await.p2p.dial(addr);
         }
     }
     tokio::time::sleep(Duration::from_secs(4)).await;

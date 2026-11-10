@@ -514,9 +514,9 @@ mod preset_scope_tests {
     fn testnet_gates_are_ordered() {
         let h = boing_testnet_history();
         assert_eq!(h.chain_id, BOING_TESTNET_CHAIN_ID);
-        assert!(BOING_TESTNET_TREASURY_FEES_FROM < BOING_TESTNET_SECURITY_V2_FROM);
-        assert!(BOING_TESTNET_SECURITY_V2_FROM < BOING_TESTNET_SECURITY_V3_FROM);
-        assert!(BOING_TESTNET_SECURITY_V3_FROM < BOING_TESTNET_SECURITY_V4_FROM);
+        const { assert!(BOING_TESTNET_TREASURY_FEES_FROM < BOING_TESTNET_SECURITY_V2_FROM) };
+        const { assert!(BOING_TESTNET_SECURITY_V2_FROM < BOING_TESTNET_SECURITY_V3_FROM) };
+        const { assert!(BOING_TESTNET_SECURITY_V3_FROM < BOING_TESTNET_SECURITY_V4_FROM) };
         assert_eq!(h.security_v4_from, BOING_TESTNET_SECURITY_V4_FROM);
         assert!(!h.security_v4_active(BOING_TESTNET_SECURITY_V4_FROM - 1));
         assert!(h.security_v4_active(BOING_TESTNET_SECURITY_V4_FROM));

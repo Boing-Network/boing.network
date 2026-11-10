@@ -616,7 +616,7 @@ mod tests {
         let store = MediaBlobStore::open(&dir).unwrap();
         let data = b"gossip-fill";
         let id = blob_id_of(data);
-        assert_eq!(store.put_gossip_bytes_if_known(&id, data).unwrap(), false);
+        assert!(!store.put_gossip_bytes_if_known(&id, data).unwrap());
         assert_eq!(store.len(), 0);
         let meta = BlobMetaRecord {
             blob_id: id,
@@ -638,7 +638,7 @@ mod tests {
         assert!(!store.has_bytes(&id));
         assert!(store.put_gossip_bytes_if_known(&id, data).unwrap());
         assert_eq!(store.get_bytes(&id).unwrap().unwrap(), data);
-        assert_eq!(store.put_gossip_bytes_if_known(&id, data).unwrap(), false);
+        assert!(!store.put_gossip_bytes_if_known(&id, data).unwrap());
         let _ = fs::remove_dir_all(dir);
     }
 

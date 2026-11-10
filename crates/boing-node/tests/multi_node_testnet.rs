@@ -119,12 +119,12 @@ async fn test_four_validators_sync() {
     }
 
     // Full mesh dials so every peer can gossip / block-sync even if one uplink is slow (local testnet).
-    for i in 0..addrs.len() {
-        for j in 0..addrs.len() {
+    for (i, node_rx) in nodes_and_rx.iter().enumerate().take(addrs.len()) {
+        for (j, addr) in addrs.iter().enumerate() {
             if i == j {
                 continue;
             }
-            let _ = nodes_and_rx[i].0.read().await.p2p.dial(&addrs[j]);
+            let _ = node_rx.0.read().await.p2p.dial(addr);
         }
     }
     // Give gossipsub time to mesh (Windows CI can be slow to propagate first block).
