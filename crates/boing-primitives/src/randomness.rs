@@ -198,8 +198,19 @@ mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
 
+    /// Serializes the tests that mutate the process-global `BOING_ALLOW_STUB_VRF` /
+    /// `BOING_RATE_PROFILE` env vars (cargo runs tests on parallel threads).
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     #[test]
     fn dummy_vrf_is_deterministic_and_verifiable() {
+        let _env = env_guard();
         let a = dummy_vrf_output(7);
         let b = dummy_vrf_output(7);
         assert_eq!(a, b);
@@ -253,6 +264,7 @@ mod tests {
 
     #[test]
     fn stub_rejected_when_disallowed() {
+        let _env = env_guard();
         let a = dummy_vrf_output(7);
         std::env::set_var("BOING_ALLOW_STUB_VRF", "0");
         assert!(!verify_vrf_output(7, &a, None));
@@ -263,6 +275,7 @@ mod tests {
 
     #[test]
     fn stub_default_off_outside_dev_rate_profile() {
+        let _env = env_guard();
         let a = dummy_vrf_output(11);
         std::env::remove_var("BOING_ALLOW_STUB_VRF");
         std::env::set_var("BOING_RATE_PROFILE", "mainnet");
