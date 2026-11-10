@@ -6,6 +6,7 @@
  */
 
 import type { BoingClient } from '@boing-network/boing-sdk';
+import { isOversizeRejection } from './oversize.js';
 import { normalizeHex64, zeros32 } from './cors.js';
 import {
   deleteHeightAndRebuild,
@@ -39,7 +40,14 @@ async function rpcHashAt(
   client: BoingClient,
   height: number
 ): Promise<string | null> {
-  const rpcBlock = await client.getBlockByHeight(height, false);
+  let rpcBlock: unknown;
+  try {
+    rpcBlock = await client.getBlockByHeight(height, false);
+  } catch (e) {
+    // Blob-sized block the gateway will not serve: hash unknown (caller treats as rpc_missing).
+    if (isOversizeRejection(e)) return null;
+    throw e;
+  }
   if (!rpcBlock || typeof rpcBlock !== 'object') return null;
   return normalizeHex64((rpcBlock as { hash?: unknown }).hash);
 }

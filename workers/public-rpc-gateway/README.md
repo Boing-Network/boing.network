@@ -5,13 +5,12 @@ Cloudflare Worker that serves **`https://testnet-rpc.boing.network/`** and proxi
 ```
 Clients (observer, website, SDK)
   → testnet-rpc.boing.network
-    → this Worker
-      → service:ORIGIN_PROXY  (Worker binding → boing-origin-access-proxy)
-        → https://boing-testnet-1.fly.dev  (+ X-Boing-Origin-Gate when configured)
+    → this Worker  (+ X-Boing-Origin-Gate)
+      → https://boing-testnet-1.fly.dev   ← single Worker hop (Free-tier safe)
 
 Operators / break-glass
   → https://origin-testnet.boing.network  (Cloudflare Access)
-    → same origin-access-proxy Worker → Fly
+    → boing-origin-access-proxy → Fly   ← low volume only; not on the hot RPC path
 ```
 
 This replaces a home **Cloudflare Tunnel** connector as the origin. The public hostname stays stable so explorer, wallet, and website env do not need to change.
@@ -22,11 +21,11 @@ This replaces a home **Cloudflare Tunnel** connector as the origin. The public h
 
 | Secret / var | Purpose |
 |--------------|---------|
-| `RPC_BACKENDS` | Prefer `service:ORIGIN_PROXY` (service binding). Rollback: `https://boing-testnet-1.fly.dev` |
-| `BOING_ORIGIN_GATE_TOKEN` | Optional `X-Boing-Origin-Gate` for the Fly-side HTTP companion gate (same value as node `BOING_ORIGIN_GATE_TOKEN`) |
-| `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` | Optional; only needed if this Worker fetches the Access hostname directly (not used with the service binding path) |
+| `RPC_BACKENDS` | **`https://boing-testnet-1.fly.dev`** (single hop). Dual-hop rollback: `service:ORIGIN_PROXY` |
+| `BOING_ORIGIN_GATE_TOKEN` | **Required** while the Fly companion gate is on — sent as `X-Boing-Origin-Gate` (same value as node `BOING_ORIGIN_GATE_TOKEN`) |
+| `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` | Optional; only if this Worker fetches the Access hostname directly (not needed for Fly URL + gate) |
 
-`workers/origin-access-proxy` terminates the Access hostname and injects the origin gate toward Fly. Runbook: Project `docs/fly-origin-access-lockdown.md`. **Do not** put secrets in `wrangler.toml`.
+`workers/origin-access-proxy` remains for the Access break-glass hostname only. Public RPC must **not** service-bind through it on every request (that doubled Worker invocations and helped trigger Cloudflare Error 1027 on Free). Runbook: Project `docs/fly-origin-access-lockdown.md` / `docs/rpc-single-hop-collapse.md`. **Do not** put secrets in `wrangler.toml`.
 
 ## Deploy
 

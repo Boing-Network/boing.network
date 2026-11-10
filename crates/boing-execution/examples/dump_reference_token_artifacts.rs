@@ -18,7 +18,10 @@
 //! Stdout: line **1** = smoke, line **2** = fungible template **v1** (historical), line **3** = NFT collection,
 //! line **4** = secured fungible **v2** (`0xFD` init + runtime),
 //! line **5** = secured fungible **v2 runtime only** (embedded as
-//! `DEFAULT_REFERENCE_FUNGIBLE_SECURED_RUNTIME_BYTECODE_HEX` for `boing-sdk` init bytecode builder).
+//! `DEFAULT_REFERENCE_FUNGIBLE_SECURED_RUNTIME_BYTECODE_HEX` for `boing-sdk` init bytecode builder),
+//! line **6** = reference **multi-token** v1 deploy payload (`0xFD` init + runtime; purpose **`nft`**),
+//! line **7** = reference **multi-token** v1 runtime (what `boing_getContractCode` returns after deploy;
+//! wallets / explorers match this for identity). See [BOING-REFERENCE-MULTI-TOKEN.md](../../docs/BOING-REFERENCE-MULTI-TOKEN.md).
 
 fn print_hex(label: &str, code: &[u8]) {
     eprintln!("// {label}: {} bytes", code.len());
@@ -49,5 +52,13 @@ fn main() {
     print_hex(
         "reference_fungible_secured_runtime_bytecode_v2 (SDK secured deploy init builder)",
         &boing_execution::reference_fungible_secured_runtime_bytecode_v2(),
+    );
+    print_hex(
+        "reference_multi_token_deploy_bytecode v1 (QA: purpose nft; 0xFD init sets admin = deployer)",
+        &boing_execution::reference_multi_token_deploy_bytecode(),
+    );
+    print_hex(
+        "reference_multi_token_runtime_bytecode v1 (installed runtime; identity for wallets/explorers)",
+        &boing_execution::reference_multi_token_runtime_bytecode(),
     );
 }

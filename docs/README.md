@@ -84,6 +84,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-CANONICAL-DEPLOY-ARTIFACTS.md](BOING-CANONICAL-DEPLOY-ARTIFACTS.md) | Pinned fungible / NFT bytecode |
 | [BOING-REFERENCE-TOKEN.md](BOING-REFERENCE-TOKEN.md) | Reference fungible |
 | [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) | Reference NFT (v3 `mint_batch` `0x06`, n≤500) |
+| [BOING-REFERENCE-MULTI-TOKEN.md](BOING-REFERENCE-MULTI-TOKEN.md) | Reference multi-token v1 (ERC-1155-style shared item types: `balance[item][account]`, selectors `0x20`–`0x29`, batch n≤16) |
 | [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) | L1 media blobs (Phases 1–34, PHASE7 256 MiB on testnet, PutBlob / ACL download, Express publish sessions) |
 | [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) | Enforced on-chain NFT↔token registry (live testnet AccountId, selectors `0xE0`–`0xE8`) |
 | [BOING-BUILDER-ATTESTATION.md](BOING-BUILDER-ATTESTATION.md) | On-chain builder attestation registry (live testnet AccountId, selectors `0xE0`–`0xE6`; builder signal, not companions) |

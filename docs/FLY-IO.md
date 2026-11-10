@@ -11,10 +11,12 @@ This is the **canonical hosted testnet**. Public JSON-RPC at `https://testnet-rp
 ```mermaid
 flowchart LR
   Client[Wallets / explorer / dApps] --> GW[public-rpc-gateway]
-  GW --> F1[Fly boing-testnet-1]
+  GW -->|"X-Boing-Origin-Gate"| F1[Fly boing-testnet-1]
 ```
 
-**Related:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [RUNBOOK.md](RUNBOOK.md), [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example).
+Public clients hit **one** Worker hop: gateway → `https://boing-testnet-1.fly.dev` with **`X-Boing-Origin-Gate`** (`BOING_ORIGIN_GATE_TOKEN`). Do **not** route every RPC through `boing-origin-access-proxy` (that double-counts Free Worker invocations). Access on `origin-testnet.boing.network` is **break-glass only**.
+
+**Related:** [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md), [RUNBOOK.md](RUNBOOK.md), [`tools/boing-node-public-testnet.env.example`](../tools/boing-node-public-testnet.env.example), [`workers/public-rpc-gateway/README.md`](../workers/public-rpc-gateway/README.md).
 
 
 ## What gets deployed
@@ -28,7 +30,8 @@ flowchart LR
 ### Public RPC edge
 
 - **Wallet / dApp / explorer RPC URL:** `https://testnet-rpc.boing.network/` (Worker WAF, method allow-list, body caps).
-- **`*.fly.dev`:** keep for gateway failover and operator curls. Prefer **Cloudflare Access** or an IP allowlist on the Fly HTTP service so anonymous internet traffic is not the bypass path around the Worker (audit H5). Operator methods still require `BOING_OPERATOR_RPC_TOKEN` (`-32057` without it).
+- **Origin gate:** when Fly `BOING_ORIGIN_GATE_TOKEN` is set, naked `*.fly.dev` JSON-RPC returns **401** without matching `X-Boing-Origin-Gate` (`GET|HEAD /live` exempt for Fly health). The public gateway injects that header from the same-named Worker secret.
+- **`*.fly.dev`:** operator / break-glass only (must send origin gate). Cloudflare Access on `origin-testnet.boing.network` is the human break-glass path — **not** the public RPC hot path. Operator methods still require `BOING_OPERATOR_RPC_TOKEN` (`-32057` without it).
 - **Rate profile:** `fly.testnet-1.toml` uses **`BOING_RATE_PROFILE=mainnet`**. Do **not** set `dev` on a publicly reachable origin ([RUNBOOK.md](RUNBOOK.md) §2, [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md)).
 
 ### Consensus / capacity honesty
@@ -119,12 +122,12 @@ Publish dedicated IPv4 multiaddrs in `PUBLIC_BOOTNODES` / [TESTNET.md](TESTNET.m
 
 `https://testnet-rpc.boing.network/` is a Cloudflare Worker ([`workers/public-rpc-gateway`](../workers/public-rpc-gateway/)) that:
 
-1. Probes **`GET /live`** on each configured Fly origin.
-2. Proxies JSON-RPC **POST /** (and node probe paths) to a live backend.
+1. Probes **`GET /live`** on each configured Fly origin (with origin-gate header when configured).
+2. Proxies JSON-RPC **POST /** (and node probe paths) to a live backend — default **`RPC_BACKENDS=https://boing-testnet-1.fly.dev`** (single Worker hop).
 3. With a single backend (`boing-testnet-1`), there is no multi-origin failover; optional extra origins can be listed in **`RPC_BACKENDS`**.
 4. Fans out **`boing_submitTransaction`** to **all** configured backends so contract deploys reach the validator when more than one origin is listed.
 
-Do **not** point that hostname at a home Cloudflare Tunnel. A down laptop or `cloudflared` process is what produced explorer HTTP **530**.
+Do **not** point that hostname at a home Cloudflare Tunnel. A down laptop or `cloudflared` process is what produced explorer HTTP **530**. Do **not** set `RPC_BACKENDS=service:ORIGIN_PROXY` on the Free plan for every request — that routes through `boing-origin-access-proxy` and doubles Worker invocations.
 
 ```bash
 cd workers/public-rpc-gateway && npm run deploy

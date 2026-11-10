@@ -23,7 +23,8 @@ permissions:
 
 jobs:
   public-swap-smoke:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, which Playwright Chromium does not support yet.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: examples/native-boing-playwright

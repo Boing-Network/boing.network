@@ -1103,6 +1103,16 @@ struct LegacyBlockWithSigs {
     signatures: Vec<crate::signature::Signature>,
 }
 
+/// Header without `blobs_root` (pre-activation, omitted) + signatures + priority tips: what
+/// `bincode::serialize(&Block)` writes for a tipped block while `blobs_root` is `None`.
+#[derive(Deserialize)]
+struct LegacyBlockWithSigsAndTips {
+    header: LegacyHeaderNoBlobsRoot,
+    transactions: Vec<Transaction>,
+    signatures: Vec<crate::signature::Signature>,
+    priority_tips: Vec<u128>,
+}
+
 /// Current header (incl. `blobs_root`) + txs, signatures omitted (common pre-activation layout).
 #[derive(Deserialize)]
 struct BlockNoSigs {
@@ -1161,6 +1171,18 @@ impl Block {
                 signatures: Vec::new(),
                 priority_tips: Vec::new(),
             });
+        }
+        if let Some(l) = Self::decode_exact::<LegacyBlockWithSigsAndTips>(bytes) {
+            if l.priority_tips.len() == l.transactions.len()
+                && l.signatures.len() == l.transactions.len()
+            {
+                return Ok(Block {
+                    header: l.header.into(),
+                    transactions: l.transactions,
+                    signatures: l.signatures,
+                    priority_tips: l.priority_tips,
+                });
+            }
         }
         if let Some(l) = Self::decode_exact::<LegacyBlockWithSigs>(bytes) {
             return Ok(Block {
@@ -1481,6 +1503,38 @@ mod block_encoding_tests {
         for name in ["919.bin", "920.bin", "1050.bin", "1150.bin", "1187.bin"] {
             let b = Block::from_bincode(&std::fs::read(dir.join(name)).unwrap()).unwrap();
             assert!(b.header.blobs_root.is_none());
+        }
+    }
+
+    #[test]
+    fn tipped_signed_block_roundtrips_with_and_without_blobs_root() {
+        // Regression: testnet block 24762 (one tipped transfer, `blobs_root` None) was written by
+        // `bincode::serialize(&Block)` but `from_bincode` had no layout for a header without
+        // `blobs_root` + signatures + tips, so the node could not reload its chain after a restart.
+        let tx = Transaction {
+            nonce: 0,
+            sender: AccountId([2; 32]),
+            payload: TransactionPayload::Transfer {
+                to: AccountId([3; 32]),
+                amount: 1,
+            },
+            access_list: AccessList::default(),
+        };
+        for blobs_root in [None, Some(Hash([9; 32]))] {
+            let mut h = header();
+            h.blobs_root = blobs_root;
+            let b = Block {
+                header: h,
+                transactions: vec![tx.clone()],
+                signatures: vec![Signature([5; 64])],
+                priority_tips: vec![2_066_000_000_000_000],
+            };
+            let enc = bincode::serialize(&b).unwrap();
+            assert_eq!(
+                Block::from_bincode(&enc).unwrap(),
+                b,
+                "blobs_root={blobs_root:?}"
+            );
         }
     }
 

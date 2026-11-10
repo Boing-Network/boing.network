@@ -42,10 +42,10 @@ export const isTestnetLive =
 export const TESTNET_NODE_RELEASE = 'testnet-v0.1.24' as const;
 
 /** Recommended Boing Express (wallet) version from live `client_hints.recommended_wallet_version`. */
-export const RECOMMENDED_WALLET_VERSION = '0.1.24' as const;
+export const RECOMMENDED_WALLET_VERSION = '0.1.26' as const;
 
 /** Recommended `@boing-network/boing-sdk` from live `client_hints.recommended_sdk`. */
-export const RECOMMENDED_SDK_VERSION = '0.5.40' as const;
+export const RECOMMENDED_SDK_VERSION = '0.5.41' as const;
 
 /** Explorer / wallet / DEX product URLs for ecosystem cards. */
 export const ECOSYSTEM = {

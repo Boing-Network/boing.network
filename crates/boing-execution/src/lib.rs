@@ -30,6 +30,7 @@ mod native_dex_multihop_swap_router;
 mod native_lp_share_token;
 mod parallel;
 pub mod reference_fungible_secured;
+pub mod reference_multi_token;
 pub mod reference_nft;
 pub mod reference_token;
 pub mod reference_token_v2;
@@ -203,6 +204,21 @@ pub use reference_fungible_secured::{
     FLAG_MAX_WALLET, FLAG_NO_MINT, FLAG_TRANSFER_UNLOCK, REF_SECURED_BALANCE_XOR,
     REF_SECURED_COOLDOWN_XOR, REF_SECURED_DENY_XOR, SELECTOR_RENOUNCE_ADMIN, SELECTOR_SET_DENY,
     SELECTOR_SET_PAUSE, SELECTOR_SET_TRANSFER_UNLOCK,
+};
+pub use reference_multi_token::{
+    encode_mt_admin_calldata, encode_mt_balance_of_calldata, encode_mt_item_metadata_calldata,
+    encode_mt_mint_batch_calldata, encode_mt_mint_calldata, encode_mt_set_item_metadata_calldata,
+    encode_mt_total_supply_calldata, encode_mt_transfer_admin_calldata,
+    encode_mt_transfer_batch_calldata, encode_mt_transfer_calldata, multi_token_amount_word,
+    multi_token_balance_storage_key, multi_token_item_id_word, multi_token_metadata_storage_key,
+    multi_token_supply_storage_key, ref_multi_token_admin_key,
+    reference_multi_token_deploy_bytecode, reference_multi_token_runtime_bytecode,
+    MAX_REFERENCE_MULTI_TOKEN_BATCH, REFERENCE_MULTI_TOKEN_TEMPLATE_VERSION, REF_MT_BALANCE_XOR,
+    REF_MT_METADATA_XOR, REF_MT_SUPPLY_XOR, REF_MT_TOPIC_ADMIN, REF_MT_TOPIC_METADATA,
+    REF_MT_TOPIC_TRANSFER, SELECTOR_MT_ADMIN, SELECTOR_MT_BALANCE_OF, SELECTOR_MT_ITEM_METADATA,
+    SELECTOR_MT_MINT, SELECTOR_MT_MINT_BATCH, SELECTOR_MT_SET_ITEM_METADATA,
+    SELECTOR_MT_TOTAL_SUPPLY, SELECTOR_MT_TRANSFER, SELECTOR_MT_TRANSFER_ADMIN,
+    SELECTOR_MT_TRANSFER_BATCH,
 };
 pub use reference_nft::{
     encode_mint_batch_calldata, encode_owner_of_calldata, encode_set_metadata_hash_calldata,

@@ -44,7 +44,7 @@ flowchart TB
 
 | Surface | Status | Verify |
 |---------|--------|--------|
-| **Public testnet RPC** | **Hosted** — Cloudflare Worker → Fly **`boing-testnet-1` only** at `https://testnet-rpc.boing.network/` (`boing-testnet-2` retired 2026-10-24) | `npm run preflight-rpc`; `GET /__gateway/health` (single backend) |
+| **Public testnet RPC** | **Hosted** — Cloudflare Worker → Fly **`boing-testnet-1` only** (single hop + `X-Boing-Origin-Gate`) at `https://testnet-rpc.boing.network/` (`boing-testnet-2` retired 2026-10-24) | `npm run preflight-rpc`; `GET /__gateway/health` (backend `https://boing-testnet-1.fly.dev`) |
 | **QA transparency RPC** | **Live** — registry + pool config | `npm run verify-public-testnet-rpc` |
 | **QA content policy** | **132-term** `content_blocklist` on public RPC (when applied) | `boing_getQaRegistry`; `npm run apply-public-testnet-qa-policy` after edits |
 | **Media blobs** | Phases **1–33** live; **PHASE7 256 MiB** active at H≥**1306**; Phase **34** download ACL shipped | [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) |

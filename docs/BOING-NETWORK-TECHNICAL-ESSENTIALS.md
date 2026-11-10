@@ -180,7 +180,7 @@ Boing’s native constant-product AMM, factory, routers, and LP vaults are **Boi
 
 Product orientation: Finance **Swap** targets the network default CP pool; additional factory pairs and multihop sit behind **Pools** / Smart route. Planet-scale subgraph / OBS-1 history remains deferred / partial.
 
-SDK: **`@boing-network/boing-sdk@^0.5.39`** (npm; not unscoped `boing-sdk`). Tutorial bootstrap: `examples/native-boing-tutorial/scripts/` (operators run against live RPC; node does **not** auto-create pools on start).
+SDK: **`@boing-network/boing-sdk@^0.5.41`** (npm; not unscoped `boing-sdk`). Tutorial bootstrap: `examples/native-boing-tutorial/scripts/` (operators run against live RPC; node does **not** auto-create pools on start).
 
 ---
 
@@ -188,8 +188,8 @@ SDK: **`@boing-network/boing-sdk@^0.5.39`** (npm; not unscoped `boing-sdk`). Tut
 
 | Surface | Role | Technical notes |
 |---------|------|-----------------|
-| **@boing-network/boing-sdk** | TypeScript client | Recommended **0.5.39**; signing, RPC helpers, blob ACL APIs; rebuild `dist/` after local SDK edits |
-| **Boing Express** | Wallet | Recommended **0.1.24** (`client_hints`; min advisory **0.1.18**); `window.boing`; PutBlob publish sessions; v2 signing + tips |
+| **@boing-network/boing-sdk** | TypeScript client | Recommended **0.5.41**; signing, RPC helpers, blob ACL APIs; rebuild `dist/` after local SDK edits |
+| **Boing Express** | Wallet | Recommended **0.1.26** (`client_hints`; min advisory **0.1.18**); `window.boing`; PutBlob publish sessions; v2 signing + tips |
 | **Boing Finance** | Swaps / pools / tokens / NFTs | Native VM `AccountId`s in `contracts.js` / env — not EVM addresses on 6913 |
 | **Boing Observer** | Explorer | Public testnet RPC; same-origin `/api/rpc`; slim blocks; QA / activation visibility |
 | **Website / faucet** | Docs, join, faucet | [boing.network](https://boing.network) |

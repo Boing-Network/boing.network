@@ -18,22 +18,37 @@ interface Props {
   title?: string;
   description?: string;
   canonical?: string;
+  /** When true, emit noindex and skip advertising a crawlable canonical (404 / auth). */
+  noindex?: boolean;
   /** Optional body class: 'page-landing' = subtle slab tint; 'page-app' = hex grid on body. Primary art is StoneEngravingOverlay. */
   pageClass?: 'page-landing' | 'page-app';
 }
 
-const { title = 'Boing Network', description = 'Boing is an independent Layer 1 where quality is enforced by the protocol, with transparent deployment checks and open participation for users, developers and validators. Public testnet; mainnet not live.', canonical, pageClass } = Astro.props;
+const { title = 'Boing Network', description = 'Boing is an independent Layer 1 where quality is enforced by the protocol, with transparent deployment checks and open participation for users, developers and validators. Public testnet; mainnet not live.', canonical, noindex: noindexProp, pageClass } = Astro.props;
 
 const siteUrl = 'https://boing.network';
 const fullTitle = title === 'Boing Network' ? 'Boing Network — Quality, enforced by the protocol.' : `${title} | Boing Network`;
+/** Strip trailing slash for path logic; Pages serves directory URLs with a trailing slash. */
 const path = (Astro.url.pathname || '/').replace(/\/$/, '') || '';
 const pathNorm = path.replace(/^\//, '');
 const isTestnetApp = pathNorm === 'testnet' || pathNorm.startsWith('testnet/');
-const canonicalUrl = canonical ? `${siteUrl}${canonical.startsWith('/') ? canonical : '/' + canonical}` : `${siteUrl}${path || '/'}`;
+const isHome = path === '/' || path === '';
+/**
+ * Prefer apex + trailing-slash URLs that match Cloudflare Pages' 308 directory redirects
+ * (except home, which is `/`). Explicit `canonical` prop still wins and is normalized.
+ */
+function apexCanonical(rawPath: string): string {
+  const cleaned = rawPath.replace(/\/+$/, '') || '';
+  if (!cleaned || cleaned === '/') return `${siteUrl}/`;
+  return `${siteUrl}${cleaned.startsWith('/') ? cleaned : '/' + cleaned}/`;
+}
+const canonicalUrl = canonical
+  ? (canonical.startsWith('http') ? canonical : apexCanonical(canonical))
+  : apexCanonical(path || '/');
 const ogImage = `${siteUrl}/og.png?v=7`;
 const isAuthPage = /^testnet\/(sign-in|register|set-password)(\/|$)/.test(pathNorm);
-const noindex = isAuthPage;
-const isHome = path === '/' || path === '';
+const isNotFound = pathNorm === '404';
+const noindex = Boolean(noindexProp) || isAuthPage || isNotFound;
 const navCurrent = {
   overview: isHome,
   resources: path === '/resources' || path.startsWith('/resources/'),
@@ -59,7 +74,7 @@ const navCurrent = {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
-    <link rel="canonical" href={canonicalUrl} />
+    {!noindex && <link rel="canonical" href={canonicalUrl} />}
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=7" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />

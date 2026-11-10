@@ -1,3 +1,7 @@
+# Apex host is canonical. Keep in sync with Cloudflare Single Redirect www→apex.
+https://www.boing.network/* https://boing.network/:splat 301!
+http://www.boing.network/* https://boing.network/:splat 301!
+
 # Legacy /network/* URLs (removed Mar 2026)
 /network/faucet         /faucet                 301
 /network/testnet        /testnet/join           301

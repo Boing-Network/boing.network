@@ -8,13 +8,13 @@ description: Install and use @boing-network/boing-sdk against public testnet.
 | | |
 |--|--|
 | npm | **`@boing-network/boing-sdk`** |
-| Recommended (live `client_hints`) | **`^0.5.39`** |
+| Recommended (live `client_hints`) | **`^0.5.41`** |
 | Source | [`boing-sdk/`](https://github.com/Boing-Network/boing.network/tree/main/boing-sdk) |
 
 Install the **scoped** package. Do not depend on an unscoped `boing-sdk` name for external apps.
 
 ```bash
-npm install @boing-network/boing-sdk@^0.5.39
+npm install @boing-network/boing-sdk@^0.5.41
 ```
 
 After changing SDK source in the monorepo, run `npm run build` inside `boing-sdk/` so `dist/` matches `src/` (tutorial packages consume `file:../../boing-sdk`).

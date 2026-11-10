@@ -10,12 +10,13 @@ pattern = "testnet-rpc.boing.network/*"
 zone_name = "boing.network"
 
 [vars]
-# Prefer the ORIGIN_PROXY service binding (avoids Workers→Access same-zone fetch issues).
-# Rollback: RPC_BACKENDS = "https://boing-testnet-1.fly.dev"
-# Secrets: BOING_ORIGIN_GATE_TOKEN (node companion gate); CF_ACCESS_* optional for Access hostname curls.
-RPC_BACKENDS = "service:ORIGIN_PROXY"
+# Single-hop Free-tier path (2026-11-08): gateway → Fly with X-Boing-Origin-Gate.
+# Do NOT route every public RPC through service:ORIGIN_PROXY (double-counts Worker invocations / Error 1027).
+# Dual-hop rollback: RPC_BACKENDS = "service:ORIGIN_PROXY" (requires [[services]] ORIGIN_PROXY below).
+# Secrets: BOING_ORIGIN_GATE_TOKEN (required while the node gate is on); CF_ACCESS_* only if fetching Access hostname.
+RPC_BACKENDS = "https://boing-testnet-1.fly.dev"
 
-# Service binding to workers/origin-access-proxy (Access hostname + Fly reverse proxy).
+# Optional service binding kept for break-glass / dual-hop rollback only (unused when RPC_BACKENDS is the Fly URL).
 [[services]]
 binding = "ORIGIN_PROXY"
 service = "boing-origin-access-proxy"

@@ -363,6 +363,8 @@ Submit: `hex(bincode(SignedTransaction))` to `boing_submitTransaction([hex_signe
 
 **Reference NFT calldata** (optional convention): see [BOING-REFERENCE-NFT.md](BOING-REFERENCE-NFT.md) — fixed 96-byte `owner_of` / `transfer_nft` / `set_metadata_hash`, plus template-v3 variable-length **`mint_batch` (`0x06`, `96+64n`, n≤500)**. Not consensus-enforced; production `ContractCall` budget is **`GAS_PER_CONTRACT_CALL = 40_000_000`** (§8.1).
 
+**Reference multi-token calldata** (optional convention): see [BOING-REFERENCE-MULTI-TOKEN.md](BOING-REFERENCE-MULTI-TOKEN.md) — shared item types (`balance[item_id][account]`, u64 item ids, u128 amounts), selectors `0x20`–`0x29`, batch layout `96+64n` with n≤16. Not consensus-enforced.
+
 ### 7.3 Well-Formedness
 
 - All bytes must decode to a valid opcode or be part of a PUSH immediate.
