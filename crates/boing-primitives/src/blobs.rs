@@ -753,11 +753,11 @@ pub fn recover_media_blob_xor(
                 recovered[j] ^= b;
             }
         }
-        for i in 0..n {
+        for (i, item) in data_chunks.iter().enumerate().take(n) {
             if i == miss {
                 chunks.push(recovered.clone());
             } else {
-                chunks.push(data_chunks[i].as_ref().expect("present").clone());
+                chunks.push(item.as_ref().expect("present").clone());
             }
         }
     } else {

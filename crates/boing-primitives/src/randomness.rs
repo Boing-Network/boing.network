@@ -60,9 +60,7 @@ pub fn leader_from_ecvrf_proofs(
     }
     let mut best: Option<(AccountId, [u8; 32])> = None;
     for v in validators {
-        let Some((_, vrf)) = proofs.iter().find(|(id, _)| id == v) else {
-            return None;
-        };
+        let (_, vrf) = proofs.iter().find(|(id, _)| id == v)?;
         if !verify_ecvrf_output(v, round, vrf) {
             return None;
         }

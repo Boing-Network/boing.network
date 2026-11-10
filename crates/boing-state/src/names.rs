@@ -601,7 +601,7 @@ mod tests {
         r.register(&p(), 132, B, "alice", &[5; 32], C, 1).unwrap();
         assert_eq!(r.resolve("alice", &p(), 133).unwrap().target, C);
         assert!(
-            r.reverse.get(&A).is_none(),
+            !r.reverse.contains_key(&A),
             "old reverse cleared on re-registration"
         );
     }
@@ -646,7 +646,7 @@ mod tests {
         r.transfer(&p(), 21, A, "alice", B).unwrap();
         assert_eq!(r.names["alice"].owner, B);
         assert_eq!(r.names["alice"].target, A, "target kept on transfer");
-        assert!(r.reverse.get(&A).is_none());
+        assert!(!r.reverse.contains_key(&A));
         assert_eq!(
             r.set_target(&p(), 22, A, "alice", C),
             Err(NameRegistryError::NotOwner)
@@ -655,7 +655,7 @@ mod tests {
         r.set_primary(&p(), 23, C, Some("alice")).unwrap();
         r.set_target(&p(), 24, B, "alice", B).unwrap();
         assert!(
-            r.reverse.get(&C).is_none(),
+            !r.reverse.contains_key(&C),
             "re-target clears the old target's reverse"
         );
         r.set_primary(&p(), 25, B, Some("alice")).unwrap();

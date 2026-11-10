@@ -152,8 +152,8 @@ pub fn recover_media_blob_rs(
         .reconstruct(&mut working)
         .map_err(|_| BlobError::RsReconstructFailed)?;
     let mut out = Vec::with_capacity(original_len);
-    for i in 0..data_count {
-        let shard = working[i].as_ref().ok_or(BlobError::RsReconstructFailed)?;
+    for item in working.iter().take(data_count) {
+        let shard = item.as_ref().ok_or(BlobError::RsReconstructFailed)?;
         out.extend_from_slice(shard);
     }
     out.truncate(original_len);
