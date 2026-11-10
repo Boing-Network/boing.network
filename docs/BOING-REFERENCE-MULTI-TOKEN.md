@@ -53,7 +53,7 @@ metadata 424f494e475f5245464d545f4d4554415f563100000000000000000000000007
 
 ## Selectors and calldata
 
-Selector = low byte of word 0 (same convention as every Boing reference template). Range `0x20`–`0x29` does not overlap the token (`0x01`–`0x0a`) or NFT (`0x03`–`0x06`) selectors, so wallets can tell the calls apart.
+Selector = low byte of word 0 (same convention as every Boing reference template). Range `0x20`–`0x29` does not overlap the token (`0x01`–`0x0a`) or NFT (`0x03`–`0x06`) selectors, so wallets can tell the calls apart. wBOING reuses `0x20` / `0x21` / `0x23` but with 32 / 64 / 32-byte calldata; decoders should key on selector **and** exact length (and, when known, the target's runtime bytes).
 
 | Sel | Call | Calldata (bytes) | Who |
 |-----|------|------------------|-----|
@@ -100,6 +100,17 @@ All far below `GAS_PER_CONTRACT_CALL = 40_000_000`. Runtime is ≈ 2.1 KB, deplo
 - Metadata is a commitment (hash), not a URI. Publish the JSON / image off-chain or as an L1 media blob and store its hash.
 - Compressed NFTs (only a Merkle root on chain) are **not** part of v1: they need an on-chain hash opcode (`BLAKE3`, currently gated off) and only pay off at very large scale.
 
-## Testnet
+## Testnet soak (chain 6913, 2026-11-09)
 
-See the "Testnet soak" section below for the reference deployment used to verify v1 on chain 6913.
+Reference deployment used to verify v1 end to end through the public RPC gateway (throwaway faucet-funded admin `0x9a234c83…a114`; **not** a canonical production contract — games should deploy their own):
+
+| Step | Tx id | Block | Gas | Result |
+|------|-------|-------|-----|--------|
+| deploy (`items deploy`) → contract **`0x07913a8a5a66f762f3190aca301ef26f55dfa964339e461d6ec6aceb1e13e023`** | `0x7bbaf02b26ffc8621f1c8e7cfcda5e9a3a2a16f50ca33d7807f0f3d438f3f13d` | 37545 | 220,799 | ok; `boing_getContractCode` = pinned runtime |
+| `set_item_metadata(1, 0x11…11)` | `0x3b10ca528ab4472ab14cd7b838c940f9a25eedb1a61391ca8880753f0e67e480` | 37546 | 21,671 | ok, 1 log |
+| `mint(admin, 1, 100)` | `0x998e434df71b8901067231447283a4b54f995acc10cc4e9de909bc225337ed18` | 37547 | 42,759 | ok, 1 log |
+| `mint_batch(admin, [2:25, 3:7])` | `0xd7582efbe1136a400bb79453b10d75ede7bb57a85eda2e59236fe3dbec8c2f3e` | 37549 | 85,425 | ok, 2 logs |
+| `transfer(0x936c8d57…fe6d, 1, 40)` | `0x1e22a929a9b81d5f04cf02f134b2d3cfc30baa481478999fb301bead50a980ce` | 37550 | 42,620 | ok, 1 log |
+| `transfer(…, 3, 1000)` (overdraft, negative test) | `0xd04ead92efaf417315776c1a3815ecb9f6ba8395d5fda46f01f21e62ddf5dbc0` | 37554 | 21,000 | **failed** `Invalid jump destination`, state unchanged |
+
+Read-back after the soak: admin holds 60 × item 1, 25 × item 2, 7 × item 3; recipient holds 40 × item 1; `total_supply(1) = 100`; `item_metadata(1) = 0x11…11`.
