@@ -326,6 +326,10 @@ pub const fn constant_product_amount_out_after_fee_with_bps(
     amount_in: u64,
     fee_bps: u16,
 ) -> u64 {
+    // Out-of-range fee would underflow `10_000 - fee_bps`; quote nothing (callers must validate).
+    if fee_bps > 10_000 {
+        return 0;
+    }
     let dy = constant_product_amount_out(reserve_in, reserve_out, amount_in);
     let keep = 10_000u64 - fee_bps as u64;
     ((dy as u128 * keep as u128) / 10_000u128) as u64
@@ -344,6 +348,10 @@ pub const fn constant_product_amount_out_fee_on_input_with_bps(
     amount_in: u64,
     fee_bps: u16,
 ) -> u64 {
+    // Out-of-range fee would underflow `10_000 - fee_bps`; quote nothing (callers must validate).
+    if fee_bps > 10_000 {
+        return 0;
+    }
     let keep = 10_000u128 - fee_bps as u128;
     let amount_in_after_fee = (amount_in as u128).saturating_mul(keep) / 10_000u128;
     if amount_in_after_fee == 0 {
@@ -1762,6 +1770,24 @@ mod tests {
         assert_eq!(v.len(), 160);
         assert_eq!(v[31], SELECTOR_SWAP_TO);
         assert_eq!(&v[128..160], &recip.0);
+    }
+
+    #[test]
+    fn out_of_range_fee_bps_quotes_zero_without_panicking() {
+        // Regression: `10_000 - fee_bps` underflowed (debug panic) for fee_bps > 10_000.
+        assert_eq!(
+            constant_product_amount_out_after_fee_with_bps(1_000, 2_000, 100, 10_001),
+            0
+        );
+        assert_eq!(
+            constant_product_amount_out_fee_on_input_with_bps(1_000, 2_000, 100, u16::MAX),
+            0
+        );
+        // Boundary: 100% fee (10_000) is valid and quotes 0 out of the CP step.
+        assert_eq!(
+            constant_product_amount_out_after_fee_with_bps(1_000, 2_000, 100, 10_000),
+            0
+        );
     }
 
     #[test]
