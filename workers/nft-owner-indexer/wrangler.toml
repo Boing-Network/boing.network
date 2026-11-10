@@ -23,7 +23,11 @@ crons = ["*/2 * * * *"]
 # X-Boing-Origin-Gate (2026-11-08), which this Worker does not hold, so fly.dev returns 401.
 BOING_RPC_URL = "https://testnet-rpc.boing.network"
 BOING_CHAIN_ID = "boing-testnet"
-BOING_MAX_BLOCKS_PER_TICK = "16"
+# Blocks are fetched in JSON-RPC batches of 32 (one subrequest each), so 128 blocks = 4 fetches + ~3 tip/reorg
+# calls, far under the Free-plan 50-subrequest cap; event-less blocks are written in chunked D1 batches.
+# Chain makes ~17 blocks per 2-minute tick, so the old 16 could never catch up.
+BOING_MAX_BLOCKS_PER_TICK = "128"
+BOING_RPC_BATCH_SIZE = "32"
 BOING_MAX_CONCURRENT = "4"
 BOING_OMIT_MISSING = "1"
 BOING_MAX_REORG_REWIND_STEPS = "4096"

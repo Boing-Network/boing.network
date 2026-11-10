@@ -258,6 +258,88 @@ export async function persistBlockEvents(
   }
 }
 
+/**
+ * Write a run of event-less blocks in ONE D1 batch (vs ~4 queries per block in `persistBlockEvents`).
+ * Same idempotent semantics: any events previously stored at those heights (re-index after a reorg) are
+ * deleted and the affected tokens' ownership is rebuilt.
+ */
+export async function persistEmptyBlocks(
+  db: D1Database,
+  blocks: ReadonlyArray<{ height: number; blockHash: string; parentHash: string }>,
+  nowSec: number
+): Promise<void> {
+  if (!blocks.length) return;
+  // Chunk so one D1 batch stays modest (4 statements per block).
+  if (blocks.length > 64) {
+    for (let i = 0; i < blocks.length; i += 64) await persistEmptyBlocks(db, blocks.slice(i, i + 64), nowSec);
+    return;
+  }
+  const stmts: D1PreparedStatement[] = [];
+  for (const b of blocks) {
+    stmts.push(
+      db
+        .prepare('SELECT DISTINCT collection_hex, token_id_hex FROM nft_events WHERE block_height = ?')
+        .bind(b.height),
+      db.prepare('DELETE FROM nft_events WHERE block_height = ?').bind(b.height),
+      db.prepare('DELETE FROM indexed_blocks WHERE height = ?').bind(b.height),
+      db
+        .prepare('INSERT INTO indexed_blocks (height, block_hash, parent_hash) VALUES (?, ?, ?)')
+        .bind(
+          b.height,
+          normalizeHex64(b.blockHash) ?? zeros32(),
+          normalizeHex64(b.parentHash) ?? zeros32()
+        )
+    );
+  }
+  const results = await db.batch<{ collection_hex: string; token_id_hex: string }>(stmts);
+  const rebuild = new Map<string, { collection_hex: string; token_id_hex: string }>();
+  for (let i = 0; i < results.length; i += 4) {
+    for (const t of results[i]?.results ?? []) {
+      rebuild.set(`${t.collection_hex}:${t.token_id_hex}`, t);
+    }
+  }
+  for (const t of rebuild.values()) {
+    await rebuildOwnershipForToken(db, t.collection_hex, t.token_id_hex, nowSec);
+  }
+}
+
+/** Remember heights skipped as over the gateway's response cap (see `oversize.ts`). */
+export async function recordSkippedBlocks(
+  db: D1Database,
+  chainId: string,
+  skipped: ReadonlyArray<{ height: number; reason: string }>,
+  nowSec: number
+): Promise<void> {
+  if (!skipped.length) return;
+  await db.batch(
+    skipped.map((s) =>
+      db
+        .prepare(
+          'INSERT OR REPLACE INTO skipped_blocks (chain_id, height, reason, skipped_at) VALUES (?, ?, ?, ?)'
+        )
+        .bind(chainId, s.height, s.reason, nowSec)
+    )
+  );
+}
+
+/** Skipped (oversize) heights for `/v1/meta`; empty if the 0004 migration is not applied yet. */
+export async function listSkippedBlocks(
+  db: D1Database,
+  chainId: string
+): Promise<Array<{ height: number; reason: string; skippedAt: number }>> {
+  try {
+    const { results } = await db
+      .prepare(
+        'SELECT height, reason, skipped_at FROM skipped_blocks WHERE chain_id = ? ORDER BY height ASC LIMIT 100'
+      )
+      .bind(chainId)
+      .all<{ height: number; reason: string; skipped_at: number }>();
+    return (results ?? []).map((r) => ({ height: r.height, reason: r.reason, skippedAt: r.skipped_at }));
+  } catch {
+    return [];
+  }
+}
+
 /** Merged, chain-scoped pruned-height ranges recorded by `indexHeightRange`/backfill. */
 export async function loadGapRanges(
   db: D1Database,

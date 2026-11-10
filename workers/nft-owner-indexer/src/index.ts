@@ -13,7 +13,6 @@
 
 import {
   createClient,
-  fetchBlocksWithReceiptsForHeightRange,
   nextContiguousIndexedHeightAfterOmittedFetch,
   planIndexerCatchUp,
   planIndexerChainTipsWithFallback,
@@ -25,6 +24,9 @@ import { extractNftEventsFromBlock } from './extract.js';
 import { reconcileGapRangesForWindow } from './gaps.js';
 import {
   getOwnershipStats,
+  listSkippedBlocks,
+  persistEmptyBlocks,
+  recordSkippedBlocks,
   listNftsByOwner,
   loadCursor,
   loadGapRanges,
@@ -34,6 +36,8 @@ import {
   upsertIngestCursor,
 } from './persist.js';
 import { parseMaxReorgRewindSteps, rewindStaleTipIfNeeded } from './reorg.js';
+import { cursorTargetHeight } from './oversize.js';
+import { fetchBlocksBatched, jsonRpcPoster } from './batchFetch.js';
 import {
   ITEMS_SUBREQUEST_BUDGET,
   catchUpItems,
@@ -49,6 +53,8 @@ export interface Env extends ItemsEnv {
   BOING_CHAIN_ID?: string;
   BOING_MAX_BLOCKS_PER_TICK?: string;
   BOING_MAX_CONCURRENT?: string;
+  /** Heights per JSON-RPC batch request (node max 32). */
+  BOING_RPC_BATCH_SIZE?: string;
   BOING_OMIT_MISSING?: string;
   BOING_CORS_ORIGINS?: string;
   BOING_APP_VERSION?: string;
@@ -115,10 +121,25 @@ async function indexHeightRange(
   const nowSec = Math.floor(Date.now() / 1000);
   const chainId = env.BOING_CHAIN_ID ?? 'boing-testnet';
 
-  const bundles = await fetchBlocksWithReceiptsForHeightRange(client, fromHeight, toHeight, {
-    maxConcurrent,
-    onMissingBlock: omitMissing ? 'omit' : 'throw',
+  const heights: number[] = [];
+  for (let h = fromHeight; h <= toHeight; h++) heights.push(h);
+  // JSON-RPC batches (<= 32 heights per subrequest). Any non-oversize failure rejects the whole window
+  // (transient: retried next tick).
+  void maxConcurrent;
+  const bundles = await fetchBlocksBatched(jsonRpcPoster(env.BOING_RPC_URL), heights, {
+    batchSize: parsePositiveInt(env.BOING_RPC_BATCH_SIZE, 32),
+    omitMissing,
+    single: (h) => client.getBlockByHeight(h, true),
   });
+  const skipped = bundles.filter((b) => b.oversize != null);
+  if (skipped.length) {
+    await recordSkippedBlocks(
+      db,
+      chainId,
+      skipped.map((s) => ({ height: s.height, reason: s.oversize! })),
+      nowSec
+    );
+  }
 
   const { lastHash: tipHash, lastIndexedHeight: tipHeight } = await loadCursor(db, chainId);
   const windowContinuesGlobalCursor = fromHeight === tipHeight + 1;
@@ -130,8 +151,23 @@ async function indexHeightRange(
   const heightHashMap = new Map<number, string>();
   let aborted = false;
 
+  // Event-less blocks are written in one D1 batch per run (Free plan: keep per-invocation queries low).
+  let pendingEmpty: Array<{ height: number; blockHash: string; parentHash: string }> = [];
+  const flushEmpty = async () => {
+    if (!pendingEmpty.length) return;
+    await persistEmptyBlocks(db, pendingEmpty, nowSec);
+    pendingEmpty = [];
+  };
+
   for (const bundle of bundles) {
     const height = bundle.height;
+    if (bundle.oversize != null) {
+      // Unfetchable through the gateway: step over it; the next block's parent cannot be checked.
+      lastHash = zeros32();
+      lastHeight = height;
+      processedHeights.push(height);
+      continue;
+    }
     const block = bundle.block as {
       header?: { parent_hash?: unknown };
       hash?: unknown;
@@ -157,13 +193,20 @@ async function indexHeightRange(
     }
 
     const primed = await extractWithOwnerLookup(db, bundle.block, height);
-    await persistBlockEvents(db, height, blockHash, parentHash, primed, nowSec);
+    if (primed.length === 0) {
+      pendingEmpty.push({ height, blockHash, parentHash });
+    } else {
+      await flushEmpty();
+      await persistBlockEvents(db, height, blockHash, parentHash, primed, nowSec);
+    }
     eventsTotal += primed.length;
     lastHash = blockHash;
     lastHeight = height;
     processedHeights.push(height);
     heightHashMap.set(height, blockHash);
   }
+
+  await flushEmpty();
 
   const attemptedThrough = aborted
     ? (processedHeights[processedHeights.length - 1] ?? fromHeight - 1)
@@ -187,9 +230,10 @@ async function indexHeightRange(
 
   let cursorAdvanced = false;
   if (windowContinuesGlobalCursor && contiguousThrough > fromHeight - 1) {
-    const hash = heightHashMap.get(contiguousThrough);
-    if (hash) {
-      await upsertIngestCursor(db, chainId, contiguousThrough, hash, nowSec);
+    const target = cursorTargetHeight(fromHeight, contiguousThrough, heightHashMap);
+    const hash = target == null ? undefined : heightHashMap.get(target);
+    if (target != null && hash) {
+      await upsertIngestCursor(db, chainId, target, hash, nowSec);
       cursorAdvanced = true;
     }
   }
@@ -385,6 +429,7 @@ export default {
           lagVsFinalized,
           stats,
           gapRanges,
+          skippedBlocks: await listSkippedBlocks(env.NFT_OWNER_DB, chainId),
           gapRangeCount: gapRanges.length,
           note: 'Reference NFT ownership from mint_batch / transfer_nft / set_metadata_hash. Not the DEX LP ERC-721 snapshot. gapRanges are pruned-RPC height ranges this index could not backfill yet (see GET /v1/gaps, POST /v1/backfill).',
         },
