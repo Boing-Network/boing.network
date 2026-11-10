@@ -365,6 +365,14 @@ fn object_params(params: &Option<Value>) -> Result<Map<String, Value>, DexDiscov
 
 /// `boing_getTokenMetadata`: `params` = `["0x<64 hex>"]`, `[{"id": "0x…"}]` or `{"id": "0x…"}`.
 /// Returns `null` when the account is neither a recorded deploy nor a contract with code.
+/// Lock the token index, recovering from a poisoned mutex so a panic in one RPC call cannot
+/// permanently brick `boing_getTokenMetadata` / `boing_listTokens`.
+fn lock_index(index: &Mutex<TokenIndex>) -> std::sync::MutexGuard<'_, TokenIndex> {
+    index
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 pub fn get_token_metadata(
     index: &Mutex<TokenIndex>,
     state: &StateStore,
@@ -378,7 +386,7 @@ pub fn get_token_metadata(
         .and_then(|v| v.as_str())
         .ok_or_else(|| err_bad("params.id: expected hex string".to_string()))?;
     let id = parse_account_id_hex(id_hex)?;
-    let mut idx = index.lock().unwrap();
+    let mut idx = lock_index(index);
     idx.refresh(chain, state, receipts);
     if !idx.deploys.contains_key(&id) && state.get_contract_code(&id).is_none() {
         return Ok(Value::Null);
@@ -409,7 +417,7 @@ pub fn list_tokens(
         Some(Value::String(s)) => Some(parse_account_id_hex(s)?),
         _ => return Err(err_bad("params.cursor: expected hex string".to_string())),
     };
-    let mut idx = index.lock().unwrap();
+    let mut idx = lock_index(index);
     idx.refresh(chain, state, receipts);
     let decimals_map = parse_token_decimals_json();
 

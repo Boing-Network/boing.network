@@ -2,7 +2,7 @@
 //! Runs protocol QA on ContractDeploy before accepting; rejects with structured reason when QA fails.
 
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use boing_primitives::{AccountId, Hash, SignedTransaction};
 use boing_qa::{check_contract_deploy_full_with_metadata, QaReject, QaResult, RuleRegistry};
@@ -102,6 +102,16 @@ impl Mempool {
     pub fn optional_fees_active(&self) -> bool {
         self.optional_fees_active
             .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Lock the pool, recovering from a poisoned mutex.
+    ///
+    /// A panic anywhere in a lock-holding code path must not permanently brick admission (every
+    /// later `lock().unwrap()` would panic, taking the node's JSON-RPC/mempool paths down with it).
+    /// Pool invariants are re-derived from the maps themselves, so resuming with the poisoned guard
+    /// is safe; matches the recovery already used by [`crate::security`].
+    fn lock_inner(&self) -> MutexGuard<'_, MempoolInner> {
+        self.inner.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     pub fn with_max_pending_per_sender(mut self, max: usize) -> Self {
@@ -288,7 +298,7 @@ impl Mempool {
         }
         let tx_id = signed.tx.id();
         let tip = signed.priority_tip;
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock_inner();
         if inner.by_id.contains_key(&tx_id) {
             return Err(MempoolError::Duplicate);
         }
@@ -402,7 +412,7 @@ impl Mempool {
         use std::cmp::Reverse;
         use std::collections::BinaryHeap;
 
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock_inner();
         // Max-heap on (tip, Reverse(nonce), Reverse(sender)): highest tip, then lowest nonce, then lowest sender.
         let mut heap: BinaryHeap<(u128, Reverse<u64>, Reverse<[u8; 32]>)> = BinaryHeap::new();
         for (sender, by_nonce) in inner.by_sender.iter() {
@@ -453,12 +463,12 @@ impl Mempool {
 
     /// Number of pending transactions.
     pub fn len(&self) -> usize {
-        self.inner.lock().unwrap().len
+        self.lock_inner().len
     }
 
     /// Whether a pending transaction with this id ([`Transaction::id`] on the signed payload) is in the pool.
     pub fn contains_tx_id(&self, tx_id: &Hash) -> bool {
-        self.inner.lock().unwrap().by_id.contains_key(tx_id)
+        self.lock_inner().by_id.contains_key(tx_id)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -470,7 +480,7 @@ impl Mempool {
     /// returns one past the highest pending nonce (so callers do not rebuild the same `tx.id()` and
     /// hit [`MempoolError::Duplicate`]). Used by the testnet faucet RPC.
     pub fn suggested_next_nonce(&self, sender: AccountId, chain_nonce: u64) -> u64 {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.lock_inner();
         match inner.by_sender.get(&sender) {
             Some(by_nonce) if !by_nonce.is_empty() => {
                 let max_pending = *by_nonce.keys().next_back().expect("non-empty");
@@ -692,6 +702,28 @@ mod tests {
             },
             key,
         )
+    }
+
+    #[test]
+    fn poisoned_mutex_does_not_brick_pool() {
+        // Regression: `inner.lock().unwrap()` panicked forever once any panic poisoned the lock,
+        // permanently taking mempool admission/RPC paths down with it.
+        let pool = Mempool::new();
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let poisoned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = pool.inner.lock().unwrap();
+            panic!("simulated panic while holding the mempool lock");
+        }));
+        std::panic::set_hook(prev);
+        assert!(poisoned.is_err());
+        assert!(pool.inner.is_poisoned(), "test setup must poison the mutex");
+        // Every public entry point must recover instead of panicking.
+        assert_eq!(pool.len(), 0);
+        let key = SigningKey::generate(&mut OsRng);
+        assert!(pool.insert(transfer(&key, 0)).is_ok());
+        assert_eq!(pool.len(), 1);
+        assert_eq!(pool.drain_for_block(10).len(), 1);
     }
 
     #[test]
