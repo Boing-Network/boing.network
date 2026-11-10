@@ -19,9 +19,9 @@ migrations_dir = "migrations"
 crons = ["*/2 * * * *"]
 
 [vars]
-# Fly origin (same backends as workers/public-rpc-gateway). The public hostname
-# https://testnet-rpc.boing.network is WAF-challenged for Worker-origin fetches.
-BOING_RPC_URL = "https://boing-testnet-1.fly.dev"
+# Public RPC hostname (same as native-dex-indexer). The direct Fly origin now requires
+# X-Boing-Origin-Gate (2026-11-08), which this Worker does not hold, so fly.dev returns 401.
+BOING_RPC_URL = "https://testnet-rpc.boing.network"
 BOING_CHAIN_ID = "boing-testnet"
 BOING_MAX_BLOCKS_PER_TICK = "16"
 BOING_MAX_CONCURRENT = "4"
