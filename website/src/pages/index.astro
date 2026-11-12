@@ -213,6 +213,32 @@ import Layout from '../layouts/Layout.astro';
       <a href="/docs/getting-started" class="btn btn-secondary">Get started</a>
     </div>
   </section>
+
+  <!-- Trust / listings — end-of-page strip, not a hero overlay -->
+  <aside class="trust-strip" aria-label="Listings">
+    <a
+      href="https://chainquiry.com/projects/boing-network/"
+      target="_blank"
+      rel="noopener"
+      aria-label="View this profile on Chainquiry"
+      style="display:inline-block;max-width:100%;line-height:0;"
+    >
+      <picture>
+        <source
+          media="(prefers-reduced-motion: reduce)"
+          srcset="https://chainquiry.com/?cqbh_badge=1&amp;v=1.2.1-378482bb&amp;theme=dark&amp;size=standard&amp;motion=still"
+        />
+        <img
+          decoding="async"
+          src="https://chainquiry.com/?cqbh_badge=1&amp;v=1.2.1-378482bb&amp;theme=dark&amp;size=standard&amp;motion=subtle"
+          alt="Listed on Chainquiry"
+          width="288"
+          height="72"
+          style="display:block;max-width:100%;height:auto;border:0;"
+        />
+      </picture>
+    </a>
+  </aside>
 </Layout>
 
 <script>
@@ -388,7 +414,27 @@ import Layout from '../layouts/Layout.astro';
   }
   .section-close {
     text-align: center;
-    padding-bottom: 5rem;
+    padding-bottom: 3rem;
+  }
+
+  /* Discreet end-of-page listing badge (Chainquiry) */
+  .trust-strip {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.25rem 1.5rem 3.5rem;
+    border-top: 1px solid rgba(59, 140, 255, 0.08);
+    background: linear-gradient(180deg, transparent, rgba(16, 26, 56, 0.25));
+  }
+  .trust-strip a {
+    opacity: 0.92;
+    transition: opacity 0.2s ease-out;
+  }
+  .trust-strip a:hover {
+    opacity: 1;
+  }
+  @media (max-width: 480px) {
+    .trust-strip { padding: 1rem 1rem 2.75rem; }
   }
   .section h2 {
     text-align: center;
