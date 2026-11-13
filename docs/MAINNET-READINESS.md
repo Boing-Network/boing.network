@@ -16,7 +16,7 @@ This is the in-repo operator checklist. Scores below are **current** as of the d
 |---|------|-------|-----------|
 | 1 | Protocol trust | **Partial** | Yes — residual High/Medium (H2 liveness evidence, H10 HA, M6/M9/M13; H5 origin gate **closed**) |
 | 2 | Economic finality | **Fail** | Yes — BN-155 open items (genesis pie, vesting, fee path, emission floor, year-1 block emission) |
-| 3 | Operational readiness | **Partial** | Yes — mainnet keys / on-call / alerts / multi-validator not done; testnet ops strong |
+| 3 | Operational readiness | **Partial** | Yes — ops pack drafted; live keys / named on-call / scheduled freeze / alerts / multi-validator still open; testnet ops strong |
 | 4 | Thin product path | **Partial** | Soft — Express / Finance / Observer / network live on **testnet**; mainnet RPC intentionally unset |
 | 5 | Bootstrap plan | **Partial** | Soft — bridge live; Chainquiry live; mainnet liquidity / incentives undecided |
 | 6 | Legal / reputational | **Partial** (note only) | Nico comfort + any counsel review — agents do not invent legal advice |
@@ -87,14 +87,25 @@ This is the in-repo operator checklist. Scores below are **current** as of the d
 - [x] Hybrid heavy-ops + Fly origin lockdown runbooks (Project store + `docs/FLY-IO.md`)
 - [x] Faucet refused on chain id **6914** without operator token / faucet flag
 
+### Ops pack (Project store — BN-221)
+
+Checklists only; **not executed**. Do **not** rotate live testnet secrets or enable Workers Paid from this pack.
+
+| Topic | Project store doc |
+|-------|-------------------|
+| Key ceremony + offline backup (nkc-desktop OK) | `docs/mainnet-key-ceremony-checklist.md` |
+| Freeze window (what / how long / thaw / allowed PRs) | `docs/mainnet-freeze-window.md` |
+| Week-1 on-call channel + SEV + first hour → RUNBOOK §5–6 / §8 | `docs/mainnet-oncall-week1.md` |
+| Scorecard gate 3 links | `docs/mainnet-readiness-scorecard.md` |
+
 ### Still missing for mainnet day-0
 
-- [ ] Mainnet validator / treasury / operator **keys** generated, backed up offline, never in git
-- [ ] Named **on-call** + week-1 incident channel
+- [ ] Mainnet validator / treasury / operator **keys** generated, backed up offline, never in git (ceremony checklist ready; date / custodians = **Nico**)
+- [ ] Named **on-call** + week-1 incident channel (template ready; create Discord/Slack + name roster = **Nico**)
 - [ ] External monitoring/alerts (height stall, gateway health, Free Worker 1027 cliff)
 - [ ] Mainnet RPC hostname + Access/gate plan (mirror testnet pattern; do **not** enable Workers Paid from this checklist)
 - [ ] Second validator **or** honest single-validator genesis announcement
-- [ ] Freeze window executed (below)
+- [ ] Freeze window **scheduled and executed** (procedure below + store freeze doc; calendar = **Nico**)
 
 ---
 
@@ -127,12 +138,16 @@ This is the in-repo operator checklist. Scores below are **current** as of the d
 
 ## Freeze window (pre-genesis)
 
-Suggested ritual (from launch criteria):
+Suggested ritual (from launch criteria). Full procedure: Project store `docs/mainnet-freeze-window.md`.
 
 1. Freeze **economics / consensus parameters** for **N ≥ 7 days** before genesis (no thrash on BN-155 locks).
 2. Freeze **CREATE2 / QA registry** changes that would invalidate published mainnet addresses.
 3. Tag client pins: Express min version, `@boing-network/boing-sdk` recommended, Observer build with mainnet RPC.
-4. Publish week-1 incident channel + builder onboarding the same day as genesis.
+4. Publish week-1 incident channel + builder onboarding the same day as genesis (channel template: Project store `docs/mainnet-oncall-week1.md`).
+
+**Thaw / exception approver:** Nico (name a backup before freeze starts). **Dates:** not scheduled until BN-155 + gate 1–2 residuals allow.
+
+**PRs during freeze:** Critical/High security, testnet-only ops, clarifying docs, and CI/tooling are allowed; economics reopen and address-invalidating CREATE2/QA changes are not. See the store freeze doc for the full allow/deny list.
 
 ---
 
@@ -158,3 +173,5 @@ curl -sS -o /dev/null -w '%{http_code}\n' -A boing-sdk/json-rpc -X POST https://
 - [TESTNET.md](TESTNET.md) — public testnet honesty bounds  
 - [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) — H2 liveness slash and roadmap  
 - [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) — economics source (open items → BN-155)  
+- Project store (Cursor): `docs/mainnet-key-ceremony-checklist.md`, `docs/mainnet-freeze-window.md`, `docs/mainnet-oncall-week1.md`, `docs/mainnet-readiness-scorecard.md`  
+
