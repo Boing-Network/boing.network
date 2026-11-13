@@ -22,6 +22,31 @@ import Layout from '../layouts/Layout.astro';
         <a href="/developers/quickstart" class="btn btn-secondary">Build on Boing</a>
       </div>
       <p class="hero-stage">Public testnet — mainnet not live</p>
+      <!-- Listing badges — hero bottom row (not an overlay sticker) -->
+      <aside class="trust-strip" aria-label="Listings">
+        <a
+          href="https://chainquiry.com/projects/boing-network/"
+          target="_blank"
+          rel="noopener"
+          aria-label="View this profile on Chainquiry"
+          style="display:inline-block;max-width:100%;line-height:0;"
+        >
+          <picture>
+            <source
+              media="(prefers-reduced-motion: reduce)"
+              srcset="https://chainquiry.com/?cqbh_badge=1&amp;v=1.2.1-378482bb&amp;theme=dark&amp;size=standard&amp;motion=still"
+            />
+            <img
+              decoding="async"
+              src="https://chainquiry.com/?cqbh_badge=1&amp;v=1.2.1-378482bb&amp;theme=dark&amp;size=standard&amp;motion=subtle"
+              alt="Listed on Chainquiry"
+              width="288"
+              height="72"
+              style="display:block;max-width:100%;height:auto;border:0;"
+            />
+          </picture>
+        </a>
+      </aside>
     </div>
   </section>
 
@@ -213,32 +238,6 @@ import Layout from '../layouts/Layout.astro';
       <a href="/docs/getting-started" class="btn btn-secondary">Get started</a>
     </div>
   </section>
-
-  <!-- Trust / listings — end-of-page strip, not a hero overlay -->
-  <aside class="trust-strip" aria-label="Listings">
-    <a
-      href="https://chainquiry.com/projects/boing-network/"
-      target="_blank"
-      rel="noopener"
-      aria-label="View this profile on Chainquiry"
-      style="display:inline-block;max-width:100%;line-height:0;"
-    >
-      <picture>
-        <source
-          media="(prefers-reduced-motion: reduce)"
-          srcset="https://chainquiry.com/?cqbh_badge=1&amp;v=1.2.1-378482bb&amp;theme=dark&amp;size=standard&amp;motion=still"
-        />
-        <img
-          decoding="async"
-          src="https://chainquiry.com/?cqbh_badge=1&amp;v=1.2.1-378482bb&amp;theme=dark&amp;size=standard&amp;motion=subtle"
-          alt="Listed on Chainquiry"
-          width="288"
-          height="72"
-          style="display:block;max-width:100%;height:auto;border:0;"
-        />
-      </picture>
-    </a>
-  </aside>
 </Layout>
 
 <script>
@@ -360,6 +359,26 @@ import Layout from '../layouts/Layout.astro';
     animation: hero-copy-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.48s both;
   }
 
+  /* Listing badges — horizontal row under hero stage for future badges */
+  .trust-strip {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem 1.25rem;
+    margin: 1.35rem 0 0;
+    padding: 0;
+    animation: hero-copy-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.56s both;
+  }
+  .trust-strip a {
+    opacity: 0.92;
+    transition: opacity 0.2s ease-out;
+  }
+  .trust-strip a:hover {
+    opacity: 1;
+  }
+
   .cta {
     display: flex;
     gap: 0.85rem;
@@ -414,27 +433,7 @@ import Layout from '../layouts/Layout.astro';
   }
   .section-close {
     text-align: center;
-    padding-bottom: 3rem;
-  }
-
-  /* Discreet end-of-page listing badge (Chainquiry) */
-  .trust-strip {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 1.25rem 1.5rem 3.5rem;
-    border-top: 1px solid rgba(59, 140, 255, 0.08);
-    background: linear-gradient(180deg, transparent, rgba(16, 26, 56, 0.25));
-  }
-  .trust-strip a {
-    opacity: 0.92;
-    transition: opacity 0.2s ease-out;
-  }
-  .trust-strip a:hover {
-    opacity: 1;
-  }
-  @media (max-width: 480px) {
-    .trust-strip { padding: 1rem 1rem 2.75rem; }
+    padding-bottom: 5rem;
   }
   .section h2 {
     text-align: center;
@@ -821,7 +820,8 @@ import Layout from '../layouts/Layout.astro';
     .hero-title,
     .tagline,
     .cta,
-    .hero-stage {
+    .hero-stage,
+    .trust-strip {
       animation: none !important;
     }
     .hero-logo-img { opacity: 1; transform: none; }
