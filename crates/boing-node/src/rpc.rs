@@ -5234,10 +5234,10 @@ async fn dispatch_jsonrpc_request(
                         let arr: Vec<serde_json::Value> = block
                             .transactions
                             .iter()
-                            .map(|tx| {
-                                let tid = tx.id();
-                                n.receipts
-                                    .get(&tid)
+                            .enumerate()
+                            .map(|(i, tx)| {
+                                n.receipt_in_block(block.header.height, i, &tx.id())
+                                    .as_ref()
                                     .map(execution_receipt_to_json)
                                     .unwrap_or(serde_json::Value::Null)
                             })
@@ -5350,6 +5350,11 @@ async fn dispatch_jsonrpc_request(
                     let Some(receipt) = n.receipts.get(&tid) else {
                         continue;
                     };
+                    // A tx id re-included in a later block (no-op duplicate) must not emit the
+                    // executed inclusion's logs a second time.
+                    if receipt.block_height != height {
+                        continue;
+                    }
                     if receipt.logs.is_empty() {
                         continue;
                     }
@@ -5458,10 +5463,10 @@ async fn dispatch_jsonrpc_request(
                         let arr_r: Vec<serde_json::Value> = block
                             .transactions
                             .iter()
-                            .map(|tx| {
-                                let tid = tx.id();
-                                n.receipts
-                                    .get(&tid)
+                            .enumerate()
+                            .map(|(i, tx)| {
+                                n.receipt_in_block(block.header.height, i, &tx.id())
+                                    .as_ref()
                                     .map(execution_receipt_to_json)
                                     .unwrap_or(serde_json::Value::Null)
                             })

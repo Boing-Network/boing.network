@@ -60,6 +60,51 @@ pub fn prune(receipts: &mut HashMap<Hash, ExecutionReceipt>, tip: u64, window: u
     before - receipts.len()
 }
 
+/// Error prefix of [`boing_execution`]'s `VmError::InvalidNonce` as stored in receipts.
+pub const NONCE_REJECT_ERROR_PREFIX: &str = "Invalid nonce:";
+
+/// How authoritative a receipt is for its tx id when the same tx id appears in more than one block:
+/// success > failed execution (nonce consumed) > `Invalid nonce` rejection (a no-op duplicate or a
+/// premature inclusion; never the inclusion that executed the tx).
+fn receipt_rank(r: &ExecutionReceipt) -> u8 {
+    if r.success {
+        2
+    } else if r
+        .error
+        .as_deref()
+        .is_some_and(|e| e.starts_with(NONCE_REJECT_ERROR_PREFIX))
+    {
+        0
+    } else {
+        1
+    }
+}
+
+/// Insert `r` into the tx-id-keyed receipt index without letting a duplicate inclusion hide the
+/// real outcome.
+///
+/// The index is keyed by tx id, but a tx id can legitimately appear in more than one block (a
+/// validator re-including an already-executed tx; the later copy fails with `Invalid nonce` and
+/// does nothing). Plain last-write-wins made `boing_getTransactionReceipt` report that no-op failure
+/// instead of the inclusion that executed. Rule: a receipt from the **same** block height replaces
+/// (re-commit / reload of the same block); otherwise the higher-ranked receipt wins (see
+/// [`receipt_rank`]) and, on a tie, the earlier block. Per-height receipt files on disk are never
+/// affected. Returns `true` when `r` was stored.
+pub fn index_receipt(receipts: &mut HashMap<Hash, ExecutionReceipt>, r: ExecutionReceipt) -> bool {
+    if let Some(existing) = receipts.get(&r.tx_id) {
+        if existing.block_height != r.block_height {
+            let (new_rank, old_rank) = (receipt_rank(&r), receipt_rank(existing));
+            let replace = new_rank > old_rank
+                || (new_rank == old_rank && r.block_height < existing.block_height);
+            if !replace {
+                return false;
+            }
+        }
+    }
+    receipts.insert(r.tx_id, r);
+    true
+}
+
 /// True when pruning should run after committing `height`.
 pub fn prune_due(height: u64) -> bool {
     height > 0 && height.is_multiple_of(PRUNE_INTERVAL)
@@ -136,6 +181,55 @@ mod tests {
         // unlimited never prunes
         assert_eq!(prune(&mut m, 10_000, 0), 0);
         assert_eq!(m.len(), 100);
+    }
+
+    fn nonce_dup(height: u64, n: u8) -> ExecutionReceipt {
+        ExecutionReceipt {
+            success: false,
+            gas_used: 0,
+            tx_index: 1,
+            error: Some("Invalid nonce: expected 45, got 44".into()),
+            ..receipt(height, n)
+        }
+    }
+
+    #[test]
+    fn duplicate_nonce_failure_does_not_overwrite_success() {
+        // Live testnet shape: success at N, the same tx id re-included at N+1 and rejected.
+        let mut m: HashMap<Hash, ExecutionReceipt> = HashMap::new();
+        assert!(index_receipt(&mut m, receipt(66276, 7)));
+        assert!(!index_receipt(&mut m, nonce_dup(66277, 7)));
+        let r = &m[&Hash([7; 32])];
+        assert!(r.success);
+        assert_eq!(r.block_height, 66276);
+        // Reverse arrival order (any reindex order) converges on the same answer.
+        let mut m2: HashMap<Hash, ExecutionReceipt> = HashMap::new();
+        assert!(index_receipt(&mut m2, nonce_dup(66277, 7)));
+        assert!(index_receipt(&mut m2, receipt(66276, 7)));
+        assert_eq!(m2[&Hash([7; 32])], m[&Hash([7; 32])]);
+    }
+
+    #[test]
+    fn real_failure_beats_nonce_duplicate_and_earliest_wins_ties() {
+        let mut m: HashMap<Hash, ExecutionReceipt> = HashMap::new();
+        let reverted = ExecutionReceipt {
+            success: false,
+            error: Some("Execution reverted".into()),
+            ..receipt(10, 3)
+        };
+        assert!(index_receipt(&mut m, reverted.clone()));
+        assert!(!index_receipt(&mut m, nonce_dup(11, 3)));
+        assert_eq!(m[&Hash([3; 32])], reverted);
+        // A premature (future-nonce) rejection followed by the real execution: execution wins.
+        let mut m2: HashMap<Hash, ExecutionReceipt> = HashMap::new();
+        assert!(index_receipt(&mut m2, nonce_dup(20, 4)));
+        assert!(index_receipt(&mut m2, receipt(22, 4)));
+        assert!(m2[&Hash([4; 32])].success);
+        // Same height always replaces (re-commit / reload of the same block).
+        let mut m3: HashMap<Hash, ExecutionReceipt> = HashMap::new();
+        assert!(index_receipt(&mut m3, receipt(30, 5)));
+        assert!(index_receipt(&mut m3, nonce_dup(30, 5)));
+        assert!(!m3[&Hash([5; 32])].success);
     }
 
     #[test]

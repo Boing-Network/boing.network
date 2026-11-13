@@ -468,6 +468,57 @@ impl Mempool {
         }
     }
 
+    /// Drop pending txs that a just-committed block made unexecutable.
+    ///
+    /// For every sender with a tx in `included`, removes all of that sender's pending txs whose nonce
+    /// is below `account_nonce(sender)` (the post-commit account nonce). That covers the included txs
+    /// themselves (same tx id, nonce now consumed) and any same-nonce replacement that lost the race.
+    /// Future nonces stay queued.
+    ///
+    /// Must run on **every** commit path, including blocks proposed by other validators and
+    /// catch-up imports: those txs were never drained from this node's pool (they arrived by
+    /// gossip), and leaving them in made the next local proposal re-include them as
+    /// `Invalid nonce` duplicates (testnet 6913, e.g. blocks 66276/66277).
+    ///
+    /// Returns how many pending txs were removed.
+    pub fn prune_committed<F>(
+        &self,
+        included: &[boing_primitives::Transaction],
+        account_nonce: F,
+    ) -> usize
+    where
+        F: Fn(&AccountId) -> Option<u64>,
+    {
+        if included.is_empty() {
+            return 0;
+        }
+        let mut senders: Vec<AccountId> = included.iter().map(|t| t.sender).collect();
+        senders.sort_by_key(|a| a.0);
+        senders.dedup();
+        let mut guard = self.lock_inner();
+        let inner = &mut *guard;
+        let mut removed = 0usize;
+        for sender in senders {
+            let Some(next_nonce) = account_nonce(&sender) else {
+                continue;
+            };
+            let Some(by_nonce) = inner.by_sender.get_mut(&sender) else {
+                continue;
+            };
+            let keep = by_nonce.split_off(&next_nonce);
+            let stale = std::mem::replace(by_nonce, keep);
+            if by_nonce.is_empty() {
+                inner.by_sender.remove(&sender);
+            }
+            for (_, signed) in stale {
+                inner.by_id.remove(&signed.tx.id());
+                removed += 1;
+            }
+        }
+        inner.len = inner.len.saturating_sub(removed);
+        removed
+    }
+
     /// Number of pending transactions.
     pub fn len(&self) -> usize {
         self.lock_inner().len
@@ -709,6 +760,44 @@ mod tests {
             },
             key,
         )
+    }
+
+    #[test]
+    fn prune_committed_drops_consumed_nonces_and_keeps_future_ones() {
+        let pool = Mempool::new();
+        let key = SigningKey::generate(&mut OsRng);
+        let sender = AccountId(key.verifying_key().to_bytes());
+        let other_key = SigningKey::generate(&mut OsRng);
+        let other = AccountId(other_key.verifying_key().to_bytes());
+        let t0 = transfer(&key, 0);
+        let t1 = transfer(&key, 1);
+        let t2 = transfer(&key, 2);
+        let o0 = transfer(&other_key, 0);
+        for s in [t0.clone(), t1.clone(), t2.clone(), o0.clone()] {
+            pool.insert(s).unwrap();
+        }
+        assert_eq!(pool.len(), 4);
+        // Block committed t0 and t1 (sender nonce now 2); `other` was not in the block.
+        let removed = pool.prune_committed(&[t0.tx.clone(), t1.tx.clone()], |id| {
+            if *id == sender {
+                Some(2)
+            } else if *id == other {
+                Some(5) // not touched by the block: must not be pruned
+            } else {
+                None
+            }
+        });
+        assert_eq!(removed, 2);
+        assert_eq!(pool.len(), 2);
+        assert!(!pool.contains_tx_id(&t0.tx.id()));
+        assert!(!pool.contains_tx_id(&t1.tx.id()));
+        assert!(pool.contains_tx_id(&t2.tx.id()));
+        assert!(pool.contains_tx_id(&o0.tx.id()));
+        // The pruned tx id can be admitted again at the pool level (the node-level stale-nonce
+        // precheck is what rejects it); drain order stays consistent with `len`.
+        let drained = pool.drain_for_block(10);
+        assert_eq!(drained.len(), 2);
+        assert_eq!(pool.len(), 0);
     }
 
     #[test]

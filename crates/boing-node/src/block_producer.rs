@@ -102,6 +102,24 @@ impl BlockProducer {
             height,
         );
         signed_txs.retain(|s| s.verify_with(policy).is_ok());
+        // Never (re-)include a tx whose nonce the tip state has already consumed: it can only
+        // produce an `Invalid nonce` receipt, and with the same tx id it shadows the receipt of
+        // the inclusion that actually executed. Builder-only policy; block validity is unchanged.
+        let before = signed_txs.len();
+        signed_txs.retain(|s| {
+            state
+                .get(&s.tx.sender)
+                .map(|acct| s.tx.nonce >= acct.nonce)
+                .unwrap_or(true)
+        });
+        let stale = before - signed_txs.len();
+        if stale > 0 {
+            tracing::debug!(
+                stale,
+                height,
+                "block_producer: dropped mempool txs with already-consumed nonces"
+            );
+        }
         if signed_txs.is_empty() {
             return None;
         }

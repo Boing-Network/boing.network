@@ -470,7 +470,7 @@ impl BoingNode {
                 for h in first_receipt_height..=height {
                     if let Some(list) = persistence.load_receipts_for_height(h)? {
                         for r in list {
-                            node.receipts.insert(r.tx_id, r);
+                            crate::receipt_retention::index_receipt(&mut node.receipts, r);
                         }
                     }
                 }
@@ -845,6 +845,47 @@ impl BoingNode {
         }
     }
 
+    /// Remove pending txs the newly committed `block` made stale (consumed nonces), whoever
+    /// proposed it. See [`Mempool::prune_committed`].
+    fn prune_mempool_after_commit(&self, block: &boing_primitives::Block) {
+        let state = &self.state;
+        let removed = self
+            .mempool
+            .prune_committed(&block.transactions, |id| state.get(id).map(|a| a.nonce));
+        if removed > 0 {
+            tracing::debug!(
+                removed,
+                height = block.header.height,
+                "pruned mempool txs included by / made stale by committed block"
+            );
+        }
+    }
+
+    /// Receipt of the tx at `tx_index` in the block at `height` (for block-with-receipts RPCs).
+    ///
+    /// The in-memory index is keyed by tx id; when the same tx id was included in more than one
+    /// block it holds the authoritative inclusion (see [`crate::receipt_retention::index_receipt`]),
+    /// so for the other block fall back to that height's persisted receipt list.
+    pub fn receipt_in_block(
+        &self,
+        height: u64,
+        tx_index: usize,
+        tx_id: &Hash,
+    ) -> Option<ExecutionReceipt> {
+        if let Some(r) = self.receipts.get(tx_id) {
+            if r.block_height == height {
+                return Some(r.clone());
+            }
+        }
+        let list = self
+            .persistence
+            .as_ref()?
+            .load_receipts_for_height(height)
+            .ok()??;
+        list.into_iter()
+            .find(|r| r.tx_id == *tx_id && r.tx_index as usize == tx_index)
+    }
+
     /// Drop in-memory receipts older than the retention window (see [`crate::receipt_retention`]).
     fn prune_receipts_if_due(&mut self, height: u64) {
         if crate::receipt_retention::prune_due(height) {
@@ -879,8 +920,9 @@ impl BoingNode {
             return Hash::ZERO;
         }
         self.state = pending.new_state;
+        self.prune_mempool_after_commit(&pending.block);
         for r in &pending.receipts {
-            self.receipts.insert(r.tx_id, r.clone());
+            crate::receipt_retention::index_receipt(&mut self.receipts, r.clone());
         }
         self.persist_block_and_state(&pending.block, &pending.receipts);
         self.prune_receipts_if_due(height);
@@ -1453,8 +1495,9 @@ impl BoingNode {
             .sync_round(block.header.height.saturating_add(1));
         self.pending_commit = None;
         self.pending_since = None;
+        self.prune_mempool_after_commit(block);
         for r in &receipts {
-            self.receipts.insert(r.tx_id, r.clone());
+            crate::receipt_retention::index_receipt(&mut self.receipts, r.clone());
         }
         self.persist_block_and_state(block, &receipts);
         self.prune_receipts_if_due(block.header.height);
@@ -2788,8 +2831,7 @@ impl BoingNode {
             return false;
         };
         let att = boing_primitives::LivenessMissAttestation::sign(height, offender, n, sk);
-        let Ok(evidence) =
-            boing_primitives::LivenessEvidence::try_from_attestations(vec![att])
+        let Ok(evidence) = boing_primitives::LivenessEvidence::try_from_attestations(vec![att])
         else {
             return false;
         };
