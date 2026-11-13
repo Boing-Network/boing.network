@@ -97,7 +97,7 @@ Cron (`*/15 * * * *`) refreshes KV **and** D1 when `DIRECTORY_DB` is bound.
 
 | `NATIVE_DEX_INDEXER_API_DISABLE` | `1` to stop cron + disable GET |
 
-| `NATIVE_DEX_INDEXER_STATS_MAX_RPM` | Soft per-IP cap for GET `/` + `/stats` (default **30**/min; `0` = off) |
+| `NATIVE_DEX_INDEXER_STATS_MAX_RPM` | Soft per-IP cap for GET `/` + `/stats` (default **30**/min; `0` = off; in-isolate counter, no extra subrequests) |
 
 | `DIRECTORY_SYNC_SECRET` | **Secret** (not in `wrangler.toml`) for `POST /v1/directory/sync` |
 | `NATIVE_DEX_INDEXER_LP_VAULT_HEXES` | Comma-separated vault **`AccountId`** hex list for **`GET /v1/lp/positions`** (defaults to canonical testnet vault from **`boing-sdk`**) |

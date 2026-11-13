@@ -147,35 +147,31 @@ function statsMaxRpm(env: Env): number {
   return n;
 }
 
+/** In-isolate RPM counters (no Cache/KV subrequests — Free-plan safe; resets per isolate). */
+const statsRpmByKey = new Map<string, { minute: number; count: number }>();
+
 /**
- * Soft per-IP rate limit for heavy `/` + `/stats` (Cache API counter; Free-plan safe).
- * Returns a 429 Response when over limit, else null.
+ * Soft per-IP rate limit for heavy `/` + `/stats` (audit M11).
+ * Prefer `/v1/directory/*` for catalogs. Returns 429 when over limit, else null.
  */
-async function maybeRateLimitStats(request: Request, env: Env): Promise<Response | null> {
+function maybeRateLimitStats(request: Request, env: Env): Response | null {
   const max = statsMaxRpm(env);
   if (max === 0) return null;
-  const ip = clientIp(request);
   const minute = Math.floor(Date.now() / 60_000);
-  const keyUrl = new URL(`https://native-dex-indexer.rate/stats/${encodeURIComponent(ip)}/${minute}`);
-  const cache = caches.default;
-  let count = 0;
-  const hit = await cache.match(keyUrl);
-  if (hit) {
-    const body = await hit.text();
-    const parsed = parseInt(body, 10);
-    if (Number.isFinite(parsed) && parsed >= 0) count = parsed;
+  const key = `${clientIp(request)}:${minute}`;
+  let row = statsRpmByKey.get(key);
+  if (!row || row.minute !== minute) {
+    row = { minute, count: 0 };
+    statsRpmByKey.set(key, row);
   }
-  count += 1;
-  await cache.put(
-    keyUrl,
-    new Response(String(count), {
-      headers: {
-        'Cache-Control': 'public, max-age=120',
-        'Content-Type': 'text/plain',
-      },
-    }),
-  );
-  if (count <= max) return null;
+  // Drop stale minute keys opportunistically (bounded scrape hygiene).
+  if (statsRpmByKey.size > 2048) {
+    for (const [k, v] of statsRpmByKey) {
+      if (v.minute < minute - 1) statsRpmByKey.delete(k);
+    }
+  }
+  row.count += 1;
+  if (row.count <= max) return null;
   return new Response(
     JSON.stringify({
       error: 'rate_limited',
@@ -578,7 +574,7 @@ export default {
       }
 
       if (request.method === 'GET' && (path === '/stats' || path === '/')) {
-        const limited = await maybeRateLimitStats(request, env);
+        const limited = maybeRateLimitStats(request, env);
         if (limited) return limited;
         const payload = await buildPayloadCached(env);
         const sliced = sliceIndexerPoolsInPayload(payload as Record<string, unknown>, url);
