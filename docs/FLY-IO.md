@@ -25,7 +25,7 @@ Public clients hit **one** Worker hop: gateway → `https://boing-testnet-1.fly.
 |---|---|---|---|
 | **`boing-testnet-1`** | Validator + faucet + origin RPC (behind Worker) | `https://boing-testnet-1.fly.dev/` (ops/failover; **not** the wallet URL) | TCP **4001** |
 
-`boing-testnet-2` (former full-node companion) was **retired 2026-10-24**. Recreate template: repo-root [`fly.testnet-2.toml`](../fly.testnet-2.toml) + [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md). Deploy only when intentionally spending on a companion (`FLY_APP_2` / `FLY_CONFIG_2`).
+`boing-testnet-2` was **re-deployed 2026-11-13** (H10 close) as a second open-validator node at the same VM cost class as testnet-1 (`shared-cpu-2x` / `2048mb`, under ~$1/day). Template: [`fly.testnet-2.toml`](../fly.testnet-2.toml) + [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md). Do **not** claim BFT HA until `validator_count ≥ 4`.
 
 ### Public RPC edge
 
@@ -106,7 +106,7 @@ Restarts keep the tip: the node writes `chain/blocks/0.bin` on first start if it
 
 - **HTTPS RPC** uses Fly’s shared IPv4 + `*.fly.dev`.
 - **Public P2P** (`/ip4/…/tcp/4001`) needs a **dedicated IPv4** on the app (`fly ips allocate-v4`). Shared anycast IPv4 is HTTP-only.
-- Hosted public bootnode: **`/ip4/169.155.48.188/tcp/4001`** (`boing-testnet-1`). The former companion multiaddr `/ip4/109.105.220.118/tcp/4001` (`boing-testnet-2`) is **retired**.
+- Hosted public bootnode: **`/ip4/169.155.48.188/tcp/4001`** (`boing-testnet-1`). Companion `boing-testnet-2` peers over 6PN (`/dns6/boing-testnet-1.internal/tcp/4001`); keep the public gateway on testnet-1 only.
 
 ### Peer connectivity and recovery
 

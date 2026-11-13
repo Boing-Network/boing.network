@@ -200,8 +200,8 @@ pub fn slash_equivocation_stake(
 }
 
 /// Slash bonded stake for liveness failure; amount is credited to [`slash_escrow_account`].
-/// Same slashable base as [`slash_equivocation_stake`]. **Not** called from consensus yet —
-/// stake-mode liveness still needs a block-ordered evidence path (see node `tick_liveness`).
+/// Same slashable base as [`slash_equivocation_stake`]. Called from consensus-ordered
+/// [`boing_primitives::TransactionPayload::ReportLiveness`] when the activation height is live.
 pub fn slash_liveness_stake(state: &mut StateStore, validator: &AccountId, slash_id: u64) -> u128 {
     let amount = {
         let Some(st) = state.get_mut(validator) else {
@@ -528,6 +528,7 @@ fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u12
         | TransactionPayload::GrantBlobDownload { .. }
         | TransactionPayload::RevokeBlobDownload { .. }
         | TransactionPayload::ReportEquivocation { .. }
+        | TransactionPayload::ReportLiveness { .. }
         | TransactionPayload::GovernancePropose { .. }
         | TransactionPayload::GovernanceVote { .. }
         | TransactionPayload::GovernanceAdvanceCooling { .. } => 0,

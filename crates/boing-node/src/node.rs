@@ -2080,6 +2080,34 @@ impl BoingNode {
                     ));
                 }
             }
+            TransactionPayload::ReportLiveness { evidence } => {
+                let next = self.chain.height().saturating_add(1);
+                if !self.executor.vm().liveness_slash_active(next) {
+                    return Err(MempoolError::MediaBlobRejected(format!(
+                        "ReportLiveness not active until height {}",
+                        self.executor
+                            .vm()
+                            .liveness_slash_from()
+                            .map(|h| h.to_string())
+                            .unwrap_or_else(|| "never".into())
+                    )));
+                }
+                if evidence.verify().is_err() {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ReportLiveness evidence failed verification".into(),
+                    ));
+                }
+                if !self.consensus.validators().contains(&evidence.validator()) {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ReportLiveness offender not in validator set".into(),
+                    ));
+                }
+                if evidence.validator_count as usize != self.consensus.num_validators() {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "ReportLiveness validator_count mismatch".into(),
+                    ));
+                }
+            }
             _ => {}
         }
         Ok(())
@@ -2193,6 +2221,17 @@ impl BoingNode {
 
     pub fn blake3_opcode_activation_height(&self) -> Option<u64> {
         self.executor.vm().blake3_from()
+    }
+
+    /// Enable consensus-ordered liveness slash (`ReportLiveness`) from `activation_height`.
+    pub fn enable_liveness_slash(&mut self, activation_height: u64) {
+        self.executor
+            .set_liveness_slash_from(Some(activation_height));
+        self.vm.set_liveness_slash_from(Some(activation_height));
+    }
+
+    pub fn liveness_slash_activation_height(&self) -> Option<u64> {
+        self.executor.vm().liveness_slash_from()
     }
 
     pub fn bls_committee_flip_height(&self) -> Option<u64> {
@@ -2321,6 +2360,7 @@ impl BoingNode {
         vm.set_native_value_from(self.executor.vm().native_value_from());
         vm.set_vm_hardening_from(self.executor.vm().vm_hardening_from());
         vm.set_equivocation_slash_from(self.executor.vm().equivocation_slash_from());
+        vm.set_liveness_slash_from(self.executor.vm().liveness_slash_from());
         vm.set_vm_jump_strict_from(self.executor.vm().vm_jump_strict_from());
         // Admission keeps the node-local QA policy (by design) but applies the same height gates.
         vm.set_qa_canonical_from(self.executor.vm().qa_canonical_from());
@@ -2654,10 +2694,11 @@ impl BoingNode {
     ///
     /// **Does not mutate committed [`StateStore`].** Wall-clock leader-timeout stake burns were
     /// node-local and caused state-root divergence. Open-validator mode already jails offline
-    /// leaders deterministically via [`StateStore::apply_open_validator_block_hook`]. Stake-mode
-    /// liveness penalties need a future consensus-ordered evidence path (like
-    /// [`TransactionPayload::ReportEquivocation`]); until then this only tracks miss streaks for
-    /// diagnostics.
+    /// leaders deterministically via [`StateStore::apply_open_validator_block_hook`]. When
+    /// [`Self::liveness_slash_activation_height`] is live and the local quorum size is 1
+    /// (`n ≤ 2`), a streak past [`boing_tokenomics::LIVENESS_MISS_THRESHOLD`] queues a
+    /// consensus-ordered [`TransactionPayload::ReportLiveness`]. Larger sets still need peer
+    /// attestations (quorum > 1) — this tick only logs until gossip collection lands.
     ///
     /// Call from the validator loop alongside [`Self::produce_block_if_ready`]. No-op for
     /// single-validator sets. Local mempool non-empty is a heuristic to avoid idle false positives.
@@ -2696,7 +2737,7 @@ impl BoingNode {
         if now.duration_since(started) < timeout {
             return;
         }
-        // Count one miss and restart the wait window for this height (diagnostics only).
+        // Count one miss and restart the wait window for this height.
         self.leader_wait_started = Some((next_height, now));
         let streak = self
             .liveness_miss_streak
@@ -2707,16 +2748,87 @@ impl BoingNode {
             return;
         }
         *streak = 0;
+        if self.executor.vm().liveness_slash_active(next_height)
+            && self.queue_liveness_report(leader, next_height)
+        {
+            return;
+        }
         boing_telemetry::component_warn(
             "boing_node::node",
             "consensus",
             "liveness_miss_threshold",
             format!(
-                "leader={} height={} (no stake slash outside block execution)",
+                "leader={} height={} (ReportLiveness inactive or quorum>1; no stake slash outside block execution)",
                 hex::encode(leader.0),
                 next_height
             ),
         );
+    }
+
+    /// Queue [`TransactionPayload::ReportLiveness`] when a single local attestation meets quorum
+    /// (`n ≤ 2`). Returns `true` when newly accepted into the mempool.
+    fn queue_liveness_report(&mut self, offender: AccountId, height: u64) -> bool {
+        if !self.executor.vm().liveness_slash_active(height) {
+            return false;
+        }
+        let n = self.consensus.num_validators() as u32;
+        if boing_primitives::LivenessEvidence::quorum_size(n) > 1 {
+            // Need peer attestations — not collected in this MVP tick path.
+            return false;
+        }
+        if self
+            .state
+            .slash_appeals()
+            .find_liveness_at_height(&offender, height)
+            .is_some()
+        {
+            return false;
+        }
+        let Some(ref sk) = self.validator_signing_key else {
+            return false;
+        };
+        let att = boing_primitives::LivenessMissAttestation::sign(height, offender, n, sk);
+        let Ok(evidence) =
+            boing_primitives::LivenessEvidence::try_from_attestations(vec![att])
+        else {
+            return false;
+        };
+        let sender = AccountId(sk.verifying_key().to_bytes());
+        let chain_nonce = self.state.get(&sender).map(|s| s.nonce).unwrap_or(0);
+        let nonce = self.mempool.suggested_next_nonce(sender, chain_nonce);
+        let slash_id = self.state.slash_appeals().peek_next_slash_id();
+        let slash_escrow = boing_tokenomics::slash_escrow_account(slash_id);
+        let tx = Transaction {
+            nonce,
+            sender,
+            payload: TransactionPayload::ReportLiveness { evidence },
+            access_list: AccessList::new(
+                vec![sender, offender, slash_escrow],
+                vec![sender, offender, slash_escrow],
+            ),
+        };
+        let signed = SignedTransaction::new(tx, sk);
+        let policy = self.refresh_tx_sig_policy();
+        match self.mempool.insert_with_policy(signed, policy) {
+            Ok(()) => {
+                info!(
+                    "Liveness report tx queued: validator={} height={}",
+                    hex::encode(offender.0),
+                    height
+                );
+                true
+            }
+            Err(MempoolError::Duplicate) => true,
+            Err(e) => {
+                boing_telemetry::component_warn(
+                    "boing_node::node",
+                    "consensus",
+                    "liveness_report_mempool",
+                    e,
+                );
+                false
+            }
+        }
     }
 
     /// Produce one block from mempool if there are pending txs and this node is the round leader.

@@ -885,6 +885,19 @@ impl SlashAppealRegistry {
         })
     }
 
+    /// Lookup a liveness slash seeded for `(account, height)` (`block_height` stores the miss height).
+    pub fn find_liveness_at_height(
+        &self,
+        account: &AccountId,
+        height: u64,
+    ) -> Option<&ConsensusSlashRecord> {
+        self.slashes.values().find(|s| {
+            s.account == *account
+                && s.block_height == height
+                && matches!(s.reason, ConsensusSlashReason::Liveness)
+        })
+    }
+
     pub fn list_appeals(&self) -> Vec<&ConsensusSlashAppeal> {
         self.appeals.values().collect()
     }

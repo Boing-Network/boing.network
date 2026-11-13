@@ -400,6 +400,14 @@ fn payload_json(payload: &TransactionPayload, include_code: bool) -> Value {
                 "round": evidence.round(),
             }
         }),
+        TransactionPayload::ReportLiveness { evidence } => json!({
+            "ReportLiveness": {
+                "validator": account_json(&evidence.validator()),
+                "height": evidence.round(),
+                "validator_count": evidence.validator_count,
+                "attestations": evidence.attestations.len(),
+            }
+        }),
         TransactionPayload::GovernancePropose {
             target_key,
             target_value,

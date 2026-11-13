@@ -1,11 +1,17 @@
-# Blake3 + governance consensus-tx activation (M6) — Nico checklist
+# Blake3 + governance consensus-tx activation (M6) — deferred past genesis
 
 **Status:** Both features are **implemented and gated off forever** until heights are set.  
-**Do not set heights on public testnet or mainnet without an explicit Nico decision.**  
-This doc makes acceptance a **one-step env/flag flip** once the height `H` is chosen.
+**Disposition (2026-11-12):** **Closed as deferred past genesis / null activation** — owner **Nico**; revisit before enabling. Do **not** invent activation heights.  
+**RPC:** Keep publishing `null` / `null` until Nico names an explicit height.
 
 Companion detail for governance wire indices: [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md).  
 Env catalog: [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md).
+
+## Accepted close (gate-1 intentionality)
+
+> Blake3 opcode `0x20` / fungible template v3 and governance consensus txs **37–39** remain **inactive** (`blake3_opcode_activation_height` / `governance_consensus_tx_activation_height` = **`null`**) through genesis and beyond until Nico sets an explicit coordinated height. Enabling later is a one-step env flip on every node — not a hard fork of wire layout. Owner: **Nico**. Revisit before any enablement.
+
+BN-155 economics are **orthogonal** — do not invent fee / emission numbers when flipping these gates.
 
 ## What stays off by default
 
@@ -23,7 +29,7 @@ Operator RPC governance (`boing_governancePropose` / …) remains a **node-local
 - `blake3_opcode_activation_height` — JSON integer or **`null`** (never)
 - `governance_consensus_tx_activation_height` — JSON integer or **`null`** (never)
 
-Verify before and after any flip:
+Verify:
 
 ```bash
 curl -fsS -A boing-sdk/json-rpc -X POST "$BOING_RPC_URL" \
@@ -32,35 +38,26 @@ curl -fsS -A boing-sdk/json-rpc -X POST "$BOING_RPC_URL" \
   | jq '{blake3_opcode_activation_height, governance_consensus_tx_activation_height, head_height, chain_id}'
 ```
 
-Expect **`null` / `null`** on public testnet until Nico decides otherwise.
+Expect **`null` / `null`** on public testnet and at genesis under this deferral.
 
-## One-step decision (when Nico says go)
+## One-step decision (only when Nico says go)
 
-Pick **`H` well above the live tip** (same rule as account-tree / storage-tree activations). Then on **every** validator and RPC node of that chain, **before** height `H`:
+Pick **`H` well above the live tip**. Then on **every** validator and RPC node of that chain, **before** height `H`:
 
 ```bash
-# Example only — replace H; never commit secrets
+# Example only — replace H; never commit secrets; do not invent H in this doc
 export BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT=H
 export BOING_GOVERNANCE_CONSENSUS_TX_ACTIVATION_HEIGHT=H   # optional: same or later H
-# Fly: fly secrets set / [env] in fly.*.toml + rolling restart
 ```
 
-You may activate Blake3 and governance **independently** (different heights). Recommended: activate Blake3 first on testnet soak, then governance consensus txs.
+You may activate Blake3 and governance **independently**. Recommended: Blake3 first on testnet soak, then governance consensus txs.
 
 After tip ≥ `H`:
 
 1. Re-query network info — both fields show the configured integers.
-2. Blake3: deploy / call a fixture that uses opcode `0x20` (see execution tests / reference token v3).
-3. Governance: submit signed txs 37→38→39 per [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md); confirm registry SMT updates.
+2. Blake3: deploy / call a fixture that uses opcode `0x20`.
+3. Governance: submit signed txs 37→38→39 per [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md).
 4. Never unset or lower `H` on that chain after crossing.
-
-## Mainnet / product residual
-
-Until Nico picks heights (or writes “defer past genesis”):
-
-> M6 remains **gated off**. Mainnet may ship with Blake3 opcode and governance consensus txs **inactive** (`null`). Enabling later is a coordinated activation, not a hard fork of wire layout.
-
-BN-155 economics are **orthogonal** — do not invent fee / emission numbers when flipping these gates.
 
 ## Code hooks (already present)
 

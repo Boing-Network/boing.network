@@ -80,6 +80,13 @@
           "integer_means": "blocks at height >= value admit GovernancePropose/Vote/AdvanceCooling into the state root",
           "source": "BOING_GOVERNANCE_CONSENSUS_TX_ACTIVATION_HEIGHT / --governance-consensus-tx-activation-height; unset/never/off = null; must match on every node",
           "doc": "docs/BLAKE3-AND-GOVERNANCE-ACTIVATION.md"
+        },
+        "liveness_slash_activation_height": {
+          "type": ["integer", "null"],
+          "null_means": "never: ReportLiveness (40) stays rejected (H2 safe default)",
+          "integer_means": "blocks at height >= value admit consensus-ordered liveness slash",
+          "source": "BOING_LIVENESS_SLASH_ACTIVATION_HEIGHT / --liveness-slash-activation-height; unset/never/off = null; must match on every node",
+          "doc": "docs/LIVENESS-SLASH-ACTIVATION.md"
         }
       }
     },

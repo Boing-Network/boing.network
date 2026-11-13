@@ -170,6 +170,8 @@ pub struct Vm {
     /// From this height the VM hardening rules apply (audit #61 items 3, 22, 23). 0 = from genesis.
     vm_hardening_from: u64,
     equivocation_slash_from: u64,
+    /// Consensus-ordered liveness slash (`ReportLiveness`). `None` = never admitted.
+    liveness_slash_from: Option<u64>,
     vm_jump_strict_from: u64,
     /// Canonical on-chain QA policy gate (`None` = off). See [`ExecutionHistory::qa_canonical_from`].
     ///
@@ -338,6 +340,19 @@ impl Vm {
         height >= self.equivocation_slash_from
     }
 
+    /// Activation height of consensus-ordered liveness slashing (H2). `None` = never.
+    pub fn set_liveness_slash_from(&mut self, from: Option<u64>) {
+        self.liveness_slash_from = from;
+    }
+
+    pub fn liveness_slash_from(&self) -> Option<u64> {
+        self.liveness_slash_from
+    }
+
+    pub fn liveness_slash_active(&self, height: u64) -> bool {
+        matches!(self.liveness_slash_from, Some(h) if height >= h)
+    }
+
     /// Activation height of the strict-jump rules (#147: taken OOB `JumpI` faults,
     /// `NativeAmountExceedsU128`).
     pub fn set_vm_jump_strict_from(&mut self, from: u64) {
@@ -449,6 +464,7 @@ impl Vm {
             native_value_from: 0,
             vm_hardening_from: 0,
             equivocation_slash_from: 0,
+            liveness_slash_from: None,
             vm_jump_strict_from: 0,
             qa_canonical_from: None,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
@@ -473,6 +489,7 @@ impl Vm {
             native_value_from: 0,
             vm_hardening_from: 0,
             equivocation_slash_from: 0,
+            liveness_slash_from: None,
             vm_jump_strict_from: 0,
             qa_canonical_from: None,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
@@ -500,6 +517,7 @@ impl Vm {
             native_value_from: 0,
             vm_hardening_from: 0,
             equivocation_slash_from: 0,
+            liveness_slash_from: None,
             vm_jump_strict_from: 0,
             qa_canonical_from: None,
             qa_pool_config,
@@ -1023,6 +1041,14 @@ impl Vm {
             }
             TransactionPayload::ReportEquivocation { evidence } => {
                 return self.execute_report_equivocation(
+                    state,
+                    tx,
+                    evidence,
+                    exec_ctx.block_height,
+                );
+            }
+            TransactionPayload::ReportLiveness { evidence } => {
+                return self.execute_report_liveness(
                     state,
                     tx,
                     evidence,
@@ -1604,6 +1630,72 @@ impl Vm {
                 boing_state::ConsensusSlashReason::Equivocation,
                 round,
                 boing_tokenomics::EQUIVOCATION_APPEAL_WINDOW_BLOCKS,
+            )
+            .map_err(|e| VmError::MediaBlob(e.to_string()))?;
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+        Ok(VmExecutionResult {
+            gas_used: GAS_PER_TRANSFER,
+            return_data: slash_id.to_le_bytes().to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    /// Apply a liveness slash inside block execution (consensus-ordered).
+    ///
+    /// Verifies quorum miss attestations, burns
+    /// [`boing_tokenomics::LIVENESS_SLASH_BPS`] of the offender's slashable stake, and seeds the
+    /// consensus slash-appeal book. Idempotent for `(validator, height)`.
+    fn execute_report_liveness(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        evidence: &boing_primitives::LivenessEvidence,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.liveness_slash_active(height) {
+            return Err(VmError::MediaBlob(format!(
+                "ReportLiveness not active until height {}",
+                self.liveness_slash_from
+                    .map(|h| h.to_string())
+                    .unwrap_or_else(|| "never".into())
+            )));
+        }
+        evidence
+            .verify()
+            .map_err(|e| VmError::MediaBlob(format!("invalid liveness evidence: {e}")))?;
+        let offender = evidence.validator();
+        let round = evidence.round();
+        if let Some(existing_id) = state
+            .slash_appeals()
+            .find_liveness_at_height(&offender, round)
+            .map(|s| s.id)
+        {
+            let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+            sender_state.nonce = sender_state
+                .nonce
+                .checked_add(1)
+                .ok_or(VmError::NonceOverflow)?;
+            return Ok(VmExecutionResult {
+                gas_used: GAS_PER_TRANSFER,
+                return_data: existing_id.to_le_bytes().to_vec(),
+                logs: Vec::new(),
+            });
+        }
+        let slash_id = state.slash_appeals().peek_next_slash_id();
+        let burned = boing_tokenomics::slash_liveness_stake(state, &offender, slash_id);
+        state
+            .slash_appeals_mut()
+            .record_slash_with_id(
+                slash_id,
+                offender,
+                burned,
+                boing_state::ConsensusSlashReason::Liveness,
+                round,
+                boing_tokenomics::LIVENESS_APPEAL_WINDOW_BLOCKS,
             )
             .map_err(|e| VmError::MediaBlob(e.to_string()))?;
         let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;

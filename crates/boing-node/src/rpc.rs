@@ -1531,6 +1531,11 @@ pub(crate) fn m6_activation_gates_json(
     )
 }
 
+/// `liveness_slash_activation_height` — `null` when unset / never (H2 gate).
+pub(crate) fn liveness_slash_activation_json(n: &crate::node::BoingNode) -> serde_json::Value {
+    serde_json::json!(n.liveness_slash_activation_height())
+}
+
 pub(crate) fn protocol_params_json(
     n: &crate::node::BoingNode,
 ) -> (serde_json::Value, serde_json::Value) {
@@ -4124,6 +4129,7 @@ async fn dispatch_jsonrpc_request(
                     "qa_canonical_activation_height": qa_canonical_gate_json(&n),
                     "blake3_opcode_activation_height": m6_activation_gates_json(&n).0,
                     "governance_consensus_tx_activation_height": m6_activation_gates_json(&n).1,
+                    "liveness_slash_activation_height": liveness_slash_activation_json(&n),
                     "receipt_retention_blocks": receipt_retention_blocks,
                     "client_version": format!("boing-node/{}", env!("CARGO_PKG_VERSION")),
                     "chain_id": chain_id,
@@ -4503,6 +4509,7 @@ async fn dispatch_jsonrpc_request(
                     "qa_canonical_activation_height": qa_canonical_gate_json(&n),
                     "blake3_opcode_activation_height": m6_activation_gates_json(&n).0,
                     "governance_consensus_tx_activation_height": m6_activation_gates_json(&n).1,
+                    "liveness_slash_activation_height": liveness_slash_activation_json(&n),
                     "receipt_retention_blocks": receipt_retention_blocks,
                     "chain_id": chain_id,
                     "chain_name": chain_name,

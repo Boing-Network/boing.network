@@ -104,3 +104,17 @@ pub fn resolve_blake3_opcode_activation(cli: Option<u64>) -> Result<Option<u64>,
     };
     boing_execution::parse_blake3_activation_height(raw.as_deref())
 }
+
+/// Resolve liveness slash activation (`BOING_LIVENESS_SLASH_ACTIVATION_HEIGHT`).
+/// Supports `never` / `off` / empty → `None` (H2 close path; unset keeps testnet soak inert).
+pub fn resolve_liveness_slash_activation(cli: Option<u64>) -> Result<Option<u64>, String> {
+    if let Some(h) = cli {
+        return Ok(Some(h));
+    }
+    let raw = match std::env::var(boing_primitives::LIVENESS_SLASH_ACTIVATION_ENV) {
+        Ok(s) => Some(s),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(e) => return Err(e.to_string()),
+    };
+    boing_primitives::parse_liveness_activation_height(raw.as_deref())
+}

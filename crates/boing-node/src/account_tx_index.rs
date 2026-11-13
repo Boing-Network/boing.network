@@ -381,6 +381,12 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "validator":hex0x(&evidence.validator().0),
             "round":evidence.round(),
         }),
+        TransactionPayload::ReportLiveness { evidence } => json!({
+            "kind":"report_liveness",
+            "validator":hex0x(&evidence.validator().0),
+            "height":evidence.round(),
+            "validator_count":evidence.validator_count,
+        }),
         TransactionPayload::GovernancePropose {
             target_key,
             target_value,

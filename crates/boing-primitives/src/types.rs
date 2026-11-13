@@ -347,6 +347,11 @@ impl Transaction {
                 hex::encode(&evidence.validator().0[..8]),
                 evidence.round()
             ),
+            TransactionPayload::ReportLiveness { evidence } => format!(
+                "Report liveness miss validator={} height={}",
+                hex::encode(&evidence.validator().0[..8]),
+                evidence.round()
+            ),
             TransactionPayload::GovernancePropose { target_key, .. } => {
                 format!("Governance propose ({target_key})")
             }
@@ -473,6 +478,10 @@ impl Transaction {
                 AccessList::new(vec![self.sender], vec![self.sender])
             }
             TransactionPayload::ReportEquivocation { evidence } => {
+                let offender = evidence.validator();
+                AccessList::new(vec![self.sender, offender], vec![self.sender, offender])
+            }
+            TransactionPayload::ReportLiveness { evidence } => {
                 let offender = evidence.validator();
                 AccessList::new(vec![self.sender, offender], vec![self.sender, offender])
             }
@@ -765,6 +774,13 @@ pub enum TransactionPayload {
     /// Advance a proposal to cooling once on-chain quorum is met (index **39**).
     GovernanceAdvanceCooling {
         proposal_id: u64,
+    },
+    /// Report verified liveness-miss evidence (index **40**). Burns stake via
+    /// `slash_liveness_stake` and seeds the consensus slash-appeal book during **block execution**.
+    /// Admitted only at/after `BOING_LIVENESS_SLASH_ACTIVATION_HEIGHT` (unset = never).
+    /// Idempotent per `(validator, height)`.
+    ReportLiveness {
+        evidence: crate::LivenessEvidence,
     },
 }
 

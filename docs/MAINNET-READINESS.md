@@ -14,7 +14,7 @@ This is the in-repo operator checklist. Scores below are **current** as of the d
 
 | # | Gate | Score | Blocking? |
 |---|------|-------|-----------|
-| 1 | Protocol trust | **Partial** | Yes — residual High/Medium (H2 liveness evidence, H10 HA, M6/M9/M13; H5 origin gate **closed**) |
+| 1 | Protocol trust | **Partial** | Yes — H2/H10/M6 **closed** this pass; still M9/M13 + upgrade owners; H5 origin gate **closed** |
 | 2 | Economic finality | **Fail** | Yes — BN-155 open items (genesis pie, vesting, fee path, emission floor, year-1 block emission) |
 | 3 | Operational readiness | **Partial** | Yes — ops pack drafted; live keys / named on-call / scheduled freeze / alerts / multi-validator still open; testnet ops strong |
 | 4 | Thin product path | **Partial** | Soft — Express / Finance / Observer / network live on **testnet**; mainnet RPC intentionally unset |
@@ -32,9 +32,9 @@ This is the in-repo operator checklist. Scores below are **current** as of the d
 - [x] Issue #61 Critical consensus/runtime blockers fixed or activation-gated on `main`
 - [x] High pass H1–H10 code/docs shipped; live tip has mainnet rate profile, blob get-auth, ACL height **1317**, QA v1–v7 blocklist
 - [x] Public origin gate live (`BOING_ORIGIN_GATE_TOKEN` / `X-Boing-Origin-Gate`) — naked `*.fly.dev` JSON-RPC **401** (H5 closed via companion gate + Access break-glass)
-- [ ] Stake-mode **liveness evidence** tx (H2) shipped **or** residual accepted in writing for single-validator / open-jail launch ([LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md))
-- [ ] Multi-validator HA story for announcement honesty (H10) **or** residual accepted (“single hosted validator at genesis”) ([SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md) — companion template ready; live tip still `validator_count: 1`)
-- [ ] M6 Blake3 / governance activation heights decided (product) **or** deferred with residual note ([BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md))
+- [x] Stake-mode **liveness evidence** tx (H2) shipped activation-gated ([LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md)) — Closed 2026-11-12
+- [x] Second validator / dual-proposer soak (H10) — not BFT HA (`n ≥ 4`); see [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md) — Closed 2026-11-12
+- [x] M6 Blake3 / governance **deferred past genesis** (null heights; owner Nico) ([BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md)) — Closed 2026-11-12
 - [ ] M9 ACL-in-SMT accepted as best-effort privacy **or** designed
 - [ ] Upgrade / emergency path named (halt owners, client pin versions) for **mainnet** specifically
 
@@ -42,11 +42,11 @@ This is the in-repo operator checklist. Scores below are **current** as of the d
 
 | ID | Residual | Disposition |
 |----|----------|-------------|
-| **H2** | Stake-mode liveness slash diagnostics-only | Blocker + smallest patch: [LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md) — needs evidence design **or** written day-0 accept |
+| **H2** | Stake-mode liveness slash | **Closed** (2026-11-12) — `ReportLiveness` #40 activation-gated; [LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md) |
 | **H5** | Fly origin bypass | **Closed** (2026-11-08) — origin gate + Access break-glass |
 | **H6** | Permissionless `register_pair` | Uniqueness on-chain; no owner/bond — product may accept for launch |
-| **H10** | Single hosted validator + 256 MiB on constrained VM | Runbook + `fly.testnet-2.toml` template: [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md) — still **not HA** until `n ≥ 4` live |
-| **M6** | Governance / Blake3 activation heights | Checklist ready; **Nico** one-step env flip: [BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md) (RPC fields publish `null` until set) |
+| **H10** | Single hosted validator residual | **Closed** (2026-11-12) as second validator live / dual-proposer soak — **not** BFT HA until `n ≥ 4`; [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md) |
+| **M6** | Governance / Blake3 activation heights | **Closed** (2026-11-12) deferred past genesis / null until Nico height; [BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md) |
 | **M8** | Download-proof nonce cache | Process-local only (restart resets) |
 | **M9** | ACL not in account SMT | Best-effort privacy until designed |
 | **M11** | Indexer `/` + `/stats` RPC amplification | Soft RPM limit shipped on Worker; prefer D1 `/v1/directory/*` |
@@ -104,7 +104,7 @@ Checklists only; **not executed**. Do **not** rotate live testnet secrets or ena
 - [ ] Named **on-call** + week-1 incident channel (template ready; create Discord/Slack + name roster = **Nico**)
 - [ ] External monitoring/alerts (height stall, gateway health, Free Worker 1027 cliff)
 - [ ] Mainnet RPC hostname + Access/gate plan (mirror testnet pattern; do **not** enable Workers Paid from this checklist)
-- [ ] Second validator / path-to-HA runbook executed **or** honest single-validator genesis announcement ([SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md))
+- [x] Second testnet validator path executed (H10 closed 2026-11-12; still not BFT HA) ([SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md))
 - [ ] Freeze window **scheduled and executed** (procedure below + store freeze doc; calendar = **Nico**)
 
 ---

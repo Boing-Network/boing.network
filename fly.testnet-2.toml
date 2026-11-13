@@ -1,13 +1,12 @@
-# Companion Fly.io node for public testnet (optional — costs money when deployed).
-# Default role: syncing full node (BOING_VALIDATOR=0). Not HA by itself.
-# Promote to a second validator only via docs/SECOND-VALIDATOR-RUNBOOK.md Path B/C
-# (shared BOING_VALIDATORS + BOING_VALIDATOR_KEY). Do not claim BFT until n >= 4.
+# Second Fly.io node for public testnet (H10). Costs money when deployed.
+# Live chain 6913 uses BOING_VALIDATOR_SET=open — register via open bond (see
+# docs/SECOND-VALIDATOR-RUNBOOK.md Path Open). Do not claim BFT until n >= 4.
 #
-# Deploy (explicit; not part of default single-node script):
+# Cost class: match boing-testnet-1 (shared-cpu-2x / 2048mb) — under ~$1/day.
+#
+# Deploy:
 #   FLY_APP_2=boing-testnet-2 FLY_CONFIG_2=fly.testnet-2.toml ./scripts/fly-deploy-testnet.sh
 #   # or: fly deploy --config fly.testnet-2.toml --remote-only --ha=false
-#
-# Former companion was retired 2026-10-24; this file is the recreate template.
 
 app = "boing-testnet-2"
 primary_region = "iad"
@@ -19,8 +18,8 @@ primary_region = "iad"
 # Secrets (set with `fly secrets set`, never in this file):
 #   BOING_OPERATOR_RPC_TOKEN
 #   BOING_ORIGIN_GATE_TOKEN   (if this origin is reachable; pair with Worker / Access)
-#   BOING_VALIDATOR_KEY       (only when promoting to Path B/C validator)
-#   BOING_VALIDATORS          (comma-separated ids — must match every consensus node)
+#   BOING_VALIDATOR_KEY       (Ed25519 secret for this node — required for open register)
+#   BOING_BOOTNODES           (public multiaddr of testnet-1 / hosted bootnode)
 
 [env]
   RUST_LOG = "info"
@@ -31,12 +30,12 @@ primary_region = "iad"
   BOING_FAUCET_URL = "https://boing.network/faucet"
   BOING_DATA_DIR = "/data"
   BOING_P2P_LISTEN = "/ip4/0.0.0.0/tcp/4001,/ip6/::/tcp/4001"
-  # Peer primary over 6PN (re-resolved on redial). Also set BOING_BOOTNODES secret to
-  # testnet-1 public multiaddr when joining from outside the org network.
+  # Peer primary over 6PN (re-resolved on redial).
   BOING_EXTRA_BOOTNODES = "/dns6/boing-testnet-1.internal/tcp/4001"
   BOING_RPC_PORT = "8545"
-  # 0 = full node / sync soak (Path A). Set to 1 only with shared BOING_VALIDATORS (Path B/C).
-  BOING_VALIDATOR = "0"
+  BOING_VALIDATOR = "1"
+  BOING_VALIDATOR_SET = "open"
+  BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT = "400"
   BOING_FAUCET_ENABLE = "0"
   BOING_RATE_PROFILE = "mainnet"
   BOING_ALLOW_STUB_VRF = "0"
@@ -48,9 +47,10 @@ primary_region = "iad"
   BOING_DEX_DISCOVERY_MAX_RECEIPT_SCANS = "500000"
   BOING_DEX_TOKEN_DECIMALS_JSON = '{"0x6676f971ade3982406efa3e2cdb0477923f8f2a15624c4b6ad3a432817a75e93":0,"0x6fce9d3e3f13df9fc17e3fd947148a4e6ce6966538b7dd9bf2a891d3b9699c6b":0}'
   BOING_RPC_CORS_EXTRA_ORIGINS = "https://boing.network,https://www.boing.network,https://boing.observer,https://boing.express,https://boing.finance"
-  # M6 product gates — leave unset (never) until Nico decides:
+  # M6 / H2 product gates — leave unset (never) until Nico decides:
   # BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT =
   # BOING_GOVERNANCE_CONSENSUS_TX_ACTIVATION_HEIGHT =
+  # BOING_LIVENESS_SLASH_ACTIVATION_HEIGHT =
 
 [http_service]
   internal_port = 8545
@@ -88,6 +88,6 @@ primary_region = "iad"
   destination = "/data"
 
 [[vm]]
-  # Cheaper companion than testnet-1; bump memory if sync OOMs on large PutBlob blocks.
-  size = "shared-cpu-1x"
-  memory = "1024mb"
+  # Same cost class as boing-testnet-1 (~shared-cpu-2x / 2 GiB; under ~$1/day).
+  size = "shared-cpu-2x"
+  memory = "2048mb"
