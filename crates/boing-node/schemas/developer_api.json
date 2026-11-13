@@ -66,6 +66,20 @@
           "null_means": "unbounded (BOING_RECEIPT_RETENTION_BLOCKS=0)",
           "integer_means": "this node serves receipts for the most recent N blocks; boing_getTransactionReceipt returns null for older transactions (pruned every 256 blocks, so approximate)",
           "default": 1000000
+        },
+        "blake3_opcode_activation_height": {
+          "type": ["integer", "null"],
+          "null_means": "never: Blake3 VM opcode 0x20 and fungible-v3 allowance keys stay off (M6 default)",
+          "integer_means": "blocks at height >= value admit Opcode::Blake3 and fungible-v3 hashed allowance keys",
+          "source": "BOING_VM_BLAKE3_OPCODE_ACTIVATION_HEIGHT / --blake3-opcode-activation-height; unset/never = null; must match on every node",
+          "doc": "docs/BLAKE3-AND-GOVERNANCE-ACTIVATION.md"
+        },
+        "governance_consensus_tx_activation_height": {
+          "type": ["integer", "null"],
+          "null_means": "never: governance TransactionPayload indices 37–39 stay rejected (M6 default)",
+          "integer_means": "blocks at height >= value admit GovernancePropose/Vote/AdvanceCooling into the state root",
+          "source": "BOING_GOVERNANCE_CONSENSUS_TX_ACTIVATION_HEIGHT / --governance-consensus-tx-activation-height; unset/never/off = null; must match on every node",
+          "doc": "docs/BLAKE3-AND-GOVERNANCE-ACTIVATION.md"
         }
       }
     },

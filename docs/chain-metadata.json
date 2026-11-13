@@ -32,7 +32,7 @@
       "recommended_sdk": "0.5.41",
       "sdk_npm_package": "@boing-network/boing-sdk"
     },
-    "chain_parameters": "boing_getNetworkInfo / boing_health: storage_tree_v2_activation_height (integer or null), receipt_retention_blocks (integer or null = unbounded); see method_catalog.protocol_specs.chain_parameters"
+    "chain_parameters": "boing_getNetworkInfo / boing_health: storage_tree_v2_activation_height, account_tree_v3_activation_height, blake3_opcode_activation_height, governance_consensus_tx_activation_height (integer or null), receipt_retention_blocks (integer or null = unbounded); see method_catalog.protocol_specs.chain_parameters"
   },
   "networks": [
     {

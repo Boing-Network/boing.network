@@ -90,12 +90,13 @@ Related: [BOING-NETWORK-WHITEPAPER.md](BOING-NETWORK-WHITEPAPER.md) (protocol + 
 | Open validator registration | testnet live | H=**400** when set; [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md) | high |
 | VRF leader election (ECVRF + gossip) | opt-in done | NEXT-STEPS | high |
 | Equivocation slash (+ appeals) | code live; **ReportEquivocation consensus slash gated**; unbond bucket slashable | H=**1600**; ENVIRONMENT-VARIABLES | high |
-| Stake-mode liveness slash | **not shipped** (diagnostics / open-jail only) | NEXT-STEPS; `tick_liveness` | high |
+| Stake-mode liveness slash | **not shipped** (diagnostics / open-jail only) | [LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md); `tick_liveness` | high |
 | Operator governance RPC (propose / vote / cooling / execute) | testnet live | node-local `governance.json`; RPC-API-SPEC | high |
 | Stake-weighted quorum (`strict_quorum`) | shipped | PRs #153 / #149; [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md) | high |
 | Governance consensus txs 37–39 + StateStore registry | gated | wire shipped; admission off until height set; PR #156 **2026-10-31** | high |
 | AdvanceExecution / Execute as consensus wire; BLS ballots | deferred | GOVERNANCE “Out of scope” | high |
-| Mainnet governance activation | deferred | BUILD-ROADMAP | high |
+| Mainnet governance / Blake3 activation | deferred (gates ready; heights unset) | [BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md); BUILD-ROADMAP | high |
+| Second hosted validator / HA | **not live** (single-validator soak; runbook ready) | [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md); do not claim HA until `n ≥ 4` | high |
 
 ---
 

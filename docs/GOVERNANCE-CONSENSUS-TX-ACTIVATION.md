@@ -4,6 +4,10 @@
 admission is **off** forever until a coordinated height is chosen
 (`BOING_GOVERNANCE_CONSENSUS_TX_ACTIVATION_HEIGHT` unset / `never` / `off`).
 
+**Product gate (M6):** do not pick `H` without Nico. One-step checklist + Blake3 twin gate:
+[BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md). Live discovery:
+`boing_getNetworkInfo.governance_consensus_tx_activation_height` (`null` = never).
+
 ## Surfaces
 
 | Surface | Behavior |

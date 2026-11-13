@@ -101,6 +101,8 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [NATIVE-DEX-CUSTODY-ROUTER.md](NATIVE-DEX-CUSTODY-ROUTER.md) | Custody router for v8/v9 pools |
 | [AUDIT-61-PROTOCOL-SEMANTICS.md](AUDIT-61-PROTOCOL-SEMANTICS.md) | Audit #61 item 29 — why LP `min` / XOR allowance / custody `min_out=1` stay as-is |
 | [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md) | Audit #61 item 41 — quorum votes + consensus-tx activation plan |
+| [BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md) | M6 Nico checklist — Blake3 + governance heights (one-step flip) |
+| [LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md) | H2 residual — stake-mode liveness slash blocker + smallest patch path |
 | [WINDOWS-AUTHENTICODE.md](WINDOWS-AUTHENTICODE.md) | Hub Windows Authenticode secrets + readiness CI (no .pfx in repo) |
 | [NATIVE-LP-VAULT-V2.md](NATIVE-LP-VAULT-V2.md) | LP vault v2 (token-pair pools) |
 | [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) | Pair directory VM |
@@ -128,6 +130,8 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [NODE-OPERATOR-COMMANDS.md](NODE-OPERATOR-COMMANDS.md) | Copy/paste RPC smoke and tutorial `npm run` commands |
 | [INFRASTRUCTURE-SETUP.md](INFRASTRUCTURE-SETUP.md) | Home-lab bootnodes appendix; public RPC is Fly + Worker |
 | [FLY-IO.md](FLY-IO.md) | Hosted Fly `boing-testnet-1` + public RPC Worker + **upgrade checklist** |
+| [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md) | H10 — companion / dual / 4-validator path; do not claim HA at n=1 |
+| [MAINNET-READINESS.md](MAINNET-READINESS.md) | In-repo go/no-go + residual checklist (pair with Project scorecard) |
 | [DEVNET-OPERATOR-NATIVE-AMM.md](DEVNET-OPERATOR-NATIVE-AMM.md) | Self-hosted RPC + deploy native DEX stack |
 | [NETWORKS-API.md](NETWORKS-API.md) | Public node listing API: `/api/networks`, `meta` fields, D1 refresh |
 | [TESTNET.md](TESTNET.md) §7 | Validator + full node on two Windows PCs |

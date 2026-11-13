@@ -25,7 +25,7 @@ Public clients hit **one** Worker hop: gateway → `https://boing-testnet-1.fly.
 |---|---|---|---|
 | **`boing-testnet-1`** | Validator + faucet + origin RPC (behind Worker) | `https://boing-testnet-1.fly.dev/` (ops/failover; **not** the wallet URL) | TCP **4001** |
 
-`boing-testnet-2` (former full-node companion) was **retired 2026-10-24**. Its `fly.testnet-2.toml` was removed 2026-10-31 (restore with `git show dda495d:fly.testnet-2.toml`).
+`boing-testnet-2` (former full-node companion) was **retired 2026-10-24**. Recreate template: repo-root [`fly.testnet-2.toml`](../fly.testnet-2.toml) + [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md). Deploy only when intentionally spending on a companion (`FLY_APP_2` / `FLY_CONFIG_2`).
 
 ### Public RPC edge
 
@@ -36,7 +36,7 @@ Public clients hit **one** Worker hop: gateway → `https://boing-testnet-1.fly.
 
 ### Consensus / capacity honesty
 
-Public testnet is a **single-validator soak** (`validator_count: 1` on the live tip). It is **not** multi-validator BFT. PHASE7 **256 MiB** blob caps are active on a **2 GiB** VM — large Puts can OOM; prefer smaller blobs or scale memory before advertising heavy media load ([BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)).
+Public testnet is a **single-validator soak** (`validator_count: 1` on the live tip). It is **not** multi-validator BFT and **not HA**. A second Fly app is optional ops practice ([SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md)); BFT claims need `n ≥ 4`. PHASE7 **256 MiB** blob caps are active on a **2 GiB** VM — large Puts can OOM; prefer smaller blobs or scale memory before advertising heavy media load ([BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md)).
 
 The live app:
 
@@ -48,7 +48,7 @@ The live app:
 - Sets **`BOING_BLOB_GET_REQUIRE_AUTH=1`** so JSON-RPC blob bytes match HTTP download auth
 - Optional fee market: set **`BOING_MICRO_FEES_ACTIVATION_HEIGHT`**, then **`npm run apply-micro-fee-policy`** for Solana-like micro fees ([OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md))
 
-Only **testnet-1** runs `--validator`. Promote a second validator later with a shared `--validators` / `BOING_VALIDATOR_KEY` set ([TESTNET.md](TESTNET.md) §1, [RUNBOOK.md](RUNBOOK.md) §8.1) before claiming HA.
+Only **testnet-1** runs `--validator` today. Companion + dual-/quad-validator promotion steps: [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md) (also [TESTNET.md](TESTNET.md) §1, [RUNBOOK.md](RUNBOOK.md) §8.1). Do **not** claim HA while `validator_count` is 1.
 
 ## Prerequisites
 

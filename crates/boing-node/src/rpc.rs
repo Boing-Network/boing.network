@@ -1519,6 +1519,18 @@ pub(crate) fn qa_canonical_gate_json(n: &crate::node::BoingNode) -> serde_json::
     serde_json::json!(n.executor.vm().qa_canonical_from())
 }
 
+/// `(blake3_opcode_activation_height, governance_consensus_tx_activation_height)`.
+/// Both are `null` when unset / never (M6 product gates — see
+/// `docs/BLAKE3-AND-GOVERNANCE-ACTIVATION.md`).
+pub(crate) fn m6_activation_gates_json(
+    n: &crate::node::BoingNode,
+) -> (serde_json::Value, serde_json::Value) {
+    (
+        serde_json::json!(n.blake3_opcode_activation_height()),
+        serde_json::json!(n.governance_consensus_activation_height()),
+    )
+}
+
 pub(crate) fn protocol_params_json(
     n: &crate::node::BoingNode,
 ) -> (serde_json::Value, serde_json::Value) {
@@ -2092,10 +2104,27 @@ mod abuse_limit_tests {
         let cp = &specs["chain_parameters"];
         assert!(cp["storage_tree_v2_activation_height"]["null_means"].is_string());
         assert!(cp["receipt_retention_blocks"]["null_means"].is_string());
+        assert!(cp["blake3_opcode_activation_height"]["null_means"].is_string());
+        assert!(cp["governance_consensus_tx_activation_height"]["null_means"].is_string());
         let meta = include_str!("../../../docs/chain-metadata.json");
         assert!(
             meta.contains("storage_tree_v2_activation_height")
                 && meta.contains("receipt_retention_blocks")
+                && meta.contains("blake3_opcode_activation_height")
+        );
+    }
+
+    #[test]
+    fn m6_activation_gates_default_null() {
+        let n = crate::node::BoingNode::new();
+        let (blake3, gov) = m6_activation_gates_json(&n);
+        assert!(
+            blake3.is_null(),
+            "Blake3 gate must stay null until Nico sets height"
+        );
+        assert!(
+            gov.is_null(),
+            "governance consensus-tx gate must stay null until Nico sets height"
         );
     }
 
@@ -4093,6 +4122,8 @@ async fn dispatch_jsonrpc_request(
                     "equivocation_slash_activation_height": consensus_fix_gates_json(&n).0,
                     "vm_jump_strict_activation_height": consensus_fix_gates_json(&n).1,
                     "qa_canonical_activation_height": qa_canonical_gate_json(&n),
+                    "blake3_opcode_activation_height": m6_activation_gates_json(&n).0,
+                    "governance_consensus_tx_activation_height": m6_activation_gates_json(&n).1,
                     "receipt_retention_blocks": receipt_retention_blocks,
                     "client_version": format!("boing-node/{}", env!("CARGO_PKG_VERSION")),
                     "chain_id": chain_id,
@@ -4470,6 +4501,8 @@ async fn dispatch_jsonrpc_request(
                     "equivocation_slash_activation_height": consensus_fix_gates_json(&n).0,
                     "vm_jump_strict_activation_height": consensus_fix_gates_json(&n).1,
                     "qa_canonical_activation_height": qa_canonical_gate_json(&n),
+                    "blake3_opcode_activation_height": m6_activation_gates_json(&n).0,
+                    "governance_consensus_tx_activation_height": m6_activation_gates_json(&n).1,
                     "receipt_retention_blocks": receipt_retention_blocks,
                     "chain_id": chain_id,
                     "chain_name": chain_name,

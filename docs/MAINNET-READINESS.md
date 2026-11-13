@@ -32,9 +32,9 @@ This is the in-repo operator checklist. Scores below are **current** as of the d
 - [x] Issue #61 Critical consensus/runtime blockers fixed or activation-gated on `main`
 - [x] High pass H1–H10 code/docs shipped; live tip has mainnet rate profile, blob get-auth, ACL height **1317**, QA v1–v7 blocklist
 - [x] Public origin gate live (`BOING_ORIGIN_GATE_TOKEN` / `X-Boing-Origin-Gate`) — naked `*.fly.dev` JSON-RPC **401** (H5 closed via companion gate + Access break-glass)
-- [ ] Stake-mode **liveness evidence** tx (H2) shipped **or** residual accepted in writing for single-validator / open-jail launch
-- [ ] Multi-validator HA story for announcement honesty (H10) **or** residual accepted (“single hosted validator at genesis”)
-- [ ] M6 Blake3 / governance activation heights decided (product) **or** deferred with residual note
+- [ ] Stake-mode **liveness evidence** tx (H2) shipped **or** residual accepted in writing for single-validator / open-jail launch ([LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md))
+- [ ] Multi-validator HA story for announcement honesty (H10) **or** residual accepted (“single hosted validator at genesis”) ([SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md) — companion template ready; live tip still `validator_count: 1`)
+- [ ] M6 Blake3 / governance activation heights decided (product) **or** deferred with residual note ([BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md))
 - [ ] M9 ACL-in-SMT accepted as best-effort privacy **or** designed
 - [ ] Upgrade / emergency path named (halt owners, client pin versions) for **mainnet** specifically
 
@@ -42,11 +42,11 @@ This is the in-repo operator checklist. Scores below are **current** as of the d
 
 | ID | Residual | Disposition |
 |----|----------|-------------|
-| **H2** | Stake-mode liveness slash diagnostics-only | Needs evidence tx **or** written accept for day-0 |
+| **H2** | Stake-mode liveness slash diagnostics-only | Blocker + smallest patch: [LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md) — needs evidence design **or** written day-0 accept |
 | **H5** | Fly origin bypass | **Closed** (2026-11-08) — origin gate + Access break-glass |
 | **H6** | Permissionless `register_pair` | Uniqueness on-chain; no owner/bond — product may accept for launch |
-| **H10** | Single hosted validator + 256 MiB on constrained VM | Ops / cost — do not claim HA |
-| **M6** | Governance / Blake3 activation heights | **Nico** product decision |
+| **H10** | Single hosted validator + 256 MiB on constrained VM | Runbook + `fly.testnet-2.toml` template: [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md) — still **not HA** until `n ≥ 4` live |
+| **M6** | Governance / Blake3 activation heights | Checklist ready; **Nico** one-step env flip: [BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md) (RPC fields publish `null` until set) |
 | **M8** | Download-proof nonce cache | Process-local only (restart resets) |
 | **M9** | ACL not in account SMT | Best-effort privacy until designed |
 | **M11** | Indexer `/` + `/stats` RPC amplification | Soft RPM limit shipped on Worker; prefer D1 `/v1/directory/*` |
@@ -104,7 +104,7 @@ Checklists only; **not executed**. Do **not** rotate live testnet secrets or ena
 - [ ] Named **on-call** + week-1 incident channel (template ready; create Discord/Slack + name roster = **Nico**)
 - [ ] External monitoring/alerts (height stall, gateway health, Free Worker 1027 cliff)
 - [ ] Mainnet RPC hostname + Access/gate plan (mirror testnet pattern; do **not** enable Workers Paid from this checklist)
-- [ ] Second validator **or** honest single-validator genesis announcement
+- [ ] Second validator / path-to-HA runbook executed **or** honest single-validator genesis announcement ([SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md))
 - [ ] Freeze window **scheduled and executed** (procedure below + store freeze doc; calendar = **Nico**)
 
 ---
@@ -172,6 +172,9 @@ curl -sS -o /dev/null -w '%{http_code}\n' -A boing-sdk/json-rpc -X POST https://
 - [FLY-IO.md](FLY-IO.md) — hosted testnet + origin gate  
 - [TESTNET.md](TESTNET.md) — public testnet honesty bounds  
 - [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md) — H2 liveness slash and roadmap  
+- [LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md) — H2 blocker + patch path  
+- [SECOND-VALIDATOR-RUNBOOK.md](SECOND-VALIDATOR-RUNBOOK.md) — H10 companion / path toward HA  
+- [BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md) — M6 one-step checklist  
 - [BOING-INITIAL-TOKENOMICS.md](BOING-INITIAL-TOKENOMICS.md) — economics source (open items → BN-155)  
 - Project store (Cursor): `docs/mainnet-key-ceremony-checklist.md`, `docs/mainnet-freeze-window.md`, `docs/mainnet-oncall-week1.md`, `docs/mainnet-readiness-scorecard.md`  
 
