@@ -1048,12 +1048,7 @@ impl Vm {
                 );
             }
             TransactionPayload::ReportLiveness { evidence } => {
-                return self.execute_report_liveness(
-                    state,
-                    tx,
-                    evidence,
-                    exec_ctx.block_height,
-                );
+                return self.execute_report_liveness(state, tx, evidence, exec_ctx.block_height);
             }
             TransactionPayload::GovernancePropose {
                 target_key,

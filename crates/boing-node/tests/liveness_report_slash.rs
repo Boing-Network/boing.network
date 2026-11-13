@@ -44,7 +44,10 @@ fn report_liveness_burns_ten_percent_when_activated() {
     });
 
     let evidence = LivenessEvidence::try_from_attestations(vec![LivenessMissAttestation::sign(
-        42, offender, 2, &attester_key,
+        42,
+        offender,
+        2,
+        &attester_key,
     )])
     .unwrap();
 
@@ -62,7 +65,9 @@ fn report_liveness_burns_ten_percent_when_activated() {
 
     let mut vm = Vm::new();
     // Inactive by default.
-    assert!(vm.execute_with_context(&tx, &mut state.snapshot(), ctx(1)).is_err());
+    assert!(vm
+        .execute_with_context(&tx, &mut state.snapshot(), ctx(1))
+        .is_err());
 
     vm.set_liveness_slash_from(Some(1));
     vm.execute_with_context(&tx, &mut state, ctx(1))
@@ -70,7 +75,10 @@ fn report_liveness_burns_ten_percent_when_activated() {
 
     assert_eq!(state.get(&offender).unwrap().stake, 9_000); // 10% of 10_000
     assert_eq!(
-        state.get(&boing_tokenomics::slash_escrow_account(slash_id)).unwrap().balance,
+        state
+            .get(&boing_tokenomics::slash_escrow_account(slash_id))
+            .unwrap()
+            .balance,
         1_000
     );
     let row = state

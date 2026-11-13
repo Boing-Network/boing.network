@@ -36,10 +36,10 @@ pub mod blobs_phase9;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
-pub mod liveness;
 pub mod hash;
 pub mod hd;
 pub mod intent;
+pub mod liveness;
 pub mod names;
 pub mod paymaster;
 pub mod randomness;
@@ -496,14 +496,14 @@ pub use denomination::{
     format_boing, parse_boing, Denomination, ParseBoingError, BASE_UNITS_PER_BOING, BOING_DECIMALS,
 };
 pub use equivocation::{EquivocationError, EquivocationEvidence, REPORT_EQUIVOCATION_TX_INDEX};
+pub use hash::{hasher, Hash};
+pub use hd::HdPath;
+pub use intent::{Intent, IntentKind, SignedIntent, INTENT_SIGN_DOMAIN};
 pub use liveness::{
     liveness_miss_signable_hash, parse_activation_height as parse_liveness_activation_height,
     LivenessError, LivenessEvidence, LivenessMissAttestation, LIVENESS_MISS_ATTESTATION_DOMAIN,
     LIVENESS_SLASH_ACTIVATION_ENV, REPORT_LIVENESS_TX_INDEX,
 };
-pub use hash::{hasher, Hash};
-pub use hd::HdPath;
-pub use intent::{Intent, IntentKind, SignedIntent, INTENT_SIGN_DOMAIN};
 pub use names::{
     check_registrable, display_name, is_reserved, name_commitment, name_rent, name_rent_per_year,
     normalize_name, validate_label, NameError, NAME_MAX_LEN, NAME_MAX_YEARS, NAME_MIN_LEN,

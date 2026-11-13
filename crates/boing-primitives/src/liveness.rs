@@ -7,9 +7,9 @@
 use ed25519_dalek::{Signature as Ed25519Signature, Signer, SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
+use crate::hash::hasher;
 use crate::signature::{Signature, SignatureError};
 use crate::types::AccountId;
-use crate::hash::hasher;
 
 /// Bincode / payload index for [`crate::TransactionPayload::ReportLiveness`] (append-only after 39).
 pub const REPORT_LIVENESS_TX_INDEX: u32 = 40;
@@ -73,8 +73,7 @@ impl LivenessMissAttestation {
         }
         let pk = VerifyingKey::from_bytes(&self.attester.0)
             .map_err(|_| LivenessError::BadSignature(SignatureError::InvalidPublicKey))?;
-        let msg =
-            liveness_miss_signable_hash(self.height, &self.offender, self.validator_count);
+        let msg = liveness_miss_signable_hash(self.height, &self.offender, self.validator_count);
         let ed_sig = Ed25519Signature::from_bytes(&self.signature.0);
         pk.verify_strict(&msg, &ed_sig)
             .map_err(|_| LivenessError::BadSignature(SignatureError::InvalidSignature))?;
