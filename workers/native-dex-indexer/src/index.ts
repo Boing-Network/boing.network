@@ -71,6 +71,11 @@ type Env = {
   NATIVE_DEX_INDEXER_RECEIPT_ARCHIVE_BLOCKS?: string;
   /** Optional R2 binding for tiny JSON sync manifests (operator creates bucket + binding). */
   INDEXER_ARCHIVE_R2?: R2Bucket;
+  /**
+   * Max unauthenticated GET `/` + `/stats` requests per client IP per rolling minute (M11).
+   * Default **30**. Set `0` to disable. Prefer `/v1/directory/*` for catalogs.
+   */
+  NATIVE_DEX_INDEXER_STATS_MAX_RPM?: string;
   [key: string]: string | KVNamespace | D1Database | R2Bucket | undefined;
 };
 
@@ -121,8 +126,73 @@ function sliceIndexerPoolsInPayload(payload: Record<string, unknown>, url: URL):
 
 /** In-isolate TTL for GET `/` and `/stats` (issue #61 item 73). Sync/cron always rebuild. */
 const PAYLOAD_CACHE_TTL_MS = 30_000;
+/** Default soft cap for unauthenticated full-payload GETs (audit M11). */
+const DEFAULT_STATS_MAX_RPM = 30;
 type IndexerPayload = Awaited<ReturnType<typeof buildPayloadUncached>>;
 let payloadCache: { expiresAt: number; payload: IndexerPayload } | null = null;
+
+function clientIp(request: Request): string {
+  return (
+    request.headers.get('cf-connecting-ip') ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    'unknown'
+  );
+}
+
+function statsMaxRpm(env: Env): number {
+  const raw = String(env.NATIVE_DEX_INDEXER_STATS_MAX_RPM ?? '').trim();
+  if (raw === '') return DEFAULT_STATS_MAX_RPM;
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0) return DEFAULT_STATS_MAX_RPM;
+  return n;
+}
+
+/**
+ * Soft per-IP rate limit for heavy `/` + `/stats` (Cache API counter; Free-plan safe).
+ * Returns a 429 Response when over limit, else null.
+ */
+async function maybeRateLimitStats(request: Request, env: Env): Promise<Response | null> {
+  const max = statsMaxRpm(env);
+  if (max === 0) return null;
+  const ip = clientIp(request);
+  const minute = Math.floor(Date.now() / 60_000);
+  const keyUrl = new URL(`https://native-dex-indexer.rate/stats/${encodeURIComponent(ip)}/${minute}`);
+  const cache = caches.default;
+  let count = 0;
+  const hit = await cache.match(keyUrl);
+  if (hit) {
+    const body = await hit.text();
+    const parsed = parseInt(body, 10);
+    if (Number.isFinite(parsed) && parsed >= 0) count = parsed;
+  }
+  count += 1;
+  await cache.put(
+    keyUrl,
+    new Response(String(count), {
+      headers: {
+        'Cache-Control': 'public, max-age=120',
+        'Content-Type': 'text/plain',
+      },
+    }),
+  );
+  if (count <= max) return null;
+  return new Response(
+    JSON.stringify({
+      error: 'rate_limited',
+      message: `Too many GET / or /stats requests (max ${max}/min). Prefer GET /v1/directory/* for catalogs.`,
+      retryAfterSeconds: 60,
+    }),
+    {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Retry-After': '60',
+        'Cache-Control': 'no-store',
+      },
+    },
+  );
+}
 
 async function buildPayloadUncached(env: Env) {
   const baseUrl = rpcBaseUrl(env);
@@ -508,6 +578,8 @@ export default {
       }
 
       if (request.method === 'GET' && (path === '/stats' || path === '/')) {
+        const limited = await maybeRateLimitStats(request, env);
+        if (limited) return limited;
         const payload = await buildPayloadCached(env);
         const sliced = sliceIndexerPoolsInPayload(payload as Record<string, unknown>, url);
         return new Response(JSON.stringify(sliced), {

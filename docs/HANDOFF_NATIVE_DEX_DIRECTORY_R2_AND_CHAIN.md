@@ -39,7 +39,7 @@ flowchart LR
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/` or `/stats` | Full indexer JSON (same shape as `REACT_APP_BOING_NATIVE_DEX_INDEXER_STATS_URL`). Optional `?pools_page=&pools_page_size=` (1–500) slices `pools[]` only. |
+| GET | `/` or `/stats` | Full indexer JSON (same shape as `REACT_APP_BOING_NATIVE_DEX_INDEXER_STATS_URL`). Optional `?pools_page=&pools_page_size=` (1–500) slices `pools[]` only. Soft per-IP RPM limit (`NATIVE_DEX_INDEXER_STATS_MAX_RPM`, default 30) — prefer `/v1/directory/*` for catalogs (audit M11). |
 | GET | `/v1/directory/meta` | `{ api, poolCount, eventCount?, nftOwnerRowCount?, receiptLogCount?, latestSyncBatch, indexedTipHeight?, indexedTipBlockHash?, indexedParentBlockHash? }` — D1 + tip row (**`0003`+**). Tip / parent-hash fields are for **skew checks** vs chain; shallow reorg at tip clears pool-event + receipt snapshots (see Worker `invalidateDirectoryPoolEventsIfTipReorged`). |
 | GET | `/v1/directory/pools?limit=&cursor=` | **Cursor pagination** over pools from the **last successful indexer sync** (`limit` default 20, max 100). `cursor` = previous page’s last `poolHex` (omit for first page). Response: `pools`, `nextCursor`, `hasMore`, `limit`, `cursor`. |
 | GET | `/v1/history/pool/{pool_hex}/events?limit=&cursor=` | **Snapshot only:** parsed **swap / addLiquidity / removeLiquidity** events for that pool from the last sync, over the configured **`NATIVE_DEX_INDEXER_LOG_SCAN_BLOCKS`** window (same depth as indexer stats). **`cursor`** = numeric D1 row **`id`** from **`nextCursor`**; default `limit` 50, max 200. **Not** reorg-safe canonical history — see [PROTOCOL_NATIVE_DEX_RPC_AND_INDEXING_ROADMAP.md](PROTOCOL_NATIVE_DEX_RPC_AND_INDEXING_ROADMAP.md) §3. |

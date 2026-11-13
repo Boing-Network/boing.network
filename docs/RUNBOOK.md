@@ -5,7 +5,7 @@
 > 🛰️ **Operators:** this is the runbook — setup, RPC, CLI, monitoring, incidents, testnet ops.
 
 **Purpose:** Operations guide for running and maintaining Boing Network nodes.  
-**References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [README.md](../README.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [TESTNET.md](TESTNET.md#31-readiness--launch), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md)
+**References:** [BOING-NETWORK-ESSENTIALS.md](BOING-NETWORK-ESSENTIALS.md), [BUILD-ROADMAP.md](BUILD-ROADMAP.md), [README.md](../README.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), [TESTNET.md](TESTNET.md#31-readiness--launch), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), [MAINNET-READINESS.md](MAINNET-READINESS.md) (go/no-go + residual risks)
 
 ```mermaid
 flowchart LR
@@ -34,6 +34,8 @@ The network prioritizes, in order: **1. Security** → **2. Scalability** → **
 6. [Incident Response](#6-incident-response)
 7. [Troubleshooting](#7-troubleshooting)
 8. [Testnet Operations](#8-testnet-operations)
+
+Mainnet cutover checklist (gates, freeze, residuals): [MAINNET-READINESS.md](MAINNET-READINESS.md).
 
 ---
 
