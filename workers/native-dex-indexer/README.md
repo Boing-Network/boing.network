@@ -49,7 +49,7 @@ Empty-until-ops is expected on hosted testnet before bootstrap — not an app bu
 
 
 
-- `GET /stats` or `GET /` — full indexer JSON (cron + on-demand refresh into KV). Optional `pools_page`, `pools_page_size` (1–500) slices `pools` and adds `poolsPageMeta`. Soft per-IP rate limit (default **30**/min, `NATIVE_DEX_INDEXER_STATS_MAX_RPM`; `0` disables). Prefer **`/v1/directory/*`** for catalogs so public scrapers do not amplify RPC rebuilds.
+- `GET /stats` or `GET /` — full indexer JSON from the last cron/sync snapshot (isolate cache → KV). **Does not** rebuild from RPC on public GET (audit M11). Optional `pools_page`, `pools_page_size` (1–500). Soft per-IP rate limit (default **30**/min, `NATIVE_DEX_INDEXER_STATS_MAX_RPM`; `0` disables). Prefer **`/v1/directory/*`** for catalogs. Returns **503** `stats_warming` until a snapshot exists.
 
 - `GET /v1/directory/meta` — `{ poolCount, eventCount?, nftOwnerRowCount?, receiptLogCount?, latestSyncBatch, indexedTipHeight?, indexedTipBlockHash?, indexedParentBlockHash? }` from D1 (tip + parent hash after migration `0004`; NFT count after `0005`; receipt count after `0006` when archiving is enabled).
 

@@ -217,23 +217,49 @@ async function buildPayloadUncached(env: Env) {
   });
 }
 
+const STATS_PAYLOAD_KV_KEY = 'native_dex_indexer_stats_payload_v1';
+
 function rememberPayload(payload: IndexerPayload): IndexerPayload {
   payloadCache = { expiresAt: Date.now() + PAYLOAD_CACHE_TTL_MS, payload };
   return payload;
 }
 
-/** Fresh RPC scan; updates the short-lived GET cache. */
-async function buildPayload(env: Env) {
-  return rememberPayload(await buildPayloadUncached(env));
+async function persistStatsPayloadSnapshot(env: Env, payload: IndexerPayload): Promise<void> {
+  const kv = env.NATIVE_DEX_INDEXER_KV;
+  if (!kv) return;
+  try {
+    await kv.put(STATS_PAYLOAD_KV_KEY, JSON.stringify(payload));
+  } catch {
+    /* best-effort snapshot for public GET /stats */
+  }
 }
 
-/** Prefer the in-isolate cache for unauthenticated GETs. */
-async function buildPayloadCached(env: Env) {
+/** Fresh RPC scan; updates isolate cache + KV snapshot (cron / sync only). */
+async function buildPayload(env: Env) {
+  const payload = rememberPayload(await buildPayloadUncached(env));
+  await persistStatsPayloadSnapshot(env, payload);
+  return payload;
+}
+
+/**
+ * Public GET `/` + `/stats`: isolate cache → KV snapshot only.
+ * Does **not** trigger an RPC rebuild (M11) — cron / `POST /v1/directory/sync` rebuild.
+ */
+async function readStatsPayloadForGet(env: Env): Promise<IndexerPayload | null> {
   const now = Date.now();
   if (payloadCache && now < payloadCache.expiresAt) {
     return payloadCache.payload;
   }
-  return buildPayload(env);
+  const kv = env.NATIVE_DEX_INDEXER_KV;
+  if (!kv) return null;
+  try {
+    const raw = await kv.get(STATS_PAYLOAD_KV_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as IndexerPayload;
+    return rememberPayload(parsed);
+  } catch {
+    return null;
+  }
 }
 
 function rpcBaseUrl(env: Env): string {
@@ -576,7 +602,26 @@ export default {
       if (request.method === 'GET' && (path === '/stats' || path === '/')) {
         const limited = maybeRateLimitStats(request, env);
         if (limited) return limited;
-        const payload = await buildPayloadCached(env);
+        const payload = await readStatsPayloadForGet(env);
+        if (!payload) {
+          return new Response(
+            JSON.stringify({
+              error: 'stats_warming',
+              message:
+                'Full /stats snapshot not ready in this isolate. Prefer GET /v1/directory/*; cron or POST /v1/directory/sync rebuilds the payload.',
+              retryAfterSeconds: 60,
+            }),
+            {
+              status: 503,
+              headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Retry-After': '60',
+                'Cache-Control': 'no-store',
+              },
+            },
+          );
+        }
         const sliced = sliceIndexerPoolsInPayload(payload as Record<string, unknown>, url);
         return new Response(JSON.stringify(sliced), {
           headers: {
