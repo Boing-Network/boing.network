@@ -3,7 +3,6 @@
 //! Types, hashing, signatures, and shared data structures.
 
 pub mod blobs;
-pub mod bridge;
 pub mod blobs_erasure;
 pub mod blobs_phase10;
 pub mod blobs_phase11;
@@ -34,6 +33,7 @@ pub mod blobs_phase6;
 pub mod blobs_phase7;
 pub mod blobs_phase8;
 pub mod blobs_phase9;
+pub mod bridge;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -492,14 +492,6 @@ pub use blobs_phase9::{
     PHASE9_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE9_ASK_ESCROW_DOMAIN, PHASE9_CAP_ACTIVATION_ENV,
     PHASE9_SAMPLE_OFFER_REGISTRY_DOMAIN,
 };
-pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
-pub use denomination::{
-    format_boing, parse_boing, Denomination, ParseBoingError, BASE_UNITS_PER_BOING, BOING_DECIMALS,
-};
-pub use equivocation::{EquivocationError, EquivocationEvidence, REPORT_EQUIVOCATION_TX_INDEX};
-pub use hash::{hasher, Hash};
-pub use hd::HdPath;
-pub use intent::{Intent, IntentKind, SignedIntent, INTENT_SIGN_DOMAIN};
 pub use bridge::{
     bridge_burn_signable_hash, bridge_claim_consumed_key, bridge_escrow_account, bridge_fee_split,
     bridge_lock_nonce_key, bridge_lock_signable_hash, claim_id_from_burn,
@@ -509,6 +501,14 @@ pub use bridge::{
     BRIDGE_CLAIM_FROM_BASE_TX_INDEX, BRIDGE_FEE_BPS, BRIDGE_LOCK_ATTEST_DOMAIN,
     BRIDGE_LOCK_TO_BASE_TX_INDEX,
 };
+pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
+pub use denomination::{
+    format_boing, parse_boing, Denomination, ParseBoingError, BASE_UNITS_PER_BOING, BOING_DECIMALS,
+};
+pub use equivocation::{EquivocationError, EquivocationEvidence, REPORT_EQUIVOCATION_TX_INDEX};
+pub use hash::{hasher, Hash};
+pub use hd::HdPath;
+pub use intent::{Intent, IntentKind, SignedIntent, INTENT_SIGN_DOMAIN};
 pub use liveness::{
     liveness_miss_signable_hash, parse_activation_height as parse_liveness_activation_height,
     LivenessError, LivenessEvidence, LivenessMissAttestation, LIVENESS_MISS_ATTESTATION_DOMAIN,

@@ -504,10 +504,7 @@ impl Transaction {
             }
             TransactionPayload::BridgeLockToBase { .. } => {
                 let escrow = crate::bridge_escrow_account();
-                AccessList::new(
-                    vec![self.sender, escrow],
-                    vec![self.sender, escrow],
-                )
+                AccessList::new(vec![self.sender, escrow], vec![self.sender, escrow])
             }
             TransactionPayload::BridgeClaimFromBase { recipient, .. } => {
                 let escrow = crate::bridge_escrow_account();

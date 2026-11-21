@@ -66,9 +66,7 @@ pub fn parse_bridge_activation_height(raw: Option<&str>) -> Result<Option<u64>, 
 
 #[must_use]
 pub fn bridge_fee_split(amount: u128) -> (u128, u128) {
-    let fee = amount
-        .saturating_mul(BRIDGE_FEE_BPS as u128)
-        / BRIDGE_BPS_DENOM as u128;
+    let fee = amount.saturating_mul(BRIDGE_FEE_BPS as u128) / BRIDGE_BPS_DENOM as u128;
     (amount.saturating_sub(fee), fee)
 }
 

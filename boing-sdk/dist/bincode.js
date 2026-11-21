@@ -70,6 +70,12 @@ export const PayloadVariant = {
     GovernanceVote: 38,
     /** Advance governance proposal to cooling (activation-gated). */
     GovernanceAdvanceCooling: 39,
+    /** Consensus-ordered liveness slash report (activation-gated). */
+    ReportLiveness: 40,
+    /** Lock native BOING for Base mint (activation-gated bridge). */
+    BridgeLockToBase: 41,
+    /** Claim native BOING after Base burn + stake attestations. */
+    BridgeClaimFromBase: 42,
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export const BlobRetentionVariant = {
@@ -362,6 +368,18 @@ export function encodeTransactionPayload(payload) {
             return concatBytes(writeU32Le(PayloadVariant.GovernanceVote), writeU64Le(payload.proposalId), Uint8Array.of(payload.approve ? 1 : 0));
         case 'governanceAdvanceCooling':
             return concatBytes(writeU32Le(PayloadVariant.GovernanceAdvanceCooling), writeU64Le(payload.proposalId));
+        case 'reportLiveness':
+            return concatBytes(writeU32Le(PayloadVariant.ReportLiveness), payload.evidence);
+        case 'bridgeLockToBase': {
+            checkValue(payload.amount);
+            if (payload.destRecipient.length !== 20)
+                throw new Error('destRecipient must be 20 bytes');
+            return concatBytes(writeU32Le(PayloadVariant.BridgeLockToBase), writeU128Le(payload.amount), writeU64Le(payload.destChainId), payload.destRecipient);
+        }
+        case 'bridgeClaimFromBase': {
+            checkValue(payload.amount);
+            return concatBytes(writeU32Le(PayloadVariant.BridgeClaimFromBase), writeU128Le(payload.amount), writeU64Le(payload.sourceChainId), need32(payload.burnId, 'burnId'), writeU64Le(payload.burnNonce), need32(payload.recipient, 'recipient'), payload.evidence);
+        }
         default: {
             const _x = payload;
             return _x;

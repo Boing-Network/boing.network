@@ -1896,8 +1896,7 @@ impl Vm {
             .map_err(|e| VmError::MediaBlob(format!("bridge claim quorum failed: {e}")))?;
 
         let escrow = boing_primitives::bridge_escrow_account();
-        let claim_id =
-            boing_primitives::claim_id_from_burn(source_chain_id, &burn_id, burn_nonce);
+        let claim_id = boing_primitives::claim_id_from_burn(source_chain_id, &burn_id, burn_nonce);
         let used_key = boing_primitives::bridge_claim_consumed_key(&claim_id);
         let used_word = state.get_contract_storage(&escrow, &used_key);
         if used_word != [0u8; 32] {

@@ -310,10 +310,9 @@ async fn main() -> anyhow::Result<()> {
             "Liveness slash (ReportLiveness): activation_height={h}. Every node must agree; see docs/LIVENESS-SLASH-ACTIVATION.md"
         );
     }
-    let bridge_from = boing_node::media_blob_config::resolve_bridge_activation(
-        args.bridge_activation_height,
-    )
-    .map_err(|e| anyhow::anyhow!("bridge config: {e}"))?;
+    let bridge_from =
+        boing_node::media_blob_config::resolve_bridge_activation(args.bridge_activation_height)
+            .map_err(|e| anyhow::anyhow!("bridge config: {e}"))?;
     if let Some(h) = bridge_from {
         tracing::warn!(
             "Boing↔Base bridge (BridgeLockToBase/BridgeClaimFromBase): activation_height={h}. Every node must agree; see docs/BOING-BASE-BRIDGE.md"
