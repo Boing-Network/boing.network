@@ -2123,6 +2123,72 @@ impl BoingNode {
                     ));
                 }
             }
+            TransactionPayload::BridgeLockToBase {
+                amount,
+                dest_chain_id,
+                dest_recipient,
+            } => {
+                let next = self.chain.height().saturating_add(1);
+                if !self.executor.vm().bridge_active(next) {
+                    return Err(MempoolError::MediaBlobRejected(format!(
+                        "BridgeLockToBase not active until height {}",
+                        self.executor
+                            .vm()
+                            .bridge_from()
+                            .map(|h| h.to_string())
+                            .unwrap_or_else(|| "never".into())
+                    )));
+                }
+                if *amount == 0 || *dest_recipient == [0u8; 20] {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "BridgeLockToBase invalid amount or recipient".into(),
+                    ));
+                }
+                if *dest_chain_id != boing_primitives::BASE_SEPOLIA_CHAIN_ID
+                    && *dest_chain_id != boing_primitives::BASE_MAINNET_CHAIN_ID
+                {
+                    return Err(MempoolError::MediaBlobRejected(format!(
+                        "BridgeLockToBase unsupported dest_chain_id {dest_chain_id}"
+                    )));
+                }
+            }
+            TransactionPayload::BridgeClaimFromBase {
+                amount,
+                source_chain_id,
+                burn_id,
+                burn_nonce,
+                recipient,
+                evidence,
+            } => {
+                let next = self.chain.height().saturating_add(1);
+                if !self.executor.vm().bridge_active(next) {
+                    return Err(MempoolError::MediaBlobRejected(format!(
+                        "BridgeClaimFromBase not active until height {}",
+                        self.executor
+                            .vm()
+                            .bridge_from()
+                            .map(|h| h.to_string())
+                            .unwrap_or_else(|| "never".into())
+                    )));
+                }
+                if *amount == 0 {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "BridgeClaimFromBase amount must be > 0".into(),
+                    ));
+                }
+                let expected = boing_primitives::bridge_burn_signable_hash(
+                    *source_chain_id,
+                    burn_id,
+                    *burn_nonce,
+                    recipient,
+                    *amount,
+                );
+                if evidence.digest != expected {
+                    return Err(MempoolError::MediaBlobRejected(
+                        "BridgeClaimFromBase evidence digest mismatch".into(),
+                    ));
+                }
+            }
             TransactionPayload::ReportLiveness { evidence } => {
                 let next = self.chain.height().saturating_add(1);
                 if !self.executor.vm().liveness_slash_active(next) {
@@ -2277,6 +2343,16 @@ impl BoingNode {
         self.executor.vm().liveness_slash_from()
     }
 
+    /// Enable Boing ↔ Base bridge txs from `activation_height`.
+    pub fn enable_bridge(&mut self, activation_height: u64) {
+        self.executor.set_bridge_from(Some(activation_height));
+        self.vm.set_bridge_from(Some(activation_height));
+    }
+
+    pub fn bridge_activation_height(&self) -> Option<u64> {
+        self.executor.vm().bridge_from()
+    }
+
     pub fn bls_committee_flip_height(&self) -> Option<u64> {
         self.executor.vm().bls_committee_flip_from()
     }
@@ -2404,6 +2480,7 @@ impl BoingNode {
         vm.set_vm_hardening_from(self.executor.vm().vm_hardening_from());
         vm.set_equivocation_slash_from(self.executor.vm().equivocation_slash_from());
         vm.set_liveness_slash_from(self.executor.vm().liveness_slash_from());
+        vm.set_bridge_from(self.executor.vm().bridge_from());
         vm.set_vm_jump_strict_from(self.executor.vm().vm_jump_strict_from());
         // Admission keeps the node-local QA policy (by design) but applies the same height gates.
         vm.set_qa_canonical_from(self.executor.vm().qa_canonical_from());

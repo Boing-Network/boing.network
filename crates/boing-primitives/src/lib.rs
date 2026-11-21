@@ -3,6 +3,7 @@
 //! Types, hashing, signatures, and shared data structures.
 
 pub mod blobs;
+pub mod bridge;
 pub mod blobs_erasure;
 pub mod blobs_phase10;
 pub mod blobs_phase11;
@@ -499,6 +500,15 @@ pub use equivocation::{EquivocationError, EquivocationEvidence, REPORT_EQUIVOCAT
 pub use hash::{hasher, Hash};
 pub use hd::HdPath;
 pub use intent::{Intent, IntentKind, SignedIntent, INTENT_SIGN_DOMAIN};
+pub use bridge::{
+    bridge_burn_signable_hash, bridge_claim_consumed_key, bridge_escrow_account, bridge_fee_split,
+    bridge_lock_nonce_key, bridge_lock_signable_hash, claim_id_from_burn,
+    parse_bridge_activation_height, u64_from_storage_word, u64_to_storage_word, BridgeAttestation,
+    BridgeAttestationEvidence, BridgeError, BASE_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID,
+    BRIDGE_ACTIVATION_ENV, BRIDGE_BPS_DENOM, BRIDGE_BURN_ATTEST_DOMAIN,
+    BRIDGE_CLAIM_FROM_BASE_TX_INDEX, BRIDGE_FEE_BPS, BRIDGE_LOCK_ATTEST_DOMAIN,
+    BRIDGE_LOCK_TO_BASE_TX_INDEX,
+};
 pub use liveness::{
     liveness_miss_signable_hash, parse_activation_height as parse_liveness_activation_height,
     LivenessError, LivenessEvidence, LivenessMissAttestation, LIVENESS_MISS_ATTESTATION_DOMAIN,

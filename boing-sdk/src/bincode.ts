@@ -72,6 +72,12 @@ export const PayloadVariant = {
   GovernanceVote: 38,
   /** Advance governance proposal to cooling (activation-gated). */
   GovernanceAdvanceCooling: 39,
+  /** Consensus-ordered liveness slash report (activation-gated). */
+  ReportLiveness: 40,
+  /** Lock native BOING for Base mint (activation-gated bridge). */
+  BridgeLockToBase: 41,
+  /** Claim native BOING after Base burn + stake attestations. */
+  BridgeClaimFromBase: 42,
 } as const;
 
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
@@ -346,7 +352,29 @@ export type TransactionPayloadInput =
     }
   | { kind: 'governancePropose'; targetKey: string; targetValue: Uint8Array }
   | { kind: 'governanceVote'; proposalId: bigint; approve: boolean }
-  | { kind: 'governanceAdvanceCooling'; proposalId: bigint };
+  | { kind: 'governanceAdvanceCooling'; proposalId: bigint }
+  | {
+      kind: 'reportLiveness';
+      /** Bincode bytes of `boing_primitives::LivenessEvidence`. */
+      evidence: Uint8Array;
+    }
+  | {
+      kind: 'bridgeLockToBase';
+      amount: bigint;
+      destChainId: bigint;
+      /** 20-byte EVM address. */
+      destRecipient: Uint8Array;
+    }
+  | {
+      kind: 'bridgeClaimFromBase';
+      amount: bigint;
+      sourceChainId: bigint;
+      burnId: Uint8Array;
+      burnNonce: bigint;
+      recipient: Uint8Array;
+      /** Bincode bytes of `boing_primitives::BridgeAttestationEvidence`. */
+      evidence: Uint8Array;
+    };
 
 function need32(b: Uint8Array, what: string): Uint8Array {
   if (b.length !== 32) throw new Error(`${what} must be 32 bytes`);
@@ -642,6 +670,30 @@ export function encodeTransactionPayload(payload: TransactionPayloadInput): Uint
         writeU32Le(PayloadVariant.GovernanceAdvanceCooling),
         writeU64Le(payload.proposalId),
       );
+    case 'reportLiveness':
+      return concatBytes(writeU32Le(PayloadVariant.ReportLiveness), payload.evidence);
+    case 'bridgeLockToBase': {
+      checkValue(payload.amount);
+      if (payload.destRecipient.length !== 20) throw new Error('destRecipient must be 20 bytes');
+      return concatBytes(
+        writeU32Le(PayloadVariant.BridgeLockToBase),
+        writeU128Le(payload.amount),
+        writeU64Le(payload.destChainId),
+        payload.destRecipient,
+      );
+    }
+    case 'bridgeClaimFromBase': {
+      checkValue(payload.amount);
+      return concatBytes(
+        writeU32Le(PayloadVariant.BridgeClaimFromBase),
+        writeU128Le(payload.amount),
+        writeU64Le(payload.sourceChainId),
+        need32(payload.burnId, 'burnId'),
+        writeU64Le(payload.burnNonce),
+        need32(payload.recipient, 'recipient'),
+        payload.evidence,
+      );
+    }
     default: {
       const _x: never = payload;
       return _x;

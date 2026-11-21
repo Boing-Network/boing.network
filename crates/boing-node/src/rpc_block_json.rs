@@ -408,6 +408,34 @@ fn payload_json(payload: &TransactionPayload, include_code: bool) -> Value {
                 "attestations": evidence.attestations.len(),
             }
         }),
+        TransactionPayload::BridgeLockToBase {
+            amount,
+            dest_chain_id,
+            dest_recipient,
+        } => json!({
+            "BridgeLockToBase": {
+                "amount": amount.to_string(),
+                "dest_chain_id": dest_chain_id,
+                "dest_recipient": format!("0x{}", hex::encode(dest_recipient)),
+            }
+        }),
+        TransactionPayload::BridgeClaimFromBase {
+            amount,
+            source_chain_id,
+            burn_id,
+            burn_nonce,
+            recipient,
+            evidence,
+        } => json!({
+            "BridgeClaimFromBase": {
+                "amount": amount.to_string(),
+                "source_chain_id": source_chain_id,
+                "burn_id": hex0x(burn_id),
+                "burn_nonce": burn_nonce,
+                "recipient": account_json(recipient),
+                "attestations": evidence.attestations.len(),
+            }
+        }),
         TransactionPayload::GovernancePropose {
             target_key,
             target_value,

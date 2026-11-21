@@ -172,6 +172,9 @@ pub struct Vm {
     equivocation_slash_from: u64,
     /// Consensus-ordered liveness slash (`ReportLiveness`). `None` = never admitted.
     liveness_slash_from: Option<u64>,
+    /// Inventory-free Boing ↔ Base bridge (`BridgeLockToBase` / `BridgeClaimFromBase`).
+    /// `None` = never admitted.
+    bridge_from: Option<u64>,
     vm_jump_strict_from: u64,
     /// Canonical on-chain QA policy gate (`None` = off). See [`ExecutionHistory::qa_canonical_from`].
     ///
@@ -353,6 +356,19 @@ impl Vm {
         matches!(self.liveness_slash_from, Some(h) if height >= h)
     }
 
+    /// Activation height of the Boing ↔ Base bridge. `None` = never.
+    pub fn set_bridge_from(&mut self, from: Option<u64>) {
+        self.bridge_from = from;
+    }
+
+    pub fn bridge_from(&self) -> Option<u64> {
+        self.bridge_from
+    }
+
+    pub fn bridge_active(&self, height: u64) -> bool {
+        matches!(self.bridge_from, Some(h) if height >= h)
+    }
+
     /// Activation height of the strict-jump rules (#147: taken OOB `JumpI` faults,
     /// `NativeAmountExceedsU128`).
     pub fn set_vm_jump_strict_from(&mut self, from: u64) {
@@ -465,6 +481,7 @@ impl Vm {
             vm_hardening_from: 0,
             equivocation_slash_from: 0,
             liveness_slash_from: None,
+            bridge_from: None,
             vm_jump_strict_from: 0,
             qa_canonical_from: None,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
@@ -490,6 +507,7 @@ impl Vm {
             vm_hardening_from: 0,
             equivocation_slash_from: 0,
             liveness_slash_from: None,
+            bridge_from: None,
             vm_jump_strict_from: 0,
             qa_canonical_from: None,
             qa_pool_config: QaPoolGovernanceConfig::development_default(),
@@ -518,6 +536,7 @@ impl Vm {
             vm_hardening_from: 0,
             equivocation_slash_from: 0,
             liveness_slash_from: None,
+            bridge_from: None,
             vm_jump_strict_from: 0,
             qa_canonical_from: None,
             qa_pool_config,
@@ -1049,6 +1068,40 @@ impl Vm {
             }
             TransactionPayload::ReportLiveness { evidence } => {
                 return self.execute_report_liveness(state, tx, evidence, exec_ctx.block_height);
+            }
+            TransactionPayload::BridgeLockToBase {
+                amount,
+                dest_chain_id,
+                dest_recipient,
+            } => {
+                return self.execute_bridge_lock_to_base(
+                    state,
+                    tx,
+                    *amount,
+                    *dest_chain_id,
+                    *dest_recipient,
+                    exec_ctx.block_height,
+                );
+            }
+            TransactionPayload::BridgeClaimFromBase {
+                amount,
+                source_chain_id,
+                burn_id,
+                burn_nonce,
+                recipient,
+                evidence,
+            } => {
+                return self.execute_bridge_claim_from_base(
+                    state,
+                    tx,
+                    *amount,
+                    *source_chain_id,
+                    *burn_id,
+                    *burn_nonce,
+                    *recipient,
+                    evidence,
+                    exec_ctx.block_height,
+                );
             }
             TransactionPayload::GovernancePropose {
                 target_key,
@@ -1701,6 +1754,183 @@ impl Vm {
         Ok(VmExecutionResult {
             gas_used: GAS_PER_TRANSFER,
             return_data: slash_id.to_le_bytes().to_vec(),
+            logs: Vec::new(),
+        })
+    }
+
+    /// Lock native BOING for Base mint (inventory-free escrow). Fee → protocol treasury.
+    fn execute_bridge_lock_to_base(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        amount: u128,
+        dest_chain_id: u64,
+        dest_recipient: [u8; 20],
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.bridge_active(height) {
+            return Err(VmError::MediaBlob(format!(
+                "BridgeLockToBase not active until height {}",
+                self.bridge_from
+                    .map(|h| h.to_string())
+                    .unwrap_or_else(|| "never".into())
+            )));
+        }
+        if amount == 0 {
+            return Err(VmError::MediaBlob("bridge lock amount must be > 0".into()));
+        }
+        if dest_chain_id != boing_primitives::BASE_SEPOLIA_CHAIN_ID
+            && dest_chain_id != boing_primitives::BASE_MAINNET_CHAIN_ID
+        {
+            return Err(VmError::MediaBlob(format!(
+                "unsupported bridge destination chain {dest_chain_id}"
+            )));
+        }
+        if dest_recipient == [0u8; 20] {
+            return Err(VmError::MediaBlob("bridge dest recipient is zero".into()));
+        }
+
+        let escrow = boing_primitives::bridge_escrow_account();
+        let nonce_key = boing_primitives::bridge_lock_nonce_key(&tx.sender);
+        let prev = boing_primitives::u64_from_storage_word(
+            &state.get_contract_storage(&escrow, &nonce_key),
+        );
+        let lock_nonce = prev.saturating_add(1);
+        let (net, fee) = boing_primitives::bridge_fee_split(amount);
+
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        if sender_state.nonce != tx.nonce {
+            return Err(VmError::InvalidNonce {
+                expected: sender_state.nonce,
+                got: tx.nonce,
+            });
+        }
+        sender_state.balance = sender_state
+            .balance
+            .checked_sub(amount)
+            .ok_or(VmError::InsufficientBalance)?;
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+
+        boing_tokenomics::credit_account(state, boing_tokenomics::PROTOCOL_TREASURY, fee);
+        boing_tokenomics::credit_account(state, escrow, net);
+        state.merge_contract_storage(
+            escrow,
+            nonce_key,
+            boing_primitives::u64_to_storage_word(lock_nonce),
+        );
+
+        let mut ret = Vec::with_capacity(28);
+        ret.extend_from_slice(&lock_nonce.to_le_bytes());
+        ret.extend_from_slice(&dest_chain_id.to_le_bytes());
+        ret.extend_from_slice(&dest_recipient);
+        Ok(VmExecutionResult {
+            gas_used: GAS_PER_TRANSFER,
+            return_data: ret,
+            logs: Vec::new(),
+        })
+    }
+
+    /// Unlock escrowed BOING after Base burn + stake-weighted attestations.
+    #[allow(clippy::too_many_arguments)]
+    fn execute_bridge_claim_from_base(
+        &self,
+        state: &mut StateStore,
+        tx: &Transaction,
+        amount: u128,
+        source_chain_id: u64,
+        burn_id: [u8; 32],
+        burn_nonce: u64,
+        recipient: AccountId,
+        evidence: &boing_primitives::BridgeAttestationEvidence,
+        height: u64,
+    ) -> Result<VmExecutionResult, VmError> {
+        if !self.bridge_active(height) {
+            return Err(VmError::MediaBlob(format!(
+                "BridgeClaimFromBase not active until height {}",
+                self.bridge_from
+                    .map(|h| h.to_string())
+                    .unwrap_or_else(|| "never".into())
+            )));
+        }
+        if amount == 0 {
+            return Err(VmError::MediaBlob("bridge claim amount must be > 0".into()));
+        }
+        if source_chain_id != boing_primitives::BASE_SEPOLIA_CHAIN_ID
+            && source_chain_id != boing_primitives::BASE_MAINNET_CHAIN_ID
+        {
+            return Err(VmError::MediaBlob(format!(
+                "unsupported bridge source chain {source_chain_id}"
+            )));
+        }
+
+        let expected = boing_primitives::bridge_burn_signable_hash(
+            source_chain_id,
+            &burn_id,
+            burn_nonce,
+            &recipient,
+            amount,
+        );
+        if evidence.digest != expected {
+            return Err(VmError::MediaBlob(
+                "bridge claim evidence digest mismatch".into(),
+            ));
+        }
+
+        // Electorate weight W = sum of all bonded stake; attesters contribute their bonded stake.
+        let total = state.compute_native_aggregates().total_stake;
+        let mut electorate = Vec::with_capacity(evidence.attestations.len());
+        for a in &evidence.attestations {
+            let w = state.get(&a.attester).map(|s| s.stake).unwrap_or(0);
+            electorate.push((a.attester, w));
+        }
+        // Pad with a synthetic remainder bucket so quorum is vs global stake, not only signers.
+        let signed_preview: u128 = electorate.iter().map(|(_, w)| *w).sum();
+        if total > signed_preview {
+            electorate.push((AccountId([0xff; 32]), total - signed_preview));
+        }
+        evidence
+            .verify_stake_quorum(&electorate)
+            .map_err(|e| VmError::MediaBlob(format!("bridge claim quorum failed: {e}")))?;
+
+        let escrow = boing_primitives::bridge_escrow_account();
+        let claim_id =
+            boing_primitives::claim_id_from_burn(source_chain_id, &burn_id, burn_nonce);
+        let used_key = boing_primitives::bridge_claim_consumed_key(&claim_id);
+        let used_word = state.get_contract_storage(&escrow, &used_key);
+        if used_word != [0u8; 32] {
+            return Err(VmError::MediaBlob("bridge claim already consumed".into()));
+        }
+
+        // Amount on claim is the net unlock (Base already took fee on burn).
+        let escrow_state = state.get_mut(&escrow).ok_or(VmError::AccountNotFound)?;
+        escrow_state.balance = escrow_state
+            .balance
+            .checked_sub(amount)
+            .ok_or(VmError::InsufficientBalance)?;
+
+        let sender_state = state.get_mut(&tx.sender).ok_or(VmError::AccountNotFound)?;
+        if sender_state.nonce != tx.nonce {
+            return Err(VmError::InvalidNonce {
+                expected: sender_state.nonce,
+                got: tx.nonce,
+            });
+        }
+        sender_state.nonce = sender_state
+            .nonce
+            .checked_add(1)
+            .ok_or(VmError::NonceOverflow)?;
+
+        boing_tokenomics::credit_account(state, recipient, amount);
+        let mut consumed = [0u8; 32];
+        consumed[0] = 1;
+        state.merge_contract_storage(escrow, used_key, consumed);
+
+        Ok(VmExecutionResult {
+            gas_used: GAS_PER_TRANSFER,
+            return_data: claim_id.to_vec(),
             logs: Vec::new(),
         })
     }
