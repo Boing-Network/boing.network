@@ -237,6 +237,11 @@ impl BlockExecutor {
         self.vm.set_liveness_slash_from(from);
     }
 
+    /// Boing ↔ Base bridge (`BridgeLockToBase` / `BridgeClaimFromBase`). `None` = never.
+    pub fn set_bridge_from(&mut self, from: Option<u64>) {
+        self.vm.set_bridge_from(from);
+    }
+
     /// Swap QA registry + pool config without touching fee policy, history or activation heights.
     pub fn set_qa_policies(&mut self, registry: RuleRegistry, pool_config: QaPoolGovernanceConfig) {
         self.vm.set_qa_policies(registry, pool_config);

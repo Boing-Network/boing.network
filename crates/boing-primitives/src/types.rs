@@ -352,6 +352,23 @@ impl Transaction {
                 hex::encode(&evidence.validator().0[..8]),
                 evidence.round()
             ),
+            TransactionPayload::BridgeLockToBase {
+                amount,
+                dest_chain_id,
+                dest_recipient,
+            } => format!(
+                "Bridge lock {amount} to chain {dest_chain_id} recipient 0x{}",
+                hex::encode(dest_recipient)
+            ),
+            TransactionPayload::BridgeClaimFromBase {
+                amount,
+                source_chain_id,
+                recipient,
+                ..
+            } => format!(
+                "Bridge claim {amount} from chain {source_chain_id} to {}",
+                hex::encode(&recipient.0[..8])
+            ),
             TransactionPayload::GovernancePropose { target_key, .. } => {
                 format!("Governance propose ({target_key})")
             }
@@ -484,6 +501,17 @@ impl Transaction {
             TransactionPayload::ReportLiveness { evidence } => {
                 let offender = evidence.validator();
                 AccessList::new(vec![self.sender, offender], vec![self.sender, offender])
+            }
+            TransactionPayload::BridgeLockToBase { .. } => {
+                let escrow = crate::bridge_escrow_account();
+                AccessList::new(vec![self.sender, escrow], vec![self.sender, escrow])
+            }
+            TransactionPayload::BridgeClaimFromBase { recipient, .. } => {
+                let escrow = crate::bridge_escrow_account();
+                AccessList::new(
+                    vec![self.sender, escrow, *recipient],
+                    vec![self.sender, escrow, *recipient],
+                )
             }
             TransactionPayload::GovernancePropose { .. }
             | TransactionPayload::GovernanceVote { .. }
@@ -781,6 +809,28 @@ pub enum TransactionPayload {
     /// Idempotent per `(validator, height)`.
     ReportLiveness {
         evidence: crate::LivenessEvidence,
+    },
+    /// Lock native BOING for minting bridged BOING on Base (index **41**).
+    /// Admitted only at/after `BOING_BRIDGE_ACTIVATION_HEIGHT` (unset = never).
+    /// Debits `amount` from the sender; fee (`BRIDGE_FEE_BPS`) goes to the protocol treasury;
+    /// the remainder is escrowed. Attestors sign the lock for Base `mintWithAttestation`.
+    BridgeLockToBase {
+        amount: u128,
+        /// Destination EVM chain id (84532 Base Sepolia / 8453 Base).
+        dest_chain_id: u64,
+        /// 20-byte EVM recipient (Base address).
+        dest_recipient: [u8; 20],
+    },
+    /// Claim native BOING after a Base `burnToBoing` (index **42**).
+    /// Requires stake-weighted ≥ ⌈2W/3⌉ Ed25519 attestations from the consensus set.
+    BridgeClaimFromBase {
+        /// Gross amount burned on Base (before Base-side fee); net credited = attested net.
+        amount: u128,
+        source_chain_id: u64,
+        burn_id: [u8; 32],
+        burn_nonce: u64,
+        recipient: AccountId,
+        evidence: crate::BridgeAttestationEvidence,
     },
 }
 

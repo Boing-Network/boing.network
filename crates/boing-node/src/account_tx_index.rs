@@ -387,6 +387,31 @@ fn payload_json(p: &TransactionPayload) -> serde_json::Value {
             "height":evidence.round(),
             "validator_count":evidence.validator_count,
         }),
+        TransactionPayload::BridgeLockToBase {
+            amount,
+            dest_chain_id,
+            dest_recipient,
+        } => json!({
+            "kind":"bridge_lock_to_base",
+            "amount": amount.to_string(),
+            "dest_chain_id": dest_chain_id,
+            "dest_recipient": format!("0x{}", hex::encode(dest_recipient)),
+        }),
+        TransactionPayload::BridgeClaimFromBase {
+            amount,
+            source_chain_id,
+            burn_id,
+            burn_nonce,
+            recipient,
+            ..
+        } => json!({
+            "kind":"bridge_claim_from_base",
+            "amount": amount.to_string(),
+            "source_chain_id": source_chain_id,
+            "burn_id": hex0x(burn_id),
+            "burn_nonce": burn_nonce,
+            "recipient": hex0x(&recipient.0),
+        }),
         TransactionPayload::GovernancePropose {
             target_key,
             target_value,

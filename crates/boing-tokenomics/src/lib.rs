@@ -529,6 +529,8 @@ fn blob_data_fee(payload: &TransactionPayload, policy: &NetworkFeePolicy) -> u12
         | TransactionPayload::RevokeBlobDownload { .. }
         | TransactionPayload::ReportEquivocation { .. }
         | TransactionPayload::ReportLiveness { .. }
+        | TransactionPayload::BridgeLockToBase { .. }
+        | TransactionPayload::BridgeClaimFromBase { .. }
         | TransactionPayload::GovernancePropose { .. }
         | TransactionPayload::GovernanceVote { .. }
         | TransactionPayload::GovernanceAdvanceCooling { .. } => 0,
@@ -558,7 +560,8 @@ pub fn fee_for_gas(gas_used: u64) -> u128 {
     num.saturating_add(den.saturating_sub(1)) / den
 }
 
-pub(crate) fn credit_account(state: &mut StateStore, id: AccountId, amount: u128) {
+/// Credit `amount` to `id`, creating the account if needed.
+pub fn credit_account(state: &mut StateStore, id: AccountId, amount: u128) {
     if amount == 0 {
         return;
     }

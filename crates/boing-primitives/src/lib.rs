@@ -33,6 +33,7 @@ pub mod blobs_phase6;
 pub mod blobs_phase7;
 pub mod blobs_phase8;
 pub mod blobs_phase9;
+pub mod bridge;
 pub mod consensus_vote;
 pub mod denomination;
 pub mod equivocation;
@@ -490,6 +491,15 @@ pub use blobs_phase9::{
     phase9_cap_activation_checklist, sample_offer_market_key,
     PHASE9_ACTIVATED_MAX_MEDIA_BLOB_BYTES, PHASE9_ASK_ESCROW_DOMAIN, PHASE9_CAP_ACTIVATION_ENV,
     PHASE9_SAMPLE_OFFER_REGISTRY_DOMAIN,
+};
+pub use bridge::{
+    bridge_burn_signable_hash, bridge_claim_consumed_key, bridge_escrow_account, bridge_fee_split,
+    bridge_lock_nonce_key, bridge_lock_signable_hash, claim_id_from_burn,
+    parse_bridge_activation_height, u64_from_storage_word, u64_to_storage_word, BridgeAttestation,
+    BridgeAttestationEvidence, BridgeError, BASE_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID,
+    BRIDGE_ACTIVATION_ENV, BRIDGE_BPS_DENOM, BRIDGE_BURN_ATTEST_DOMAIN,
+    BRIDGE_CLAIM_FROM_BASE_TX_INDEX, BRIDGE_FEE_BPS, BRIDGE_LOCK_ATTEST_DOMAIN,
+    BRIDGE_LOCK_TO_BASE_TX_INDEX,
 };
 pub use consensus_vote::{consensus_vote_signable_hash, ConsensusVote, CONSENSUS_VOTE_DOMAIN};
 pub use denomination::{

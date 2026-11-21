@@ -68,6 +68,12 @@ export declare const PayloadVariant: {
     readonly GovernanceVote: 38;
     /** Advance governance proposal to cooling (activation-gated). */
     readonly GovernanceAdvanceCooling: 39;
+    /** Consensus-ordered liveness slash report (activation-gated). */
+    readonly ReportLiveness: 40;
+    /** Lock native BOING for Base mint (activation-gated bridge). */
+    readonly BridgeLockToBase: 41;
+    /** Claim native BOING after Base burn + stake attestations. */
+    readonly BridgeClaimFromBase: 42;
 };
 /** `BlobRetention` discriminants (Rust `boing_primitives::BlobRetention`). */
 export declare const BlobRetentionVariant: {
@@ -311,6 +317,25 @@ export type TransactionPayloadInput = {
 } | {
     kind: 'governanceAdvanceCooling';
     proposalId: bigint;
+} | {
+    kind: 'reportLiveness';
+    /** Bincode bytes of `boing_primitives::LivenessEvidence`. */
+    evidence: Uint8Array;
+} | {
+    kind: 'bridgeLockToBase';
+    amount: bigint;
+    destChainId: bigint;
+    /** 20-byte EVM address. */
+    destRecipient: Uint8Array;
+} | {
+    kind: 'bridgeClaimFromBase';
+    amount: bigint;
+    sourceChainId: bigint;
+    burnId: Uint8Array;
+    burnNonce: bigint;
+    recipient: Uint8Array;
+    /** Bincode bytes of `boing_primitives::BridgeAttestationEvidence`. */
+    evidence: Uint8Array;
 };
 export declare function encodeTransactionPayload(payload: TransactionPayloadInput): Uint8Array;
 export interface TransactionInput {
