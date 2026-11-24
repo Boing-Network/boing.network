@@ -105,6 +105,7 @@ Total size: **`96 + 64n`**. Bytecode hard cap:
 - Rust: `encode_owner_of_calldata`, `encode_transfer_nft_calldata`, `encode_set_metadata_hash_calldata`, **`encode_mint_batch_calldata`**, `SELECTOR_MINT_BATCH`, `MAX_REFERENCE_NFT_MINT_BATCH` in `reference_nft`.
 - TypeScript: `encodeReferenceOwnerOfCalldata`, `encodeReferenceTransferNftCalldata`, `encodeReferenceSetMetadataHashCalldata`, **`encodeReferenceMintBatchCalldata`** / **`encodeReferenceMintBatchCalldataHex`**. `BoingReferenceCallDescriptors` stays 96-byte-only; do not encode `mint_batch` through that helper.
 - Re-measure: `cargo run -p boing-execution --example measure_mint_batch_gas --release`.
+- **Confirming a transfer or mint:** on v1–v3 a refused `transfer_nft` still returns `success: true`. Use `assertCallEffect(client, txId, referenceNftOwnedBy(client, collection, tokenId, expectedOwner))` from `boing-sdk`, which waits for the receipt and then checks the owner slot (`CallEffectError` kind `no_effect` for a silent no-op).
 
 ## Marketplace, royalties, and metadata (F2)
 

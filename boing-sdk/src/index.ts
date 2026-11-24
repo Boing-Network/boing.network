@@ -548,6 +548,7 @@ export {
   type BuildReferenceMultiTokenDeployMetaTxInput,
 } from './referenceMultiToken.js';
 export * from './referenceNftV4.js';
+export * from './callEffect.js';
 export {
   ipfsUriToGatewayUrl,
   extractHttpOrIpfsUrl,
