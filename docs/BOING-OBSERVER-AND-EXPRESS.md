@@ -176,7 +176,7 @@ Boing’s **automated quality assurance** is a core differentiator: **no asset d
 | Element | Where | What to show |
 |--------|--------|---------------|
 | **ContractDeploy badge** | Block detail page, transaction list rows | For each `ContractDeploy` tx: a badge such as “Protocol QA Passed” or “QA Gate Passed” (with tooltip: “This deployment passed the automated QA gate before inclusion in the block”). |
-| **QA explainer section** | Footer, About page, or persistent info panel | Short copy: The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. Automated checks handle clear cases; a decentralized community pool reviews edge cases. Link to `QUALITY-ASSURANCE-NETWORK.md` or a public URL (e.g. boing.network/docs) for full details. |
+| **QA explainer section** | Footer, About page, or persistent info panel | Short copy: The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. Automated checks handle clear cases; a decentralized community pool reviews edge cases. Link to `QUALITY-ASSURANCE-NETWORK.md` or a public URL (e.g. https://docs.boing.network/protocol/quality-gate/) for full details. |
 | **QA in nav or header** | Global nav or sidebar | A small “Quality Assured” or “Protocol QA” link/indicator that opens the explainer or an `/about#qa` section. |
 | **Transaction type + QA** | Transaction detail view | When showing a `ContractDeploy` payload, add a clear line: “Deployment passed protocol QA (Allow)” — reinforcing that inclusion in the block implies approval. |
 

@@ -45,7 +45,7 @@ npm run preflight-rpc
 - **Cross-repo consumers:** [docs/HANDOFF-DEPENDENT-PROJECTS.md](docs/HANDOFF-DEPENDENT-PROJECTS.md), [docs/THREE-CODEBASE-ALIGNMENT.md](docs/THREE-CODEBASE-ALIGNMENT.md)
 - **PDFs:** from `website/`, `npm run build:pdfs` (Mermaid diagrams in Markdown are rendered into the PDFs)
 
-When you change behavior that is documented, update the Markdown **in the same PR**. Website `/docs` and `/about` PDFs should stay aligned with `docs/`.
+When you change behavior that is documented, update the Markdown **in the same PR**. [docs.boing.network](https://docs.boing.network) (`docs-site/`) and the website `/about` PDFs should stay aligned with `docs/`.
 
 ## Pull requests
 

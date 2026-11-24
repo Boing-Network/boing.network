@@ -1,6 +1,6 @@
 /**
  * Sitewide semantic link + CLI colors (marketing site + docs.boing.network).
- * Match /docs#overview: docs cyan, CLI gold, PDF violet, product apps teal.
+ * Docs cyan, CLI gold, PDF violet, product apps teal.
  */
 :root {
   --bn-link-docs: #5ba8ff;
@@ -11,7 +11,7 @@
   --bn-link-app: #3ddcb4;
   --bn-link-app-hover: #6fecc8;
 
-  /* Aliases used by the on-site /docs page */
+  /* Legacy aliases (former on-site /docs page); kept for any page still using them */
   --docs-link-docs: var(--bn-link-docs);
   --docs-link-docs-hover: var(--bn-link-docs-hover);
   --docs-link-code: var(--bn-link-code);

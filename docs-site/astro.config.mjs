@@ -84,6 +84,7 @@ export default defineConfig({
           label: 'Reference',
           items: [
             { label: 'Specifications', slug: 'resources/specialist-specs' },
+            { label: 'Glossary', slug: 'resources/glossary' },
             { label: 'PDF downloads', slug: 'resources/pdfs' },
           ],
         },

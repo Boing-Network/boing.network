@@ -5,7 +5,7 @@ Astro **Starlight** documentation site for Boing Network.
 ## Content policy (important)
 
 - Pages under `src/content/docs/` are **authored** guides, written from the live public RPC, `boing-node`, the SDK, and the product repos.
-- They are **not** a sync/copy of monorepo `docs/*.md` or of the marketing site `/docs` page. Link to those for exhaustive reference.
+- They are **not** a sync/copy of monorepo `docs/*.md`. The old single-page `boing.network/docs` was retired in Nov 2026; its URLs redirect here (`website/public/_redirects`). Link to those for exhaustive reference.
 - Existing Markdown + **PDFs** remain accuracy references and printable artifacts. Link out; do not delete `website/public/pdfs/` or the `npm run build:pdfs` pipeline.
 
 ## Structure
