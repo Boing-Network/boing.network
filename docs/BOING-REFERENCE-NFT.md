@@ -161,6 +161,77 @@ Contract code is **immutable** after deploy ([BOING-PATTERN-UPGRADE-PROXY.md](BO
 
 ---
 
+## Template v4 (faults, logs, approvals)
+
+**Implementation:** `boing_execution::reference_nft_v4_deploy_bytecode()` (deploy payload) / `reference_nft_v4_runtime_bytecode()` (installed code) in `crates/boing-execution/src/reference_nft_v4.rs`. **`boing-sdk`:** `referenceNftV4.ts` (`buildReferenceNftV4DeployMetaTx`, `decodeReferenceNftV4Log`, `fetchReferenceNftV4Token`, `isReferenceNftV4Bytecode`, `REFERENCE_NFT_V4_TEMPLATE_VERSION` = **`4`**, artifact id **`boing.reference_nft_collection.v4`**). Pinned hex: [`artifacts/reference-nft-collection-v4-deploy.hex`](artifacts/reference-nft-collection-v4-deploy.hex) and [`artifacts/reference-nft-collection-v4-runtime.hex`](artifacts/reference-nft-collection-v4-runtime.hex) (`.sha256` = SHA-256 of the raw bytes). Regenerate with `cargo run -p boing-execution --example dump_reference_token_artifacts` (**8th** / **9th** `0x` lines) and `node boing-sdk/scripts/embed-reference-nft-v4-hex.mjs`.
+
+v4 is **opt-in**: `resolveReferenceNftCollectionTemplateBytecodeHex` still returns v3, because v3 deploys as a bare runtime with lazy admin while v4 **must** be deployed through its `0xFD` init frame (a bare v4 runtime has no admin and can never mint).
+
+### What changes from v3
+
+| | v1–v3 | v4 |
+|---|---|---|
+| Failed check (not owner, not admin, bad input) | `STOP` → receipt `success: true`, nothing changes | **Fault** → tx reverts, receipt `success: false` |
+| Unknown selector | `STOP` | Fault |
+| Admin | First caller of `transfer_nft` / `mint_batch` (lazy) | **Deployer**, set by the init frame; `transfer_admin` moves it |
+| Minting | `mint_batch`, or admin `transfer_nft` of an unowned id | **Only** `mint_batch` (ids must be unowned and unique in the batch) |
+| `set_metadata_hash` | Current holder or admin | **Admin only**, token must exist, blocked once frozen |
+| Logs | None | One per state change (below) |
+| Approvals | None | `approve`, `set_approval_for_all` |
+
+Owner, metadata and admin slots are the **same keys** as v1–v3, so storage probes (`owner_of` via `boing_getContractStorage`, Observer probes) work unchanged.
+
+### Selectors added in v4
+
+Calldata layouts of `owner_of` (0x03), `transfer_nft` (0x04), `set_metadata_hash` (0x05) and `mint_batch` (0x06) are unchanged. Every selector word must have only its low byte set.
+
+| Selector | Call | Bytes | Who |
+|---|---|---|---|
+| `0x07` | `approve(spender, token_id)`; spender 0 clears | 96 | owner or operator |
+| `0x08` | `set_approval_for_all(operator, approved 0/1)` | 96 | anyone (for own tokens) |
+| `0x09` | `get_approved(token_id)` → account | 64 | read |
+| `0x0a` | `is_approved_for_all(owner, operator)` → 0/1 | 96 | read |
+| `0x0b` | `admin()` → account | 32 | read |
+| `0x0c` | `transfer_admin(new_admin)`, non-zero | 64 | admin |
+| `0x0d` | `freeze_metadata(token_id)` | 64 | admin |
+| `0x0e` | `freeze_all_metadata()` (irreversible) | 32 | admin |
+| `0x0f` | `metadata_hash(token_id)` → word | 64 | read |
+| `0x10` | `total_minted()` → u64 word | 32 | read |
+| `0x11` | `is_metadata_frozen(token_id)` → 0/1 | 64 | read |
+
+`transfer_nft` is allowed for the owner, an operator of the owner, or the approved spender, and clears the per-token approval.
+
+### Logs
+
+topic0 values are the ASCII tag left-aligned in a zero-padded 32-byte word.
+
+| Event | Topics | Data |
+|---|---|---|
+| `BOING_REFNFT_TRANSFER_V4` | `[t, from, to]` | `token_id` |
+| `BOING_REFNFT_MINT_BATCH_V4` | `[t, to]` | up to 32 `token_id` words (500 ids → 16 logs) |
+| `BOING_REFNFT_APPROVAL_V4` | `[t, owner, spender]` | `token_id` |
+| `BOING_REFNFT_APPROVAL_ALL_V4` | `[t, owner, operator]` | 0/1 word |
+| `BOING_REFNFT_METADATA_V4` | `[t, token_id]` | `metadata_hash` |
+| `BOING_REFNFT_FREEZE_V4` | `[t, token_id]` (0 = whole collection) | none |
+| `BOING_REFNFT_ADMIN_V4` | `[t, old_admin, new_admin]` | none |
+
+Execution logs carry **no emitter address** today. v4 makes no nested calls, so for a transaction whose top-level target runs the v4 runtime, every log in its receipt came from that collection. Indexers should check the target's code (`isReferenceNftV4Bytecode`) before trusting these topics. Adding the emitter to `ExecutionLog` is a protocol follow-up.
+
+### v4 storage keys
+
+| Slot | Key |
+|---|---|
+| Owner / metadata / admin | as v1–v3 |
+| Collection freeze flag | singleton `0x…e1` |
+| Total minted | singleton `0x…e2` |
+| Approved spender | `token_id ^ tag("BOING_REFNFT_APPROVED_V4")` |
+| Per-token freeze | `token_id ^ tag("BOING_REFNFT_FROZEN_V4")` |
+| Operator | `(owner[0..16] ‖ operator[0..16]) ^ tag("BOING_REFNFT_OPERATOR_V4")` |
+
+Token ids are opaque words chosen by the admin. Because keys are XOR namespaces rather than hashes, an admin could choose ids that alias another slot; only the admin can mint, so this is not reachable by holders.
+
+---
+
 ## QA
 
 NFT deploys should declare a valid **purpose** (`NFT`, `nft`, …). Default `RuleRegistry` checks opcode whitelist, well-formedness, and size (32 KiB). Tests expect **Allow or Unsure** — there is **no** default hash allowlist of official NFT bytecode. Governance may put `nft` in `always_review_categories` (testnet pool). This document does not add new QA rules.

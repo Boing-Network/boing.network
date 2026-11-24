@@ -7,6 +7,7 @@ import {
   SELECTOR_SET_METADATA_HASH,
   SELECTOR_TRANSFER_NFT,
   decodeReferenceNftCalldata,
+  decodeReferenceNftV4Log,
 } from '@boing-network/boing-sdk';
 import { isZeroHex64, normalizeHex64, zeros32 } from './cors.js';
 
@@ -70,6 +71,83 @@ export function txSenderHex(tx: unknown): string | null {
  */
 export type AdminLookup = (collectionHex: string) => string | null;
 
+/**
+ * True when the collection's installed code is the pinned template v4 runtime. v4 faults on every failed
+ * check and logs every change, so its receipts are read from logs instead of replaying auth rules.
+ */
+export type V4Lookup = (collectionHex: string) => boolean;
+
+function hexOf(raw: unknown): string | null {
+  if (typeof raw === 'string') return raw.trim();
+  if (Array.isArray(raw) && raw.every((b) => Number.isInteger(b) && b >= 0 && b <= 255)) {
+    return '0x' + (raw as number[]).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  return null;
+}
+
+/**
+ * Events from a successful direct call to a v4 collection, read from its receipt logs. Logs carry no
+ * emitter address, but v4 makes no nested calls, so every log of a direct call to it came from it.
+ * Mint logs carry ids only; their metadata hashes come from the (now known successful) calldata.
+ */
+function v4EventsFromReceipt(
+  receipt: unknown,
+  calldata: unknown,
+  base: Pick<ExtractedNftEvent, 'blockHeight' | 'txIndex' | 'txId' | 'collectionHex'>
+): ExtractedNftEvent[] {
+  const logs = (receipt as { logs?: unknown }).logs;
+  if (!Array.isArray(logs)) return [];
+  const mintHashes = new Map<string, string | null>();
+  const cd = hexOf(calldata);
+  const decoded = cd ? decodeReferenceNftCalldata(cd) : null;
+  if (decoded?.selector === SELECTOR_MINT_BATCH) {
+    decoded.tokenIds.forEach((t, j) => {
+      const id = normalizeHex64(t);
+      const h = normalizeHex64(decoded.metadataHashes[j]);
+      if (id) mintHashes.set(id, h && !isZeroHex64(h) ? h : null);
+    });
+  }
+  const out: ExtractedNftEvent[] = [];
+  const push = (e: Omit<ExtractedNftEvent, keyof typeof base | 'eventIndex'>) =>
+    out.push({ ...base, eventIndex: out.length, ...e });
+  for (const raw of logs) {
+    if (!raw || typeof raw !== 'object') continue;
+    const l = raw as { topics?: unknown; data?: unknown };
+    const topics = Array.isArray(l.topics) ? l.topics.map((t) => normalizeHex64(t)) : [];
+    const data = hexOf(l.data) ?? '0x';
+    if (topics.some((t) => t == null)) continue;
+    const d = decodeReferenceNftV4Log({ topics: topics as string[], data });
+    if (d?.kind === 'mint_batch') {
+      for (const tokenIdHex of d.tokenIds) {
+        push({
+          tokenIdHex,
+          eventKind: 'mint_batch',
+          fromOwnerHex: zeros32(),
+          toOwnerHex: d.to,
+          metadataHashHex: mintHashes.get(tokenIdHex) ?? null,
+        });
+      }
+    } else if (d?.kind === 'transfer') {
+      push({
+        tokenIdHex: d.tokenId,
+        eventKind: 'transfer_nft',
+        fromOwnerHex: d.from,
+        toOwnerHex: d.to,
+        metadataHashHex: null,
+      });
+    } else if (d?.kind === 'metadata') {
+      push({
+        tokenIdHex: d.tokenId,
+        eventKind: 'set_metadata_hash',
+        fromOwnerHex: null,
+        toOwnerHex: null,
+        metadataHashHex: d.metadataHash,
+      });
+    }
+  }
+  return out;
+}
+
 function resolveTxId(tx: unknown, receipt: unknown, txIndex: number, blockHeight: number): string {
   if (receipt && typeof receipt === 'object') {
     const tid = (receipt as { tx_id?: unknown }).tx_id;
@@ -100,12 +178,17 @@ function resolveTxId(tx: unknown, receipt: unknown, txIndex: number, blockHeight
  * as the owner. Replay applies the template's own rules: an owned token moves only when the sender
  * is its owner; an unowned token (lazy mint) and `mint_batch` need the admin; metadata needs the
  * admin or the owner. A contract with no admin in the template's admin slot is not indexed.
+ *
+ * `isV4` marks collections running template v4: their events come from receipt logs (only when the
+ * receipt says `success: true`), with no replay, because v4 also lets approved spenders and operators
+ * transfer and reverts every failed call.
  */
 export function extractNftEventsFromBlock(
   block: unknown,
   blockHeight: number,
   lookupCurrentOwner: (collectionHex: string, tokenIdHex: string) => string | null,
-  adminOf?: AdminLookup
+  adminOf?: AdminLookup,
+  isV4?: V4Lookup
 ): ExtractedNftEvent[] {
   if (!block || typeof block !== 'object') return [];
   const b = block as { transactions?: unknown; receipts?: unknown };
@@ -130,6 +213,20 @@ export function extractNftEventsFromBlock(
     const collectionHex = normalizeHex64(inner.contract ?? inner.Contract);
     if (!collectionHex) continue;
     const calldata = inner.calldata ?? inner.Calldata;
+    if (isV4?.(collectionHex)) {
+      if (!receipt || (receipt as { success?: unknown }).success !== true) continue;
+      const events = v4EventsFromReceipt(receipt, calldata, {
+        blockHeight,
+        txIndex: i,
+        txId: resolveTxId(tx, receipt, i, blockHeight),
+        collectionHex,
+      });
+      for (const e of events) {
+        if (e.toOwnerHex) overlay.set(keyOf(collectionHex, e.tokenIdHex), e.toOwnerHex);
+        out.push(e);
+      }
+      continue;
+    }
     if (typeof calldata !== 'string' && !(calldata instanceof Uint8Array)) continue;
     const decoded = decodeReferenceNftCalldata(calldata as string | Uint8Array);
     if (!decoded) continue;

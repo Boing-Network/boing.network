@@ -22,6 +22,9 @@
 //! line **6** = reference **multi-token** v1 deploy payload (`0xFD` init + runtime; purpose **`nft`**),
 //! line **7** = reference **multi-token** v1 runtime (what `boing_getContractCode` returns after deploy;
 //! wallets / explorers match this for identity). See [BOING-REFERENCE-MULTI-TOKEN.md](../../docs/BOING-REFERENCE-MULTI-TOKEN.md).
+//! line **8** = reference **NFT collection v4** deploy payload (`0xFD` init sets admin = deployer),
+//! line **9** = reference **NFT collection v4** runtime (installed code; identity for indexers / explorers).
+//! See [BOING-REFERENCE-NFT.md](../../docs/BOING-REFERENCE-NFT.md) § Template v4.
 
 fn print_hex(label: &str, code: &[u8]) {
     eprintln!("// {label}: {} bytes", code.len());
@@ -60,5 +63,13 @@ fn main() {
     print_hex(
         "reference_multi_token_runtime_bytecode v1 (installed runtime; identity for wallets/explorers)",
         &boing_execution::reference_multi_token_runtime_bytecode(),
+    );
+    print_hex(
+        "reference_nft_v4_deploy_bytecode (QA: purpose nft; 0xFD init sets admin = deployer)",
+        &boing_execution::reference_nft_v4_deploy_bytecode(),
+    );
+    print_hex(
+        "reference_nft_v4_runtime_bytecode (installed runtime; identity for indexers/explorers)",
+        &boing_execution::reference_nft_v4_runtime_bytecode(),
     );
 }

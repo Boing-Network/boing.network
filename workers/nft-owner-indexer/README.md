@@ -110,6 +110,16 @@ template's own rules before recording an event (`src/extract.ts`, `src/admin.ts`
 **After deploying this change, wipe and rebuild the D1 index** (see "Backfill existing history"): rows
 written by older builds may contain ownership from no-op transfers, and later owner checks build on them.
 
+## Template v4 collections
+
+Collections running the pinned **template v4** runtime (`docs/BOING-REFERENCE-NFT.md` § Template v4) fault
+on every failed check and log every change, so no replay is needed. For each collection seen in a block
+the indexer reads `boing_getContractCode` once (cached per isolate; installed code never changes) and,
+for v4, records events from the receipt logs of successful direct calls only: `MINT_BATCH` (metadata
+hashes come from the successful calldata), `TRANSFER` (covers owner, operator and approved-spender
+transfers) and `METADATA`. Logs carry no emitter address today; v4 makes no nested calls, so every log
+in a direct call's receipt came from the collection. Approval and freeze logs are not stored.
+
 ## Reorgs
 
 Same pattern as OBS-1 (`examples/observer-d1-worker`):

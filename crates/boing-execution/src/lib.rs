@@ -32,6 +32,7 @@ mod parallel;
 pub mod reference_fungible_secured;
 pub mod reference_multi_token;
 pub mod reference_nft;
+pub mod reference_nft_v4;
 pub mod reference_token;
 pub mod reference_token_v2;
 pub mod reference_token_v3;
@@ -226,6 +227,25 @@ pub use reference_nft::{
     reference_nft_collection_template_bytecode, token_id_word, MAX_REFERENCE_NFT_MINT_BATCH,
     REF_NFT_METADATA_STORAGE_XOR, REF_NFT_OWNER_STORAGE_XOR, SELECTOR_MINT_BATCH,
     SELECTOR_OWNER_OF, SELECTOR_SET_METADATA_HASH, SELECTOR_TRANSFER_NFT,
+};
+pub use reference_nft_v4::{
+    encode_nft_admin_calldata, encode_nft_approve_calldata,
+    encode_nft_freeze_all_metadata_calldata, encode_nft_freeze_metadata_calldata,
+    encode_nft_get_approved_calldata, encode_nft_is_approved_for_all_calldata,
+    encode_nft_is_metadata_frozen_calldata, encode_nft_metadata_hash_calldata,
+    encode_nft_set_approval_for_all_calldata, encode_nft_total_minted_calldata,
+    encode_nft_transfer_admin_calldata, ref_nft_v4_approved_storage_key, ref_nft_v4_frozen_all_key,
+    ref_nft_v4_frozen_storage_key, ref_nft_v4_operator_storage_key, ref_nft_v4_total_minted_key,
+    reference_nft_v4_deploy_bytecode, reference_nft_v4_init_bytecode,
+    reference_nft_v4_runtime_bytecode, MAX_REFERENCE_NFT_V4_MINT_BATCH,
+    REFERENCE_NFT_V4_TEMPLATE_VERSION, REF_NFT_V4_APPROVED_XOR, REF_NFT_V4_FROZEN_XOR,
+    REF_NFT_V4_IDS_PER_MINT_LOG, REF_NFT_V4_OPERATOR_XOR, REF_NFT_V4_TOPIC_ADMIN,
+    REF_NFT_V4_TOPIC_APPROVAL, REF_NFT_V4_TOPIC_APPROVAL_FOR_ALL, REF_NFT_V4_TOPIC_FREEZE,
+    REF_NFT_V4_TOPIC_METADATA, REF_NFT_V4_TOPIC_MINT_BATCH, REF_NFT_V4_TOPIC_TRANSFER,
+    SELECTOR_NFT_ADMIN, SELECTOR_NFT_APPROVE, SELECTOR_NFT_FREEZE_ALL_METADATA,
+    SELECTOR_NFT_FREEZE_METADATA, SELECTOR_NFT_GET_APPROVED, SELECTOR_NFT_IS_APPROVED_FOR_ALL,
+    SELECTOR_NFT_IS_METADATA_FROZEN, SELECTOR_NFT_METADATA_HASH, SELECTOR_NFT_SET_APPROVAL_FOR_ALL,
+    SELECTOR_NFT_TOTAL_MINTED, SELECTOR_NFT_TRANSFER_ADMIN,
 };
 pub use reference_token::{
     encode_mint_first_calldata, encode_transfer_calldata, ref_fungible_admin_key,
