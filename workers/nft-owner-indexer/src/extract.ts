@@ -56,6 +56,20 @@ function isContractCallPayload(payload: unknown): boolean {
   return typeof inner.contract === 'string' || typeof inner.Contract === 'string';
 }
 
+/** `tx.sender` as 0x + 64 hex (hex string or 32-number byte array). */
+export function txSenderHex(tx: unknown): string | null {
+  if (!tx || typeof tx !== 'object') return null;
+  const o = tx as { sender?: unknown; from?: unknown };
+  return normalizeHex64(o.sender ?? o.from);
+}
+
+/**
+ * Collection admin lookup for the auth replay below. Return the admin AccountId (0x + 64 hex), or
+ * `null` when the admin slot is empty (no call to a reference collection can then have succeeded).
+ * Pass `undefined` to `extractNftEventsFromBlock` to skip auth replay (unit tests, legacy callers).
+ */
+export type AdminLookup = (collectionHex: string) => string | null;
+
 function resolveTxId(tx: unknown, receipt: unknown, txIndex: number, blockHeight: number): string {
   if (receipt && typeof receipt === 'object') {
     const tid = (receipt as { tx_id?: unknown }).tx_id;
@@ -79,11 +93,19 @@ function resolveTxId(tx: unknown, receipt: unknown, txIndex: number, blockHeight
  *
  * `lookupCurrentOwner(collection, tokenId)` supplies prior owner for transfers
  * (calldata has no `from`).
+ *
+ * `adminOf` turns on auth replay. The reference template (v1–v3) ends unauthorized `transfer_nft`
+ * and `set_metadata_hash` calls with `STOP`, so their receipts say `success: true` although nothing
+ * changed. Without replay, anyone could send `transfer_nft(me, someone_else's_token)` and be indexed
+ * as the owner. Replay applies the template's own rules: an owned token moves only when the sender
+ * is its owner; an unowned token (lazy mint) and `mint_batch` need the admin; metadata needs the
+ * admin or the owner. A contract with no admin in the template's admin slot is not indexed.
  */
 export function extractNftEventsFromBlock(
   block: unknown,
   blockHeight: number,
-  lookupCurrentOwner: (collectionHex: string, tokenIdHex: string) => string | null
+  lookupCurrentOwner: (collectionHex: string, tokenIdHex: string) => string | null,
+  adminOf?: AdminLookup
 ): ExtractedNftEvent[] {
   if (!block || typeof block !== 'object') return [];
   const b = block as { transactions?: unknown; receipts?: unknown };
@@ -113,8 +135,13 @@ export function extractNftEventsFromBlock(
     if (!decoded) continue;
 
     const txId = resolveTxId(tx, receipt, i, blockHeight);
+    const sender = adminOf ? txSenderHex(tx) : null;
+    const admin = adminOf ? adminOf(collectionHex) : null;
+    if (adminOf && (!sender || !admin)) continue;
+    const isAdmin = adminOf ? sender === admin : true;
 
     if (decoded.selector === SELECTOR_MINT_BATCH) {
+      if (!isAdmin) continue;
       for (let j = 0; j < decoded.tokenIds.length; j++) {
         // Skip malformed hex rather than asserting into D1 (audit #61 item 74).
         const tokenIdHex = normalizeHex64(decoded.tokenIds[j]);
@@ -146,6 +173,10 @@ export function extractNftEventsFromBlock(
       const k = keyOf(collectionHex, tokenIdHex);
       const fromOwnerHex =
         overlay.get(k) ?? lookupCurrentOwner(collectionHex, tokenIdHex) ?? null;
+      if (adminOf) {
+        const owned = fromOwnerHex != null && !isZeroHex64(fromOwnerHex);
+        if (owned ? sender !== fromOwnerHex : !isAdmin) continue;
+      }
       out.push({
         blockHeight,
         txIndex: i,
@@ -165,6 +196,11 @@ export function extractNftEventsFromBlock(
     if (decoded.selector === SELECTOR_SET_METADATA_HASH) {
       const tokenIdHex = normalizeHex64(decoded.tokenId);
       if (!tokenIdHex) continue;
+      if (adminOf && !isAdmin) {
+        const k = keyOf(collectionHex, tokenIdHex);
+        const owner = overlay.get(k) ?? lookupCurrentOwner(collectionHex, tokenIdHex) ?? null;
+        if (!owner || sender !== owner) continue;
+      }
       const metadataHashHex = normalizeHex64(decoded.metadataHash);
       out.push({
         blockHeight,

@@ -21,6 +21,7 @@ import {
 } from '@boing-network/boing-sdk';
 import { handleOptions, jsonRes, normalizeHex64, parseCorsOrigins, zeros32 } from './cors.js';
 import { extractNftEventsFromBlock } from './extract.js';
+import { readCollectionAdmin, type StorageReader } from './admin.js';
 import { reconcileGapRangesForWindow } from './gaps.js';
 import {
   getOwnershipStats,
@@ -192,7 +193,9 @@ async function indexHeightRange(
       }
     }
 
-    const primed = await extractWithOwnerLookup(db, bundle.block, height);
+    const primed = await extractWithOwnerLookup(db, bundle.block, height, (c, k) =>
+      client.getContractStorage(c, k)
+    );
     if (primed.length === 0) {
       pendingEmpty.push({ height, blockHash, parentHash });
     } else {
@@ -254,19 +257,26 @@ async function indexHeightRange(
 }
 
 /**
- * Prime D1 owners for transfer token ids, then extract with in-block overlay + primed cache.
+ * Prime D1 owners and collection admins, then extract with in-block overlay + primed caches and
+ * auth replay (see `extractNftEventsFromBlock`), so no-op `transfer_nft` / `set_metadata_hash`
+ * calls that the template ends with a successful `STOP` are not indexed as ownership changes.
  */
 async function extractWithOwnerLookup(
   db: D1Database,
   block: unknown,
-  height: number
+  height: number,
+  readStorage: StorageReader
 ): Promise<ReturnType<typeof extractNftEventsFromBlock>> {
   const cache = new Map<string, string | null>();
+  const admins = new Map<string, string | null>();
 
-  // Discover transfer targets with empty prior so we know which tokens to hydrate from D1.
+  // Discover candidate events with empty prior so we know which tokens and collections to hydrate.
   const preliminary = extractNftEventsFromBlock(block, height, () => null);
   for (const e of preliminary) {
-    if (e.eventKind === 'transfer_nft') {
+    if (!admins.has(e.collectionHex)) {
+      admins.set(e.collectionHex, await readCollectionAdmin(readStorage, e.collectionHex));
+    }
+    if (e.eventKind === 'transfer_nft' || e.eventKind === 'set_metadata_hash') {
       const k = `${e.collectionHex}:${e.tokenIdHex}`;
       if (!cache.has(k)) {
         cache.set(k, await lookupOwner(db, e.collectionHex, e.tokenIdHex));
@@ -274,7 +284,12 @@ async function extractWithOwnerLookup(
     }
   }
 
-  return extractNftEventsFromBlock(block, height, (c, t) => cache.get(`${c}:${t}`) ?? null);
+  return extractNftEventsFromBlock(
+    block,
+    height,
+    (c, t) => cache.get(`${c}:${t}`) ?? null,
+    (c) => admins.get(c) ?? null
+  );
 }
 
 async function runIngestTick(env: Env): Promise<Record<string, unknown>> {
