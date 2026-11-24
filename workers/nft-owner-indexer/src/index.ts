@@ -152,12 +152,16 @@ async function indexHeightRange(
   const heightHashMap = new Map<number, string>();
   let aborted = false;
 
-  // Event-less blocks are written in one D1 batch per run (Free plan: keep per-invocation queries low).
-  let pendingEmpty: Array<{ height: number; blockHash: string; parentHash: string }> = [];
+  // D1 Free allows about 100k written rows a day. One `indexed_blocks` row per event-less block cost a
+  // row per height (128 per tick, ~92k a day during a backfill), so only the window's LAST event-less
+  // block is written: the cursor lands on it and the tip reorg check compares its hash. Blocks with
+  // events are always written. A reorg fork search that meets an unstored height treats it as a
+  // mismatch and walks lower, so a rewind may re-index a few extra (empty) heights; it never misses one.
+  let lastEmpty: { height: number; blockHash: string; parentHash: string } | null = null;
   const flushEmpty = async () => {
-    if (!pendingEmpty.length) return;
-    await persistEmptyBlocks(db, pendingEmpty, nowSec);
-    pendingEmpty = [];
+    if (!lastEmpty) return;
+    await persistEmptyBlocks(db, [lastEmpty], nowSec);
+    lastEmpty = null;
   };
 
   for (const bundle of bundles) {
@@ -201,9 +205,9 @@ async function indexHeightRange(
       (c) => client.getContractCode(c)
     );
     if (primed.length === 0) {
-      pendingEmpty.push({ height, blockHash, parentHash });
+      lastEmpty = { height, blockHash, parentHash };
     } else {
-      await flushEmpty();
+      lastEmpty = null; // earlier event-less blocks sit below this written block; the cursor cannot land on them
       await persistBlockEvents(db, height, blockHash, parentHash, primed, nowSec);
     }
     eventsTotal += primed.length;

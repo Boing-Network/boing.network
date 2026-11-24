@@ -120,6 +120,16 @@ hashes come from the successful calldata), `TRANSFER` (covers owner, operator an
 transfers) and `METADATA`. Logs carry no emitter address today; v4 makes no nested calls, so every log
 in a direct call's receipt came from the collection. Approval and freeze logs are not stored.
 
+## D1 write budget (free plan)
+
+D1 on the free plan allows about 100k written rows a day. The ingest loop writes an `indexed_blocks` row
+for every block that has reference NFT events, and for event-less blocks only the **last one of each
+tick** (where the cursor lands and the tip reorg check compares hashes). Before this, every height wrote
+a row, which is ~92k rows a day at 128 blocks every 2 minutes, so a backfill alone used most of the daily
+allowance. A reorg fork search that meets an unstored height treats it as a mismatch and walks lower, so a
+rewind may re-index a few extra empty heights but never skips one. `stats.indexedBlocks` in `/v1/meta`
+counts stored rows, not heights.
+
 ## Reorgs
 
 Same pattern as OBS-1 (`examples/observer-d1-worker`):
