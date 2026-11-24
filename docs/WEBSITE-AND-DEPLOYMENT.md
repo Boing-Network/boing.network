@@ -29,10 +29,7 @@ All official Boing websites and applications share one visual system defined in 
 boing.network/
 ├── /                    → Landing: hero (animated), tokenomics (charts), roadmap, ecosystem, innovations, resources
 ├── /about               → Design philosophy, pillars, innovation overview
-├── /docs/               → Single-page documentation (table of contents, anchor navigation)
-│   │                    → Sections: Overview, Getting Started, Network, Tokenomics, Architecture, RPC API, Operations, Security, Governance, Resources
-│   ├── /getting-started → Redirects to /docs#getting-started
-│   └── /rpc-api         → Redirects to /docs#rpc-api
+├── /docs/*              → 301 to https://docs.boing.network (on-site docs retired Nov 2026; see public/_redirects)
 ├── /developers/         → Developer resources
 │   ├── /quickstart      → CLI, SDK, local dev
 │   ├── /sdk             → boing init, dev, deploy
@@ -60,11 +57,7 @@ boing.network/
 | Landing | docs/BOING-BLOCKCHAIN-DESIGN-PLAN.md (Design Philosophy, Priority Pillars) | Hero, "Quality, enforced by the protocol" messaging |
 | /about | docs/BOING-NETWORK-WHITEPAPER.md, docs/SIX-PILLARS.md, docs/BOING-NETWORK-ESSENTIALS.md, docs/BOING-NETWORK-TECHNICAL-ESSENTIALS.md, docs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md | Whitepaper, pillars, essentials, and tokenomics/testnet framing as **PDFs** (`/pdfs/…`); page chrome only |
 | /testnet | docs/TESTNET.md, docs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.md | Testnet Hub: roles, ecosystem tasks, honest limits (6913) |
-| /docs/getting-started | docs/BUILD-ROADMAP.md Quick Start, README | `cargo build`, `cargo run -p boing-node` |
-| /docs/architecture | Design Plan (Tech Stack, Full Stack Architecture) | Mermaid diagrams, layer breakdown |
-| /docs#rpc-api (and redirect `/docs/rpc-api`) | docs/RPC-API-SPEC.md | On-site: full method table + error codes aligned with `boing-node`; canonical prose + examples remain in the repo spec (also PDF in `/pdfs/`) |
-| /docs/runbook | docs/RUNBOOK.md | Operator procedures |
-| /docs/security | docs/SECURITY-STANDARDS.md | DDoS, rate limits, incident response |
+| docs.boing.network | `docs-site/` (authored guides) | Replaces the former `/docs` pages; `/docs/*` redirects there |
 | /developers/quickstart | README, docs/BUILD-ROADMAP.md | Crates, CLI, local dev |
 | /developers/sdk | docs/DEVELOPMENT-AND-ENHANCEMENTS.md | boing init, dev, deploy |
 | /developers/automation | docs/DEVELOPMENT-AND-ENHANCEMENTS.md (appendix) | Verification types, incentives |
@@ -204,7 +197,7 @@ Separate Pages project **`boing-docs`** for the left-nav docs site (Astro Starli
 3. Custom domain: Pages → **boing-docs** → **Custom domains** → `docs.boing.network`
 4. DNS (if not auto-added): CNAME `docs` → `boing-docs.pages.dev` (proxied) on zone `boing.network`
 
-`docs-site` content is **authored** (codebase/RPC audit), not a copy of `docs/` or website `/docs`. Keep the PDF pipeline (`website` `build:pdfs` + `public/pdfs/`) intact and linked from the Starlight [PDF downloads](https://docs.boing.network/resources/pdfs/) page. Details: [`docs-site/README.md`](../docs-site/README.md).
+`docs-site` content is **authored** (codebase/RPC audit), not a copy of `docs/`. Keep the PDF pipeline (`website` `build:pdfs` + `public/pdfs/`) intact and linked from the Starlight [PDF downloads](https://docs.boing.network/resources/pdfs/) page. Details: [`docs-site/README.md`](../docs-site/README.md).
 
 ### Step 7: Workers with D1 + R2 + KV (optional API)
 

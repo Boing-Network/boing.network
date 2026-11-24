@@ -16,6 +16,17 @@ http://www.boing.network/* https://boing.network/:splat 301!
 /testnet/faucet         /faucet/                301
 /testnet/faucet/        /faucet/                301
 
+# On-site docs (removed Nov 2026) -> docs.boing.network
+/docs                    https://docs.boing.network/                       301
+/docs/                   https://docs.boing.network/                       301
+/docs/getting-started    https://docs.boing.network/start/get-started/     301
+/docs/getting-started/   https://docs.boing.network/start/get-started/     301
+/docs/rpc-api            https://docs.boing.network/developers/rpc/        301
+/docs/rpc-api/           https://docs.boing.network/developers/rpc/        301
+/docs/glossary           https://docs.boing.network/resources/glossary/    301
+/docs/glossary/          https://docs.boing.network/resources/glossary/    301
+/docs/*                  https://docs.boing.network/                       301
+
 # Bare /developers has no index page
 /developers             /developers/quickstart  301
 /developers/            /developers/quickstart  301
