@@ -33,7 +33,7 @@ Wallet **publish sessions** for PutBlob (`boing_requestPutBlobSession`) are an *
 
 ## Download gating
 
-Phase **34** introduces deployer-owned download ACL behavior (wallet proof for publisher / grantee; operator token override paths on explorer). Product details: monorepo `docs/BOING-L1-MEDIA-BLOBS.md` and `docs/HANDOFF_BLOB_DOWNLOAD_ACL.md`. Observer streams bytes via its own `/api/blob/download` path when authorized.
+Phase **34** introduces deployer-owned download ACL behavior (wallet proof for publisher / grantee; operator token override paths on explorer). Details: [BOING-L1-MEDIA-BLOBS.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-L1-MEDIA-BLOBS.md) and [HANDOFF_BLOB_DOWNLOAD_ACL.md](https://github.com/Boing-Network/boing.network/blob/main/docs/HANDOFF_BLOB_DOWNLOAD_ACL.md). Observer streams bytes via its own `/api/blob/download` path when authorized.
 
 ## Honest limits
 

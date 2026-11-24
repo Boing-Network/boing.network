@@ -64,13 +64,15 @@ Run nodes on the testnet, get testnet BOING from the faucet, and join as a valid
 - **Who runs them:** Usually the team or community; they run a node with a stable IP and publish its address.
 - **How you use them:** Pass `--bootnodes /ip4/.../tcp/4001,/ip4/.../tcp/4002` when starting your node (comma-separated).
 
-Example (replace with real testnet bootnodes):
+Example (official public testnet bootnode; see [§6](#6-bootnode-list-testnet)):
 
 ```bash
 ./boing-node --p2p-listen /ip4/0.0.0.0/tcp/4001 \
-  --bootnodes /ip4/testnet.boing.network/tcp/4001 \
-  --validator --rpc-port 8545 --data-dir ./data
+  --bootnodes /ip4/169.155.48.188/tcp/4001 \
+  --rpc-port 8545 --data-dir ./boing-data
 ```
+
+To join the **public** testnet you also need the four consensus settings in §4.
 
 ## 3. Running a single node (no P2P)
 
@@ -88,23 +90,27 @@ RPC: `http://127.0.0.1:8545/`. No bootnodes needed.
 
 ## 4. Running on the multi-node testnet
 
-1. **Build**  
-   `cargo build --release`
+Step-by-step guides: [Run a full node](https://docs.boing.network/nodes/run-a-node/) and [Become a validator](https://docs.boing.network/nodes/validator/) on docs.boing.network. Full reference: [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md).
 
-2. **Start with P2P + bootnodes** (use the bootnode list from [Join Testnet](https://boing.network/testnet/join) or §6 below):
+1. **Get a binary:** `testnet-v0.1.24` or newer from [GitHub releases](https://github.com/Boing-Network/boing.network/releases), or build `main` (`cargo build --release -p boing-node -p boing-cli`).
+
+2. **Start with the testnet consensus settings, P2P and the bootnode.** These four values must match the public nodes; with `BOING_CHAIN_ID=6913` the node applies the rest of the testnet preset (genesis, fee history, activation heights):
 
    ```bash
-   ./target/release/boing-node \
+   export BOING_CHAIN_ID=6913 BOING_VALIDATOR_SET=open \
+          BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
+   ./boing-node \
+     --data-dir ./boing-data \
      --p2p-listen /ip4/0.0.0.0/tcp/4001 \
-     --bootnodes "<BOOTNODE_1>,<BOOTNODE_2>" \
-     --validator \
-     --rpc-port 8545 \
-     --data-dir ./boing-data
+     --bootnodes /ip4/169.155.48.188/tcp/4001 \
+     --rpc-port 8545
    ```
+
+   Do not set `--validators` / `BOING_VALIDATORS` or other consensus heights; the preset supplies them.
 
 3. **Get testnet BOING** from the [Faucet](https://boing.network/faucet) (see §5).
 
-4. **Stake** by submitting a `Bond` transaction via RPC (stake accounting is live). **Unbond** queues stake for a delay (`UNBONDING_DELAY_BLOCKS`); claim with **`ClaimUnbond`**. **Validator set for consensus:** static list via `--validators` / `BOING_VALIDATORS` by default; opt-in stake epochs with `--validator-set stake` / **`BOING_VALIDATOR_SET=stake`** and min stake via **`BOING_STAKE_VALIDATOR_MIN_STAKE`** (see [RUNBOOK.md](RUNBOOK.md) §8.1). Optional **`--leader-election vrf`**. On-chain slashing remains a follow-up — [NEXT-STEPS-FUTURE-WORK.md](NEXT-STEPS-FUTURE-WORK.md).
+4. **Become a validator (optional):** register with a **100 BOING bond** from the Boing Express **Validate** tab or `boing validator register`, then restart the node with `--validator` and `BOING_VALIDATOR_KEY`. You join at the next epoch (every 100 blocks). See [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md). The stake-weighted mode (`BOING_VALIDATOR_SET=stake`) is implemented but **not active** on the public testnet.
 
 ## 5. Faucet (testnet BOING)
 
@@ -160,7 +166,7 @@ The in-ledger **MVP constant-product pool** is a normal **32-byte contract `Acco
 
 ## 6. Bootnode list (testnet)
 
-Public testnet connectivity (as of **2026-08-24**):
+Public testnet connectivity (as of **2026-11-24**):
 
 - **Website:** [boing.network/testnet/join](https://boing.network/testnet/join) and [Bootnodes](https://boing.network/bootnodes) (`website/src/config/testnet.ts` or env **`PUBLIC_BOOTNODES`**)
 - **Networks API:** `GET https://boing.network/api/networks` — release tag, bootnodes and download listing for clients
@@ -170,6 +176,7 @@ Public testnet connectivity (as of **2026-08-24**):
 | Bootnode | Multiaddr | Notes |
 |----------|-----------|-------|
 | Primary | `/ip4/169.155.48.188/tcp/4001` | Fly.io `boing-testnet-1` (validator + faucet) |
+| ~~Secondary~~ | ~~`/ip4/109.105.220.118/tcp/4001`~~ | `boing-testnet-2`, **retired 2026-10-24**. Remove it from your config. |
 
 **Operator maintenance:**
 

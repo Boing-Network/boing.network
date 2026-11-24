@@ -20,6 +20,11 @@ Prefer live network info over hardcoded addresses:
 - **Finance Swap** defaults to the network’s canonical constant-product pool.
 - Additional factory pairs and multihop flows are oriented around the **Pools** directory / smart-route paths in Finance.
 
-## Specialist specs
+## Further reading
 
-Wire formats, CREATE2 salts, and operator bootstrap scripts stay in monorepo docs (`NATIVE-AMM-*`, `NATIVE-DEX-*`, `HANDOFF_*` discovery notes) and tutorial scripts under `examples/native-boing-tutorial/`. The node does **not** auto-create pools or seed reserves on first start.
+- Capabilities and product surfaces: [BOING-NATIVE-DEX-CAPABILITY.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-NATIVE-DEX-CAPABILITY.md)
+- Integration checklist: [NATIVE-AMM-INTEGRATION-CHECKLIST.md](https://github.com/Boing-Network/boing.network/blob/main/docs/NATIVE-AMM-INTEGRATION-CHECKLIST.md)
+- Pool calldata, storage, and CREATE2 salts: [NATIVE-AMM-CALLDATA.md](https://github.com/Boing-Network/boing.network/blob/main/docs/NATIVE-AMM-CALLDATA.md)
+- Deploy scripts: [`examples/native-boing-tutorial/`](https://github.com/Boing-Network/boing.network/tree/main/examples/native-boing-tutorial)
+
+A node does not create pools or seed reserves by itself on first start. Operators deploy them with the tutorial scripts.

@@ -7,7 +7,9 @@ const localNode = `./boing-node --rpc-port 8545 --data-dir ./data
 # Optional: produce blocks locally
 ./boing-node --validator --rpc-port 8545 --data-dir ./data`;
 
-const publicPeer = `export BOING_CHAIN_ID=${TESTNET_CHAIN_ID}
+const publicPeer = `# These four settings must match the public nodes (the node applies the rest of the testnet preset)
+export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
+       BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
 ./boing-node \\
   --data-dir ./boing-data \\
   --p2p-listen /ip4/0.0.0.0/tcp/4001 \\

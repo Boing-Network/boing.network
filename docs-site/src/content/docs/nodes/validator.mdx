@@ -1,0 +1,114 @@
+---
+title: Become a validator
+description: Register a synced Boing testnet node as an open validator with a 100 BOING bond, stay live, and leave cleanly.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Validator registration on the public testnet is **open**: anyone with a synced node and a **100 BOING** bond can
+join. No approval is needed.
+
+<Aside type="note">
+Running a testnet node is not incentivized right now, and testnet activity is not a claim on mainnet tokens.
+</Aside>
+
+## How it works
+
+- You join the validator set at the next **epoch boundary** (every 100 blocks).
+- The set holds at most 20 open validators, ordered by registration height. The operator-run anchor validators
+  are always in the set.
+- If you miss more than **10%** of your scheduled proposals over the last 1,000 produced blocks, you are
+  **jailed** at the next boundary. Your bond is kept (there is no slashing for downtime on testnet).
+- After a **500-block** cooldown you can unjail and rejoin at the next boundary.
+
+## Register
+
+<Steps>
+
+1. **Run a synced full node.** Follow [Run a full node](/nodes/run-a-node/) and wait until your height matches
+   the public RPC.
+
+2. **Create a dedicated key.** In [Boing Express](https://boing.express), create a new wallet for the validator
+   (don't use your everyday wallet). Copy its **AccountId** and use **Reveal private key** to get the 32-byte
+   secret.
+
+3. **Fund it.** The bond is 100 BOING, plus about 1 BOING per transaction for fees. The
+   [faucet](https://boing.network/faucet) sends 20 BOING per request, so a few requests cover it. Ask in
+   [Discord](https://discord.gg/K3w9nbUw4N) if you need help.
+
+4. **Restart the node as a validator.** Put the key in an env file only you can read, never on the command line:
+
+   ```bash title="validator.env"
+   BOING_CHAIN_ID=6913
+   BOING_VALIDATOR_SET=open
+   BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400
+   BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
+   BOING_VALIDATOR_KEY=<32-byte node key hex>
+   ```
+
+   ```bash
+   chmod 600 validator.env
+   set -a; . ./validator.env; set +a
+   ./boing-node --validator \
+     --data-dir ./boing-data \
+     --p2p-listen /ip4/0.0.0.0/tcp/4001 \
+     --bootnodes /ip4/169.155.48.188/tcp/4001 \
+     --rpc-port 8545
+   ```
+
+   With Docker, add `--env-file validator.env -e BOING_VALIDATOR=1` to the `docker run` command.
+
+5. **Register with the bond.** In Boing Express, open the **Validate** tab, paste your node key, check the node
+   id, and choose **Register validator (100 BOING bond)**. From the command line instead:
+
+   ```bash
+   # Uses BOING_VALIDATOR_KEY from validator.env. The same key pays the bond unless you
+   # pass a separate owner with --secret-file. Add --dry-run first to check the transaction.
+   ./boing validator register --rpc-url https://testnet-rpc.boing.network
+   ```
+
+   Your validator shows as **pending** until the next epoch boundary.
+
+6. **List your node.** Add it on the [operator registration](https://boing.network/testnet/register/operator)
+   page so it appears on the [operator dashboard](https://boing.network/testnet/operators).
+
+</Steps>
+
+## Stay healthy
+
+- Keep the node online and in sync, with TCP 4001 reachable so peers can connect.
+- Upgrade promptly when a new `testnet-v*` release is announced. Consensus changes have an activation height,
+  and nodes that miss the upgrade fork off at that height.
+- Check your status any time:
+
+  ```bash
+  ./boing validator status --node <node id> --rpc-url https://testnet-rpc.boing.network
+  ```
+
+  It shows status, uptime, missed and scheduled proposals, bond, and the jail release height.
+
+## If you get jailed
+
+Wait for the 500-block cooldown, fix whatever took the node offline, then:
+
+```bash
+# With validator.env loaded (add --secret-file if a separate owner paid the bond)
+./boing validator unjail --rpc-url https://testnet-rpc.boing.network --dry-run
+./boing validator unjail --rpc-url https://testnet-rpc.boing.network
+```
+
+The Boing Express **Validate** tab has an **Unjail** button too. You rejoin at the next epoch boundary.
+
+## Leave the set
+
+Choose **Deregister** in the Validate tab (or run `boing validator deregister`). You stay in the set until the
+next boundary, so keep the node online until then. The bond unlocks about 100 blocks later; claim it with
+**Claim unbond** (`boing validator claim-unbond`).
+
+## Keep your key safe
+
+Store `BOING_VALIDATOR_KEY` in a file with mode `600`. Never put it in shell history, a repository, or a chat. If
+you think it leaked, deregister and report it on Discord.
+
+Full reference, including the planned stake-weighted mode:
+[TESTNET-VALIDATOR-GUIDE.md](https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET-VALIDATOR-GUIDE.md).

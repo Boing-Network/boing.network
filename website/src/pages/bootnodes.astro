@@ -12,7 +12,9 @@ import {
   TESTNET_NODE_RELEASE,
 } from '../config/testnet';
 
-const joinPeer = `export BOING_CHAIN_ID=${TESTNET_CHAIN_ID}
+const joinPeer = `# These four settings must match the public nodes (the node applies the rest of the testnet preset)
+export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
+       BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
 ./boing-node \\
   --data-dir ./boing-data \\
   --p2p-listen /ip4/0.0.0.0/tcp/4001 \\

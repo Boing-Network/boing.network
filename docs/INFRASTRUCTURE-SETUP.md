@@ -114,7 +114,7 @@ Save this IP — Bootnode 2 will need it. Example: `73.84.106.121`.
 
 ## Step 2: Primary Machine — Cloudflare Tunnel
 
-**Important:** A “custom domain” on Cloudflare **Pages** or a random **DNS** record is **not** enough — JSON-RPC needs **POST** to your node. Use a **Cloudflare Tunnel** public hostname `testnet-rpc.boing.network` → `http://127.0.0.1:8545`. See **[Cloudflare tunnel vs Pages-only DNS (HTTP 405)](#cloudflare-tunnel-vs-pages-only-dns-http-405)** below and run `node scripts/check-cloudflared-alignment.mjs` after editing `%USERPROFILE%\.cloudflared\config.yml` (or `~/.cloudflared/config.yml`).
+**Important:** A “custom domain” on Cloudflare **Pages** or a random **DNS** record is **not** enough — JSON-RPC needs **POST** to your node. Use a **Cloudflare Tunnel** on a **private hostname you own** (for example `rpc.example.com`) → `http://127.0.0.1:8545`. Never use `testnet-rpc.boing.network` here; that hostname belongs to the public Worker. See **[Public RPC edge vs home tunnel (HTTP 405 / 530)](#public-rpc-edge-vs-home-tunnel-http-405--530)** below and run `node scripts/check-cloudflared-alignment.mjs` after editing `%USERPROFILE%\.cloudflared\config.yml` (or `~/.cloudflared/config.yml`).
 
 In a **second terminal** on the primary:
 
@@ -130,7 +130,7 @@ scripts\start-cloudflare-tunnel.bat
 .cloudflared/cloudflared tunnel --config ~/.cloudflared/config.yml run boing-testnet-rpc
 ```
 
-Ensure your Cloudflare tunnel config routes `testnet-rpc.boing.network` to `http://127.0.0.1:8545`.
+Ensure your Cloudflare tunnel config routes **your private hostname** to `http://127.0.0.1:8545`.
 
 **Verify RPC:**
 

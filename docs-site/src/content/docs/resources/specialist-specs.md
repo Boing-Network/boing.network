@@ -1,27 +1,29 @@
 ---
-title: Specialist specs
-description: Pointers to monorepo Markdown SoTs — not mirrored into Starlight.
+title: Specifications
+description: The detailed reference documents for Boing Network, kept in the GitHub repository.
 ---
 
-This site stays short and navigable. When you need exhaustive tables, encoding layouts, or operator checklists, use the monorepo (and PDFs where generated).
+The pages on this site are guides. When you need every field, byte layout, or operator step, use these reference
+documents in the [GitHub repository](https://github.com/Boing-Network/boing.network/tree/main/docs). The
+[full index](https://github.com/Boing-Network/boing.network/blob/main/docs/README.md) lists all of them.
 
-## Highest-traffic SoTs
+## Most used
 
-| Topic | Path |
-|-------|------|
-| Docs index | [docs/README.md](https://github.com/Boing-Network/boing.network/blob/main/docs/README.md) |
-| RPC methods | [docs/RPC-API-SPEC.md](https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md) |
-| Tx / block encoding | [docs/BOING-SIGNED-TRANSACTION-ENCODING.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-SIGNED-TRANSACTION-ENCODING.md) |
-| Environment variables | [docs/ENVIRONMENT-VARIABLES.md](https://github.com/Boing-Network/boing.network/blob/main/docs/ENVIRONMENT-VARIABLES.md) |
-| dApp integration | [docs/BOING-DAPP-INTEGRATION.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-DAPP-INTEGRATION.md) |
-| Chain metadata JSON | [docs/chain-metadata.json](https://github.com/Boing-Network/boing.network/blob/main/docs/chain-metadata.json) |
-| L1 media blobs | [docs/BOING-L1-MEDIA-BLOBS.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-L1-MEDIA-BLOBS.md) |
-| Brand / messaging | [BRAND.md](https://github.com/Boing-Network/boing.network/blob/main/BRAND.md) |
+| Topic | Document |
+|-------|----------|
+| All JSON-RPC methods | [RPC-API-SPEC.md](https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md) |
+| Transaction and block encoding | [BOING-SIGNED-TRANSACTION-ENCODING.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-SIGNED-TRANSACTION-ENCODING.md) |
+| Building a dApp | [BOING-DAPP-INTEGRATION.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-DAPP-INTEGRATION.md) |
+| RPC error codes | [BOING-RPC-ERROR-CODES-FOR-DAPPS.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-RPC-ERROR-CODES-FOR-DAPPS.md) |
+| Environment variables | [ENVIRONMENT-VARIABLES.md](https://github.com/Boing-Network/boing.network/blob/main/docs/ENVIRONMENT-VARIABLES.md) |
+| Running a validator | [TESTNET-VALIDATOR-GUIDE.md](https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET-VALIDATOR-GUIDE.md) |
+| L1 media blobs | [BOING-L1-MEDIA-BLOBS.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-L1-MEDIA-BLOBS.md) |
+| Native DEX | [BOING-NATIVE-DEX-CAPABILITY.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-NATIVE-DEX-CAPABILITY.md) |
+| Quality Gate rules | [QA-GATE-RULES.md](https://github.com/Boing-Network/boing.network/blob/main/docs/QA-GATE-RULES.md) |
+| Chain metadata (JSON) | [chain-metadata.json](https://github.com/Boing-Network/boing.network/blob/main/docs/chain-metadata.json) |
 
-## Website deployment
+## Other formats
 
-Pages projects, D1, and domain notes: [docs/WEBSITE-AND-DEPLOYMENT.md](https://github.com/Boing-Network/boing.network/blob/main/docs/WEBSITE-AND-DEPLOYMENT.md) (includes `docs.boing.network` / `boing-docs`).
-
-## On-site marketing docs
-
-`https://boing.network/docs` remains a separate single-page marketing docs experience. Prefer **this** Starlight site for left-nav reading; prefer PDFs / GitHub for printable or specialist depth.
+- Printable PDFs: [PDF downloads](/resources/pdfs/)
+- OpenAPI for the RPC: `GET /openapi.json` on any node, or [docs/openapi](https://github.com/Boing-Network/boing.network/tree/main/docs/openapi)
+- Brand and naming: [BRAND.md](https://github.com/Boing-Network/boing.network/blob/main/BRAND.md)

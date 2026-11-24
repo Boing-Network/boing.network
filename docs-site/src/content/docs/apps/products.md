@@ -30,4 +30,4 @@ description: How the three product surfaces map onto public testnet RPC and each
 |------|--------|
 | Testnet only for production apps today | Mainnet 6914 not live |
 | One RPC snapshot | Align DEX UI to `boing_getNetworkInfo` + factory-scoped list methods |
-| PDFs & long specs | Stay on [boing.network/pdfs](https://boing.network/pdfs/) and GitHub `docs/` — this site summarizes |
+| Long specs | [PDF library](/resources/pdfs/) and [specifications](/resources/specialist-specs/) |

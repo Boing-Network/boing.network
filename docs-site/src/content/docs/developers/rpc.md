@@ -1,6 +1,6 @@
 ---
 title: JSON-RPC
-description: Public Boing JSON-RPC endpoint, discovery, and method groups — audited against boing-node.
+description: The public Boing JSON-RPC endpoint, how to discover methods, and the main method groups.
 ---
 
 ## Endpoint
@@ -13,11 +13,11 @@ description: Public Boing JSON-RPC endpoint, discovery, and method groups — au
 | Batching | Supported (`jsonrpc_batch_max` reported on network info; commonly **32**) |
 | WebSocket | `/ws` with `newHeads` subscribe handshake (see `developer.websocket`) |
 
-Browser apps that call RPC **directly** need correct **CORS** on the gateway; marketing/explorer apps often proxy same-origin instead.
+Browser apps that call the RPC directly depend on the gateway's CORS settings. If a browser blocks your requests, route them through a same-origin proxy on your own site.
 
 ## Discover what the node implements
 
-Do not hardcode a method list forever. Ask the node:
+Ask the node what it supports instead of hardcoding a method list:
 
 | Method | Returns |
 |--------|---------|
@@ -26,7 +26,7 @@ Do not hardcode a method list forever. Ask the node:
 | `boing_getRpcOpenApi` | OpenAPI document |
 | HTTP | `GET /openapi.json`, `GET /.well-known/boing-rpc` |
 
-In `crates/boing-node/src/rpc.rs`, `BOING_RPC_SUPPORTED_METHODS` is the compile-time list (on the order of **75** methods). A unit test fails if `docs/RPC-API-SPEC.md` omits any entry — that Markdown file remains the **wire-level SoT**, not this Starlight site.
+The node implements over 100 `boing_*` methods. [RPC-API-SPEC.md](https://github.com/Boing-Network/boing.network/blob/main/docs/RPC-API-SPEC.md) documents every one of them with exact parameters and results; a test in the node fails if a method is missing from it.
 
 ## Method groups (orientation)
 

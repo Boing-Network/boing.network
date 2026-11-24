@@ -1,0 +1,50 @@
+---
+title: Get started
+description: Set up a wallet, get testnet BOING, and make your first RPC call on the Boing public testnet.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+This page takes you from nothing to a funded testnet wallet in a few minutes. No node is needed.
+
+<Steps>
+
+1. **Install the wallet.** Add [Boing Express](https://boing.express) to Chrome and create or import an account.
+   Your address is a 32-byte AccountId, shown as `0x` followed by 64 hex characters.
+   The wallet uses the public testnet RPC (`https://testnet-rpc.boing.network/`) by default.
+
+2. **Get testnet BOING.** Paste your address into the [faucet](https://boing.network/faucet).
+
+3. **Look around the chain.** Open [Boing Observer](https://boing.observer) to see blocks, accounts, tokens, and
+   Quality Gate outcomes. Search for your address to see the faucet transfer.
+
+4. **Try an app.** [Boing Finance](https://boing.finance) has swaps, pools, tokens, and NFTs on chain 6913.
+   Connect with Boing Express.
+
+5. **Optional: join the testnet portal.** Register and track quests on the [testnet portal](https://boing.network/testnet).
+
+</Steps>
+
+<Aside type="tip" title="Wallet version">
+Use Boing Express **0.1.26** or newer. Versions older than **0.1.18** sign with an outdated format and their
+transactions fail.
+</Aside>
+
+## Make your first RPC call
+
+You can read the chain with plain HTTP. This asks the public node for its network info:
+
+```bash
+curl -sS https://testnet-rpc.boing.network/ \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"boing_getNetworkInfo","params":[]}'
+```
+
+Check that `chain_id` is `6913`. The response also has the current `head_height`, activation heights, and
+`client_hints` with the recommended wallet and SDK versions.
+
+## Where to go next
+
+- Building an app? Start with [JSON-RPC](/developers/rpc/) and the [SDK](/developers/sdk/).
+- Want to run your own node? Follow [Run a node](/nodes/run-a-node/).
+- Curious how it works? Read [What is Boing](/start/what-is-boing/).

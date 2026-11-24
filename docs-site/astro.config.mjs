@@ -8,7 +8,7 @@ export default defineConfig({
     starlight({
       title: 'Boing Network Docs',
       description:
-        'Developer and operator documentation for Boing Network. Public testnet; mainnet not live. Quality, enforced by the protocol.',
+        'Guides for using, building on, and running nodes for the Boing Network public testnet. Mainnet is not live.',
       favicon: '/favicon.svg',
       logo: {
         src: './src/assets/logo.svg',
@@ -46,8 +46,28 @@ export default defineConfig({
           label: 'Start here',
           items: [
             { label: 'Overview', slug: '' },
-            { label: 'What is Boing', slug: 'start/what-is-boing' },
             { label: 'Get started', slug: 'start/get-started' },
+            { label: 'What is Boing', slug: 'start/what-is-boing' },
+            { label: 'Join testnet', slug: 'testnet/join' },
+          ],
+        },
+        {
+          label: 'Build apps',
+          items: [
+            { label: 'JSON-RPC', slug: 'developers/rpc' },
+            { label: 'SDK', slug: 'developers/sdk' },
+            { label: 'Wallet & dApps', slug: 'developers/wallet-dapps' },
+            { label: 'Express, Finance, Observer', slug: 'apps/products' },
+          ],
+        },
+        {
+          label: 'Run a node',
+          items: [
+            { label: 'Run a full node', slug: 'nodes/run-a-node' },
+            { label: 'Become a validator', slug: 'nodes/validator' },
+            { label: 'Bootnodes', slug: 'nodes/bootnodes' },
+            { label: 'Troubleshooting', slug: 'nodes/troubleshooting' },
+            { label: 'Host public RPC', slug: 'testnet/operators' },
           ],
         },
         {
@@ -61,31 +81,10 @@ export default defineConfig({
           ],
         },
         {
-          label: 'Developers',
+          label: 'Reference',
           items: [
-            { label: 'JSON-RPC', slug: 'developers/rpc' },
-            { label: 'SDK', slug: 'developers/sdk' },
-            { label: 'Wallet & dApps', slug: 'developers/wallet-dapps' },
-          ],
-        },
-        {
-          label: 'Apps',
-          items: [
-            { label: 'Express, Finance, Observer', slug: 'apps/products' },
-          ],
-        },
-        {
-          label: 'Testnet & ops',
-          items: [
-            { label: 'Join testnet', slug: 'testnet/join' },
-            { label: 'Operators', slug: 'testnet/operators' },
-          ],
-        },
-        {
-          label: 'Resources',
-          items: [
+            { label: 'Specifications', slug: 'resources/specialist-specs' },
             { label: 'PDF downloads', slug: 'resources/pdfs' },
-            { label: 'Specialist specs', slug: 'resources/specialist-specs' },
           ],
         },
       ],
