@@ -13,6 +13,7 @@
     "embed-fungible-hex": "node scripts/embed-reference-fungible-template-hex.mjs",
     "embed-nft-hex": "node scripts/embed-reference-nft-collection-template-hex.mjs",
     "embed-multi-token-hex": "node scripts/embed-reference-multi-token-hex.mjs",
+    "embed-nft-v4-hex": "node scripts/embed-reference-nft-v4-hex.mjs",
     "generate-operator-key": "node scripts/generate-operator-key.mjs",
     "probe-rpc": "node scripts/probe-rpc.mjs",
     "prepublishOnly": "npm run build"

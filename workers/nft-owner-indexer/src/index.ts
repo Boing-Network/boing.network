@@ -21,7 +21,7 @@ import {
 } from '@boing-network/boing-sdk';
 import { handleOptions, jsonRes, normalizeHex64, parseCorsOrigins, zeros32 } from './cors.js';
 import { extractNftEventsFromBlock } from './extract.js';
-import { readCollectionAdmin, type StorageReader } from './admin.js';
+import { isV4Collection, readCollectionAdmin, type CodeReader, type StorageReader } from './admin.js';
 import { reconcileGapRangesForWindow } from './gaps.js';
 import {
   getOwnershipStats,
@@ -193,8 +193,12 @@ async function indexHeightRange(
       }
     }
 
-    const primed = await extractWithOwnerLookup(db, bundle.block, height, (c, k) =>
-      client.getContractStorage(c, k)
+    const primed = await extractWithOwnerLookup(
+      db,
+      bundle.block,
+      height,
+      (c, k) => client.getContractStorage(c, k),
+      (c) => client.getContractCode(c)
     );
     if (primed.length === 0) {
       pendingEmpty.push({ height, blockHash, parentHash });
@@ -265,14 +269,21 @@ async function extractWithOwnerLookup(
   db: D1Database,
   block: unknown,
   height: number,
-  readStorage: StorageReader
+  readStorage: StorageReader,
+  readCode: CodeReader
 ): Promise<ReturnType<typeof extractNftEventsFromBlock>> {
   const cache = new Map<string, string | null>();
   const admins = new Map<string, string | null>();
+  const v4 = new Map<string, boolean>();
 
   // Discover candidate events with empty prior so we know which tokens and collections to hydrate.
   const preliminary = extractNftEventsFromBlock(block, height, () => null);
   for (const e of preliminary) {
+    if (!v4.has(e.collectionHex)) {
+      v4.set(e.collectionHex, await isV4Collection(readCode, e.collectionHex));
+    }
+    // v4 receipts are read from logs: no admin or prior-owner lookups needed.
+    if (v4.get(e.collectionHex)) continue;
     if (!admins.has(e.collectionHex)) {
       admins.set(e.collectionHex, await readCollectionAdmin(readStorage, e.collectionHex));
     }
@@ -288,7 +299,8 @@ async function extractWithOwnerLookup(
     block,
     height,
     (c, t) => cache.get(`${c}:${t}`) ?? null,
-    (c) => admins.get(c) ?? null
+    (c) => admins.get(c) ?? null,
+    (c) => v4.get(c) === true
   );
 }
 
