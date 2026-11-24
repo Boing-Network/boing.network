@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`assertCallEffect`** (`callEffect.ts`): waits for the receipt (`waitForReceipt`), requires `success: true`, then runs a state check, throwing `CallEffectError` with kind `timeout`, `reverted` or `no_effect` (a `STOP` that committed but changed nothing). `referenceNftOwnedBy(client, collection, tokenId, owner)` is a ready-made check for NFT transfers and mints.
 - **Reference NFT collection template v4** — `referenceNftV4.ts`: faults on every failed check, logs every change, approvals, `transfer_admin`, metadata freezing and collection reads. Selectors `0x07`–`0x11` with encoders (`encodeReferenceNft{Approve,SetApprovalForAll,GetApproved,IsApprovedForAll,Admin,TransferAdmin,FreezeMetadata,FreezeAllMetadata,MetadataHash,TotalMinted,IsMetadataFrozen}Calldata`), `decodeReferenceNftV4Log`, `referenceNftV4OwnershipChanges`, slot keys, storage reads (`fetchReferenceNftV4Token`, `fetchReferenceNftV4CollectionInfo`, `fetchReferenceNftV4IsApprovedForAll`), pinned `DEFAULT_REFERENCE_NFT_V4_{DEPLOY,RUNTIME}_BYTECODE_HEX`, `isReferenceNftV4Bytecode`, `buildReferenceNftV4DeployMetaTx`. Opt-in: `resolveReferenceNftCollectionTemplateBytecodeHex` still returns v3. Regenerate hex with `npm run embed-nft-v4-hex`. See [BOING-REFERENCE-NFT.md](../docs/BOING-REFERENCE-NFT.md) § Template v4.
 
 ## [0.5.41] - 2026-11-09
