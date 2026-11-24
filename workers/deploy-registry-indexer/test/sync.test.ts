@@ -4,7 +4,7 @@ import { syncDeployRegistry } from '../src/index';
 /** Minimal in-memory D1 covering only the statements the indexer issues. */
 function fakeD1() {
   const state = new Map<string, string>();
-  const stats = { writes: 0, inserts: 0 };
+  const stats = { writes: 0, inserts: 0, deletedFrom: [] as number[] };
   const keyFromSql = (sql: string) => /VALUES \('(\w+)'/.exec(sql)?.[1];
   function stmt(sql: string, args: unknown[] = []) {
     const s = {
@@ -21,6 +21,8 @@ function fakeD1() {
       if (/INSERT INTO ingest_state/.test(sql)) {
         state.set(keyFromSql(sql)!, String(args[0]));
         stats.writes += 1;
+      } else if (/DELETE FROM contract_deployments/.test(sql)) {
+        stats.deletedFrom.push(args[0] as number);
       } else if (/INSERT OR IGNORE INTO contract_deployments/.test(sql)) {
         stats.inserts += 1;
         return { meta: { changes: 1 } };
@@ -42,7 +44,12 @@ function fakeD1() {
 const OVER = 'Upstream RPC response exceeded gateway limit (6291456 bytes).';
 type Behavior = 'ok' | 'over' | 'http503' | 'timeout';
 
-function installGateway(tip: number, behave: (h: number) => Behavior) {
+function installGateway(
+  tip: number,
+  behave: (h: number) => Behavior,
+  hashOf: (h: number) => string = (h) => `h${h}`,
+  parentOf?: (h: number) => string,
+) {
   const calls: number[] = [];
   vi.stubGlobal(
     'fetch',
@@ -56,7 +63,8 @@ function installGateway(tip: number, behave: (h: number) => Behavior) {
       if (b === 'over') return rpc({ error: { code: -32000, message: OVER } });
       if (b === 'http503') return new Response('error code: 1102', { status: 503 });
       if (b === 'timeout') throw new Error('fetch failed');
-      return rpc({ result: { hash: `h${h}`, header: { height: h }, transactions: [] } });
+      const header = parentOf ? { height: h, parent_hash: parentOf(h) } : { height: h };
+      return rpc({ result: { hash: hashOf(h), header, transactions: [] } });
     }),
   );
   return calls;
@@ -99,7 +107,7 @@ describe('syncDeployRegistry', () => {
     const writesAfterFirst = d.stats.writes;
     calls.length = 0;
     const out = await syncDeployRegistry(mkEnv(d.db));
-    expect(calls).toEqual([]); // at tip: no block requests at all
+    expect(calls).toEqual([1322]); // at tip: only the reorg probe of the newest indexed block
     expect(out.indexedBlocks).toBe(0);
     // only the last_sync telemetry row is written; cursor and skip list are untouched
     expect(d.stats.writes - writesAfterFirst).toBe(1);
@@ -127,5 +135,48 @@ describe('syncDeployRegistry', () => {
     expect(d.state.get('skipped_blocks')).toBeUndefined();
     expect(JSON.parse(d.state.get('last_sync')!).ok).toBe(false);
   });
-});
 
+  it('rewinds to the fork point, deletes stale rows and re-indexes the new branch', async () => {
+    const d = fakeD1();
+    d.state.set('next_height', '100');
+    installGateway(109, () => 'ok');
+    await syncDeployRegistry(mkEnv(d.db));
+    expect(d.state.get('next_height')).toBe('110');
+
+    // Heights >= 105 are replaced by a new branch; tip grows to 111.
+    const fork = (h: number) => (h >= 105 ? `b${h}` : `h${h}`);
+    const calls = installGateway(111, () => 'ok', fork, (h) => fork(h - 1));
+    const out = await syncDeployRegistry(mkEnv(d.db));
+    expect(out.reorg).toEqual({ from: 110, to: 105, resolved: true });
+    expect(d.stats.deletedFrom).toEqual([105]);
+    expect(out.nextHeight).toBe(112);
+    // Probes walked 109..104, then indexing restarted at 105.
+    expect(calls.slice(0, 6)).toEqual([109, 108, 107, 106, 105, 104]);
+    const ring = JSON.parse(d.state.get('recent_hashes')!) as { height: number; hash: string }[];
+    expect(ring.find((e) => e.height === 107)?.hash).toBe('b107');
+    expect(ring.find((e) => e.height === 104)?.hash).toBe('h104');
+  });
+
+  it('does nothing extra when the newest indexed block is still canonical', async () => {
+    const d = fakeD1();
+    d.state.set('next_height', '100');
+    installGateway(104, () => 'ok');
+    await syncDeployRegistry(mkEnv(d.db));
+    installGateway(106, () => 'ok', undefined, (h) => `h${h - 1}`);
+    const out = await syncDeployRegistry(mkEnv(d.db));
+    expect(out.reorg).toBeUndefined();
+    expect(d.stats.deletedFrom).toEqual([]);
+    expect(out.nextHeight).toBe(107);
+  });
+
+  it('stops before a block whose parent contradicts the indexed chain', async () => {
+    const d = fakeD1();
+    d.state.set('next_height', '100');
+    installGateway(102, () => 'ok');
+    await syncDeployRegistry(mkEnv(d.db));
+    // The probe of 102 still matches, but 103's parent is a different 102 (reorg between calls).
+    installGateway(106, () => 'ok', undefined, (h) => (h === 103 ? 'other102' : `h${h - 1}`));
+    await expect(syncDeployRegistry(mkEnv(d.db))).rejects.toThrow(/parent hash mismatch at height 103/);
+    expect(d.state.get('next_height')).toBe('103');
+  });
+});

@@ -1,5 +1,5 @@
 ﻿import { describe, expect, it } from 'vitest';
-import { isOversizeRejection, mergeSkipped, parseSkipped, planChunk, MAX_SKIPPED_RECORDS } from '../src/ingest';
+import { isOversizeRejection, mergeSkipped, parseSkipped, planChunk, planReorgRewind, firstParentMismatch, MAX_SKIPPED_RECORDS } from '../src/ingest';
 
 const NOW = '2026-10-27T19:00:00.000Z';
 const ok = (v: unknown): PromiseFulfilledResult<unknown> => ({ status: 'fulfilled', value: v });
@@ -88,5 +88,30 @@ describe('mergeSkipped / parseSkipped', () => {
     expect(parseSkipped('not json')).toEqual([]);
     expect(parseSkipped('{"a":1}')).toEqual([]);
     expect(parseSkipped('[{"height":1,"reason":"r","at":"t"},{"nope":1}]')).toEqual([{ height: 1, reason: 'r', at: 't' }]);
+  });
+});
+
+describe('planReorgRewind', () => {
+  const ring = Array.from({ length: 40 }, (_, i) => ({ height: 100 + i, hash: `h${100 + i}` }));
+  it('returns null when the newest stored hash is canonical', async () => {
+    expect(await planReorgRewind(ring, 140, async (h) => `h${h}`)).toBeNull();
+  });
+  it('stops at the probe bound and resumes from the lowest stale height', async () => {
+    const plan = await planReorgRewind(ring, 140, async (h) => `x${h}`, 5);
+    expect(plan).toEqual({ rewindTo: 135, resolved: false, probes: 5 });
+  });
+  it('does not rewind when the chain cannot serve the height', async () => {
+    expect(await planReorgRewind(ring, 140, async () => null)).toBeNull();
+  });
+});
+
+describe('firstParentMismatch', () => {
+  it('flags the first block whose parent differs from the known hash below it', () => {
+    const blocks = [
+      { hash: 'a11', header: { height: 11, parent_hash: 'a10' } },
+      { hash: 'a12', header: { height: 12, parent_hash: 'zz' } },
+    ];
+    expect(firstParentMismatch([{ height: 10, hash: 'a10' }], blocks)).toBe(1);
+    expect(firstParentMismatch([], blocks.slice(0, 1))).toBe(-1);
   });
 });
