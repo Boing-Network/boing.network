@@ -106,6 +106,26 @@ pub trait BlockProvider: Send + Sync {
 
 type BlockSyncBehaviour = request_response::cbor::Behaviour<BlockRequest, BlockResponse>;
 
+/// Rate limit for block-sync failure warnings (the sync loop retries every couple of seconds).
+const SYNC_WARN_INTERVAL: Duration = Duration::from_secs(30);
+
+#[derive(Default)]
+struct SyncWarnThrottle {
+    last: Option<Instant>,
+}
+
+impl SyncWarnThrottle {
+    fn allow(&mut self, now: Instant) -> bool {
+        match self.last {
+            Some(t) if now.duration_since(t) < SYNC_WARN_INTERVAL => false,
+            _ => {
+                self.last = Some(now);
+                true
+            }
+        }
+    }
+}
+
 /// Extract a remote IP for the per-IP connection cap.
 ///
 /// Literal `/ip4` / `/ip6` components win. `/dns`, `/dns4`, and `/dns6` are resolved best-effort so
@@ -277,6 +297,25 @@ impl P2pNode {
         max_connections_per_ip: u32,
         gossip: GossipConfig,
     ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>), P2pError> {
+        Self::new_with_identity(
+            listen_addr,
+            block_provider,
+            max_connections_per_ip,
+            gossip,
+            None,
+        )
+    }
+
+    /// Like [`new_with_gossip`](Self::new_with_gossip) with a fixed libp2p identity (see
+    /// [`crate::identity::load_or_create`]). `None` generates a fresh identity, so the peer id
+    /// changes on every start.
+    pub fn new_with_identity(
+        listen_addr: &str,
+        block_provider: Option<Arc<dyn BlockProvider>>,
+        max_connections_per_ip: u32,
+        gossip: GossipConfig,
+        identity: Option<libp2p::identity::Keypair>,
+    ) -> Result<(Self, mpsc::UnboundedReceiver<P2pEvent>), P2pError> {
         // Validate listen multiaddrs *before* spawning so a bad `--p2p-listen` returns Err to the
         // caller instead of panicking inside the swarm task after this method has returned Ok.
         let listen_addrs = parse_listen_addrs(listen_addr)?;
@@ -291,7 +330,8 @@ impl P2pNode {
         // to the node (bounded channels can stall libp2p and break mesh + tx propagation).
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
-        let mut swarm = SwarmBuilder::with_new_identity()
+        let identity = identity.unwrap_or_else(libp2p::identity::Keypair::generate_ed25519);
+        let mut swarm = SwarmBuilder::with_existing_identity(identity)
             .with_tokio()
             .with_tcp(
                 Default::default(),
@@ -415,6 +455,11 @@ impl P2pNode {
             let mut redial = BootnodeRedial::new(Vec::new(), Instant::now());
             let mut gossip_limiter = PeerRateLimiter::new(&gossip);
             let report_validation = gossip.peer_scoring;
+            let mut sync_inflight: HashMap<u64, request_response::OutboundRequestId> =
+                HashMap::new();
+            let mut sync_inflight_ids: HashMap<request_response::OutboundRequestId, u64> =
+                HashMap::new();
+            let mut sync_warn = SyncWarnThrottle::default();
             let mut redial_tick = tokio::time::interval(REDIAL_TICK);
             redial_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
@@ -423,7 +468,29 @@ impl P2pNode {
                     cmd = cmd_rx.recv() => {
                         match cmd {
                             Some(Command::RequestBlock(peer, req)) => {
-                                swarm.behaviour_mut().block_sync.send_request(&peer, req);
+                                match req {
+                                    // The sync loop asks for the next height every tick; a large
+                                    // block can take far longer than a tick to arrive, so keep one
+                                    // request per height in flight instead of piling up copies.
+                                    BlockRequest::ByHeight(h) => {
+                                        if let std::collections::hash_map::Entry::Vacant(slot) =
+                                            sync_inflight.entry(h)
+                                        {
+                                            let id = swarm
+                                                .behaviour_mut()
+                                                .block_sync
+                                                .send_request(&peer, BlockRequest::ByHeight(h));
+                                            slot.insert(id);
+                                            sync_inflight_ids.insert(id, h);
+                                            debug!("P2P: block-sync request height={} peer={}", h, peer);
+                                        } else {
+                                            debug!("P2P: block-sync height={} already in flight", h);
+                                        }
+                                    }
+                                    other => {
+                                        swarm.behaviour_mut().block_sync.send_request(&peer, other);
+                                    }
+                                }
                             }
                             Some(Command::GetPeers(tx)) => {
                                 let peers: Vec<_> = swarm.connected_peers().cloned().collect();
@@ -963,13 +1030,51 @@ impl P2pNode {
                             }
                         } else if let SwarmEvent::Behaviour(BoingBehaviourEvent::BlockSync(
                             request_response::Event::Message {
-                                message: request_response::Message::Response { response, .. },
+                                peer,
+                                message: request_response::Message::Response { request_id, response },
                                 ..
                             },
                         )) = ev
                         {
+                            let height = sync_inflight_ids.remove(&request_id);
+                            if let Some(h) = height {
+                                sync_inflight.remove(&h);
+                            }
                             if let Some(block) = response.0 {
                                 let _ = event_tx.send(P2pEvent::BlockFetched(block));
+                            } else if sync_warn.allow(Instant::now()) {
+                                // Without this a node whose peer cannot serve a height just sits
+                                // at its tip with nothing in the log.
+                                boing_telemetry::component_warn(
+                                    "boing_p2p::swarm",
+                                    "p2p",
+                                    "block_sync_not_found",
+                                    format!(
+                                        "peer {peer} has no block at height {}",
+                                        height.map(|h| h.to_string()).unwrap_or_else(|| "?".into())
+                                    ),
+                                );
+                            }
+                        } else if let SwarmEvent::Behaviour(BoingBehaviourEvent::BlockSync(
+                            request_response::Event::OutboundFailure {
+                                peer, request_id, error, ..
+                            },
+                        )) = ev
+                        {
+                            let height = sync_inflight_ids.remove(&request_id);
+                            if let Some(h) = height {
+                                sync_inflight.remove(&h);
+                            }
+                            if sync_warn.allow(Instant::now()) {
+                                boing_telemetry::component_warn(
+                                    "boing_p2p::swarm",
+                                    "p2p",
+                                    "block_sync_request_failed",
+                                    format!(
+                                        "height {} from peer {peer}: {error}",
+                                        height.map(|h| h.to_string()).unwrap_or_else(|| "?".into())
+                                    ),
+                                );
                             }
                         } else if let SwarmEvent::Behaviour(BoingBehaviourEvent::BlockSync(
                             request_response::Event::Message {
