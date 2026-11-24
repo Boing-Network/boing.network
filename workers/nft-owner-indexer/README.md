@@ -95,6 +95,21 @@ curl -X POST -H "Authorization: Bearer $NFT_OWNER_SYNC_SECRET" \
 
 After a full rewind/wipe, re-run migrations are not required — delete D1 rows or recreate the DB, then backfill again.
 
+## Authorization replay (no-op transfers)
+
+The reference template (v1–v3) ends an unauthorized `transfer_nft` or `set_metadata_hash` with `STOP`,
+so its receipt says `success: true` although storage did not change. The indexer therefore replays the
+template's own rules before recording an event (`src/extract.ts`, `src/admin.ts`):
+
+- an owned token moves only when `tx.sender` is its current owner;
+- an unowned token (lazy mint) and `mint_batch` need the collection admin (read once per collection
+  from the template admin slot `0x00…e0` with `boing_getContractStorage`);
+- `set_metadata_hash` needs the admin or the current owner;
+- a contract whose admin slot is empty is not indexed as a reference collection.
+
+**After deploying this change, wipe and rebuild the D1 index** (see "Backfill existing history"): rows
+written by older builds may contain ownership from no-op transfers, and later owner checks build on them.
+
 ## Reorgs
 
 Same pattern as OBS-1 (`examples/observer-d1-worker`):

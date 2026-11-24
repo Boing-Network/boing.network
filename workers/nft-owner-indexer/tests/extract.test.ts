@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   SELECTOR_MINT_BATCH,
   encodeReferenceMintBatchCalldata,
+  encodeReferenceSetMetadataHashCalldata,
   encodeReferenceTransferNftCalldata,
   referenceNftTokenIdWordFromU64,
 } from '@boing-network/boing-sdk';
@@ -115,5 +116,65 @@ describe('normalizeHex64', () => {
     expect(normalizeHex64('047d1d1fed4f97408d42646e4350785fdbd50df89a704526e32e6372a4b7206a')).toBe(
       '0x047d1d1fed4f97408d42646e4350785fdbd50df89a704526e32e6372a4b7206a'
     );
+  });
+});
+
+describe('extractNftEventsFromBlock auth replay (no-op STOP calls)', () => {
+  const admin = '0x' + '33'.repeat(32);
+  const mallory = '0x' + '44'.repeat(32);
+  const ok = (n: number) => ({ tx_id: '0x' + n.toString(16).padStart(64, '0'), success: true });
+  const call = (sender: string, calldata: Uint8Array) => ({ sender, ...contractCallTx(calldata) });
+  const adminOf = () => admin;
+
+  it('ignores a transfer of an owned token by someone other than the owner', () => {
+    const steal = encodeReferenceTransferNftCalldata(mallory, id(1));
+    const block = { transactions: [call(mallory, steal)], receipts: [ok(1)] };
+    expect(extractNftEventsFromBlock(block, 50, () => alice, adminOf)).toHaveLength(0);
+  });
+
+  it('keeps a transfer sent by the current owner', () => {
+    const xfer = encodeReferenceTransferNftCalldata(bob, id(1));
+    const block = { transactions: [call(alice, xfer)], receipts: [ok(1)] };
+    expect(extractNftEventsFromBlock(block, 50, () => alice, adminOf)).toMatchObject([
+      { eventKind: 'transfer_nft', fromOwnerHex: alice, toOwnerHex: bob },
+    ]);
+  });
+
+  it('accepts sender as a 32-number byte array', () => {
+    const xfer = encodeReferenceTransferNftCalldata(bob, id(1));
+    const block = { transactions: [call(Array(32).fill(0x11) as unknown as string, xfer)], receipts: [ok(1)] };
+    expect(extractNftEventsFromBlock(block, 50, () => alice, adminOf)).toHaveLength(1);
+  });
+
+  it('lazy mint of an unowned token needs the admin', () => {
+    const mint = encodeReferenceTransferNftCalldata(mallory, id(9));
+    const byMallory = { transactions: [call(mallory, mint)], receipts: [ok(1)] };
+    const byAdmin = { transactions: [call(admin, mint)], receipts: [ok(1)] };
+    expect(extractNftEventsFromBlock(byMallory, 50, () => null, adminOf)).toHaveLength(0);
+    expect(extractNftEventsFromBlock(byAdmin, 50, () => null, adminOf)).toHaveLength(1);
+  });
+
+  it('applies in-block ownership: owner check uses the overlay after a same-block mint', () => {
+    const mint = encodeReferenceMintBatchCalldata(alice, [id(1)], [hash(1)]);
+    const steal = encodeReferenceTransferNftCalldata(mallory, id(1));
+    const block = { transactions: [call(admin, mint), call(mallory, steal)], receipts: [ok(1), ok(2)] };
+    const events = extractNftEventsFromBlock(block, 50, () => null, adminOf);
+    expect(events.map((e) => e.eventKind)).toEqual(['mint_batch']);
+  });
+
+  it('ignores mint_batch from a non-admin and contracts with no admin', () => {
+    const mint = encodeReferenceMintBatchCalldata(mallory, [id(1)], [hash(1)]);
+    const block = { transactions: [call(mallory, mint)], receipts: [ok(1)] };
+    expect(extractNftEventsFromBlock(block, 50, () => null, adminOf)).toHaveLength(0);
+    const byAdmin = { transactions: [call(admin, mint)], receipts: [ok(1)] };
+    expect(extractNftEventsFromBlock(byAdmin, 50, () => null, () => null)).toHaveLength(0);
+  });
+
+  it('ignores metadata writes from someone who is neither admin nor owner', () => {
+    const meta = encodeReferenceSetMetadataHashCalldata(id(1), hash(7));
+    const byMallory = { transactions: [call(mallory, meta)], receipts: [ok(1)] };
+    const byOwner = { transactions: [call(alice, meta)], receipts: [ok(1)] };
+    expect(extractNftEventsFromBlock(byMallory, 50, () => alice, adminOf)).toHaveLength(0);
+    expect(extractNftEventsFromBlock(byOwner, 50, () => alice, adminOf)).toHaveLength(1);
   });
 });
