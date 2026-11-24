@@ -1,19 +1,27 @@
-/* Boing Network docs — brand tokens from BRAND.md / BOING-DESIGN-SYSTEM.md */
-@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap');
+/* Boing Network docs: brand tokens from BRAND.md / BOING-DESIGN-SYSTEM.md */
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@500;700&family=Inter:wght@400;500;600;700&display=swap');
 @import './semantic-links.css';
+
+/* ---------- Tokens ---------- */
 
 :root {
   --boing-navy-950: #050a1a;
   --boing-navy-900: #0a1128;
   --boing-navy-800: #101a38;
   --boing-accent: #3b8cff;
-  --sl-color-accent: var(--boing-accent);
-  --sl-color-accent-high: #6aadff;
-  --sl-color-accent-low: #1a3a6e;
-  --sl-font: 'Comfortaa', system-ui, sans-serif;
+
+  /* Comfortaa is the brand face: keep it for headings and the site title.
+     Body copy uses Inter so long pages, tables and lists stay easy to read. */
+  --boing-font-display: 'Comfortaa', system-ui, sans-serif;
+  --sl-font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --sl-font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
   --font-sans: var(--sl-font);
   --font-mono: var(--sl-font-mono);
+
+  --sl-color-accent: var(--boing-accent);
+  --sl-color-accent-high: #6aadff;
+  --sl-color-accent-low: #1a3a6e;
+  --sl-content-width: 48rem;
 }
 
 :root[data-theme='dark'],
@@ -22,30 +30,125 @@
   --sl-color-bg-nav: var(--boing-navy-900);
   --sl-color-bg-sidebar: var(--boing-navy-900);
   --sl-color-hairline: #1a2748;
+  --sl-color-hairline-light: #22325a;
   --sl-color-text: #e8eefc;
-  --sl-color-text-accent: var(--boing-accent);
+  --sl-color-text-accent: #6aadff;
+  --boing-table-head: rgba(59, 140, 255, 0.08);
+  --boing-table-stripe: rgba(255, 255, 255, 0.025);
+}
+
+/* Light theme: darker link and code colors so they pass contrast on white. */
+:root[data-theme='light'] {
+  --sl-color-accent: #1f6fe5;
+  --sl-color-accent-high: #0b3d91;
+  --sl-color-accent-low: #dbe9ff;
+  --sl-color-text-accent: #1557c0;
+  --boing-table-head: rgba(31, 111, 229, 0.07);
+  --boing-table-stripe: rgba(10, 17, 40, 0.025);
+
+  --bn-link-docs: #1557c0;
+  --bn-link-docs-hover: #0b3d91;
+  --bn-link-code: #8a4b00;
+  --bn-link-pdf: #6b3fc6;
+  --bn-link-pdf-hover: #4f2a9c;
+  --bn-link-app: #0b7a5f;
+  --bn-link-app-hover: #075c47;
+}
+
+/* ---------- Typography ---------- */
+
+.site-title,
+.sl-markdown-content :is(h1, h2, h3),
+h1#_top,
+.hero h1 {
+  font-family: var(--boing-font-display);
+  letter-spacing: -0.01em;
 }
 
 .site-title {
   font-weight: 700;
 }
 
-/* Default markdown links = docs cyan until JS classifies PDF/app */
+.sl-markdown-content :is(h2) {
+  font-weight: 700;
+}
+
+.sl-markdown-content :is(h3, h4) {
+  font-weight: 600;
+}
+
+.sl-markdown-content {
+  line-height: 1.7;
+}
+
+/* Default markdown links use the docs color until JS classifies PDF/app links. */
 .sl-markdown-content a:not(.sl-link-button):not(.bn-link-pdf):not(.bn-link-app):not(.doc-link-pdf):not(.doc-link-app) {
-  color: var(--bn-link-docs, #5ba8ff);
-  text-decoration-color: rgba(91, 168, 255, 0.45);
+  color: var(--bn-link-docs);
+  text-decoration-color: color-mix(in srgb, var(--bn-link-docs) 45%, transparent);
   text-underline-offset: 0.15em;
 }
 
-.sl-markdown-content table {
-  font-size: 0.92rem;
+/* Inline code: softer chip that works on both themes. */
+.sl-markdown-content :not(pre) > code {
+  background: color-mix(in srgb, var(--bn-link-code) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bn-link-code) 20%, transparent);
+  padding: 0.1em 0.35em;
+  overflow-wrap: anywhere;
 }
 
-.status-banner {
-  margin: 0 0 1.25rem;
-  padding: 0.75rem 1rem;
+/* ---------- Tables ---------- */
+
+.sl-markdown-content table {
+  display: table;
+  width: 100%;
+  font-size: 0.92rem;
+  border-collapse: collapse;
+}
+
+.sl-markdown-content :is(th, td) {
+  padding: 0.55rem 0.8rem;
+  vertical-align: top;
+}
+
+.sl-markdown-content thead th {
+  background: var(--boing-table-head);
+  font-weight: 600;
+  text-align: start;
+}
+
+.sl-markdown-content tbody tr:nth-child(even) {
+  background: var(--boing-table-stripe);
+}
+
+/* Wide tables scroll inside their own box instead of the whole page on phones. */
+@media (max-width: 50rem) {
+  .sl-markdown-content table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* ---------- Splash page ---------- */
+
+.hero {
+  padding-block: 2.5rem 1.5rem;
+}
+
+.hero h1 {
+  font-size: clamp(2.25rem, 5vw, 3.25rem);
+}
+
+.hero img {
+  max-width: 12rem;
+  filter: drop-shadow(0 0 40px color-mix(in srgb, var(--boing-accent) 35%, transparent));
+}
+
+/* ---------- Asides and steps ---------- */
+
+.starlight-aside {
   border-radius: 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--boing-accent) 35%, transparent);
-  background: color-mix(in srgb, var(--boing-accent) 12%, transparent);
-  font-size: 0.95rem;
+}
+
+.sl-steps > li::before {
+  font-family: var(--boing-font-display);
 }

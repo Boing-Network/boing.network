@@ -4,9 +4,11 @@
 
 This folder is the **canonical map** of protocol docs. Website pages and PDFs are generated from a subset of these files — keep them aligned with what is actually shipped. The public left-nav docs site is **[docs.boing.network](https://docs.boing.network)** (Astro Starlight in [`docs-site/`](../docs-site/)): **authored** guides audited against the node/SDK/RPC — not a mirror of this folder. PDFs under `website/public/pdfs/` stay available.
 
-> 👋 **Everyday users:** start with [SIX-PILLARS.md](SIX-PILLARS.md), then the [Boing Express wallet](https://boing.express), [faucet](https://boing.network/faucet), and [Boing Observer explorer](https://boing.observer).
-> 🛠️ **Developers:** start with [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md), [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), and [boing-sdk](../boing-sdk/README.md).
-> 🛰️ **Operators:** start with [TESTNET.md](TESTNET.md), [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md), and [RUNBOOK.md](RUNBOOK.md).
+> **New here? Read [docs.boing.network](https://docs.boing.network) first.** It has short guides for each audience; this folder holds the full reference.
+>
+> 👋 **Everyday users:** [Get started](https://docs.boing.network/start/get-started/), then [SIX-PILLARS.md](SIX-PILLARS.md), the [Boing Express wallet](https://boing.express), [faucet](https://boing.network/faucet), and [Boing Observer explorer](https://boing.observer).
+> 🛠️ **Developers:** [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md), [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md), [RPC-API-SPEC.md](RPC-API-SPEC.md), and [boing-sdk](../boing-sdk/README.md).
+> 🛰️ **Node operators:** [Run a full node](https://docs.boing.network/nodes/run-a-node/), then [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md). Hosting public RPC: [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) and [RUNBOOK.md](RUNBOOK.md).
 
 Contributors: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
@@ -67,7 +69,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | Doc | What you get |
 |-----|----------------|
 | [BOING-DAPP-INTEGRATION.md](BOING-DAPP-INTEGRATION.md) | Connect `window.boing`, simulate, submit, native DEX |
-| [RPC-API-SPEC.md](RPC-API-SPEC.md) | **Source of truth** for the JSON-RPC surface (all 68 methods, errors, rejection reasons, DEX discovery, media blobs, HTTP probes); enforced by a unit test |
+| [RPC-API-SPEC.md](RPC-API-SPEC.md) | **Source of truth** for the JSON-RPC surface (every implemented method, errors, rejection reasons, DEX discovery, media blobs, HTTP probes); enforced by a unit test |
 | [TECHNICAL-SPECIFICATION.md](TECHNICAL-SPECIFICATION.md) | Crypto, bincode, VM, gas, QA rules |
 | [OPTIONAL-PRIORITY-FEES.md](OPTIONAL-PRIORITY-FEES.md) | Micro base fee (~0.00021 BOING/transfer) + optional priority tips |
 | [NATIVE-DENOMINATION.md](NATIVE-DENOMINATION.md) | 18-decimal ledger units, fee schedule, faucet amounts |
@@ -89,6 +91,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [BOING-LINKED-NFT-TOKEN.md](BOING-LINKED-NFT-TOKEN.md) | Enforced on-chain NFT↔token registry (live testnet AccountId, selectors `0xE0`–`0xE8`) |
 | [BOING-BUILDER-ATTESTATION.md](BOING-BUILDER-ATTESTATION.md) | On-chain builder attestation registry (live testnet AccountId, selectors `0xE0`–`0xE6`; builder signal, not companions) |
 | [E2-PARTNER-APP-NATIVE-BOING.md](E2-PARTNER-APP-NATIVE-BOING.md) | Partner native Boing apps |
+| [BOING-BASE-BRIDGE.md](BOING-BASE-BRIDGE.md) | Boing ↔ Base inventory-free bridge (shipped in code; not live until activated) |
 
 ### Native DEX and AMM
 
@@ -100,10 +103,6 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [NATIVE-AMM-CLI.md](NATIVE-AMM-CLI.md) | CLI helpers for native AMM |
 | [NATIVE-DEX-CUSTODY-ROUTER.md](NATIVE-DEX-CUSTODY-ROUTER.md) | Custody router for v8/v9 pools |
 | [AUDIT-61-PROTOCOL-SEMANTICS.md](AUDIT-61-PROTOCOL-SEMANTICS.md) | Audit #61 item 29 — why LP `min` / XOR allowance / custody `min_out=1` stay as-is |
-| [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md) | Audit #61 item 41 — quorum votes + consensus-tx activation plan |
-| [BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md) | M6 Nico checklist — Blake3 + governance heights (one-step flip) |
-| [LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md) | H2 residual — stake-mode liveness slash blocker + smallest patch path |
-| [WINDOWS-AUTHENTICODE.md](WINDOWS-AUTHENTICODE.md) | Hub Windows Authenticode secrets + readiness CI (no .pfx in repo) |
 | [NATIVE-LP-VAULT-V2.md](NATIVE-LP-VAULT-V2.md) | LP vault v2 (token-pair pools) |
 | [NATIVE-DEX-FACTORY.md](NATIVE-DEX-FACTORY.md) | Pair directory VM |
 | [NATIVE-DEX-CREATE-AND-SEED.md](NATIVE-DEX-CREATE-AND-SEED.md) | CREATE2 create-and-seed factory (one-approval pool create) |
@@ -123,7 +122,7 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 |-----|----------------|
 | [TESTNET-RPC-INFRA.md](TESTNET-RPC-INFRA.md) | **Operator hub:** go-live order, env matrix, verification |
 | [TESTNET.md](TESTNET.md) | Join testnet; **§9.1** node zip release checklist |
-| [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md) | Open validator registration, bond, liveness |
+| [TESTNET-VALIDATOR-GUIDE.md](TESTNET-VALIDATOR-GUIDE.md) | **Run a node:** hardware, binaries, sync settings, open validator registration, bond, liveness |
 | [PUBLIC-RPC-WAF-GUIDANCE.md](PUBLIC-RPC-WAF-GUIDANCE.md) | WAF / edge guidance for public RPC |
 | [RUNBOOK.md](RUNBOOK.md) §9 | Operations watchlist (1500 soak, gateway edge, CF Free limits) |
 | [HANDOFF_BLOB_DOWNLOAD_ACL.md](HANDOFF_BLOB_DOWNLOAD_ACL.md) | Blob download ACL (Phase 34) |
@@ -140,6 +139,15 @@ PDFs on the site (`website/public/pdfs/`) are built with `npm run build:pdfs` in
 | [NATIVE-DEX-FULL-STACK-OUTPUT.md](NATIVE-DEX-FULL-STACK-OUTPUT.md) | `deploy-native-dex-full-stack` JSON reference |
 | [WEBSITE-AND-DEPLOYMENT.md](WEBSITE-AND-DEPLOYMENT.md) | boing.network site deploy |
 | [PLAYWRIGHT-E2E-CI-OPS.md](PLAYWRIGHT-E2E-CI-OPS.md) | Extension E2E CI limits |
+| [WINDOWS-AUTHENTICODE.md](WINDOWS-AUTHENTICODE.md) | Hub Windows Authenticode secrets + readiness CI (no .pfx in repo) |
+
+### Activations (planned and gated)
+
+| Doc | What you get |
+|-----|----------------|
+| [GOVERNANCE-CONSENSUS-TX-ACTIVATION.md](GOVERNANCE-CONSENSUS-TX-ACTIVATION.md) | Audit #61 item 41 — quorum votes + consensus-tx activation plan |
+| [BLAKE3-AND-GOVERNANCE-ACTIVATION.md](BLAKE3-AND-GOVERNANCE-ACTIVATION.md) | M6 checklist — Blake3 + governance heights (one-step flip) |
+| [LIVENESS-SLASH-ACTIVATION.md](LIVENESS-SLASH-ACTIVATION.md) | H2 residual — stake-mode liveness slash blocker + smallest patch path |
 
 ---
 

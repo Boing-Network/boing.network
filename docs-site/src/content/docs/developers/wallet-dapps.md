@@ -10,7 +10,7 @@ description: Connect via window.boing, submit Boing-native transactions, and avo
 Typical dApp flow:
 
 1. Detect `window.boing`.
-2. Request accounts (`boing_requestAccounts` and related methods — see Express `docs/WALLET_CONNECTION_AND_API.md`).
+2. Request accounts with `boing_requestAccounts` (full provider API: [WALLET_CONNECTION_AND_API.md](https://github.com/Boing-Network/boing.express/blob/main/docs/WALLET_CONNECTION_AND_API.md)).
 3. Build payload with `@boing-network/boing-sdk`.
 4. Simulate with `boing_simulateTransaction` / `boing_simulateContractCall` when useful.
 5. Submit via the wallet (`boing_sendTransaction` path) so the user signs locally.
@@ -25,4 +25,4 @@ If the browser talks to `https://testnet-rpc.boing.network/` directly, preflight
 
 ## Mainnet guardrails
 
-Express keeps mainnet **off** until a distinct mainnet RPC URL is configured. Nodes on planned chain **6914** refuse to start without operator RPC auth and refuse faucet enablement (see operator runbooks).
+Express keeps mainnet **off** until a distinct mainnet RPC URL is configured. Nodes on the planned mainnet chain **6914** refuse to start without operator RPC auth and never enable the faucet.

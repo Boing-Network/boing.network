@@ -1,0 +1,218 @@
+---
+title: Run a full node
+description: Download or build boing-node, connect to the Boing public testnet bootnode, and keep a full node in sync.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+A full node downloads every block from the network, checks it, and keeps its own copy of the chain. You can
+use it as a private RPC endpoint, and it is the first step to [becoming a validator](/nodes/validator/).
+
+## What you need
+
+| | Minimum | Recommended |
+|---|---|---|
+| CPU | 2 vCPU (x86_64 or arm64) | 4 vCPU |
+| Memory | 2 GB | 4 GB |
+| Disk | 10 GB SSD | 50 GB SSD (the chain keeps growing) |
+| Network | Outbound TCP to the bootnode | Public IPv4 with inbound **TCP 4001** open |
+
+Port **8545** (JSON-RPC) listens on all interfaces. Keep it closed in your firewall unless you mean to serve RPC to
+other people.
+
+## Install and start
+
+<Steps>
+
+1. **Get the `boing-node` and `boing` binaries.**
+
+   <Tabs syncKey="install">
+   <TabItem label="Build from source">
+
+   Building `main` gets you every fix, including ones that landed after the latest release.
+
+   ```bash
+   # Ubuntu / WSL: sudo apt install -y build-essential pkg-config libssl-dev clang git
+   # Rust: https://rustup.rs
+   git clone https://github.com/Boing-Network/boing.network
+   cd boing.network
+   cargo build --release -p boing-node -p boing-cli
+   cp target/release/boing-node target/release/boing .
+   ```
+
+   </TabItem>
+   <TabItem label="Release zip">
+
+   Use **`testnet-v0.1.24`** or newer from [GitHub releases](https://github.com/Boing-Network/boing.network/releases).
+   Older releases fork from the chain at one of the activation heights (see [Troubleshooting](/nodes/troubleshooting/)).
+
+   ```bash
+   curl -sSLO https://github.com/Boing-Network/boing.network/releases/download/testnet-v0.1.24/release-linux-x86_64.zip
+   sha256sum release-linux-x86_64.zip
+   # testnet-v0.1.24 linux: c794228243e4f7308722e3f299b346e985c12ff3c82270b879ad4d0176bb54a0
+   unzip release-linux-x86_64.zip
+   mv boing-node-linux-x86_64 boing-node
+   mv boing-linux-x86_64 boing
+   chmod +x boing-node boing
+   ```
+
+   Other platforms: `release-macos-aarch64.zip` and `release-windows-x86_64.zip`. There is no `--version` flag;
+   run `./boing-node --help` to check the binary works.
+
+   </TabItem>
+   <TabItem label="Docker">
+
+   The image is built from source:
+
+   ```bash
+   git clone https://github.com/Boing-Network/boing.network
+   cd boing.network
+   docker build -t boing-node .
+   ```
+
+   </TabItem>
+   </Tabs>
+
+2. **Set the testnet consensus settings.** These four values must match the public nodes exactly. With
+   `BOING_CHAIN_ID=6913`, current builds apply the rest of the testnet rules (genesis, fee history, activation
+   heights) by themselves.
+
+   ```bash
+   export BOING_CHAIN_ID=6913
+   export BOING_VALIDATOR_SET=open
+   export BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400
+   export BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
+   ```
+
+   <Aside type="caution">
+   Don't set other consensus variables such as `BOING_VALIDATORS`, `BOING_MICRO_FEES_ACTIVATION_HEIGHT` or
+   `--network-fee-config`. A wrong value overrides the preset and your node stops at the first block it disagrees on.
+   </Aside>
+
+3. **Start the node and point it at the bootnode.**
+
+   <Tabs syncKey="install">
+   <TabItem label="Build from source">
+
+   ```bash
+   ./boing-node \
+     --data-dir ./boing-data \
+     --p2p-listen /ip4/0.0.0.0/tcp/4001 \
+     --bootnodes /ip4/169.155.48.188/tcp/4001 \
+     --rpc-port 8545
+   ```
+
+   </TabItem>
+   <TabItem label="Release zip">
+
+   ```bash
+   ./boing-node \
+     --data-dir ./boing-data \
+     --p2p-listen /ip4/0.0.0.0/tcp/4001 \
+     --bootnodes /ip4/169.155.48.188/tcp/4001 \
+     --rpc-port 8545
+   ```
+
+   </TabItem>
+   <TabItem label="Docker">
+
+   ```bash
+   docker run -d --name boing-node --restart unless-stopped \
+     -p 4001:4001 -p 127.0.0.1:8545:8545 \
+     -v boing-data:/data \
+     -e BOING_CHAIN_ID=6913 \
+     -e BOING_VALIDATOR_SET=open \
+     -e BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 \
+     -e BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640 \
+     -e BOING_BOOTNODES=/ip4/169.155.48.188/tcp/4001 \
+     boing-node
+   ```
+
+   </TabItem>
+   </Tabs>
+
+4. **Check that it is syncing.** Ask your node and the public node for their height. Your `head_height` should
+   climb and then stay within a few blocks of the public one.
+
+   ```bash
+   # Your node
+   curl -s -X POST http://127.0.0.1:8545 -H 'content-type: application/json' \
+     -d '{"jsonrpc":"2.0","id":1,"method":"boing_getSyncState","params":[]}'
+
+   # Public node
+   curl -s -X POST https://testnet-rpc.boing.network/ -H 'content-type: application/json' \
+     -d '{"jsonrpc":"2.0","id":1,"method":"boing_getSyncState","params":[]}'
+   ```
+
+   If you have the repository checked out, `npm run public-testnet-node-preflight` runs these checks for you
+   (local and public tip, bootnode reachability).
+
+</Steps>
+
+<Aside type="note" title="First sync">
+Blocks 1311 to 1317 hold large media uploads (up to about 160 MiB each on the wire). Expect the first sync to slow
+down there and to use a few hundred MB of extra memory. If the height stops moving, see
+[Troubleshooting](/nodes/troubleshooting/).
+</Aside>
+
+## Keep it running
+
+Run the node under a supervisor so it restarts after crashes and reboots. With Docker, `--restart unless-stopped`
+already does this. On Linux, a minimal systemd unit looks like this:
+
+```ini title="/etc/systemd/system/boing-node.service"
+[Unit]
+Description=Boing testnet full node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=boing
+Environment=BOING_CHAIN_ID=6913
+Environment=BOING_VALIDATOR_SET=open
+Environment=BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400
+Environment=BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
+ExecStart=/usr/local/bin/boing-node \
+  --data-dir /var/lib/boing-node \
+  --p2p-listen /ip4/0.0.0.0/tcp/4001 \
+  --bootnodes /ip4/169.155.48.188/tcp/4001 \
+  --rpc-port 8545
+Restart=always
+RestartSec=5
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now boing-node
+journalctl -u boing-node -f
+```
+
+## What to monitor
+
+| Check | How |
+|-------|-----|
+| Process is up | `curl -fsS http://127.0.0.1:8545/live` |
+| Height keeps pace | `head_height` from `boing_health` or `boing_getSyncState`, compared with the public RPC |
+| Has peers | Set `BOING_RPC_READY_MIN_PEERS=1`; `curl -fsS http://127.0.0.1:8545/ready` then fails while the node has no peers |
+| Disk | Free space on the data directory |
+
+## Your data directory
+
+Everything the node stores lives in `--data-dir`. That includes `p2p_identity.key`, which keeps your peer id the
+same across restarts. Back the directory up, and delete `p2p_identity.key` only if you want a new peer id.
+
+To upgrade, stop the node, replace the binary, and start it again on the same data directory. Watch for new
+`testnet-v*` releases on [GitHub](https://github.com/Boing-Network/boing.network/releases) and the
+[Discord](https://discord.gg/K3w9nbUw4N).
+
+## Next steps
+
+- [Become a validator](/nodes/validator/)
+- [Bootnodes](/nodes/bootnodes/)
+- [Troubleshooting](/nodes/troubleshooting/)
+- Full reference: [TESTNET-VALIDATOR-GUIDE.md](https://github.com/Boing-Network/boing.network/blob/main/docs/TESTNET-VALIDATOR-GUIDE.md) and
+  [ENVIRONMENT-VARIABLES.md](https://github.com/Boing-Network/boing.network/blob/main/docs/ENVIRONMENT-VARIABLES.md)

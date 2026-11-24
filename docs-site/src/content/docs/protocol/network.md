@@ -16,7 +16,7 @@ Always treat **`boing_getNetworkInfo`** (and **`boing_health`**) as the live sou
 | Consensus model (reported) | `single_round_quorum_commit` |
 | Native symbol | **BOING**, 18 decimals |
 
-Mainnet **6914** is listed in `docs/chain-metadata.json` as **planned** with empty `rpc_urls`.
+Mainnet **6914** is listed in [chain-metadata.json](https://github.com/Boing-Network/boing.network/blob/main/docs/chain-metadata.json) as **planned**, with no RPC URLs yet.
 
 ## Tip fields
 
@@ -39,7 +39,7 @@ Reported by the public node at probe time:
 
 `storage_tree_v2_activation_height` may be **`null`** on the public node (legacy 64-bit contract-storage routing until configured). Missing keys on older nodes mean “unknown” — re-probe.
 
-Operators set many of these via `BOING_*` env / CLI flags; mismatched heights across validators fork admission. See [Operators](/testnet/operators/).
+Current node builds apply these heights automatically on chain 6913. A node running an older build forks at the first height it doesn't know; see [Troubleshooting](/nodes/troubleshooting/#stops-at-a-specific-height).
 
 ## Client hints
 

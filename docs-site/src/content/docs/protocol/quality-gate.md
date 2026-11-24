@@ -7,7 +7,7 @@ description: Protocol-level deploy screening — automated gates plus on-chain U
 
 The **Boing Quality Gate** screens contract deployments against transparent rules before acceptance on the ledger. Automated checks handle clear Allow / Reject cases; unclear cases can go to a community **Unsure** review path.
 
-Never market this as eliminating all malicious activity. Approved phrasing lives in monorepo `BRAND.md`.
+The Quality Gate reduces risk; it does not guarantee that every deployed contract is safe.
 
 ## Live knobs
 
@@ -25,7 +25,7 @@ Probe the node for `source: "canonical"` vs `"local"` on pool config after that 
 2. Run `boing_qaCheck` / local QA tooling before paying fees on a doomed deploy.
 3. Read Allow / Reject / Unsure outcomes on [Boing Observer](https://boing.observer).
 
-## Deeper reading (not mirrored here)
+## Further reading
 
 - Plain-language: [QUALITY-ASSURANCE-NETWORK.md](https://github.com/Boing-Network/boing.network/blob/main/docs/QUALITY-ASSURANCE-NETWORK.md) · [PDF](https://boing.network/pdfs/QUALITY-ASSURANCE-NETWORK.pdf)
 - Gate catalog: [QA-GATE-RULES.md](https://github.com/Boing-Network/boing.network/blob/main/docs/QA-GATE-RULES.md) · [PDF](https://boing.network/pdfs/QA-GATE-RULES.pdf)

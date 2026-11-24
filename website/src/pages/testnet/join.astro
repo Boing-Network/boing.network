@@ -32,7 +32,9 @@ mv boing-node-linux-x86_64 boing-node
 mv boing-linux-x86_64 boing
 chmod +x boing-node boing`;
 
-const runPeer = `export BOING_CHAIN_ID=${TESTNET_CHAIN_ID}
+const runPeer = `# These four settings must match the public nodes (the node applies the rest of the testnet preset)
+export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
+       BOING_OPEN_VALIDATOR_ACTIVATION_HEIGHT=400 BOING_NAME_REGISTRY_ACTIVATION_HEIGHT=640
 ./boing-node \\
   --data-dir ./boing-data \\
   --p2p-listen /ip4/0.0.0.0/tcp/4001 \\

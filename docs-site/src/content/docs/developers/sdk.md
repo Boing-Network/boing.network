@@ -17,7 +17,7 @@ Install the **scoped** package. Do not depend on an unscoped `boing-sdk` name fo
 npm install @boing-network/boing-sdk@^0.5.41
 ```
 
-After changing SDK source in the monorepo, run `npm run build` inside `boing-sdk/` so `dist/` matches `src/` (tutorial packages consume `file:../../boing-sdk`).
+Working on the SDK itself? Run `npm run build` in `boing-sdk/` after changes so `dist/` matches `src/`.
 
 ## Core client
 
@@ -69,4 +69,4 @@ See `boing-sdk/src/index.ts` for the authoritative export surface.
 
 ## dApp integration
 
-End-to-end connect / simulate / submit patterns: [BOING-DAPP-INTEGRATION.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-DAPP-INTEGRATION.md). Wallet provider API: Express docs for `window.boing`.
+For the full connect, simulate, and submit flow, see [Wallet & dApps](/developers/wallet-dapps/) and [BOING-DAPP-INTEGRATION.md](https://github.com/Boing-Network/boing.network/blob/main/docs/BOING-DAPP-INTEGRATION.md).
