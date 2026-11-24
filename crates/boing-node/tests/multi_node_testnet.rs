@@ -31,7 +31,9 @@ fn node_with_p2p_and_block_provider(
     let chain_for_provider = chain.clone();
     let (p2p, event_rx) = boing_p2p::P2pNode::new(
         p2p_listen,
-        Some(Arc::new(boing_node::ChainBlockProvider(chain_for_provider))),
+        Some(Arc::new(boing_node::ChainBlockProvider::new(
+            chain_for_provider,
+        ))),
         0,
     )
     .expect("P2P init");

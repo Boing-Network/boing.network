@@ -5,6 +5,7 @@
 mod block_sync;
 mod discovery;
 pub mod gossip_limits;
+pub mod identity;
 mod node;
 pub mod redial;
 mod webrtc;

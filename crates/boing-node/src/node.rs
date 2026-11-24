@@ -35,14 +35,49 @@ use crate::mempool::{Mempool, MempoolError};
 use crate::persistence::{Persistence, PersistenceError};
 
 /// Wraps ChainState to implement BlockProvider for P2P block requests.
-pub struct ChainBlockProvider(pub ChainState);
+///
+/// The in-memory chain only keeps the most recent [`crate::chain::DEFAULT_IN_MEMORY_BLOCK_WINDOW`]
+/// heights. With persistence attached, older heights are read from disk, so a long-running node
+/// (e.g. the hosted bootnode) can still serve block-sync from height 1 to a fresh node.
+pub struct ChainBlockProvider {
+    chain: ChainState,
+    persistence: Option<Persistence>,
+}
+
+impl ChainBlockProvider {
+    /// Serve only blocks held in the in-memory window.
+    pub fn new(chain: ChainState) -> Self {
+        Self {
+            chain,
+            persistence: None,
+        }
+    }
+
+    /// Serve from the in-memory window, falling back to on-disk blocks for pruned heights.
+    pub fn with_persistence(chain: ChainState, persistence: Option<Persistence>) -> Self {
+        Self { chain, persistence }
+    }
+}
 
 impl boing_p2p::BlockProvider for ChainBlockProvider {
     fn get_block_by_hash(&self, hash: &Hash) -> Option<Block> {
-        self.0.get_block_by_hash(hash)
+        self.chain.get_block_by_hash(hash)
     }
     fn get_block_by_height(&self, height: u64) -> Option<Block> {
-        self.0.get_block_by_height(height)
+        if let Some(b) = self.chain.get_block_by_height(height) {
+            return Some(b);
+        }
+        if height > self.chain.height() {
+            return None;
+        }
+        let p = self.persistence.as_ref()?;
+        match p.load_block(height) {
+            Ok(b) => b,
+            Err(e) => {
+                logging::log_persistence_warn("block_sync_load_block", &e);
+                None
+            }
+        }
     }
 }
 
@@ -805,10 +840,20 @@ impl BoingNode {
             Self::with_data_dir_and_validators(data_dir, validators, local_validator, signing_key)
                 .map_err(|e| boing_p2p::P2pError::Network(e.to_string()))?;
         let chain = node.chain.clone();
-        let (p2p, event_rx) = P2pNode::new(
+        // Persist the libp2p identity next to the chain data so the peer id survives restarts.
+        let identity = match node.persistence.as_ref() {
+            Some(p) => Some(boing_p2p::identity::load_or_create(
+                &p.base().join(boing_p2p::identity::IDENTITY_FILE),
+            )?),
+            None => None,
+        };
+        let provider = ChainBlockProvider::with_persistence(chain, node.persistence.clone());
+        let (p2p, event_rx) = P2pNode::new_with_identity(
             p2p_listen,
-            Some(std::sync::Arc::new(ChainBlockProvider(chain))),
+            Some(std::sync::Arc::new(provider)),
             max_connections_per_ip,
+            boing_p2p::GossipConfig::from_env(),
+            identity,
         )?;
         node.p2p = p2p;
         Ok((node, event_rx))

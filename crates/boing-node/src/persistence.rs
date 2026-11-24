@@ -292,6 +292,7 @@ pub enum PersistenceError {
 }
 
 /// Disk-backed persistence for chain and state.
+#[derive(Clone, Debug)]
 pub struct Persistence {
     base: PathBuf,
 }
@@ -301,6 +302,11 @@ impl Persistence {
         Self {
             base: base.as_ref().to_path_buf(),
         }
+    }
+
+    /// Data directory this persistence reads and writes.
+    pub fn base(&self) -> &Path {
+        &self.base
     }
 
     fn chain_dir(&self) -> PathBuf {

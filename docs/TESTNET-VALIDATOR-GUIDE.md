@@ -215,6 +215,18 @@ consensus). Expect the first sync to take a few minutes and to use a few hundred
 passes those blocks. Nodes that already serve the chain need no upgrade for this: the limit applies to the
 node that requests the block.
 
+**Fresh node stuck at height 0 (fixed on the serving side).** A node keeps only the most recent 100,000
+blocks in memory. Before this fix, block-sync answered only from that window, so once the public chain passed
+100,000 blocks the hosted bootnode replied "not found" for height 1 and a fresh node stayed at height 0 with
+nothing in its log (gossip of new blocks is then rejected with `Block does not chain to our tip`, which is
+expected while catching up). The serving node now falls back to its on-disk blocks; this fix has to be
+deployed on the **bootnode**, not on the syncing node. Current builds also log `block_sync_not_found` /
+`block_sync_request_failed` (at most every 30 s) instead of failing silently.
+
+**Peer id.** The libp2p identity is stored in `<data-dir>/p2p_identity.key` (created on first start, mode
+0600), so the peer id stays the same across restarts. Back it up with the data directory; delete it only if
+you want a new peer id.
+
 **Older binaries (a build without the preset).** A fresh node needs a current build. A source build of a
 `main` commit from before the preset can reach block 1312 with these settings, on a fresh data directory (the
 policy file is in this repository), but it still stalls at block 1312 because of the 10 MiB block-sync limit,
