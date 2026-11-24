@@ -18,7 +18,18 @@ import {
   extractUniversalContractDeploymentsFromBlock,
   type UniversalContractDeploymentRow,
 } from '@boing-network/boing-sdk';
-import { mergeSkipped, parseSkipped, planChunk, type SkippedBlock } from './ingest';
+import {
+  appendRecentHashes,
+  blockIdentity,
+  firstParentMismatch,
+  mergeSkipped,
+  parseRecentHashes,
+  parseSkipped,
+  planChunk,
+  planReorgRewind,
+  type HashEntry,
+  type SkippedBlock,
+} from './ingest';
 
 function timingSafeEqualString(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -68,6 +79,8 @@ export type SyncTelemetry = {
   chainTip?: number | null;
   /** Heights skipped this run because the RPC gateway rejected them as oversized. */
   skippedHeights?: number[];
+  /** Set when this run detected a reorg and moved the cursor back (rows from `to` up were deleted). */
+  reorg?: { from: number; to: number; resolved: boolean };
   /** Set when the run stopped early on a transient failure (cursor held at the failing height). */
   error?: string;
 };
@@ -113,15 +126,43 @@ async function readSkippedBlocks(db: D1Database): Promise<SkippedBlock[]> {
   return parseSkipped(r?.v);
 }
 
+async function readRecentHashes(db: D1Database): Promise<HashEntry[]> {
+  const r = await db.prepare(`SELECT v FROM ingest_state WHERE k = 'recent_hashes'`).first<{ v: string }>();
+  return parseRecentHashes(r?.v);
+}
+
+function recentHashesStmt(db: D1Database, ring: HashEntry[]) {
+  return db
+    .prepare(`INSERT INTO ingest_state (k, v) VALUES ('recent_hashes', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v`)
+    .bind(JSON.stringify(ring));
+}
+
+/** Delete rows from non-canonical heights and move the cursor back, in one D1 batch. */
+async function applyRewind(db: D1Database, rewindTo: number, ring: HashEntry[]): Promise<void> {
+  await db.batch([
+    db.prepare(`DELETE FROM contract_deployments WHERE block_height >= ?`).bind(rewindTo),
+    db
+      .prepare(`INSERT INTO ingest_state (k, v) VALUES ('next_height', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v`)
+      .bind(String(rewindTo)),
+    recentHashesStmt(db, ring),
+  ]);
+}
+
 /**
  * Persist the cursor (and, when there are new oversize skips, the skip list) in ONE D1 batch.
  * Callers only invoke this when the cursor actually moved, so an idle tick at the chain tip writes nothing here.
  */
-async function writeCursorAndSkips(db: D1Database, h: number, newSkips: SkippedBlock[]): Promise<void> {
+async function writeCursorAndSkips(
+  db: D1Database,
+  h: number,
+  newSkips: SkippedBlock[],
+  ring: HashEntry[],
+): Promise<void> {
   const stmts = [
     db
       .prepare(`INSERT INTO ingest_state (k, v) VALUES ('next_height', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v`)
       .bind(String(h)),
+    recentHashesStmt(db, ring),
   ];
   if (newSkips.length > 0) {
     const merged = mergeSkipped(await readSkippedBlocks(db), newSkips);
@@ -178,6 +219,7 @@ export type SyncDeployRegistryResult = {
   chainTip: number | null;
   durationMs: number;
   skippedHeights?: number[];
+  reorg?: { from: number; to: number; resolved: boolean };
 };
 
 export async function syncDeployRegistry(env: Env): Promise<SyncDeployRegistryResult> {
@@ -202,6 +244,25 @@ export async function syncDeployRegistry(env: Env): Promise<SyncDeployRegistryRe
     const parallel = Math.min(16, Math.max(1, parseIntOpt(env.DEPLOY_REGISTRY_PARALLEL_FETCHES, 6)));
 
     let cursor = await readNextHeight(env.DEPLOY_REGISTRY_DB, fromDefault);
+    let ring = await readRecentHashes(env.DEPLOY_REGISTRY_DB);
+
+    // Reorg check: is the newest indexed block still canonical? (one hash probe per tick when it is)
+    let reorg: SyncTelemetry['reorg'];
+    const rewind = await planReorgRewind(ring, cursor, async (height) => {
+      try {
+        return blockIdentity(await client.getBlockByHeight(height, false)).hash;
+      } catch {
+        return null;
+      }
+    });
+    if (rewind) {
+      ring = ring.filter((e) => e.height < rewind.rewindTo);
+      await applyRewind(env.DEPLOY_REGISTRY_DB, rewind.rewindTo, ring);
+      reorg = { from: cursor, to: rewind.rewindTo, resolved: rewind.resolved };
+      console.warn('deploy-registry reorg rewind', JSON.stringify(reorg));
+      cursor = rewind.rewindTo;
+    }
+
     let indexedBlocks = 0;
     let rowsInserted = 0;
 
@@ -220,11 +281,26 @@ export async function syncDeployRegistry(env: Env): Promise<SyncDeployRegistryRe
       const settled = await Promise.allSettled(heights.map((height) => client.getBlockByHeight(height, false)));
       const plan = planChunk(heights, settled, new Date().toISOString());
 
+      // A block whose parent is not the block we indexed below it means the chain reorganized under us:
+      // keep only the blocks before it and stop; the next tick's reorg check rewinds.
+      const bad = firstParentMismatch(ring, plan.blocks);
+      if (bad >= 0) {
+        const badHeight = blockIdentity(plan.blocks[bad]).height!;
+        plan.blocks = plan.blocks.slice(0, bad);
+        plan.skipped = plan.skipped.filter((sk) => sk.height < badHeight);
+        plan.advanceBy = badHeight - h;
+        plan.stopError = new Error(`parent hash mismatch at height ${badHeight} (reorg)`);
+      }
+
       const batchRows: UniversalContractDeploymentRow[] = [];
+      const hashes: HashEntry[] = [];
       for (const block of plan.blocks) {
         batchRows.push(...extractUniversalContractDeploymentsFromBlock(block));
+        const id = blockIdentity(block);
+        if (id.height != null && id.hash != null) hashes.push({ height: id.height, hash: id.hash });
       }
       rowsInserted += await insertDeploymentRowsBatch(env.DEPLOY_REGISTRY_DB, batchRows);
+      ring = appendRecentHashes(ring, hashes);
 
       newSkips.push(...plan.skipped);
       h += plan.advanceBy;
@@ -236,7 +312,7 @@ export async function syncDeployRegistry(env: Env): Promise<SyncDeployRegistryRe
     }
 
     // Write only when the cursor moved (no D1 write for an idle tick at the chain tip).
-    if (h !== cursor) await writeCursorAndSkips(env.DEPLOY_REGISTRY_DB, h, newSkips);
+    if (h !== cursor) await writeCursorAndSkips(env.DEPLOY_REGISTRY_DB, h, newSkips, ring);
     const skippedHeights = newSkips.map((s) => s.height);
     if (skippedHeights.length > 0) {
       console.warn('deploy-registry skipped oversized blocks', JSON.stringify(skippedHeights));
@@ -255,6 +331,7 @@ export async function syncDeployRegistry(env: Env): Promise<SyncDeployRegistryRe
       nextHeight: h,
       chainTip,
       ...(skippedHeights.length > 0 ? { skippedHeights } : {}),
+      ...(reorg ? { reorg } : {}),
       ...(stopError !== undefined ? { error: `stopped at height ${h}: ${String(stopError).slice(0, 700)}` } : {}),
     });
     return {
@@ -264,6 +341,7 @@ export async function syncDeployRegistry(env: Env): Promise<SyncDeployRegistryRe
       chainTip,
       durationMs,
       ...(skippedHeights.length > 0 ? { skippedHeights } : {}),
+      ...(reorg ? { reorg } : {}),
     };
   } catch (e) {
     const durationMs = Date.now() - t0;
