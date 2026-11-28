@@ -714,40 +714,4 @@ article.docs-page {
   .page-hero-full { padding: 1.5rem 0 2rem; }
 }
 
-/* Hero content entrance */
-.page-hero-full .stage-badge-global,
-.page-hero-full h1,
-.page-hero-full .page-title,
-.page-hero-full .lead {
-  animation: boing-fade-in-up 0.55s ease-out both;
-}
-.page-hero-full .stage-badge-global { animation-delay: 0s; }
-.page-hero-full h1, .page-hero-full .page-title { animation-delay: 0.06s; }
-.page-hero-full .lead { animation-delay: 0.12s; }
-@media (prefers-reduced-motion: reduce) {
-  .page-hero-full .stage-badge-global,
-  .page-hero-full h1,
-  .page-hero-full .page-title,
-  .page-hero-full .lead { animation: none; }
-}
-
-/* Section reveal (staggered entrance) — used on landing, about, community, quickstart */
-.section-reveal {
-  opacity: 0;
-  transform: translateY(24px);
-  animation: section-reveal 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-.section-reveal.delay-1 { animation-delay: 0.06s; }
-.section-reveal.delay-2 { animation-delay: 0.12s; }
-.section-reveal.delay-3 { animation-delay: 0.18s; }
-.section-reveal.delay-4 { animation-delay: 0.24s; }
-.section-reveal.delay-5 { animation-delay: 0.3s; }
-.section-reveal.delay-6 { animation-delay: 0.36s; }
-.section-reveal.delay-7 { animation-delay: 0.42s; }
-.section-reveal.delay-8 { animation-delay: 0.48s; }
-@keyframes section-reveal {
-  to { opacity: 1; transform: translateY(0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .section-reveal { animation: none; opacity: 1; transform: none; }
-}
+/* Page hero entrance and scroll reveals live in motion.css. */

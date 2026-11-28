@@ -6,6 +6,7 @@ import '../styles/boing-theme.css';
 import '../styles/design-tokens-cosmic.css';
 import '../styles/boing-loader.css';
 import '../styles/semantic-links.css';
+import '../styles/motion.css';
 import StoneEngravingOverlay from '../components/StoneEngravingOverlay.astro';
 import BoingMascot from '../components/BoingMascot.astro';
 import CollaborationBanner from '../components/CollaborationBanner.astro';
@@ -86,6 +87,16 @@ const navCurrent = {
     <link rel="manifest" href="/site.webmanifest" />
 
     <title>{fullTitle}</title>
+    <script is:inline>
+      /* Motion gate (see styles/motion.css): hide reveal targets from the first paint only when
+         motion is allowed. If the motion module never runs, show everything after 3s. */
+      (function() {
+        var d = document.documentElement;
+        if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        d.classList.add('motion-ok');
+        setTimeout(function() { if (!window.__boingMotion) d.classList.remove('motion-ok'); }, 3000);
+      })();
+    </script>
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -144,6 +155,28 @@ const navCurrent = {
     })} />
   </head>
   <body class:list={[pageClass, `route-${(path || '/').replace(/^\//, '').replace(/\//g, '-') || 'index'}`, isTestnetApp && 'testnet-app']}>
+    <div class="scroll-progress" aria-hidden="true"></div>
+    <style is:inline>
+      /* Scroll progress bar: CSS scroll-driven animation, no JS. Kept inline (unminified) on purpose, see styles/motion.css. */
+      .scroll-progress { display: none; }
+      @supports (animation-timeline: scroll()) {
+        @media (prefers-reduced-motion: no-preference) {
+          .scroll-progress {
+            display: block; position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 1001;
+            pointer-events: none; transform: scaleX(0); transform-origin: 0 50%;
+            background: linear-gradient(90deg, #3B8CFF, #8DB8FF 60%, #FFB800);
+            box-shadow: 0 0 10px rgba(59, 140, 255, 0.6);
+            animation-name: boing-scroll-progress;
+            animation-duration: auto;
+            animation-timing-function: linear;
+            animation-fill-mode: both;
+            animation-timeline: scroll(root);
+          }
+        }
+      }
+      @keyframes boing-scroll-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+      @media print { .scroll-progress { display: none !important; } }
+    </style>
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <StoneEngravingOverlay />
     <BoingMascot />
@@ -483,6 +516,9 @@ const navCurrent = {
           });
         }
       })();
+    </script>
+    <script>
+      import '../scripts/motion.ts';
     </script>
   </body>
 </html>

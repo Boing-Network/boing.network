@@ -15,7 +15,7 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_LABEL, FAUCET_IP_MAX_PER_DAY } fro
     <header class="page-hero-full">
       <div class="page-wrap-inner">
         <span class="stage-badge-global">Testnet</span>
-        <h1 class="page-title"><Icon name="faucet" size={32} class="title-icon" /> Testnet Faucet</h1>
+        <h1 class="page-title"><Icon name="faucet" size={32} class="title-icon" /> <span class="fx-shimmer">Testnet Faucet</span></h1>
         <p class="lead">
           Get free testnet BOING on chain <strong>6913</strong> to pay for fees (and the 100 BOING validator bond).
           Paste your Boing address (or connect Boing Express) and request. Each request sends <strong>{FAUCET_AMOUNT_BOING}</strong> testnet BOING
@@ -32,7 +32,7 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_LABEL, FAUCET_IP_MAX_PER_DAY } fro
     </header>
     <div class="page-wrap-inner faucet-content">
       <ChainIdleNotice />
-      <section class="faucet-form">
+      <section class="faucet-form" data-reveal="scale">
       <label for="account-id">Your Boing address (32-byte account address, hex, with or without 0x)</label>
       <div class="input-with-copy">
         <input
@@ -80,7 +80,7 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_LABEL, FAUCET_IP_MAX_PER_DAY } fro
       </div>
     </section>
 
-    <section class="section">
+    <section class="section" data-reveal>
       <h2>How it works</h2>
       <ul>
         <li>The faucet is an RPC method (<code>boing_faucetRequest</code>) on nodes started with <code>--faucet-enable</code>.</li>
@@ -89,7 +89,7 @@ import { FAUCET_AMOUNT_BOING, FAUCET_COOLDOWN_LABEL, FAUCET_IP_MAX_PER_DAY } fro
       </ul>
     </section>
 
-    <section class="section">
+    <section class="section" data-reveal>
       <h2>Docs</h2>
       <p><a href="/testnet/join">Join Testnet</a> · <a href="/pdfs/TESTNET.pdf" target="_blank" rel="noopener">TESTNET (PDF)</a></p>
     </section>

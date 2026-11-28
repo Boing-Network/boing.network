@@ -25,7 +25,7 @@ export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
     <header class="page-hero-full">
       <div class="page-wrap-inner">
         <span class="stage-badge-global">Testnet · chain {TESTNET_CHAIN_ID}</span>
-        <h1>Single node vs multi-node</h1>
+        <h1><span class="fx-shimmer">Single node vs multi-node</span></h1>
         <p class="lead">
           Pick one: a <strong>private local chain</strong> on your machine, or a node that
           <strong>joins the public testnet</strong> and syncs with everyone else.
@@ -33,7 +33,7 @@ export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
       </div>
     </header>
     <div class="page-wrap-inner single-multi-content">
-    <section class="section">
+    <section class="section" data-reveal>
       <h2>1. Single node (local only)</h2>
       <p><strong>Use when:</strong> you are developing on a laptop and do not need the live network.</p>
       <p>Do <strong>not</strong> pass <code>--p2p-listen</code> or <code>--bootnodes</code>. Your machine is the whole chain.</p>
@@ -41,7 +41,7 @@ export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
       <p>RPC: <code>http://127.0.0.1:8545/</code>. This does <strong>not</strong> sync with <code>{TESTNET_RPC_URL}</code>.</p>
     </section>
 
-    <section class="section">
+    <section class="section" data-reveal>
       <h2>2. Multi-node (public testnet)</h2>
       <p><strong>Use when:</strong> you want to peer with chain <strong>{TESTNET_CHAIN_ID}</strong>, help soak the network, or become a validator later.</p>
       <p>Pass <code>--p2p-listen</code> and the official <code>--bootnodes</code> address. Open inbound <strong>TCP 4001</strong> if others should dial you.</p>
@@ -53,7 +53,7 @@ export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
       </p>
     </section>
 
-    <section class="section comparison">
+    <section class="section comparison" data-reveal>
       <h2>Quick comparison</h2>
       <table class="compare-table">
         <thead>
@@ -68,7 +68,7 @@ export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
       </table>
     </section>
 
-    <nav class="section nav-links">
+    <nav class="section nav-links" data-reveal="fade">
       <a href="/testnet/join">← Join Testnet</a>
       <a href="/bootnodes">Bootnodes →</a>
     </nav>

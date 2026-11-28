@@ -12,102 +12,102 @@ import Icon from '../components/Icon.astro';
     <header class="resources-hero full-width">
       <div class="resources-hero-inner">
         <span class="stage-badge">Testnet</span>
-        <h1 class="resources-title">Resources</h1>
+        <h1 class="resources-title"><span class="fx-shimmer">Resources</span></h1>
         <p class="resources-lead">Everything you need to join the testnet, build, and explore Boing Network.</p>
       </div>
     </header>
 
     <section class="resources-grid full-width">
-      <div class="resources-grid-inner">
-        <a href="/testnet" class="resource-tile resource-tile--featured">
+      <div class="resources-grid-inner" data-reveal-stagger>
+        <a href="/testnet" class="resource-tile resource-tile--featured fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="portal" size={40} /></span>
           <h2>Dashboard</h2>
           <p>Sign in or register as developer, user, or operator. Access your hub and dashboard.</p>
-          <span class="resource-tile-cta">Open Dashboard →</span>
+          <span class="resource-tile-cta">Open Dashboard <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/testnet/join" class="resource-tile">
+        <a href="/testnet/join" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="network" size={40} /></span>
           <h2>Join Testnet</h2>
           <p>Run a node, get bootnodes, and connect to the public testnet.</p>
-          <span class="resource-tile-cta">Join →</span>
+          <span class="resource-tile-cta">Join <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/faucet" class="resource-tile">
+        <a href="/faucet" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="faucet" size={40} /></span>
           <h2>Faucet</h2>
           <p>Get testnet BOING for gas and staking. One request per address every 24 hours.</p>
-          <span class="resource-tile-cta">Get testnet BOING →</span>
+          <span class="resource-tile-cta">Get testnet BOING <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="https://boing.observer" target="_blank" rel="noopener" class="resource-tile">
+        <a href="https://boing.observer" target="_blank" rel="noopener" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="link" size={40} /></span>
           <h2>Block Explorer</h2>
           <p>Browse blocks, accounts, and chain data in Boing Observer. Search by height, hash, or address.</p>
-          <span class="resource-tile-cta">Open Explorer →</span>
+          <span class="resource-tile-cta">Open Explorer <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="https://boing.express" target="_blank" rel="noopener" class="resource-tile">
+        <a href="https://boing.express" target="_blank" rel="noopener" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="portal" size={40} /></span>
           <h2>Boing Express (wallet)</h2>
           <p>Non-custodial wallet for Boing Network. Send BOING, use the faucet, and sign in to the portal.</p>
-          <span class="resource-tile-cta">Boing Express →</span>
+          <span class="resource-tile-cta">Boing Express <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="https://docs.boing.network" class="resource-tile">
+        <a href="https://docs.boing.network" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="book" size={40} /></span>
           <h2>Documentation</h2>
           <p>Full docs: getting started, RPC API, tokenomics, operations, and PDFs.</p>
-          <span class="resource-tile-cta">Read docs →</span>
+          <span class="resource-tile-cta">Read docs <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/developers/quickstart" class="resource-tile">
+        <a href="/developers/quickstart" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="rocket" size={40} /></span>
           <h2>Developer Quickstart</h2>
           <p>CLI, SDK, and local dev. Build and deploy on Boing.</p>
-          <span class="resource-tile-cta">Quickstart →</span>
+          <span class="resource-tile-cta">Quickstart <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/bootnodes" class="resource-tile">
+        <a href="/bootnodes" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="node" size={40} /></span>
           <h2>Bootnodes</h2>
           <p>What bootnodes are and how to use them to join the testnet.</p>
-          <span class="resource-tile-cta">Learn more →</span>
+          <span class="resource-tile-cta">Learn more <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/status" class="resource-tile">
+        <a href="/status" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="link" size={40} /></span>
           <h2>Network Status</h2>
           <p>RPC endpoints, explorer links, and operator smoke commands.</p>
-          <span class="resource-tile-cta">Status →</span>
+          <span class="resource-tile-cta">Status <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/library" class="resource-tile">
+        <a href="/library" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="pdf" size={40} /></span>
           <h2>PDF Library</h2>
           <p>Every Boing paper in one place: essentials, whitepaper, tokenomics, specs and roadmap, ready to download.</p>
-          <span class="resource-tile-cta">Browse the library →</span>
+          <span class="resource-tile-cta">Browse the library <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" target="_blank" rel="noopener" class="resource-tile">
+        <a href="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" target="_blank" rel="noopener" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="document" size={40} /></span>
           <h2>Whitepaper</h2>
           <p>Protocol and product whitepaper for public testnet — architecture, QA gate, DEX, wallets, activations.</p>
-          <span class="resource-tile-cta">Open PDF →</span>
+          <span class="resource-tile-cta">Open PDF <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener" class="resource-tile">
+        <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="document" size={40} /></span>
           <h2>Tokenomics &amp; testnet</h2>
           <p>1B genesis then uncapped (BN-155), Proposed 50/20/15/15 pie, community pots, and honest incentivized-testnet framing (not live; not a mainnet claim).</p>
-          <span class="resource-tile-cta">Open PDF →</span>
+          <span class="resource-tile-cta">Open PDF <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/about" class="resource-tile">
+        <a href="/about" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="shield" size={40} /></span>
           <h2>About</h2>
           <p>Whitepaper, six pillars, and network essentials (plain + technical) as PDFs.</p>
-          <span class="resource-tile-cta">About →</span>
+          <span class="resource-tile-cta">About <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/brand" class="resource-tile">
+        <a href="/brand" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="document" size={40} /></span>
           <h2>Brand</h2>
           <p>Official logos, wordmarks, color tokens, mascot poses, and promo assets for press and partners.</p>
-          <span class="resource-tile-cta">Brand assets →</span>
+          <span class="resource-tile-cta">Brand assets <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
-        <a href="/community" class="resource-tile">
+        <a href="/community" class="resource-tile fx-lift" data-tilt="4">
           <span class="resource-tile-icon"><Icon name="quest" size={40} /></span>
           <h2>Community</h2>
           <p>GitHub, Discord, governance, and grants.</p>
-          <span class="resource-tile-cta">Community →</span>
+          <span class="resource-tile-cta">Community <span class="fx-arrow" aria-hidden="true">→</span></span>
         </a>
       </div>
     </section>
@@ -192,29 +192,9 @@ import Icon from '../components/Icon.astro';
     border-radius: 1rem;
     text-decoration: none;
     color: inherit;
-    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
-    opacity: 0;
-    transform: translateY(24px);
-    animation: resource-tile-reveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
-  .resource-tile:nth-child(1) { animation-delay: 0.05s; }
-  .resource-tile:nth-child(2) { animation-delay: 0.1s; }
-  .resource-tile:nth-child(3) { animation-delay: 0.15s; }
-  .resource-tile:nth-child(4) { animation-delay: 0.2s; }
-  .resource-tile:nth-child(5) { animation-delay: 0.25s; }
-  .resource-tile:nth-child(6) { animation-delay: 0.3s; }
-  .resource-tile:nth-child(7) { animation-delay: 0.35s; }
-  .resource-tile:nth-child(8) { animation-delay: 0.4s; }
-  .resource-tile:nth-child(9) { animation-delay: 0.45s; }
-  .resource-tile:nth-child(10) { animation-delay: 0.5s; }
-  .resource-tile:nth-child(11) { animation-delay: 0.55s; }
-  .resource-tile:nth-child(12) { animation-delay: 0.6s; }
-  .resource-tile:nth-child(13) { animation-delay: 0.65s; }
-  .resource-tile:nth-child(14) { animation-delay: 0.7s; }
-  .resource-tile:nth-child(15) { animation-delay: 0.75s; }
-  @keyframes resource-tile-reveal { to { opacity: 1; transform: translateY(0); } }
-  .resource-tile:hover .resource-tile-icon {
-    transform: scale(1.12);
+  .resource-tile:is(:hover, :focus-visible) .resource-tile-icon {
+    transform: scale(1.12) rotate(-6deg);
   }
   .resource-tile-icon {
     display: block;
@@ -245,22 +225,14 @@ import Icon from '../components/Icon.astro';
   .resource-tile--featured .resource-tile-cta {
     color: #FFB800;
   }
-  .resource-tile:hover {
-    border-color: rgba(59, 140, 255, 0.4);
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2), 0 0 20px rgba(59, 140, 255, 0.15);
-  }
+
   .resource-tile--featured {
     border-color: rgba(255, 184, 0, 0.4);
     background: linear-gradient(180deg, rgba(10, 30, 46, 0.95) 0%, rgba(13, 46, 66, 0.9) 100%);
   }
-  .resource-tile--featured:hover {
-    border-color: rgba(255, 184, 0, 0.6);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 184, 0, 0.15);
-  }
+  .resource-tile--featured { --fx-hue: #FFB800; }
   @media (prefers-reduced-motion: reduce) {
-    .resource-tile { animation: none; opacity: 1; transform: none; }
-    .resource-tile:hover .resource-tile-icon { transform: none; }
+    .resource-tile:is(:hover, :focus-visible) .resource-tile-icon { transform: none; }
   }
   @media (max-width: 640px) {
     .resources-hero-inner,

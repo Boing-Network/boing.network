@@ -30,7 +30,7 @@ export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
     <header class="page-hero-full">
       <div class="page-wrap-inner">
         <span class="stage-badge-global">Testnet · chain {TESTNET_CHAIN_ID}</span>
-        <h1 class="page-title"><Icon name="network" size={32} class="title-icon" /> Bootnodes</h1>
+        <h1 class="page-title"><Icon name="network" size={32} class="title-icon" /> <span class="fx-shimmer">Bootnodes</span></h1>
         <p class="lead">
           A <strong>bootnode</strong> is a stable peer your node dials first so it can find the rest of the network.
           Without one, a new node only discovers peers on the same local network.
@@ -38,7 +38,7 @@ export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
       </div>
     </header>
     <div class="page-wrap-inner bootnodes-content">
-    <section class="section">
+    <section class="section" data-reveal>
       <h2>In plain language</h2>
       <ol>
         <li>You start <code>boing-node</code> with <code>--p2p-listen</code> so other nodes can talk to you.</li>
@@ -48,7 +48,7 @@ export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
       <p>Public JSON-RPC for apps stays at <code>{TESTNET_RPC_URL}</code> — you do not need to expose RPC to join as a peer.</p>
     </section>
 
-    <section class="section" id="official">
+    <section class="section" id="official" data-reveal>
       <h2>Official bootnode (live)</h2>
       {isTestnetLive && BOOTNODES.length > 0 ? (
         <>
@@ -74,7 +74,7 @@ export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
       )}
     </section>
 
-    <section class="section">
+    <section class="section" data-reveal>
       <h2>Copy-paste: join as a peer</h2>
       {isTestnetLive ? (
         <>
@@ -91,12 +91,12 @@ export BOING_CHAIN_ID=${TESTNET_CHAIN_ID} BOING_VALIDATOR_SET=open \\
       )}
     </section>
 
-    <section class="section">
+    <section class="section" data-reveal>
       <h2>Local-only practice</h2>
       <p>On one machine: start node A with <code>--p2p-listen /ip4/127.0.0.1/tcp/4001</code>, then start node B with <code>--bootnodes /ip4/127.0.0.1/tcp/4001</code>. That does not join the public testnet.</p>
     </section>
 
-    <nav class="section nav-links">
+    <nav class="section nav-links" data-reveal="fade">
       <a href="/testnet/join">← Join Testnet</a>
       <a href="/testnet/operators/validator">Run a validator →</a>
     </nav>

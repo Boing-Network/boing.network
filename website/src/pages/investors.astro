@@ -9,20 +9,20 @@ import Layout from '../layouts/Layout.astro';
   pageClass="page-app"
 >
   <article class="investor-page">
-    <header class="investor-header">
+    <header class="investor-header" data-reveal-stagger>
       <img src="/logo.svg" alt="Boing Network" class="investor-logo" width="64" height="64" />
-      <h1>Boing Network</h1>
+      <h1><span class="fx-shimmer">Boing Network</span></h1>
       <p class="investor-tagline">Executive Summary</p>
       <p class="investor-subtitle">Quality, enforced by the protocol.</p>
       <p class="investor-stage"><strong>Stage:</strong> MVP / Prototype · Testnet live · SDK & CLI ready</p>
     </header>
 
-    <section class="investor-section">
+    <section class="investor-section" data-reveal>
       <h2>Vision</h2>
       <p>Boing Network is an <strong>independent, decentralized Layer 1</strong> built from first principles — optimized for efficiency, independent of other chains, and committed to <strong>transparent rules</strong> and <strong>protocol-enforced quality assurance</strong>. The Boing Quality Gate screens deployments against transparent rules before they reach the ledger. It is designed to reduce malicious, deceptive and low-quality deployments through transparent, protocol-level checks. The public testnet is live; mainnet is not, and audits are not yet complete.</p>
     </section>
 
-    <section class="investor-section">
+    <section class="investor-section" data-reveal>
       <h2>The Problem</h2>
       <ul>
         <li><strong>Unchecked deployments</strong> — Most chains allow any bytecode; users and protocols bear the risk of malicious, deceptive or low-quality deployments.</li>
@@ -33,7 +33,7 @@ import Layout from '../layouts/Layout.astro';
       </ul>
     </section>
 
-    <section class="investor-section">
+    <section class="investor-section" data-reveal>
       <h2>Our Solution</h2>
       <p>Boing introduces <strong>protocol-enforced quality assurance</strong> (the Boing Quality Gate): deployments are checked against defined, transparent rules (bytecode, security heuristics, purpose declaration) before they are accepted. Because not everything can be deployed, the mempool and blocks are designed to stay focused on legitimate, high-quality transactions rather than spam and low-value deployments. Automated checks handle clear cases; a decentralized community pool reviews edge cases. We combine this with:</p>
       <ul>
@@ -46,27 +46,27 @@ import Layout from '../layouts/Layout.astro';
       </ul>
     </section>
 
-    <section class="investor-section">
+    <section class="investor-section" data-reveal>
       <h2>Competitive Advantage</h2>
       <p>Most established L1s permit any bytecode deployment—quality checks, when they exist, live in applications or contracts, not consensus. <strong>Boing introduces protocol-level deployment checks designed to identify and restrict deployments that fail transparent quality criteria before they are accepted on-chain.</strong> This is infrastructure, not a dApp feature.</p>
       <h3>Unique Differentiators</h3>
-      <div class="differentiators-grid">
-        <div class="diff-card">
+      <div class="differentiators-grid" data-reveal-stagger="drop">
+        <div class="diff-card fx-lift" data-tilt="5">
           <span class="diff-icon">🔐</span>
           <h3>Protocol QA</h3>
           <p>Only quality assets on-chain. No other L1 enforces deployment standards at the protocol layer.</p>
         </div>
-        <div class="diff-card">
+        <div class="diff-card fx-lift" data-tilt="5">
           <span class="diff-icon">📊</span>
           <h3>100% Transparency</h3>
           <p>Open design docs, public specs, auditable tokenomics. Trust through verification.</p>
         </div>
-        <div class="diff-card">
+        <div class="diff-card fx-lift" data-tilt="5">
           <span class="diff-icon">⚡</span>
           <h3>Rust + BFT</h3>
           <p>Custom VM, PoS + HotStuff BFT, libp2p networking. Built for security and performance.</p>
         </div>
-        <div class="diff-card">
+        <div class="diff-card fx-lift" data-tilt="5">
           <span class="diff-icon">🌐</span>
           <h3>Ecosystem Ready</h3>
           <p>SDK, CLI, success-based dApp incentives, decentralized automation. Developer-first.</p>
@@ -74,7 +74,7 @@ import Layout from '../layouts/Layout.astro';
       </div>
     </section>
 
-    <section class="investor-section">
+    <section class="investor-section" data-reveal>
       <h2>Technical Status</h2>
       <ul>
         <li><strong>Core protocol</strong> — Consensus (HotStuff), execution (custom VM), state (Sparse Merkle), P2P (libp2p)</li>
@@ -86,13 +86,13 @@ import Layout from '../layouts/Layout.astro';
       </ul>
     </section>
 
-    <section class="investor-section">
+    <section class="investor-section" data-reveal>
       <h2>Target Market</h2>
       <p><strong>Primary:</strong> DeFi users, protocols, and validators seeking an L1 with transparent deployment rules, transparent governance and sustainable incentives. <strong>Secondary:</strong> Developers building on a quality-assured chain.</p>
       <p>Global DeFi TVL exceeds $50B across hundreds of chains. Millions of users and thousands of protocols face deployment-quality and congestion risk. We target early adopters: security-conscious protocols, validators who want transparent participation rules, and users who want a safer way to explore on-chain applications. Long-term TAM: DeFi protocols requiring compliance or quality standards that cannot achieve that on permissionless-anything chains.</p>
     </section>
 
-    <section class="investor-section">
+    <section class="investor-section" data-reveal>
       <h2>Go-to-Market</h2>
       <ul>
         <li><strong>Phase 1 — Testnet:</strong> Public bootnodes, faucet, RPC. Developer docs, CLI, SDK, validator guide. An incentivized testnet is not currently running; we hope to run one in the future.</li>
@@ -101,11 +101,11 @@ import Layout from '../layouts/Layout.astro';
       </ul>
     </section>
 
-    <section class="investor-section">
+    <section class="investor-section" data-reveal>
       <h2>Tokenomics & Value Creation</h2>
       <p><strong>Locked (BN-155):</strong> <strong>1 billion BOING</strong> genesis / initial supply, then <strong>uncapped</strong> ongoing emissions (not a 1B hard cap). <strong>18 decimals</strong>. No TGE / mainnet calendar date. Testnet ≠ mainnet claim.</p>
       <p><strong>Proposed</strong> genesis allocation (exact buckets still Undecided):</p>
-      <div class="tokenomics-breakdown">
+      <div class="tokenomics-breakdown" data-reveal-stagger="left">
         <div class="token-row"><span class="token-pct">50%</span> Staking</div>
         <div class="token-row"><span class="token-pct">20%</span> Treasury (grants, audits, ecosystem)</div>
         <div class="token-row"><span class="token-pct">15%</span> Community & Grants</div>
@@ -114,14 +114,14 @@ import Layout from '../layouts/Layout.astro';
       <p><strong>Proposed</strong> fee split at maturity: 80% validators / 20% treasury. Emissions: ~8% Y1 of the 1B base, decay ≈ 0.85, floor 1%; shipping code mints ~70% of each block emission to the proposer. At maturity, <strong>fee revenue dominates</strong>. dApp incentives (success-based, per-dApp capped) align developer success with adoption. Cross-chain DeFi via Boing Finance captures value from swap fees and liquidity.</p>
     </section>
 
-    <section class="investor-section">
+    <section class="investor-section" data-reveal>
       <h2>Validation</h2>
       <p><strong>Technical:</strong> Core protocol implemented—consensus (HotStuff), execution (custom VM), state (Sparse Merkle), P2P (libp2p). Node runs single- and multi-node. CLI and SDK scaffold and deploy dApps. Protocol QA design includes opcode whitelist, blocklist, known-abuse patterns. Build and tests pass; fuzz harness for primitives.</p>
       <p><strong>Operational:</strong> Testnet infrastructure ready—bootnodes, faucet, public RPC. Documentation supports validators and developers. boing.network live with docs, faucet, investor materials.</p>
       <p><strong>Market:</strong> Design aligns with user pain (malicious deployments, congestion, opacity). Six-pillar philosophy and sustainable tokenomics documented. Next: bootnode launch, public testnet, early validator/developer feedback.</p>
     </section>
 
-    <section class="investor-section">
+    <section class="investor-section" data-reveal>
       <h2>Use of Funds</h2>
       <p>Grant and accelerator support would accelerate:</p>
       <ul>
@@ -132,7 +132,7 @@ import Layout from '../layouts/Layout.astro';
       </ul>
     </section>
 
-    <section class="investor-section pitch-deck-section" id="pitch-deck">
+    <section class="investor-section pitch-deck-section" id="pitch-deck" data-reveal>
       <h2>Pitch Deck</h2>
       <p class="deck-intro">Browse our investor deck below or <button type="button" class="btn-download-pdf" id="download-pdf">Save as PDF</button>.</p>
       <div class="pitch-deck">
@@ -213,7 +213,7 @@ import Layout from '../layouts/Layout.astro';
       </div>
     </section>
 
-    <section class="investor-section investor-cta">
+    <section class="investor-section investor-cta" data-reveal>
       <h2>Get in Touch</h2>
       <p>Interested in grants, accelerator programs, or partnerships?</p>
       <p class="contact-links">

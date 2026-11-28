@@ -1,0 +1,239 @@
+/* ==========================================================================
+   Boing motion system — one vocabulary for every marketing page.
+
+   Pieces (all opt-in by attribute or class):
+     [data-reveal="up|fade|scale|left|right|drop"]  scroll reveal for one element
+     [data-reveal-stagger="<variant>"]              reveal each direct child, staggered
+     .fx-lift  (+ [data-tilt])                      lift, glow, cursor spotlight, sweep edge, optional 3D tilt
+     .fx-shimmer                                    slow gradient shimmer on display text
+     .fx-arrow                                      nudges right when its link/button is hovered
+     .fx-draw                                       SVG chart strokes draw in when revealed
+     [data-count-to]                                number counts up when revealed (see scripts/motion.ts)
+   Button sheen, page-hero entrance and page transitions apply site-wide (scroll progress bar: Layout.astro).
+
+   Rules:
+   - Content is only hidden while html.motion-ok is set. Layout.astro sets it from an inline
+     head script only when motion is allowed, so no-JS and reduced-motion visitors see
+     everything immediately.
+   - Only transform / opacity animate (plus background-position on shimmer).
+   - prefers-reduced-motion: reduce turns every animation and hover movement off.
+   ========================================================================== */
+
+:root {
+  --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --m-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --m-dur: 0.75s;
+  --m-step: 70ms;
+}
+
+/* ---------- Scroll reveals ---------- */
+html.motion-ok [data-reveal]:not(.is-in),
+html.motion-ok [data-reveal-stagger] > :not(.is-in) {
+  opacity: 0;
+}
+/* `backwards` (not `both`) so that once the entrance ends, hover transforms on the same element still work. */
+html.motion-ok [data-reveal].is-in,
+html.motion-ok [data-reveal-stagger] > .is-in {
+  animation: m-up var(--m-dur) var(--m-ease) backwards;
+  animation-delay: calc(var(--i, 0) * var(--m-step));
+}
+html.motion-ok [data-reveal="fade"].is-in,
+html.motion-ok [data-reveal-stagger="fade"] > .is-in { animation-name: m-fade; }
+html.motion-ok [data-reveal="scale"].is-in,
+html.motion-ok [data-reveal-stagger="scale"] > .is-in { animation-name: m-scale; animation-timing-function: var(--m-spring); }
+html.motion-ok [data-reveal="left"].is-in,
+html.motion-ok [data-reveal-stagger="left"] > .is-in { animation-name: m-left; }
+html.motion-ok [data-reveal="right"].is-in,
+html.motion-ok [data-reveal-stagger="right"] > .is-in { animation-name: m-right; }
+html.motion-ok [data-reveal="drop"].is-in,
+html.motion-ok [data-reveal-stagger="drop"] > .is-in { animation-name: m-drop; animation-duration: 0.85s; }
+
+@keyframes m-up { from { opacity: 0; transform: translateY(26px); } }
+@keyframes m-fade { from { opacity: 0; } }
+@keyframes m-scale { from { opacity: 0; transform: scale(0.9); } }
+@keyframes m-left { from { opacity: 0; transform: translateX(-32px); } }
+@keyframes m-right { from { opacity: 0; transform: translateX(32px); } }
+/* Same "tip forward off the shelf" entrance as the /library book covers. */
+@keyframes m-drop {
+  0% { opacity: 0; transform: perspective(900px) translateY(-24px) rotateX(-48deg); transform-origin: 50% 0; }
+  70% { opacity: 1; }
+  100% { transform-origin: 50% 0; }
+}
+
+/* ---------- Page hero entrance (shared .page-hero-full template) ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .page-hero-full .page-wrap-inner > * {
+    animation: m-up 0.7s var(--m-ease) backwards;
+  }
+  .page-hero-full .page-wrap-inner > :nth-child(2) { animation-delay: 0.08s; }
+  .page-hero-full .page-wrap-inner > :nth-child(3) { animation-delay: 0.16s; }
+  .page-hero-full .page-wrap-inner > :nth-child(n + 4) { animation-delay: 0.24s; }
+}
+.page-hero-full {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* Slow aurora behind every shared page hero. */
+.page-hero-full::before {
+  content: '';
+  position: absolute;
+  inset: -40% -10% auto;
+  height: 180%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 34% 40% at 30% 45%, rgba(59, 140, 255, 0.16), transparent 70%),
+    radial-gradient(ellipse 26% 32% at 72% 40%, rgba(255, 184, 0, 0.07), transparent 70%);
+  animation: m-aurora 18s ease-in-out infinite alternate;
+}
+@keyframes m-aurora {
+  from { transform: translateX(-4%) scale(1); }
+  to { transform: translateX(4%) scale(1.08); }
+}
+
+/* ---------- Shimmering display text (matches the /library title) ---------- */
+.fx-shimmer {
+  background: linear-gradient(100deg, #8DB8FF 0%, #3B8CFF 40%, #FFB800 60%, #8DB8FF 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  animation: m-shimmer 7s ease-in-out 1s infinite;
+}
+/* Inline icons inside a shimmering heading keep a solid colour. */
+.fx-shimmer svg { color: var(--accent-teal, #3B8CFF); -webkit-text-fill-color: initial; }
+@keyframes m-shimmer {
+  0%, 100% { background-position: 0% 0; }
+  50% { background-position: 100% 0; }
+}
+
+/* ---------- Interactive cards ---------- */
+.fx-lift {
+  --fx-hue: var(--accent-teal, #3B8CFF);
+  --lift: 0px;
+  --rx: 0deg;
+  --ry: 0deg;
+  position: relative;
+  isolation: isolate;
+  transform: perspective(1000px) rotateX(var(--ry)) rotateY(var(--rx)) translateY(var(--lift));
+  transition:
+    transform 0.45s var(--m-ease),
+    box-shadow 0.35s ease,
+    border-color 0.35s ease,
+    background-color 0.35s ease;
+}
+/* Cursor spotlight (position set by motion.ts; centred when there is no pointer). */
+.fx-lift::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    420px circle at var(--mx, 50%) var(--my, 0%),
+    color-mix(in srgb, var(--fx-hue) 16%, transparent),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+/* Glowing edge that sweeps in along the bottom. */
+.fx-lift::after {
+  content: '';
+  position: absolute;
+  left: 1.25rem;
+  right: 1.25rem;
+  bottom: 0;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--fx-hue), transparent);
+  transform: scaleX(0);
+  transition: transform 0.5s var(--m-ease);
+}
+.fx-lift:is(:hover, :focus-visible, :focus-within) {
+  --lift: -4px;
+  border-color: color-mix(in srgb, var(--fx-hue) 55%, transparent);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.3),
+    0 0 26px color-mix(in srgb, var(--fx-hue) 20%, transparent);
+}
+.fx-lift:is(:hover, :focus-visible, :focus-within)::before { opacity: 1; }
+.fx-lift:is(:hover, :focus-visible, :focus-within)::after { transform: scaleX(1); }
+/* While the cursor drives the tilt, follow it quickly instead of easing slowly. */
+.fx-lift.is-tilting { transition-duration: 0.12s, 0.35s, 0.35s, 0.35s; }
+
+/* Arrow nudge inside any hovered link or button. */
+.fx-arrow { display: inline-block; transition: transform 0.3s var(--m-ease); }
+:is(a, button):is(:hover, :focus-visible) .fx-arrow { transform: translateX(4px); }
+
+/* ---------- Button sheen (site-wide) ---------- */
+:is(.btn-primary, .btn-secondary, .btn-outline) {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+:is(.btn-primary, .btn-secondary, .btn-outline)::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.32) 50%, transparent 58%);
+  transform: translateX(-70%);
+  transition: transform 0.8s ease;
+}
+:is(.btn-primary, .btn-secondary, .btn-outline):is(:hover, :focus-visible)::after { transform: translateX(70%); }
+
+/* ---------- SVG charts that draw in (inside a revealed element) ---------- */
+html.motion-ok .is-in .fx-draw circle {
+  animation: m-draw-arc 1.3s var(--m-ease) backwards;
+  animation-delay: calc(0.25s + var(--seg, 0) * 0.18s);
+}
+html.motion-ok .is-in .fx-draw circle:nth-of-type(2) { --seg: 1; }
+html.motion-ok .is-in .fx-draw circle:nth-of-type(3) { --seg: 2; }
+html.motion-ok .is-in .fx-draw circle:nth-of-type(4) { --seg: 3; }
+/* Animates from an empty arc to the circle's own stroke-dasharray attribute. */
+@keyframes m-draw-arc { from { stroke-dasharray: 0 251.3; } }
+html.motion-ok .is-in .fx-draw [pathLength] {
+  stroke-dasharray: 1;
+  animation: m-draw-line 1.6s var(--m-ease) 0.3s backwards;
+}
+@keyframes m-draw-line { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+html.motion-ok .is-in .fx-draw .fx-draw-fill { animation: m-fade 1s ease 0.9s backwards; }
+
+/* ---------- Scroll progress bar ----------
+   Lives in an inline <style> in Layout.astro: the CSS minifier folds animation-timeline into the
+   `animation` shorthand, which browsers reject. */
+
+/* ---------- Page-to-page crossfade (cross-document view transitions) ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  .site-header { view-transition-name: site-header; }
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation-duration: 0.28s; }
+}
+
+/* ---------- Reduced motion: everything visible and still ---------- */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  [data-reveal-stagger] > *,
+  .page-hero-full::before,
+  .fx-shimmer,
+  .fx-draw * {
+    animation: none !important;
+  }
+  [data-reveal], [data-reveal-stagger] > * { opacity: 1 !important; }
+  .fx-lift { transform: none !important; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+  .fx-lift::after { transition: none; }
+  .fx-arrow, :is(.btn-primary, .btn-secondary, .btn-outline)::after { transition: none; }
+  :is(.btn-primary, .btn-secondary, .btn-outline):is(:hover, :focus-visible)::after { transform: translateX(-70%); }
+}
+
+@media print {
+  [data-reveal], [data-reveal-stagger] > * { opacity: 1 !important; animation: none !important; }
+  .page-hero-full::before { display: none !important; }
+}

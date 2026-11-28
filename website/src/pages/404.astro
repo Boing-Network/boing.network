@@ -9,9 +9,9 @@ import Icon from '../components/Icon.astro';
   noindex={true}
 >
   <article class="page page-404">
-    <div class="error-content">
+    <div class="error-content" data-reveal-stagger>
       <span class="error-icon" aria-hidden="true"><Icon name="link" size={64} /></span>
-      <h1>Page not found</h1>
+      <h1><span class="fx-shimmer">Page not found</span></h1>
       <p class="lead">The page you're looking for doesn't exist or has been moved.</p>
       <nav class="error-links" aria-label="Quick links">
         <a href="/testnet/join" class="btn btn-primary">Get started</a>
@@ -38,8 +38,18 @@ import Icon from '../components/Icon.astro';
     gap: 1.25rem;
   }
   .error-icon {
+    display: inline-block;
     color: var(--text-tertiary);
     opacity: 0.7;
+  }
+  .error-icon :global(svg) { display: block; animation: error-drift 5s ease-in-out infinite; }
+  /* A link that has come loose: slow drift and tilt. */
+  @keyframes error-drift {
+    0%, 100% { transform: translateY(0) rotate(-6deg); }
+    50% { transform: translateY(-8px) rotate(8deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .error-icon :global(svg) { animation: none; }
   }
   .page-404 h1 {
     font-size: 1.75rem;

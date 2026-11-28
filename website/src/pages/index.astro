@@ -7,14 +7,20 @@ import Layout from '../layouts/Layout.astro';
   canonical="/"
 >
   <!-- Hero: one composition — brand, headline, support, CTAs, dominant mark -->
-  <section class="hero" id="hero">
+  <section class="hero" id="hero" data-parallax-root>
     <div class="hero-atmosphere" aria-hidden="true">
       <div class="hero-glow"></div>
       <div class="hero-grid"></div>
     </div>
     <div class="hero-content">
-      <img src="/logo.svg" alt="" class="hero-logo-img" width="168" height="168" decoding="async" />
-      <p class="hero-brand font-display">Boing Network</p>
+      <div class="hero-mark">
+        <span class="hero-ring" aria-hidden="true"></span>
+        <span class="hero-ring hero-ring--late" aria-hidden="true"></span>
+        <span class="hero-orbit" aria-hidden="true"><span class="hero-orbit-dot"></span></span>
+        <span class="hero-orbit hero-orbit--gold" aria-hidden="true"><span class="hero-orbit-dot"></span></span>
+        <img src="/logo.svg" alt="" class="hero-logo-img" width="168" height="168" decoding="async" />
+      </div>
+      <p class="hero-brand font-display"><span class="fx-shimmer">Boing Network</span></p>
       <h1 class="hero-title font-display">Quality, enforced by the protocol.</h1>
       <p class="tagline">An independent Layer 1 with transparent deployment checks and open participation for users, developers, and validators.</p>
       <div class="cta">
@@ -52,9 +58,9 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Quality Gate -->
   <section class="section" id="problem">
-    <h2 class="reveal">A quality gate before the ledger</h2>
-    <p class="section-lead reveal delay-1">Boing screens deployments against transparent rules before they reach the chain. Clear cases are decided by the protocol; edge cases go to a community pool. Outcomes stay visible — the gate reduces risk, it does not replace your own review. <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QA design (PDF)</a></p>
-    <ol class="gate-flow reveal delay-2">
+    <h2 data-reveal>A quality gate before the ledger</h2>
+    <p class="section-lead" data-reveal>Boing screens deployments against transparent rules before they reach the chain. Clear cases are decided by the protocol; edge cases go to a community pool. Outcomes stay visible — the gate reduces risk, it does not replace your own review. <a href="/pdfs/QUALITY-ASSURANCE-NETWORK.pdf" target="_blank" rel="noopener">QA design (PDF)</a></p>
+    <ol class="gate-flow" data-reveal-stagger="left">
       <li><span class="gate-num">1</span><div><strong>Submit</strong> bytecode with a declared purpose</div></li>
       <li><span class="gate-num">2</span><div><strong>Automate</strong> checks on size, opcodes, and rules</div></li>
       <li><span class="gate-num">3</span><div><strong>Decide</strong> clear accept or reject in protocol</div></li>
@@ -65,9 +71,9 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Stack -->
   <section class="section section-alt" id="principles">
-    <h2 class="reveal">Built from first principles</h2>
-    <p class="section-lead reveal delay-1">An independent chain with its own stack — not a fork or an EVM-compatibility layer.</p>
-    <dl class="spec-row reveal delay-2">
+    <h2 data-reveal>Built from first principles</h2>
+    <p class="section-lead" data-reveal>An independent chain with its own stack — not a fork or an EVM-compatibility layer.</p>
+    <dl class="spec-row" data-reveal-stagger="scale">
       <div><dt>Rust</dt><dd>Protocol &amp; node</dd></div>
       <div><dt>HotStuff PoS</dt><dd>Consensus</dd></div>
       <div><dt>Ed25519</dt><dd>Signatures</dd></div>
@@ -79,33 +85,33 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Roles -->
   <section class="section" id="roles">
-    <h2 class="reveal">Choose your role</h2>
-    <p class="section-lead reveal delay-1">Everything below runs on the public testnet.</p>
-    <div class="roles-grid">
-      <a href="/testnet/users" class="role-link reveal delay-2">
+    <h2 data-reveal>Choose your role</h2>
+    <p class="section-lead" data-reveal>Everything below runs on the public testnet.</p>
+    <div class="roles-grid" data-reveal-stagger="drop">
+      <a href="/testnet/users" class="role-link fx-lift" data-tilt="4">
         <h3>Use the network</h3>
         <p>Wallet, faucet, send, and explore on-chain activity.</p>
-        <span class="role-cta">Start as a user</span>
+        <span class="role-cta">Start as a user <span class="fx-arrow" aria-hidden="true">→</span></span>
       </a>
-      <a href="/developers/quickstart" class="role-link reveal delay-3">
+      <a href="/developers/quickstart" class="role-link fx-lift" data-tilt="4">
         <h3>Build an application</h3>
         <p>JSON-RPC, SDK, native accounts, and deployment QA.</p>
-        <span class="role-cta">Developer quickstart</span>
+        <span class="role-cta">Developer quickstart <span class="fx-arrow" aria-hidden="true">→</span></span>
       </a>
-      <a href="/testnet/join" class="role-link reveal delay-4">
+      <a href="/testnet/join" class="role-link fx-lift" data-tilt="4">
         <h3>Run a node</h3>
         <p>Join the open validator and operator path.</p>
-        <span class="role-cta">Operator setup</span>
+        <span class="role-cta">Operator setup <span class="fx-arrow" aria-hidden="true">→</span></span>
       </a>
     </div>
   </section>
 
   <!-- Roadmap -->
   <section class="section section-alt" id="roadmap">
-    <h2 class="reveal">Honest roadmap</h2>
-    <p class="section-lead reveal delay-1">What exists on testnet, what is in progress, and what mainnet still requires.</p>
-    <div class="road-grid">
-      <div class="road-col reveal delay-2">
+    <h2 data-reveal>Honest roadmap</h2>
+    <p class="section-lead" data-reveal>What exists on testnet, what is in progress, and what mainnet still requires.</p>
+    <div class="road-grid" data-reveal-stagger>
+      <div class="road-col">
         <h3 class="road-live">Live on testnet</h3>
         <ul>
           <li>Public RPC and faucet</li>
@@ -114,7 +120,7 @@ import Layout from '../layouts/Layout.astro';
           <li>Node, CLI, and SDK tooling</li>
         </ul>
       </div>
-      <div class="road-col reveal delay-3">
+      <div class="road-col">
         <h3 class="road-dev">In development</h3>
         <ul>
           <li>Community review pool</li>
@@ -123,7 +129,7 @@ import Layout from '../layouts/Layout.astro';
           <li>Incentivized testnet (not running)</li>
         </ul>
       </div>
-      <div class="road-col reveal delay-4">
+      <div class="road-col">
         <h3 class="road-req">Before mainnet</h3>
         <ul>
           <li>Independent security audits</li>
@@ -137,27 +143,27 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Ecosystem -->
   <section class="section" id="ecosystem">
-    <h2 class="reveal">The Boing ecosystem</h2>
-    <p class="section-lead reveal delay-1">Four products, one network. Three steps onto the public testnet.</p>
-    <ol class="first-steps reveal delay-2" aria-label="First steps on the Boing testnet">
+    <h2 data-reveal>The Boing ecosystem</h2>
+    <p class="section-lead" data-reveal>Four products, one network. Three steps onto the public testnet.</p>
+    <ol class="first-steps" data-reveal-stagger aria-label="First steps on the Boing testnet">
       <li><a href="https://boing.express" target="_blank" rel="noopener"><strong>1. Get a wallet</strong><span>Boing Express — web or Chrome</span></a></li>
       <li><a href="/faucet"><strong>2. Get testnet BOING</strong><span>Free fees from the faucet</span></a></li>
       <li><a href="https://boing.observer" target="_blank" rel="noopener"><strong>3. Send and verify</strong><span>Confirm in Boing Observer</span></a></li>
     </ol>
-    <div class="apps-row">
-      <a href="https://docs.boing.network/start/get-started/" class="app-link reveal delay-3">
+    <div class="apps-row" data-reveal-stagger>
+      <a href="https://docs.boing.network/start/get-started/" class="app-link fx-lift">
         <h3>Boing Network</h3>
         <p>Protocol, docs, faucet, Quality Gate</p>
       </a>
-      <a href="https://boing.express" class="app-link reveal delay-3" target="_blank" rel="noopener">
+      <a href="https://boing.express" class="app-link fx-lift" target="_blank" rel="noopener">
         <h3>Boing Express</h3>
         <p>Non-custodial wallet for Boing</p>
       </a>
-      <a href="https://boing.observer" class="app-link reveal delay-4" target="_blank" rel="noopener">
+      <a href="https://boing.observer" class="app-link fx-lift" target="_blank" rel="noopener">
         <h3>Boing Observer</h3>
         <p>Explorer with QA transparency</p>
       </a>
-      <a href="https://boing.finance" class="app-link reveal delay-4" target="_blank" rel="noopener">
+      <a href="https://boing.finance" class="app-link fx-lift" target="_blank" rel="noopener">
         <h3>Boing Finance</h3>
         <p>Native DEX swaps, pools, NFTs</p>
       </a>
@@ -166,18 +172,18 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Tokenomics -->
   <section class="section section-alt" id="tokenomics">
-    <h2 class="reveal">Tokenomics</h2>
-    <p class="section-lead reveal delay-1"><strong>1 billion BOING</strong> at genesis, then <strong>uncapped</strong> ongoing emissions. <strong>18 decimals</strong>. Genesis pie below is <strong>Proposed</strong>, not final. <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Plain-language PDF</a></p>
-    <div class="stats-row reveal delay-2">
+    <h2 data-reveal>Tokenomics</h2>
+    <p class="section-lead" data-reveal><strong>1 billion BOING</strong> at genesis, then <strong>uncapped</strong> ongoing emissions. <strong>18 decimals</strong>. Genesis pie below is <strong>Proposed</strong>, not final. <a href="/pdfs/BOING-TOKENOMICS-AND-INCENTIVIZED-TESTNET.pdf" target="_blank" rel="noopener">Plain-language PDF</a></p>
+    <div class="stats-row" data-reveal-stagger="scale">
       <div><span class="stat-value">Uncapped</span><span class="stat-label">After genesis</span></div>
       <div><span class="stat-value">1B</span><span class="stat-label">Genesis supply</span></div>
-      <div><span class="stat-value">18</span><span class="stat-label">Decimals</span></div>
+      <div><span class="stat-value" data-count-to="18">18</span><span class="stat-label">Decimals</span></div>
     </div>
-    <div class="tokenomics-block reveal delay-3">
+    <div class="tokenomics-block" data-reveal>
       <h3>Initial supply allocation <span class="chart-badge">Proposed</span></h3>
       <p class="chart-intro">How the <strong>1B genesis</strong> would split at mainnet. Exact buckets remain <strong>Undecided</strong>.</p>
       <div class="chart-wrapper chart-supply">
-        <svg viewBox="0 0 100 100" class="supply-pie-svg" role="img" aria-label="Proposed genesis allocation: Staking 50 percent, Treasury 20 percent, Community 15 percent, Team 15 percent">
+        <svg viewBox="0 0 100 100" class="supply-pie-svg fx-draw" role="img" aria-label="Proposed genesis allocation: Staking 50 percent, Treasury 20 percent, Community 15 percent, Team 15 percent">
           <circle cx="50" cy="50" r="40" fill="none" class="stroke-teal" stroke-width="40" stroke-dasharray="125.7 125.7" stroke-dashoffset="0" transform="rotate(-90 50 50)" stroke-linecap="butt" />
           <circle cx="50" cy="50" r="40" fill="none" class="stroke-gold" stroke-width="40" stroke-dasharray="50.3 201.0" stroke-dashoffset="-125.7" transform="rotate(-90 50 50)" stroke-linecap="butt" />
           <circle cx="50" cy="50" r="40" fill="none" class="stroke-success" stroke-width="40" stroke-dasharray="37.7 213.6" stroke-dashoffset="-176.0" transform="rotate(-90 50 50)" stroke-linecap="butt" />
@@ -192,11 +198,11 @@ import Layout from '../layouts/Layout.astro';
       </ul>
       <p class="chart-note"><strong>Locked:</strong> 1B at genesis, uncapped after, 18 decimals. Vesting and sub-pots remain Undecided. No TGE date.</p>
     </div>
-    <div class="charts-row">
-      <div class="tokenomics-block reveal delay-4">
+    <div class="charts-row" data-reveal-stagger>
+      <div class="tokenomics-block">
         <h3>Fee allocation <span class="chart-badge">Proposed</span></h3>
         <div class="chart-wrapper chart-doughnut">
-          <svg viewBox="0 0 100 100" class="doughnut-svg">
+          <svg viewBox="0 0 100 100" class="doughnut-svg fx-draw" aria-hidden="true">
             <circle cx="50" cy="50" r="40" fill="none" class="stroke-teal" stroke-width="20" stroke-dasharray="201 50.3" stroke-dashoffset="0" transform="rotate(-90 50 50)" />
             <circle cx="50" cy="50" r="40" fill="none" class="stroke-gold" stroke-width="20" stroke-dasharray="50.3 201" stroke-dashoffset="-201" transform="rotate(-90 50 50)" />
           </svg>
@@ -206,24 +212,24 @@ import Layout from '../layouts/Layout.astro';
           <li><span class="dot dot-gold"></span> Treasury 20%</li>
         </ul>
       </div>
-      <div class="tokenomics-block reveal delay-5">
+      <div class="tokenomics-block">
         <h3>Emission schedule <span class="chart-badge">Proposed</span></h3>
         <div class="chart-wrapper chart-line">
-          <svg viewBox="0 0 200 120" class="line-svg" preserveAspectRatio="none">
+          <svg viewBox="0 0 200 120" class="line-svg fx-draw" aria-hidden="true" preserveAspectRatio="none">
             <defs>
               <linearGradient id="emissionGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color="var(--boing-accent)" stop-opacity="0.3" />
                 <stop offset="100%" stop-color="var(--boing-accent)" stop-opacity="0" />
               </linearGradient>
             </defs>
-            <polyline points="0,24 33,48 67,66 100,79 133,90 200,108 200,120 0,120" fill="url(#emissionGrad)" stroke="none" />
-            <polyline points="0,24 33,48 67,66 100,79 133,90 200,108" fill="none" class="stroke-teal" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <polyline class="fx-draw-fill" points="0,24 33,48 67,66 100,79 133,90 200,108 200,120 0,120" fill="url(#emissionGrad)" stroke="none" />
+            <polyline pathLength="1" points="0,24 33,48 67,66 100,79 133,90 200,108" fill="none" class="stroke-teal" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
         <p class="chart-note">~8% Y1 of the 1B base, decay ≈ 0.85, floor 1%. No TGE date.</p>
       </div>
     </div>
-    <div class="tokenomics-faq reveal delay-6">
+    <div class="tokenomics-faq" data-reveal>
       <h3>Why uncapped max supply?</h3>
       <p><strong>Uncapped ≠ free print.</strong> Genesis is fixed at <strong>1 billion BOING</strong>. After that, supply grows only through a documented declining emission schedule. Hard caps can starve long-run security when base fees stay intentionally low; an open decaying schedule keeps the inflation path honest and predictable.</p>
     </div>
@@ -231,35 +237,14 @@ import Layout from '../layouts/Layout.astro';
 
   <!-- Build CTA -->
   <section class="section section-close" id="build">
-    <h2 class="reveal">Build on Boing</h2>
-    <p class="section-lead reveal delay-1">Native accounts, adaptive gas, and transparent deployment checks — on a public testnet today.</p>
-    <div class="cta reveal delay-2">
+    <h2 data-reveal>Build on Boing</h2>
+    <p class="section-lead" data-reveal>Native accounts, adaptive gas, and transparent deployment checks — on a public testnet today.</p>
+    <div class="cta" data-reveal>
       <a href="/testnet/join" class="btn btn-primary">Join the testnet</a>
       <a href="https://docs.boing.network/start/get-started/" class="btn btn-secondary">Get started</a>
     </div>
   </section>
 </Layout>
-
-<script>
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!reduce) {
-    const nodes = document.querySelectorAll('.reveal');
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            io.unobserve(entry.target);
-          }
-        }
-      },
-      { rootMargin: '0px 0px -8% 0px', threshold: 0.12 }
-    );
-    nodes.forEach((el) => io.observe(el));
-  } else {
-    document.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-visible'));
-  }
-</script>
 
 <style>
   /* ——— Hero: one composition, brand-first, atmospheric navy/cyan ——— */
@@ -309,6 +294,57 @@ import Layout from '../layouts/Layout.astro';
     animation: hero-grid-drift 28s linear infinite;
   }
 
+  /* Pointer parallax: motion.ts sets --px / --py (-0.5..0.5) on the hero. `translate` composes with the keyframed `transform`. */
+  .hero-glow { translate: calc(var(--px, 0) * 60px) calc(var(--py, 0) * 40px); transition: translate 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+  .hero-grid { translate: calc(var(--px, 0) * -24px) calc(var(--py, 0) * -16px); transition: translate 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+  .hero-mark { translate: calc(var(--px, 0) * 14px) calc(var(--py, 0) * 10px); transition: translate 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+
+  /* Logo mark: block-time pulse rings (one ripple every ~2 s, like a block) and two orbiting dots */
+  .hero-mark {
+    position: relative;
+    width: clamp(112px, 22vw, 168px);
+    aspect-ratio: 1;
+    margin: 0 auto 1rem;
+  }
+  .hero-mark .hero-logo-img { margin: 0; width: 100%; }
+  .hero-ring {
+    position: absolute;
+    inset: 6%;
+    border-radius: 30%;
+    border: 1.5px solid rgba(var(--boing-accent-rgb), 0.55);
+    box-shadow: 0 0 18px rgba(var(--boing-accent-rgb), 0.35);
+    opacity: 0;
+    pointer-events: none;
+    animation: hero-ring 4s cubic-bezier(0.22, 1, 0.36, 1) 1.1s infinite;
+  }
+  .hero-ring--late { animation-delay: 3.1s; }
+  @keyframes hero-ring {
+    0% { opacity: 0.85; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.9); }
+  }
+  .hero-orbit {
+    position: absolute;
+    inset: -22%;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: hero-orbit 14s linear infinite, hero-fade-in 0.8s ease 0.9s backwards;
+  }
+  .hero-orbit--gold { inset: -36%; animation-duration: 22s, 0.8s; animation-direction: reverse, normal; }
+  .hero-orbit-dot {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    margin-left: -4px;
+    border-radius: 50%;
+    background: var(--boing-accent);
+    box-shadow: 0 0 14px var(--boing-accent);
+  }
+  .hero-orbit--gold .hero-orbit-dot { width: 6px; height: 6px; background: #FFB800; box-shadow: 0 0 12px #FFB800; }
+  @keyframes hero-orbit { to { transform: rotate(360deg); } }
+  @keyframes hero-fade-in { from { opacity: 0; } }
+
   .hero-content {
     position: relative;
     z-index: 2;
@@ -330,7 +366,7 @@ import Layout from '../layouts/Layout.astro';
     font-weight: 700;
     letter-spacing: -0.03em;
     color: var(--boing-text);
-    text-shadow: 0 0 36px rgba(var(--boing-accent-rgb), 0.4);
+    filter: drop-shadow(0 0 22px rgba(var(--boing-accent-rgb), 0.35));
     animation: hero-copy-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
   }
   .hero-title {
@@ -384,6 +420,8 @@ import Layout from '../layouts/Layout.astro';
     gap: 0.85rem;
     justify-content: center;
     flex-wrap: wrap;
+  }
+  .hero .cta {
     animation: hero-copy-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
   }
   .btn {
@@ -485,6 +523,14 @@ import Layout from '../layouts/Layout.astro';
     background: var(--boing-accent);
     margin-top: 0.1rem;
   }
+  :global(html.motion-ok) .gate-flow > :global(.is-in) .gate-num {
+    animation: gate-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 70ms + 0.18s);
+  }
+  @keyframes gate-pop {
+    from { transform: scale(0.2); box-shadow: 0 0 0 0 rgba(var(--boing-accent-rgb), 0.7); }
+    60% { box-shadow: 0 0 0 10px rgba(var(--boing-accent-rgb), 0); }
+  }
 
   /* Specs — open row, no cards */
   .spec-row {
@@ -523,12 +569,11 @@ import Layout from '../layouts/Layout.astro';
     text-decoration: none;
     color: inherit;
     border-top: 2px solid var(--boing-accent);
+    border-radius: 0 0 0.75rem 0.75rem;
     background: transparent;
-    transition: background 0.2s ease, border-color 0.2s ease;
   }
   .role-link:hover {
     background: rgba(var(--boing-accent-rgb), 0.06);
-    border-color: var(--boing-accent-soft);
   }
   .role-link h3 {
     margin: 0;
@@ -610,7 +655,6 @@ import Layout from '../layouts/Layout.astro';
     text-decoration: none;
     color: inherit;
     border-bottom: 1px solid var(--boing-line);
-    transition: border-color 0.2s ease;
   }
   .app-link:hover { border-color: var(--boing-accent); }
   .app-link h3 {
@@ -756,25 +800,6 @@ import Layout from '../layouts/Layout.astro';
     color: var(--text-secondary);
   }
 
-  /* Scroll reveals */
-  .reveal {
-    opacity: 0;
-    transform: translateY(22px);
-    transition:
-      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .reveal.delay-1 { transition-delay: 0.06s; }
-  .reveal.delay-2 { transition-delay: 0.12s; }
-  .reveal.delay-3 { transition-delay: 0.18s; }
-  .reveal.delay-4 { transition-delay: 0.24s; }
-  .reveal.delay-5 { transition-delay: 0.3s; }
-  .reveal.delay-6 { transition-delay: 0.36s; }
-  .reveal.is-visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
   /* Scroll snap (preserved) */
   :global(html.page-home) {
     scroll-snap-type: y proximity;
@@ -821,15 +846,14 @@ import Layout from '../layouts/Layout.astro';
     .tagline,
     .cta,
     .hero-stage,
-    .trust-strip {
+    .trust-strip,
+    .hero-ring,
+    .hero-orbit,
+    .gate-num {
       animation: none !important;
     }
+    .hero-ring, .hero-orbit { display: none; }
     .hero-logo-img { opacity: 1; transform: none; }
-    .reveal {
-      opacity: 1;
-      transform: none;
-      transition: none;
-    }
     :global(html.page-home) {
       scroll-snap-type: none;
       scroll-behavior: auto;

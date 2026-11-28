@@ -8,12 +8,12 @@ import Icon from '../components/Icon.astro';
     <header class="page-hero-full">
       <div class="page-wrap-inner" style="max-width: 640px;">
         <span class="stage-badge-global">Testnet</span>
-        <h1 class="community-title"><Icon name="quest" size={36} class="community-title-icon" /> Community</h1>
+        <h1 class="community-title"><Icon name="quest" size={36} class="community-title-icon" /> <span class="fx-shimmer">Community</span></h1>
         <p class="lead">Links and resources will be added as the community grows.</p>
       </div>
     </header>
-    <div class="page-wrap-inner community-content section-reveal delay-1" style="max-width: 640px;">
-      <ul class="community-links">
+    <div class="page-wrap-inner community-content" style="max-width: 640px;">
+      <ul class="community-links" data-reveal-stagger="left">
         <li><a href="https://github.com/Boing-Network/boing.network" target="_blank" rel="noopener">GitHub</a></li>
         <li><a href="https://discord.gg/K3w9nbUw4N" target="_blank" rel="noopener">Discord</a> — Chat with the community</li>
         <li><a href="/resources">Resources</a> — Testnet hub, faucet, docs</li>

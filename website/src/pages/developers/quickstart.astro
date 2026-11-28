@@ -8,14 +8,14 @@ import Icon from '../../components/Icon.astro';
     <header class="page-hero-full">
       <div class="page-wrap-inner" style="max-width: 800px;">
         <span class="stage-badge-global">Testnet</span>
-        <h1 class="quickstart-title"><Icon name="rocket" size={36} class="quickstart-title-icon" /> Developer Quickstart</h1>
+        <h1 class="quickstart-title"><Icon name="rocket" size={36} class="quickstart-title-icon" /> <span class="fx-shimmer">Developer Quickstart</span></h1>
         <p class="lead">From zero to your first native token on Boing Testnet in five steps.</p>
       </div>
     </header>
     <div class="page-wrap-inner quickstart-content" style="max-width: 800px;">
-    <section class="section-reveal delay-1" id="steps">
+    <section data-reveal id="steps">
       <h2><Icon name="rocket" size={22} class="section-icon" /> Five steps</h2>
-      <ol class="steps">
+      <ol class="steps" data-reveal-stagger="left">
         <li>
           <strong>Install the CLI.</strong> Download the zip for your platform from the <a href="https://github.com/Boing-Network/boing.network/releases/tag/testnet-v0.1.24" target="_blank" rel="noopener">testnet-v0.1.24 release</a> (<code>release-linux-x86_64.zip</code>, <code>release-macos-aarch64.zip</code>, or <code>release-windows-x86_64.zip</code>), unzip it, and put the <code>boing-&lt;platform&gt;</code> binary on your <code>PATH</code> as <code>boing</code>:
           <pre><code># Linux example (macOS: release-macos-aarch64.zip / boing-macos-aarch64)
@@ -49,7 +49,7 @@ export BOING_SECRET_HEX=&lt;64-hex private key&gt;</code></pre>
       </ol>
     </section>
 
-    <section class="section-reveal delay-2" id="create-token">
+    <section data-reveal id="create-token">
       <h2><Icon name="link" size={22} class="section-icon" /> Ways to create a token</h2>
       <ul>
         <li><strong>No code:</strong> the deploy wizard on <a href="https://boing.finance" target="_blank" rel="noopener">Boing Finance</a> (Boing Testnet, signed with Boing Express).</li>
@@ -59,7 +59,7 @@ export BOING_SECRET_HEX=&lt;64-hex private key&gt;</code></pre>
       <p>All three use the canonical reference fungible template (QA purpose <code>token</code>). The minimal template allows exactly <strong>one</strong> mint (fixed supply), and the first caller becomes admin. Details: repository <code>docs/BOING-REFERENCE-TOKEN.md</code>.</p>
     </section>
 
-    <section class="section-reveal delay-2">
+    <section data-reveal>
       <h2><Icon name="link" size={22} class="section-icon" /> Other CLI commands</h2>
       <ul>
         <li><code>boing init</code>: scaffold a dApp project</li>
@@ -68,12 +68,12 @@ export BOING_SECRET_HEX=&lt;64-hex private key&gt;</code></pre>
         <li><code>boing token mint | transfer | balance | bytecode</code></li>
       </ul>
     </section>
-    <section class="section-reveal delay-3">
+    <section data-reveal>
       <h2><Icon name="node" size={22} class="section-icon" /> RPC</h2>
       <p>Default port: <code>8545</code>. Full method list and error codes: <a href="https://docs.boing.network/developers/rpc/">JSON-RPC docs</a> and the full spec in repository <code>docs/RPC-API-SPEC.md</code>. Use <code>boing_health</code> or <code>boing_getNetworkInfo</code> for chain id, limits, and <code>developer.dex_discovery_methods</code>. TypeScript: <code>@boing-network/boing-sdk</code> from npm, or build in-repo <code>boing-sdk/</code> (see repo <code>boing-sdk/README.md</code>).</p>
     </section>
 
-    <section class="section-reveal delay-4">
+    <section data-reveal>
       <h2><Icon name="book" size={22} class="section-icon" /> Crates (reference)</h2>
       <table>
         <thead>
