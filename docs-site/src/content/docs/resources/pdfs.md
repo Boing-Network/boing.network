@@ -10,7 +10,7 @@ Printable versions of the main Boing Network papers and specifications, hosted o
 | PDF | Download |
 |-----|----------|
 | Whitepaper | [BOING-NETWORK-WHITEPAPER.pdf](https://boing.network/pdfs/BOING-NETWORK-WHITEPAPER.pdf) |
-| Essentials (plain language) | [BOING-NETWORK-ESSENTIALS.pdf](https://boing.network/pdfs/BOING-NETWORK-ESSENTIALS.pdf) |
+| Essentials (plain language, incl. built-in DEX, on-chain files, parallel execution, fees) | [BOING-NETWORK-ESSENTIALS.pdf](https://boing.network/pdfs/BOING-NETWORK-ESSENTIALS.pdf) |
 | Technical essentials | [BOING-NETWORK-TECHNICAL-ESSENTIALS.pdf](https://boing.network/pdfs/BOING-NETWORK-TECHNICAL-ESSENTIALS.pdf) |
 | Six pillars | [SIX-PILLARS.pdf](https://boing.network/pdfs/SIX-PILLARS.pdf) |
 | Features timeline | [FEATURES.pdf](https://boing.network/pdfs/FEATURES.pdf) |
@@ -42,4 +42,4 @@ Printable versions of the main Boing Network papers and specifications, hosted o
 | Build roadmap | [BUILD-ROADMAP.pdf](https://boing.network/pdfs/BUILD-ROADMAP.pdf) |
 | Development and enhancements | [DEVELOPMENT-AND-ENHANCEMENTS.pdf](https://boing.network/pdfs/DEVELOPMENT-AND-ENHANCEMENTS.pdf) |
 
-More on the website: [boing.network/resources](https://boing.network/resources).
+Browse them all on the website: [boing.network/library](https://boing.network/library). More resources: [boing.network/resources](https://boing.network/resources).

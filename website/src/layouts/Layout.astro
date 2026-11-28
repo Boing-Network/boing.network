@@ -53,6 +53,7 @@ const navCurrent = {
   overview: isHome,
   resources: path === '/resources' || path.startsWith('/resources/'),
   about: path === '/about',
+  library: path === '/library' || path.startsWith('/library/'),
   brand: path === '/brand' || path.startsWith('/brand/'),
   community: path === '/community' || path.startsWith('/community/'),
   dashboard: pathNorm === 'testnet',
@@ -181,6 +182,7 @@ const navCurrent = {
                 <a href="#build" class="nav-section" data-nav-section="build">Build</a>
                 <a href="https://docs.boing.network" class="nav-link" target="_blank" rel="noopener">Docs</a>
                 <a href="/resources" class="nav-link">Resources</a>
+                <a href="/library" class="nav-link">Library</a>
                 <a href="/brand" class="nav-link">Brand</a>
                 <a href="/faucet" class="nav-link">Faucet</a>
               </div>
@@ -227,6 +229,7 @@ const navCurrent = {
                 <a href="/" class="nav-link" aria-current={navCurrent.overview ? 'page' : undefined}>Overview</a>
                 <a href="https://docs.boing.network" class="nav-link" target="_blank" rel="noopener">Docs</a>
                 <a href="/resources" class="nav-link" aria-current={navCurrent.resources ? 'page' : undefined}>Resources</a>
+                <a href="/library" class="nav-link" aria-current={navCurrent.library ? 'page' : undefined}>Library</a>
                 <a href="/about" class="nav-link" aria-current={navCurrent.about ? 'page' : undefined}>About</a>
                 <a href="/brand" class="nav-link" aria-current={navCurrent.brand ? 'page' : undefined}>Brand</a>
                 <a href="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" target="_blank" rel="noopener" class="nav-link">Whitepaper</a>
@@ -285,6 +288,7 @@ const navCurrent = {
               <li><a href="https://docs.boing.network" target="_blank" rel="noopener">Documentation</a></li>
               <li><a href="/pdfs/BOING-NETWORK-WHITEPAPER.pdf" target="_blank" rel="noopener">Whitepaper</a></li>
               <li><a href="/resources">Resources</a></li>
+              <li><a href="/library">PDF library</a></li>
               <li><a href="/about">About</a></li>
               <li><a href="/brand">Brand</a></li>
             </ul>
