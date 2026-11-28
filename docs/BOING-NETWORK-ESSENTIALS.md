@@ -64,6 +64,43 @@ Deeper reading: [SIX-PILLARS.md](SIX-PILLARS.md) (why Boing prioritizes what it 
 
 ---
 
+## Built-in extras, in plain English
+
+Boing comes with a few things that other chains usually leave to outside services. Here is what each one does, and where its limits are.
+
+### A ready-made exchange (the native DEX)
+
+- **What it is:** a standard set of exchange contracts that ships with Boing. It runs on the chain like any other app; it is **not** part of the core protocol rules.
+- **How prices work:** each pool holds two tokens, and the price comes from the ratio between them. Buy one token and its share of the pool shrinks, so its price goes up.
+- **Who earns:** people who add tokens to a pool (liquidity providers) earn a cut of the trading fees.
+- **Smart routing:** if there is no direct pool between two tokens, the router can chain **up to 6 pools** in a single swap to get you there.
+- **One shared list:** Boing’s own RPC lists every pool and token, so the wallet (Express), the explorer (Observer) and Boing Finance all see the same list instead of each keeping its own.
+- **Limits:** simple pools only. There is no concentrated liquidity (where providers pick a price range), and no built-in price feeds (oracles).
+
+### File storage on the chain (blobs)
+
+- **What it is:** you can store actual files, such as images, audio or video, on the chain itself.
+- **How files are found:** each file is addressed by a fingerprint of its contents. Same file, same fingerprint; change one byte and the fingerprint changes, so nobody can quietly swap it.
+- **How long it lasts:** you choose to keep (pin) a file for a set time, which you can extend later, or forever.
+- **Privacy:** files can be private, so only the publisher and people they grant access to can download them.
+- **NFTs:** a Boing NFT can keep the real file on the chain instead of a link to some other website that might disappear.
+- **Limits:** about **8 MB per upload** through the public server today. The protocol rules allow up to **256 MB**, but bigger uploads need a more direct path than the public gateway.
+
+### Doing many things at once (parallel execution)
+
+- **What it is:** each transaction says up front which accounts it will read or change. Transactions that don’t touch the same accounts can run at the same time instead of waiting in one line.
+- **Why it matters:** more work gets done per block, so the network keeps up when it gets busy. Solana uses a similar approach.
+- **Limit:** apps have to declare those accounts correctly. The wallet and SDK help with this, but an app that gets the list wrong can have its transactions fail.
+
+### Simple, predictable fees
+
+- **What it is:** gas has a fixed price, so a basic transfer costs about **0.00021 BOING**. You can optionally add a tip to the validator to ask for faster ordering.
+- **Tradeoff:** because the price is fixed, fees don’t rise on their own to manage congestion the way some other chains do. Busy periods are handled by ordering (tips) and by running transactions in parallel instead.
+
+Technical details: [BOING-NATIVE-DEX-CAPABILITY.md](BOING-NATIVE-DEX-CAPABILITY.md) (DEX) · [BOING-L1-MEDIA-BLOBS.md](BOING-L1-MEDIA-BLOBS.md) (blobs) · [BOING-NETWORK-TECHNICAL-ESSENTIALS.md](BOING-NETWORK-TECHNICAL-ESSENTIALS.md) (parallel execution and fees).
+
+---
+
 ## Honest limits (today)
 
 Be clear with yourself and others:
