@@ -114,14 +114,14 @@ try {
     <header class="downloads-hero full-width">
       <div class="downloads-hero-inner">
         <span class="stage-badge">Desktop</span>
-        <h1 class="downloads-title">Downloads</h1>
+        <h1 class="downloads-title"><span class="fx-shimmer">Downloads</span></h1>
         <p class="downloads-lead">Get the Boing Network Hub desktop app for Windows, macOS, or Linux. Pick your platform and download.</p>
       </div>
     </header>
 
     <section class="downloads-section full-width">
       <div class="downloads-section-inner">
-        <div class="downloads-hub-panel">
+        <div class="downloads-hub-panel" data-reveal>
           <h2 class="downloads-app-title">
             <span class="downloads-app-icon" aria-hidden="true">◇</span>
             Boing Network Hub
@@ -130,32 +130,32 @@ try {
           <p id="downloads-hub-version" class="downloads-version">Version {hubVersion} · <a href={`${GITHUB_RELEASES_BASE}/tag/${hubTag}`} target="_blank" rel="noopener noreferrer" class="downloads-release-link">Release</a></p>
         </div>
 
-        <div id="downloads-hub-list" class="downloads-cards" role="list">
+        <div id="downloads-hub-list" class="downloads-cards" role="list" data-reveal-stagger>
           {useApiAssets
             ? apiAssets.map((item) => (
-                <a href={item.url} class="download-card" download={item.name} rel="noopener noreferrer" title={item.name} role="listitem">
+                <a href={item.url} class="download-card fx-lift" data-tilt="4" download={item.name} rel="noopener noreferrer" title={item.name} role="listitem">
                   <span class="download-platform">{item.platform}</span>
                   <h3 class="download-card-title">{item.label}</h3>
                   {item.note && <span class="download-note">{item.note}</span>}
                   <p class="download-description">{item.description || 'Download for your platform'}</p>
-                  <span class="download-cta">Download →</span>
+                  <span class="download-cta">Download <span class="fx-arrow" aria-hidden="true">→</span></span>
                 </a>
               ))
             : FALLBACK_DOWNLOADS.map((item) => {
                 const url = directDownload(FALLBACK_TAG, item.filename);
                 return (
-                  <a href={url} class="download-card" download={item.filename} rel="noopener noreferrer" role="listitem">
+                  <a href={url} class="download-card fx-lift" data-tilt="4" download={item.filename} rel="noopener noreferrer" role="listitem">
                     <span class="download-platform">{item.platform}</span>
                     <h3 class="download-card-title">{item.label}</h3>
                     {item.note && <span class="download-note">{item.note}</span>}
                     <p class="download-description">{item.description}</p>
-                    <span class="download-cta">Download →</span>
+                    <span class="download-cta">Download <span class="fx-arrow" aria-hidden="true">→</span></span>
                   </a>
                 );
               })}
         </div>
 
-        <p class="downloads-fallback">
+        <p class="downloads-fallback" data-reveal>
           Other architectures or formats? See the <a id="downloads-release-link" href={`${GITHUB_RELEASES_BASE}/tag/${hubTag}`} target="_blank" rel="noopener noreferrer">release page</a> for all assets.
         </p>
       </div>
@@ -220,7 +220,7 @@ try {
           listEl.innerHTML = sorted
             .map(
               (a) =>
-                `<a href="${escUrl(a.browser_download_url)}" class="download-card" download="${esc(a.name)}" rel="noopener noreferrer" title="${esc(a.name)}" role="listitem"><span class="download-platform">${esc(a.platform)}</span><h3 class="download-card-title">${esc(a.label)}</h3>${a.note ? `<span class="download-note">${esc(a.note)}</span>` : ''}<p class="download-description">${esc(a.description || 'Download for your platform')}</p><span class="download-cta">Download →</span></a>`
+                `<a href="${escUrl(a.browser_download_url)}" class="download-card fx-lift" data-tilt="4" download="${esc(a.name)}" rel="noopener noreferrer" title="${esc(a.name)}" role="listitem"><span class="download-platform">${esc(a.platform)}</span><h3 class="download-card-title">${esc(a.label)}</h3>${a.note ? `<span class="download-note">${esc(a.note)}</span>` : ''}<p class="download-description">${esc(a.description || 'Download for your platform')}</p><span class="download-cta">Download <span class="fx-arrow" aria-hidden="true">→</span></span></a>`
             )
             .join('');
         })
@@ -358,17 +358,13 @@ try {
     border-radius: 0.875rem;
     text-decoration: none;
     color: inherit;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
     cursor: pointer;
   }
   .download-card:hover {
-    border-color: rgba(59, 140, 255, 0.2);
     background: rgba(0, 0, 0, 0.12);
-    box-shadow: none;
   }
   .download-card:active {
     background: rgba(0, 0, 0, 0.18);
-    box-shadow: none;
   }
   .download-platform {
     font-size: 0.7rem;

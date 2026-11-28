@@ -136,7 +136,7 @@ const themeIcons = [
       </div>
       <div class="brand-hero-copy">
         <p class="brand-kicker">Official assets</p>
-        <h1 class="brand-title">Boing Network</h1>
+        <h1 class="brand-title"><span class="fx-shimmer">Boing Network</span></h1>
         <p class="brand-lead">
           Logos, color tokens, mascot poses, and promo plates for press, partners, and editors. Quality, enforced by the protocol.
         </p>
@@ -157,14 +157,14 @@ const themeIcons = [
           <a href="#usage">Usage</a>
         </nav>
 
-        <section id="logos" class="brand-section section-reveal delay-1" aria-labelledby="logos-heading">
+        <section id="logos" class="brand-section" data-reveal aria-labelledby="logos-heading">
           <h2 id="logos-heading">Logos &amp; wordmarks</h2>
           <p class="brand-section-lead">
             Arc Slab family only — no alternate marks. Wordmark text is “Boing Network” in Comfortaa Bold.
           </p>
-          <div class="brand-logo-grid">
+          <div class="brand-logo-grid" data-reveal-stagger="scale">
             {logos.map((item) => (
-              <a class="brand-asset" href={item.href} download>
+              <a class="brand-asset fx-lift" data-tilt="5" href={item.href} download>
                 <span class:list={['brand-preview', item.previewClass]}>
                   <img src={item.preview} alt="" loading="lazy" />
                 </span>
@@ -183,12 +183,12 @@ const themeIcons = [
           </ul>
         </section>
 
-        <section id="colors" class="brand-section section-reveal delay-2" aria-labelledby="colors-heading">
+        <section id="colors" class="brand-section" data-reveal aria-labelledby="colors-heading">
           <h2 id="colors-heading">Color tokens</h2>
           <p class="brand-section-lead">
             Shared across boing.network, Express, Observer, and Finance. Amber is reserved for testnet status — not a second brand accent.
           </p>
-          <div class="brand-swatches" role="list">
+          <div class="brand-swatches" role="list" data-reveal-stagger>
             {colorTokens.map((c) => (
               <div class="brand-swatch" role="listitem">
                 <button
@@ -210,14 +210,14 @@ const themeIcons = [
           </div>
         </section>
 
-        <section id="mascot" class="brand-section section-reveal delay-3" aria-labelledby="mascot-heading">
+        <section id="mascot" class="brand-section" data-reveal aria-labelledby="mascot-heading">
           <h2 id="mascot-heading">Mascot</h2>
           <p class="brand-section-lead">
             Four official poses for onboarding, empty states, and community material. Keep docs and data-heavy tools restrained.
           </p>
-          <div class="brand-mascot-grid">
+          <div class="brand-mascot-grid" data-reveal-stagger="drop">
             {mascots.map((m) => (
-              <a class="brand-mascot" href={m.href} download>
+              <a class="brand-mascot fx-lift" data-tilt="6" href={m.href} download>
                 <img src={m.src} alt={`Boing mascot — ${m.name}`} width="280" height="280" loading="lazy" />
                 <strong>{m.name}</strong>
                 <span>{m.use}</span>
@@ -229,7 +229,7 @@ const themeIcons = [
           <p class="brand-section-lead brand-section-lead--tight">
             Clean square, circle crop, and soft navy plate — 512 / 1024 / 2048 under <code>/assets/promo/mascot/</code>.
           </p>
-          <div class="brand-mascot-promo">
+          <div class="brand-mascot-promo" data-reveal-stagger="scale">
             {mascotPromo.map((m) => (
               <figure class="brand-mascot-promo-item">
                 <img
@@ -250,7 +250,7 @@ const themeIcons = [
           </div>
         </section>
 
-        <section id="promo" class="brand-section section-reveal delay-4" aria-labelledby="promo-heading">
+        <section id="promo" class="brand-section" data-reveal aria-labelledby="promo-heading">
           <h2 id="promo-heading">Promo pack</h2>
           <p class="brand-section-lead">
             Editor-ready plates under <code>/assets/promo/</code> — title cards, lower thirds, thematic icons, and network motifs. On-graphic text is “Boing Network” only.
@@ -270,7 +270,7 @@ const themeIcons = [
             ))}
           </ul>
           <h3 class="brand-subhead">Thematic icons</h3>
-          <div class="brand-icon-row">
+          <div class="brand-icon-row" data-reveal-stagger="scale">
             {themeIcons.map((name) => (
               <a class="brand-icon" href={`/assets/promo/icons/${name}.svg`} download title={name}>
                 <img src={`/assets/promo/icons/${name}-512.png`} alt="" width="72" height="72" loading="lazy" />
@@ -284,7 +284,7 @@ const themeIcons = [
           </p>
         </section>
 
-        <section id="usage" class="brand-section section-reveal delay-5" aria-labelledby="usage-heading">
+        <section id="usage" class="brand-section" data-reveal aria-labelledby="usage-heading">
           <h2 id="usage-heading">Usage</h2>
           <ul class="brand-usage">
             <li>Keep the Arc Slab mark intact — do not restyle, recolor arbitrarily, or invent a new logo.</li>
@@ -510,11 +510,6 @@ const themeIcons = [
     border-radius: 0.875rem;
     overflow: hidden;
     background: linear-gradient(168deg, rgba(4, 8, 20, 0.9) 0%, rgba(10, 17, 40, 0.95) 100%);
-    transition: border-color 0.2s ease, transform 0.2s ease;
-  }
-  .brand-asset:hover {
-    border-color: rgba(59, 140, 255, 0.35);
-    transform: translateY(-2px);
   }
   .brand-preview {
     display: flex;
@@ -642,12 +637,9 @@ const themeIcons = [
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 0.875rem;
     background: linear-gradient(180deg, rgba(16, 26, 56, 0.55), rgba(4, 8, 20, 0.7));
-    transition: border-color 0.2s ease, transform 0.2s ease;
   }
-  .brand-mascot:hover {
-    border-color: rgba(59, 140, 255, 0.35);
-    transform: translateY(-3px);
-  }
+  .brand-mascot img { transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .brand-mascot:is(:hover, :focus-visible) img { transform: translateY(-6px) rotate(-3deg) scale(1.04); }
   .brand-mascot img {
     width: min(180px, 70%);
     height: auto;
@@ -754,8 +746,7 @@ const themeIcons = [
       opacity: 1;
       transform: none;
     }
-    .brand-asset:hover,
-    .brand-mascot:hover { transform: none; }
+    .brand-mascot:is(:hover, :focus-visible) img { transform: none; }
   }
 
   @media (max-width: 640px) {
